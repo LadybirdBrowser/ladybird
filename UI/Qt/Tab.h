@@ -17,12 +17,12 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebView/FileDownloader.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/PermissionPromptPopover.h>
+#include <UI/Qt/SessionStore.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QBoxLayout>
@@ -74,7 +74,7 @@ signals:
 
 // What a restored tab shows until it's selected: It has no view, and so no WebContent process, until then.
 struct DeferredTab {
-    WebView::SessionTabId session_tab_id { 0 };
+    SessionTabId session_tab_id { 0 };
     URL::URL url;
     QString title;
     QIcon favicon;
@@ -111,8 +111,8 @@ public:
 
     URL::URL url() const;
 
-    Optional<WebView::SessionTabId> session_tab_id() const;
-    void set_session_tab_id(WebView::SessionTabId);
+    Optional<SessionTabId> session_tab_id() const;
+    void set_session_tab_id(SessionTabId);
     void clear_session_tab_id();
 
     // A page that has never had a real size must be sized while hidden, so that it doesn't load into Qt's placeholder
@@ -281,7 +281,7 @@ private:
     bool m_window_is_closing { false };
     bool m_is_pinned { false };
 
-    Optional<WebView::SessionTabId> m_session_tab_id;
+    Optional<SessionTabId> m_session_tab_id;
     Optional<DeferredTab> m_deferred_tab;
 };
 

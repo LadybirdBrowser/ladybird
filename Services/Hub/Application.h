@@ -98,13 +98,13 @@ private:
     virtual void read_clipboard_text(ClipboardType, Function<void(Utf16String)>) const override;
     virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const override;
     virtual void update_tabs_display() const override;
-    virtual void on_recently_closed_entries_changed() const override;
+    virtual void did_clear_history_since(UnixDateTime) const override;
+    virtual void quit_for_signal() override;
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual bool captures_browser_crashes() const override { return true; }
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
-    virtual WebView::SessionLaunchPolicy launch_restore_policy() const override;
     virtual void create_platform_actions() override;
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;

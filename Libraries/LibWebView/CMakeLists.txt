@@ -71,9 +71,7 @@ set(SOURCES
     RequestServerSiteBindings.cpp
     SearchEngine.cpp
     SessionHistory.cpp
-    SessionHistorySnapshotStorage.cpp
     SessionHistoryTraversalQueue.cpp
-    SessionStore.cpp
     Settings.cpp
     SiteCompatibility.cpp
     StorageAreaRegistry.cpp

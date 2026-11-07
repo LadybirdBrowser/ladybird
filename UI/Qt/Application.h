@@ -88,6 +88,9 @@ public:
     static Bookmarks& bookmarks() { return *s_the->m_bookmarks; }
     static BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
 
+    // The windows and tabs of each kind of window, which this run keeps for the next one unless they are private.
+    static SessionStore& session_store(WebView::IsPrivate);
+
     virtual ~Application() override;
 
     Function<void(URL::URL)> on_open_file;
@@ -101,7 +104,7 @@ public:
     // After the last run ended unexpectedly, offers to restore the tabs it left open that didn't come back by themselves.
     void offer_to_restore_unexpectedly_closed_tabs(BrowserWindow&);
     void open_startup_tabs(BrowserWindow&, Vector<URL::URL> const&);
-    WebView::SessionLaunchPolicy launch_restore_policy() const;
+    SessionLaunchPolicy launch_restore_policy() const;
 
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
@@ -110,7 +113,7 @@ public:
         InTargetWindow,
     };
     // Reopens the given closed tab or window, or else the one closed most recently.
-    void reopen_recently_closed_tab(BrowserWindow* target_window, Optional<WebView::SessionWindowId> = {}, ReopenClosedWindow = ReopenClosedWindow::InNewWindow);
+    void reopen_recently_closed_tab(BrowserWindow* target_window, Optional<SessionWindowId> = {}, ReopenClosedWindow = ReopenClosedWindow::InNewWindow);
     void open_file();
 
     void restart_private_browsing_session();
@@ -262,6 +265,9 @@ private:
     void did_enable_devtools() const;
     void did_disable_devtools() const;
     void on_recently_closed_entries_changed() const;
+    void did_clear_history_since(UnixDateTime);
+    void create_session_store(ByteString const& data_directory, bool persists_sessions);
+    void quit_for_signal();
 
     static Application* s_the;
 
@@ -289,6 +295,9 @@ private:
     OwnPtr<WebView::Translator> m_translator;
     OwnPtr<WebView::Settings> m_settings;
     OwnPtr<BookmarkStore> m_bookmark_store;
+    OwnPtr<SessionStore> m_session_store;
+    OwnPtr<SessionStore> m_private_session_store;
+    Vector<int> m_session_signal_handlers;
     OwnPtr<Bookmarks> m_bookmarks;
     OwnPtr<ApplicationActions> m_application_actions;
     RefPtr<HubConnection> m_hub_connection;

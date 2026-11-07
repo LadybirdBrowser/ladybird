@@ -14,10 +14,9 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/FullscreenDebounce.h>
-#include <UI/Qt/RemoteSession.h>
+#include <UI/Qt/SessionStore.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowCloseCoordinator.h>
@@ -150,13 +149,14 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Optional<u64> hub_view_id = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Optional<u64> hub_view_id = {}, Optional<SessionWindowId> restored_session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
-    RemoteSession& session() const { return RemoteSession::of(m_is_private); }
-    Optional<WebView::SessionWindowId> session_window_id() const { return m_session_window_id; }
+    SessionStore& session() const;
+    Optional<WebView::HistoryEntry> history_entry_for_url(URL::URL const&) const;
+    Optional<SessionWindowId> session_window_id() const { return m_session_window_id; }
 
     int tab_count() { return m_tabs_container->count(); }
     int tab_index(Tab*);
@@ -180,7 +180,7 @@ public:
     void open_history_entry_in_new_tab(Tab&, int delta, Web::HTML::ActivateTab);
     void update_tab_audio_button(Tab&);
     // Opens a window's restored tabs, keeping the session rows the store re-adopted for them.
-    void restore_tabs(Vector<WebView::RestoredSessionTab> const&, i64 active_tab_index);
+    void restore_tabs(Vector<RestoredSessionTab> const&, i64 active_tab_index);
     Tab* current_tab() const { return m_current_tab; }
     Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment);
     // Asks every tab's page if the window may close, without closing it, and reports the answer. Once the pages agree,
@@ -260,7 +260,7 @@ public slots:
     void exit_fullscreen();
 
 private:
-    bool close_tab(int index, WebView::SessionStore::KeepForReopening);
+    bool close_tab(int index, SessionStore::KeepForReopening);
     virtual bool event(QEvent*) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
@@ -273,7 +273,7 @@ private:
     virtual void appearance_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
-    Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index, bool defer);
+    Tab& create_restored_tab(RestoredSessionTab const&, int index, bool defer);
     void initialize_tab(Tab*);
     void initialize_tab_view(Tab*);
     void uninitialize_tab(Tab*);
@@ -347,7 +347,7 @@ private:
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 
-    Optional<WebView::SessionWindowId> m_session_window_id;
+    Optional<SessionWindowId> m_session_window_id;
     size_t m_failed_download_count { 0 };
     size_t m_acknowledged_failed_download_count { 0 };
     Optional<i64> m_window_close_active_tab_index;

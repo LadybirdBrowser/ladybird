@@ -141,10 +141,6 @@ public:
     virtual bool supports_client_side_window_decorations() const { return false; }
     virtual bool supports_picture_in_picture() const;
 
-    // What startup recovery does with the windows the last run left open. Only a frontend that shows the launch plan
-    // asks for more than None.
-    virtual SessionLaunchPolicy launch_restore_policy() const;
-
     // Returns true if the platform sends momentum scroll events after a touchpad flick.
     // If it does not, the compositor makes the fling.
     virtual bool platform_reports_scroll_momentum() const { return true; }
@@ -211,6 +207,10 @@ public:
 
     static RefPtr<BrowsingSession> existing_session(IsPrivate);
 
+    // Whether the windows and tabs of this run are kept for the next one. A headless run, a browser that WebDriver drives,
+    // and one that logs process statistics never join a browser already running on their profile, so they keep none.
+    bool persists_sessions() const { return m_persists_sessions; }
+
     // A RequestServer client uses the cookies of the browsing session it was created for, whatever RequestServer says.
     void did_connect_request_server_client(int client_id, BrowsingSession&, RequestServer::SiteBinding);
     void did_disconnect_request_server_client(int client_id);
@@ -221,7 +221,6 @@ public:
     Vector<int> request_server_client_ids_for_testing(BrowsingSession const&) const;
 
     // NB: Null once that session has ended, so a closed private tab is not offered back afterwards.
-    static SessionStore* session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 #if defined(AK_OS_WINDOWS)
@@ -413,7 +412,11 @@ protected:
 
     virtual void update_tabs_display() const { }
 
-    virtual void on_recently_closed_entries_changed() const { }
+    // The user cleared the history from this time on, so the application's records of it go too.
+    virtual void did_clear_history_since(UnixDateTime) const { }
+
+    // A run stopped by SIGINT or SIGTERM ends like a quit, rather than like a crash.
+    virtual void quit_for_signal();
 
     virtual void on_devtools_enabled() const { }
     virtual void on_devtools_disabled() const { }
@@ -571,6 +574,7 @@ private:
     bool m_cpu_profiler_claimed { false };
     Vector<int> m_cpu_profiler_signal_handlers;
     Vector<int> m_session_signal_handlers;
+    bool m_persists_sessions { false };
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
     RefPtr<FontService> m_font_service;

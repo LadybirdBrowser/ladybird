@@ -332,10 +332,20 @@ void Application::update_tabs_display() const
         ui->async_app_update_tabs_display();
 }
 
-void Application::on_recently_closed_entries_changed() const
+void Application::did_clear_history_since(UnixDateTime since) const
 {
     if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_on_recently_closed_entries_changed();
+        ui->async_app_did_clear_history_since(since);
+}
+
+void Application::quit_for_signal()
+{
+    // NB: The UI keeps the session, so it is the UI that quits. We end along with it.
+    if (auto* ui = ConnectionFromUI::the()) {
+        ui->async_app_quit_for_signal();
+        return;
+    }
+    WebView::Application::quit_for_signal();
 }
 
 void Application::destroy_view(u64 view_id)
@@ -385,14 +395,6 @@ void Application::on_devtools_disabled() const
     WebView::Application::on_devtools_disabled();
     if (auto* ui = ConnectionFromUI::the())
         ui->async_app_did_disable_devtools();
-}
-
-WebView::SessionLaunchPolicy Application::launch_restore_policy() const
-{
-    // Without the setting, only pinned tabs come back; with it, every window and tab does.
-    if (settings().restore_previous_session())
-        return WebView::SessionLaunchPolicy::Everything;
-    return WebView::SessionLaunchPolicy::PinnedOnly;
 }
 
 void Application::create_platform_actions()

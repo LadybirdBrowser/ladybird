@@ -30,8 +30,8 @@
     }
 
     asyncTest(async done => {
-        if (!internals.registerSessionStoreTab()) {
-            println("FAIL: could not register the tab in the session store");
+        if (!internals.recordReportedSessionHistory()) {
+            println("FAIL: could not record the reported session history");
             done();
             return;
         }
@@ -62,6 +62,6 @@
         await pollUIHistory(history => entryQueries(history) === "?a,?b,?c*");
         sessionStorage.setItem(phaseKey, "restored");
         sessionStorage.setItem("restore-round-trip-restore", internals.restoreCapturedSessionHistorySnapshot());
-        sessionStorage.setItem("restore-round-trip-store-url", queryFromURL(JSON.parse(internals.dumpSessionStoreTabState()).url));
+        sessionStorage.setItem("restore-round-trip-store-url", queryFromURL(JSON.parse(internals.dumpReportedSessionHistory()).url));
     });
 </script>

@@ -74,9 +74,7 @@ set(TEST_SOURCES
     TestPictureInPictureWindow.cpp
     TestProfile.cpp
     TestSessionHistory.cpp
-    TestSessionHistorySnapshotStorage.cpp
     TestSessionHistoryTraversalQueue.cpp
-    TestSessionStore.cpp
     TestSiteCompatibilityDataLoading.cpp
     TestStartupSettings.cpp
     TestStorageAreaRegistry.cpp

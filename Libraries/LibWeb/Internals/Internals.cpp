@@ -2362,14 +2362,14 @@ bool Internals::restore_captured_session_history_snapshot()
     return window().associated_document().page().client().page_did_request_restore_session_history_snapshot_for_testing();
 }
 
-bool Internals::register_session_store_tab()
+bool Internals::record_reported_session_history()
 {
-    return window().associated_document().page().client().page_did_request_register_session_store_tab_for_testing();
+    return window().associated_document().page().client().page_did_request_record_reported_session_history_for_testing();
 }
 
-Utf16String Internals::dump_session_store_tab_state()
+Utf16String Internals::dump_reported_session_history()
 {
-    return dump_string_to_utf16(window().associated_document().page().client().page_did_request_session_store_tab_state_for_testing());
+    return dump_string_to_utf16(window().associated_document().page().client().page_did_request_reported_session_history_for_testing());
 }
 
 bool Internals::has_populated_document(HTML::HTMLIFrameElement& iframe)

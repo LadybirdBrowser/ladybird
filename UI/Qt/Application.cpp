@@ -7,10 +7,12 @@
 #include <AK/Hex.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibCore/Process.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibDatabase/Database.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibURL/InternalURLs.h>
@@ -37,7 +39,6 @@
 #    include <LibWebView/NotificationBackendFreedesktop.h>
 #endif
 #include <LibWebView/NoOpNotificationBackend.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
@@ -53,7 +54,7 @@
 #include <UI/Qt/PlainText.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/RemoteDownloads.h>
-#include <UI/Qt/RemoteSession.h>
+#include <UI/Qt/SessionStore.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/Theme.h>
@@ -505,7 +506,7 @@ public:
 
         m_reopen_recently_closed_tab_action->setText("&Reopen Closed Tab");
         auto* active_window = Application::the().active_window_if_any();
-        auto& session = active_window ? active_window->session() : RemoteSession::of(WebView::IsPrivate::No);
+        auto& session = active_window ? active_window->session() : Application::session_store(WebView::IsPrivate::No);
         m_reopen_recently_closed_tab_action->setEnabled(session.has_closed_units());
     }
 
@@ -798,6 +799,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(TRY(JsonValue::from_string(state.settings_json))));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(state.config_directory, "Bookmarks.json"sv).string()));
+    create_session_store(state.data_directory, state.persists_sessions);
     // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
     //     launch recovers that the same as one of the Hub's.
     auto& crash_report_store = WebView::CrashReportStore::the();
@@ -905,7 +907,20 @@ Application::~Application()
     // NB: The application tears down its processes as it goes, which must happen after the QApplication is gone, and
     //     with nothing left here to call back into.
     ScopeGuard tear_down_hub = [this] {
-    // NB: The views go along with the windows that showed them, and their timers need the QApplication.
+#if !defined(AK_OS_WINDOWS)
+        // No event loop runs the handlers during teardown, so a signal from here on takes its default action again.
+        for (auto handler : m_session_signal_handlers)
+            Core::EventLoop::unregister_signal(handler);
+#endif
+
+        // Only a normal exit gets this far, after every window is gone. A crash, or the Hub going away, ends this
+        // process at once, so it never records a clean exit.
+        if (m_session_store) {
+            m_session_store->flush_dirty_state();
+            m_session_store->mark_clean_exit();
+        }
+
+        // NB: The views go along with the windows that showed them, and their timers need the QApplication.
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
         if (m_hub)
             m_hub->destroy_all_views();
@@ -972,6 +987,7 @@ void Application::create_platform_actions()
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
     m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string()));
     auto& hub = WebView::Application::the();
+    create_session_store(WebView::Application::profile().paths().data, hub.persists_sessions());
     m_application_actions = make<ApplicationActions>(ApplicationActions::PageOptions {
         .user_agent = hub.user_agent_string(),
         .navigator_compatibility_mode = hub.navigator_compatibility_mode(),
@@ -1182,15 +1198,87 @@ void Application::present_window(BrowserWindow& window, WindowConfiguration cons
     }
 }
 
-WebView::SessionLaunchPolicy Application::launch_restore_policy() const
+SessionLaunchPolicy Application::launch_restore_policy() const
 {
     // Without the setting, only pinned tabs come back; with it, every window and tab does.
     if (Application::settings().restore_previous_session())
-        return WebView::SessionLaunchPolicy::Everything;
-    return WebView::SessionLaunchPolicy::PinnedOnly;
+        return SessionLaunchPolicy::Everything;
+    return SessionLaunchPolicy::PinnedOnly;
 }
 
-static WindowConfiguration window_configuration_for(WebView::SessionWindowGeometry const& geometry)
+void Application::create_session_store(ByteString const& data_directory, bool persists_sessions)
+{
+    auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
+        if (!persists_sessions)
+            return SessionStore::create();
+
+        // Fall back without modifying the existing Sessions database.
+        auto session_database = TRY(Database::Database::create(data_directory, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
+        if (TRY(SessionStore::migrate_schema(session_database)) != Database::MigrationOutcome::Success)
+            return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
+        return SessionStore::create(session_database, launch_restore_policy());
+    }();
+    if (session_store.is_error()) {
+        dbgln("Sessions will not be persisted this session: {}", session_store.error());
+        m_session_store = SessionStore::create();
+    } else {
+        m_session_store = session_store.release_value();
+    }
+
+    m_session_store->on_closed_units_changed = [this] {
+        on_recently_closed_entries_changed();
+    };
+
+#if !defined(AK_OS_WINDOWS) && defined(LADYBIRD_HUB_IN_OWN_PROCESS)
+    // A run stopped by SIGINT or SIGTERM ends like a quit, rather than like a crash: It saves the session, leaves its
+    // windows for the next launch to recover, and records a clean exit. The Hub hears of a signal sent to it alone, and
+    // passes it on.
+    if (m_session_store->is_persistent()) {
+        for (auto signal_number : { SIGINT, SIGTERM }) {
+            m_session_signal_handlers.append(Core::EventLoop::register_signal(signal_number, [this](int) {
+                quit_for_signal();
+            }));
+        }
+    }
+#endif
+}
+
+SessionStore& Application::session_store(WebView::IsPrivate is_private)
+{
+    if (is_private == WebView::IsPrivate::No)
+        return *s_the->m_session_store;
+
+    // NB: Private windows keep nothing for the next run, and the next private session starts with nothing.
+    if (!s_the->m_private_session_store)
+        s_the->m_private_session_store = SessionStore::create();
+    return *s_the->m_private_session_store;
+}
+
+void Application::did_clear_history_since(UnixDateTime since)
+{
+    for (auto* store : { m_session_store.ptr(), m_private_session_store.ptr() }) {
+        if (!store)
+            continue;
+        if (auto result = store->remove_entries_accessed_since(since); result.is_error())
+            dbgln("Unable to remove closed session entries: {}", result.error());
+    }
+    on_recently_closed_entries_changed();
+}
+
+void Application::quit_for_signal()
+{
+    if (m_quit_is_finishing)
+        return;
+
+    // The windows stay open in the session store, for the next launch to recover.
+    // NB: QApplication::quit() would ask the windows to close first, which their pages may refuse. A signal does not
+    //     wait for them, so this ends the event loop directly.
+    m_quit_is_finishing = true;
+    session_store(WebView::IsPrivate::No).application_quitting();
+    Core::EventLoop::current().quit(0);
+}
+
+static WindowConfiguration window_configuration_for(SessionWindowGeometry const& geometry)
 {
     QRect rect { geometry.x, geometry.y, geometry.width, geometry.height };
 
@@ -1216,7 +1304,7 @@ static WindowConfiguration window_configuration_for(WebView::SessionWindowGeomet
 
 BrowserWindow* Application::restore_previous_session(WindowConfiguration const& frontmost_window_configuration)
 {
-    auto plan = RemoteSession::of(WebView::IsPrivate::No).take_launch_plan();
+    auto plan = session_store(WebView::IsPrivate::No).take_launch_plan();
 
     BrowserWindow* frontmost_window = nullptr;
     for (size_t i = 0; i < plan.size(); ++i) {
@@ -1236,13 +1324,13 @@ BrowserWindow* Application::restore_previous_session(WindowConfiguration const& 
 
 void Application::offer_to_restore_unexpectedly_closed_tabs(BrowserWindow& window)
 {
-    auto& session_store = RemoteSession::of(WebView::IsPrivate::No);
-    if (session_store.consecutive_unclean_exits() == 0)
+    auto& store = session_store(WebView::IsPrivate::No);
+    if (store.consecutive_unclean_exits() == 0)
         return;
 
-    Vector<WebView::SessionWindowId> unit_ids;
+    Vector<SessionWindowId> unit_ids;
     size_t tab_count = 0;
-    for (auto const& unit : session_store.recently_closed_units(NumericLimits<size_t>::max())) {
+    for (auto const& unit : store.recently_closed_units(NumericLimits<size_t>::max())) {
         if (!unit.from_startup_recovery)
             continue;
         unit_ids.append(unit.id);
@@ -1398,6 +1486,13 @@ void Application::finish_private_session_restart()
     }
 
     HubConnection::the().async_reset_private_browsing_session();
+
+    // Views pending deferred deletion may still report their history, and the replacement store reuses their ids.
+    RemoteView::for_each([](RemoteView& view) {
+        if (view.is_private() == WebView::IsPrivate::Yes)
+            view.clear_session_tab_id();
+    });
+    m_private_session_store = nullptr;
     open_new_window(WebView::IsPrivate::Yes);
 
     for (auto const& window : windows) {
@@ -1432,10 +1527,10 @@ void Application::focus_location_editor()
         tab->focus_location_editor();
 }
 
-void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optional<WebView::SessionWindowId> unit_id, ReopenClosedWindow reopen_closed_window)
+void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optional<SessionWindowId> unit_id, ReopenClosedWindow reopen_closed_window)
 {
     auto is_private = target_window ? target_window->is_private() : WebView::IsPrivate::No;
-    auto& session = target_window ? target_window->session() : RemoteSession::of(WebView::IsPrivate::No);
+    auto& session = target_window ? target_window->session() : session_store(WebView::IsPrivate::No);
     auto closed_unit = unit_id.has_value() ? session.take_closed_unit(*unit_id) : session.take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
@@ -1611,7 +1706,7 @@ void Application::finish_quit()
     // The session store hears of the quit only once every window has agreed, so a canceled quit never reaches it. In
     // quitting mode, it keeps each window that closes as an open one, for the next launch to recover.
     m_quit_is_finishing = true;
-    RemoteSession::of(WebView::IsPrivate::No).application_quitting();
+    session_store(WebView::IsPrivate::No).application_quitting();
 
     // Each window's pages agreed, so it closes at once; the active window goes last, so no close activates another.
     auto windows = visible_browser_windows_active_first(m_active_window);

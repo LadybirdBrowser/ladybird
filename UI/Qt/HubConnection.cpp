@@ -272,9 +272,14 @@ void HubConnection::app_update_tabs_display()
     Application::the().update_tabs_display();
 }
 
-void HubConnection::app_on_recently_closed_entries_changed()
+void HubConnection::app_did_clear_history_since(UnixDateTime since)
 {
-    Application::the().on_recently_closed_entries_changed();
+    Application::the().did_clear_history_since(since);
+}
+
+void HubConnection::app_quit_for_signal()
+{
+    Application::the().quit_for_signal();
 }
 
 void HubConnection::app_did_enable_devtools()
@@ -651,6 +656,12 @@ void HubConnection::view_request_context_menu(u64 view_id, WebView::ContextMenuR
 {
     if (auto* view = RemoteView::find(view_id))
         view->did_request_context_menu(request);
+}
+
+void HubConnection::view_session_history_changed(u64 view_id, WebView::SessionHistorySnapshot history, URL::URL url)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_change_session_history(move(history), move(url));
 }
 
 void HubConnection::view_did_make_link_to_highlight(u64 view_id, Optional<URL::URL> url)

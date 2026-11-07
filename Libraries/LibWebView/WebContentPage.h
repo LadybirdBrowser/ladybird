@@ -422,8 +422,8 @@ private:
     Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) const;
     Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing();
     Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing();
-    Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing();
-    Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing();
+    Messages::WebContentTestClient::DidRequestRecordReportedSessionHistoryForTestingResponse did_request_record_reported_session_history_for_testing();
+    Messages::WebContentTestClient::DidRequestReportedSessionHistoryForTestingResponse did_request_reported_session_history_for_testing();
 
     WeakPtr<WebContentClient> m_client;
     Web::PageId m_id;

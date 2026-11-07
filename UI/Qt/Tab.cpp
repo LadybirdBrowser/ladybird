@@ -28,7 +28,6 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
 #include <UI/Qt/LadybirdButton.h>
-#include <UI/Qt/RemoteSession.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -1014,7 +1013,7 @@ URL::URL Tab::url() const
     return view().url();
 }
 
-Optional<WebView::SessionTabId> Tab::session_tab_id() const
+Optional<SessionTabId> Tab::session_tab_id() const
 {
     // A loaded tab's view holds the ID it reports its state under.
     if (is_loaded())
@@ -1022,7 +1021,7 @@ Optional<WebView::SessionTabId> Tab::session_tab_id() const
     return m_session_tab_id;
 }
 
-void Tab::set_session_tab_id(WebView::SessionTabId session_tab_id)
+void Tab::set_session_tab_id(SessionTabId session_tab_id)
 {
     m_session_tab_id = session_tab_id;
     if (is_loaded())

@@ -16,7 +16,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
-#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -30,7 +29,7 @@
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/RemoteDownloads.h>
-#include <UI/Qt/RemoteSession.h>
+#include <UI/Qt/SessionStore.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/SystemAppearance.h>
 #if defined(AK_OS_MACOS)
@@ -340,7 +339,7 @@ static QIcon const& app_icon(WebView::IsPrivate is_private)
     return cached_icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Optional<u64> hub_view_id, Optional<WebView::SessionWindowId> restored_session_window_id)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Optional<u64> hub_view_id, Optional<SessionWindowId> restored_session_window_id)
     : WebView::SettingsObserver(Application::settings())
     , m_is_private(is_private)
     , m_tabs_container(new TabWidget(is_private, this))
@@ -785,7 +784,7 @@ void BrowserWindow::open_history_entry_in_new_tab(Tab& source_tab, int delta, We
         duplicate_tab(source_tab, activate_tab, *step);
 }
 
-void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs, i64 active_tab_index)
+void BrowserWindow::restore_tabs(Vector<RestoredSessionTab> const& tabs, i64 active_tab_index)
 {
     if (tabs.is_empty())
         return;
@@ -800,11 +799,25 @@ void BrowserWindow::restore_tabs(Vector<WebView::RestoredSessionTab> const& tabs
     }
 }
 
-Tab& BrowserWindow::create_restored_tab(WebView::RestoredSessionTab const& restored, int index, bool defer)
+SessionStore& BrowserWindow::session() const
+{
+    return Application::session_store(m_is_private);
+}
+
+Optional<WebView::HistoryEntry> BrowserWindow::history_entry_for_url(URL::URL const& url) const
+{
+#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+    return HubConnection::the().history_entry_for_url(m_is_private, url);
+#else
+    return WebView::Application::session_for_new_view(m_is_private)->history_store->entry_for_url(url);
+#endif
+}
+
+Tab& BrowserWindow::create_restored_tab(RestoredSessionTab const& restored, int index, bool defer)
 {
     if (defer) {
         // Until the tab loads, it shows what browsing history knows about its page.
-        auto entry = session().entry_for_url(restored.url);
+        auto entry = history_entry_for_url(restored.url);
         DeferredTab deferred_tab {
             .session_tab_id = restored.tab_id,
             .url = restored.url,
@@ -913,11 +926,11 @@ void BrowserWindow::initialize_tab(Tab* tab)
 {
     if (m_session_window_id.has_value() && !tab->session_tab_id().has_value()) {
         auto insertion_index = tab_index(tab);
-        WebView::SessionStore::TabOpened opened {
+        SessionStore::TabOpened opened {
             .window_id = m_session_window_id,
             .initial_url = {},
             .insertion_index = insertion_index >= 0 ? Optional<i64> { insertion_index } : Optional<i64> {},
-            .is_active = m_current_tab == tab ? WebView::SessionStore::IsActive::Yes : WebView::SessionStore::IsActive::No,
+            .is_active = m_current_tab == tab ? SessionStore::IsActive::Yes : SessionStore::IsActive::No,
         };
         auto session_tab_id = session().tab_opened(AK::move(opened));
         if (session_tab_id.is_error())
@@ -1001,7 +1014,7 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
 
     if (moved_tab_id.has_value()) {
         if (m_session_window_id.has_value()) {
-            WebView::SessionStore::TabMoved moved {
+            SessionStore::TabMoved moved {
                 .tab_id = *moved_tab_id,
                 .new_window_id = *m_session_window_id,
                 .ordinal = index,
@@ -1144,15 +1157,15 @@ Tab* BrowserWindow::activate_tab_with_url(URL::URL const& url, URL::ExcludeFragm
 
 bool BrowserWindow::definitely_close_tab(int index)
 {
-    return close_tab(index, WebView::SessionStore::KeepForReopening::Yes);
+    return close_tab(index, SessionStore::KeepForReopening::Yes);
 }
 
 void BrowserWindow::close_tab_without_keeping_it(int index)
 {
-    (void)close_tab(index, WebView::SessionStore::KeepForReopening::No);
+    (void)close_tab(index, SessionStore::KeepForReopening::No);
 }
 
-bool BrowserWindow::close_tab(int index, WebView::SessionStore::KeepForReopening keep_for_reopening)
+bool BrowserWindow::close_tab(int index, SessionStore::KeepForReopening keep_for_reopening)
 {
     cancel_window_close_preflight();
 
@@ -1164,7 +1177,7 @@ bool BrowserWindow::close_tab(int index, WebView::SessionStore::KeepForReopening
     auto* tab = m_tabs_container->tab(index);
     m_tabs_container->remove_tab(index);
     if (auto session_tab_id = tab->session_tab_id(); session_tab_id.has_value()) {
-        WebView::SessionStore::TabClosed closed {
+        SessionStore::TabClosed closed {
             .tab_id = *session_tab_id,
             .closed_at = UnixDateTime::now(),
             .keep_for_reopening = keep_for_reopening,
@@ -1266,14 +1279,14 @@ void BrowserWindow::sync_session_tab_order()
     if (!m_session_window_id.has_value())
         return;
 
-    Vector<WebView::SessionTabId> tab_order;
+    Vector<SessionTabId> tab_order;
     tab_order.ensure_capacity(m_tabs_container->count());
     for (int i = 0; i < m_tabs_container->count(); ++i) {
         if (auto session_tab_id = m_tabs_container->tab(i)->session_tab_id(); session_tab_id.has_value())
             tab_order.append(*session_tab_id);
     }
 
-    WebView::SessionStore::TabOrderChanged changed {
+    SessionStore::TabOrderChanged changed {
         .window_id = *m_session_window_id,
         .ordered_tabs = AK::move(tab_order),
     };
@@ -2064,7 +2077,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     QMainWindow::closeEvent(event);
 
     if (event->isAccepted() && m_session_window_id.has_value()) {
-        WebView::SessionStore::WindowClosing closing {
+        SessionStore::WindowClosing closing {
             .window_id = *m_session_window_id,
             .active_tab_index = active_tab_index,
             .closed_at = UnixDateTime::now(),
@@ -2136,7 +2149,7 @@ void BrowserWindow::report_session_window_geometry()
 
     // A maximized window keeps the geometry it had before, for when it's restored.
     auto rect = isMaximized() ? normalGeometry() : geometry();
-    WebView::SessionWindowGeometry window_geometry {
+    SessionWindowGeometry window_geometry {
         .x = rect.x(),
         .y = rect.y(),
         .width = rect.width(),

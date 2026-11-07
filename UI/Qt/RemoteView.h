@@ -13,6 +13,7 @@
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/HubConnection.h>
+#include <UI/Qt/SessionStore.h>
 
 namespace Ladybird {
 
@@ -31,6 +32,7 @@ public:
     virtual ~RemoteView();
 
     static RemoteView* find(u64 view_id);
+    static void for_each(Function<void(RemoteView&)> const&);
 
     void did_request_context_menu(WebView::ContextMenuRequest const&);
     void did_make_link_to_highlight(Optional<URL::URL>);
@@ -107,17 +109,18 @@ public:
     };
     void download_url(URL::URL const& url, PromptForPath prompt_for_path, Optional<String> const& image_mime_type = {}) { HubConnection::the().async_view_download_url(view_id(), url, prompt_for_path == PromptForPath::Yes, image_mime_type); }
     Vector<WebView::HistoryEntry> recent_history_entries(size_t limit) const;
-    Optional<WebView::SessionTabId> session_tab_id() const { return m_session_tab_id; }
-    void set_session_tab_id(WebView::SessionTabId session_tab_id)
+    Optional<SessionTabId> session_tab_id() const { return m_session_tab_id; }
+    void set_session_tab_id(SessionTabId session_tab_id)
     {
         m_session_tab_id = session_tab_id;
-        HubConnection::the().async_view_set_session_tab_id(view_id(), session_tab_id);
+        HubConnection::the().async_view_set_reports_session_history(view_id(), true);
     }
     void clear_session_tab_id()
     {
         m_session_tab_id = {};
-        HubConnection::the().async_view_set_session_tab_id(view_id(), {});
+        HubConnection::the().async_view_set_reports_session_history(view_id(), false);
     }
+    void did_change_session_history(WebView::SessionHistorySnapshot, URL::URL);
     void zoom_in() { HubConnection::the().async_view_zoom_in(view_id()); }
     void zoom_out() { HubConnection::the().async_view_zoom_out(view_id()); }
     void reset_zoom() { HubConnection::the().async_view_reset_zoom(view_id()); }
@@ -268,7 +271,7 @@ private:
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
-    Optional<WebView::SessionTabId> m_session_tab_id;
+    Optional<SessionTabId> m_session_tab_id;
     bool m_scales_frames_to_fit { false };
     Hub::ViewState m_state;
     HashMap<u64, NavigationListener> m_navigation_listeners;

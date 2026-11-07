@@ -20,10 +20,9 @@
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
-#include <LibWebView/Export.h>
 #include <LibWebView/SessionHistory.h>
 
-namespace WebView {
+namespace Ladybird {
 
 // Column form of an Optional<URL::Origin>, richer than the lossy Origin::serialize() (which drops the
 // tuple domain and renders opaque origins as "null").
@@ -36,19 +35,19 @@ struct PersistedOrigin {
     Optional<String> domain {};
 };
 
-WEBVIEW_API PersistedOrigin encode_origin(Optional<URL::Origin> const&);
-WEBVIEW_API ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const&);
+PersistedOrigin encode_origin(Optional<URL::Origin> const&);
+ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const&);
 
 struct PersistedReferrer {
     i64 kind { 0 };
     Optional<String> url {};
 };
 
-WEBVIEW_API PersistedReferrer encode_referrer(Web::Fetch::Infrastructure::RequestReferrerType const&);
-WEBVIEW_API ErrorOr<Web::Fetch::Infrastructure::RequestReferrerType> decode_referrer(PersistedReferrer const&);
+PersistedReferrer encode_referrer(Web::Fetch::Infrastructure::RequestReferrerType const&);
+ErrorOr<Web::Fetch::Infrastructure::RequestReferrerType> decode_referrer(PersistedReferrer const&);
 
-WEBVIEW_API i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy);
-WEBVIEW_API ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag);
+i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy);
+ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag);
 
 struct PersistedResource {
     i64 kind { 0 };
@@ -56,23 +55,23 @@ struct PersistedResource {
 };
 
 // v1 does not persist POST bodies: a POST resource encodes as Empty, so decode never yields one.
-WEBVIEW_API PersistedResource encode_resource(Web::HTML::DocumentResource const&);
-WEBVIEW_API ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const&);
+PersistedResource encode_resource(Web::HTML::DocumentResource const&);
+ErrorOr<Web::HTML::DocumentResource> decode_resource(PersistedResource const&);
 
-WEBVIEW_API i64 encode_scroll_restoration_mode(Web::HTML::ScrollRestorationMode);
-WEBVIEW_API ErrorOr<Web::HTML::ScrollRestorationMode> decode_scroll_restoration_mode(i64 tag);
+i64 encode_scroll_restoration_mode(Web::HTML::ScrollRestorationMode);
+ErrorOr<Web::HTML::ScrollRestorationMode> decode_scroll_restoration_mode(i64 tag);
 
-WEBVIEW_API i64 encode_embedder_policy_value(Web::HTML::EmbedderPolicyValue);
-WEBVIEW_API ErrorOr<Web::HTML::EmbedderPolicyValue> decode_embedder_policy_value(i64 tag);
+i64 encode_embedder_policy_value(Web::HTML::EmbedderPolicyValue);
+ErrorOr<Web::HTML::EmbedderPolicyValue> decode_embedder_policy_value(i64 tag);
 
-WEBVIEW_API i64 encode_csp_disposition(Web::Bindings::SecurityPolicyViolationEventDisposition);
-WEBVIEW_API ErrorOr<Web::Bindings::SecurityPolicyViolationEventDisposition> decode_csp_disposition(i64 tag);
+i64 encode_csp_disposition(Web::Bindings::SecurityPolicyViolationEventDisposition);
+ErrorOr<Web::Bindings::SecurityPolicyViolationEventDisposition> decode_csp_disposition(i64 tag);
 
-WEBVIEW_API i64 encode_csp_source(Web::ContentSecurityPolicy::PolicySource);
-WEBVIEW_API ErrorOr<Web::ContentSecurityPolicy::PolicySource> decode_csp_source(i64 tag);
+i64 encode_csp_source(Web::ContentSecurityPolicy::PolicySource);
+ErrorOr<Web::ContentSecurityPolicy::PolicySource> decode_csp_source(i64 tag);
 
-WEBVIEW_API i64 encode_insecure_requests_policy(Web::UpgradeInsecureRequests::InsecureRequestsPolicy);
-WEBVIEW_API ErrorOr<Web::UpgradeInsecureRequests::InsecureRequestsPolicy> decode_insecure_requests_policy(i64 tag);
+i64 encode_insecure_requests_policy(Web::UpgradeInsecureRequests::InsecureRequestsPolicy);
+ErrorOr<Web::UpgradeInsecureRequests::InsecureRequestsPolicy> decode_insecure_requests_policy(i64 tag);
 
 struct SessionHistorySnapshotStatements {
     Database::StatementID insert_history;
@@ -97,13 +96,13 @@ struct SessionHistorySnapshotStatements {
     Database::StatementID delete_used_steps;
 };
 
-WEBVIEW_API ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_statements(Database::Database&);
+ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_statements(Database::Database&);
 
-WEBVIEW_API ErrorOr<void> validate_session_history_snapshot_storable(SessionHistorySnapshot const&);
+ErrorOr<void> validate_session_history_snapshot_storable(WebView::SessionHistorySnapshot const&);
 
 // Validates before writing; the caller owns the transaction.
-WEBVIEW_API ErrorOr<void> store_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, SessionHistorySnapshot const&);
-WEBVIEW_API ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, size_t current_used_step_index);
-WEBVIEW_API ErrorOr<void> delete_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id);
+ErrorOr<void> store_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, WebView::SessionHistorySnapshot const&);
+ErrorOr<WebView::SessionHistorySnapshot> load_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id, size_t current_used_step_index);
+ErrorOr<void> delete_session_history_snapshot(Database::Database&, SessionHistorySnapshotStatements const&, i64 tab_id);
 
 }

@@ -8,7 +8,7 @@ add_library(QtTestMain OBJECT
 )
 target_link_libraries(QtTestMain PRIVATE AK LibCore LibTest Qt::Core Qt::Gui Qt::Widgets)
 ladybird_test_suite(UI/Qt NO_TEST CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>")
-target_link_libraries(TestUIQt PRIVATE LibCore LibFileSystem LibGfx LibIPC LibURL LibWeb LibWebCommon LibWebView ladybird_impl)
+target_link_libraries(TestUIQt PRIVATE LibCore LibDatabase LibFileSystem LibGfx LibIPC LibURL LibWeb LibWebCommon LibWebView ladybird_impl)
 
 add_library(QtEventLoopTestMain OBJECT
     QtEventLoopTestMain.cpp
@@ -39,6 +39,8 @@ set(TEST_SOURCES
     TestScreenshotSelectionOverlay.cpp
     TestScreenshotViewer.cpp
     TestSelectDropdown.cpp
+    TestSessionHistorySnapshotStorage.cpp
+    TestSessionStore.cpp
     TestSiteSettingsPopover.cpp
     TestStringUtils.cpp
     TestWebCompatReportReview.cpp

@@ -2052,17 +2052,17 @@ bool PageClient::page_did_request_restore_session_history_snapshot_for_testing()
     return false;
 }
 
-bool PageClient::page_did_request_register_session_store_tab_for_testing()
+bool PageClient::page_did_request_record_reported_session_history_for_testing()
 {
     if (auto* test_connection = client().test_connection())
-        return test_connection->did_request_register_session_store_tab_for_testing(m_id);
+        return test_connection->did_request_record_reported_session_history_for_testing(m_id);
     return false;
 }
 
-String PageClient::page_did_request_session_store_tab_state_for_testing()
+String PageClient::page_did_request_reported_session_history_for_testing()
 {
     if (auto* test_connection = client().test_connection())
-        return test_connection->did_request_session_store_tab_state_for_testing(m_id);
+        return test_connection->did_request_reported_session_history_for_testing(m_id);
     return "{}"_string;
 }
 

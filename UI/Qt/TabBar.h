@@ -442,7 +442,7 @@ private:
     QToolButton* m_all_tabs_button { nullptr };
     AllTabsPopover* m_all_tabs_popover { nullptr };
     bool m_all_tabs_entries_update_is_pending { false };
-    Vector<WebView::SessionWindowId> m_recently_closed_unit_ids;
+    Vector<SessionWindowId> m_recently_closed_unit_ids;
     LadybirdButton* m_ladybird_button { nullptr };
     // The Ladybird button and the all-tabs button after it, which move together.
     QWidget* m_ladybird_buttons { nullptr };

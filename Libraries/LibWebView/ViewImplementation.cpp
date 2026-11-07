@@ -4104,17 +4104,11 @@ bool ViewImplementation::restore_captured_session_history_snapshot_for_testing(B
     return !result.is_error();
 }
 
-bool ViewImplementation::register_session_store_tab_for_testing(Badge<WebContentPage>)
+void ViewImplementation::record_reported_session_history_for_testing(Badge<WebContentPage>)
 {
-    if (m_session_tab_id.has_value())
-        return true;
-
-    auto tab_id = m_session->session_store->tab_opened({ .window_id = {}, .initial_url = url(), .insertion_index = {}, .is_active = SessionStore::IsActive::No });
-    if (tab_id.is_error())
-        return false;
-    set_session_tab_id(tab_id.value());
+    m_records_reported_session_history_for_testing = true;
+    set_reports_session_history(true);
     notify_session_history_changed();
-    return true;
 }
 
 static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Optional<i32> current_step)
@@ -4131,39 +4125,44 @@ static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<We
     return current_entry_index;
 }
 
-String ViewImplementation::session_store_tab_state_for_testing(Badge<WebContentPage>) const
+String ViewImplementation::reported_session_history_for_testing(Badge<WebContentPage>) const
 {
     JsonObject serialized;
-    if (!m_session_tab_id.has_value())
+    if (!m_reported_session_history_for_testing.has_value())
         return serialized.serialized();
 
-    auto cached_state = m_session->session_store->cached_tab_state_for_testing(*m_session_tab_id);
-    if (!cached_state.has_value())
-        return serialized.serialized();
-
-    serialized.set("url"sv, cached_state->url.serialize());
-    if (cached_state->history.has_value()) {
-        auto const& history = *cached_state->history;
-        Optional<i32> current_step;
-        if (history.current_used_step_index < history.used_steps.size())
-            current_step = history.used_steps[history.current_used_step_index];
-        serialized.set("entries"sv, history_json_entries(history.entries, current_top_level_history_entry_index_for_step(history.entries, current_step)));
-        serialized.set("usedSteps"sv, history_json_steps(history.used_steps, history.current_used_step_index));
-    }
+    auto const& reported = *m_reported_session_history_for_testing;
+    auto const& history = reported.history;
+    serialized.set("url"sv, reported.url.serialize());
+    Optional<i32> current_step;
+    if (history.current_used_step_index < history.used_steps.size())
+        current_step = history.used_steps[history.current_used_step_index];
+    serialized.set("entries"sv, history_json_entries(history.entries, current_top_level_history_entry_index_for_step(history.entries, current_step)));
+    serialized.set("usedSteps"sv, history_json_steps(history.used_steps, history.current_used_step_index));
     return serialized.serialized();
+}
+
+void ViewImplementation::set_reports_session_history(bool reports_session_history)
+{
+    auto was_reporting = exchange(m_reports_session_history, reports_session_history);
+    if (!reports_session_history || was_reporting || !has_traversable())
+        return;
+
+    // NB: A view that navigated before reporting began has nothing else coming to tell of that. One still on its first
+    //     blank page has nothing to tell, and must not overwrite the history a restored tab is about to get.
+    if (!traversable().session_history().current_entry().url.equals(URL::about_blank()))
+        notify_session_history_changed();
 }
 
 void ViewImplementation::notify_session_history_changed()
 {
-    if (!m_session_tab_id.has_value())
+    if (!m_reports_session_history)
         return;
+    auto history = session_history_snapshot();
     auto url = traversable().session_history().current_entry().url;
-    SessionStore::TabStateUpdate update {
-        .tab_id = *m_session_tab_id,
-        .history = session_history_snapshot(),
-        .url = move(url),
-    };
-    m_session->session_store->update_tab_state(move(update));
+    if (m_records_reported_session_history_for_testing)
+        m_reported_session_history_for_testing = ReportedSessionHistory { history, url };
+    did_change_session_history(history, url);
 }
 
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_state_for_testing()

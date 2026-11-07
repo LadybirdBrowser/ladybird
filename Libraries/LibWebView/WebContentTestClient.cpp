@@ -197,18 +197,18 @@ Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestin
     return false;
 }
 
-Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentTestClient::did_request_register_session_store_tab_for_testing(Web::PageId page_id)
+Messages::WebContentTestClient::DidRequestRecordReportedSessionHistoryForTestingResponse WebContentTestClient::did_request_record_reported_session_history_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
-        return page->did_request_register_session_store_tab_for_testing();
+        return page->did_request_record_reported_session_history_for_testing();
 
     return false;
 }
 
-Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentTestClient::did_request_session_store_tab_state_for_testing(Web::PageId page_id)
+Messages::WebContentTestClient::DidRequestReportedSessionHistoryForTestingResponse WebContentTestClient::did_request_reported_session_history_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
-        return page->did_request_session_store_tab_state_for_testing();
+        return page->did_request_reported_session_history_for_testing();
 
     return String {};
 }

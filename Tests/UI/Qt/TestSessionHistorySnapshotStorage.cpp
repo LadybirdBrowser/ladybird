@@ -8,9 +8,10 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
-#include <LibWebView/SessionHistorySnapshotStorage.h>
-#include <LibWebView/SessionStore.h>
+#include <UI/Qt/SessionHistorySnapshotStorage.h>
+#include <UI/Qt/SessionStore.h>
 
+using namespace Ladybird;
 using namespace WebView;
 
 static URL::Origin::OpaqueData::Nonce sequential_nonce()
@@ -290,7 +291,7 @@ static NonnullRefPtr<Database::Database> make_database()
 
 static SessionHistorySnapshotStatements prepare_snapshot_tables(Database::Database& database)
 {
-    MUST(WebView::SessionStore::migrate_schema(database));
+    MUST(SessionStore::migrate_schema(database));
     return MUST(prepare_session_history_snapshot_statements(database));
 }
 

@@ -395,6 +395,20 @@ RemoteView* RemoteView::find(u64 view_id)
     return s_views.get(view_id).value_or(nullptr);
 }
 
+void RemoteView::for_each(Function<void(RemoteView&)> const& callback)
+{
+    for (auto& [view_id, view] : s_views)
+        callback(*view);
+}
+
+void RemoteView::did_change_session_history(WebView::SessionHistorySnapshot history, URL::URL url)
+{
+    // NB: A report the Hub sent before we stopped asking for them may still arrive.
+    if (!m_session_tab_id.has_value())
+        return;
+    Application::session_store(m_is_private).update_tab_state({ .tab_id = *m_session_tab_id, .history = move(history), .url = move(url) });
+}
+
 // The browser's own strings are English, so languages are named in English.
 static String language_display_name(StringView language)
 {

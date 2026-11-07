@@ -411,15 +411,10 @@ void ConnectionFromUI::view_traverse_the_history_to_step(u64 view_id, i32 step)
         view->traverse_the_history_to_step(step);
 }
 
-void ConnectionFromUI::view_set_session_tab_id(u64 view_id, Optional<WebView::SessionTabId> session_tab_id)
+void ConnectionFromUI::view_set_reports_session_history(u64 view_id, bool reports_session_history)
 {
-    auto* view = find_view(view_id);
-    if (!view)
-        return;
-    if (session_tab_id.has_value())
-        view->set_session_tab_id(*session_tab_id);
-    else
-        view->clear_session_tab_id();
+    if (auto* view = find_view(view_id))
+        view->set_reports_session_history(reports_session_history);
 }
 
 void ConnectionFromUI::view_file_picker_closed(u64 view_id, Vector<Web::HTML::SelectedFile> selected_files)
@@ -511,11 +506,6 @@ void ConnectionFromUI::open_microphone_system_settings()
     static_cast<WebView::Application&>(Application::the()).microphone_authorizer().open_system_settings();
 }
 
-static WebView::SessionStore& session_store_of(WebView::IsPrivate is_private)
-{
-    return *Application::session_for_new_view(is_private)->session_store;
-}
-
 void ConnectionFromUI::favicons_in_use(Vector<String> favicon_hashes)
 {
     HashTable<String> referenced_hashes;
@@ -567,6 +557,8 @@ Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
     state.devtools_port = options.devtools_port;
     auto const& profile = Application::profile();
     state.config_directory = profile.paths().config;
+    state.data_directory = profile.paths().data;
+    state.persists_sessions = Application::the().persists_sessions();
     state.profile_identifier = profile.identifier();
     state.profile_identity = profile.paths().identity;
     state.profile_is_temporary = profile.is_temporary();
@@ -791,119 +783,6 @@ Messages::HubServer::ViewPageDescriptionResponse ConnectionFromUI::view_page_des
         return { URL::URL {}, String {}, Gfx::IntSize {}, 1.0, 1.0 };
     auto page = WebView::WebCompatReport::describe_page(*view);
     return { move(page.url), move(page.user_agent), page.viewport_size, page.device_pixel_ratio, page.zoom_level };
-}
-
-Messages::HubServer::SessionWindowOpenedResponse ConnectionFromUI::session_window_opened(WebView::IsPrivate is_private)
-{
-    auto id = session_store_of(is_private).window_opened();
-    if (id.is_error())
-        return Optional<WebView::SessionWindowId> {};
-    return Optional<WebView::SessionWindowId> { id.value() };
-}
-
-Messages::HubServer::SessionWindowClosingResponse ConnectionFromUI::session_window_closing(WebView::IsPrivate is_private, WebView::SessionStore::WindowClosing closing)
-{
-    return !session_store_of(is_private).window_closing(move(closing)).is_error();
-}
-
-void ConnectionFromUI::session_window_activated(WebView::IsPrivate is_private, WebView::SessionWindowId id)
-{
-    session_store_of(is_private).window_activated(id);
-}
-
-void ConnectionFromUI::session_window_geometry_changed(WebView::IsPrivate is_private, WebView::SessionWindowId id, WebView::SessionWindowGeometry geometry)
-{
-    session_store_of(is_private).window_geometry_changed(id, geometry);
-}
-
-Messages::HubServer::SessionTabOpenedResponse ConnectionFromUI::session_tab_opened(WebView::IsPrivate is_private, WebView::SessionStore::TabOpened opened)
-{
-    auto id = session_store_of(is_private).tab_opened(move(opened));
-    if (id.is_error())
-        return Optional<WebView::SessionTabId> {};
-    return Optional<WebView::SessionTabId> { id.value() };
-}
-
-Messages::HubServer::SessionTabClosedResponse ConnectionFromUI::session_tab_closed(WebView::IsPrivate is_private, WebView::SessionStore::TabClosed closed)
-{
-    return !session_store_of(is_private).tab_closed(move(closed)).is_error();
-}
-
-void ConnectionFromUI::session_tab_detached(WebView::IsPrivate is_private, WebView::SessionTabId id)
-{
-    session_store_of(is_private).tab_detached(id);
-}
-
-void ConnectionFromUI::session_tab_moved(WebView::IsPrivate is_private, WebView::SessionStore::TabMoved moved)
-{
-    session_store_of(is_private).tab_moved(move(moved));
-}
-
-void ConnectionFromUI::session_tab_order_changed(WebView::IsPrivate is_private, WebView::SessionStore::TabOrderChanged changed)
-{
-    session_store_of(is_private).tab_order_changed(move(changed));
-}
-
-Messages::HubServer::SessionTabPinnedChangedResponse ConnectionFromUI::session_tab_pinned_changed(WebView::IsPrivate is_private, WebView::SessionTabId id, bool pinned)
-{
-    return !session_store_of(is_private).tab_pinned_changed(id, pinned).is_error();
-}
-
-void ConnectionFromUI::session_active_tab_changed(WebView::IsPrivate is_private, WebView::SessionTabId id)
-{
-    session_store_of(is_private).active_tab_changed(id);
-}
-
-void ConnectionFromUI::session_application_quitting(WebView::IsPrivate is_private)
-{
-    session_store_of(is_private).application_quitting();
-}
-
-void ConnectionFromUI::session_application_quit_aborted(WebView::IsPrivate is_private)
-{
-    session_store_of(is_private).application_quit_aborted();
-}
-
-Messages::HubServer::SessionConsecutiveUncleanExitsResponse ConnectionFromUI::session_consecutive_unclean_exits(WebView::IsPrivate is_private)
-{
-    return session_store_of(is_private).consecutive_unclean_exits();
-}
-
-Messages::HubServer::SessionHasClosedUnitsResponse ConnectionFromUI::session_has_closed_units(WebView::IsPrivate is_private)
-{
-    return session_store_of(is_private).has_closed_units();
-}
-
-static Optional<WebView::ClosedSessionUnit> unit_or_nothing(ErrorOr<Optional<WebView::ClosedSessionUnit>> unit)
-{
-    if (unit.is_error())
-        return {};
-    return unit.release_value();
-}
-
-Messages::HubServer::SessionTakeMostRecentlyClosedResponse ConnectionFromUI::session_take_most_recently_closed(WebView::IsPrivate is_private)
-{
-    return unit_or_nothing(session_store_of(is_private).take_most_recently_closed());
-}
-
-Messages::HubServer::SessionRecentlyClosedUnitsResponse ConnectionFromUI::session_recently_closed_units(WebView::IsPrivate is_private, u64 limit)
-{
-    return session_store_of(is_private).recently_closed_units(limit);
-}
-
-Messages::HubServer::SessionTakeClosedUnitResponse ConnectionFromUI::session_take_closed_unit(WebView::IsPrivate is_private, WebView::SessionWindowId id)
-{
-    return unit_or_nothing(session_store_of(is_private).take_closed_unit(id));
-}
-
-Messages::HubServer::SessionTakeLaunchPlanResponse ConnectionFromUI::session_take_launch_plan(WebView::IsPrivate is_private)
-{
-    return session_store_of(is_private).take_launch_plan();
-}
-
-Messages::HubServer::SessionLoadTabHistoryResponse ConnectionFromUI::session_load_tab_history(WebView::IsPrivate is_private, WebView::SessionTabId id)
-{
-    return session_store_of(is_private).load_tab_history(id);
 }
 
 Messages::HubServer::HistoryEntryForUrlResponse ConnectionFromUI::history_entry_for_url(WebView::IsPrivate is_private, URL::URL url)

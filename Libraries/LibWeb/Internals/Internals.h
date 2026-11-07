@@ -252,8 +252,8 @@ public:
     Utf16String dump_ui_process_session_history_without_update();
     bool capture_session_history_snapshot();
     bool restore_captured_session_history_snapshot();
-    bool register_session_store_tab();
-    Utf16String dump_session_store_tab_state();
+    bool record_reported_session_history();
+    Utf16String dump_reported_session_history();
     Utf16String dump_site_isolation_process_tree();
     bool has_populated_document(HTML::HTMLIFrameElement&);
     bool canvas_has_unpresented_content(HTML::HTMLCanvasElement&);

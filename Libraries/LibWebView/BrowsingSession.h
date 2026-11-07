@@ -39,7 +39,6 @@ public:
     OwnPtr<HSTSStore> hsts_store;
     OwnPtr<FaviconStore> favicon_store;
     OwnPtr<HistoryStore> history_store;
-    OwnPtr<SessionStore> session_store;
     OwnPtr<PermissionManager> permission_manager;
 
 private:
