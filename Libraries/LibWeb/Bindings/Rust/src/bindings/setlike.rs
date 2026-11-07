@@ -14,7 +14,9 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::CallContext;
-use crate::bindings::interface::{Interface, define_attribute, define_operation, this_implementation};
+use crate::bindings::interface::{
+    Interface, SecurityCheckType, define_attribute, define_operation, this_implementation,
+};
 use crate::bindings::realm_data::{WrapperWorld, wrapper_world_of};
 
 /// The JS collection of an object in each wrapper world that asked for it, as the entries of a collection hold the
@@ -131,7 +133,7 @@ pub(crate) fn context_of_set<'vm>(cx: &CallContext<'vm>, set: Gc<Set>) -> CallCo
 // https://webidl.spec.whatwg.org/#js-set-size
 pub(crate) fn set_size<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "size" and type "getter".
-    let (_, implementation, _) = this_implementation::<T>(vm)?;
+    let (_, implementation, _) = this_implementation::<T>(vm, "size", SecurityCheckType::Getter)?;
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
     // 3. Return set's size, converted to a JavaScript value.
@@ -139,8 +141,8 @@ pub(crate) fn set_size<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     Ok(Value::from_f64(implementation.set_entries_size() as f64))
 }
 
-fn create_set_iterator<T: Setlike>(vm: &Vm, kind: PropertyKind) -> ThrowCompletionOr<Value> {
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+fn create_set_iterator<T: Setlike>(vm: &Vm, identifier: &str, kind: PropertyKind) -> ThrowCompletionOr<Value> {
+    let (_, implementation, cx) = this_implementation::<T>(vm, identifier, SecurityCheckType::Method)?;
     let set = implementation.set_entries(&cx);
     Ok(Value::from_object(
         SetIterator::create(vm, cx.realm(), set, kind).upcast::<Object>(),
@@ -152,7 +154,7 @@ pub(crate) fn set_iterator_entries<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Val
     // 1. Let O be the this value, implementation-checked against A with identifier "entries" and type "method".
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
     // 3. Return the result of creating a set iterator from set with kind "key+value".
-    create_set_iterator::<T>(vm, PropertyKind::KeyAndValue)
+    create_set_iterator::<T>(vm, "entries", PropertyKind::KeyAndValue)
 }
 
 // https://webidl.spec.whatwg.org/#js-set-values
@@ -160,13 +162,13 @@ pub(crate) fn set_iterator_values<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Valu
     // 1. Let O be the this value, implementation-checked against A with identifier "values" and type "method".
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
     // 3. Return the result of creating a set iterator from set with kind "value".
-    create_set_iterator::<T>(vm, PropertyKind::Value)
+    create_set_iterator::<T>(vm, "values", PropertyKind::Value)
 }
 
 // https://webidl.spec.whatwg.org/#js-set-forEach
 pub(crate) fn set_for_each<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "forEach" and type "method".
-    let (wrapper, implementation, cx) = this_implementation::<T>(vm)?;
+    let (wrapper, implementation, cx) = this_implementation::<T>(vm, "forEach", SecurityCheckType::Method)?;
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
     let set = implementation.set_entries(&cx);
@@ -199,7 +201,7 @@ pub(crate) fn set_for_each<T: Setlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
 // https://webidl.spec.whatwg.org/#js-set-has
 pub(crate) fn set_has<T: SetlikeDeclaration>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
-    let (_, implementation, _) = this_implementation::<T>(vm)?;
+    let (_, implementation, _) = this_implementation::<T>(vm, "has", SecurityCheckType::Method)?;
 
     // 2. Let set be the set entries of the IDL value that represents a reference to O.
     // 3. Let valueType be the value type specified in the setlike declaration.
@@ -216,7 +218,7 @@ pub(crate) fn set_has<T: SetlikeDeclaration>(vm: &Vm) -> ThrowCompletionOr<Value
 // https://webidl.spec.whatwg.org/#js-set-add
 pub(crate) fn set_add<T: SetlikeDeclaration + WritableSetlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "add" and type "method".
-    let (wrapper, implementation, cx) = this_implementation::<T>(vm)?;
+    let (wrapper, implementation, cx) = this_implementation::<T>(vm, "add", SecurityCheckType::Method)?;
 
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
@@ -234,7 +236,7 @@ pub(crate) fn set_add<T: SetlikeDeclaration + WritableSetlike>(vm: &Vm) -> Throw
 // https://webidl.spec.whatwg.org/#js-set-delete
 pub(crate) fn set_delete<T: SetlikeDeclaration + WritableSetlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "delete", SecurityCheckType::Method)?;
 
     // 3. Let valueType be the value type specified in the setlike declaration.
     // 4. Let valueArg be the first argument passed to this function, or undefined if not supplied.
@@ -251,7 +253,7 @@ pub(crate) fn set_delete<T: SetlikeDeclaration + WritableSetlike>(vm: &Vm) -> Th
 // https://webidl.spec.whatwg.org/#js-set-clear
 pub(crate) fn set_clear<T: WritableSetlike>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
-    let (_, implementation, cx) = this_implementation::<T>(vm)?;
+    let (_, implementation, cx) = this_implementation::<T>(vm, "clear", SecurityCheckType::Method)?;
 
     // 3. Empty set.
     implementation.set_clear(&cx);

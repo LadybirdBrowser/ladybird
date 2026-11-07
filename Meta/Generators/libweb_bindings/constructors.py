@@ -132,7 +132,7 @@ def write_constructor_steps(
 """
     )
     write_argument_count_check(out, interface.name, parameter_list_length(constructor.parameters))
-    write_operation_parameter_conversions(out, constructor.parameters, includes, context, "realm")
+    write_operation_parameter_conversions(out, constructor.parameters, includes, context)
     arguments = ", ".join(idl_identifier_cpp_name(parameter) for parameter in constructor.parameters)
     arguments_with_leading_comma = f", {arguments}" if arguments else ""
     arguments_with_vm = f"vm{arguments_with_leading_comma}"

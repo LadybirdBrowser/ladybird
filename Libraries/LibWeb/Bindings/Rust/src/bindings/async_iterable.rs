@@ -17,7 +17,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::CallContext;
-use crate::bindings::interface::{Interface, define_operation};
+use crate::bindings::interface::{Interface, SecurityCheckType, define_operation, perform_a_security_check};
 use crate::bindings::promise::{NativeSteps, WebIdlPromise, create_promise};
 use crate::bindings::services::web_bindings_ensure_web_iterator_prototype;
 
@@ -120,6 +120,7 @@ pub(crate) fn create_default_async_iterator<T: DefaultAsyncIteratorClasses>(
 /// rejected.
 fn validate_this<T: DefaultAsyncIteratorClasses>(
     vm: &Vm,
+    identifier: &str,
     this_validation_promise_capability: WebIdlPromise,
 ) -> Result<IteratorCell<T>, Value> {
     let reject = |error: Value| {
@@ -144,10 +145,17 @@ fn validate_this<T: DefaultAsyncIteratorClasses>(
     //     * the platform object object,
     //     * the identifier "next", and
     //     * the type "method".
-    // NB: A default asynchronous iterator object is not a platform object.
-
+    //
+    //    If this threw an exception e, then:
+    //        1. Perform ! Call(thisValidationPromiseCapability.[[Reject]], undefined, « e »).
+    //        2. Return thisValidationPromiseCapability.[[Promise]].
+    // NB: The "return" method passes the identifier "return".
     // 7. If object is not a default asynchronous iterator object for interface, then:
     let Some(iterator) = default_async_iterator_of::<T>(object) else {
+        // NB: This runs after the check above, which no Window or Location object passes.
+        perform_a_security_check(vm, Value::from_object(object), identifier, SecurityCheckType::Method)
+            .map_err(|throw| reject(throw.value()))?;
+
         // 1. Let error be a new TypeError.
         let name = format!("{}AsyncIterator", T::NAME);
         let error = vm
@@ -169,16 +177,6 @@ fn default_async_iterator_of<T: DefaultAsyncIteratorClasses>(object: Gc<Object>)
     // SAFETY: The object is a host object of the asynchronous iterator class, whose host data is the cell of a default
     //         asynchronous iterator.
     unsafe { T::ASYNC_ITERATOR_CELL_CLASS.downcast(host_data) }
-}
-
-/// The realm that the "next" and "return" methods create their promise in, as LibWeb's C++ bindings do: the realm of
-/// the this value, or the current realm for a this value that is not an object.
-fn this_value_realm(vm: &Vm) -> Gc<Realm> {
-    let this_value = vm.this_value();
-    if this_value.is_object() {
-        return this_value.as_object().shape().realm();
-    }
-    vm.current_realm().expect("a native function runs in a realm")
 }
 
 /// The steps of a built-in function that the iterator creates, given its captures.
@@ -250,14 +248,15 @@ fn promise_of(object: Gc<Object>) -> Gc<Promise> {
 pub(crate) fn async_iterator_next<T: DefaultAsyncIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<Value> {
     // 1. Let interface be the interface for which the asynchronous iterator prototype object exists.
     // 2. Let thisValidationPromiseCapability be ! NewPromiseCapability(%Promise%).
-    let this_validation_promise_capability = create_promise(vm, this_value_realm(vm));
+    let this_validation_promise_capability =
+        create_promise(vm, vm.current_realm().expect("a native function runs in a realm"));
 
     // 3. Let thisValue be the this value.
     // 4. Let object be Completion(ToObject(thisValue)).
     // 5. IfAbruptRejectPromise(object, thisValidationPromiseCapability).
     // 6. If object is a platform object, then perform a security check, passing:
     // 7. If object is not a default asynchronous iterator object for interface, then:
-    let iterator = match validate_this::<T>(vm, this_validation_promise_capability) {
+    let iterator = match validate_this::<T>(vm, "next", this_validation_promise_capability) {
         Ok(iterator) => iterator,
         Err(promise) => return Ok(promise),
     };
@@ -379,14 +378,14 @@ pub(crate) fn async_iterator_return<T: DefaultAsyncIteratorClasses>(vm: &Vm) -> 
 
     // 1. Let interface be the interface for which the asynchronous iterator prototype object exists.
     // 2. Let returnPromiseCapability be ! NewPromiseCapability(%Promise%).
-    let return_promise_capability = create_promise(vm, this_value_realm(vm));
+    let return_promise_capability = create_promise(vm, vm.current_realm().expect("a native function runs in a realm"));
 
     // 3. Let thisValue be the this value.
     // 4. Let object be Completion(ToObject(thisValue)).
     // 5. IfAbruptRejectPromise(object, returnPromiseCapability).
     // 6. If object is a platform object, then perform a security check, passing:
     // 7. If object is not a default asynchronous iterator object for interface, then:
-    let iterator = match validate_this::<T>(vm, return_promise_capability) {
+    let iterator = match validate_this::<T>(vm, "return", return_promise_capability) {
         Ok(iterator) => iterator,
         Err(promise) => return Ok(promise),
     };

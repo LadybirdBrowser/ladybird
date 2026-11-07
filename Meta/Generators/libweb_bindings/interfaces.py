@@ -23,6 +23,7 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.named_and_indexed_properties import legacy_platform_object_info_functions
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.wrappers import create_wrapper_function_name
 from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
@@ -142,7 +143,7 @@ def write_wrapper_implementation(
     write_create_wrapper_function(out, context, interface)
 
 
-def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:
+def write_impl_from(out: TextIO, includes: GeneratedIncludes, context: GenerationContext, interface: Interface) -> None:
     if not interface_needs_impl_from(interface):
         return
 
@@ -156,27 +157,37 @@ def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interfa
     if interface_needs_wrapper(interface):
         includes.add("LibWeb/Bindings/Wrappable.h")
 
+    includes.add("LibWeb/HTML/CrossOrigin/AbstractOperations.h")
+    security_check = ""
+    if not interface_needs_security_check(context, interface):
+        security_check = """
+    // NB: This runs after the check above, which no Window or Location object passes.
+    TRY(HTML::perform_a_security_check(vm, js_value, identifier, type));
+"""
+
     object_conversion = (
         f"Web::Bindings::impl_from<{fully_qualified_name_for_interface(interface)}>(&js_value.as_object())"
     )
 
     out.write(
-        f"""[[maybe_unused]] static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}*> impl_from(JS::VM& vm, JS::Value js_value)
+        f"""// https://webidl.spec.whatwg.org/#implementation-check-an-object
+[[maybe_unused]] static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}*> impl_from(JS::VM& vm, JS::Value js_value, [[maybe_unused]] Utf16View const& identifier, [[maybe_unused]] HTML::SecurityCheckType type)
 {{
 {window_proxy_special_case}
     if (js_value.is_object()) {{
         if (auto* impl = {object_conversion})
             return impl;
     }}
+{security_check}
     return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface.namespaced_name}");
 }}
 
-[[maybe_unused]] static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}*> impl_from(JS::VM& vm)
+[[maybe_unused]] static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}*> impl_from(JS::VM& vm, Utf16View const& identifier, HTML::SecurityCheckType type)
 {{
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
         this_value = &vm.current_realm()->global_object();
-    return impl_from(vm, this_value);
+    return impl_from(vm, this_value, identifier, type);
 }}
 
 """
@@ -339,7 +350,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
         )
         out.write("}\n\n")
 
-        write_impl_from(out, includes, interface)
+        write_impl_from(out, includes, context, interface)
         operations.write_static_operations(out, context, includes, interface)
         attributes.write_static_attribute_getters(out, context, includes, interface)
         named_and_indexed_properties.write_named_properties_object_implementation(out, includes, interface)
@@ -375,7 +386,7 @@ void {interface.prototype_class}::define_unforgeable_attributes(JS::Realm& realm
     operations.define_the_stringifier(out, includes, interface, unforgeable=True)
     out.write("}\n\n")
 
-    write_impl_from(out, includes, interface)
+    write_impl_from(out, includes, context, interface)
     operations.write_static_operations(out, context, includes, interface)
     attributes.write_static_attribute_getters(out, context, includes, interface)
     attributes.write_attribute_getters(out, context, includes, interface)

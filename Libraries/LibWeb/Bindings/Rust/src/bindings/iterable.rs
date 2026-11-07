@@ -18,7 +18,9 @@ use libjs_rust::api::{
 
 use crate::bindings::CallContext;
 use crate::bindings::conversions::ToJs;
-use crate::bindings::interface::{Interface, define_operation, this_object};
+use crate::bindings::interface::{
+    Interface, SecurityCheckType, define_operation, perform_a_security_check, this_object,
+};
 use crate::bindings::services::web_bindings_ensure_web_iterator_prototype;
 
 // https://webidl.spec.whatwg.org/#default-iterator-object-kind
@@ -141,10 +143,10 @@ pub(crate) fn iterator_next<T: DefaultIteratorClasses>(vm: &Vm) -> ThrowCompleti
     //     * the platform object object,
     //     * the identifier "next", and
     //     * the type "method".
-    // NB: A default iterator object is not a platform object.
-
     // 5. If object is not a default iterator object for interface, then throw a TypeError.
     let Some(iterator) = default_iterator_of::<T>(object) else {
+        // NB: This runs after the check above, which no Window or Location object passes.
+        perform_a_security_check(vm, Value::from_object(object), "next", SecurityCheckType::Method)?;
         let name = format!("{}Iterator", T::NAME);
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&name]);
     };
@@ -241,7 +243,13 @@ pub(crate) fn entries<T: DefaultIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<V
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "%Symbol.iterator%", and
     //    "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+    let (js_value, realm) = this_object(
+        vm,
+        T::wrapper_class(),
+        T::NAME,
+        "%Symbol.iterator%",
+        SecurityCheckType::Method,
+    )?;
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key+value" as its
     //    kind, and index set to 0.
@@ -258,7 +266,7 @@ pub(crate) fn keys<T: DefaultIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<Valu
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "keys", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME, "keys", SecurityCheckType::Method)?;
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "key" as its kind,
     //    and index set to 0.
@@ -275,7 +283,7 @@ pub(crate) fn values<T: DefaultIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<Va
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "values", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME, "values", SecurityCheckType::Method)?;
 
     // 4. Return a newly created default iterator object for definition, with jsValue as its target, "value" as its
     //    kind, and index set to 0.
@@ -295,7 +303,7 @@ pub(crate) fn for_each<T: DefaultIteratorClasses>(vm: &Vm) -> ThrowCompletionOr<
     // 1. Let jsValue be ? ToObject(this value).
     // 2. If jsValue is a platform object, then perform a security check, passing jsValue, "forEach", and "method".
     // 3. If jsValue does not implement definition, then throw a TypeError.
-    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME)?;
+    let (js_value, realm) = this_object(vm, T::wrapper_class(), T::NAME, "forEach", SecurityCheckType::Method)?;
     let cx = CallContext::new(vm, realm);
 
     // 4. Let idlCallback be callback, converted to a Function.

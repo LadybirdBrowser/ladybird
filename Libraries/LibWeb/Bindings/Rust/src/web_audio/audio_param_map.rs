@@ -10,7 +10,7 @@ use libjs_rust::api::{Gc, GcRefCell, Map, Trace, Value, Vm};
 use super::audio_param::AudioParam;
 use crate::bindings::CallContext;
 use crate::bindings::conversions::{ToJs, to_dom_string};
-use crate::bindings::interface::{Ref, Wrappable, allocate, this_implementation, wrap};
+use crate::bindings::interface::{Ref, SecurityCheckType, Wrappable, allocate, this_implementation, wrap};
 use crate::bindings::maplike::Maplike;
 
 // https://webaudio.github.io/web-audio-api/#AudioParamMap
@@ -50,7 +50,7 @@ impl Maplike for AudioParamMap {
     // https://webidl.spec.whatwg.org/#js-map-has
     fn has(vm: &Vm) -> libjs_rust::api::ThrowCompletionOr<Value> {
         // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
-        let (_, implementation, _cx) = this_implementation::<Self>(vm)?;
+        let (_, implementation, _cx) = this_implementation::<Self>(vm, "has", SecurityCheckType::Method)?;
 
         // 2. Let map be the map entries of the IDL value that represents a reference to O.
         let map = &implementation.entries;

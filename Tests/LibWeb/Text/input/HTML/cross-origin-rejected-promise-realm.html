@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = async () => {
+            const crossOriginWindow = iframe.contentWindow;
+
+            let crossOrigin = false;
+            try {
+                crossOriginWindow.document;
+            } catch (e) {
+                crossOrigin = e instanceof DOMException;
+            }
+            println(`cross-origin frame: ${crossOrigin}`);
+
+            println(`same-process frame: ${remoteFrameCount() === 0}`);
+
+            const asyncIteratorPrototype = Object.getPrototypeOf(new ReadableStream().values());
+            const members = {
+                "Blob.prototype.text": Blob.prototype.text,
+                "FontFace.prototype.load": FontFace.prototype.load,
+                "FontFace.prototype.loaded": Object.getOwnPropertyDescriptor(FontFace.prototype, "loaded").get,
+                "FontFaceSet.prototype.ready": Object.getOwnPropertyDescriptor(FontFaceSet.prototype, "ready").get,
+                "ReadableStream async iterator next": asyncIteratorPrototype.next,
+                "ReadableStream async iterator return": asyncIteratorPrototype.return,
+            };
+            for (const [name, member] of Object.entries(members)) {
+                const promise = member.call(crossOriginWindow);
+                const inCurrentRealm = promise.constructor === Promise && promise.constructor.constructor === Function;
+                let reason = "fulfilled";
+                try {
+                    await promise;
+                } catch (e) {
+                    reason = `${e.name}, caller realm: ${e instanceof Object}`;
+                }
+                println(`${name}: ${inCurrentRealm}, rejected with ${reason}`);
+            }
+            done();
+        };
+        iframe.src = "data:text/html,<!DOCTYPE html><title>victim</title>";
+        document.body.appendChild(iframe);
+    });
+</script>

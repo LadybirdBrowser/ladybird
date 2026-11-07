@@ -1,0 +1,17 @@
+same-process frame: true
+Window to URLSearchParams entries: SecurityError, caller realm: true
+Location to URLSearchParams entries: SecurityError, caller realm: true
+Window to URLSearchParams iterator next: SecurityError, caller realm: true
+Location to URLSearchParams iterator next: SecurityError, caller realm: true
+Window to Node textContent getter: SecurityError, caller realm: true
+Location to Node textContent getter: SecurityError, caller realm: true
+Window to Node textContent setter: SecurityError, caller realm: true
+Location to Node textContent setter: SecurityError, caller realm: true
+Window to EventCounts entries: SecurityError, caller realm: true
+Location to EventCounts entries: SecurityError, caller realm: true
+Window to Highlight has: SecurityError, caller realm: true
+Location to Highlight has: SecurityError, caller realm: true
+Window to Blob size getter: SecurityError, caller realm: true
+Location to Blob size getter: SecurityError, caller realm: true
+Window to WebSocket send: SecurityError, caller realm: true
+Location to WebSocket send: SecurityError, caller realm: true

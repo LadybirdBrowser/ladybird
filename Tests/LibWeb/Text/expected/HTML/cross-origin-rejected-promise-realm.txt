@@ -1,0 +1,8 @@
+cross-origin frame: true
+same-process frame: true
+Blob.prototype.text: true, rejected with SecurityError, caller realm: true
+FontFace.prototype.load: true, rejected with SecurityError, caller realm: true
+FontFace.prototype.loaded: true, rejected with SecurityError, caller realm: true
+FontFaceSet.prototype.ready: true, rejected with SecurityError, caller realm: true
+ReadableStream async iterator next: true, rejected with SecurityError, caller realm: true
+ReadableStream async iterator return: true, rejected with SecurityError, caller realm: true

@@ -4,8 +4,9 @@ Generated bindings make one explicit realm decision per IDL member.
 
 - Instance operations and attributes default to the validated receiver realm
   (`this_object_realm`). This realm is used for implementation calls,
-  DOMException wrapping, JavaScript return-value wrapping, and promise
-  creation/rejection for promise-typed members.
+  JavaScript return-value wrapping, and promise creation for promise-typed
+  members. Exceptions, and the promises a promise-typed member rejects with
+  them, are created in the caller/current realm, as WebIDL specifies.
 - Generated pair-iterable, async-iterable, maplike, and setlike helpers use the
   receiver realm for iterator/container creation and wrapped values.
 - Static operations, constructors, and namespace members use the caller/current
@@ -29,17 +30,6 @@ The shared generator entry point is
 member code should use that helper instead of spelling ad-hoc realm policy in
 individual emitters.
 
-This deliberately deviates from WebIDL's default exception wording for
-instance-member DOMException wrapping: LibWeb wraps DOMExceptions in the
-receiver realm so wrapper allocation, exception identity, and return-value
-allocation follow the same observable realm. Generated operation and setter
-conversion blocks also scope ordinary JavaScript TypeError construction to the
-selected member realm. The VM clears that TypeError override whenever
-conversion re-enters author script, so nested script still throws in its own
-realm. This is intentionally narrower than changing the VM's current realm or
-execution context, so conversion failures get uniform realm identity without
-running user script under a different realm.
-
 Current `[NeedsCallerRealm]` opt-out categories:
 
 - WebAssembly JS API objects and namespace functions: JS-API algorithms create
@@ -54,6 +44,6 @@ Current `[NeedsCallerRealm]` opt-out categories:
 - Explicit WPT/spec carve-outs kept as caller-realm behavior, including
   `SourceBuffer.buffered` and `AbortSignal.abort()`/`timeout()`.
 
-For `WindowProxy` receivers, `this_object_realm` is provided by
-`Bindings::this_value_realm()`: main-world proxies resolve to the active
-`[[Window]]` realm, while non-main-world proxies stay in their own realm.
+For `WindowProxy` receivers, `this_object_realm` is the proxy's own realm:
+main-world proxies follow their `[[Window]]` realm, while non-main-world
+proxies stay in their own realm.
