@@ -202,6 +202,23 @@ BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
     return store;
 }
 
+BookmarkStore BookmarkStore::create_from_json(JsonValue const& json)
+{
+    BookmarkStore store { {} };
+    if (auto items = json.as_object().get_array(ITEMS_KEY); items.has_value())
+        store.m_items = parse_bookmark_items(*items);
+    return store;
+}
+
+void BookmarkStore::replace_with_json(JsonValue const& json, PersistChange persist_change)
+{
+    if (auto items = json.as_object().get_array(ITEMS_KEY); items.has_value())
+        m_items = parse_bookmark_items(*items);
+    if (persist_change == PersistChange::Yes)
+        persist_bookmarks();
+    notify_observers();
+}
+
 BookmarkStore::BookmarkStore(ByteString bookmarks_path)
     : m_bookmarks_path(move(bookmarks_path))
 {
@@ -515,14 +532,25 @@ HashTable<String> BookmarkStore::favicon_hashes() const
     return hashes;
 }
 
-void BookmarkStore::persist_bookmarks()
+JsonValue BookmarkStore::serialize_store() const
 {
     JsonObject root;
     root.set(VERSION_KEY, 2);
     root.set(ITEMS_KEY, serialize_items());
+    return root;
+}
 
-    if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
-        warnln("Unable to persist Ladybird bookmarks: {}", result.error());
+void BookmarkStore::persist_bookmarks()
+{
+    auto root = serialize_store();
+
+    if (!m_bookmarks_path.is_empty()) {
+        if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
+            warnln("Unable to persist Ladybird bookmarks: {}", result.error());
+    }
+
+    if (on_persist)
+        on_persist(root);
 }
 
 void BookmarkStore::notify_observers()

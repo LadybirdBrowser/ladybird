@@ -64,6 +64,18 @@ public:
 
     static BookmarkStore create(ByteString bookmarks_path);
 
+    // Bookmarks that live in another process, and are never read from or written to a file here.
+    static BookmarkStore create_from_json(JsonValue const&);
+    enum class PersistChange {
+        No,
+        Yes,
+    };
+    void replace_with_json(JsonValue const&, PersistChange);
+    JsonValue serialize_store() const;
+
+    // Called with the bookmarks as they are, whenever they have changed.
+    Function<void(JsonValue const&)> on_persist;
+
     Vector<BookmarkItem> const& root_items() const { return m_items; }
 
     bool is_bookmarked(URL::URL const&) const;

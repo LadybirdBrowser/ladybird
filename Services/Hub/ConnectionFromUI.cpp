@@ -20,11 +20,15 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     Application::settings().on_persist = [this](JsonValue const& settings) {
         async_settings_changed(settings.serialized().to_byte_string());
     };
+    Application::bookmark_store().on_persist = [this](JsonValue const& bookmarks) {
+        async_bookmarks_changed(bookmarks.serialized().to_byte_string());
+    };
 }
 
 ConnectionFromUI::~ConnectionFromUI()
 {
     Application::settings().on_persist = nullptr;
+    Application::bookmark_store().on_persist = nullptr;
     s_the = nullptr;
 }
 
@@ -219,6 +223,29 @@ void ConnectionFromUI::pause_active_downloads()
 void ConnectionFromUI::cancel_unresumable_downloads()
 {
     Application::the().file_downloader().cancel_unresumable_downloads();
+}
+
+void ConnectionFromUI::update_bookmarks(ByteString bookmarks_json)
+{
+    auto bookmarks = JsonValue::from_string(bookmarks_json);
+    if (bookmarks.is_error() || !bookmarks.value().is_object())
+        return;
+    Application::bookmark_store().replace_with_json(bookmarks.value(), WebView::BookmarkStore::PersistChange::Yes);
+}
+
+void ConnectionFromUI::answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks)
+{
+    Application::the().did_read_bookmarks_for_all_tabs(request_id, move(bookmarks));
+}
+
+void ConnectionFromUI::answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result)
+{
+    Application::the().did_get_bookmark_dialog_result(request_id, move(result));
+}
+
+void ConnectionFromUI::bookmark_context_menu_item_changed(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id)
+{
+    Application::the().set_bookmark_context_menu_item(move(item_id), move(target_folder_id), move(parent_folder_id));
 }
 
 void ConnectionFromUI::update_settings(ByteString settings_json)

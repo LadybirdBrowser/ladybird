@@ -2874,19 +2874,20 @@ void Application::initialize_actions()
     update_bookmark_action_for_current_web_view();
 
     m_bookmarks_menu->add_action(Action::create("Bookmark All Tabs…"sv, ActionID::AddBookmarkAllTabs, [this]() {
-        auto bookmarks = bookmarks_for_all_tabs_in_current_window();
-        if (bookmarks.is_empty())
-            return;
+        read_bookmarks_for_all_tabs_in_current_window([this](Vector<BookmarkItem::Bookmark> bookmarks) {
+            if (bookmarks.is_empty())
+                return;
 
-        auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
-        display_add_bookmark_folder_dialog(default_title)
-            ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkDialogResult result) mutable {
-                auto& folder = result.data.get<BookmarkItem::Folder>();
-                auto folder_id = m_bookmark_store->add_folder(move(folder.title), result.target_folder_id);
+            auto default_title = MUST(UnixDateTime::now().to_string("Saved Tabs %Y-%m-%d"sv));
+            display_add_bookmark_folder_dialog(default_title)
+                ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkDialogResult result) mutable {
+                    auto& folder = result.data.get<BookmarkItem::Folder>();
+                    auto folder_id = m_bookmark_store->add_folder(move(folder.title), result.target_folder_id);
 
-                for (auto& bookmark : bookmarks)
-                    m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), folder_id);
-            });
+                    for (auto& bookmark : bookmarks)
+                        m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), folder_id);
+                });
+        });
     }));
 
     m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
@@ -3489,6 +3490,11 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                 menu.add_submenu(move(submenu));
             });
     }
+}
+
+void Application::read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<BookmarkItem::Bookmark>)> on_read) const
+{
+    on_read(bookmarks_for_all_tabs_in_current_window());
 }
 
 Vector<BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_window() const

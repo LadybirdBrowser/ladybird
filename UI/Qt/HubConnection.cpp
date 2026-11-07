@@ -296,6 +296,85 @@ void HubConnection::download_removed(u64 id, WebView::IsPrivate is_private)
     RemoteDownloads::the().did_remove(id, is_private);
 }
 
+void HubConnection::bookmarks_changed(ByteString bookmarks_json)
+{
+    auto bookmarks = JsonValue::from_string(bookmarks_json);
+    if (bookmarks.is_error() || !bookmarks.value().is_object())
+        return;
+    Application::bookmark_store().replace_with_json(bookmarks.value(), WebView::BookmarkStore::PersistChange::No);
+}
+
+void HubConnection::app_read_bookmarks_for_all_tabs(u64 request_id)
+{
+    async_answer_bookmarks_for_all_tabs(request_id, Application::the().bookmarks_for_all_tabs_in_current_window());
+}
+
+void HubConnection::app_show_bookmark_popover()
+{
+    Application::the().show_bookmark_popover();
+}
+
+void HubConnection::app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id)
+{
+    Optional<WebView::BookmarkItem const&> item;
+    if (item_id.has_value())
+        item = Application::bookmark_store().find_item_by_id(*item_id);
+    Application::the().show_bookmark_context_menu(position, item, target_folder_id, parent_folder_id);
+}
+
+void HubConnection::app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id)
+{
+    auto& application = Application::the();
+    Optional<WebView::BookmarkItem const&> item;
+    if (item_id.has_value())
+        item = Application::bookmark_store().find_item_by_id(*item_id);
+
+    auto answer = [request_id](Optional<Hub::BookmarkDialogResult> result) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_answer_bookmark_dialog(request_id, move(result));
+    };
+
+    RefPtr<Application::BookmarkPromise> promise;
+    switch (kind) {
+    case Hub::BookmarkDialogKind::AddBookmark:
+        promise = application.display_add_bookmark_dialog(folder_id);
+        break;
+    case Hub::BookmarkDialogKind::EditBookmark:
+        if (item.has_value())
+            promise = application.display_edit_bookmark_dialog(*item, folder_id);
+        break;
+    case Hub::BookmarkDialogKind::AddFolder:
+        promise = application.display_add_bookmark_folder_dialog(default_title, folder_id);
+        break;
+    case Hub::BookmarkDialogKind::EditFolder:
+        if (item.has_value())
+            promise = application.display_edit_bookmark_folder_dialog(*item, folder_id);
+        break;
+    }
+    if (!promise) {
+        answer({});
+        return;
+    }
+    promise->when_resolved([answer](WebView::Application::BookmarkDialogResult& result) {
+        Hub::BookmarkDialogResult answer_to_send;
+        answer_to_send.target_folder_id = result.target_folder_id;
+        result.data.visit(
+            [&](WebView::BookmarkItem::Bookmark const& bookmark) {
+                answer_to_send.url = bookmark.url;
+                answer_to_send.title = bookmark.title;
+                answer_to_send.favicon_hash = bookmark.favicon_hash;
+            },
+            [&](WebView::BookmarkItem::Folder const& folder) {
+                answer_to_send.is_folder = true;
+                answer_to_send.title = folder.title;
+            });
+        answer(move(answer_to_send));
+    });
+    promise->when_rejected([answer](Error const&) {
+        answer({});
+    });
+}
+
 void HubConnection::settings_changed(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);

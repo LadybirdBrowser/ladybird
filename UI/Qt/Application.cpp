@@ -689,6 +689,12 @@ void Application::create_platform_actions()
             hub->async_update_settings(settings.serialized().to_byte_string());
     };
 
+    m_bookmark_store = make<WebView::BookmarkStore>(WebView::BookmarkStore::create_from_json(WebView::Application::bookmark_store().serialize_store()));
+    m_bookmark_store->on_persist = [](JsonValue const& bookmarks) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_update_bookmarks(bookmarks.serialized().to_byte_string());
+    };
+
     RemoteActions::the().set_application_actions(Hub::ActionMirror::the().application_actions());
     RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 
@@ -771,13 +777,10 @@ Web::CSS::PreferredColorScheme Application::interface_color_scheme() const
 }
 
 // Bookmarking the page from the menu or its shortcut does what the star in the address field does.
-bool Application::show_bookmark_ui_for_view(WebView::ViewImplementation& view)
+void Application::show_bookmark_popover()
 {
-    if (auto* tab = active_tab(); tab && &tab->view().hub_view() == &view) {
+    if (auto* tab = active_tab())
         tab->show_bookmark_popover();
-        return true;
-    }
-    return false;
 }
 
 bool Application::platform_reports_scroll_momentum() const
@@ -1769,21 +1772,6 @@ void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Opt
     }
 }
 
-Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu() const
-{
-    if (m_active_window) {
-        auto const& bookmarks_bar = m_active_window->bookmarks_bar();
-
-        return Application::BookmarkID {
-            .id = bookmarks_bar.selected_bookmark_menu_item_id(),
-            .target_folder_id = bookmarks_bar.selected_bookmark_menu_target_folder_id(),
-            .parent_folder_id = bookmarks_bar.selected_bookmark_menu_parent_folder_id(),
-        };
-    }
-
-    return {};
-}
-
 static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_bookmark_dialog(
     QWidget* parent,
     BookmarkDialog::Type dialog_type,
@@ -1792,7 +1780,7 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
     Optional<String> current_favicon_hash,
     Optional<String const&> selected_folder_id = {})
 {
-    auto const& folders = WebView::Application::bookmark_store().root_items();
+    auto const& folders = Application::bookmark_store().root_items();
 
     auto* dialog = new BookmarkDialog(parent, dialog_type, current_url, current_title, selected_folder_id, folders);
     auto promise = WebView::Application::BookmarkPromise::construct();
@@ -1859,7 +1847,7 @@ static NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_or_edit_
     Optional<String const&> selected_folder_id,
     Optional<String const&> excluded_folder_id = {})
 {
-    auto* dialog = new BookmarkDialog(parent, dialog_type, {}, current_title, selected_folder_id, WebView::Application::bookmark_store().root_items(), excluded_folder_id);
+    auto* dialog = new BookmarkDialog(parent, dialog_type, {}, current_title, selected_folder_id, Application::bookmark_store().root_items(), excluded_folder_id);
     auto promise = WebView::Application::BookmarkPromise::construct();
 
     QObject::connect(dialog, &QDialog::finished, [promise, dialog = QPointer { dialog }](auto result) {

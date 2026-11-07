@@ -43,6 +43,10 @@ private:
     virtual void download_removed(u64 id, WebView::IsPrivate) override;
 
     // ^HubServerEndpoint
+    virtual void update_bookmarks(ByteString bookmarks_json) override;
+    virtual void answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks) override;
+    virtual void answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result) override;
+    virtual void bookmark_context_menu_item_changed(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) override;
     virtual void cancel_download(u64 id) override;
     virtual void pause_download(u64 id) override;
     virtual void resume_download(u64 id) override;
