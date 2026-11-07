@@ -56,6 +56,7 @@ private:
 
     void start();
     void forget_agent();
+    void give_up_on_parked_end();
     void dispatch_error_event();
     void dispatch_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     void report_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource);
@@ -68,6 +69,7 @@ private:
     URL::URL m_url;
     WorkerAgentId m_agent_id { 0 };
     WorkerAgentOwnerToken m_owner_token { 0 };
+    u64 m_parked_end_token { 0 };
 
     GC::Ptr<MessagePort> m_message_port;
     GC::Ptr<MessagePort> m_outside_port;

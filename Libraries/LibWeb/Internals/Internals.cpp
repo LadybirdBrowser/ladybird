@@ -531,6 +531,11 @@ void Internals::fail_next_message_port_transfer(HTML::MessagePort& port)
     port.fail_next_transfer_for_testing();
 }
 
+String Internals::message_port_entanglement_kind(HTML::MessagePort& port)
+{
+    return MUST(String::from_utf8(port.entanglement_kind_for_testing()));
+}
+
 bool Internals::message_ports_are_directly_entangled(HTML::MessagePort& first, HTML::MessagePort& second)
 {
     return first.entangled_port().ptr() == &second && second.entangled_port().ptr() == &first;

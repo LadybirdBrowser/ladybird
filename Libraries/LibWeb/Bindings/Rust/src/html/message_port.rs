@@ -13,7 +13,9 @@ use core::any::Any;
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
-use std::collections::VecDeque;
+use core::sync::atomic::{AtomicU64, Ordering};
+use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 use ak::Utf16String;
 use libipc_rust::{Attachment, DecodeError, Decoder, Encoder};
@@ -29,10 +31,11 @@ use crate::bindings::interface::{
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::port_channel::{PeerState, PortChannelEnd};
 use crate::html::structured_serialize::transfer_data_holder::{
     RawAttachment, ReceivePayload, TransferPayload, append_attachments,
 };
-use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
+use crate::html::structured_serialize::transfer_record::{PortMessage, TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::{structured_deserialize_with_transfer, structured_serialize_with_transfer};
 
 /// The dictionary StructuredSerializeOptions of HTML/MessagePort.idl, whose members the bindings convert.
@@ -200,6 +203,18 @@ impl MessagePort {
 
     pub(crate) fn pending_outgoing_message_count(&self) -> usize {
         self.pending_outgoing_messages.borrow().len()
+    }
+
+    /// How this port reaches the port it is entangled with, for tests.
+    pub(crate) fn entanglement_kind(&self) -> &'static str {
+        if self.remote_port.get().is_some() {
+            return "same agent";
+        }
+        match &*self.transport.borrow() {
+            Some(transport) if transport.is_channel() => "channel",
+            Some(_) => "socket",
+            None => "none",
+        }
     }
 
     pub(crate) fn fail_next_transfer_for_testing(&self) {
@@ -654,7 +669,8 @@ impl Transferable for MessagePort {
         this.has_been_shipped.set(true);
 
         // NB: A port entangled over a transport hands its transport over. Stop the transport's IO thread before draining
-        //     it below, so that no message arrives between the drain and the handle going to the new owner.
+        //     it below, so that no message arrives between the drain and the handle going to the new owner. A channel
+        //     keeps the messages that wait for its end, for whoever owns that next.
         let released_transport = this
             .transport
             .borrow()
@@ -680,8 +696,8 @@ impl Transferable for MessagePort {
                 //    1. Set remotePort's has been shipped flag to true.
                 remote_port.has_been_shipped.set(true);
 
-                let (transport, handle) = MessagePortTransport::create_paired();
-                (Some((remote_port, transport)), Some(handle))
+                let (transport, transferred) = MessagePortTransport::create_channel();
+                (Some((remote_port, transport)), Some(transferred))
             }
             None => (None, released_transport),
         };
@@ -690,7 +706,7 @@ impl Transferable for MessagePort {
         // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
         data_holder.write_bool(remote_port_handle.is_some());
         if let Some(remote_port_handle) = remote_port_handle {
-            data_holder.write_transport_handle(remote_port_handle);
+            data_holder.write_transport(remote_port_handle);
         }
 
         if let Some((remote_port, mut transport)) = remote_port {
@@ -736,7 +752,7 @@ impl Transferable for MessagePort {
         // 3. If dataHolder.[[RemotePort]] is not null, then entangle dataHolder.[[RemotePort]] and value.
         //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)
         if data_holder.read_bool()? {
-            let mut transport = data_holder.read_transport_handle()?.create_transport();
+            let mut transport = data_holder.read_transport()?.create_transport();
             value.has_ever_been_entangled.set(true);
 
             transport.set_up_read_hook(ReadHookState::new(vm, value), ReadHookState::read_from_transport);
@@ -758,6 +774,13 @@ unsafe extern "C" {
         count: usize,
     ) -> *mut c_void;
     fn web_bindings_message_port_transport_create_paired(out_remote_handle: &mut *mut c_void) -> *mut c_void;
+    fn web_bindings_message_port_current_event_loop() -> *mut c_void;
+    fn web_bindings_message_port_release_event_loop(event_loop: *mut c_void);
+    fn web_bindings_message_port_post_to_event_loop(
+        event_loop: *mut c_void,
+        steps: unsafe extern "C" fn(u64),
+        argument: u64,
+    );
     fn web_bindings_message_port_transport_destroy(transport: *mut c_void);
     fn web_bindings_message_port_transport_release_for_transfer(transport: *mut c_void) -> *mut c_void;
     fn web_bindings_message_port_transport_set_up_read_hook(
@@ -842,21 +865,33 @@ impl TransportHandle {
         Ok(Self { attachments })
     }
 
-    /// The transport of the end that the handle holds the rights of, which it gives up.
-    pub(crate) fn create_transport(self) -> MessagePortTransport {
-        let payload = TransferPayload {
-            bytes: Vec::new(),
-            attachments: self.attachments,
-        };
-        payload.with_raw(|bytes, attachments| {
+    /// The IPC transport of the end that the handle holds the rights of, which it gives up.
+    fn create_socket(self) -> SocketTransport {
+        TransferPayload::new(Vec::new(), self.attachments).with_raw(|bytes, attachments| {
             // SAFETY: The call takes every right, and LibWeb hands over the transport.
             unsafe {
-                MessagePortTransport::from_raw(web_bindings_transport_handle_create_transport(
+                SocketTransport::from_raw(web_bindings_transport_handle_create_transport(
                     bytes,
                     attachments.as_ptr(),
                     attachments.len(),
                 ))
             }
+        })
+    }
+}
+
+/// What a data holder carries for a port to reach its peer with.
+pub(crate) enum TransferredTransport {
+    Socket(TransportHandle),
+    Channel(PortChannelEnd),
+}
+
+impl TransferredTransport {
+    /// The transport of the end, which it gives up.
+    pub(crate) fn create_transport(self) -> MessagePortTransport {
+        MessagePortTransport::new(match self {
+            Self::Socket(handle) => Connection::Socket(handle.create_socket()),
+            Self::Channel(end) => Connection::Channel(end),
         })
     }
 }
@@ -874,90 +909,84 @@ struct ReadHook<S> {
     steps: fn(&S),
 }
 
-/// The transport of one end of the channel between two MessagePorts entangled across agents, whose messages are the
-/// records of structured serializations with transfer: an IPC::Transport that this owns. Its IO thread receives the
-/// messages, and its read hook runs on the owner thread when they arrive.
-pub(crate) struct MessagePortTransport {
-    raw: NonNull<c_void>,
-    /// The read hook, which the transport is lent until it is destroyed: drop() destroys the transport before this.
-    read_hook: Option<Box<dyn Any>>,
+/// The hook of a transport as its IPC transport or the wake of its channel calls it, with what the hook is called with.
+#[derive(Clone, Copy)]
+struct RawReadHook {
+    hook: *mut c_void,
+    run: unsafe extern "C" fn(*mut c_void),
 }
 
-impl MessagePortTransport {
-    /// IPC::Transport::create_paired(): the transport of one end of a new channel, and the handle of the other end.
-    pub(crate) fn create_paired() -> (Self, TransportHandle) {
-        let mut remote_handle = core::ptr::null_mut();
-        // SAFETY: LibWeb hands over a new transport and the handle.
-        unsafe {
-            let transport = web_bindings_message_port_transport_create_paired(&mut remote_handle);
-            (Self::from_raw(transport), TransportHandle::from_raw(remote_handle))
-        }
+thread_local! {
+    /// The read hooks of the transports of this thread that are on a channel, by the id that their wakes carry. A wake
+    /// can outlive its transport, and the agent of its thread, so this is what it goes through to reach either.
+    static CHANNEL_READ_HOOKS: RefCell<HashMap<u64, RawReadHook>> = RefCell::new(HashMap::new());
+}
+
+/// Runs on the owner thread of the transport, from its event loop.
+unsafe extern "C" fn run_channel_read_hook(id: u64) {
+    let Some(hook) = CHANNEL_READ_HOOKS.with_borrow(|hooks| hooks.get(&id).copied()) else {
+        return;
+    };
+    // SAFETY: The transport removes the hook from the list before it destroys the hook.
+    unsafe { (hook.run)(hook.hook) };
+}
+
+/// The event loop of a thread as any thread may reach it: Core::WeakEventLoopReference.
+struct EventLoopReference(NonNull<c_void>);
+
+// SAFETY: The reference counts atomically, and it finds out under a lock whether its event loop is still there.
+unsafe impl Send for EventLoopReference {}
+unsafe impl Sync for EventLoopReference {}
+
+impl EventLoopReference {
+    fn current() -> Self {
+        // SAFETY: The call hands over a reference.
+        let reference = unsafe { web_bindings_message_port_current_event_loop() };
+        Self(NonNull::new(reference).expect("the thread of a port has an event loop"))
     }
 
+    /// Has the event loop run the read hook with the id, if the event loop is still there.
+    fn post_read_hook(&self, id: u64) {
+        // SAFETY: This holds a reference.
+        unsafe { web_bindings_message_port_post_to_event_loop(self.0.as_ptr(), run_channel_read_hook, id) };
+    }
+}
+
+impl Drop for EventLoopReference {
+    fn drop(&mut self) {
+        // SAFETY: This holds a reference.
+        unsafe { web_bindings_message_port_release_event_loop(self.0.as_ptr()) };
+    }
+}
+
+/// An IPC::Transport that this owns.
+struct SocketTransport {
+    raw: NonNull<c_void>,
+}
+
+impl SocketTransport {
     /// # Safety
     ///
     /// `transport` must be a transport that LibWeb hands over.
     unsafe fn from_raw(transport: *mut c_void) -> Self {
         Self {
             raw: NonNull::new(transport).expect("LibWeb hands over a transport"),
-            read_hook: None,
         }
     }
 
-    /// Takes the rights of this end back as a handle, for a data holder to carry to another agent. The IO thread stops
-    /// first, so that what the peer sends from then on arrives at the handle's new owner, while what it sent before can
-    /// still be read.
-    pub(crate) fn release_for_transfer(&self) -> TransportHandle {
-        // SAFETY: This owns the transport, and LibWeb hands over the handle.
+    fn set_up_read_hook(&self, hook: RawReadHook) {
+        // SAFETY: This owns the transport, and the hook outlives it.
         unsafe {
-            TransportHandle::from_raw(web_bindings_message_port_transport_release_for_transfer(
-                self.raw.as_ptr(),
-            ))
+            web_bindings_message_port_transport_set_up_read_hook(self.raw.as_ptr(), hook.hook, hook.run);
         }
     }
 
-    /// Runs the steps with the state on the owner thread whenever messages arrive, for as long as the transport lives.
-    pub(crate) fn set_up_read_hook<S: 'static>(&mut self, state: S, steps: fn(&S)) {
-        unsafe extern "C" fn run<S>(hook: *mut c_void) {
-            // SAFETY: The transport calls its hook with the one that set_up_read_hook() lent it, which outlives the
-            //         transport.
-            let hook = unsafe { &*hook.cast::<ReadHook<S>>() };
-            (hook.steps)(&hook.state);
-        }
-        let hook = Box::new(ReadHook { state, steps });
-        let raw_hook: *const ReadHook<S> = &raw const *hook;
-        // SAFETY: This owns the transport, and lends it the hook until it is destroyed, before the hook.
-        unsafe {
-            web_bindings_message_port_transport_set_up_read_hook(
-                self.raw.as_ptr(),
-                raw_hook.cast_mut().cast(),
-                run::<S>,
-            );
-        }
-        self.read_hook = Some(hook);
-    }
-
-    pub(crate) fn is_open(&self) -> bool {
-        // SAFETY: This owns the transport.
-        unsafe { web_bindings_message_port_transport_is_open(self.raw.as_ptr()) }
-    }
-
-    pub(crate) fn close(&self) {
-        // SAFETY: This owns the transport.
-        unsafe { web_bindings_message_port_transport_close(self.raw.as_ptr()) };
-    }
-
-    pub(crate) fn close_after_sending_all_pending_messages(&self) {
-        // SAFETY: This owns the transport.
-        unsafe { web_bindings_message_port_transport_close_after_sending_all_pending_messages(self.raw.as_ptr()) };
-    }
-
-    /// Sends the record to the peer as one message. False if the transport failed, which LibWeb logs.
-    pub(crate) fn send(&self, vm: &Vm, record: TransferRecordRef) -> bool {
+    /// Sends the message to the peer. False if the transport failed, which LibWeb logs.
+    fn send(&self, message: PortMessage) -> bool {
         let mut encoder = Encoder::new();
-        TransferRecord::encode_into(record, vm, &mut encoder).expect("a message record encodes");
+        message.encode_into(&mut encoder).expect("a message record encodes");
         let (bytes, attachments) = encoder.finish();
-        TransferPayload { bytes, attachments }.with_raw(|bytes, attachments| {
+        TransferPayload::new(bytes, attachments).with_raw(|bytes, attachments| {
             // SAFETY: This owns the transport. The call copies the bytes and takes every native attachment.
             unsafe {
                 web_bindings_message_port_transport_send(
@@ -970,8 +999,7 @@ impl MessagePortTransport {
         })
     }
 
-    /// Appends every message that has arrived, each a record, and tells whether the peer is gone.
-    pub(crate) fn read_as_many_messages_as_possible_without_blocking(
+    fn read_as_many_messages_as_possible_without_blocking(
         &self,
         vm: &Vm,
         records: &MarkedVec<'_, TransferRecordRef>,
@@ -1010,9 +1038,227 @@ impl MessagePortTransport {
     }
 }
 
-impl Drop for MessagePortTransport {
+impl Drop for SocketTransport {
     fn drop(&mut self) {
         // SAFETY: This owns the transport. Its read hook, which the state outlives, goes with it.
         unsafe { web_bindings_message_port_transport_destroy(self.raw.as_ptr()) };
+    }
+}
+
+/// What a transport reaches its peer over: a channel if the peer is in this process, as far as anybody knows, and
+/// otherwise an IPC transport.
+enum Connection {
+    Socket(SocketTransport),
+    Channel(PortChannelEnd),
+    /// The channel end went to a new owner, along with the port.
+    Released,
+}
+
+/// The transport of one end of the channel between two MessagePorts entangled across agents, whose messages are the
+/// records of structured serializations with transfer. Its read hook runs on the owner thread when they arrive.
+pub(crate) struct MessagePortTransport {
+    connection: RefCell<Connection>,
+    /// What this took off the channel as it changed over to a socket, which comes first.
+    channel_leftovers: RefCell<VecDeque<PortMessage>>,
+    is_closed: Cell<bool>,
+    raw_read_hook: Option<RawReadHook>,
+    channel_read_hook_id: Option<u64>,
+    /// The read hook, which the transport is lent until it is destroyed: this goes after the connection.
+    read_hook: Option<Box<dyn Any>>,
+}
+
+impl MessagePortTransport {
+    fn new(connection: Connection) -> Self {
+        Self {
+            connection: RefCell::new(connection),
+            channel_leftovers: RefCell::new(VecDeque::new()),
+            is_closed: Cell::new(false),
+            raw_read_hook: None,
+            channel_read_hook_id: None,
+            read_hook: None,
+        }
+    }
+
+    /// The transport of one end of a new channel in this process, and the other end.
+    pub(crate) fn create_channel() -> (Self, TransferredTransport) {
+        let (end, other_end) = PortChannelEnd::create_pair();
+        (
+            Self::new(Connection::Channel(end)),
+            TransferredTransport::Channel(other_end),
+        )
+    }
+
+    /// IPC::Transport::create_paired(), for both ends to go elsewhere.
+    pub(crate) fn create_paired_handles() -> (TransportHandle, TransportHandle) {
+        let mut remote_handle = core::ptr::null_mut();
+        // SAFETY: LibWeb hands over a new transport and the handle.
+        unsafe {
+            let transport =
+                SocketTransport::from_raw(web_bindings_message_port_transport_create_paired(&mut remote_handle));
+            let local_handle = TransportHandle::from_raw(web_bindings_message_port_transport_release_for_transfer(
+                transport.raw.as_ptr(),
+            ));
+            (local_handle, TransportHandle::from_raw(remote_handle))
+        }
+    }
+
+    pub(crate) fn is_channel(&self) -> bool {
+        matches!(&*self.connection.borrow(), Connection::Channel(_))
+    }
+
+    /// Takes this end back, for a data holder to carry to another agent. The IO thread of a socket stops first, so that
+    /// what the peer sends from then on arrives at the new owner, while what it sent before can still be read.
+    pub(crate) fn release_for_transfer(&self) -> TransferredTransport {
+        let mut connection = self.connection.borrow_mut();
+        if let Connection::Socket(socket) = &*connection {
+            // SAFETY: This owns the transport, and LibWeb hands over the handle.
+            return TransferredTransport::Socket(unsafe {
+                TransportHandle::from_raw(web_bindings_message_port_transport_release_for_transfer(
+                    socket.raw.as_ptr(),
+                ))
+            });
+        }
+        let Connection::Channel(end) = core::mem::replace(&mut *connection, Connection::Released) else {
+            unreachable!("a transport is released once");
+        };
+        end.set_wake(None);
+        TransferredTransport::Channel(end)
+    }
+
+    /// Runs the steps with the state on the owner thread whenever messages arrive, for as long as the transport lives.
+    pub(crate) fn set_up_read_hook<S: 'static>(&mut self, state: S, steps: fn(&S)) {
+        unsafe extern "C" fn run<S>(hook: *mut c_void) {
+            // SAFETY: The transport calls its hook with the one that set_up_read_hook() lent it, which outlives the
+            //         transport.
+            let hook = unsafe { &*hook.cast::<ReadHook<S>>() };
+            (hook.steps)(&hook.state);
+        }
+        let hook = Box::new(ReadHook { state, steps });
+        let raw_hook = RawReadHook {
+            hook: (&raw const *hook).cast_mut().cast(),
+            run: run::<S>,
+        };
+        self.raw_read_hook = Some(raw_hook);
+        self.read_hook = Some(hook);
+        match &*self.connection.borrow() {
+            Connection::Socket(socket) => socket.set_up_read_hook(raw_hook),
+            Connection::Channel(end) => {
+                static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+                let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+                CHANNEL_READ_HOOKS.with_borrow_mut(|hooks| hooks.insert(id, raw_hook));
+                self.channel_read_hook_id = Some(id);
+                let event_loop = EventLoopReference::current();
+                end.set_wake(Some(Arc::new(move || event_loop.post_read_hook(id))));
+            }
+            Connection::Released => unreachable!("a released transport has no owner to read"),
+        }
+    }
+
+    /// Changes over to the socket of the handle, keeping the messages that wait on the channel for the next read, and has
+    /// the read hook run for them.
+    fn change_over_to_socket(&self, handle: TransportHandle, messages: VecDeque<PortMessage>) {
+        let socket = handle.create_socket();
+        if let Some(hook) = self.raw_read_hook {
+            socket.set_up_read_hook(hook);
+        }
+        self.channel_leftovers.borrow_mut().extend(messages);
+        *self.connection.borrow_mut() = Connection::Socket(socket);
+        if let Some(id) = self.channel_read_hook_id
+            && !self.channel_leftovers.borrow().is_empty()
+        {
+            EventLoopReference::current().post_read_hook(id);
+        }
+    }
+
+    pub(crate) fn is_open(&self) -> bool {
+        if self.is_closed.get() {
+            return false;
+        }
+        match &*self.connection.borrow() {
+            // SAFETY: This owns the transport.
+            Connection::Socket(socket) => unsafe { web_bindings_message_port_transport_is_open(socket.raw.as_ptr()) },
+            Connection::Channel(end) => end.is_open(),
+            Connection::Released => false,
+        }
+    }
+
+    pub(crate) fn close(&self) {
+        self.is_closed.set(true);
+        if let Connection::Socket(socket) = &*self.connection.borrow() {
+            // SAFETY: This owns the transport.
+            unsafe { web_bindings_message_port_transport_close(socket.raw.as_ptr()) };
+        }
+    }
+
+    pub(crate) fn close_after_sending_all_pending_messages(&self) {
+        if let Connection::Socket(socket) = &*self.connection.borrow() {
+            // SAFETY: This owns the transport.
+            unsafe {
+                web_bindings_message_port_transport_close_after_sending_all_pending_messages(socket.raw.as_ptr());
+            }
+        }
+    }
+
+    /// Sends the record to the peer as one message. False if the transport failed, which LibWeb logs.
+    pub(crate) fn send(&self, vm: &Vm, record: TransferRecordRef) -> bool {
+        let mut message = TransferRecord::into_port_message(record, vm);
+        if let Connection::Channel(end) = &*self.connection.borrow() {
+            match end.send(message) {
+                Ok(()) => return true,
+                Err(returned) => message = returned,
+            }
+        }
+        // NB: The peer left the process, which the channel says only after everything that waits on it.
+        let change_over = match &*self.connection.borrow() {
+            Connection::Channel(end) => Some(end.read()),
+            _ => None,
+        };
+        if let Some((messages, PeerState::Transport(handle))) = change_over {
+            self.change_over_to_socket(handle, messages);
+        }
+        match &*self.connection.borrow() {
+            Connection::Socket(socket) => socket.send(message),
+            _ => false,
+        }
+    }
+
+    /// Appends every message that has arrived, each a record, and tells whether the peer is gone.
+    pub(crate) fn read_as_many_messages_as_possible_without_blocking(
+        &self,
+        vm: &Vm,
+        records: &MarkedVec<'_, TransferRecordRef>,
+    ) -> ShouldShutdown {
+        for message in self.channel_leftovers.borrow_mut().drain(..) {
+            records.push(TransferRecord::from_port_message(vm, message));
+        }
+        let channel_read = match &*self.connection.borrow() {
+            Connection::Channel(end) => Some(end.read()),
+            Connection::Socket(_) | Connection::Released => None,
+        };
+        if let Some((messages, state)) = channel_read {
+            for message in messages {
+                records.push(TransferRecord::from_port_message(vm, message));
+            }
+            match state {
+                PeerState::Connected => return ShouldShutdown::No,
+                PeerState::Gone => return ShouldShutdown::Yes,
+                PeerState::Transport(handle) => self.change_over_to_socket(handle, VecDeque::new()),
+            }
+        }
+        match &*self.connection.borrow() {
+            Connection::Socket(socket) => socket.read_as_many_messages_as_possible_without_blocking(vm, records),
+            _ => ShouldShutdown::No,
+        }
+    }
+}
+
+impl Drop for MessagePortTransport {
+    fn drop(&mut self) {
+        if let Some(id) = self.channel_read_hook_id {
+            // NB: A thread that goes away has no hooks left to run, and has no list left to speak of.
+            let _ = CHANNEL_READ_HOOKS.try_with(|hooks| hooks.borrow_mut().remove(&id));
+        }
+        // NB: The connection goes first, as the hook is lent to it.
+        *self.connection.borrow_mut() = Connection::Released;
     }
 }

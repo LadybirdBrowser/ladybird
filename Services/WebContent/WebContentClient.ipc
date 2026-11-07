@@ -320,7 +320,7 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     did_find_in_page(Web::PageId page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
-    [NotRouted] start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id, Optional<IPC::TransportHandle> thread_transport)
+    [NotRouted] start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id, Optional<IPC::TransportHandle> thread_transport, bool is_hosted_in_caller_process)
     [NotRouted] close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
     rtc_transform_init(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record) =|
     rtc_transform_teardown(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, u64 transform_id) =|

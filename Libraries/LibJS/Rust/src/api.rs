@@ -86,9 +86,8 @@ pub use crate::runtime::regexp_object::{RegExpObject, regexp_create};
 pub use crate::runtime::set::Set;
 pub use crate::runtime::set_iterator::SetIterator;
 pub use crate::runtime::shared_backing_store::{
-    SharedBackingStore, SharedStoreLifeline, duplicate_lifeline_from_raw_descriptor, lifeline_from_raw_descriptor,
-    lifeline_into_raw_descriptor,
-    pin_stores_for_a_message, release_stores_of_lost_messages,
+    SharedBackingStore, SharedStoreLifeline, SharedStorePin, duplicate_lifeline_from_raw_descriptor,
+    lifeline_from_raw_descriptor, lifeline_into_raw_descriptor, release_stores_of_lost_messages,
 };
 pub use crate::runtime::string_object::StringObject;
 pub use crate::runtime::typed_array::{

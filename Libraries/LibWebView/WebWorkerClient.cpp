@@ -227,7 +227,7 @@ Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worke
 {
     auto outside_settings = hosted_environment(request.outside_settings.id);
     auto started_agent = WorkerProcessManager::the().start_worker_agent(*this, outside_settings, move(request));
-    return { started_agent.agent_id, move(started_agent.thread_transport) };
+    return { started_agent.agent_id, move(started_agent.thread_transport), started_agent.is_hosted_in_owner_process };
 }
 
 void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

@@ -12,8 +12,8 @@ use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
 
 use libjs_rust::api::{
-    ArrayBuffer, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Trace, Vm, into_raw_descriptor,
-    lifeline_into_raw_descriptor,
+    ArrayBuffer, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, SharedStorePin, Trace, Vm,
+    into_raw_descriptor, lifeline_into_raw_descriptor,
 };
 
 use super::cpp::{OwnedSerializedTransferRecord, SerializedTransferRecord, objects_into_abi};
@@ -80,84 +80,37 @@ impl EmbedderValue for TransferRecord {
 
 pub(crate) type TransferRecordRef = Gc<EmbedderCell<TransferRecord>>;
 
-impl TransferRecord {
-    pub(crate) fn discard(record: TransferRecordRef) {
-        record.serialized.replace(None);
-        record.data_holders.borrow_mut().clear();
+/// A record on its way to a MessagePort, which is plain data that any thread can own: the bytes, the data holders, the
+/// shared memory of ImageBitmap pixels, and the pin of the stores that the bytes name.
+#[derive(Default)]
+pub(crate) struct PortMessage {
+    bytes: Vec<u8>,
+    data_holders: Vec<TransferPayload>,
+    shared_memory: Vec<SharedMemory>,
+    shared_store_pin: Option<SharedStorePin>,
+}
+
+impl PortMessage {
+    pub(crate) fn encode_into(mut self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(self.bytes.as_slice())?;
+        encoder.encode_owned(core::mem::take(&mut self.data_holders))?;
+        encoder.encode_size(self.shared_memory.len())?;
+        for memory in core::mem::take(&mut self.shared_memory) {
+            encoder.encode(&true)?;
+            encoder.encode(&(memory.size as u64))?;
+            encoder.encode_owned(file_from_raw_descriptor(into_raw_descriptor(memory.descriptor)))?;
+        }
+        let shared_store_lifeline = self.shared_store_pin.take().and_then(SharedStorePin::into_lifeline);
+        encoder.encode(&shared_store_lifeline.is_some())?;
+        if let Some(lifeline) = shared_store_lifeline {
+            encoder.encode_owned(file_from_raw_descriptor(lifeline_into_raw_descriptor(lifeline)))?;
+        }
+        Ok(())
     }
 
-    pub(crate) fn create(
-        vm: &Vm,
-        build: impl FnOnce(&DeferGc<'_>) -> MessageRecord,
-        data_holders: Vec<TransferPayload>,
-    ) -> TransferRecordRef {
-        TRANSFER_RECORD_CLASS.allocate(vm, |defer_gc| Self {
-            serialized: GcRefCell::new(Some(build(defer_gc))),
-            data_holders: RefCell::new(data_holders),
-        })
-    }
-
-    pub(crate) fn into_cpp(record: TransferRecordRef, vm: &Vm) -> OwnedSerializedTransferRecord {
-        DeferGc::scope(vm, |_defer_gc| {
-            let mut message = record.serialized.replace(None).expect("a record is handed over once");
-            let buffers = objects_into_abi(&message.shared_array_buffers);
-            let (descriptors, sizes): (Vec<_>, Vec<_>) = core::mem::take(&mut message.shared_memory)
-                .into_iter()
-                .map(|memory| (into_raw_descriptor(memory.descriptor), memory.size))
-                .unzip();
-            let shared_store_lifeline = message
-                .shared_store_lifeline
-                .take()
-                .map_or(-1, lifeline_into_raw_descriptor);
-            let holders: Vec<_> = record
-                .data_holders
-                .borrow_mut()
-                .drain(..)
-                .map(TransferPayload::into_cpp)
-                .collect();
-            // SAFETY: The call borrows bytes and live buffers, and takes every descriptor and holder. GC remains
-            //         deferred until the C++ carrier roots the buffer aliases.
-            unsafe {
-                OwnedSerializedTransferRecord::from_raw(web_structured_serialize_transfer_record_create(
-                    ak::Span::new(&message.bytes),
-                    buffers.as_ptr(),
-                    buffers.len(),
-                    descriptors.as_ptr(),
-                    sizes.as_ptr(),
-                    descriptors.len(),
-                    shared_store_lifeline,
-                    holders.as_ptr(),
-                    holders.len(),
-                ))
-            }
-        })
-    }
-
-    /// The IPC encoding of a SerializedTransferRecord, without its same-process SharedArrayBuffers.
-    pub(crate) fn encode_into(record: TransferRecordRef, vm: &Vm, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        DeferGc::scope(vm, |_| {
-            let mut message = record.serialized.replace(None).expect("a record is handed over once");
-            encoder.encode(message.bytes.as_slice())?;
-            let holders = core::mem::take(&mut *record.data_holders.borrow_mut());
-            encoder.encode_owned(holders)?;
-            encoder.encode_size(message.shared_memory.len())?;
-            for memory in core::mem::take(&mut message.shared_memory) {
-                encoder.encode(&true)?;
-                encoder.encode(&(memory.size as u64))?;
-                encoder.encode_owned(file_from_raw_descriptor(into_raw_descriptor(memory.descriptor)))?;
-            }
-            let shared_store_lifeline = message.shared_store_lifeline.take();
-            encoder.encode(&shared_store_lifeline.is_some())?;
-            if let Some(lifeline) = shared_store_lifeline {
-                encoder.encode_owned(file_from_raw_descriptor(lifeline_into_raw_descriptor(lifeline)))?;
-            }
-            Ok(())
-        })
-    }
-
-    pub(crate) fn decode(vm: &Vm, decoder: &mut Decoder<'_>) -> Result<TransferRecordRef, DecodeError> {
+    pub(crate) fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         let bytes = decoder.decode::<Vec<u8>>()?;
-        let holders = decoder.decode::<Vec<TransferPayload>>()?;
+        let data_holders = decoder.decode::<Vec<TransferPayload>>()?;
         let count = decoder.decode_size()?;
         let mut shared_memory = Vec::new();
         let mut keep_prefix = true;
@@ -193,7 +146,7 @@ impl TransferRecord {
                 shared_memory.push(memory);
             }
         }
-        let shared_store_lifeline = decoder
+        let shared_store_pin = decoder
             .decode::<bool>()?
             .then(|| decoder.decode::<File>())
             .transpose()?
@@ -203,18 +156,115 @@ impl TransferRecord {
                 #[cfg(windows)]
                 let raw = descriptor.into_raw();
                 // SAFETY: File hands its descriptor over to the lifeline.
-                unsafe { lifeline_from_raw_descriptor(raw) }
+                SharedStorePin::Lifeline(unsafe { lifeline_from_raw_descriptor(raw) })
             });
-        Ok(Self::create(
+        Ok(Self {
+            bytes,
+            data_holders,
+            shared_memory,
+            shared_store_pin,
+        })
+    }
+}
+
+impl Drop for PortMessage {
+    fn drop(&mut self) {
+        if let Some(pin) = self.shared_store_pin.take() {
+            pin.release();
+        }
+    }
+}
+
+impl TransferRecord {
+    pub(crate) fn discard(record: TransferRecordRef) {
+        record.serialized.replace(None);
+        record.data_holders.borrow_mut().clear();
+    }
+
+    pub(crate) fn create(
+        vm: &Vm,
+        build: impl FnOnce(&DeferGc<'_>) -> MessageRecord,
+        data_holders: Vec<TransferPayload>,
+    ) -> TransferRecordRef {
+        TRANSFER_RECORD_CLASS.allocate(vm, |defer_gc| Self {
+            serialized: GcRefCell::new(Some(build(defer_gc))),
+            data_holders: RefCell::new(data_holders),
+        })
+    }
+
+    pub(crate) fn into_cpp(record: TransferRecordRef, vm: &Vm) -> OwnedSerializedTransferRecord {
+        DeferGc::scope(vm, |_defer_gc| {
+            let mut message = record.serialized.replace(None).expect("a record is handed over once");
+            let buffers = objects_into_abi(&message.shared_array_buffers);
+            let (descriptors, sizes): (Vec<_>, Vec<_>) = core::mem::take(&mut message.shared_memory)
+                .into_iter()
+                .map(|memory| (into_raw_descriptor(memory.descriptor), memory.size))
+                .unzip();
+            let shared_store_lifeline = message
+                .shared_store_pin
+                .take()
+                .and_then(SharedStorePin::into_lifeline)
+                .map_or(-1, lifeline_into_raw_descriptor);
+            let holders: Vec<_> = record
+                .data_holders
+                .borrow_mut()
+                .drain(..)
+                .map(TransferPayload::into_cpp)
+                .collect();
+            // SAFETY: The call borrows bytes and live buffers, and takes every descriptor and holder. GC remains
+            //         deferred until the C++ carrier roots the buffer aliases.
+            unsafe {
+                OwnedSerializedTransferRecord::from_raw(web_structured_serialize_transfer_record_create(
+                    ak::Span::new(&message.bytes),
+                    buffers.as_ptr(),
+                    buffers.len(),
+                    descriptors.as_ptr(),
+                    sizes.as_ptr(),
+                    descriptors.len(),
+                    shared_store_lifeline,
+                    holders.as_ptr(),
+                    holders.len(),
+                ))
+            }
+        })
+    }
+
+    /// The IPC encoding of a SerializedTransferRecord, without its same-agent SharedArrayBuffers.
+    pub(crate) fn encode_into(record: TransferRecordRef, vm: &Vm, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        Self::into_port_message(record, vm).encode_into(encoder)
+    }
+
+    /// What of the record can leave the heap of the sender. The side table of same-agent SharedArrayBuffers stays behind,
+    /// as the bytes name those by the id of their store too.
+    pub(crate) fn into_port_message(record: TransferRecordRef, vm: &Vm) -> PortMessage {
+        DeferGc::scope(vm, |_| {
+            let mut message = record.serialized.replace(None).expect("a record is handed over once");
+            PortMessage {
+                bytes: core::mem::take(&mut message.bytes),
+                data_holders: core::mem::take(&mut *record.data_holders.borrow_mut()),
+                shared_memory: core::mem::take(&mut message.shared_memory),
+                shared_store_pin: message.shared_store_pin.take(),
+            }
+        })
+    }
+
+    /// The record of a message, in the heap of the receiver.
+    pub(crate) fn from_port_message(vm: &Vm, mut message: PortMessage) -> TransferRecordRef {
+        let holders = core::mem::take(&mut message.data_holders);
+        Self::create(
             vm,
             |_| MessageRecord {
-                bytes,
+                bytes: core::mem::take(&mut message.bytes),
                 shared_array_buffers: Vec::new(),
-                shared_memory,
-                shared_store_lifeline,
+                shared_memory: core::mem::take(&mut message.shared_memory),
+                shared_store_pin: message.shared_store_pin.take(),
             },
             holders,
-        ))
+        )
+    }
+
+    pub(crate) fn decode(vm: &Vm, decoder: &mut Decoder<'_>) -> Result<TransferRecordRef, DecodeError> {
+        Ok(Self::from_port_message(vm, PortMessage::decode(decoder)?))
     }
 
     pub(crate) fn from_cpp(vm: &Vm, record: SerializedTransferRecord) -> TransferRecordRef {

@@ -1,0 +1,4 @@
+crossOriginIsolated: true
+echo: hello
+port: socket
+messageerror

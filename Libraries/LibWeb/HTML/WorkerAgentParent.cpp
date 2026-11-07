@@ -90,7 +90,10 @@ void WorkerAgentParent::start()
     m_message_port = MessagePort::create(realm);
     m_message_port->entangle_with(*m_outside_port);
 
-    auto data_holder = MUST(m_message_port->transfer_steps(realm));
+    // NB: A dedicated worker always runs in the process of its owner, and the browser process picks that of a shared one.
+    auto [data_holder, parked_end_token] = MUST(m_message_port->transfer_to_worker(realm,
+        m_agent_type == AgentType::DedicatedWorker ? MessagePort::WorkerMayBeInOtherProcess::No : MessagePort::WorkerMayBeInOtherProcess::Yes));
+    m_parked_end_token = parked_end_token;
 
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
     //        but that would require introducing a new IPC message type to communicate this from the worker to its owner,
@@ -131,7 +134,17 @@ void WorkerAgentParent::start()
     // NB: This blocking IPC call may launch another process.
     //    If spinning the event loop for this can cause other javascript to execute, we're in trouble.
     worker_agent_parents().set(m_owner_token, *this);
-    m_agent_id = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
+    auto started_agent = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
+    m_agent_id = started_agent.agent_id;
+
+    // NB: This is before any script can use the port, so that it finds out right now whether its peer is in this process.
+    if (!started_agent.is_hosted_in_this_process)
+        give_up_on_parked_end();
+}
+
+void WorkerAgentParent::give_up_on_parked_end()
+{
+    MessagePort::give_up_on_parked_end(exchange(m_parked_end_token, 0));
 }
 
 void WorkerAgentParent::did_fail_loading_worker_script(WorkerAgentOwnerToken owner_token)
@@ -191,6 +204,7 @@ void WorkerAgentParent::terminate()
 void WorkerAgentParent::forget_agent()
 {
     m_agent_id = 0;
+    give_up_on_parked_end();
     worker_agent_parents().remove(m_owner_token);
     m_outside_settings->remove_owned_worker_agent(*this);
 }

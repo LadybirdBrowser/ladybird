@@ -12,10 +12,13 @@
 //! id. The id gives nothing to the process of a receiver that is not this one, which is where a message goes that
 //! deserialization then rejects.
 //!
-//! A message can wait in a socket for a long time, and every agent may drop its buffer meanwhile. So a message holds a
-//! lifeline: the read end of a pipe that the sender's process keeps the store for. The kernel keeps track of where that
-//! read end is, as it does for any descriptor in flight, so it does not matter whether the message is delivered to one
-//! receiver, to many, to a process that has no use for it, or to nobody.
+//! A message can wait for a long time, and every agent may drop its buffer meanwhile. So a message holds a pin. While the
+//! message stays in memory of this process, that is just a count on the stores. A message that goes through a socket can
+//! still come back here: BroadcastChannel reaches agents of this process through the browser process, and the ends of a
+//! MessagePort can both be in this process with a socket between them. So such a message holds a lifeline instead: the
+//! read end of a pipe that the sender's process keeps the stores for. The kernel keeps track of where that read end is,
+//! as it does for any descriptor in flight, so it does not matter whether the message is delivered to one receiver, to
+//! many, to a process that has no use for it, or to nobody.
 
 use core::ffi::c_int;
 use std::collections::HashMap;
@@ -142,6 +145,41 @@ pub unsafe fn duplicate_lifeline_from_raw_descriptor(descriptor: c_int) -> std::
     }
 }
 
+/// What keeps the stores that a message names.
+pub enum SharedStorePin {
+    /// For a message in memory of this process.
+    Counted(Vec<Arc<SharedBackingStore>>),
+    /// For a message that has been through a socket, or is about to go through one.
+    Lifeline(SharedStoreLifeline),
+}
+
+impl SharedStorePin {
+    /// A lifeline that keeps the same stores, if the system has a descriptor left.
+    pub fn duplicate_lifeline(&self) -> Option<SharedStoreLifeline> {
+        match self {
+            Self::Counted(stores) => pin_stores_for_a_message(stores.clone()).ok(),
+            Self::Lifeline(lifeline) => lifeline.try_clone().ok(),
+        }
+    }
+
+    /// This pin as a lifeline, if the system has a descriptor left. Without one, the stores may go before the message
+    /// arrives, which deserializing throws for.
+    pub fn into_lifeline(self) -> Option<SharedStoreLifeline> {
+        match self {
+            Self::Counted(stores) => pin_stores_for_a_message(stores).ok(),
+            Self::Lifeline(lifeline) => Some(lifeline),
+        }
+    }
+
+    /// Lets go of the stores, for a message that is destroyed.
+    pub fn release(self) {
+        if let Self::Lifeline(lifeline) = self {
+            drop(lifeline);
+            release_stores_of_lost_messages();
+        }
+    }
+}
+
 /// Stores that a message keeps alive, until the last duplicate of its lifeline is closed.
 struct PinnedStores {
     /// The write end of the pipe, which only ever reports that the read end is gone.
@@ -199,7 +237,7 @@ pub fn release_stores_of_lost_messages() {
 }
 
 /// A new lifeline that keeps `stores` for as long as it, or a duplicate of it, is open anywhere.
-pub fn pin_stores_for_a_message(stores: Vec<Arc<SharedBackingStore>>) -> std::io::Result<SharedStoreLifeline> {
+fn pin_stores_for_a_message(stores: Vec<Arc<SharedBackingStore>>) -> std::io::Result<SharedStoreLifeline> {
     release_stores_of_lost_messages();
     let (read_end, write_end) = std::io::pipe()?;
     pinned_stores().push(PinnedStores {

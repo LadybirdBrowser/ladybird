@@ -18,6 +18,7 @@
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use std::collections::VecDeque;
 
 use ak::Utf16String;
 use libipc_rust::{Decode, DecodeError, Decoder, Encode};
@@ -26,12 +27,12 @@ use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, implementation_of, wrap};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::html::message_port::TransportHandle;
+use crate::html::message_port::{TransferredTransport, TransportHandle};
 use crate::html::structured_serialize::cpp::{
     ImageBitmapSharedPixels, SharedPixelBuffers, data_clone_error_from_serialization_error,
 };
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
-use crate::html::structured_serialize::transfer_data_holder::{TransferDataHolder, TransferPayload};
+use crate::html::structured_serialize::transfer_data_holder::{CarriedChannelEnd, TransferDataHolder, TransferPayload};
 use crate::html::structured_serialize::transfer_record::{TransferRecord, TransferRecordRef};
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
@@ -273,12 +274,21 @@ impl<'a> TransferDataWriter<'a> {
         });
     }
 
-    /// Writes the handle of one end of an IPC transport, whose rights the data holder takes.
-    pub(crate) fn write_transport_handle(&mut self, handle: TransportHandle) {
-        self.data_holder.with_encoder(|encoder| {
-            handle.encode_into(encoder);
-            Ok(())
-        });
+    /// Writes what a MessagePort reaches its peer with, which the data holder takes.
+    pub(crate) fn write_transport(&mut self, transport: TransferredTransport) {
+        match transport {
+            TransferredTransport::Channel(end) => {
+                self.write_bool(true);
+                self.data_holder.add_channel_end(end);
+            }
+            TransferredTransport::Socket(handle) => {
+                self.write_bool(false);
+                self.data_holder.with_encoder(|encoder| {
+                    handle.encode_into(encoder);
+                    Ok(())
+                });
+            }
+        }
     }
 
     /// Writes ! StructuredSerializeWithTransfer(value, « value ») as the data holder of value, which is all that the
@@ -297,6 +307,7 @@ impl<'a> TransferDataWriter<'a> {
 /// created in. What the steps read that the data holder does not hold throws a "DataCloneError" DOMException.
 pub(crate) struct TransferDataReader<'a> {
     decoder: Decoder<'a>,
+    channel_ends: VecDeque<CarriedChannelEnd>,
     realm: Gc<Realm>,
     shared_pixels: Option<&'a SharedPixelBuffers<'a>>,
 }
@@ -305,6 +316,7 @@ impl<'a> TransferDataReader<'a> {
     pub(crate) fn new(payload: &'a mut TransferPayload, realm: Gc<Realm>) -> Self {
         Self {
             decoder: Decoder::new(&payload.bytes, core::mem::take(&mut payload.attachments)),
+            channel_ends: core::mem::take(&mut payload.channel_ends),
             realm,
             shared_pixels: None,
         }
@@ -373,9 +385,15 @@ impl<'a> TransferDataReader<'a> {
         Ok(records)
     }
 
-    /// Reads what TransferDataWriter::write_transport_handle() writes.
-    pub(crate) fn read_transport_handle(&mut self) -> WebIdlResult<TransportHandle> {
-        self.decoded(TransportHandle::decode)
+    /// Reads what TransferDataWriter::write_transport() writes.
+    pub(crate) fn read_transport(&mut self) -> WebIdlResult<TransferredTransport> {
+        if !self.read::<bool>()? {
+            return Ok(TransferredTransport::Socket(self.decoded(TransportHandle::decode)?));
+        }
+        let end = self.channel_ends.pop_front().ok_or_else(|| {
+            data_clone_error_from_serialization_error(self.realm, "Missing channel end in transfer data")
+        })?;
+        Ok(TransferredTransport::Channel(end.into_end()))
     }
 
     /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]] for what

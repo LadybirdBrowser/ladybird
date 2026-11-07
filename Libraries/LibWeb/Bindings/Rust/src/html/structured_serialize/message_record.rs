@@ -5,15 +5,15 @@
  */
 
 //! The record of a message that may reach agents in other processes, which Rust owns: the bytes of the values, the
-//! SharedArrayBuffers that agents in this agent's realms share, the lifeline of the stores that the bytes name, and the
+//! SharedArrayBuffers that agents in this agent's realms share, the pin of the stores that the bytes name, and the
 //! shared memory that hands the pixels of ImageBitmaps over.
 //! C++ sees the record only when it is sent to or received from other processes.
 
 use core::ffi::c_int;
 
 use libjs_rust::api::{
-    ArrayBuffer, DeferGc, Gc, OwnedSharedMemory, SharedStoreLifeline, Trace, borrowed_from_raw_descriptor,
-    duplicate_lifeline_from_raw_descriptor, lifeline_into_raw_descriptor, release_stores_of_lost_messages,
+    ArrayBuffer, DeferGc, Gc, OwnedSharedMemory, SharedStorePin, Trace, borrowed_from_raw_descriptor,
+    duplicate_lifeline_from_raw_descriptor, lifeline_into_raw_descriptor,
 };
 
 pub(crate) struct SharedMemory {
@@ -47,7 +47,7 @@ pub(crate) struct MessageRecord {
     #[gc(untraced)]
     pub(crate) shared_memory: Vec<SharedMemory>,
     #[gc(untraced)]
-    pub(crate) shared_store_lifeline: Option<SharedStoreLifeline>,
+    pub(crate) shared_store_pin: Option<SharedStorePin>,
 }
 
 impl MessageRecord {
@@ -75,26 +75,27 @@ impl MessageRecord {
             shared_array_buffers: Vec::new(),
             shared_memory,
             // SAFETY: The caller keeps the descriptor open.
-            shared_store_lifeline: (shared_store_lifeline >= 0)
+            shared_store_pin: (shared_store_lifeline >= 0)
                 .then(|| unsafe { duplicate_lifeline_from_raw_descriptor(shared_store_lifeline) }.ok())
-                .flatten(),
+                .flatten()
+                .map(SharedStorePin::Lifeline),
         }
     }
 
-    /// A duplicate of the descriptor of the lifeline, which the caller owns, or a negative value for no lifeline, for
+    /// The descriptor of a lifeline for the stores, which the caller owns, or a negative value for no lifeline, for
     /// sending the record to other processes.
     pub(crate) fn duplicate_shared_store_lifeline(&self) -> c_int {
-        self.shared_store_lifeline
+        self.shared_store_pin
             .as_ref()
-            .and_then(|lifeline| lifeline.try_clone().ok())
+            .and_then(SharedStorePin::duplicate_lifeline)
             .map_or(-1, lifeline_into_raw_descriptor)
     }
 }
 
 impl Drop for MessageRecord {
     fn drop(&mut self) {
-        if self.shared_store_lifeline.take().is_some() {
-            release_stores_of_lost_messages();
+        if let Some(pin) = self.shared_store_pin.take() {
+            pin.release();
         }
     }
 }

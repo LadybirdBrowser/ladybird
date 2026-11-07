@@ -2262,7 +2262,7 @@ void PageClient::reset_gamepad_access_for_testing()
         test_connection->async_reset_gamepad_access_for_testing(m_id);
 }
 
-Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
+Web::PageClient::StartedWorkerAgent PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
     auto agent_type = request.agent_type;
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::StartWorkerAgent>(m_id, move(request));
@@ -2277,7 +2277,7 @@ Web::HTML::WorkerAgentId PageClient::start_worker_agent(Web::HTML::WorkerAgentSt
             dbgln("Unable to start a thread for a worker: {}", result.error());
     }
 
-    return response->agent_id();
+    return { response->agent_id(), response->is_hosted_in_caller_process() };
 }
 
 void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

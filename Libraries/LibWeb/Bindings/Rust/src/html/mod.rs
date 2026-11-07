@@ -73,6 +73,8 @@ pub(crate) mod offscreen_canvas_rendering_context2d;
 #[cfg(not(test))]
 pub(crate) mod path2d;
 #[cfg(not(test))]
+pub(crate) mod port_channel;
+#[cfg(not(test))]
 pub(crate) mod storage;
 #[cfg(not(test))]
 pub(crate) mod storage_event;

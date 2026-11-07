@@ -411,7 +411,7 @@ private:
     virtual Web::Gamepad::ReceivedRumbleEffects virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle) override;
     virtual void pump_gamepad_events() override;
     virtual void reset_gamepad_access_for_testing() override;
-    virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
+    virtual Web::PageClient::StartedWorkerAgent start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual void rtc_transform_init(Web::HTML::WorkerAgentId, u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
     virtual void rtc_transform_teardown(Web::HTML::WorkerAgentId, u64 transform_id) override;

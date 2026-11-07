@@ -820,7 +820,7 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_wor
     if (auto* page = this->page(page_id))
         return page->start_worker_agent(move(request));
 
-    return { Web::HTML::WorkerAgentId {}, Optional<IPC::TransportHandle> {} };
+    return { Web::HTML::WorkerAgentId {}, Optional<IPC::TransportHandle> {}, false };
 }
 
 void WebContentClient::did_close_browsing_context(Web::PageId page_id)

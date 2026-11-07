@@ -615,6 +615,26 @@ TEST_CASE(image_bitmap_with_padded_rows_transfers_its_pixels)
     received.close();
 }
 
+// A message queued on a port goes with the data holder of the port, in which its data holders are not those of C++.
+static Web::HTML::SerializedTransferRecord decode_queued_message(IPC::Decoder& decoder)
+{
+    auto serialized = MUST(decoder.decode<Web::HTML::IPCSerializationRecord>());
+
+    Vector<Web::HTML::TransferDataEncoder> data_holders;
+    for (auto count = MUST(decoder.decode_size()); count > 0; --count) {
+        auto data = MUST(decoder.decode<IPC::MessageDataType>());
+        Vector<IPC::Attachment> attachments;
+        for (auto attachment_count = MUST(decoder.decode_size()); attachment_count > 0; --attachment_count)
+            attachments.append(decoder.attachments().dequeue());
+        EXPECT_EQ(MUST(decoder.decode_size()), 0u); // Channel ends.
+        data_holders.append(Web::HTML::TransferDataEncoder { carried_transfer_data_holder(IPC::MessageBuffer { move(data), move(attachments) }) });
+    }
+
+    auto shared_buffers = MUST(decoder.decode<Vector<Core::AnonymousBuffer>>());
+    auto shared_store_lifeline = MUST(decoder.decode<Web::HTML::SharedStoreLifeline>());
+    return { move(serialized), move(data_holders), move(shared_buffers), move(shared_store_lifeline) };
+}
+
 TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
 {
     auto& realm = test_realm();
@@ -640,10 +660,10 @@ TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
 
     TransferDataHolderReader port_holder { record.transfer_data_holders[0] };
     EXPECT_EQ(MUST(port_holder.decoder.decode<u8>()), message_port_transfer_type);
-    EXPECT(MUST(port_holder.decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>()).is_empty());
-    auto queued_messages = MUST(port_holder.decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>());
-    EXPECT_EQ(queued_messages.size(), 1u);
-    auto received_values = deserialize_transferred_values(realm, queued_messages[0]);
+    EXPECT_EQ(MUST(port_holder.decoder.decode_size()), 0u);
+    EXPECT_EQ(MUST(port_holder.decoder.decode_size()), 1u);
+    auto queued_message = decode_queued_message(port_holder.decoder);
+    auto received_values = deserialize_transferred_values(realm, queued_message);
     EXPECT_EQ(received_values.size(), count);
     for (auto value : received_values) {
         auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(value);
@@ -747,7 +767,7 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
     record.shared_buffers[0] = move(backing);
 #    endif
     auto buffer = record.shared_buffers[0];
-    EXPECT_EQ(record.transfer_data_holders[0].buffer().data()[0], image_bitmap_transfer_type);
+    EXPECT_EQ(transfer_data_holder_bytes(record.transfer_data_holders[0].buffer())[0], image_bitmap_transfer_type);
     auto received_values = deserialize_transferred_values(realm, record);
     auto& receiver = unwrap_wrappable<Web::HTML::ImageBitmap>(received_values[0]);
 #    if defined(AK_OS_LINUX)

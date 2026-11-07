@@ -57,6 +57,7 @@ public:
     struct StartedWorkerAgent {
         Web::HTML::WorkerAgentId agent_id { 0 };
         Optional<IPC::TransportHandle> thread_transport;
+        bool is_hosted_in_owner_process { false };
     };
     StartedWorkerAgent start_worker_agent(WebContentClient&, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
     StartedWorkerAgent start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);

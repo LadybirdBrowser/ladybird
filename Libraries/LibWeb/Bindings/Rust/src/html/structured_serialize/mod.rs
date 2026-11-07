@@ -1738,9 +1738,7 @@ pub(crate) fn structured_serialize_with_transfer(
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
 
-    serialized
-        .pin_named_stores()
-        .map_err(|_| data_clone_error("Cannot share SharedArrayBuffer"))?;
+    serialized.pin_named_stores();
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
@@ -2006,9 +2004,7 @@ pub(crate) fn structured_serialize_for_message(
         &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
-    serialized
-        .pin_named_stores()
-        .map_err(|_| data_clone_error("Cannot share SharedArrayBuffer"))?;
+    serialized.pin_named_stores();
     Ok(serialized)
 }
 
