@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <defs><rect id="local" width="13" height="13"/></defs>
+    <use id="instance" href="#local"/>
+</svg>
+<script>
+    test(() => {
+        const instance = document.getElementById("instance");
+        println(`before: ${instance.getBBox().width}`);
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect id="target" width="23" height="23"/></svg>';
+        instance.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(svg) + "#target");
+        println(`after: ${instance.getBBox().width}`);
+    });
+</script>
