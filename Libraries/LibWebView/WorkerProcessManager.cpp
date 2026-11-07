@@ -9,6 +9,7 @@
 #include <LibCore/Timer.h>
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>
+#include <LibURL/Site.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
@@ -249,6 +250,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     //     settings it is created for, too.
     auto inside_settings = make<CanonicalWorkerEnvironmentSettingsObject>(move(origin), outside_settings->top_level_origin(), has_cross_site_ancestor, Web::HTML::EnvironmentId::generate());
     auto environment_id = inside_settings->id();
+    client->set_site(URL::Site::serialize_for_partitioning(inside_settings->origin()));
 
     // NB: The task manager lists the worker's process with the process that started it, and once that one is gone,
     //     with the site of the worker's origin.

@@ -303,14 +303,16 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     return client.release_nonnull();
 }
 
-// Launches a server that works for the given process alone, so that the server is listed with it.
+// Launches a server that works for the given process, so that the server is listed with it, or with the site if it has one.
 template<typename ClientType>
-static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_for(u64 owner_child_id, StringView server_name, Vector<ByteString> arguments)
+static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_for(u64 owner_child_id, StringView server_name, Vector<ByteString> arguments, Optional<Utf16String> const& site = {})
 {
     RefPtr<ClientType> client;
     auto identity = TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output));
         process.set_owner_child_id(owner_child_id);
+        if (site.has_value())
+            process.set_site_url(URL::Parser::basic_parse(*site));
         client = move(new_client);
         return move(process);
     }));
@@ -396,7 +398,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     return client;
 }
 
-ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id)
+ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u64 owner_child_id, Optional<Utf16String> const& site)
 {
     auto const& browser_options = WebView::Application::browser_options();
 
@@ -408,7 +410,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u
         arguments.append(server.value());
     }
 
-    return launch_server_process_for<ImageDecoderControlClient>(owner_child_id, "ImageDecoder"sv, move(arguments));
+    return launch_server_process_for<ImageDecoderControlClient>(owner_child_id, "ImageDecoder"sv, move(arguments), site);
 }
 
 ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& client)

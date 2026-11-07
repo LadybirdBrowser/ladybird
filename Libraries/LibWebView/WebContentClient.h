@@ -122,6 +122,9 @@ public:
     static bool renderers_may_access_cookies_like_http();
     static bool renderers_may_synthesize_input();
     bool may_read_local_files() const;
+    // Documents with no site, such as those of an opaque origin, come with whatever made them, so they do not count.
+    void did_host_document_of_site(Utf16String site);
+
     // A process that has hosted local file content may read local files. Site isolation gives such content processes
     // of its own, which host nothing else.
     bool has_hosted_local_file_content() const { return m_has_hosted_local_file_content; }
@@ -246,6 +249,9 @@ private:
     RequestServerSiteBindings m_request_server_site_bindings;
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
+    // The site of the documents this process hosts, if it has only hosted those of one.
+    Optional<Utf16String> m_site_of_hosted_documents;
+    bool m_has_hosted_documents_of_several_sites { false };
     bool m_has_hosted_local_file_content { false };
     Optional<String> m_hosted_web_ui;
     Vector<u64> m_crashed_view_ids;

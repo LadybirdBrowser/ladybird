@@ -38,6 +38,12 @@ ImageDecoderClient::Client* RemoteImageCodecPlugin::ensure_client()
     return m_client;
 }
 
+void RemoteImageCodecPlugin::disconnect_client()
+{
+    if (auto client = m_client)
+        client->shutdown();
+}
+
 RemoteImageCodecPlugin::~RemoteImageCodecPlugin() = default;
 
 NonnullRefPtr<Core::Promise<DecodedImage>> RemoteImageCodecPlugin::decode_image(ReadonlyBytes bytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected)

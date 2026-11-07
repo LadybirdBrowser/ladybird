@@ -9,7 +9,9 @@
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
@@ -18,6 +20,14 @@
 namespace WebView {
 
 // Launches ImageDecoders as processes first ask for them, and ends each once the last process it serves is gone.
+//
+// A decoder sees the images of every process it serves, so a malicious image that takes one over gets at those images. The
+// processes of a site may share a decoder, because under site isolation they hold nothing of any other site's that they
+// could not fetch for themselves. The site is that of the documents a process hosts, not their top-level site: a frame
+// embedded in another site never shares a decoder with its embedder, unless it has an opaque origin, which keeps it in the
+// process of the document that made it. Each browsing session has decoders of its own.
+// Without site isolation a process may host anything, as may a process that has no site or has hosted several, so each of
+// those gets a decoder of its own, and a process that comes to host a second site leaves the decoder of the first.
 class WEBVIEW_API ImageDecoderManager {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -27,18 +37,24 @@ public:
     ImageDecoderManager();
     ~ImageDecoderManager();
 
-    // Connects a renderer or worker to its ImageDecoder, launching one if need be. A process that lost its decoder asks
-    // here again, and gets a new one.
-    ErrorOr<IPC::TransportHandle> connect_new_client(u64 client_child_id, IsPrivate);
+    // Connects a renderer or worker to the ImageDecoder of its site, or to one of its own if it has no site, launching
+    // one if need be. A process that lost its decoder asks here again, and gets a new one. A worker can outlive its
+    // session, in which case it has none and shares with nobody.
+    ErrorOr<IPC::TransportHandle> connect_new_client(u64 client_child_id, RefPtr<BrowsingSession> const&, Optional<Utf16String> site);
 
     // Answers a renderer or worker that asked for a decoder, which may have exited by the time its request is handled.
-    Optional<IPC::TransportHandle> connect_requesting_process(u64 client_child_id, IsPrivate);
+    Optional<IPC::TransportHandle> connect_requesting_process(u64 client_child_id, RefPtr<BrowsingSession> const&, Optional<Utf16String> site);
+
+    // Returns whether the process was served by the decoder of a site, and so has to disconnect from it.
+    bool remove_client_from_decoder_of_site(u64 client_child_id);
 
     void process_did_exit(u64 child_id);
 
 private:
     struct Instance {
         NonnullRefPtr<ImageDecoderControlClient> control_client;
+        WeakPtr<BrowsingSession> session;
+        Optional<Utf16String> site;
         HashTable<u64> client_child_ids;
     };
 

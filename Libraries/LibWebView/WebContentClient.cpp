@@ -1155,9 +1155,24 @@ Messages::WebContentClient::RequestWebrtcClientConnectionResponse WebContentClie
     return handle.release_value();
 }
 
+void WebContentClient::did_host_document_of_site(Utf16String site)
+{
+    if (m_has_hosted_documents_of_several_sites)
+        return;
+    if (m_site_of_hosted_documents.has_value() && *m_site_of_hosted_documents != site) {
+        m_has_hosted_documents_of_several_sites = true;
+        m_site_of_hosted_documents.clear();
+        // Only the processes of one site may share a decoder, so this one asks for its own when it next needs one.
+        if (ImageDecoderManager::the().remove_client_from_decoder_of_site(child_id()))
+            async_disconnect_from_image_decoder();
+        return;
+    }
+    m_site_of_hosted_documents = move(site);
+}
+
 Messages::WebContentClient::RequestImageDecoderConnectionResponse WebContentClient::request_image_decoder_connection()
 {
-    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_is_private);
+    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_session, m_site_of_hosted_documents);
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const

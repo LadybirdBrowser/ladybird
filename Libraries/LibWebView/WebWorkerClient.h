@@ -39,6 +39,9 @@ public:
     RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }
     IsPrivate is_private() const { return m_is_private; }
 
+    // The site of the worker's origin, if it has one.
+    void set_site(Optional<Utf16String> site) { m_site = move(site); }
+
     // The sites this process asked for the permissions of: at most its worker's top-level site.
     Vector<URL::Origin> const& permission_origins() const { return m_permission_origins; }
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
@@ -76,6 +79,7 @@ private:
     virtual void die() override;
 
     IsPrivate m_is_private { IsPrivate::No };
+    Optional<Utf16String> m_site;
     WeakPtr<BrowsingSession> m_session;
     RequestServerSiteBindings m_request_server_site_bindings;
 

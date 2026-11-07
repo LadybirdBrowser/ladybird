@@ -26,7 +26,7 @@ For DNS lookups, **RequestServer** asks for help from the system's global **Look
 
 ### Process: ImageDecoder
 
-This process can decode images (PNG, JPEG, BMP, ICO, PBM, etc.) into bitmaps. Each image is decoded in a fresh **ImageDecoder** process. These are strongly sandboxed and can't do much except receive encoded bitmap data and return a bitmap to **WebContent** if decoding is successful.
+This process can decode images (PNG, JPEG, BMP, ICO, PBM, etc.) into bitmaps. **Browser** launches one when a **WebContent** or **WebWorker** process first has an image to decode, and ends it once the last process it serves is gone. With site isolation, the processes of a site share one **ImageDecoder**, keyed by the site of the documents they host, with private browsing kept apart. Any other process gets one of its own. These are strongly sandboxed and can't do much except receive encoded bitmap data and return a bitmap to their clients if decoding is successful.
 
 ### How processes are spawned
 

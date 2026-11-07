@@ -195,7 +195,7 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
 
 Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient::request_image_decoder_connection()
 {
-    return ImageDecoderManager::the().connect_requesting_process(child_id(), m_is_private);
+    return ImageDecoderManager::the().connect_requesting_process(child_id(), session(), m_site);
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
