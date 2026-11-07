@@ -1032,7 +1032,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         })?;
         let argument_bytes = (8 * i64::from(argument_count) + 15) & !15;
         if argument_bytes != 0 {
-            self.masm.sub64_imm(M::STACK_POINTER, M::STACK_POINTER, argument_bytes);
+            self.masm.allocate_stack(argument_bytes);
         }
         for (index, argument) in (0u32..).zip(arguments) {
             let address = Address::new(M::STACK_POINTER, super::checked_i32(8 * u64::from(index))?);

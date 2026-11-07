@@ -281,6 +281,19 @@ pub trait PortableMacroAssembler: Sized {
     fn frame(saved_gprs: GprSet, saved_fprs: FprSet, locals_size: u32) -> MachineFrame;
     /// Sets up `frame`: links a frame pointer, saves registers, reserves locals.
     fn emit_prologue(&mut self, frame: &MachineFrame);
+    /// `emit_prologue()` without touching the locals where the stack has to be touched page by page (see
+    /// `allocate_stack()`), for code that checks that its frame fits on the stack before it uses the locals: it calls
+    /// `probe_frame()` once it did.
+    fn emit_prologue_unprobed(&mut self, frame: &MachineFrame) {
+        self.emit_prologue(frame);
+    }
+    /// Touches the locals of `frame`, set up by `emit_prologue_unprobed()`, where the stack has to be touched.
+    fn probe_frame(&mut self, _frame: &MachineFrame) {}
     /// Tears down `frame` and restores saved registers. Does not return.
     fn emit_epilogue(&mut self, frame: &MachineFrame);
+    /// Moves the stack pointer down by `bytes`, for code that writes to the new stack from its lowest address up. On
+    /// Windows, which commits a thread's stack as code touches its guard pages, this touches the pages on the way.
+    fn allocate_stack(&mut self, bytes: i64) {
+        self.sub64_imm(Self::STACK_POINTER, Self::STACK_POINTER, bytes);
+    }
 }

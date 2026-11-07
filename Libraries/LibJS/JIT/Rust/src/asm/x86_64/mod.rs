@@ -9,6 +9,7 @@
 mod extended;
 mod macro_assembler;
 mod sse;
+mod stack_probes;
 #[cfg(test)]
 mod tests;
 
@@ -24,6 +25,8 @@ pub use extended::VexOperand;
 pub use extended::VexPrefix;
 pub use macro_assembler::MacroAssembler;
 pub use sse::CpuFeatures;
+pub use stack_probes::PROBES_STACK;
+pub use stack_probes::needs_stack_probes;
 
 use super::Address;
 use super::Fpr;

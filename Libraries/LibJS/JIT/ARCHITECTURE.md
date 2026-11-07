@@ -451,6 +451,12 @@ explicitly:
 - The interpreter calls the runtime functions in `interpreter::runtime_functions` with the Win64
   convention on Windows, so `runtime_function_addresses()` gives JIT code System V forwarders to
   them there.
+- Windows commits a thread's stack as code touches its guard pages, so JIT code that moves the
+  stack pointer goes through `emit_prologue()` or `allocate_stack()`, which touch the pages on the
+  way down (with the stack probes in `asm::x86_64`, which the Wasm JIT shares). Code that moves it
+  any other way can skip the guard pages and fault. Compiled functions check the native stack limit
+  before they touch their frames, with `emit_prologue_unprobed()` and `probe_frame()`, so that a
+  frame that does not fit makes the code exit instead of touching past the end of the stack.
 
 ## 9. Speculation and exits
 

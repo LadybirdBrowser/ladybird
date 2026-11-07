@@ -144,6 +144,11 @@ impl BranchGroups for MacroAssembler {
 }
 
 impl MacroAssembler {
+    /// The bytes the prologue of `frame` moves the stack pointer down by after saving the general purpose registers.
+    fn reserved_frame_bytes(frame: &MachineFrame) -> u32 {
+        frame.locals_size + 8 * frame.saved_fprs.len() as u32
+    }
+
     /// `dst = lhs op rhs` for a commutative operation.
     fn commutative(&mut self, op: AluOp, width: Width, dst: Gpr, lhs: Gpr, rhs: Gpr) {
         if dst == lhs {
@@ -1112,18 +1117,33 @@ impl PortableMacroAssembler for MacroAssembler {
     }
 
     fn emit_prologue(&mut self, frame: &MachineFrame) {
+        self.emit_prologue_unprobed(frame);
+        self.probe_frame(frame);
+    }
+
+    fn emit_prologue_unprobed(&mut self, frame: &MachineFrame) {
         self.assembler.push(RBP);
         self.assembler.mov_rr(W64, RBP, RSP);
         for register in frame.saved_gprs.iter() {
             self.assembler.push(register);
         }
-        let reserved = frame.locals_size + 8 * frame.saved_fprs.len() as u32;
+        let reserved = Self::reserved_frame_bytes(frame);
         if reserved != 0 {
             self.assembler.sub_ri(W64, RSP, reserved as i32);
         }
+        // NB: The saved registers are within a page of the pushes, which touched the stack.
         for (i, register) in frame.saved_fprs.iter().enumerate() {
             let offset = frame.locals_size + 8 * i as u32;
             self.assembler.movsd_mr(&Address::new(RSP, offset as i32), register);
+        }
+    }
+
+    fn probe_frame(&mut self, frame: &MachineFrame) {
+        let reserved = Self::reserved_frame_bytes(frame) as i32;
+        if needs_stack_probes(reserved) {
+            // NB: The pushes touched the stack down to where the reserved part starts.
+            self.assembler.lea(W64, SCRATCH, &Address::new(RSP, reserved));
+            self.assembler.probe_stack(SCRATCH, RSP, Some(reserved));
         }
     }
 
@@ -1132,7 +1152,7 @@ impl PortableMacroAssembler for MacroAssembler {
             let offset = frame.locals_size + 8 * i as u32;
             self.assembler.movsd_rm(register, &Address::new(RSP, offset as i32));
         }
-        let reserved = frame.locals_size + 8 * frame.saved_fprs.len() as u32;
+        let reserved = Self::reserved_frame_bytes(frame);
         if reserved != 0 {
             self.assembler.add_ri(W64, RSP, reserved as i32);
         }
@@ -1140,5 +1160,21 @@ impl PortableMacroAssembler for MacroAssembler {
             self.assembler.pop(register);
         }
         self.assembler.pop(RBP);
+    }
+
+    fn allocate_stack(&mut self, bytes: i64) {
+        if PROBES_STACK {
+            // NB: The prologue may have moved the stack pointer without touching where it ended up.
+            self.assembler.mov_rm(W32, SCRATCH, &Address::new(RSP, 0));
+            let bytes = i32::try_from(bytes).expect("stack allocations are smaller than 2 GiB");
+            if needs_stack_probes(bytes) {
+                self.assembler.mov_rr(W64, SCRATCH2, RSP);
+                self.assembler.lea(W64, SCRATCH, &Address::new(RSP, -bytes));
+                self.assembler.probe_stack(SCRATCH2, SCRATCH, Some(bytes));
+                self.assembler.mov_rr(W64, RSP, SCRATCH);
+                return;
+            }
+        }
+        self.sub64_imm(RSP, RSP, bytes);
     }
 }
