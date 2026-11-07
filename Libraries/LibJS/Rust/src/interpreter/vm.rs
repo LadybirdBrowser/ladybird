@@ -1071,7 +1071,6 @@ impl Vm {
     }
 
     fn gather_roots(&self, visitor: &mut Visitor) {
-        self.jit.trace(visitor);
         self.for_each_execution_context_top_to_bottom(|context| {
             context.trace(visitor);
             ControlFlow::Continue(())

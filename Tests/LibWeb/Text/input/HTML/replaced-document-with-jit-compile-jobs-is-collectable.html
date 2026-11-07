@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Installing a compile job's code waits for script to reach a tier-up check, which may not happen for a long time in
+    // a process that runs little script. A job still waiting for that must not keep the document that made it alive.
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        // These functions grow hot much faster than their large bodies, which never run, compile. So their compile jobs
+        // are still waiting when the document is replaced.
+        const documentWithCompileJobs = `<!DOCTYPE html><script>
+            const neverRuns = "value = value * 31 + 7; if (value > 1000) value -= 999;".repeat(3000);
+            for (let index = 0; index < 64; ++index) {
+                const hotFunction = new Function("value", "if (value < 0) { " + neverRuns + " } return value + " + index);
+                for (let call = 0; call < 1000; ++call)
+                    hotFunction(call);
+            }
+        <\/script>`;
+        const navigate = srcdoc =>
+            new Promise(resolve => {
+                iframe.addEventListener("load", resolve, { once: true });
+                iframe.srcdoc = srcdoc;
+            });
+
+        // An expando preserves the document's wrapper for as long as the document itself lives, so the weak reference
+        // tracks the document rather than a wrapper that JS may drop early. The first navigation is there because the
+        // first document reuses the initial about:blank document's window, whose realm the navigable's WindowProxy keeps
+        // alive for as long as the iframe lives. And the recording runs in a nested function, so that the document does
+        // not linger in a register of this function's frame while it is expected to be collected.
+        const weakDocument = await (async () => {
+            await navigate("<!DOCTYPE html>");
+            await navigate(documentWithCompileJobs);
+            const replacedDocument = iframe.contentDocument;
+            replacedDocument.preserveWrapper = true;
+            const weakDocument = new WeakRef(replacedDocument);
+            await navigate("<!DOCTYPE html>");
+            return weakDocument;
+        })();
+
+        await collectGarbageUntilCleared([weakDocument]);
+
+        println(`replaced document collected: ${weakDocument.deref() === undefined}`);
+        iframe.remove();
+    });
+</script>
