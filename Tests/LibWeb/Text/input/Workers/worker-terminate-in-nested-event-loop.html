@@ -31,10 +31,12 @@
             const messages = [];
             worker.onmessage = event => messages.push(event.data);
             worker.onerror = () => messages.push("error");
-            await waitForCondition(() => messages.length >= 1);
-            await timeout(50);
+            await waitForCondition(() => messages.length >= 1, 5000, 1);
+            // NB: Nothing tells when the worker got into its nested event loop, which it does right after it posted.
+            await timeout(10);
             worker.terminate();
-            await timeout(50);
+            await waitForCondition(() => internals.workerAgentCount() === 0, 5000, 1);
+            await timeout(0);
             println(`${name}: ${messages.join(", ")}`);
         }
     });

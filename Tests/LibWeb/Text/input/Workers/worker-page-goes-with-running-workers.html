@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const BUSY_WORKER = `
+        postMessage("running");
+        while (true);
+    `;
+
+    const WAITING_WORKER = `
+        postMessage("running");
+        self.onmessage = () => {};
+        setInterval(() => {}, 1);
+    `;
+
+    const NESTING_WORKER = `
+        const nested = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(BUSY_WORKER)}], { type: "text/javascript" })));
+        nested.onmessage = ({ data }) => postMessage(data);
+    `;
+
+    const PAGE = `<!DOCTYPE html><script>
+        for (const script of ${JSON.stringify([BUSY_WORKER, WAITING_WORKER, NESTING_WORKER])}) {
+            const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+            worker.onmessage = () => parent.postMessage("running", "*");
+        }
+    <\/script>`;
+
+    async function waitForWorkersOfPage() {
+        let running = 0;
+        await new Promise(resolve => {
+            window.onmessage = () => {
+                if (++running === 3) resolve();
+            };
+        });
+    }
+
+    promiseTest(async () => {
+        // NB: A worker of the test before this one may still be on its way out.
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = PAGE;
+        let waiting = waitForWorkersOfPage();
+        document.body.appendChild(iframe);
+        await waiting;
+        println(`running before a navigation: ${internals.workerAgentCount()}`);
+
+        iframe.srcdoc = "<!DOCTYPE html>";
+        await new Promise(resolve => (iframe.onload = resolve));
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+        println(`running after a navigation: ${internals.workerAgentCount()}`);
+
+        waiting = waitForWorkersOfPage();
+        iframe.srcdoc = PAGE;
+        await waiting;
+        println(`running before removal: ${internals.workerAgentCount()}`);
+
+        iframe.remove();
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+        println(`running after removal: ${internals.workerAgentCount()}`);
+
+        const popup = window.open("about:blank");
+        waiting = waitForWorkersOfPage();
+        popup.document.open();
+        popup.document.write(PAGE.replaceAll("parent.postMessage", "opener.postMessage"));
+        popup.document.close();
+        await waiting;
+        println(`running before closing a page: ${internals.workerAgentCount()}`);
+
+        popup.close();
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+        println(`running after closing a page: ${internals.workerAgentCount()}`);
+    });
+</script>

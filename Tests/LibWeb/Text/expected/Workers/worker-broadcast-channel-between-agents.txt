@@ -1,0 +1,6 @@
+hello from nested worker
+hello from worker
+nested worker heard window
+nested worker heard worker
+worker heard nested worker
+worker heard window

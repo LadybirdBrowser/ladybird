@@ -1,0 +1,4 @@
+scripts ran: 64, all alike: true
+agents: 64
+pongs: 64
+agents after terminate: 0

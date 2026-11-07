@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Each of these has a VM, a heap and connections to itself, and a page can ask for all of them at once.
+    const WORKER_COUNT = 64;
+
+    const SCRIPT = `
+        let total = 0;
+        for (let i = 0; i < 100000; ++i)
+            total += i % 7;
+        postMessage(total);
+        self.onmessage = () => postMessage("pong");
+    `;
+
+    promiseTest(async () => {
+        // NB: A worker of the test before this one may still be on its way out.
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+
+        const url = URL.createObjectURL(new Blob([SCRIPT], { type: "text/javascript" }));
+
+        const workers = [];
+        const replies = [];
+        for (let i = 0; i < WORKER_COUNT; ++i) {
+            const worker = new Worker(url);
+            worker.onmessage = ({ data }) => replies.push(data);
+            worker.onerror = () => println(`worker ${i}: error`);
+            workers.push(worker);
+        }
+        await waitForCondition(() => replies.length === WORKER_COUNT, 1200);
+        println(`scripts ran: ${replies.length}, all alike: ${replies.every(reply => reply === replies[0])}`);
+        println(`agents: ${internals.workerAgentCount()}`);
+
+        for (const worker of workers) worker.postMessage("ping");
+        await waitForCondition(() => replies.length === 2 * WORKER_COUNT, 1200);
+        println(`pongs: ${replies.filter(reply => reply === "pong").length}`);
+
+        for (const worker of workers) worker.terminate();
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+        println(`agents after terminate: ${internals.workerAgentCount()}`);
+    });
+</script>
