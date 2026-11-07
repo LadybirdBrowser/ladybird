@@ -118,29 +118,54 @@ FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit
     });
 }
 
-void FullscreenMode::exit(ExitInitiatedBy initiated_by)
+void FullscreenMode::exit(ExitInitiatedBy initiated_by, Tab const* requesting_tab)
 {
-    if (is_api_fullscreen()) {
-        qApp->removeEventFilter(this);
-        if (initiated_by == ExitInitiatedBy::UI && m_window->tab_index(m_fullscreen_tab) != -1) {
-            m_fullscreen_tab->view().exit_fullscreen();
-        }
-        emit on_exit_fullscreen();
+    if (!is_api_fullscreen() || (requesting_tab && requesting_tab != m_fullscreen_tab))
+        return;
+
+    qApp->removeEventFilter(this);
+    // NB: The tab is let go of first, so the window leaving full screen below doesn't end it a second time.
+    auto* tab = exchange(m_fullscreen_tab, nullptr);
+    // NB: The tab that went full screen is told it left, even when another tab is current by now.
+    if (m_window->tab_index(tab) != -1) {
+        if (initiated_by == ExitInitiatedBy::UI)
+            tab->view().exit_fullscreen();
+        tab->view().set_is_fullscreen(Web::ViewportIsFullscreen::No);
     }
-    m_fullscreen_tab = nullptr;
+    emit on_exit_fullscreen();
 }
 
 void FullscreenMode::enter(Tab* tab)
 {
+    // NB: One tab holds fullscreen at a time, and the window's state is restored for it before the next one takes it.
+    if (m_fullscreen_tab && m_fullscreen_tab != tab)
+        exit(ExitInitiatedBy::UI);
+
+    // NB: Another request from the tab that holds fullscreen, such as from another of its frames, keeps the window
+    //     state saved for the first one.
+    if (m_fullscreen_tab == tab) {
+        if (m_window->isFullScreen())
+            entered_fullscreen();
+        return;
+    }
+
     qApp->installEventFilter(this);
     m_fullscreen_tab = tab;
+    auto window_was_fullscreen = m_window->isFullScreen();
     m_window->enter_fullscreen();
+    // NB: A window the user already made full screen has no state change to report, so the page gets it at once.
+    if (window_was_fullscreen)
+        entered_fullscreen();
 }
 
 void FullscreenMode::entered_fullscreen()
 {
-    if (m_fullscreen_tab && m_window->tab_index(m_fullscreen_tab) != -1)
-        m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
+    // NB: The toast is only for a page that went full screen: Esc and a click on it leave the page's full screen, and
+    //     neither leaves a window the user made full screen.
+    if (!m_fullscreen_tab || m_window->tab_index(m_fullscreen_tab) == -1)
+        return;
+    m_fullscreen_tab->view().set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
+    m_exit_button->set_host(m_fullscreen_tab->url().host().has_value() ? qstring_from_ak_string(m_fullscreen_tab->url().serialized_host()) : QString {});
     // Let button float in place for 3 times the time it takes to animate it in place.
     m_debounce.start(*this, button_animation_time() * 3);
     m_exit_button->animate_show();
@@ -214,8 +239,11 @@ ExitFullscreenButton::ExitFullscreenButton(QWidget* parent)
     m_hide_timer = new QTimer(this);
     m_hide_timer->setSingleShot(true);
     m_hide_timer->setInterval(FULLSCREEN_TOAST_VISIBLE_MS);
+    // NB: A toast under the pointer stays until the pointer leaves it, rather than for good.
     QObject::connect(m_hide_timer, &QTimer::timeout, this, [this] {
-        if (!underMouse())
+        if (underMouse())
+            m_hide_timer->start();
+        else
             hide();
     });
 }
@@ -1342,7 +1370,8 @@ void BrowserWindow::update_menu_bar_visibility()
 
     if (m_menu_bar_window_controls)
         m_menu_bar_window_controls->setVisible(show_menu_bar && uses_client_side_decorations());
-    m_tabs_container->set_window_controls_visible(!show_menu_bar && has_chrome_in_titlebar());
+    // NB: A full-screen window has no window controls of its own on display, so the chrome leaves no room for them.
+    m_tabs_container->set_window_controls_visible(!show_menu_bar && has_chrome_in_titlebar() && !isFullScreen());
 }
 
 void BrowserWindow::update_menu_bar_window_control_icons()
@@ -1541,8 +1570,10 @@ void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
 
-    m_restore_to_maximized = isMaximized();
-    showFullScreen();
+    // NB: Only the full-screen state changes, so the window comes back maximized if it was. And a window the user
+    //     already made full screen stays so after the page leaves full screen.
+    m_window_was_fullscreen_before_page = isFullScreen();
+    setWindowState(windowState() | Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
@@ -1554,10 +1585,8 @@ void BrowserWindow::exit_fullscreen()
 
     m_tabs_container->set_tab_bar_visible(true);
 
-    if (m_restore_to_maximized)
-        showMaximized();
-    else
-        showNormal();
+    if (!m_window_was_fullscreen_before_page)
+        setWindowState(windowState() & ~Qt::WindowFullScreen);
 
     m_tabs_container->update_bookmarks_bar_visibility();
 }
@@ -1836,6 +1865,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_menu_bar_window_control_icons();
         update_tab_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
+        update_menu_bar_visibility();
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
         update_window_border();
@@ -1847,10 +1877,10 @@ void BrowserWindow::changeEvent(QEvent* event)
 
         if (is_fullscreen && !was_fullscreen) {
             m_fullscreen_mode->entered_fullscreen();
-            if (m_fullscreen_mode->is_api_fullscreen())
-                view().set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
         } else if (!is_fullscreen && was_fullscreen) {
-            view().set_is_fullscreen(Web::ViewportIsFullscreen::No);
+            // NB: A window that leaves full screen without the page asking, such as from the window's own controls,
+            //     takes the page out of full screen too.
+            m_fullscreen_mode->exit(FullscreenMode::ExitInitiatedBy::UI);
         }
     }
     QWidget::changeEvent(event);

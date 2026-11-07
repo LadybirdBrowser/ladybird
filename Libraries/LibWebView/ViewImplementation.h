@@ -474,6 +474,7 @@ public:
     void run_javascript(String const&);
     void js_console_input(String const&);
     void exit_fullscreen();
+    void deny_fullscreen_window();
 
     void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen);
     Web::ViewportIsFullscreen is_fullscreen() const { return m_is_fullscreen; }

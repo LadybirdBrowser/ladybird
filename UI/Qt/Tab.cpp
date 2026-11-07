@@ -845,11 +845,16 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     };
 
     view().on_fullscreen_window = [this]() {
+        // NB: Only the tab on display goes full screen. A request from another tab came after the user moved on.
+        if (m_window->current_tab() != this) {
+            view().deny_fullscreen_window();
+            return;
+        }
         m_window->fullscreen_mode().enter(this);
     };
 
     view().on_exit_fullscreen_window = [this]() {
-        m_window->fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::WebContent);
+        m_window->fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::WebContent, this);
     };
 
     view().on_screen_wake_lock_state_changed = [this](auto wake_lock_state) {

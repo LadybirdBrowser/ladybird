@@ -78,9 +78,11 @@ public:
         WebContent,
     };
 
-    void exit(ExitInitiatedBy);
+    // A page asking to leave names its tab, so a tab that already lost fullscreen can't end another tab's.
+    void exit(ExitInitiatedBy, Tab const* requesting_tab = nullptr);
     void enter(Tab* tab);
-    // Called after a window change event that has identifed the current window state to be fullscreen.
+    // Called after a window change event that has identifed the current window state to be fullscreen. Tells the tab
+    // that asked for fullscreen that it has it.
     void entered_fullscreen();
     bool is_api_fullscreen() const;
 signals:
@@ -345,6 +347,7 @@ private:
     size_t m_failed_download_count { 0 };
     size_t m_acknowledged_failed_download_count { 0 };
     Optional<i64> m_window_close_active_tab_index;
+    bool m_window_was_fullscreen_before_page { false };
     QPointer<Tab> m_window_close_original_active_tab;
     QPointer<Tab> m_window_close_current_preflight_tab;
     Vector<QPointer<Tab>> m_window_close_approved_tabs;
@@ -355,7 +358,6 @@ private:
     ExitFullscreenButton* m_exit_button { nullptr };
     FullscreenMode* m_fullscreen_mode { nullptr };
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
-    bool m_restore_to_maximized { false };
     bool m_resize_cursor_active { false };
     // The widget the last left button press in the window landed on, so a double click can tell whether its first
     // click landed on the same widget as its second.
