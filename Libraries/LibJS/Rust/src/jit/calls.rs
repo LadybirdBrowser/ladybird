@@ -12,6 +12,7 @@ use core::ptr::NonNull;
 
 use libjs_abi::register;
 use libjs_jit::ir::Float64Function;
+use libjs_runtime_macros::{jit_abi, jit_function_address};
 
 use super::code::EntryStatus;
 use super::entry_exit::{can_enter_jit_code, enter_jit_code};
@@ -614,6 +615,7 @@ fn finish_generic_call(vm: &Vm, site: &JitCallSite, control: SlowPathControl, re
 /// # Safety
 ///
 /// JIT code calls this with its VM, its frame and the pc of one of its executable's call instructions.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionContext, pc: u32) -> i64 {
     // SAFETY: JIT code passes live pointers.
     let vm = unsafe { &*vm };
@@ -793,6 +795,7 @@ fn call_spreading_arguments_from_jit(
 /// # Safety
 ///
 /// JIT code calls this with its VM, its frame and the pc of such an instruction.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -860,6 +863,7 @@ pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
 /// # Safety
 ///
 /// JIT code calls this with its VM and frame, and the pc of the Call instruction.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_finish_direct_call(
     vm: *const Vm,
     frame: *mut ExecutionContext,
@@ -902,6 +906,7 @@ pub struct CallEnvironment {
 /// # Safety
 ///
 /// JIT code calls this with its VM and an ECMAScript function that can be called inline.
+#[jit_abi]
 pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
     vm: *const Vm,
     function: *const EcmascriptFunctionObject,
@@ -949,6 +954,7 @@ pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
 /// append it to without any observable step, and returns the new length as a value.
 ///
 /// JIT code calls this with a live array whose elements are packed.
+#[jit_abi]
 pub extern "C" fn libjs_jit_array_push(array: &Array, value: u64) -> u64 {
     assert!(matches!(
         array.indexed_storage_kind(),
@@ -964,6 +970,7 @@ pub extern "C" fn libjs_jit_array_push(array: &Array, value: u64) -> u64 {
 ///
 /// JIT code calls this with a live array whose prototype chain is the realm's default one without indexed properties,
 /// so that the store runs no code.
+#[jit_abi]
 pub extern "C" fn libjs_jit_store_holey_element(object: &Object, index: u32, value: u64) {
     // NB: Branches on holey elements take packed ones too.
     assert!(matches!(
@@ -978,6 +985,7 @@ pub extern "C" fn libjs_jit_store_holey_element(object: &Object, index: u32, val
 /// but the descriptive string of a symbol.
 ///
 /// JIT code calls this with its VM and a primitive.
+#[jit_abi]
 pub extern "C" fn libjs_jit_primitive_to_string(vm: &Vm, primitive: u64) -> u64 {
     let primitive = Value::from_bits(primitive);
     assert!(!primitive.is_object());
@@ -992,37 +1000,42 @@ pub extern "C" fn libjs_jit_primitive_to_string(vm: &Vm, primitive: u64) -> u64 
 /// The address of the runtime's `double (double...)` function that computes `function`, which JIT code calls with
 /// numbers (see `Op::CallFloat64Function`).
 pub fn float64_function_address(function: Float64Function) -> u64 {
-    let function: *const () = match function {
-        Float64Function::Exp => libjs_jit_math_exp as *const (),
-        Float64Function::Log => libjs_jit_math_log as *const (),
-        Float64Function::Sin => libjs_jit_math_sin as *const (),
-        Float64Function::Cos => libjs_jit_math_cos as *const (),
-        Float64Function::Tan => libjs_jit_math_tan as *const (),
-        Float64Function::Pow => libjs_jit_math_pow as *const (),
-    };
-    function as u64
+    match function {
+        Float64Function::Exp => jit_function_address!(libjs_jit_math_exp),
+        Float64Function::Log => jit_function_address!(libjs_jit_math_log),
+        Float64Function::Sin => jit_function_address!(libjs_jit_math_sin),
+        Float64Function::Cos => jit_function_address!(libjs_jit_math_cos),
+        Float64Function::Tan => jit_function_address!(libjs_jit_math_tan),
+        Float64Function::Pow => jit_function_address!(libjs_jit_math_pow),
+    }
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_exp(number: f64) -> f64 {
     math_object::exp_of_number(number)
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_log(number: f64) -> f64 {
     math_object::log_of_number(number)
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_sin(number: f64) -> f64 {
     math_object::sin_of_number(number)
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_cos(number: f64) -> f64 {
     math_object::cos_of_number(number)
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_tan(number: f64) -> f64 {
     math_object::tan_of_number(number)
 }
 
+#[jit_abi]
 extern "C" fn libjs_jit_math_pow(base: f64, exponent: f64) -> f64 {
     value_conversions::exp_double(base, exponent)
 }
@@ -1031,6 +1044,7 @@ extern "C" fn libjs_jit_math_pow(base: f64, exponent: f64) -> f64 {
 /// null, as the builtin function `function` makes it, or the empty value if that function is of another realm.
 ///
 /// JIT code calls this with its VM, a function object and such a primitive.
+#[jit_abi]
 pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) -> u64 {
     let (function, primitive) = (Value::from_bits(function).as_object(), Value::from_bits(primitive));
     assert!(!primitive.is_object() && !primitive.is_nullish());
@@ -1045,6 +1059,7 @@ pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) ->
 /// (the Array constructor) makes it, or the empty value if that function is of another realm.
 ///
 /// JIT code calls this with its VM, a length below 2^31 and a function object.
+#[jit_abi]
 pub extern "C" fn libjs_jit_array_create(vm: &Vm, length: u32, function: u64) -> u64 {
     let realm = Value::from_bits(function).as_object().shape().realm();
     if vm.current_realm() != Some(realm) {
@@ -1058,6 +1073,7 @@ pub extern "C" fn libjs_jit_array_create(vm: &Vm, length: u32, function: u64) ->
 /// start)` with the arguments object of the frame, which the code never created, as an array value.
 ///
 /// JIT code calls this with its VM and its frame.
+#[jit_abi]
 pub extern "C" fn libjs_jit_slice_arguments(vm: &Vm, frame: &ExecutionContext, start: i32) -> u64 {
     // 23.1.3.28 Array.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-array.prototype.slice
     // NB: The arguments object has every passed argument, and its length is their count.

@@ -433,6 +433,25 @@ predecessor, cold blocks, the verifier.
 To be written: per-op lowering, slow path calling conventions and the operand record, the call
 stub, cache probes, the allocation contract, the entry and exit stubs.
 
+### 8.1 The calling convention of JIT code
+
+JIT code uses the System V calling convention on every x86-64 target and AAPCS64 on AArch64, which
+keeps code generation the same across operating systems. Windows x86-64 is the one target where
+that is not what the platform uses, so everything that crosses into or out of JIT code says so
+explicitly:
+
+- Native code enters JIT code through `extern "sysv64"` function pointers (`JitEntry`,
+  `EntryTrampoline`). The compiler then treats RSI, RDI and XMM6-15, which are callee-saved on
+  Windows only, as clobbered by the call, and takes two-register results where System V returns
+  them.
+- Every function JIT code calls has the `#[jit_abi]` attribute, which makes it `extern "sysv64"` on
+  Windows x86-64 and leaves it `extern "C"` elsewhere. Taking the address of a function erases its
+  calling convention, so JIT code gets the addresses of these functions from
+  `jit_function_address!`, which does not build for a function that lacks the attribute.
+- The interpreter calls the runtime functions in `interpreter::runtime_functions` with the Win64
+  convention on Windows, so `runtime_function_addresses()` gives JIT code System V forwarders to
+  them there.
+
 ## 9. Speculation and exits
 
 **Values of bindings.** The snapshot records the object values of global variables, and of the

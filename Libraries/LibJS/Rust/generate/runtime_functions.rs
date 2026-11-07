@@ -8,6 +8,9 @@
 //! extern "C" entry point for each with exactly the signature the interpreter's call sites assume. The entry points
 //! translate every calling convention into one Rust signature per kind of call. The methods have no default bodies, so
 //! the runtime does not build unless it defines every function that the interpreter, in either of its variants, calls.
+//!
+//! JIT code calls the same functions, with the System V calling convention on every x86-64 target. Only on Windows is
+//! that not the one the interpreter uses, so there every entry point has a forwarder for JIT code to call.
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -81,6 +84,138 @@ impl<'a> Record<'a> {
     }
 }
 
+/// Where the interpreter's calling convention is not the one JIT code calls with.
+const WINDOWS_X86_64: &str = "all(target_arch = \"x86_64\", windows)";
+
+/// The Rust signature of the entry point of a runtime function.
+struct EntryPointSignature {
+    is_unsafe: bool,
+    /// The name and the type of each parameter.
+    parameters: Vec<(String, String)>,
+    result: Option<&'static str>,
+}
+
+/// Parameters of these names and types.
+fn parameters(parameters: &[(&str, &str)]) -> Vec<(String, String)> {
+    parameters
+        .iter()
+        .map(|(name, ty)| (name.to_string(), ty.to_string()))
+        .collect()
+}
+
+impl EntryPointSignature {
+    fn of(kind: &RuntimeFunctionKind) -> Self {
+        let instruction_parameters = |op: &str| {
+            parameters(&[
+                ("vm", "*const Vm"),
+                ("pc", "u32"),
+                ("instruction", format!("*const op::{op}").as_str()),
+            ])
+        };
+        let (is_unsafe, parameters, result) = match kind {
+            RuntimeFunctionKind::SlowPath { op, abi, layout } => {
+                let inputs = layout
+                    .fields
+                    .iter()
+                    .filter(|field| field.mode != ParameterMode::Out)
+                    .map(|field| (field_name(&field.name), "Value".to_string()));
+                let mut parameters = instruction_parameters(op);
+                match abi {
+                    SlowPathAbi::Scalar => {
+                        parameters.extend(inputs);
+                        (true, parameters, Some("AsmSlowPathResult"))
+                    }
+                    SlowPathAbi::Mixed => {
+                        parameters.push(("outputs".to_string(), format!("*mut op::{op}Values")));
+                        parameters.extend(inputs);
+                        (true, parameters, Some("i64"))
+                    }
+                    SlowPathAbi::Record => {
+                        parameters.push(("values".to_string(), format!("*mut op::{op}Values")));
+                        (true, parameters, Some("i64"))
+                    }
+                }
+            }
+            RuntimeFunctionKind::Try { op, .. } => {
+                let mut parameters = instruction_parameters(op);
+                parameters.push(("values".to_string(), format!("*mut op::{op}Values")));
+                (true, parameters, Some("i64"))
+            }
+            RuntimeFunctionKind::BinarySlowPath => (
+                true,
+                parameters(&[
+                    ("vm", "*const Vm"),
+                    ("pc", "u32"),
+                    ("dst", "*mut Value"),
+                    ("lhs", "Value"),
+                    ("rhs", "Value"),
+                ]),
+                Some("i64"),
+            ),
+            RuntimeFunctionKind::JumpSlowPath => (
+                true,
+                parameters(&[
+                    ("vm", "*const Vm"),
+                    ("pc", "u32"),
+                    ("lhs", "Value"),
+                    ("rhs", "Value"),
+                    ("true_target", "u32"),
+                    ("false_target", "u32"),
+                ]),
+                Some("i64"),
+            ),
+            RuntimeFunctionKind::Helper => (false, parameters(&[("argument", "u64")]), Some("u64")),
+            RuntimeFunctionKind::HelperWithTwoArguments => {
+                (false, parameters(&[("first", "u64"), ("second", "u64")]), Some("u64"))
+            }
+            RuntimeFunctionKind::FallbackHandler => (
+                true,
+                parameters(&[("vm", "*const Vm"), ("pc", "u32"), ("instruction", "*const u8")]),
+                Some("i64"),
+            ),
+            RuntimeFunctionKind::BreakpointCheck => (true, parameters(&[("vm", "*const Vm"), ("pc", "u32")]), None),
+            RuntimeFunctionKind::StackOverflowSlowPath => {
+                (true, parameters(&[("vm", "*const Vm"), ("pc", "u32")]), Some("i64"))
+            }
+        };
+        Self {
+            is_unsafe,
+            parameters,
+            result,
+        }
+    }
+
+    /// The function up to and including its opening brace.
+    fn write_header(&self, out: &mut String, abi: &str, name: &str) {
+        let safety = if self.is_unsafe { "unsafe " } else { "" };
+        let result = self.result.map_or(String::new(), |result| format!(" -> {result}"));
+        let parameters = self
+            .parameters
+            .iter()
+            .map(|(name, ty)| format!("{name}: {ty}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(out, "pub {safety}extern \"{abi}\" fn {name}({parameters}){result} {{");
+    }
+
+    fn write_system_v_forwarder(&self, out: &mut String, symbol: &str) {
+        let arguments = self
+            .parameters
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(out, "#[cfg({WINDOWS_X86_64})]");
+        self.write_header(out, "sysv64", &format!("{symbol}_sysv64"));
+        if self.is_unsafe {
+            out.push_str("    // SAFETY: JIT code calls this like the interpreter calls the entry point.\n");
+            let _ = writeln!(out, "    unsafe {{ {symbol}({arguments}) }}\n}}");
+        } else {
+            let _ = writeln!(out, "    {symbol}({arguments})\n}}");
+        }
+    }
+}
+
 pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) -> String {
     let ops: HashMap<&str, &InstructionDefinition> = ops.iter().map(|op| (op.name.as_str(), op)).collect();
     let mut methods = String::new();
@@ -90,7 +225,9 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
         let symbol = &function.symbol;
         let name = method_name(symbol);
         let _ = writeln!(methods, "    /// Called as `{symbol}`.");
+        let signature = EntryPointSignature::of(&function.kind);
         let _ = writeln!(entry_points, "#[unsafe(no_mangle)]");
+        signature.write_header(&mut entry_points, "C", symbol);
         match &function.kind {
             RuntimeFunctionKind::SlowPath { op, abi, layout } => {
                 let record = Record::new(op, layout, &ops);
@@ -99,7 +236,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                     "    fn {name}(_vm: &Vm, pc: u32, {}) -> SlowPathControl;",
                     record.method_parameters()
                 );
-                generate_slow_path_entry_point(&mut entry_points, symbol, &name, *abi, &record);
+                generate_slow_path_entry_point(&mut entry_points, &name, *abi, &record);
             }
             RuntimeFunctionKind::Try { op, layout } => {
                 let record = Record::new(op, layout, &ops);
@@ -107,10 +244,6 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                     methods,
                     "    /// Returns whether it handled the instruction; if not, the interpreter takes the instruction's slow path.\n    fn {name}(_vm: &Vm, _pc: u32, {}) -> bool;",
                     record.method_parameters()
-                );
-                let _ = writeln!(
-                    entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, instruction: *const op::{op}, values: *mut op::{op}Values) -> i64 {{"
                 );
                 entry_points
                     .push_str("    // SAFETY: The interpreter passes its VM and the instruction it is executing.\n");
@@ -129,7 +262,7 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 );
                 let _ = writeln!(
                     entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, dst: *mut Value, lhs: Value, rhs: Value) -> i64 {{\n    // SAFETY: The interpreter passes its VM and a live value slot.\n    let (vm, dst) = unsafe {{ (&*vm, &*dst.cast::<Cell<Value>>()) }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, dst, lhs, rhs).0\n}}"
+                    "    // SAFETY: The interpreter passes its VM and a live value slot.\n    let (vm, dst) = unsafe {{ (&*vm, &*dst.cast::<Cell<Value>>()) }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, dst, lhs, rhs).0\n}}"
                 );
             }
             RuntimeFunctionKind::JumpSlowPath => {
@@ -139,21 +272,18 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 );
                 let _ = writeln!(
                     entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, lhs: Value, rhs: Value, true_target: u32, false_target: u32) -> i64 {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, lhs, rhs, true_target, false_target).0\n}}"
+                    "    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, lhs, rhs, true_target, false_target).0\n}}"
                 );
             }
             RuntimeFunctionKind::Helper => {
                 let _ = writeln!(methods, "    fn {name}(_argument: u64) -> u64;");
-                let _ = writeln!(
-                    entry_points,
-                    "pub extern \"C\" fn {symbol}(argument: u64) -> u64 {{\n    <Runtime as RuntimeFunctions>::{name}(argument)\n}}"
-                );
+                let _ = writeln!(entry_points, "    <Runtime as RuntimeFunctions>::{name}(argument)\n}}");
             }
             RuntimeFunctionKind::HelperWithTwoArguments => {
                 let _ = writeln!(methods, "    fn {name}(_first: u64, _second: u64) -> u64;");
                 let _ = writeln!(
                     entry_points,
-                    "pub extern \"C\" fn {symbol}(first: u64, second: u64) -> u64 {{\n    <Runtime as RuntimeFunctions>::{name}(first, second)\n}}"
+                    "    <Runtime as RuntimeFunctions>::{name}(first, second)\n}}"
                 );
             }
             RuntimeFunctionKind::FallbackHandler => {
@@ -163,24 +293,25 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
                 );
                 let _ = writeln!(
                     entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, instruction: *const u8) -> i64 {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, instruction).0\n}}"
+                    "    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, instruction).0\n}}"
                 );
             }
             RuntimeFunctionKind::BreakpointCheck => {
                 let _ = writeln!(methods, "    fn {name}(_vm: &Vm, pc: u32);");
                 let _ = writeln!(
                     entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32) {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc);\n}}"
+                    "    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc);\n}}"
                 );
             }
             RuntimeFunctionKind::StackOverflowSlowPath => {
                 let _ = writeln!(methods, "    fn {name}(_vm: &Vm, pc: u32) -> SlowPathControl;");
                 let _ = writeln!(
                     entry_points,
-                    "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32) -> i64 {{\n    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc).0\n}}"
+                    "    // SAFETY: The interpreter passes its VM.\n    let vm = unsafe {{ &*vm }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc).0\n}}"
                 );
             }
         }
+        signature.write_system_v_forwarder(&mut entry_points, symbol);
         entry_points.push('\n');
     }
 
@@ -199,28 +330,34 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
         let _ = writeln!(out, "    \"{}\",", function.symbol);
     }
     out.push_str("];\n\n");
-    out.push_str("/// The address of every runtime function, by symbol, in the order of RUNTIME_FUNCTION_SYMBOLS.\n");
-    let _ = writeln!(
-        out,
-        "pub fn runtime_function_addresses() -> [(&'static str, usize); {}] {{\n    [",
-        functions.len()
-    );
-    for function in functions {
-        let _ = writeln!(out, "        (\"{0}\", {0} as *const () as usize),", function.symbol);
+    for (condition, suffix) in [
+        (format!("not({WINDOWS_X86_64})"), ""),
+        (WINDOWS_X86_64.to_string(), "_sysv64"),
+    ] {
+        out.push_str(
+            "/// The address JIT code calls every runtime function at, by symbol, in the order of RUNTIME_FUNCTION_SYMBOLS.\n",
+        );
+        let _ = writeln!(out, "#[cfg({condition})]");
+        let _ = writeln!(
+            out,
+            "pub fn runtime_function_addresses() -> [(&'static str, usize); {}] {{\n    [",
+            functions.len()
+        );
+        for function in functions {
+            let _ = writeln!(
+                out,
+                "        (\"{0}\", {0}{suffix} as *const () as usize),",
+                function.symbol
+            );
+        }
+        out.push_str("    ]\n}\n");
     }
-    out.push_str("    ]\n}\n");
     out
 }
 
-fn generate_slow_path_entry_point(out: &mut String, symbol: &str, name: &str, abi: SlowPathAbi, record: &Record) {
+fn generate_slow_path_entry_point(out: &mut String, name: &str, abi: SlowPathAbi, record: &Record) {
     let op = record.op;
     let fields = &record.layout.fields;
-    let inputs: Vec<String> = fields
-        .iter()
-        .filter(|field| field.mode != ParameterMode::Out)
-        .map(|field| field_name(&field.name))
-        .collect();
-    let input_parameters: String = inputs.iter().map(|input| format!(", {input}: Value")).collect();
     let initialize_values = || {
         let initializers: Vec<String> = fields
             .iter()
@@ -250,10 +387,6 @@ fn generate_slow_path_entry_point(out: &mut String, symbol: &str, name: &str, ab
                 .iter()
                 .find(|field| field.mode == ParameterMode::Out && !field.optional)
                 .map(|field| field_name(&field.name));
-            let _ = writeln!(
-                out,
-                "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, instruction: *const op::{op}{input_parameters}) -> AsmSlowPathResult {{"
-            );
             out.push_str(bind_vm);
             out.push_str(&initialize_values());
             let _ = writeln!(out, "    let values = &mut values;\n    let control = {call};");
@@ -270,10 +403,6 @@ fn generate_slow_path_entry_point(out: &mut String, symbol: &str, name: &str, ab
             }
         }
         SlowPathAbi::Mixed => {
-            let _ = writeln!(
-                out,
-                "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, instruction: *const op::{op}, outputs: *mut op::{op}Values{input_parameters}) -> i64 {{"
-            );
             out.push_str(bind_vm);
             out.push_str(&initialize_values());
             let _ = writeln!(out, "    let values = &mut values;\n    let control = {call};");
@@ -285,10 +414,6 @@ fn generate_slow_path_entry_point(out: &mut String, symbol: &str, name: &str, ab
             out.push_str("    control.0\n}\n");
         }
         SlowPathAbi::Record => {
-            let _ = writeln!(
-                out,
-                "pub unsafe extern \"C\" fn {symbol}(vm: *const Vm, pc: u32, instruction: *const op::{op}, values: *mut op::{op}Values) -> i64 {{"
-            );
             out.push_str(bind_vm);
             record.bind_record(out);
             let _ = writeln!(out, "    {call}.0\n}}");
