@@ -98,13 +98,18 @@ class TestJsSuite(Suite):
             "LIBJS_TEST_REPEAT": str(self.arguments.repeat),
         }
 
+    def test_filter(self, relative: str) -> str:
+        """The runner's filter for the test file at `relative`, which it matches against paths with forward slashes. A
+        backslash in it would escape the next character."""
+        return f"{self.root.name}/{relative}"
+
     def run_file(self, mode: Mode, path: Path) -> Dict[str, str]:
         wait_until_machine_is_free()
         relative = path.relative_to(self.root).as_posix()
         environment = environment_for(mode, self.arguments.seed, {"LIBJS_TEST_REPEAT": str(self.arguments.repeat)})
         try:
             process = subprocess.run(
-                [self.runner, "--per-file", "-f", path],
+                [self.runner, "--per-file", "-f", self.test_filter(relative)],
                 env=environment,
                 capture_output=True,
                 timeout=self.arguments.timeout,
@@ -137,7 +142,7 @@ class TestJsSuite(Suite):
         relative = key.split(".js/", 1)[0] + ".js"
         return command_line(
             self.environment_changes(mode) | {"LADYBIRD_SOURCE_DIR": str(SOURCE_DIR)},
-            [self.runner, "-f", self.root / relative],
+            [self.runner, "-f", self.test_filter(relative)],
         )
 
 
@@ -315,7 +320,7 @@ def main() -> int:
         expected = suite.run(INTERPRETER)
         print(f"{suite.name} [interpreter]: {len(expected)} results in {time.monotonic() - start:.1f} s", flush=True)
         summary[suite.name] = {"interpreter": {"results": len(expected)}}
-        if "(test262)" in expected:
+        if not expected or "(test262)" in expected:
             print(f"{suite.name} [interpreter]: no results, so nothing to compare with")
             return 1
         for mode in modes:

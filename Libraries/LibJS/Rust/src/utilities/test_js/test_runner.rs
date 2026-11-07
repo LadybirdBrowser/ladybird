@@ -229,8 +229,34 @@ fn canonicalized_absolute_path(path: &str) -> String {
     format!("/{}", parts.join("/"))
 }
 
+/// An absolute Windows path, with a drive or a server and share, and maybe the `\\?\` prefix of verbatim paths, as one
+/// that starts with a slash, with the drive or server as its first part, and with forward slashes like the paths that
+/// `iterate_directory_recursively()` appends to it.
+#[cfg(windows)]
+fn with_forward_slashes(path: &str) -> Option<String> {
+    let path = path.replace('\\', "/");
+    let path = match path.strip_prefix("//?/") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC/") {
+            Some(share) => format!("//{share}"),
+            None => verbatim.to_string(),
+        },
+        None => path,
+    };
+    let bytes = path.as_bytes();
+    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        Some(format!("/{path}"))
+    } else {
+        path.starts_with("//").then_some(path)
+    }
+}
+
 /// LexicalPath::relative_path(), which has no answer unless both paths are absolute.
 pub fn relative_path(path: &str, prefix: &str) -> Option<String> {
+    #[cfg(windows)]
+    let (path, prefix) = (with_forward_slashes(path)?, with_forward_slashes(prefix)?);
+    #[cfg(windows)]
+    let (path, prefix) = (path.as_str(), prefix.as_str());
+
     if !path.starts_with('/') || !prefix.starts_with('/') {
         return None;
     }
