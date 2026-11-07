@@ -66,11 +66,14 @@ CellAllocator::~CellAllocator()
     auto reclaim_all = [this](BlockList& blocks) {
         while (auto* block = blocks.take_first()) {
             block->~HeapBlock();
-            m_block_allocator.deallocate_block(block, DeferDecommit::Yes);
+            m_block_allocator.deallocate_block(block, DeferDecommit::No);
         }
     };
     reclaim_all(m_full_blocks);
     reclaim_all(m_usable_blocks);
+
+    // NB: This heap is gone, and another one may not come along to use the blocks of this type for a long time.
+    m_block_allocator.return_freed_blocks_to_system();
 }
 
 Cell* CellAllocator::allocate_cell_slow(Heap& heap)

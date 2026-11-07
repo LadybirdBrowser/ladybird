@@ -220,6 +220,18 @@ static void madvise_block_for_decommit(void* block)
 #endif
 }
 
+static void return_block_to_system(void* block)
+{
+#if defined(AK_OS_LINUX)
+    if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_DONTNEED) < 0) {
+        perror("madvise(MADV_DONTNEED)");
+        VERIFY_NOT_REACHED();
+    }
+#else
+    madvise_block_for_decommit(block);
+#endif
+}
+
 static void sleep_before_decommit()
 {
 #if defined(AK_OS_WINDOWS)
@@ -397,6 +409,25 @@ void BlockAllocator::wake_decommit_worker_async()
     DecommitWorker::the().kick();
 }
 
+void BlockAllocator::return_freed_blocks_to_system()
+{
+    Vector<void*> blocks;
+    {
+        MutexLocker locker(m_mutex);
+        blocks = move(m_freshly_freed);
+#if defined(AK_OS_LINUX)
+        // NB: MADV_FREE leaves these pages in the process until the system runs short of memory.
+        blocks.extend(move(m_blocks));
+#endif
+    }
+
+    for (auto* block : blocks)
+        return_block_to_system(block);
+
+    MutexLocker locker(m_mutex);
+    m_returned_blocks.extend(move(blocks));
+}
+
 BlockAllocator::BlockAllocator()
     : m_worker_cv(m_mutex)
 {
@@ -417,7 +448,7 @@ BlockAllocator::~BlockAllocator()
 size_t BlockAllocator::block_count()
 {
     MutexLocker locker(m_mutex);
-    return m_blocks.size();
+    return m_blocks.size() + m_returned_blocks.size();
 }
 
 HeapRegionBaseCopyRegistration::HeapRegionBaseCopyRegistration(FlatPtr& copy)
@@ -457,6 +488,9 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
             block = m_freshly_freed.take_last();
         } else if (!m_blocks.is_empty()) {
             block = m_blocks.take_last();
+            needs_madvise_reuse = true;
+        } else if (!m_returned_blocks.is_empty()) {
+            block = m_returned_blocks.take_last();
             needs_madvise_reuse = true;
         }
     }

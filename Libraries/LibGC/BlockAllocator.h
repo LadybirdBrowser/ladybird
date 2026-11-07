@@ -31,6 +31,10 @@ public:
 
     size_t block_count();
 
+    // Gives the pages of the free blocks back to the system right away, rather than leaving them for the system to take
+    // when it runs short of memory. For a heap that went away, whose blocks may never be reused.
+    void return_freed_blocks_to_system();
+
     static FlatPtr heap_region_start();
     static FlatPtr heap_region_end();
     // The end of the part of the region that chunks have been committed from so far. No block starts at or above it.
@@ -47,12 +51,16 @@ private:
     // the worker (Darwin) so allocate_block pairs them with MADV_FREE_REUSE.
     Vector<void*> m_blocks;
 
+    // Slots whose pages went back with return_freed_blocks_to_system(). They
+    // are the last ones to reuse, as their pages have to be faulted in again.
+    Vector<void*> m_returned_blocks;
+
     // Slots freed by deallocate_block but not yet madvised. allocate_block
     // pops directly from here to skip the madvise round-trip on hot recycle
     // paths -- this is the main payoff of deferring decommit.
     Vector<void*> m_freshly_freed;
 
-    // Protects m_blocks, m_freshly_freed, and m_in_decommit_registry. Held
+    // Protects the slots above and m_in_decommit_registry. Held
     // briefly on the alloc/dealloc hot path; uncontended in the common case.
     Mutex m_mutex;
 
