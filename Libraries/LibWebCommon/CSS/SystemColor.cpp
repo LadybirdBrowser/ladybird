@@ -87,10 +87,15 @@ Color gray_text(PreferredColorScheme)
     return Color(128, 128, 128);
 }
 
-Color transform_selection_background_color(Color color)
+Color transform_selection_background_color(Color color, PreferredColorScheme scheme)
 {
     if (color.alpha() < 255)
         return color;
+
+    // NB: The translucent color below looks like `color` only over white. Over a dark page it comes out much darker, so
+    //     a dark color scheme keeps the color as it is, at 80% opacity.
+    if (scheme == PreferredColorScheme::Dark)
+        return color.with_alpha(204);
 
     constexpr int start_alpha = 153; // 60%
     constexpr int end_alpha = 204;   // 80%

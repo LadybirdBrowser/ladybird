@@ -421,8 +421,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
         answer
     }
 
-    /// A committed style that authored neither color takes the paired default colors and keeps
-    /// its shadows and decorations.
+    /// A committed style that authored neither color takes the paired default colors (the text color among them) and
+    /// keeps its shadows and decorations.
     fn highlight_style_answer(
         committed: Option<Arc<paint::text::SelectionStyleAnswer>>,
         defaults: impl FnOnce() -> paint::text::SelectionStyleAnswer,
@@ -435,6 +435,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 defaults.facts = crate::painting::host::FfiSelectionStyleFacts {
                     background_color: defaults.facts.background_color,
                     background_color_is_current_color: defaults.facts.background_color_is_current_color,
+                    text_color: defaults.facts.text_color,
                     wash_color: defaults.facts.wash_color,
                     ..answer.facts
                 };
@@ -500,12 +501,50 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paint::text::SelectionStyleAnswer {
             facts: crate::painting::host::FfiSelectionStyleFacts {
                 background_color,
+                text_color: self
+                    .readable_selection_text_color(node, style_source, background_color)
+                    .into(),
                 wash_color: background_color,
                 ..Default::default()
             },
             shadows: Vec::new(),
             decoration_metrics: None,
         }
+    }
+
+    /// The color the default selection draws its text in, where the text's own color would be hard to read on the
+    /// selection: black or white, whichever stands out more. The text otherwise keeps its own color.
+    fn readable_selection_text_color(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        style_source: crate::layout::node_data::NodeSlotId,
+        selection_background: libgfx_rust::Color,
+    ) -> Option<libgfx_rust::Color> {
+        use libgfx_rust::Color;
+        // The contrast WCAG asks of normal-size text.
+        const MINIMUM_CONTRAST_RATIO: f64 = 4.5;
+
+        let style = self.source.node_style_if_live(style_source)?;
+        let text_color = Color(style.inherited_text().webkit_text_fill_color);
+        let uncaptured = &self.inputs.uncaptured;
+        let backdrop = crate::painting::chrome_geometry::estimated_backdrop_color(
+            self.source,
+            node,
+            uncaptured.root_background_source,
+            uncaptured.canvas_color.blend(uncaptured.background_color),
+        );
+        let behind_text = backdrop.blend(selection_background);
+        if behind_text.contrast_ratio(behind_text.blend(text_color)) >= MINIMUM_CONTRAST_RATIO {
+            return None;
+        }
+        let (black, white) = (Color::from_rgb(0, 0, 0), Color::from_rgb(255, 255, 255));
+        Some(
+            if behind_text.contrast_ratio(black) >= behind_text.contrast_ratio(white) {
+                black
+            } else {
+                white
+            },
+        )
     }
 
     fn default_search_text_style(
