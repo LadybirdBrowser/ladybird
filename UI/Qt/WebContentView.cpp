@@ -120,14 +120,22 @@ static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window
 #endif
 }
 
-WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTraversable&> traversable, WebContentViewInitialState initial_state)
+static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget&, WebContentView::PaletteMode);
+static Optional<RemoteView::ScreenRects> screen_rects_from_qt();
+
+WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebContentViewInitialState initial_state)
     : WebContentViewBase(initial_web_content_view_parent(window))
-    , RemoteView({
-          .is_private = initial_state.is_private,
-          .device_pixel_ratio = devicePixelRatio(),
-          .maximum_frames_per_second = initial_state.maximum_frames_per_second,
-          .display_id = initial_state.display_id,
-      })
+    , RemoteView(hub_view_id, {
+                                  .is_private = initial_state.is_private,
+                                  .device_pixel_ratio = devicePixelRatio(),
+                                  .maximum_frames_per_second = initial_state.maximum_frames_per_second,
+                                  .display_id = initial_state.display_id,
+                                  .system_theme = make_system_theme_from_qt_palette(*this, PaletteMode::Default),
+                                  .screen_rects = screen_rects_from_qt(),
+                                  .owner_view_id = initial_state.owner_view_id,
+                                  .websites_prefer_dark = websites_prefer_dark(),
+                                  .is_tab = initial_state.is_tab,
+                              })
 {
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     // Keep the QRhiWidget out of the top-level QWidget backing store. If it is
@@ -167,7 +175,6 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         create_vulkan_window();
 #endif
 
-    set_page_background_color_to_system_canvas(websites_prefer_dark());
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     on_page_background_color_change = [this](Gfx::Color) {
         update_iosurface_layer_background_color();
@@ -201,10 +208,6 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
         if (m_tooltip_text.has_value())
             show_tooltip(QCursor::pos(), qstring_from_ak_string(m_tooltip_text.value()), *this);
     });
-
-    if (initial_state.owner_view)
-        set_owner_view(*initial_state.owner_view);
-    initialize_tab(Web::HTML::VisibilityState::Hidden, traversable);
 
     m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
 
@@ -1815,7 +1818,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
 void WebContentView::set_viewport_rect(Gfx::IntRect rect)
 {
     m_viewport_size = rect.size();
-    handle_resize();
+    set_device_pixel_ratio_and_viewport(device_pixel_ratio(), viewport_size());
 }
 
 // A view in a tab that isn't the current one gets its geometry, but Qt holds the resize event back until the tab is
@@ -1829,7 +1832,7 @@ void WebContentView::push_viewport_size()
 
 void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
-    hub_view().set_device_pixel_ratio(device_pixel_ratio);
+    set_device_pixel_ratio_and_viewport(device_pixel_ratio, viewport_size());
     update_viewport_size();
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     present_current_paintable_as_layer_contents();
@@ -2016,11 +2019,6 @@ void WebContentView::update_palette(PaletteMode mode)
     update_interface_color_scheme();
 }
 
-Core::AnonymousBuffer WebContentView::system_theme()
-{
-    return make_system_theme_from_qt_palette(*this, PaletteMode::Default);
-}
-
 #if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
 void WebContentView::notify_accessibility_focus_on_document_root()
 {
@@ -2162,12 +2160,12 @@ void WebContentView::watch_screen_geometry(QScreen& screen)
     });
 }
 
-Optional<WebView::ViewImplementation::ScreenRects> WebContentView::screen_rects() const
+static Optional<RemoteView::ScreenRects> screen_rects_from_qt()
 {
     auto screens = QGuiApplication::screens();
 
     if (!screens.empty()) {
-        ScreenRects result;
+        RemoteView::ScreenRects result;
         for (auto const& screen : screens) {
             // NOTE: QScreen::geometry() returns the 'device-independent pixels', we multiply
             //       by the device pixel ratio to get the 'physical pixels' of the display.
@@ -2185,6 +2183,11 @@ Optional<WebView::ViewImplementation::ScreenRects> WebContentView::screen_rects(
         return result;
     }
     return {};
+}
+
+Optional<RemoteView::ScreenRects> WebContentView::screen_rects() const
+{
+    return screen_rects_from_qt();
 }
 
 void WebContentView::update_cursor(Gfx::Cursor cursor)

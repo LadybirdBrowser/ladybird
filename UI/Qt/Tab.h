@@ -90,7 +90,7 @@ class Tab final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> traversable = {});
+    Tab(BrowserWindow* window, Optional<u64> hub_view_id = {});
     Tab(BrowserWindow* window, DeferredTab);
     virtual ~Tab() override;
 
@@ -197,7 +197,7 @@ signals:
 private:
     void create_tab_shell();
     void create_tab_context_menu();
-    void initialize(Optional<WebView::CanonicalTraversable&>);
+    void initialize(Optional<u64> hub_view_id);
 
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;

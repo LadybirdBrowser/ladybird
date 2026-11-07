@@ -23,7 +23,8 @@ public:
     using ScreenshotType = WebView::ViewImplementation::ScreenshotType;
     using SessionHistoryTraversalMenuItem = WebView::ViewImplementation::SessionHistoryTraversalMenuItem;
 
-    explicit RemoteView(Hub::View::InitialState);
+    // Shows the view that the Hub has made, if any, or else makes a new one.
+    RemoteView(Optional<u64> view_id, Hub::View::InitialState);
     virtual ~RemoteView() override;
 
     // The UI's side of a view that the UI shows.
@@ -31,6 +32,11 @@ public:
     static RemoteView* find(u64 view_id);
 
     void set_state(Hub::ViewState state) { m_state = move(state); }
+    void set_initial_state(Hub::ViewState state) { m_state = move(state); }
+
+    void did_update_zoom() { update_zoom(); }
+    void did_start_navigation_load(URL::URL const&);
+    void did_finish_navigation_load(URL::URL const&);
 
     void did_finish_handling_key_event(u64 input_id, Web::KeyEvent);
     void did_finish_handling_mouse_event(u64 input_id, Web::MouseEvent, Web::EventResult);
@@ -40,14 +46,14 @@ public:
     Hub::View& hub_view() { return *m_view; }
     Hub::View const& hub_view() const { return *m_view; }
 
-    WebView::IsPrivate is_private() const { return m_view->is_private(); }
+    WebView::IsPrivate is_private() const { return m_is_private; }
     WebView::BrowsingSession& session() const { return m_view->session(); }
     URL::Origin permission_origin() const { return *m_state.permission_origin; }
     Vector<WebView::SitePermissionRow> site_permission_rows() const { return m_state.site_permission_rows; }
     void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName permission_name, Optional<WebView::PermissionDecision> decision) { m_view->set_site_permission(origin, permission_name, decision); }
     void reset_site_permissions(URL::Origin const& origin) { HubConnection::the().async_view_reset_site_permissions(view_id(), origin); }
     void did_show_permission_prompt(WebView::PermissionPromptRequest const& permission_prompt_request) { m_view->did_show_permission_prompt(permission_prompt_request); }
-    u64 view_id() const { return m_view->view_id(); }
+    u64 view_id() const { return m_view_id; }
     pid_t web_content_pid() const { return m_state.web_content_pid; }
     WebView::CanonicalTraversable& traversable() const { return m_view->traversable(); }
     URL::URL url() const { return m_state.url; }
@@ -88,16 +94,24 @@ public:
     void zoom_out() { HubConnection::the().async_view_zoom_out(view_id()); }
     void reset_zoom() { HubConnection::the().async_view_reset_zoom(view_id()); }
     double zoom_level() const { return m_state.zoom_level; }
-    double device_pixel_ratio() const { return m_view->device_pixel_ratio(); }
-    Optional<u64> display_id() const { return m_view->display_id(); }
-    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second) { HubConnection::the().async_view_set_display_metadata(view_id(), move(display_id), maximum_frames_per_second); }
-    void update_screen_rects() { HubConnection::the().async_view_update_screen_rects(view_id()); }
-    void set_scales_frames_to_fit(bool scales_frames_to_fit) { HubConnection::the().async_view_set_scales_frames_to_fit(view_id(), scales_frames_to_fit); }
+    double device_pixel_ratio() const { return m_device_pixel_ratio; }
+    Optional<u64> display_id() const { return m_display_id; }
+    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second)
+    {
+        m_display_id = display_id;
+        HubConnection::the().async_view_set_display_metadata(view_id(), display_id, maximum_frames_per_second);
+    }
+    void update_screen_rects();
+    void set_scales_frames_to_fit(bool scales_frames_to_fit)
+    {
+        m_scales_frames_to_fit = scales_frames_to_fit;
+        HubConnection::the().async_view_set_scales_frames_to_fit(view_id(), scales_frames_to_fit);
+    }
     void enable_picture_in_picture_controls() { HubConnection::the().async_view_enable_picture_in_picture_controls(view_id()); }
     void enqueue_input_event(Web::InputEvent);
     String force_dark_host() const { return m_state.force_dark_host; }
     void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
-    void update_system_theme(Core::AnonymousBuffer const& anonymous_buffer) { m_view->update_system_theme(anonymous_buffer); }
+    void update_system_theme(Core::AnonymousBuffer const& theme) { HubConnection::the().async_view_set_system_theme(view_id(), theme); }
     NonnullRefPtr<Core::Promise<ByteString>> selected_text() { return m_view->selected_text(); }
     bool look_up_selected_text_at(Gfx::IntPoint widget_position) { return m_view->look_up_selected_text_at(move(widget_position)); }
     void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity), highlight_all_matches); }
@@ -146,8 +160,8 @@ public:
     void request_close() { HubConnection::the().async_view_request_close(view_id()); }
     void request_close_preflight(Function<void(bool)> on_complete) { m_view->request_close_preflight(move(on_complete)); }
     bool needs_beforeunload_check() const { return m_view->needs_beforeunload_check(); }
-    u64 add_navigation_listener(NavigationListener navigation_listener) { return m_view->add_navigation_listener(move(navigation_listener)); }
-    void remove_navigation_listener(u64 listener_id) { m_view->remove_navigation_listener(listener_id); }
+    u64 add_navigation_listener(NavigationListener);
+    void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
     WebView::Menu& bookmarks_bar_context_menu() { return m_view->bookmarks_bar_context_menu(); }
     WebView::Menu& bookmark_context_menu() { return m_view->bookmark_context_menu(); }
     WebView::Menu& bookmark_folder_context_menu() { return m_view->bookmark_folder_context_menu(); }
@@ -167,7 +181,7 @@ public:
     Function<void()> prepare_for_close_without_prompting() { return m_view->prepare_for_close_without_prompting(); }
     Function<void()> prepare_for_immediate_close() { return m_view->prepare_for_immediate_close(); }
 
-    bool scales_frames_to_fit() const { return m_view->scales_frames_to_fit(); }
+    bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
 
     void did_install_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) { m_backing_stores.add(move(bitmap_ids), move(backing_stores)); }
@@ -188,20 +202,23 @@ protected:
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
 
-    void initialize_tab(Web::HTML::VisibilityState state, Optional<WebView::CanonicalTraversable&> traversable = {})
-    {
-        m_view->initialize_tab(state, traversable);
-        m_state = m_view->current_state();
-    }
-    void handle_resize() { m_view->handle_resize(); }
-    void set_owner_view(WebView::ViewImplementation const& owner_view) { m_view->set_owner_view(owner_view); }
-    void set_page_background_color_to_system_canvas(bool dark) { m_view->set_page_background_color_to_system_canvas(dark); }
+    void set_page_background_color_to_system_canvas(bool dark) { HubConnection::the().async_view_set_page_background_color_to_system_canvas(view_id(), dark); }
+    void set_device_pixel_ratio_and_viewport(double device_pixel_ratio, Web::DevicePixelSize);
+    virtual Optional<ScreenRects> screen_rects() const = 0;
+    virtual void update_zoom() { }
     WebView::MicrophoneAuthorizer& microphone_authorizer() const { return m_view->microphone_authorizer(); }
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size) { return Hub::View::rect_fitting_frame(frame_size, target_size); }
 
 private:
-    NonnullOwnPtr<Hub::View> m_view;
+    Hub::View* m_view { nullptr };
+    u64 m_view_id { 0 };
+    WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
+    double m_device_pixel_ratio { 1.0 };
+    Optional<u64> m_display_id;
+    bool m_scales_frames_to_fit { false };
     Hub::ViewState m_state;
+    HashMap<u64, NavigationListener> m_navigation_listeners;
+    u64 m_next_navigation_listener_id { 1 };
     WebView::PageBackingStores m_backing_stores;
     u64 m_backing_stores_page_id { 0 };
 
@@ -214,7 +231,7 @@ public:
     decltype(Hub::View::on_load_finish) on_load_finish;
     decltype(Hub::View::on_ready_to_paint) on_ready_to_paint;
     decltype(Hub::View::on_performance_stats) on_performance_stats;
-    decltype(Hub::View::on_new_web_view)& on_new_web_view { m_view->on_new_web_view };
+    Function<void(Web::HTML::ActivateTab, Web::HTML::WebViewHints, u64 view_id)> on_open_new_view;
     decltype(Hub::View::on_activate_tab) on_activate_tab;
     decltype(Hub::View::on_close) on_close;
     decltype(Hub::View::on_link_hover) on_link_hover;
@@ -224,20 +241,20 @@ public:
     decltype(Hub::View::on_loading_state_change) on_loading_state_change;
     decltype(Hub::View::on_top_level_navigation_commit) on_top_level_navigation_commit;
     decltype(Hub::View::on_browser_history_traversal_complete) on_browser_history_traversal_complete;
-    decltype(Hub::View::on_request_dictionary_lookup)& on_request_dictionary_lookup { m_view->on_request_dictionary_lookup };
-    decltype(Hub::View::on_favicon_change)& on_favicon_change { m_view->on_favicon_change };
+    decltype(Hub::View::on_request_dictionary_lookup) on_request_dictionary_lookup;
+    decltype(Hub::View::on_favicon_change) on_favicon_change;
     decltype(Hub::View::on_cursor_change) on_cursor_change;
     decltype(Hub::View::on_input_method_state_change) on_input_method_state_change;
     decltype(Hub::View::on_enter_tooltip_area) on_enter_tooltip_area;
     decltype(Hub::View::on_leave_tooltip_area) on_leave_tooltip_area;
     decltype(Hub::View::on_content_blocking_change) on_content_blocking_change;
     decltype(Hub::View::on_request_alert) on_request_alert;
-    decltype(Hub::View::on_request_before_unload)& on_request_before_unload { m_view->on_request_before_unload };
+    decltype(Hub::View::on_request_before_unload) on_request_before_unload;
     decltype(Hub::View::on_request_confirm) on_request_confirm;
     decltype(Hub::View::on_request_prompt) on_request_prompt;
     decltype(Hub::View::on_request_set_prompt_text) on_request_set_prompt_text;
     decltype(Hub::View::on_before_browser_initiated_navigation) on_before_browser_initiated_navigation;
-    decltype(Hub::View::on_request_external_url_confirmation)& on_request_external_url_confirmation { m_view->on_request_external_url_confirmation };
+    Function<void(URL::URL const&, URL::Origin const&, String const& application_name, Function<void(bool)>)> on_request_external_url_confirmation;
     decltype(Hub::View::on_request_accept_dialog) on_request_accept_dialog;
     decltype(Hub::View::on_request_website_issue_report) on_request_website_issue_report;
     decltype(Hub::View::on_request_screenshot) on_request_screenshot;
@@ -253,8 +270,8 @@ public:
     decltype(Hub::View::on_fullscreen_window) on_fullscreen_window;
     decltype(Hub::View::on_exit_fullscreen_window) on_exit_fullscreen_window;
     decltype(Hub::View::on_request_color_picker) on_request_color_picker;
-    decltype(Hub::View::on_request_date_picker)& on_request_date_picker { m_view->on_request_date_picker };
-    decltype(Hub::View::on_request_permission)& on_request_permission { m_view->on_request_permission };
+    decltype(Hub::View::on_request_date_picker) on_request_date_picker;
+    decltype(Hub::View::on_request_permission) on_request_permission;
     decltype(Hub::View::on_cancel_permission_prompt) on_cancel_permission_prompt;
     decltype(Hub::View::on_tab_indicator_change) on_tab_indicator_change;
     decltype(Hub::View::on_request_file_picker) on_request_file_picker;

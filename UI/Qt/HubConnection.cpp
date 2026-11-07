@@ -112,6 +112,94 @@ void HubConnection::view_release_input(u64 view_id, u64 input_id)
         view->release_input(input_id);
 }
 
+void HubConnection::view_open_new_view(u64 view_id, u64 new_view_id, Hub::ViewState, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
+{
+    if (auto* view = RemoteView::find(view_id); view && view->on_open_new_view)
+        view->on_open_new_view(activate_tab, hints, new_view_id);
+    else
+        async_destroy_view(new_view_id);
+}
+
+void HubConnection::view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon)
+{
+    auto* view = RemoteView::find(view_id);
+    if (!view || !view->on_favicon_change)
+        return;
+    if (favicon.has_value() && favicon->is_valid())
+        view->on_favicon_change(*favicon->bitmap());
+    else
+        view->on_favicon_change({});
+}
+
+void HubConnection::view_request_before_unload(u64 view_id, u64 answer_id, String source)
+{
+    auto* view = RemoteView::find(view_id);
+    if (!view || !view->on_request_before_unload) {
+        async_view_answer(view_id, answer_id, true);
+        return;
+    }
+    view->on_request_before_unload(source, [view_id, answer_id](bool answer) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_view_answer(view_id, answer_id, answer);
+    });
+}
+
+void HubConnection::view_request_external_url_confirmation(u64 view_id, u64 answer_id, URL::URL url, URL::Origin initiator_origin, String application_name)
+{
+    auto* view = RemoteView::find(view_id);
+    if (!view || !view->on_request_external_url_confirmation) {
+        async_view_answer(view_id, answer_id, false);
+        return;
+    }
+    view->on_request_external_url_confirmation(url, initiator_origin, application_name, [view_id, answer_id](bool answer) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_view_answer(view_id, answer_id, answer);
+    });
+}
+
+void HubConnection::view_request_permission(u64 view_id, u64 answer_id, WebView::PermissionPromptRequest request)
+{
+    auto* view = RemoteView::find(view_id);
+    if (!view || !view->on_request_permission) {
+        async_view_answer_permission_request(view_id, answer_id, Web::Permissions::PromptOutcome::Dismissed);
+        return;
+    }
+    view->on_request_permission(request, [view_id, answer_id](Web::Permissions::PromptOutcome outcome) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_view_answer_permission_request(view_id, answer_id, outcome);
+    });
+}
+
+void HubConnection::view_request_date_picker(u64 view_id, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum)
+{
+    if (auto* view = RemoteView::find(view_id); view && view->on_request_date_picker)
+        view->on_request_date_picker(input_type, value, minimum, maximum);
+}
+
+void HubConnection::view_request_dictionary_lookup(u64 view_id, WebView::DictionaryLookup lookup, Gfx::IntPoint position)
+{
+    if (auto* view = RemoteView::find(view_id); view && view->on_request_dictionary_lookup)
+        view->on_request_dictionary_lookup(lookup, position);
+}
+
+void HubConnection::view_update_zoom(u64 view_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_update_zoom();
+}
+
+void HubConnection::view_navigation_load_start(u64 view_id, URL::URL url)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_start_navigation_load(url);
+}
+
+void HubConnection::view_navigation_load_finish(u64 view_id, URL::URL url)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_finish_navigation_load(url);
+}
+
 void HubConnection::view_state_changed(u64 view_id, Hub::ViewState state)
 {
     if (auto* view = RemoteView::find(view_id))

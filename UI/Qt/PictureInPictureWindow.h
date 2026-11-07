@@ -12,6 +12,6 @@
 
 namespace Ladybird {
 
-NonnullOwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::CanonicalTraversable&, WebView::ViewImplementation const& owner_view, Gfx::IntSize video_size);
+NonnullOwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation const& owner_view, u64 view_id, Gfx::IntSize video_size);
 
 }

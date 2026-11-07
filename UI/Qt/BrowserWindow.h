@@ -149,7 +149,7 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> hub_view_id = {}, Optional<WebView::SessionWindowId> restored_session_window_id = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -271,7 +271,7 @@ private:
     virtual void appearance_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
-    Tab& create_new_tab(Web::HTML::ActivateTab, Optional<WebView::CanonicalTraversable&>);
+    Tab& create_new_tab(Web::HTML::ActivateTab, Optional<u64> hub_view_id);
     Tab& create_restored_tab(WebView::RestoredSessionTab const&, int index, bool defer);
     void initialize_tab(Tab*);
     void initialize_tab_view(Tab*);

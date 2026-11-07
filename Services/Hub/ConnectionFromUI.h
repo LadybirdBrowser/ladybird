@@ -33,6 +33,13 @@ private:
     static View* find_view(u64 view_id);
 
     // ^HubServerEndpoint
+    virtual void view_answer(u64 view_id, u64 answer_id, bool answer) override;
+    virtual void view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) override;
+    virtual void destroy_view(u64 view_id) override;
+    virtual void view_set_viewport(u64 view_id, Web::DevicePixelSize size, double device_pixel_ratio) override;
+    virtual void view_set_system_theme(u64 view_id, Core::AnonymousBuffer theme) override;
+    virtual void view_set_screen_rects(u64 view_id, WebView::ViewImplementation::ScreenRects screen_rects) override;
+    virtual void view_set_page_background_color_to_system_canvas(u64 view_id, bool dark) override;
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) override;
     virtual void view_enqueue_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
     virtual void view_enqueue_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event) override;
@@ -58,7 +65,6 @@ private:
     virtual void view_zoom_out(u64 view_id) override;
     virtual void view_reset_zoom(u64 view_id) override;
     virtual void view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second) override;
-    virtual void view_update_screen_rects(u64 view_id) override;
     virtual void view_set_scales_frames_to_fit(u64 view_id, bool scales_frames_to_fit) override;
     virtual void view_enable_picture_in_picture_controls(u64 view_id) override;
     virtual void view_update_interface_color_scheme(u64 view_id) override;

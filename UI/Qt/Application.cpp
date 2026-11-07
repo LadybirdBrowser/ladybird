@@ -629,6 +629,9 @@ Application::~Application()
     // NB: The application tears down its processes as it goes, which must happen after the QApplication is gone, and
     //     with nothing left here to call back into.
     ScopeGuard tear_down_hub = [this] {
+        // NB: The views go along with the windows that showed them, and their timers need the QApplication.
+        if (m_hub)
+            m_hub->destroy_all_views();
         m_application = nullptr;
         m_hub_connection = nullptr;
         m_connection_from_ui = nullptr;
@@ -829,9 +832,9 @@ Optional<String> Application::system_font_family() const
 #endif
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> hub_view_id, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
-    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, traversable);
+    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, hub_view_id);
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
     if (should_focus_location_editor) {
@@ -1361,9 +1364,9 @@ bool Application::confirm_stop_active_downloads(QWidget* parent)
     return true;
 }
 
-OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& traversable, Gfx::IntSize video_size)
+OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size)
 {
-    return Ladybird::create_picture_in_picture_window(traversable, requesting_page.view(), video_size);
+    return Ladybird::create_picture_in_picture_window(owner_view, view_id, video_size);
 }
 
 // The window that shows this view in one of its tabs, if any.

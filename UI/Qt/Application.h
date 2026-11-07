@@ -67,7 +67,7 @@ public:
     Function<void(URL::URL)> on_open_file;
 
     // A page's initial navigation, when there is one, starts in place of the first initial URL.
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<WebView::CanonicalTraversable&> traversable = {}, ShowWindow = ShowWindow::Yes, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation = {});
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> hub_view_id = {}, ShowWindow = ShowWindow::Yes, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation = {});
     WindowConfiguration configuration_for_new_window() const;
 
     // Opens the windows startup recovery kept open, and returns the frontmost one, if any.
@@ -166,7 +166,7 @@ private:
     virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
 
     virtual bool supports_picture_in_picture() const override { return true; }
-    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable&, Gfx::IntSize video_size) override;
+    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const override;

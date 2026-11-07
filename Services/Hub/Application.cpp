@@ -6,12 +6,27 @@
 
 #include <Hub/Application.h>
 #include <LibCore/EventLoop.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace Hub {
 
 Application::Application(ApplicationHost& host)
     : m_host(&host)
 {
+}
+
+View& Application::create_view(View::InitialState initial_state, Optional<WebView::CanonicalTraversable&> traversable)
+{
+    auto view = make<View>(move(initial_state));
+    auto& view_reference = *view;
+    m_views.set(view->view_id(), move(view));
+    view_reference.initialize(traversable);
+    return view_reference;
+}
+
+void Application::destroy_view(u64 view_id)
+{
+    m_views.remove(view_id);
 }
 
 Core::EventLoop& Application::create_platform_event_loop()
@@ -126,11 +141,17 @@ bool Application::supports_picture_in_picture() const
     return WebView::Application::supports_picture_in_picture();
 }
 
-OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& canonical_traversable, Gfx::IntSize video_size)
+OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& traversable, Gfx::IntSize video_size)
 {
-    if (m_host)
-        return m_host->create_picture_in_picture_window(requesting_page, canonical_traversable, move(video_size));
-    return WebView::Application::create_picture_in_picture_window(requesting_page, canonical_traversable, move(video_size));
+    if (!m_host)
+        return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
+
+    auto& owner_view = static_cast<View&>(requesting_page.view());
+    auto initial_state = owner_view.initial_state_for_related_view();
+    initial_state.owner_view_id = owner_view.view_id();
+    initial_state.is_tab = false;
+    auto& view = create_view(move(initial_state), traversable);
+    return m_host->create_picture_in_picture_window(owner_view, view.view_id(), video_size);
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const

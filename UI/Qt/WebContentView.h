@@ -112,7 +112,8 @@ struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
     Optional<u64> display_id;
-    WebView::ViewImplementation const* owner_view { nullptr };
+    Optional<u64> owner_view_id;
+    bool is_tab { true };
 };
 
 class WebContentView final
@@ -126,7 +127,7 @@ class WebContentView final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    WebContentView(QWidget* window, Optional<WebView::CanonicalTraversable&> traversable = {}, WebContentViewInitialState initial_state = {});
+    WebContentView(QWidget* window, Optional<u64> hub_view_id = {}, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
@@ -218,14 +219,14 @@ signals:
 
 private:
     // ^Hub::ViewHost
-    virtual Core::AnonymousBuffer system_theme() override;
-    virtual Optional<ScreenRects> screen_rects() const override;
-    virtual void update_zoom() override;
-    virtual Web::DevicePixelSize viewport_size() const override;
     virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
 
     // ^RemoteView
+    virtual Optional<ScreenRects> screen_rects() const override;
+    virtual void update_zoom() override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
+
+    Web::DevicePixelSize viewport_size() const;
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     // ^QRhiWidget

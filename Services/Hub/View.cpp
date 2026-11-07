@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/View.h>
 
@@ -77,19 +78,160 @@ private:
     View& m_view;
 };
 
-View::View(ViewHost& host, InitialState initial_state)
+View::View(InitialState initial_state)
     : ViewImplementation(initial_state.is_private)
-    , m_host(&host)
+    , m_system_theme(move(initial_state.system_theme))
+    , m_screen_rects(move(initial_state.screen_rects))
+    , m_websites_prefer_dark(initial_state.websites_prefer_dark)
 {
     m_device_pixel_ratio = initial_state.device_pixel_ratio;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
     m_backing_stores = make<BackingStoresInUI>(*this);
-    forward_callbacks_to_ui();
+    forward_callbacks_to_ui(initial_state.is_tab);
+
+    if (initial_state.owner_view_id.has_value()) {
+        if (auto owner_view = find_view_by_id(*initial_state.owner_view_id); owner_view.has_value())
+            set_owner_view(*owner_view);
+    }
+    set_page_background_color_to_system_canvas(m_websites_prefer_dark);
 }
 
-void View::forward_callbacks_to_ui()
+void View::initialize(Optional<WebView::CanonicalTraversable&> traversable)
 {
+    initialize_tab(Web::HTML::VisibilityState::Hidden, traversable);
+}
+
+View::InitialState View::initial_state_for_related_view() const
+{
+    return {
+        .is_private = is_private(),
+        .device_pixel_ratio = device_pixel_ratio(),
+        .maximum_frames_per_second = maximum_frames_per_second(),
+        .display_id = display_id(),
+        .system_theme = m_system_theme,
+        .screen_rects = m_screen_rects,
+        .owner_view_id = {},
+        .websites_prefer_dark = m_websites_prefer_dark,
+        .is_tab = true,
+    };
+}
+
+void View::set_viewport(Web::DevicePixelSize size, double device_pixel_ratio)
+{
+    m_viewport_size = size;
+    m_device_pixel_ratio = device_pixel_ratio;
+    handle_resize();
+}
+
+void View::set_system_theme(Core::AnonymousBuffer theme)
+{
+    m_system_theme = move(theme);
+    update_system_theme(m_system_theme);
+}
+
+void View::set_screen_rects(ScreenRects screen_rects)
+{
+    m_screen_rects = move(screen_rects);
+    update_screen_rects();
+}
+
+void View::did_get_answer(u64 answer_id, bool answer)
+{
+    if (auto on_answer = m_pending_answers.take(answer_id); on_answer.has_value())
+        (*on_answer)(answer);
+}
+
+void View::did_get_permission_answer(u64 answer_id, Web::Permissions::PromptOutcome outcome)
+{
+    if (auto on_answer = m_pending_permission_answers.take(answer_id); on_answer.has_value())
+        (*on_answer)(outcome);
+}
+
+void View::forward_callbacks_to_ui(bool is_tab)
+{
+    on_favicon_change = [this](Optional<Gfx::Bitmap const&> favicon) {
+        if (auto* ui = ConnectionFromUI::the()) {
+            push_state_to_ui();
+            ui->async_view_favicon_change(view_id(), favicon.map([](auto const& bitmap) { return bitmap.to_shareable_bitmap(); }));
+        }
+    };
+
+#if defined(AK_OS_MACOS)
+    on_request_dictionary_lookup = [this](WebView::DictionaryLookup const& lookup, Gfx::IntPoint position) {
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_request_dictionary_lookup(view_id(), lookup, position);
+    };
+#endif
+
+    add_navigation_listener({
+        .on_load_start = [this](URL::URL const& url) {
+            if (auto* ui = ConnectionFromUI::the()) {
+                push_state_to_ui();
+                ui->async_view_navigation_load_start(view_id(), url);
+            } },
+        .on_load_finish = [this](URL::URL const& url) {
+            if (auto* ui = ConnectionFromUI::the()) {
+                push_state_to_ui();
+                ui->async_view_navigation_load_finish(view_id(), url);
+            } },
+    });
+
+    // NB: What the view does differs on whether it has these, so a view that the UI will not answer for must not.
+    if (is_tab) {
+        on_request_before_unload = [this](String const& source, Function<void(bool)> on_complete) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_complete(true);
+                return;
+            }
+            auto answer_id = m_next_answer_id++;
+            m_pending_answers.set(answer_id, move(on_complete));
+            push_state_to_ui();
+            ui->async_view_request_before_unload(view_id(), answer_id, source);
+        };
+
+        on_request_external_url_confirmation = [this](URL::URL const& url, URL::Origin const& initiator_origin, WebView::ExternalURLHandler const& handler, Function<void(bool)> on_complete) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_complete(false);
+                return;
+            }
+            auto answer_id = m_next_answer_id++;
+            m_pending_answers.set(answer_id, move(on_complete));
+            push_state_to_ui();
+            ui->async_view_request_external_url_confirmation(view_id(), answer_id, url, initiator_origin, handler.application_name());
+        };
+
+        on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_outcome(Web::Permissions::PromptOutcome::Dismissed);
+                return;
+            }
+            auto answer_id = m_next_answer_id++;
+            m_pending_permission_answers.set(answer_id, move(on_outcome));
+            push_state_to_ui();
+            ui->async_view_request_permission(view_id(), answer_id, request);
+        };
+
+        on_request_date_picker = [this](auto const&... arguments) {
+            if (auto* ui = ConnectionFromUI::the()) {
+                push_state_to_ui();
+                ui->async_view_request_date_picker(view_id(), arguments...);
+            }
+        };
+
+        on_new_web_view = [this](Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, WebView::CanonicalTraversable& traversable) {
+            auto& view = Application::the().create_view(initial_state_for_related_view(), traversable);
+            if (auto* ui = ConnectionFromUI::the()) {
+                push_state_to_ui();
+                ui->async_view_open_new_view(view_id(), view.view_id(), view.current_state(), activate_tab, hints);
+            }
+            return view.handle();
+        };
+    }
+
     on_finish_handling_key_event = [this](Web::KeyEvent const& event) {
         // NB: Input that the Hub came up with itself, such as WebDriver's, is nothing the UI knows about.
         if (!event.browser_data)
@@ -522,26 +664,11 @@ void View::prepare_page_for_navigable(WebView::WebContentPage& page)
     update_compositor_display_metadata(page);
 }
 
-Core::AnonymousBuffer View::system_theme()
-{
-    return m_host ? m_host->system_theme() : Core::AnonymousBuffer {};
-}
-
-Optional<View::ScreenRects> View::screen_rects() const
-{
-    return m_host ? m_host->screen_rects() : Optional<ScreenRects> {};
-}
-
 void View::update_zoom()
 {
     ViewImplementation::update_zoom();
-    if (m_host)
-        m_host->update_zoom();
-}
-
-Web::DevicePixelSize View::viewport_size() const
-{
-    return m_host ? m_host->viewport_size() : Web::DevicePixelSize {};
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_update_zoom(view_id());
 }
 
 void View::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
