@@ -51,6 +51,31 @@ private:
 
 GC_DEFINE_ALLOCATOR(CellWithFunction);
 
+class CellCallingFunctionWhenFinalized final : public GC::Cell {
+    GC_CELL(CellCallingFunctionWhenFinalized, GC::Cell);
+    GC_DECLARE_ALLOCATOR(CellCallingFunctionWhenFinalized);
+
+public:
+    GC::Ptr<GC::Function<void()>> function;
+
+private:
+    CellCallingFunctionWhenFinalized() = default;
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(function);
+    }
+
+    virtual void finalize() override
+    {
+        Base::finalize();
+        function->function()();
+    }
+};
+
+GC_DEFINE_ALLOCATOR(CellCallingFunctionWhenFinalized);
+
 struct DestructionFlag {
     GC_HOLDS_NO_CELL_EDGES;
 
@@ -70,6 +95,17 @@ struct RunState : RefCounted<RunState> {
 
     GC::Weak<GC::Function<void()>> function;
     bool survived_collection { false };
+};
+
+struct CalledFlag : RefCounted<CalledFlag> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    explicit CalledFlag(bool& called)
+        : called(called)
+    {
+    }
+
+    bool& called;
 };
 
 struct CountedWithCell : RefCounted<CountedWithCell> {
@@ -145,6 +181,15 @@ NEVER_INLINE GC::Weak<GC::Function<void()>> make_unrooted_function_owning(GC::He
     return function.ptr();
 }
 
+NEVER_INLINE void make_unrooted_cell_calling_function_when_finalized(GC::Heap& heap, bool& called)
+{
+    // NB: Finalizers run in no particular order. The function is made first, which here finalizes it first.
+    auto function = GC::create_function(heap, GC::captures(make_ref_counted<CalledFlag>(called)), [](NonnullRefPtr<CalledFlag>& flag) {
+        flag->called = true;
+    });
+    heap.allocate<CellCallingFunctionWhenFinalized>()->function = function;
+}
+
 }
 
 TEST_CASE(captured_cell_is_traced)
@@ -206,6 +251,19 @@ TEST_CASE(captures_are_destroyed_with_the_function)
 
     EXPECT(!function);
     EXPECT(destroyed);
+}
+
+TEST_CASE(dead_function_can_be_called_by_the_finalizer_of_another_dead_cell)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    bool called = false;
+    make_unrooted_cell_calling_function_when_finalized(heap, called);
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT(called);
 }
 
 TEST_CASE(captures_taken_as_auto_with_a_named_function_type)
