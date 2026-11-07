@@ -1159,14 +1159,21 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
-                            <span>
+                            <label for="autoplay-policy">
                                 Autoplay
                                 <p class="description">Whether sites can play audio and video on their own.</p>
-                            </span>
+                            </label>
                             <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
                                 This setting is controlled via the command line
                             </span>
-                            <button id="autoplay-settings" class="secondary-button">Exceptions…</button>
+                            <div id="autoplay-controls" class="permission-controls">
+                                <select id="autoplay-policy">
+                                    <option value="allow-audio-and-video">Allow audio and video</option>
+                                    <option value="block-audio">Block audio</option>
+                                    <option value="block-audio-and-video">Block audio and video</option>
+                                </select>
+                                <button id="autoplay-settings" class="secondary-button">Exceptions…</button>
+                            </div>
                         </div>
                         <div class="card-group inline-container">
                             <label for="enable-geolocation">
@@ -1525,11 +1532,6 @@
                 <button id="site-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <div class="inline-container">
-                    <label for="site-settings-policy">Default for all sites</label>
-                    <select id="site-settings-policy"></select>
-                </div>
-                <hr />
                 <label>Allowlist</label>
                 <div id="site-settings-list" class="dialog-list"></div>
                 <div class="dialog-controls">
