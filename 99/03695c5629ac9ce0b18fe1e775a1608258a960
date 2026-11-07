@@ -1,0 +1,5 @@
+A relatively positioned table cell is offset from where its row puts
+it, as any in-flow box is. Gecko does the same: nsTableRowFrame::
+ReflowChildren() places each cell with ApplyRelativePositioning. So
+does Blink, whose BoxFragmentBuilder adds every in-flow child with the
+offset ComputeRelativeOffsetForBoxFragment() gives it, cells included.
