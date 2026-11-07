@@ -10,7 +10,8 @@
 //! (and not executable) for the duration of the copy: memory is never writable and executable at once. On Linux
 //! x86-64 with memory protection keys, the pages are writable and executable, but a protection key keeps every thread
 //! from writing them except the one writing code, while it writes. On macOS, chunks are MAP_JIT mappings whose write
-//! protection is toggled per thread instead.
+//! protection is toggled per thread instead. On Windows, chunks are only reserved, and pages get committed when code is
+//! first written to them.
 //!
 //! Every VM has its own chunks, which only the VM's thread writes and runs code in, so flipping the protection of
 //! pages that hold other installed code is safe.
@@ -18,13 +19,30 @@
 use core::cell::RefCell;
 use std::rc::Rc;
 
+#[cfg(windows)]
+use ak::windows_code_memory;
+
 const CHUNK_SIZE: usize = 4 * 1024 * 1024;
 const ALLOCATION_ALIGNMENT: usize = 64;
 
+/// How much of the start of a chunk holds no code.
+#[cfg(windows)]
+const CHUNK_HEADER_SIZE: usize = windows_code_memory::UNWIND_INFO_SIZE;
+#[cfg(not(windows))]
+const CHUNK_HEADER_SIZE: usize = 0;
+
+const _: () = assert!(CHUNK_HEADER_SIZE.is_multiple_of(ALLOCATION_ALIGNMENT));
+
+#[cfg(not(windows))]
 fn page_size() -> usize {
     // SAFETY: sysconf() has no preconditions.
     let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
     usize::try_from(size).expect("the page size is positive")
+}
+
+#[cfg(windows)]
+fn page_size() -> usize {
+    windows_code_memory::PAGE_SIZE
 }
 
 fn align_up(value: usize, alignment: usize) -> usize {
@@ -76,7 +94,7 @@ unsafe extern "C" {
     fn sys_icache_invalidate(start: *mut libc::c_void, length: libc::size_t);
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 unsafe extern "C" {
     /// The compiler runtime's instruction cache flush (a no-op on x86-64).
     fn __clear_cache(start: *mut libc::c_char, end: *mut libc::c_char);
@@ -111,7 +129,17 @@ impl Chunk {
                 has_protection_key: false,
             }
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(windows)]
+        {
+            let chunk = windows_code_memory::reserve(size);
+            assert!(!chunk.is_null(), "reserving JIT code memory failed");
+            Self {
+                start: chunk,
+                size,
+                has_protection_key: false,
+            }
+        }
+        #[cfg(not(any(target_os = "macos", windows)))]
         {
             // SAFETY: An anonymous mapping has no preconditions.
             let chunk = unsafe {
@@ -159,7 +187,15 @@ impl Drop for Chunk {
     fn drop(&mut self) {
         // SAFETY: The chunk was mapped with this size. Every block of it holds the allocator that owns the chunk, so
         // no code lives in it anymore when it drops.
-        unsafe { libc::munmap(self.start.cast(), self.size) };
+        #[cfg(not(windows))]
+        unsafe {
+            libc::munmap(self.start.cast(), self.size);
+        }
+        // SAFETY: As above.
+        #[cfg(windows)]
+        unsafe {
+            windows_code_memory::release(self.start);
+        }
     }
 }
 
@@ -200,7 +236,23 @@ fn write_codes_in_chunk(chunk: &Chunk, writes: &[CodeWrite<'_>]) {
             unsafe { sys_icache_invalidate(write.destination.cast(), write.code.len()) };
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    // NB: Making a page writable commits it, so pages between the writes stay as they are.
+    #[cfg(windows)]
+    {
+        let runs = written_page_runs(writes);
+        for &(start, end) in &runs {
+            // SAFETY: The pages lie in a reserved chunk, and no code runs while this thread writes it.
+            let writable = unsafe { windows_code_memory::make_writable(start as *mut u8, end - start) };
+            assert!(writable, "making JIT code writable failed");
+        }
+        copy_all();
+        for &(start, end) in &runs {
+            // SAFETY: The pages were committed above.
+            let executable = unsafe { windows_code_memory::make_executable(start as *mut u8, end - start) };
+            assert!(executable, "making JIT code executable failed");
+        }
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         let page_mask = !(page_size() - 1);
         let page_start = writes
@@ -226,6 +278,29 @@ fn write_codes_in_chunk(chunk: &Chunk, writes: &[CodeWrite<'_>]) {
             unsafe { __clear_cache(write.destination.cast(), write.destination.add(write.code.len()).cast()) };
         }
     }
+}
+
+/// The pages the writes go to, as runs of consecutive pages in the order of their addresses, each from its first page
+/// to the end of its last.
+#[cfg(windows)]
+fn written_page_runs(writes: &[CodeWrite<'_>]) -> Vec<(usize, usize)> {
+    let page_mask = !(page_size() - 1);
+    let mut pages: Vec<(usize, usize)> = writes
+        .iter()
+        .map(|write| {
+            let start = write.destination as usize;
+            (start & page_mask, align_up(start + write.code.len(), page_size()))
+        })
+        .collect();
+    pages.sort_unstable();
+    let mut runs: Vec<(usize, usize)> = Vec::with_capacity(pages.len());
+    for (start, end) in pages {
+        match runs.last_mut() {
+            Some(run) if start <= run.1 => run.1 = run.1.max(end),
+            _ => runs.push((start, end)),
+        }
+    }
+    runs
 }
 
 #[derive(Clone, Copy)]
@@ -265,12 +340,12 @@ impl CodeAllocator {
             return address;
         }
 
-        let chunk = Chunk::map(CHUNK_SIZE.max(align_up(size, page_size())));
-        let start = chunk.start;
-        let chunk_size = chunk.size;
+        let chunk = Chunk::map(CHUNK_SIZE.max(align_up(CHUNK_HEADER_SIZE + size, page_size())));
+        let start = chunk.start.wrapping_add(CHUNK_HEADER_SIZE);
+        let code_size = chunk.size - CHUNK_HEADER_SIZE;
         self.chunks.push(chunk);
-        if chunk_size > size {
-            self.free(start.wrapping_add(size), chunk_size - size);
+        if code_size > size {
+            self.free(start.wrapping_add(size), code_size - size);
         }
         start
     }
