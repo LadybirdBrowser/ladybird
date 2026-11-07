@@ -71,6 +71,9 @@ target_sources(TestLibWeb PRIVATE
 )
 target_link_libraries(TestLibWeb PRIVATE LibCompositing LibCrypto LibGC LibGfx LibHTTP LibIPC LibJS LibRequests LibThreading LibURL LibWeb LibWebCommon LibWebView)
 
+# NB: This one needs a process of its own: its agents must not share one with the persistent main-thread VM of the suite.
+ladybird_test(TestAgentThreads.cpp LibWeb LIBS LibCore LibGC LibGfx LibIPC LibJS LibThreading LibURL LibWeb LibWebCommon)
+
 # The check reads the symbols of the build's objects with nm, which can't see into an LTO build's bitcode objects and
 # isn't the toolchain's symbol reader on Windows.
 if (BUILD_TESTING AND NOT WIN32 AND NOT CMAKE_INTERPROCEDURAL_OPTIMIZATION)
