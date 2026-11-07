@@ -24,8 +24,9 @@ RemoteRecordStream::~RemoteRecordStream()
 {
     m_connection->unregister_record_stream({}, *this);
     // The last reference may go on the pump thread. The connection is reference counted on its own thread only, so
-    // the reference moves into the deferred call and is released there, along with the goodbye.
-    auto say_goodbye = [connection = move(m_connection), stream_id = m_stream_id] {
+    // the reference moves into the deferred call and is released there, along with the goodbye. The same goes for the
+    // callbacks, which belong to whoever made this stream on that thread.
+    auto say_goodbye = [connection = move(m_connection), stream_id = m_stream_id, on_capture_lost = move(on_capture_lost), on_capture_revoked = move(on_capture_revoked)] {
         connection->record_stream_unsubscribed({}, stream_id);
     };
     if (Core::EventLoop::is_running() && &Core::EventLoop::current() == &m_control_loop) {
