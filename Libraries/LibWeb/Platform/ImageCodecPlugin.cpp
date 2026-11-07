@@ -9,7 +9,8 @@
 
 namespace Web::Platform {
 
-static ImageCodecPlugin* s_the;
+// An agent talks to the decoder over a connection of its own, which only its thread can use.
+static thread_local ImageCodecPlugin* s_the;
 
 ImageCodecPlugin::~ImageCodecPlugin() = default;
 
@@ -23,6 +24,12 @@ void ImageCodecPlugin::install(ImageCodecPlugin& plugin)
 {
     VERIFY(!s_the);
     s_the = &plugin;
+}
+
+void ImageCodecPlugin::shut_down()
+{
+    delete s_the;
+    s_the = nullptr;
 }
 
 }

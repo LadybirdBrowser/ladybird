@@ -42,6 +42,9 @@ public:
     static ImageCodecPlugin& the();
     static void install(ImageCodecPlugin&);
 
+    // For an agent that goes away, whose pending decodes hold on to its heap. Takes the plugin that was installed with new.
+    static void shut_down();
+
     virtual ~ImageCodecPlugin();
 
     virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, ESCAPING Function<ErrorOr<void>(DecodedImage&)> on_resolved, ESCAPING Function<void(Error&)> on_rejected) = 0;
