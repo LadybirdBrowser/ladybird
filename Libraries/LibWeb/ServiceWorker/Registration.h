@@ -29,6 +29,8 @@ class Registration {
     AK_ALLOC_WITH_KMALLOC;
 
 public:
+    static void forget_registrations_of_this_agent();
+
     // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
     static Optional<Registration&> get(StorageAPI::StorageKey const&, Optional<URL::URL> scope);
 

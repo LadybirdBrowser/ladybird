@@ -76,8 +76,14 @@ void Job::visit_edges(JS::Cell::Visitor& visitor)
 // https://w3c.github.io/ServiceWorker/#dfn-scope-to-job-queue-map
 static HashMap<ByteString, NonnullOwnPtr<JobQueue>>& scope_to_job_queue_map()
 {
-    static NeverDestroyed<HashMap<ByteString, NonnullOwnPtr<JobQueue>>> map;
+    // NB: The jobs in here are cells of the agent that scheduled them.
+    static thread_local NeverDestroyed<HashMap<ByteString, NonnullOwnPtr<JobQueue>>> map;
     return *map;
+}
+
+void forget_job_queues_of_this_agent()
+{
+    scope_to_job_queue_map().clear();
 }
 
 // https://w3c.github.io/ServiceWorker/#register-algorithm

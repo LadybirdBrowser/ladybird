@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibGC/Function.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -24,8 +24,12 @@ void web_locks_queue_callback_task(WebIDL::CallbackType*, GC::Cell*, void (*step
 static HTML::ParallelQueue& lock_task_queue()
 {
     // A user agent has a lock task queue which is the result of starting a new parallel queue.
-    static NeverDestroyed<NonnullRefPtr<HTML::ParallelQueue>> queue { HTML::ParallelQueue::create() };
-    return **queue;
+    // NB: Lock managers are per environment, and a parallel queue queues tasks on the agent that uses it. So this is one
+    //     queue per agent.
+    auto& agent = HTML::surrounding_agent();
+    if (!agent.lock_task_queue)
+        agent.lock_task_queue = HTML::ParallelQueue::create();
+    return *agent.lock_task_queue;
 }
 
 void web_locks_queue_task(JS::Realm* realm, GC::Cell* cell, void (*steps)(JSVM*, void*))

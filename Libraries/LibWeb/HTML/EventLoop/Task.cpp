@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Diagnostics.h>
 #include <AK/IDAllocator.h>
-#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -17,13 +17,18 @@ GC_DEFINE_ALLOCATOR(Task);
 
 static IDAllocator& unique_task_source_allocator()
 {
-    static NeverDestroyed<IDAllocator> allocator { static_cast<int>(Task::Source::UniqueTaskSourceStart) };
-    return *allocator;
+    // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local IDAllocator allocator { static_cast<int>(Task::Source::UniqueTaskSourceStart) })
+#else
+    static thread_local IDAllocator allocator { static_cast<int>(Task::Source::UniqueTaskSourceStart) };
+#endif
+    return allocator;
 }
 
 [[nodiscard]] static TaskID allocate_task_id()
 {
-    static u64 next_task_id = 1;
+    static thread_local u64 next_task_id = 1;
     return next_task_id++;
 }
 

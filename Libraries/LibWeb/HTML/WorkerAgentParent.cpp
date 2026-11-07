@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
+#include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -34,8 +35,14 @@ GC_DEFINE_ALLOCATOR(WorkerAgentParent);
 
 static HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>& worker_agent_parents()
 {
-    static NeverDestroyed<HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>> map;
-    return *map;
+    using Parents = HashMap<WorkerAgentOwnerToken, GC::Ref<WorkerAgentParent>>;
+    // NB: Free what this thread kept when it exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Parents map)
+#else
+    static thread_local Parents map;
+#endif
+    return map;
 }
 
 static void report_worker_exception(WindowOrWorkerGlobalScopeMixin& window_or_worker, ErrorEvent& error)
@@ -244,8 +251,9 @@ void WorkerAgentParent::report_content_security_policy_violation(u64 policy_inde
 
 WorkerAgentOwnerToken WorkerAgentParent::next_owner_token()
 {
-    static WorkerAgentOwnerToken s_next_owner_token = 0;
-    return ++s_next_owner_token;
+    // NB: The client of the owner tells workers apart by their tokens, so these stay unique across the agents of a process.
+    static Atomic<WorkerAgentOwnerToken, AK::MemoryOrder::memory_order_relaxed> s_next_owner_token = 0;
+    return s_next_owner_token.fetch_add(1) + 1;
 }
 
 void WorkerAgentParent::finalize()
