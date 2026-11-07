@@ -192,7 +192,7 @@ impl OwnedBackingStore {
     }
 
     #[inline]
-    fn data(&self) -> *mut u8 {
+    pub fn data(&self) -> *mut u8 {
         self.storage
             .as_ref()
             .map_or(core::ptr::null_mut(), OwnedPrimitiveStorage::data)
