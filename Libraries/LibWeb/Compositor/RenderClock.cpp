@@ -9,6 +9,7 @@
 #include <Compositor/RenderClockServerEndpoint.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibGC/HeapAccess.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
@@ -113,6 +114,8 @@ RenderClock::RenderClock()
 
 intptr_t RenderClock::thread_main()
 {
+    GC::forbid_heap_access_on_this_thread();
+
     Core::EventLoop event_loop;
     {
         MutexLocker locker(m_mutex);

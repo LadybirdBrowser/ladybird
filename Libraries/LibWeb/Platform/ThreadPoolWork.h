@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Types.h>
 #include <LibCore/EventLoop.h>
+#include <LibGC/HeapAccess.h>
 #include <LibThreading/ThreadPool.h>
 #include <LibWeb/Export.h>
 
@@ -35,6 +36,7 @@ void run_on_thread_pool(Work work, Function<void(Result)> on_complete)
     });
 
     Threading::ThreadPool::the().submit([work = move(work), completion_id, event_loop = Core::EventLoop::current_weak()]() mutable {
+        GC::forbid_heap_access_on_this_thread();
         Result result = work();
 
         auto origin_event_loop = event_loop->take();
