@@ -1,0 +1,71 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const pageOrigin = `http://${uniqueLocalhostHostname("page")}:${new URL(server.baseURL).port}`;
+        const crossOrigin = `http://${uniqueLocalhostHostname("other")}:${new URL(server.baseURL).port}`;
+
+        const svgBody = name => `<svg xmlns="http://www.w3.org/2000/svg">
+            <g id="x"><foreignObject width="20" height="20">
+                <img xmlns="http://www.w3.org/1999/xhtml" src="data:text/plain,not-an-image"
+                     onerror="parent.postMessage('${name}: handler ran', '*')" />
+            </foreignObject></g>
+        </svg>`;
+        const createSVG = async name =>
+            new URL(
+                await server.createEcho("GET", `/${name}.svg`, {
+                    status: 200,
+                    headers: { "Content-Type": "image/svg+xml" },
+                    body: svgBody(name),
+                })
+            ).pathname;
+
+        const createPage = async (name, svgURL, headers = {}) => {
+            const pageURL = await server.createEcho("GET", `/${name}.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", ...headers },
+                body: `<!DOCTYPE html>
+                    <svg><use href="${svgURL}#x"></use></svg>
+                    <script nonce="fixed">
+                        window.onload = () => parent.postMessage("${name}: loaded", "*");
+                    <\/script>`,
+            });
+            return pageOrigin + new URL(pageURL).pathname;
+        };
+
+        const run = async (name, svgURL, headers) => {
+            const pageURL = await createPage(name, svgURL, headers);
+            const messages = [];
+            const finished = new Promise(resolve => {
+                const listener = event => {
+                    messages.push(event.data);
+                    if (event.data === `${name}: loaded`) {
+                        window.removeEventListener("message", listener);
+                        resolve();
+                    }
+                };
+                window.addEventListener("message", listener);
+            });
+            const frame = document.createElement("iframe");
+            frame.src = pageURL;
+            document.body.appendChild(frame);
+            await finished;
+            frame.remove();
+            println(
+                messages.includes(`${name}: handler ran`) ? `${name}: handler ran` : `${name}: handler did not run`
+            );
+        };
+
+        const sameOriginSVG = pageOrigin + (await createSVG("same-origin"));
+        const crossOriginSVG = crossOrigin + (await createSVG("cross-origin"));
+        const cspSVG = pageOrigin + (await createSVG("csp"));
+        const dataURLSVG = "data:image/svg+xml," + encodeURIComponent(svgBody("data-url"));
+
+        await run("same-origin", sameOriginSVG);
+        await run("cross-origin", crossOriginSVG);
+        await run("csp", cspSVG, { "Content-Security-Policy": "script-src 'nonce-fixed'" });
+        await run("data-url", dataURLSVG);
+        done();
+    });
+</script>
