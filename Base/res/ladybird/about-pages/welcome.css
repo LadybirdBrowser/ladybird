@@ -14,7 +14,7 @@ form {
     flex-direction: column;
     max-width: 560px;
     margin: 0 auto;
-    padding: 40px 24px 28px;
+    padding: 32px 24px 28px;
 }
 
 header {
@@ -25,8 +25,8 @@ header {
 }
 
 .logomark {
-    width: 40px;
-    height: 33.5px;
+    width: 56px;
+    height: 46.8px;
     color: var(--brand);
 }
 
