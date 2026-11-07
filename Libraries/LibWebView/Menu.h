@@ -134,6 +134,7 @@ enum class ActionID {
     ReportLeakedDocuments,
     ShowLineBoxBorders,
     ShowCaretHitTestDebugOverlay,
+    ShowTabPerformanceMonitor,
     CollectGarbage,
     CrashCurrentPage,
     CrashCompositorProcess,

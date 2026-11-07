@@ -159,6 +159,10 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
             auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu);
             Application::the().debug_menu().set_visible(enabled);
         }
+        if (variable == ConfigVariableID::ShowTabPerformanceMonitor) {
+            auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowTabPerformanceMonitor);
+            Application::the().show_tab_performance_monitor_action().set_checked(enabled);
+        }
     }
 
     virtual void background_networking_settings_changed() override
@@ -2939,6 +2943,12 @@ void Application::initialize_actions()
 
     m_show_caret_hit_test_debug_overlay_action = Action::create_checkable("Show Caret Hit Test Debug Overlay"sv, ActionID::ShowCaretHitTestDebugOverlay, check(m_show_caret_hit_test_debug_overlay_action, "set-caret-hit-test-debug-overlay"sv));
     m_debug_menu->add_action(*m_show_caret_hit_test_debug_overlay_action);
+
+    m_show_tab_performance_monitor_action = Action::create_checkable("Show Tab Performance Monitor"sv, ActionID::ShowTabPerformanceMonitor, [this]() {
+        m_settings->set_config_variable(ConfigVariableID::ShowTabPerformanceMonitor, m_show_tab_performance_monitor_action->checked());
+    });
+    m_show_tab_performance_monitor_action->set_checked(m_settings->config_variable_as_bool(ConfigVariableID::ShowTabPerformanceMonitor));
+    m_debug_menu->add_action(*m_show_tab_performance_monitor_action);
     m_debug_menu->add_separator();
 
     m_debug_menu->add_action(Action::create("Report Leaked Documents"sv, ActionID::ReportLeakedDocuments, debug_request("report-leaked-documents"sv)));
