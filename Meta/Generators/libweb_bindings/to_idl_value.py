@@ -168,6 +168,18 @@ def write_dictionary_declaration(
             out.write(f"    {member_cpp_type} {cpp_name(member)};\n")
         else:
             out.write(f"    {member_cpp_type} {cpp_name(member)} {{{default_value}}};\n")
+
+    # NB: A dictionary is traced through its members, so that a GC::Function can capture it.
+    includes.add("LibGC/CaptureTraits.h")
+    if dictionary.members or dictionary.parent_name:
+        out.write("\n    void visit_edges(auto& visitor) const\n    {\n")
+        if dictionary.parent_name:
+            out.write(f"        {dictionary.parent_name}::visit_edges(visitor);\n")
+        for member in dictionary.members:
+            out.write(f"        GC::visit_capture_member(visitor, {cpp_name(member)});\n")
+        out.write("    }\n")
+    else:
+        out.write("\n    void visit_edges(auto&) const { }\n")
     out.write("};\n\n")
     out.write(
         f"JS::ThrowCompletionOr<{dictionary.name}> {converter_function_name(dictionary)}(JS::VM&, JS::Value);\n\n"
