@@ -628,10 +628,8 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
     let mut output = parse_source(source, options, ParsePurpose::Compile)?;
     let default_export_name = Name(output.interner.intern_bytes(b"*default*"));
     let default_constructor_parameter_name = Name(output.interner.intern_bytes(b"args"));
-    let mut names = NameTable::default();
-    for name in 0..output.interner.len() {
-        names.push(output.interner.text(u32_from_usize(name)));
-    }
+    let names =
+        NameTable::from_parser_names((0..output.interner.len()).map(|name| output.interner.text(u32_from_usize(name))));
     let mut global_names_used_in_with = output.global_names_used_in_with;
     global_names_used_in_with.sort_unstable();
     global_names_used_in_with.dedup();

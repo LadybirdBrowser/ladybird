@@ -8,6 +8,7 @@
 //! two words, with no text compare. Names of one or two bytes, which is most of minified code, skip even that.
 
 use super::token::{KEYWORDS, SPECIAL_NAMES};
+use std::sync::OnceLock;
 
 pub const NONE: u32 = u32::MAX;
 
@@ -56,6 +57,7 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
 }
 
 /// The key of a name of at most 16 bytes: its bytes in order, as two little-endian words.
+/// Names ending in NUL use the full-text table, since zero padding would erase their length.
 #[inline(always)]
 fn key_from_bytes(bytes: &[u8]) -> (u64, u64) {
     let word_at = |at: usize| u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap());
@@ -76,8 +78,35 @@ fn key_from_bytes(bytes: &[u8]) -> (u64, u64) {
 
 impl Interner {
     pub fn new(source_len: usize) -> Self {
-        let wanted = (source_len / 16).clamp(1 << 10, 1 << 22).next_power_of_two();
-        Self::with_tables(vec![NONE; 1 << 16], wanted, 1 << 10, source_len / 8)
+        let wanted = (source_len / 16).clamp(1 << 8, 1 << 22).next_power_of_two();
+        // OPTIMIZATION: Tiny scripts, such as repeated evals, do not amortize the setup of a direct table for two-byte
+        // names.
+        let short = if source_len >= 1 << 16 {
+            vec![NONE; 1 << 16]
+        } else {
+            Vec::new()
+        };
+        let long_rows = (source_len / 128).clamp(1 << 4, 1 << 10).next_power_of_two();
+        if wanted == 1 << 8 && long_rows == 1 << 4 {
+            // OPTIMIZATION: Every parser starts with the same reserved names. Copy their tables for small sources
+            // instead of interning all of them again, which is more work than parsing many eval strings.
+            static INITIAL: OnceLock<Interner> = OnceLock::new();
+            let initial = INITIAL.get_or_init(|| Self::with_tables(Vec::new(), 1 << 8, 1 << 4, 512));
+            let mut interner = Self {
+                short,
+                rows: initial.rows.clone(),
+                shift: initial.shift,
+                count: initial.count,
+                long_rows: initial.long_rows.clone(),
+                long_count: initial.long_count,
+                text: Vec::with_capacity(512),
+                spans: Vec::with_capacity(1 << 7),
+            };
+            interner.text.extend_from_slice(&initial.text);
+            interner.spans.extend_from_slice(&initial.spans);
+            return interner;
+        }
+        Self::with_tables(short, wanted, long_rows, (source_len / 8).max(512))
     }
 
     fn with_tables(short: Vec<u32>, rows: usize, long_rows: usize, text_capacity: usize) -> Self {
@@ -115,7 +144,7 @@ impl Interner {
         let mut interner = Self::empty(Vec::new(), rows, 1 << 4, names.len() * 8);
         let mask = rows - 1;
         for name in names {
-            if name.len() > 16 {
+            if name.len() > 16 || name.last() == Some(&0) {
                 interner.intern_bytes(name);
                 continue;
             }
@@ -217,7 +246,7 @@ impl Interner {
 
     /// Interns any name, given as UTF-8.
     pub fn intern_bytes(&mut self, bytes: &[u8]) -> u32 {
-        if bytes.len() <= 16 {
+        if bytes.len() <= 16 && bytes.last() != Some(&0) {
             let (k0, k1) = key_from_bytes(bytes);
             return self.intern_key(k0, k1, bytes.len());
         }
@@ -253,5 +282,54 @@ impl Interner {
             }
         }
         id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Interner;
+
+    #[test]
+    fn trailing_nuls_preserve_name_identity() {
+        // Exercise the prepared small interner, the general fallback, and the direct short-name table.
+        for source_len in [0, 20_000, 65_536] {
+            for reverse in [false, true] {
+                let mut interner = Interner::new(source_len);
+                let mut expected = Vec::new();
+                for prefix in [
+                    b"".as_slice(),
+                    b"a",
+                    b"ab",
+                    b"in",
+                    b"\0a",
+                    b"a\0b",
+                    b"abcdefgh",
+                    b"abcdefghijklmnop",
+                ] {
+                    for index in 0..=17 - prefix.len() {
+                        let padding = if reverse { 17 - prefix.len() - index } else { index };
+                        let mut name = prefix.to_vec();
+                        name.resize(prefix.len() + padding, 0);
+                        let id = interner.intern_bytes(&name);
+                        assert_eq!(interner.text(id), name);
+                        expected.push((name, id));
+                    }
+                }
+
+                // Grow the tables before looking up the names again.
+                for index in 0..512 {
+                    interner.intern_bytes(format!("extra_name_{index}").as_bytes());
+                }
+                for (name, id) in &expected {
+                    assert_eq!(interner.intern_bytes(name), *id);
+                }
+
+                let mut reparsed = Interner::with_names((0..interner.len()).map(|id| interner.text(id as u32)));
+                for (name, id) in &expected {
+                    assert_eq!(reparsed.intern_bytes(name), *id);
+                    assert_eq!(reparsed.text(*id), name);
+                }
+            }
+        }
     }
 }
