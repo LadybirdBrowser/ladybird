@@ -57,6 +57,9 @@ WEB_API JS::VM& main_thread_vm();
 // thread or the process, and the agent's thread has to be the one that calls it. Other agents carry on.
 WEB_API void shut_down_agent();
 
+// How many agents other than the window agent are alive in this process, on any thread.
+WEB_API size_t worker_agent_count();
+
 WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_object, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_this_value);
 
 // Creates a bare Window-backed realm for tests and tools that do not need a full Document.
