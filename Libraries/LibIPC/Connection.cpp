@@ -64,10 +64,18 @@ ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
 
 void ConnectionBase::shutdown()
 {
-    m_transport->close();
+    VERIFY(m_owner_thread_id.is_current_thread());
     if (m_died)
         return;
     m_died = true;
+    m_transport->close();
+
+    m_unprocessed_messages.clear();
+    for (auto batch : m_dispatching_message_batches) {
+        for (auto& message : batch)
+            message.clear();
+    }
+
     die();
 }
 
@@ -109,6 +117,8 @@ void ConnectionBase::dispatch_pending_messages()
 void ConnectionBase::handle_messages()
 {
     VERIFY(m_owner_thread_id.is_current_thread());
+    if (m_died)
+        return;
     auto messages = move(m_unprocessed_messages);
     m_dispatching_message_batches.append(messages.span());
     ScopeGuard remove_batch = [&] { m_dispatching_message_batches.take_last(); };
@@ -153,6 +163,8 @@ void ConnectionBase::wait_for_transport_to_become_readable()
 ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 {
     VERIFY(m_owner_thread_id.is_current_thread());
+    if (m_died)
+        return PeerEOF::Yes;
     bool parse_error = false;
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
         auto bytes = raw_message.bytes.bytes();
@@ -173,7 +185,6 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     // dispatching that would run handlers on a connection that's closed under them. So, drop it all and shut down now,
     // rather than after one last dispatch; see set_peer_owns_this_process().
     if (schedule_shutdown == Transport::ShouldShutdown::Yes && m_peer_owns_this_process) {
-        m_unprocessed_messages.clear();
         shutdown();
         return PeerEOF::Yes;
     }
@@ -245,7 +256,7 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
     }
 
     if (peer_disconnected_during_wait) {
-        // Don't dispatch any remaining queued messages here. wait_for_specific_endpoint_message_impl can be entered
+        // shutdown() discards any remaining queued messages. wait_for_specific_endpoint_message_impl can be entered
         // from any sync IPC call — including from inside a constructor whose members are still being initialized. (See
         // issue #9582. PageHost's constructor issues a sync IPC before ConnectionFromClient::m_page_host has been
         // assigned.) Re-entering arbitrary handlers from here can hit uninitialized state and crash. shutdown() closes
