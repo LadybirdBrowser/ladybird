@@ -8,7 +8,6 @@ set(SOURCES
     ConservativeRangeProvider.cpp
     ConservativeVector.cpp
     CrossHeapMember.cpp
-    ExternalEntityTable.cpp
     Root.cpp
     RootHashMap.cpp
     RootHashTable.cpp
