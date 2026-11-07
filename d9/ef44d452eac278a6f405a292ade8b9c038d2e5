@@ -1,0 +1,4 @@
+In an auto-height table, Ladybird sizes a row with a percentage height
+as an auto row. Blink does the same: DistributeExcessBlockSizeToRows()
+grows a percentage row only when the table’s percentage resolution
+block size is definite, and otherwise counts it as unconstrained.
