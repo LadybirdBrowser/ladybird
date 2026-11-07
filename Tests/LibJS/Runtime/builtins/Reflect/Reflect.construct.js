@@ -26,6 +26,20 @@ describe("errors", () => {
             }).toThrowWithMessage(TypeError, `${value} is not a constructor`);
         });
     });
+
+    test("an array-like longer than any call can take throws before its elements are read", () => {
+        [Infinity, 1e15, 2 ** 53 - 1, 2 ** 28].forEach(length => {
+            const arrayLike = {
+                length,
+                get 0() {
+                    throw new Error("element read");
+                },
+            };
+            expect(() => {
+                Reflect.construct(function () {}, arrayLike);
+            }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
+        });
+    });
 });
 
 describe("normal behavior", () => {

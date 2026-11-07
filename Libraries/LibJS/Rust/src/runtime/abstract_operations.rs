@@ -253,8 +253,43 @@ pub fn create_list_from_array_like<'vm>(
     // 3. Let len be ? LengthOfArrayLike(obj).
     let length = length_of_array_like(vm, &array_like)?;
 
+    list_from_array_like(vm, &array_like, length, check_value)
+}
+
+/// CreateListFromArrayLike ( obj ), for the arguments of a call: An array-like longer than any call can take throws
+/// before any of its elements are read.
+pub fn create_argument_list_from_array_like(vm: &Vm, value: Value) -> ThrowCompletionOr<MarkedVec<'_, Value>> {
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+    let array_like = value.as_object();
+    let length = length_of_array_like(vm, &array_like)?;
+    throw_if_too_many_arguments(vm, length)?;
+    list_from_array_like(vm, &array_like, length, None)
+}
+
+/// Throws where `argument_count` is more arguments than any call can pass.
+pub fn throw_if_too_many_arguments(vm: &Vm, argument_count: u64) -> ThrowCompletionOr<()> {
+    if argument_count > crate::interpreter::interpreter_stack::MAXIMUM_ARGUMENT_COUNT {
+        return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+    }
+    Ok(())
+}
+
+/// Steps 4 through 7 of CreateListFromArrayLike.
+fn list_from_array_like<'vm>(
+    vm: &'vm Vm,
+    array_like: &Object,
+    length: u64,
+    check_value: Option<&dyn Fn(Value) -> ThrowCompletionOr<()>>,
+) -> ThrowCompletionOr<MarkedVec<'vm, Value>> {
     // 4. Let list be a new empty List.
-    let list = MarkedVec::with_capacity(vm, length as usize);
+    // NB: The list grows as its elements are read, past what it reserves: A length no list could hold, such as an
+    //     ownKeys trap's, then fails on the elements it reads rather than on the reservation.
+    let list = MarkedVec::with_capacity(
+        vm,
+        length.min(crate::interpreter::interpreter_stack::MAXIMUM_ARGUMENT_COUNT) as usize,
+    );
 
     // 5. Let index be 0.
     // 6. Repeat, while index < len,
