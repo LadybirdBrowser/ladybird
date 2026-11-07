@@ -2708,7 +2708,7 @@ void ViewImplementation::did_block_resource(Badge<WebContentPage>, URL::URL cons
     if (host.is_empty() || is_listed)
         return;
 
-    m_blocked_resources.append({ move(host), resource_kind });
+    m_blocked_resources.append({ move(host), MUST(String::from_utf8(resource_kind)) });
     notify_content_blocking_changed();
 }
 
