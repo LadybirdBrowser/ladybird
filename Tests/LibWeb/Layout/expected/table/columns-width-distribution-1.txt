@@ -8,17 +8,17 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <td.mbox-image> at [12,35] table-cell [0+0+1 50 1+0+0] [0+0+24 50 24+0+0] [BFC] children: not-inline
                 BlockContainer <div.mbox-image-div> at [12,35] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] children: not-inline
               BlockContainer <td.mbox-text> at [66,12] table-cell [0+0+1 722 1+0+0] [0+0+1 96 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x16] baseline: 12.796875
+                frag 0 from TextNode start: 1, length: 84, rect: [66,12 689.640625x16] baseline: 13
                     "In a scene set in a lawyer's office, the lawyer sits alone and bounces a rubber ball"
-                frag 1 from TextNode start: 86, length: 84, rect: [66,28 695.5625x16] baseline: 12.796875
+                frag 1 from TextNode start: 86, length: 84, rect: [66,28 695.5625x16] baseline: 13
                     "against the wall. They receive a call from their assistant who expresses frustration"
-                frag 2 from TextNode start: 171, length: 85, rect: [66,44 703.125x16] baseline: 12.796875
+                frag 2 from TextNode start: 171, length: 85, rect: [66,44 703.125x16] baseline: 13
                     "over a packed waiting room and the lawyer's lack of clients. The lawyer then looks at"
-                frag 3 from TextNode start: 257, length: 81, rect: [66,60 695.90625x16] baseline: 12.796875
+                frag 3 from TextNode start: 257, length: 81, rect: [66,60 695.90625x16] baseline: 13
                     "some papers from a large envelope, which turn out to be divorce papers from their"
-                frag 4 from TextNode start: 339, length: 84, rect: [66,76 670.515625x16] baseline: 12.796875
+                frag 4 from TextNode start: 339, length: 84, rect: [66,76 670.515625x16] baseline: 13
                     "significant other. Finally, the lawyer instructs their assistant to send in the next"
-                frag 5 from TextNode start: 424, length: 7, rect: [66,92 47.21875x16] baseline: 12.796875
+                frag 5 from TextNode start: 424, length: 7, rect: [66,92 47.21875x16] baseline: 13
                     "client."
                 TextNode <#text> (not painted)
 

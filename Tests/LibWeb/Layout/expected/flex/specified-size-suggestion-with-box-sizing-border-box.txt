@@ -4,11 +4,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       ImageBox <img> at [0,0] flex-item [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <img.padded> at [600,0] flex-item [0+0+200 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
         InlineNode <div> at [600,0] [0+0+0 189.3125 0+0+0] [0+0+0 48 0+0+0]
-          frag 0 from TextNode start: 0, length: 23, rect: [600,0 180.515625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 23, rect: [600,0 180.515625x16] baseline: 13
               "hello this text is here"
-          frag 0 from TextNode start: 24, length: 22, rect: [600,16 189.3125x16] baseline: 12.796875
+          frag 0 from TextNode start: 24, length: 22, rect: [600,16 189.3125x16] baseline: 13
               "to make the img have a"
-          frag 0 from TextNode start: 47, length: 19, rect: [600,32 146.203125x16] baseline: 12.796875
+          frag 0 from TextNode start: 47, length: 19, rect: [600,32 146.203125x16] baseline: 13
               "wide intrinsic size"
           TextNode <#text> (not painted)
 

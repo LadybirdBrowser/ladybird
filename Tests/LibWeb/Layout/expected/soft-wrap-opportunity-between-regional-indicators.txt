@@ -1,35 +1,35 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 137.75 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 119.75 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 0 0+0+784] [0+0+0 72.25 0+0+10] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.703125x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 139 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 121 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 0 0+0+784] [0+0+0 73 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.703125x16] baseline: 13
             "x"
-        frag 1 from TextNode start: 1, length: 4, rect: [8,26.046875 20.3125x16] baseline: 12.796875
+        frag 1 from TextNode start: 1, length: 4, rect: [8,26 20.3125x16] baseline: 13
             "🇺🇸"
-        frag 2 from TextNode start: 5, length: 4, rect: [8,44.046875 20.3125x16] baseline: 12.796875
+        frag 2 from TextNode start: 5, length: 4, rect: [8,45 20.3125x16] baseline: 13
             "🇺🇸"
-        frag 3 from TextNode start: 9, length: 2, rect: [8,63.046875 20.3125x16] baseline: 12.796875
+        frag 3 from TextNode start: 9, length: 2, rect: [8,64 20.3125x16] baseline: 13
             "🇺"
         TextNode <#text> (not painted)
-        InlineNode <b> at [28.3125,63.046875] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,63.046875 20.3125x16] baseline: 12.796875
+        InlineNode <b> at [28.3125,64] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,64 20.3125x16] baseline: 13
               "🇸"
           TextNode <#text> (not painted)
-      BlockContainer <div> at [8,90.25] [0+0+0 0 0+0+784] [0+0+0 37.5 0+0+10] children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,92.296875 20.3125x16] baseline: 12.796875
+      BlockContainer <div> at [8,91] [0+0+0 0 0+0+784] [0+0+0 38 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [8,93 20.3125x16] baseline: 13
             "🇺"
-        frag 1 from TextNode start: 0, length: 2, rect: [8,110.296875 20.3125x16] baseline: 12.796875
+        frag 1 from TextNode start: 0, length: 2, rect: [8,112 20.3125x16] baseline: 13
             "🇺"
         TextNode <#text> (not painted)
-        InlineNode <b> at [28.3125,92.296875] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,92.296875 20.3125x16] baseline: 12.796875
+        InlineNode <b> at [28.3125,93] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,93 20.3125x16] baseline: 13
               "🇸"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        InlineNode <b> at [28.3125,110.296875] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,110.296875 20.3125x16] baseline: 12.796875
+        InlineNode <b> at [28.3125,112] [0+0+0 20.3125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [28.3125,112 20.3125x16] baseline: 13
               "🇸"
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x137.75] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x139] (z-index: auto)

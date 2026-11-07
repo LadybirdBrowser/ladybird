@@ -3,41 +3,41 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       Box <div.container> at [8,8] floating [0+0+0 200 0+0+0] [0+0+0 288 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item> at [8,8] [0+0+0 100 0+0+0] [0+0+0 288 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 1, length: 5, rect: [8,8 50.96875x16] baseline: 12.796875
+          frag 0 from TextNode start: 1, length: 5, rect: [8,8 50.96875x16] baseline: 13
               "Lorem"
-          frag 1 from TextNode start: 7, length: 11, rect: [8,24 94.9375x16] baseline: 12.796875
+          frag 1 from TextNode start: 7, length: 11, rect: [8,24 94.9375x16] baseline: 13
               "ipsum dolor"
-          frag 2 from TextNode start: 19, length: 9, rect: [8,40 70.9375x16] baseline: 12.796875
+          frag 2 from TextNode start: 19, length: 9, rect: [8,40 70.9375x16] baseline: 13
               "sit amet,"
-          frag 3 from TextNode start: 29, length: 11, rect: [8,56 96.84375x16] baseline: 12.796875
+          frag 3 from TextNode start: 29, length: 11, rect: [8,56 96.84375x16] baseline: 13
               "consectetur"
-          frag 4 from TextNode start: 41, length: 10, rect: [8,72 75.71875x16] baseline: 12.796875
+          frag 4 from TextNode start: 41, length: 10, rect: [8,72 75.71875x16] baseline: 13
               "adipiscing"
-          frag 5 from TextNode start: 52, length: 5, rect: [8,88 28.71875x16] baseline: 12.796875
+          frag 5 from TextNode start: 52, length: 5, rect: [8,88 28.71875x16] baseline: 13
               "elit."
-          frag 6 from TextNode start: 58, length: 7, rect: [8,104 65.40625x16] baseline: 12.796875
+          frag 6 from TextNode start: 58, length: 7, rect: [8,104 65.40625x16] baseline: 13
               "Vivamus"
-          frag 7 from TextNode start: 66, length: 11, rect: [8,120 88.640625x16] baseline: 12.796875
+          frag 7 from TextNode start: 66, length: 11, rect: [8,120 88.640625x16] baseline: 13
               "eget turpis"
-          frag 8 from TextNode start: 78, length: 9, rect: [8,136 77.40625x16] baseline: 12.796875
+          frag 8 from TextNode start: 78, length: 9, rect: [8,136 77.40625x16] baseline: 13
               "eget urna"
-          frag 9 from TextNode start: 88, length: 7, rect: [8,152 53.25x16] baseline: 12.796875
+          frag 9 from TextNode start: 88, length: 7, rect: [8,152 53.25x16] baseline: 13
               "feugiat"
-          frag 10 from TextNode start: 96, length: 10, rect: [8,168 84.984375x16] baseline: 12.796875
+          frag 10 from TextNode start: 96, length: 10, rect: [8,168 84.984375x16] baseline: 13
               "pretium ut"
-          frag 11 from TextNode start: 107, length: 8, rect: [8,184 65.359375x16] baseline: 12.796875
+          frag 11 from TextNode start: 107, length: 8, rect: [8,184 65.359375x16] baseline: 13
               "eu ante."
-          frag 12 from TextNode start: 116, length: 8, rect: [8,200 72.46875x16] baseline: 12.796875
+          frag 12 from TextNode start: 116, length: 8, rect: [8,200 72.46875x16] baseline: 13
               "Nunc sed"
-          frag 13 from TextNode start: 125, length: 8, rect: [8,216 70.640625x16] baseline: 12.796875
+          frag 13 from TextNode start: 125, length: 8, rect: [8,216 70.640625x16] baseline: 13
               "pharetra"
-          frag 14 from TextNode start: 134, length: 5, rect: [8,232 39.015625x16] baseline: 12.796875
+          frag 14 from TextNode start: 134, length: 5, rect: [8,232 39.015625x16] baseline: 13
               "diam,"
-          frag 15 from TextNode start: 140, length: 6, rect: [8,248 56.25x16] baseline: 12.796875
+          frag 15 from TextNode start: 140, length: 6, rect: [8,248 56.25x16] baseline: 13
               "rutrum"
-          frag 16 from TextNode start: 147, length: 7, rect: [8,264 50.546875x16] baseline: 12.796875
+          frag 16 from TextNode start: 147, length: 7, rect: [8,264 50.546875x16] baseline: 13
               "lacinia"
-          frag 17 from TextNode start: 155, length: 7, rect: [8,280 47.5x16] baseline: 12.796875
+          frag 17 from TextNode start: 155, length: 7, rect: [8,280 47.5x16] baseline: 13
               "tellus."
           TextNode <#text> (not painted)
 

@@ -4,11 +4,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.flex> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
         Box <div.grid> at [8,8] flex-item [0+0+0 67.4375 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
           BlockContainer <div.w-fit> at [8,8] [0+0+0 31.25 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [8,8 31.25x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 4, rect: [8,8 31.25x16] baseline: 13
                 "Col1"
             TextNode <#text> (not painted)
           BlockContainer <div.w-fit> at [41.71875,8] [0+0+0 33.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 4, rect: [41.71875,8 33.71875x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 4, rect: [41.71875,8 33.71875x16] baseline: 13
                 "Col2"
             TextNode <#text> (not painted)
 

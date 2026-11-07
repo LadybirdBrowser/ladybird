@@ -2,11 +2,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
     InlineNode <head> at [0,0] [0+0+0 134.984375 0+0+0] [0+0+0 16 0+0+0]
       InlineNode <style> at [0,0] [0+0+0 134.984375 0+0+0] [0+0+0 16 0+0+0]
-        frag 0 from TextNode start: 1, length: 18, rect: [0,0 134.984375x16] baseline: 12.796875
+        frag 0 from TextNode start: 1, length: 18, rect: [0,0 134.984375x16] baseline: 13
             "* { all: unset; } "
         TextNode <#text> (not painted)
     InlineNode <body> at [134.984375,0] [0+0+0 103.140625 0+0+0] [0+0+0 16 0+0+0]
-      frag 0 from TextNode start: 0, length: 13, rect: [134.984375,0 103.140625x16] baseline: 12.796875
+      frag 0 from TextNode start: 0, length: 13, rect: [134.984375,0 103.140625x16] baseline: 13
           "Hello friends"
       TextNode <#text> (not painted)
 

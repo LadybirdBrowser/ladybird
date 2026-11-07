@@ -2,13 +2,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 88 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 64 0+0+8] children: not-inline
       BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 32 0+0+16] children: inline
-        frag 0 from TextNode start: 0, length: 88, rect: [8,16 746.890625x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 88, rect: [8,16 746.890625x16] baseline: 13
             "NOTE: This test assumes that you're running with 1x pixels (which our test runner always"
-        frag 1 from TextNode start: 89, length: 5, rect: [8,32 40.625x16] baseline: 12.796875
+        frag 1 from TextNode start: 89, length: 5, rect: [8,32 40.625x16] baseline: 13
             "does."
         TextNode <#text> (not painted)
       BlockContainer <div.pass> at [8,64] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 4, rect: [8,64 49.734375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 4, rect: [8,64 49.734375x16] baseline: 13
             "PASS"
         TextNode <#text> (not painted)
 

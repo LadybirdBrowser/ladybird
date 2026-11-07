@@ -6,7 +6,7 @@ Emptied paragraph: rgb(255, 0, 0)
 BlockContainer <div#container> at [8,16] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
   BlockContainer <p#target> at [8,16] [0+0+0 784 0+0+0] [16+0+0 0 0+0+16] children: not-inline
   BlockContainer <div#other> at [8,16] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-    frag 0 from TextNode start: 0, length: 8, rect: [8,16 66.015625x16] baseline: 12.796875
+    frag 0 from TextNode start: 0, length: 8, rect: [8,16 66.015625x16] baseline: 13
         "replaced"
     TextNode <#text> (not painted)
 Layout tree matches a full rebuild: true

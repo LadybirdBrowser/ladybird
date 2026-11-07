@@ -3,15 +3,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       Box <div.foo> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 28.40625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 4, rect: [8,8 28.40625x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 4, rect: [8,8 28.40625x16] baseline: 13
               "well"
           GeneratedTextNode <(anonymous)> (not painted)
         BlockContainer <(anonymous)> at [46,8] flex-item [0+0+0 36.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [46,8 36.84375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 5, rect: [46,8 36.84375x16] baseline: 13
               "hello"
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [92.4375,8] flex-item [0+0+0 55.359375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [92.4375,8 55.359375x16] baseline: 12.796875
+          frag 0 from GeneratedTextNode start: 0, length: 7, rect: [92.4375,8 55.359375x16] baseline: 13
               "friends"
           GeneratedTextNode <(anonymous)> (not painted)
 

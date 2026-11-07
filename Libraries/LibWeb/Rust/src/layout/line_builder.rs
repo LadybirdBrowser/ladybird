@@ -818,8 +818,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(super) fn baseline_for_style(style: StyleValues, line_height: CssPixels) -> CssPixels {
-        let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
-        CssPixels::nearest_value_for_f32(style.font_ascent()) + (line_height - typographic) / 2
+        TextLayoutBounds::with_leading(style.font_ascent(), style.font_descent(), line_height).ascent
     }
 
     // The style of the box that an inline-level box is aligned against, which is its parent inline box, or the block
@@ -1561,13 +1560,23 @@ pub(crate) struct TextLayoutBounds {
 }
 
 impl TextLayoutBounds {
+    /// The bounds of text in a font with `ascent` and `descent`, with the line height's leading split above and
+    /// below it. A font's ascent and descent count in whole pixels, as they do for 'line-height: normal', and the
+    /// leading above the text is a whole number of pixels too. So the baseline of text whose line height is a whole
+    /// number of pixels lands on a pixel, wherever the text is.
+    fn with_leading(ascent: f32, descent: f32, line_height: CssPixels) -> Self {
+        let ascent = font_metric_in_whole_pixels(ascent);
+        let descent = font_metric_in_whole_pixels(descent);
+        let leading = line_height - (ascent + descent);
+        let leading_above = (leading / 2).floor();
+        Self {
+            ascent: ascent + leading_above,
+            descent: descent + (leading - leading_above),
+        }
+    }
+
     pub(crate) fn new(style: StyleValues, font: Option<&libgfx_rust::font::FontHandle>) -> Self {
-        let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
-        let half_leading = (style.line_height() - typographic) / 2;
-        let mut bounds = Self {
-            ascent: CssPixels::nearest_value_for_f32(style.font_ascent()) + half_leading,
-            descent: CssPixels::nearest_value_for_f32(style.font_descent()) + half_leading,
-        };
+        let mut bounds = Self::with_leading(style.font_ascent(), style.font_descent(), style.line_height());
         // When its computed line-height is normal, the layout bounds of an inline box encloses all its glyphs, going
         // from the highest A to the deepest D. (Note that glyphs in a single box can come from different fonts and
         // thus might not all have the same A and D.)
@@ -1579,10 +1588,8 @@ impl TextLayoutBounds {
                 .first_available_font()
                 .is_none_or(|first_available| font.as_raw() != first_available.as_raw())
         {
-            bounds.ascent = bounds.ascent.max(CssPixels::nearest_value_for_f32(font.facts().ascent));
-            bounds.descent = bounds
-                .descent
-                .max(CssPixels::nearest_value_for_f32(font.facts().descent));
+            bounds.ascent = bounds.ascent.max(font_metric_in_whole_pixels(font.facts().ascent));
+            bounds.descent = bounds.descent.max(font_metric_in_whole_pixels(font.facts().descent));
         }
         bounds
     }
@@ -1592,8 +1599,10 @@ impl TextLayoutBounds {
     }
 }
 
+fn font_metric_in_whole_pixels(metric: f32) -> CssPixels {
+    CssPixels::from_integer(metric.round_ties_even() as i64)
+}
+
 pub(crate) fn normal_line_height(style: StyleValues) -> CssPixels {
-    let ascent = style.font_ascent().round_ties_even() as i64;
-    let descent = style.font_descent().round_ties_even() as i64;
-    CssPixels::from_integer(ascent.saturating_add(descent))
+    font_metric_in_whole_pixels(style.font_ascent()) + font_metric_in_whole_pixels(style.font_descent())
 }

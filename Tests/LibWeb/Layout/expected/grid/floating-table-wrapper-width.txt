@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 26 0+0+0] [GFC] children: not-inline
         BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 26 0+0+0] [BFC] children: not-inline
           BlockContainer <div.left> at [8,8] floating [0+0+0 6.34375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [8,8 6.34375x16] baseline: 13
                 "1"
             TextNode <#text> (not painted)
           TableWrapper <(anonymous)> at [14.34375,8] floating [0+0+0 156.796875 0+0+0] [0+0+0 26 0+0+0] [BFC] children: not-inline
@@ -12,15 +12,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               Box <tbody> at [17.34375,11] table-row-group [0+0+0 150.796875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
                 Box <tr> at [17.34375,11] table-row [0+0+0 150.796875 0+0+0] [0+0+0 20 0+0+0] children: not-inline
                   BlockContainer <td> at [19.34375,13] table-cell [0+1+1 69.59375 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 1, rect: [19.34375,13 8.8125x16] baseline: 12.796875
+                    frag 0 from TextNode start: 0, length: 1, rect: [19.34375,13 8.8125x16] baseline: 13
                         "2"
                     TextNode <#text> (not painted)
                   BlockContainer <td> at [94.9375,13] table-cell [0+1+1 71.203125 1+1+0] [0+1+1 16 1+1+0] [BFC] children: inline
-                    frag 0 from TextNode start: 0, length: 1, rect: [94.9375,13 9.09375x16] baseline: 12.796875
+                    frag 0 from TextNode start: 0, length: 1, rect: [94.9375,13 9.09375x16] baseline: 13
                         "3"
                     TextNode <#text> (not painted)
           BlockContainer <div.right> at [171.140625,8] floating [0+0+0 7.75 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 1, rect: [171.140625,8 7.75x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 1, rect: [171.140625,8 7.75x16] baseline: 13
                 "4"
             TextNode <#text> (not painted)
 

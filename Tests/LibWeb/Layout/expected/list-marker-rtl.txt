@@ -3,10 +3,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       BlockContainer <ul> at [8,16] [0+0+0 744 40+0+0] [16+0+0 16 0+0+16] children: not-inline
         ListItemBox <li> at [8,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 11, rect: [635.125,16 116.875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 11, rect: [635.125,16 116.875x16] baseline: 13
               "___________"
           ListItemMarkerBox <(anonymous)> at [752,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [752,16 13.84375x16] baseline: 12.796875
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [752,16 13.84375x16] baseline: 13
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)

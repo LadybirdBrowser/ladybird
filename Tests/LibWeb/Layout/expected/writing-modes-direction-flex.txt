@@ -3,28 +3,28 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: not-inline
       Box <div> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
         BlockContainer <div> at [763.96875,8] flex-item [0+0+0 28.03125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [763.96875,8 28.03125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [763.96875,8 28.03125x16] baseline: 13
               "aaa"
           TextNode <#text> (not painted)
         BlockContainer <div> at [735.5625,8] flex-item [0+0+0 28.40625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [735.5625,8 28.40625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [735.5625,8 28.40625x16] baseline: 13
               "bbb"
           TextNode <#text> (not painted)
         BlockContainer <div> at [708.890625,8] flex-item [0+0+0 26.671875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [708.890625,8 26.671875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [708.890625,8 26.671875x16] baseline: 13
               "ccc"
           TextNode <#text> (not painted)
       Box <div> at [8,24] flex-container(row-reverse) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
         BlockContainer <div> at [8,24] flex-item [0+0+0 28.03125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [8,24 28.03125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [8,24 28.03125x16] baseline: 13
               "aaa"
           TextNode <#text> (not painted)
         BlockContainer <div> at [36.03125,24] flex-item [0+0+0 28.40625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [36.03125,24 28.40625x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [36.03125,24 28.40625x16] baseline: 13
               "bbb"
           TextNode <#text> (not painted)
         BlockContainer <div> at [64.4375,24] flex-item [0+0+0 26.671875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [64.4375,24 26.671875x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 3, rect: [64.4375,24 26.671875x16] baseline: 13
               "ccc"
           TextNode <#text> (not painted)
 

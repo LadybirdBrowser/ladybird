@@ -4,6 +4,6 @@ Survivor has client rects: true
 Find in page: true
 BlockContainer <div#container> at [0,16] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] children: not-inline
   BlockContainer <p#survivor> at [0,16] [0+0+0 800 0+0+0] [16+0+0 16 0+0+16] children: inline
-    frag 0 from TextNode start: 0, length: 13, rect: [0,16 108.234375x16] baseline: 12.796875
+    frag 0 from TextNode start: 0, length: 13, rect: [0,16 108.234375x16] baseline: 13
         "survivor text"
     TextNode <#text> (not painted)

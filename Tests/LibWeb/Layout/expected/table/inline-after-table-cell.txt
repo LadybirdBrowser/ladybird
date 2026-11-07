@@ -6,8 +6,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <(anonymous)> at [8,8] table-row [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
             BlockContainer <div> at [8,8] table-cell [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        frag 0 from InlineNode start: 0, length: 0, rect: [11,8 0x16] baseline: 12.796875
-        frag 1 from InlineNode start: 0, length: 0, rect: [11,8 0x16] baseline: 12.796875
+        frag 0 from InlineNode start: 0, length: 0, rect: [11,8 0x16] baseline: 13
+        frag 1 from InlineNode start: 0, length: 0, rect: [11,8 0x16] baseline: 13
         TextNode <#text> (not painted)
         InlineNode <span> at [11,8] [0+3+0 0 0+3+0] [0+3+0 16 0+3+0]
         TextNode <#text> (not painted)

@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.a> at [31,21] [0+1+20 458 20+1+0] [0+1+10 78 10+1+0] children: not-inline
         BlockContainer <div.b> at [72,52] [40+1+0 376 0+1+40] [30+1+0 16 0+1+30] children: inline
           InlineNode <span> at [73,52] [0+1+0 39.78125 0+1+0] [0+1+0 16 0+1+0]
-            frag 0 from TextNode start: 0, length: 5, rect: [73,52 39.78125x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 5, rect: [73,52 39.78125x16] baseline: 13
                 "Hello"
             TextNode <#text> (not painted)
 

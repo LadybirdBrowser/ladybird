@@ -4,13 +4,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TableWrapper <(anonymous)> at [8,8] [0+0+0 80.46875 0+0+703.53125] [0+0+0 58 0+0+0] [BFC] children: not-inline
         Box <table> at [8,44] table-box [0+0+0 80.46875 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
           BlockContainer <caption> at [18,18] [0+0+10 60.46875 10+0+0] [0+0+10 16 10+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 5, length: 7, rect: [18,18 60.46875x16] baseline: 12.796875
+            frag 0 from TextNode start: 5, length: 7, rect: [18,18 60.46875x16] baseline: 13
                 "Caption"
             TextNode <#text> (not painted)
           Box <tbody> at [10,46] table-row-group [0+0+0 76.46875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
             Box <tr> at [10,46] table-row [0+0+0 76.46875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
               BlockContainer <td> at [11,47] table-cell [0+0+1 74.46875 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
-                frag 0 from TextNode start: 0, length: 4, rect: [11,47 27.5x16] baseline: 12.796875
+                frag 0 from TextNode start: 0, length: 4, rect: [11,47 27.5x16] baseline: 13
                     "Cell"
                 TextNode <#text> (not painted)
 

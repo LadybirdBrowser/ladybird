@@ -3,22 +3,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 262 0+1+8] children: not-inline
       Box <div.flex.row.align-start> at [11,11] flex-container(row) [0+1+0 500 0+1+278] [0+1+0 200 0+1+0] [FFC] children: not-inline
         BlockContainer <div> at [12,12] flex-item [0+1+0 136.5 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [12,12 136.5x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 18, rect: [12,12 136.5x16] baseline: 13
               "align-items: start"
           TextNode <#text> (not painted)
       Box <div.flex.align-end> at [11,213] flex-container(row) [0+1+0 500 0+1+278] [0+1+0 18 0+1+0] [FFC] children: not-inline
         BlockContainer <div> at [12,214] flex-item [0+1+0 121.453125 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 16, rect: [12,214 121.453125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 16, rect: [12,214 121.453125x16] baseline: 13
               "align-items: end"
           TextNode <#text> (not painted)
       Box <div.flex.align-start> at [11,233] flex-container(row) [0+1+0 500 0+1+278] [0+1+0 18 0+1+0] [FFC] children: not-inline
         BlockContainer <div> at [12,234] flex-item [0+1+0 136.5 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 18, rect: [12,234 136.5x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 18, rect: [12,234 136.5x16] baseline: 13
               "align-items: start"
           TextNode <#text> (not painted)
       Box <div.flex.column.align-end> at [11,253] flex-container(column) [0+1+0 500 0+1+278] [0+1+0 18 0+1+0] [FFC] children: not-inline
         BlockContainer <div> at [388.546875,254] flex-item [0+1+0 121.453125 0+1+0] [0+1+0 16 0+1+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 16, rect: [388.546875,254 121.453125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 16, rect: [388.546875,254 121.453125x16] baseline: 13
               "align-items: end"
           TextNode <#text> (not painted)
 

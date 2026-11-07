@@ -1,14 +1,14 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38.609375 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 22.609375 0+0+8] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 39 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 23 0+0+8] children: not-inline
       BlockContainer <div.ref> at [182.75,10] positioned [172.75+2+0 16 0+2+0] [0+2+0 16 0+2+0] [BFC] children: not-inline
-      BlockContainer <div.test> at [8,8] [0+0+0 784 0+0+0] [0+0+0 22.609375 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 1, rect: [8,17 148x13] baseline: 10.390625
+      BlockContainer <div.test> at [8,8] [0+0+0 784 0+0+0] [0+0+0 23 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,18 148x13] baseline: 10
             "	"
         frag 1 from BlockContainer start: 0, length: 0, rect: [156,8 20x20] baseline: 20
         TextNode <#text> (not painted)
         BlockContainer <span> at [156,8] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x38.609375] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x39] (z-index: auto)
   SC for BlockContainer<DIV>.ref [182.75,10 16x16] (z-index: -1)

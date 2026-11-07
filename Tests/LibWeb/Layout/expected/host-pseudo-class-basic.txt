@@ -2,10 +2,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 62 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 46 0+0+8] children: not-inline
       BlockContainer <main> at [8,8] [0+0+0 784 0+0+0] [0+0+0 46 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [23,23 343.96875x16] baseline: 27.796875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [23,23 343.96875x16] baseline: 28
         BlockContainer <div> at [23,23] inline-block [0+5+10 343.96875 10+5+0] [0+5+10 16 10+5+0] [BFC] children: inline
           InlineNode <span> at [23,23] [0+0+0 343.96875 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 42, rect: [23,23 343.96875x16] baseline: 12.796875
+            frag 0 from TextNode start: 0, length: 42, rect: [23,23 343.96875x16] baseline: 13
                 "hello :host and :host(<compound-selector>)"
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)

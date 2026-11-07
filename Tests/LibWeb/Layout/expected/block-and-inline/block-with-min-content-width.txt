@@ -2,31 +2,31 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 200 0+1+0] [BFC] children: not-inline
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 182 0+1+8] children: not-inline
       BlockContainer <div.foo> at [11,11] [0+1+0 60.90625 0+1+717.09375] [0+1+0 48 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [11,11 43.578125x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 6, rect: [11,11 43.578125x16] baseline: 13
             "width:"
-        frag 1 from TextNode start: 7, length: 4, rect: [11,27 32.859375x16] baseline: 12.796875
+        frag 1 from TextNode start: 7, length: 4, rect: [11,27 32.859375x16] baseline: 13
             "min-"
-        frag 2 from TextNode start: 11, length: 7, rect: [11,43 60.90625x16] baseline: 12.796875
+        frag 2 from TextNode start: 11, length: 7, rect: [11,43 60.90625x16] baseline: 13
             "content"
         TextNode <#text> (not painted)
       BlockContainer <div.bar> at [11,61] [0+1+0 60.90625 0+1+717.09375] [0+1+0 64 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 4, rect: [11,61 37.734375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 4, rect: [11,61 37.734375x16] baseline: 13
             "max-"
-        frag 1 from TextNode start: 4, length: 6, rect: [11,77 43.578125x16] baseline: 12.796875
+        frag 1 from TextNode start: 4, length: 6, rect: [11,77 43.578125x16] baseline: 13
             "width:"
-        frag 2 from TextNode start: 11, length: 4, rect: [11,93 32.859375x16] baseline: 12.796875
+        frag 2 from TextNode start: 11, length: 4, rect: [11,93 32.859375x16] baseline: 13
             "min-"
-        frag 3 from TextNode start: 15, length: 7, rect: [11,109 60.90625x16] baseline: 12.796875
+        frag 3 from TextNode start: 15, length: 7, rect: [11,109 60.90625x16] baseline: 13
             "content"
         TextNode <#text> (not painted)
       BlockContainer <div.baz> at [11,127] [0+1+0 60.90625 0+1+717.09375] [0+1+0 64 0+1+0] children: inline
-        frag 0 from TextNode start: 0, length: 4, rect: [11,127 32.859375x16] baseline: 12.796875
+        frag 0 from TextNode start: 0, length: 4, rect: [11,127 32.859375x16] baseline: 13
             "min-"
-        frag 1 from TextNode start: 4, length: 6, rect: [11,143 43.578125x16] baseline: 12.796875
+        frag 1 from TextNode start: 4, length: 6, rect: [11,143 43.578125x16] baseline: 13
             "width:"
-        frag 2 from TextNode start: 11, length: 4, rect: [11,159 32.859375x16] baseline: 12.796875
+        frag 2 from TextNode start: 11, length: 4, rect: [11,159 32.859375x16] baseline: 13
             "min-"
-        frag 3 from TextNode start: 15, length: 7, rect: [11,175 60.90625x16] baseline: 12.796875
+        frag 3 from TextNode start: 15, length: 7, rect: [11,175 60.90625x16] baseline: 13
             "content"
         TextNode <#text> (not painted)
 

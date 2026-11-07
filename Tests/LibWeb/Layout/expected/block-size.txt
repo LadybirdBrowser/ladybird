@@ -2,19 +2,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1760 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,70] [8+0+0 784 0+0+8] [8+0+0 1620 0+0+8] children: not-inline
       BlockContainer <p.min-block-test> at [8,70] [0+0+0 784 0+0+0] [70+0+0 700 0+0+70] children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,70 85.875x70] baseline: 55.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,70 85.875x70] baseline: 56
             "KK"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,840] [0+0+0 784 0+0+0] [0+0+0 70 0+0+0] children: inline
         BreakNode <br> (not painted)
       BlockContainer <p.max-block-test> at [8,980] [0+0+0 200 0+0+584] [70+0+0 100 0+0+70] children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,980 85.875x70] baseline: 55.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,980 85.875x70] baseline: 56
             "KK"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,1150] [0+0+0 784 0+0+0] [0+0+0 70 0+0+0] children: inline
         BreakNode <br> (not painted)
       BlockContainer <p.block-size-test> at [8,1290] [0+0+0 200 0+0+584] [70+0+0 400 0+0+70] children: inline
-        frag 0 from TextNode start: 0, length: 2, rect: [8,1290 85.875x70] baseline: 55.984375
+        frag 0 from TextNode start: 0, length: 2, rect: [8,1290 85.875x70] baseline: 56
             "KK"
         TextNode <#text> (not painted)
 
