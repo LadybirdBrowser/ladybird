@@ -28,6 +28,7 @@ public:
     static bool prefers_reduced_motion();
 
     void apply_interface_theme(WebView::ThemePreference);
+    WebView::ThemePreference interface_theme() const { return m_interface_theme; }
 
 signals:
     void changed();
