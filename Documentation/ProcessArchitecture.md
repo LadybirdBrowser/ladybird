@@ -5,22 +5,18 @@ Ladybird uses a multi-process architecture to improve stability and security in 
 ## Process overview
 
 ```
-                                 Browser
-                                    |
-     +----------+----------+--------+-------+----------------+
-     |          |          |                |                |
- Compositor  WebContent  WebWorker    RequestServer    ImageDecoder
-             (renderer)  (renderer)   (per site)       (per site)
-                 |          |
-     +-----------+          |
-     |           |          |
- WebRTCClient    +----+-----+
-                      |
-             +--------+--------+
-             |                 |
-        MediaServer       AudioServer
-             |
-     VideoDecoderServer
+                           Browser
+                              |
+     +----------+-------------+-------+----------------+
+     |          |                     |                |
+ Compositor  WebContent         RequestServer    ImageDecoder
+             (renderer)         (per site)       (per site)
+                 |
+     +-----------+-----------+
+     |           |           |
+ WebRTCClient  MediaServer  AudioServer
+                 |
+         VideoDecoderServer
 ```
 
 **RequestServer** and **ImageDecoder** are shared by the renderers of a site, while the processes below the renderers each work for a single renderer. **Browser** launches all of them, because the sandboxes keep the others from spawning anything. It then connects them directly to each other, so that a renderer talks to its **RequestServer** or **ImageDecoder** without going through **Browser**.
@@ -30,7 +26,6 @@ Ladybird uses a multi-process architecture to improve stability and security in 
 | **Browser** | One | By the user |
 | **Compositor** | One | At startup, and again if it crashes |
 | **WebContent** | One per set of documents that must share a process, see [site isolation](#site-isolation) | When a document needs one, with a spare kept ready for the next tab |
-| **WebWorker** | One per worker | When a page or worker starts a worker |
 | **RequestServer** | One per browsing session and top-level site, plus one per session with no site | The default session's one with no site at startup, the others on first use |
 | **ImageDecoder** | One per browsing session and site, or one for a single process | When a renderer first has an image to decode |
 | **MediaServer** | One per renderer | When the renderer first needs one |
@@ -60,9 +55,7 @@ This process hosts the main HTML/CSS engine (**LibWeb**) and runs JavaScript (**
 
 A process holds one page for each tab it has documents in.
 
-### Process: WebWorker
-
-This process runs a single dedicated or shared worker. A worker runs in a process of its own, so a top-level site may only run so many of them at once.
+Web workers run in this process too, each on a thread of its own with its own JavaScript VM and heap. A dedicated worker runs in the process of its owner. A shared worker runs in the process of the document that starts it, and that process stays alive without pages for as long as it runs a shared worker, as the worker's other owners can be in other processes. A shared worker that may not share a process with its owner, as the owner is cross-origin isolated, gets a **WebContent** process without a page.
 
 ### Process: RequestServer
 
@@ -108,7 +101,7 @@ A renderer that needs a helper it does not have yet asks **Browser** for a conne
 
 ## Sandboxing
 
-Every process in the table above except **Browser** applies a sandbox to itself early in its startup, unless **Browser** was started with `--disable-sandbox`. Each one's sandbox allows only what that process needs, and can be found in the `Sandbox` files in its directory under `Services`. **WebContent** and **WebWorker** share theirs, in `Services/RendererSandbox.h`.
+Every process in the table above except **Browser** applies a sandbox to itself early in its startup, unless **Browser** was started with `--disable-sandbox`. Each one's sandbox allows only what that process needs, and can be found in the `Sandbox` files in its directory under `Services`. The one of **WebContent** is in `Services/RendererSandbox.h`.
 
 On Linux, sandboxes are built from seccomp and Landlock. On macOS, they use the Seatbelt sandbox. Windows has no sandbox yet.
 
@@ -138,7 +131,7 @@ LibWeb
         Web::DOM::Document             The active document of a navigable, the root of the DOM tree
 ```
 
-In the **Browser** process, each kind of view derives from `WebView::ViewImplementation`, which shows a tab. A tab's documents may be spread over several processes, so a view reaches each of them through a `WebView::WebContentPage`, and each process through its `WebView::WebContentClient`. `WebView::WebWorkerClient` does the same for a **WebWorker** process.
+In the **Browser** process, each kind of view derives from `WebView::ViewImplementation`, which shows a tab. A tab's documents may be spread over several processes, so a view reaches each of them through a `WebView::WebContentPage`, and each process through its `WebView::WebContentClient`. `WebView::WebWorkerClient` does the same for a worker on a thread of a **WebContent** process.
 
 `WebView::CanonicalTraversable`, `WebView::CanonicalNavigable` and `WebView::CanonicalDocument` are the record that **Browser** keeps of a tab's navigables and documents, whichever processes host them.
 
