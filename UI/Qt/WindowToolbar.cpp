@@ -630,6 +630,7 @@ static constexpr int SIDEBAR_FIELD_BOTTOM_MARGIN = 8;
 static constexpr int SIDEBAR_FOOTER_HEIGHT = 40;
 // NB: The container draws the line under the toolbar along its bottom edge, below the toolbar's full height.
 static constexpr int TOOLBAR_BOTTOM_LINE_HEIGHT = 1;
+static constexpr int PERFORMANCE_MONITOR_ROW_MARGIN = 2;
 // The address field and its suggestions are one surface. While it lists suggestions, the field grows downward into it,
 // as wide as the field in a toolbar row, but no narrower than the minimum, and this wide over the page in the sidebar. It
 // stays this far from the window's edge.
@@ -1230,9 +1231,17 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
     m_location_edit_layout = new QHBoxLayout(m_location_edit_container);
     m_location_edit_layout->setSpacing(0);
 
-    m_performance_monitor = new PerformanceMonitorWidget(m_toolbar);
+    m_performance_monitor_row = new QWidget(this);
+    m_performance_monitor_row->setAutoFillBackground(true);
+    // NB: The monitor is wider than a narrow window, which it shouldn't hold open.
+    m_performance_monitor_row->setMinimumWidth(1);
+    auto* performance_monitor_row_layout = new QHBoxLayout(m_performance_monitor_row);
+    performance_monitor_row_layout->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, PERFORMANCE_MONITOR_ROW_MARGIN, TOOLBAR_HORIZONTAL_MARGIN, PERFORMANCE_MONITOR_ROW_MARGIN);
+    m_performance_monitor = new PerformanceMonitorWidget(m_performance_monitor_row);
+    performance_monitor_row_layout->addWidget(m_performance_monitor);
+    performance_monitor_row_layout->addStretch(1);
     (void)WebView::TabPerformanceMonitor::the();
-    m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor));
+    update_performance_monitor_row();
 
     m_sidebar_slot = new QWidget(m_toolbar);
     m_sidebar_slot->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
@@ -1298,7 +1307,6 @@ void WindowToolbar::lay_out_as_row()
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     if (m_feedback_button)
         toolbar_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
     if constexpr (!use_native_macos_window_controls()) {
         toolbar_layout->addWidget(m_window_controls_separator, 0, Qt::AlignVCenter);
         toolbar_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
@@ -1340,7 +1348,6 @@ void WindowToolbar::lay_out_in_sidebar()
     footer_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     if (m_feedback_button)
         footer_layout->addWidget(m_feedback_button, 0, Qt::AlignVCenter);
-    footer_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
     footer_layout->setContentsMargins(m_sidebar_inset, 0, m_sidebar_inset, 0);
 
     layout()->setContentsMargins(0, 0, 0, 0);
@@ -1814,6 +1821,10 @@ bool WindowToolbar::event(QEvent* event)
         recreate_icons();
     }
 
+    // NB: The monitor's row lies outside the toolbar, and leaves with it, as in full screen.
+    if (event->type() == QEvent::Show || event->type() == QEvent::Hide)
+        update_performance_monitor_row();
+
     return QWidget::event(event);
 }
 
@@ -1831,7 +1842,13 @@ void WindowToolbar::config_variable_changed(WebView::ConfigVariableID variable)
         m_feedback_button->setVisible(show_button);
     }
     if (variable == WebView::ConfigVariableID::ShowTabPerformanceMonitor)
-        m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(variable));
+        update_performance_monitor_row();
+}
+
+void WindowToolbar::update_performance_monitor_row()
+{
+    auto enabled = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor);
+    m_performance_monitor_row->setVisible(enabled && isVisible());
 }
 
 void WindowToolbar::update_chrome_style()
@@ -1843,6 +1860,11 @@ void WindowToolbar::update_chrome_style()
     setStyleSheet(style_sheet);
     // NB: The sidebar's footer lies outside the toolbar while the sidebar holds it, so it takes the style sheet itself.
     m_sidebar_footer->setStyleSheet(style_sheet);
+    auto const& colors = Theme::chrome(Theme::chrome_palette(*this));
+    auto row_palette = m_performance_monitor_row->palette();
+    row_palette.setColor(QPalette::Window, colors.toolbar);
+    row_palette.setColor(QPalette::WindowText, colors.text);
+    m_performance_monitor_row->setPalette(row_palette);
     if (m_field_panel) {
         m_field_panel->setStyleSheet(style_sheet);
         m_field_panel->round_corners();

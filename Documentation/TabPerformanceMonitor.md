@@ -6,7 +6,7 @@
 Enable **Show Tab Performance Monitor** in the **Debug** menu, which **Show
 Debug menu** in **Settings → Advanced** turns on, or set
 `debug.ui.show_tab_performance_monitor` to `true`. It defaults to `false`.
-The UI's toolbars display the current tab's statistics inline.
+A row of its own below the page displays the current tab's statistics.
 Each tab retains its own CPU history while monitoring is enabled.
 
 `LibWebView::TabPerformanceMonitor` resolves browser ownership and supplies
