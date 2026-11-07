@@ -11,6 +11,7 @@
 
 use crate::RuntimeInfo;
 use crate::ir::Helper;
+use libjs_runtime_macros::jit_abi;
 use libwasm_module::abi::{
     ExecutionContext, MemoryData, OBJECT_DATA_OFFSET, OBJECT_LENGTH_OFFSET, Rtt, STORAGE_32, STORAGE_64, STORAGE_I8,
     STORAGE_I16, STORAGE_V128, Segment, TRAP_ARRAY_OUT_OF_BOUNDS, TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE,
@@ -54,9 +55,15 @@ pub fn flush_instruction_cache(start: usize, length: usize) {
     let _ = (start, length);
 }
 
+/// A helper, with the calling convention compiled code calls it with.
+#[cfg(not(all(target_arch = "x86_64", windows)))]
+type HelperFunction = unsafe extern "C" fn(*mut ExecutionContext) -> u64;
+#[cfg(all(target_arch = "x86_64", windows))]
+type HelperFunction = unsafe extern "sysv64" fn(*mut ExecutionContext) -> u64;
+
 /// The address of the function `helper` calls.
 pub fn helper_address(helper: Helper, runtime: &RuntimeInfo) -> u64 {
-    let function: unsafe extern "C" fn(*mut ExecutionContext) -> u64 = match helper {
+    let function: HelperFunction = match helper {
         Helper::MemoryGrow => return runtime.memory_grow,
         Helper::TableGrow => return runtime.table_grow,
         Helper::AllocateException => return runtime.allocate_exception,
@@ -88,6 +95,7 @@ unsafe fn arguments<'a>(context: *mut ExecutionContext) -> &'a [u64; 6] {
     unsafe { &(*context).arguments }
 }
 
+#[jit_abi]
 unsafe extern "C" fn memory_fill(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[memory, destination, value, count, ..] = arguments(context);
@@ -103,6 +111,7 @@ unsafe extern "C" fn memory_fill(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn memory_copy(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[destination_memory, source_memory, destination, source, count, _] = arguments(context);
@@ -123,6 +132,7 @@ unsafe extern "C" fn memory_copy(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn memory_init(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[memory, segment, destination, source, count, _] = arguments(context);
@@ -143,6 +153,7 @@ unsafe extern "C" fn memory_init(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn table_fill(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[table, destination, value, count, ..] = arguments(context);
@@ -157,6 +168,7 @@ unsafe extern "C" fn table_fill(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn table_copy(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[destination_table, source_table, destination, source, count, _] = arguments(context);
@@ -177,6 +189,7 @@ unsafe extern "C" fn table_copy(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn table_init(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[table, segment, destination, source, count, _] = arguments(context);
@@ -226,6 +239,7 @@ fn data_size(kind: u8) -> usize {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn array_fill(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[array, start, low, high, count, _] = arguments(context);
@@ -253,6 +267,7 @@ unsafe extern "C" fn array_fill(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn array_copy(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[destination, destination_start, source, source_start, count, _] = arguments(context);
@@ -277,6 +292,7 @@ unsafe extern "C" fn array_copy(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn array_init_data(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[array, segment, destination, source, count, _] = arguments(context);
@@ -315,6 +331,7 @@ unsafe extern "C" fn array_init_data(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn array_init_elem(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[array, segment, destination, source, count, _] = arguments(context);
@@ -341,6 +358,7 @@ unsafe extern "C" fn array_init_elem(context: *mut ExecutionContext) -> u64 {
     }
 }
 
+#[jit_abi]
 unsafe extern "C" fn segment_range(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let &[segment, start, count, unit, trap, _] = arguments(context);

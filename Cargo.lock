@@ -1945,6 +1945,7 @@ dependencies = [
  "fARM64",
  "iced-x86",
  "libc",
+ "libjs_runtime_macros",
  "libwasm_engine",
  "libwasm_module",
  "serde_json",

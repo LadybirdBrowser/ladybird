@@ -222,6 +222,11 @@ impl<'a> CodeGenerator<'a> {
         );
         let overflow = self.trap_label(libwasm_module::abi::TRAP_STACK_EXHAUSTED);
         self.asm.jcc(Cond::Below, overflow);
+        if crate::asm::x86_64::needs_stack_probes(below) {
+            // NB: The frame's pages are touched before anything goes in them (see `Assembler::probe_stack()`).
+            self.asm.mov_rr(Width::W64, context, SP);
+            self.asm.probe_stack(context, SCRATCH, Some(below));
+        }
         self.asm.mov_rr(Width::W64, SP, SCRATCH);
         // Values arriving in registers that have slots.
         let data = func.blocks[0];
