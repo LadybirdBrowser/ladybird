@@ -29,6 +29,8 @@ pub use crate::layout_forward::{RawNativeFunctionPointer, RawNativeFunctionResul
 use crate::runtime::abstract_operations::new_function_environment_for_native_javascript_backed_function;
 use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Throw, ThrowCompletionOr};
+use crate::runtime::error::ErrorKind;
+use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ObjectMethods, allocate_object};
@@ -42,6 +44,8 @@ pub struct NativeFunctionMethods {
     pub construct: fn(&NativeFunction, &Vm, Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>>,
     pub function_environment_needed: fn(&NativeFunction) -> bool,
     pub function_environment_bindings_count: fn(&NativeFunction) -> usize,
+    /// For a function that the embedder calls as a step that cannot fail. Its own steps must have a bounded stack use.
+    pub ignores_stack_space_limit: bool,
 }
 
 pub static NATIVE_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
@@ -50,6 +54,7 @@ pub static NATIVE_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFuncti
     construct: |_, _, _| unreachable!("NativeFunction::construct has to be overridden"),
     function_environment_needed: |_| false,
     function_environment_bindings_count: |_| 0,
+    ignores_stack_space_limit: false,
 };
 
 pub static NATIVE_FUNCTION_METHODS: ObjectMethods = ObjectMethods {
@@ -334,7 +339,10 @@ impl NativeFunction {
         // </8.> --------------------------------------------------------------------------
 
         // 9. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
-        vm.push_execution_context_checking_stack_space(NonNull::from(callee_context))?;
+        if vm.did_reach_stack_space_limit() && !function.methods().ignores_stack_space_limit {
+            return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
+        vm.push_execution_context(NonNull::from(callee_context));
 
         // 10. Let result be the Completion Record that is the result of evaluating F in a manner that conforms to the specification of F. thisArgument is the this value, argumentsList provides the named parameters, and the NewTarget value is undefined.
         let result = function.call(vm);

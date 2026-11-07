@@ -142,11 +142,20 @@ fn with_callee_context<T>(
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
-    let Some(callee_context) = stack.allocate(
+    let (registers_and_locals_count, constant_count, argument_count) = (
         stack_frame_info.registers_and_locals_count,
         stack_frame_info.constant_count,
         stack_frame_info.argument_count,
-    ) else {
+    );
+    let callee_context = stack
+        .allocate(registers_and_locals_count, constant_count, argument_count)
+        .or_else(|| {
+            function
+                .ignores_stack_space_limit()
+                .then(|| stack.allocate_past_limit(registers_and_locals_count, constant_count, argument_count))
+                .flatten()
+        });
+    let Some(callee_context) = callee_context else {
         return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
     };
     let _deallocate_guard = ScopeGuard::new(|| stack.deallocate(stack_mark));

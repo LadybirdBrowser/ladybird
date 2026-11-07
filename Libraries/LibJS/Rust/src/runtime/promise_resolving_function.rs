@@ -45,6 +45,9 @@ const _: () = assert!(size_of::<PromiseResolvingFunction>() == 88);
 
 static PROMISE_RESOLVING_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
     call: PromiseResolvingFunction::call,
+    // NB: An embedder resolves a promise as a step that cannot throw, and it can do so at any stack depth. What these
+    //     steps run of script, a "then" getter, is a checked call of its own, and its error rejects the promise.
+    ignores_stack_space_limit: true,
     ..NATIVE_FUNCTION_VIRTUAL_METHODS
 };
 
