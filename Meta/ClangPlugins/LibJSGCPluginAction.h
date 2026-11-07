@@ -80,6 +80,7 @@ private:
     void validate_record_macros(clang::CXXRecordDecl const&);
     void validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const&);
     void validate_gc_members_of_polymorphic_record(clang::CXXRecordDecl const&);
+    void validate_claim_of_no_cell_edges(clang::CXXRecordDecl const&);
     void remember_polymorphic_subclass(clang::CXXRecordDecl const&);
     void validate_object_on_stack(clang::VarDecl const&, clang::SourceLocation);
     void validate_type_on_stack(clang::QualType, clang::SourceLocation);
