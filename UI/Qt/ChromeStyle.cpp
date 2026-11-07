@@ -89,6 +89,11 @@ QColor chrome_sidebar_background(QPalette const& palette)
     return Theme::chrome(palette).sidebar;
 }
 
+QColor crash_reports_dot_color(QPalette const& palette)
+{
+    return is_dark(palette) ? QColor(0xF2, 0xA3, 0x3A) : QColor(0xD9, 0x80, 0x0F);
+}
+
 QColor chrome_background(QPalette const& palette)
 {
     return Theme::chrome(palette).toolbar;

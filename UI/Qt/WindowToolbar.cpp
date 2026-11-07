@@ -585,7 +585,7 @@ private:
         painter.setBrush(Theme::chrome(palette).toolbar);
         painter.drawEllipse(dot_center, 5.5 * m_dot_scale, 5.5 * m_dot_scale);
         // NB: In the icon's color, the dot would fuse with the glyph it sits on.
-        painter.setBrush(ChromeStyle::is_dark(palette) ? QColor(0xF2, 0xA3, 0x3A) : QColor(0xD9, 0x80, 0x0F));
+        painter.setBrush(ChromeStyle::crash_reports_dot_color(palette));
         painter.drawEllipse(dot_center, 3.5 * m_dot_scale, 3.5 * m_dot_scale);
     }
 

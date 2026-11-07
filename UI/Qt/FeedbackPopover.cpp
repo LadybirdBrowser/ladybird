@@ -23,6 +23,7 @@ static constexpr int POPOVER_WIDTH = 300;
 static constexpr int ROW_HEIGHT = 32;
 static constexpr int ROW_WITH_DETAIL_HEIGHT = 46;
 static constexpr int CRASH_REPORTS_DOT_SIZE = 7;
+static constexpr int CRASH_REPORTS_DOT_GAP = 6;
 static constexpr int EXTERNAL_LINK_ICON_SIZE = 14;
 static constexpr int CHEVRON_ICON_SIZE = 12;
 
@@ -120,12 +121,17 @@ FeedbackPopover::FeedbackPopover(QWidget* parent)
     separator_row->addWidget(separator);
     section_layout->addLayout(separator_row);
 
+    // NB: The Feedback button's dot sits right before the count, which keeps the row's title in line with the others.
     auto* crash_reports_row = create_row(*m_crash_reports_section, "Crash reports", ROW_HEIGHT);
-    m_crash_reports_dot = create_row_icon(*crash_reports_row, CRASH_REPORTS_DOT_SIZE);
-    crash_reports_row->layout()->addWidget(m_crash_reports_dot);
     create_row_text(*crash_reports_row, "Crash reports");
+    auto* count_layout = new QHBoxLayout;
+    count_layout->setContentsMargins(0, 0, 0, 0);
+    count_layout->setSpacing(CRASH_REPORTS_DOT_GAP);
+    m_crash_reports_dot = create_row_icon(*crash_reports_row, CRASH_REPORTS_DOT_SIZE);
+    count_layout->addWidget(m_crash_reports_dot);
     m_crash_reports_count = create_detail_label({}, *crash_reports_row);
-    crash_reports_row->layout()->addWidget(m_crash_reports_count);
+    count_layout->addWidget(m_crash_reports_count);
+    static_cast<QHBoxLayout*>(crash_reports_row->layout())->addLayout(count_layout);
     m_crash_reports_chevron = create_row_icon(*crash_reports_row, CHEVRON_ICON_SIZE);
     crash_reports_row->layout()->addWidget(m_crash_reports_chevron);
     QObject::connect(crash_reports_row, &QPushButton::clicked, this, [this] {
@@ -153,7 +159,7 @@ void FeedbackPopover::update_chrome_style(QPalette const& palette)
     QPainter painter(&dot);
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(panel.text);
+    painter.setBrush(ChromeStyle::crash_reports_dot_color(palette));
     painter.drawEllipse(QRectF(0, 0, CRASH_REPORTS_DOT_SIZE, CRASH_REPORTS_DOT_SIZE));
     painter.end();
     m_crash_reports_dot->setPixmap(dot);
