@@ -22,6 +22,7 @@
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/RemoteSession.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -4654,8 +4655,8 @@ void TabWidget::update_all_tabs_entries()
     if (auto* browser_window = as_if<BrowserWindow>(window())) {
         auto& session = browser_window->session();
         auto now = UnixDateTime::now();
-        for (auto const& unit : session.session_store->recently_closed_units(RECENTLY_CLOSED_LIMIT)) {
-            auto entry = session.history_store->entry_for_url(unit.active_url);
+        for (auto const& unit : session.recently_closed_units(RECENTLY_CLOSED_LIMIT)) {
+            auto entry = session.entry_for_url(unit.active_url);
             auto title = entry.has_value() && entry->title.has_value() && !entry->title->is_empty() ? qstring_from_ak_string(*entry->title) : qstring_from_ak_string(unit.active_url.serialize());
             if (unit.was_window)
                 title = unit.tab_count == 1 ? QStringLiteral("Window with 1 tab") : qformatted("Window with {} tabs", unit.tab_count);

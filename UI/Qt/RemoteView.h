@@ -52,7 +52,6 @@ public:
     Hub::View const& hub_view() const { return *m_view; }
 
     WebView::IsPrivate is_private() const { return m_is_private; }
-    WebView::BrowsingSession& session() const { return m_view->session(); }
     URL::Origin permission_origin() const { return *m_state.permission_origin; }
     Vector<WebView::SitePermissionRow> site_permission_rows() const { return m_state.site_permission_rows; }
     void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName permission_name, Optional<WebView::PermissionDecision> decision) { m_view->set_site_permission(origin, permission_name, decision); }

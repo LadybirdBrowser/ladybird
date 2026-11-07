@@ -17,6 +17,7 @@
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/FullscreenDebounce.h>
+#include <UI/Qt/RemoteSession.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowCloseCoordinator.h>
@@ -154,7 +155,7 @@ public:
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
-    WebView::BrowsingSession& session() const { return *m_session; }
+    RemoteSession& session() const { return RemoteSession::of(m_is_private); }
     Optional<WebView::SessionWindowId> session_window_id() const { return m_session_window_id; }
 
     int tab_count() { return m_tabs_container->count(); }
@@ -323,7 +324,6 @@ private:
     WindowScreenObserver* m_screen_observer { nullptr };
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
-    NonnullRefPtr<WebView::BrowsingSession> m_session;
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };

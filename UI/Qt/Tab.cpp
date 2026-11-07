@@ -27,6 +27,7 @@
 #include <UI/Qt/JavaScriptDialog.h>
 #include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/RemoteActions.h>
+#include <UI/Qt/RemoteSession.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -1000,7 +1001,7 @@ void Tab::ensure_loaded()
 
     Optional<WebView::SessionHistorySnapshot> history;
     if (m_session_tab_id.has_value())
-        history = m_window->session().session_store->load_tab_history(*m_session_tab_id);
+        history = m_window->session().load_tab_history(*m_session_tab_id);
     if (!history.has_value() || view().restore_session_history_from_snapshot(history.release_value()).is_error())
         navigate(deferred_url);
 }

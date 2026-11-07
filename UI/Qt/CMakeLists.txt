@@ -45,6 +45,7 @@ add_library(ladybird_impl STATIC
     ProcessManagerWindow.cpp
     RemoteActions.cpp
     RemoteDownloads.cpp
+    RemoteSession.cpp
     RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
