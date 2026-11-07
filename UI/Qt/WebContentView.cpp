@@ -1065,25 +1065,15 @@ void WebContentView::update_page_focus()
 
 Optional<WebContentView::Paintable> WebContentView::current_paintable() const
 {
-    Gfx::SharedImageBuffer const* shared_image_buffer = nullptr;
-    Gfx::IntSize bitmap_size;
-    i32 bitmap_id = -1;
-    u64 page_id = 0;
-
-    if (m_has_usable_bitmap) {
-        VERIFY(m_front_bitmap.shared_image_buffer);
-        shared_image_buffer = m_front_bitmap.shared_image_buffer.ptr();
-        bitmap_size = m_front_bitmap.last_painted_size.to_type<int>();
-        bitmap_id = m_front_bitmap.id;
-        page_id = page().id().value();
-    } else if (m_backup_shared_image_buffer) {
-        shared_image_buffer = m_backup_shared_image_buffer.ptr();
-        bitmap_size = m_backup_bitmap_size.to_type<int>();
-    }
-
-    if (!shared_image_buffer)
+    auto frame = backing_stores().displayed_frame();
+    if (!frame.has_value())
         return {};
-    return Paintable { shared_image_buffer, bitmap_size, bitmap_id, page_id };
+    return Paintable {
+        .shared_image_buffer = &frame->shared_image_buffer,
+        .bitmap_size = frame->size,
+        .bitmap_id = frame->bitmap_id.value_or(-1),
+        .page_id = frame->bitmap_id.has_value() ? page().id().value() : 0,
+    };
 }
 
 void WebContentView::schedule_repaint()

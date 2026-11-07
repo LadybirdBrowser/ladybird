@@ -77,6 +77,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
+#include <LibWebView/PageBackingStores.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
@@ -337,7 +338,7 @@ public:
     Optional<ByteString> const& page_tooltip_for_testing() const { return m_page_tooltip; }
     Optional<double> displayed_frame_device_pixel_ratio_for_testing() const
     {
-        return displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
+        return m_backing_stores.displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
     }
 
     String force_dark_host() const;
@@ -560,6 +561,7 @@ public:
     void did_change_background_color(Badge<WebContentPage>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
+    PageBackingStores const& backing_stores() const { return m_backing_stores; }
     void did_allocate_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids);
@@ -804,11 +806,6 @@ protected:
     bool handle_picture_in_picture_controls_mouse_event(Web::MouseEvent const&);
     void set_picture_in_picture_controls_shown(bool);
     bool picture_in_picture_controls_are_shown() const { return m_picture_in_picture_controls_shown || m_picture_in_picture_player_controls_shown; }
-    struct DisplayedFrame {
-        Gfx::IntSize size;
-        double device_pixel_ratio { 1.0 };
-    };
-    Optional<DisplayedFrame> displayed_frame() const;
     struct UIOverlayPosition {
         Gfx::IntPoint position;
         Gfx::IntSize viewport_size;
@@ -889,17 +886,8 @@ protected:
     };
     void download_url(URL::URL const&, PromptForPath, Optional<String> const& image_mime_type = {});
 
-    struct SharedBitmap {
-        i32 id { -1 };
-        Web::DevicePixelSize last_painted_size;
-        double last_painted_device_pixel_ratio { 1.0 };
-        OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
-    };
-
     String m_window_handle;
-    SharedBitmap m_front_bitmap;
-    Vector<SharedBitmap> m_other_bitmaps;
-    bool m_has_usable_bitmap { false };
+    PageBackingStores m_backing_stores;
     bool m_pinch_gesture_was_canceled { false };
     bool m_presents_from_cpu_memory { false };
 
@@ -1034,9 +1022,6 @@ protected:
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
-    OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
-    Web::DevicePixelSize m_backup_bitmap_size;
-    double m_backup_bitmap_device_pixel_ratio { 1.0 };
     Gfx::Color m_page_background_color { 255, 255, 255 };
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
