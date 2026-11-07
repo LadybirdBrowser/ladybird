@@ -1,0 +1,6 @@
+Ladybird decodes all of a tab’s SVG images in one page, so a frame
+request has to say which image’s document it’s for. The other engines
+give each SVG image a page of its own, so a frame request can only reach
+that image: Blink’s SVGImage creates an IsolatedSVGDocumentHost for each
+image, WebKit’s SVGImage::dataChanged() creates its own Page, and
+Gecko’s VectorImage holds its own SVGDocumentWrapper.
