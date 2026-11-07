@@ -29,6 +29,10 @@ interface Internals {
     DOMString setTimeZone(DOMString timeZone);
 
     undefined gc();
+
+    // How many worker agents are alive in this process. One that a worker's owner let go of still counts until its
+    // thread has shut it down.
+    unsigned long workerAgentCount();
     [CreatesPromise] Promise<undefined> gcAsync();
     // Discards every decoded image frame that can be decoded again, and returns how many were discarded.
     unsigned long long discardDecodedImageFrames();

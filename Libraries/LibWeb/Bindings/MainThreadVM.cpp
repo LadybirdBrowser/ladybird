@@ -107,6 +107,7 @@ static auto& main_thread_vm_ptr()
 }
 
 static Atomic<bool, AK::MemoryOrder::memory_order_relaxed> s_collect_garbage_on_every_allocation { false };
+static Atomic<size_t, AK::MemoryOrder::memory_order_relaxed> s_worker_agent_count { 0 };
 
 static HTML::SimilarOriginWindowAgent*& main_thread_similar_origin_window_agent_ptr()
 {
@@ -173,6 +174,8 @@ void initialize_agent(HTML::AgentType type)
     if (type == HTML::AgentType::SimilarOriginWindow) {
         VERIFY(!main_thread_vm_ptr());
         main_thread_vm_ptr() = new_vm;
+    } else {
+        ++s_worker_agent_count;
     }
     vm.set_agent(create_agent(vm.heap(), type));
 
@@ -818,6 +821,13 @@ void shut_down_agent()
 
     // NB: The VM stays reachable while it is destroyed, as the finalizers of the cells in its heap use it.
     vm.unref();
+
+    --s_worker_agent_count;
+}
+
+size_t worker_agent_count()
+{
+    return s_worker_agent_count;
 }
 
 JS::VM& main_thread_vm()

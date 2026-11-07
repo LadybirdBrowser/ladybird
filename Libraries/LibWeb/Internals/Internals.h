@@ -73,6 +73,7 @@ public:
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);
 
     void gc();
+    u32 worker_agent_count() const;
     void gc_async(GC::Ref<WebIDL::Promise>);
     WebIDL::UnsignedLongLong discard_decoded_image_frames();
     WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);

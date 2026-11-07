@@ -422,6 +422,11 @@ void Internals::gc()
     window().principal_realm().vm().heap().collect_garbage();
 }
 
+u32 Internals::worker_agent_count() const
+{
+    return Bindings::worker_agent_count();
+}
+
 void Internals::gc_async(GC::Ref<WebIDL::Promise> promise)
 {
     // Queue a LibCore event to run the collection, so that it runs outside the JS execution context with as small a
