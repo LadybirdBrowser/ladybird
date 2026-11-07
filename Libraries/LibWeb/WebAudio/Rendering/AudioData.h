@@ -34,6 +34,7 @@ private:
 };
 struct PeriodicWaveData : public AtomicRefCounted<PeriodicWaveData> {
     PeriodicWaveData(Vector<float> real, Vector<float> imag, bool normalize);
+    PeriodicWaveData(void const* data, bool normalize);
     ~PeriodicWaveData();
     void const* rust_data() const { return m_data; }
     ReadonlySpan<float> real;

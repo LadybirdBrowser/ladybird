@@ -10,7 +10,7 @@ dictionary PeriodicWaveOptions : PeriodicWaveConstraints {
 };
 
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface PeriodicWave {
     constructor(BaseAudioContext context, optional PeriodicWaveOptions options = {});
 };

@@ -34,6 +34,13 @@ PeriodicWaveData::PeriodicWaveData(Vector<float> real_values, Vector<float> imag
     RustFFI::web_audio_periodic_wave_data_real(m_data, &real);
     RustFFI::web_audio_periodic_wave_data_imag(m_data, &imag);
 }
+PeriodicWaveData::PeriodicWaveData(void const* data, bool should_normalize)
+    : normalize(should_normalize)
+    , m_data(data)
+{
+    RustFFI::web_audio_periodic_wave_data_real(m_data, &real);
+    RustFFI::web_audio_periodic_wave_data_imag(m_data, &imag);
+}
 PeriodicWaveData::~PeriodicWaveData() { RustFFI::web_audio_periodic_wave_data_destroy(m_data); }
 
 }
