@@ -370,6 +370,8 @@ pub enum FfiVideoRepresentation {
 pub struct FfiReplacedImagePaintFacts {
     pub natural: FfiNaturalSize,
     pub content: FfiImageContent,
+    pub preserve_aspect_ratio_align: u8,
+    pub preserve_aspect_ratio_meet_or_slice: u8,
 }
 
 #[derive(Clone, Copy, Debug)]

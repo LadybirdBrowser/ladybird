@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-image-text-in-web-font-ref.html">
+<style>body { margin: 0; } img { display: block; }</style>
+<img src="../data/svg-with-web-font.svg">
+<script>
+    onload = () => requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait")));
+</script>
+</html>

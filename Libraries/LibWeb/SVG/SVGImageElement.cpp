@@ -91,6 +91,19 @@ void SVGImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
         process_the_url(href);
     }
+
+    if (name == SVG::AttributeNames::preserveAspectRatio)
+        Painting::push_replaced_image_paint_facts(*this, *this);
+}
+
+// https://svgwg.org/svg2-draft/embedded.html#ImageElement
+SVG::PreserveAspectRatio SVGImageElement::preserve_aspect_ratio() const
+{
+    // An unparseable value is the initial value, xMidYMid meet.
+    auto value = get_attribute(SVG::AttributeNames::preserveAspectRatio);
+    if (!value.has_value())
+        return {};
+    return parse_preserve_aspect_ratio(*value).value_or({});
 }
 
 // https://www.w3.org/TR/SVG2/linking.html#processingURL

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-view-specification-view-box-ref.html">
+<style>
+    div { width: 100px; height: 100px; display: inline-block; }
+    #top-left { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView(viewBox(0,0,50,50))"); }
+    #bottom-right { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView(viewBox(50 50 50 50);preserveAspectRatio(xMidYMid))"); }
+    #repeated-attribute { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView(viewBox(0,0,50,50);viewBox(0,0,50,50))"); }
+    #unknown-attribute { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView(viewBox(0,0,50,50);foo(1))"); }
+    #spaces { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView( viewBox(50,0,50,50) ; zoomAndPan(disable) )"); }
+</style>
+<div id="top-left"></div><div id="bottom-right"></div><div id="repeated-attribute"></div><div id="unknown-attribute"></div><div id="spaces"></div>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><circle r='45' cx='50' cy='50' fill='red' stroke='green' stroke-width='4'/></svg>#svgView(viewBox(0,0,50,50))">

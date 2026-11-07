@@ -54,10 +54,25 @@ impl VideoPaintFacts {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ImagePaintFacts {
     pub natural: SizeWithAspectRatio,
     pub content: ImageContent,
+    /// How an SVG image element fits the image into its rectangle, in the encoding of its `preserveAspectRatio`
+    /// attribute facts.
+    pub preserve_aspect_ratio_align: u8,
+    pub preserve_aspect_ratio_meet_or_slice: u8,
+}
+
+impl Default for ImagePaintFacts {
+    fn default() -> Self {
+        Self {
+            natural: SizeWithAspectRatio::default(),
+            content: ImageContent::default(),
+            preserve_aspect_ratio_align: crate::layout::svg_formatting_context::PRESERVE_ASPECT_RATIO_X_MID_Y_MID,
+            preserve_aspect_ratio_meet_or_slice: crate::layout::svg_formatting_context::MEET_OR_SLICE_MEET,
+        }
+    }
 }
 
 impl ImagePaintFacts {
@@ -68,6 +83,8 @@ impl ImagePaintFacts {
         Self {
             natural: SizeWithAspectRatio::from_ffi(&facts.natural),
             content: unsafe { ImageContent::from_ffi(&facts.content) },
+            preserve_aspect_ratio_align: facts.preserve_aspect_ratio_align,
+            preserve_aspect_ratio_meet_or_slice: facts.preserve_aspect_ratio_meet_or_slice,
         }
     }
 }
