@@ -84,6 +84,25 @@ TEST_CASE(ipc_decode_rejects_oversized_backing)
     EXPECT(round_trip(message_buffer).is_error());
 }
 
+TEST_CASE(ipc_decode_rejects_empty_size)
+{
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(0));
+
+    Vector<Optional<Gfx::BitmapMetadata>> metadata_list;
+    metadata_list.append(Gfx::BitmapMetadata {
+        .format = Gfx::BitmapFormat::BGRA8888,
+        .alpha_type = Gfx::AlphaType::Premultiplied,
+        .size = Gfx::IntSize { 1, 0 },
+    });
+
+    IPC::MessageBuffer message_buffer;
+    IPC::Encoder encoder { message_buffer };
+    MUST(encoder.encode(metadata_list));
+    MUST(encoder.encode(buffer));
+
+    EXPECT(round_trip(message_buffer).is_error());
+}
+
 TEST_CASE(ipc_round_trip_maps_the_pixels_of_shareable_bitmaps)
 {
     auto first = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 4, 4 }));

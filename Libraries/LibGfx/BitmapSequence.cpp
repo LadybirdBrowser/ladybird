@@ -94,7 +94,7 @@ ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
                 return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence buffer data");
             // NB: A buffer that is too small is turned down below. One larger than a shareable bitmap of this size would
             //     have is turned down here, as the receiver would keep all of it mapped for as long as the bitmap lives.
-            if (Gfx::Bitmap::size_would_overflow(metadata->format, metadata->size))
+            if (metadata->size.is_empty() || Gfx::Bitmap::size_would_overflow(metadata->format, metadata->size))
                 return Error::from_string_literal("IPC: Invalid Gfx::BitmapSequence size");
             auto data_size = Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(metadata->size.width(), metadata->format), metadata->size.height());
             if (buffer.size() > round_up_to_power_of_two(data_size, PAGE_SIZE))
