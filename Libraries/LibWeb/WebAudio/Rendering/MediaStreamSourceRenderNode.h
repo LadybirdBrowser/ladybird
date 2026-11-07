@@ -17,14 +17,6 @@ namespace Web::WebAudio::Rendering {
 class MediaStreamSourceRenderNode final : public RenderNode {
 public:
     MediaStreamSourceRenderNode(NodeID, size_t quantum_size);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void handle_message(NodeMessage const&) override;
-
-private:
-    RefPtr<Audio::SpscAudioFrameRing> m_ring;
-    u32 m_channel_count { 1 };
-    Vector<float> m_interleaved_scratch;
 };
 
 }

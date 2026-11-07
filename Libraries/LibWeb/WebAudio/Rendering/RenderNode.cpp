@@ -51,20 +51,6 @@ void RenderAudioParam::compute(RenderGraph& graph, RenderContext const& context,
         return bus.has_value() ? bus->rust_bus() : nullptr; }, &rust_context, output);
 }
 
-RenderNode::RenderNode(NodeID node_id, size_t input_count, size_t output_count, size_t quantum_size, size_t output_channel_count)
-    : m_external(true)
-{
-    m_node = RustFFI::web_audio_node_create_external(node_id.value(), input_count, output_count, quantum_size, output_channel_count, this, {
-                                                                                                                                               .process = [](void* node, void const* graph, RustFFI::RenderContext const* context) {
-            RenderGraph borrowed_graph(const_cast<void*>(graph), false);
-            RenderContext render_context { context->sample_rate, context->quantum_size, context->quantum_start_frame };
-            static_cast<RenderNode*>(node)->process(borrowed_graph, render_context); },
-                                                                                                                                               .set_ring = [](void* node, void* ring, u32 channel_count) { static_cast<RenderNode*>(node)->handle_message(NodeMessage { SetMediaStreamSourceRing { {}, static_cast<Audio::SpscAudioFrameRing*>(ring), channel_count } }); },
-                                                                                                                                               .for_each_param = [](void* node, void* context, void (*callback)(void*, void const*)) { static_cast<RenderNode*>(node)->for_each_param([&](RenderAudioParam& param) { callback(context, param.rust_param()); }); },
-                                                                                                                                               .ended = [](void* node) { return static_cast<RenderNode*>(node)->take_ended_notification(); },
-                                                                                                                                               .destroy = [](void* node) { if (static_cast<RenderNode*>(node)->m_transferred) delete static_cast<RenderNode*>(node); },
-                                                                                                                                           });
-}
 RenderNode::RenderNode(void* node)
     : m_node(node)
 {
@@ -77,7 +63,6 @@ RenderNode::~RenderNode()
 void* RenderNode::release_rust_node()
 {
     m_owned = false;
-    m_transferred = true;
     return m_node;
 }
 NodeID RenderNode::node_id() const { return RustFFI::web_audio_node_id(m_node); }

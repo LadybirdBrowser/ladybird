@@ -1,190 +1,172 @@
 /*
  * Copyright (c) 2026, Ali Mohammad Pur <ali@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/BuiltinWrappers.h>
-#include <AK/Math.h>
 #include <LibCore/EventLoop.h>
 #include <LibWeb/WebAudio/Rendering/AudioWorkletPipe.h>
+#include <LibWeb/WebAudio/RustFFI.h>
 
 namespace Web::WebAudio::Rendering {
 
-// The renderer produces a device buffer's worth of quanta in one burst, so lookahead must cover a full burst plus
-// scheduling margin. At the 100 ms, 48 kHz defaults this is 38 quanta, a prime level of 48, and capacity 64.
-AudioWorkletPipe::Config::RingSizing AudioWorkletPipe::Config::ring_sizing_for_device_latency(u32 device_latency_ms, float sample_rate, size_t quantum_size)
+struct AudioWorkletPipeCallbacks : AtomicRefCounted<AudioWorkletPipeCallbacks> {
+    explicit AudioWorkletPipeCallbacks(Core::EventLoop& loop)
+        : event_loop(loop)
+    {
+    }
+    Core::EventLoop& event_loop;
+    Function<void()> pump_callback;
+};
+
+NonnullRefPtr<AudioWorkletPipe> AudioWorkletPipe::create(Config config, Core::EventLoop& event_loop)
 {
-    VERIFY(sample_rate > 0);
-    VERIFY(quantum_size > 0);
-    auto burst_quanta = static_cast<size_t>(AK::ceil(device_latency_ms / 1000.0 * sample_rate / quantum_size));
-    auto prime_level = ceil_div(burst_quanta * 5, static_cast<size_t>(4));
-    size_t ring_capacity = 1;
-    while (ring_capacity < prime_level + max(burst_quanta / 4, static_cast<size_t>(1)))
-        ring_capacity *= 2;
-    return { .ring_capacity = ring_capacity, .prime_level = prime_level };
+    return adopt_ref(*new AudioWorkletPipe(move(config), event_loop));
 }
 
-NonnullRefPtr<AudioWorkletPipe> AudioWorkletPipe::create(Config config, Core::EventLoop& main_thread_event_loop)
-{
-    VERIFY(config.quantum_size > 0);
-    VERIFY(config.input_channel_capacity.size() == config.input_count);
-    VERIFY(config.output_channel_capacity.size() == config.output_count);
-    VERIFY(config.param_is_a_rate.size() == config.param_count);
-    VERIFY(config.ring_capacity > 0 && popcount(config.ring_capacity) == 1);
-    VERIFY(config.prime_level <= config.ring_capacity);
-    return adopt_ref(*new AudioWorkletPipe(move(config), main_thread_event_loop));
-}
-
-AudioWorkletPipe::AudioWorkletPipe(Config config, Core::EventLoop& main_thread_event_loop)
+AudioWorkletPipe::AudioWorkletPipe(Config config, Core::EventLoop& event_loop)
     : m_config(move(config))
-    , m_ring_index_mask(m_config.ring_capacity - 1)
-    , m_main_thread_event_loop(main_thread_event_loop)
+    , m_callbacks(adopt_ref(*new AudioWorkletPipeCallbacks(event_loop)))
 {
-    auto channel_bytes = m_config.quantum_size * sizeof(float);
-
-    size_t offset = slot_channel_counts_offset + m_config.input_count * sizeof(u32);
-    m_input_samples_offset.ensure_capacity(m_config.input_count);
-    for (u32 input = 0; input < m_config.input_count; ++input) {
-        m_input_samples_offset.unchecked_append(offset);
-        offset += m_config.input_channel_capacity[input] * channel_bytes;
-    }
-    m_param_block_offset.ensure_capacity(m_config.param_count);
-    m_param_block_length.ensure_capacity(m_config.param_count);
-    for (u32 param = 0; param < m_config.param_count; ++param) {
-        m_param_block_offset.unchecked_append(offset);
-        size_t block_length = m_config.param_is_a_rate[param] ? m_config.quantum_size : 1;
-        m_param_block_length.unchecked_append(block_length);
-        offset += block_length * sizeof(float);
-    }
-    m_input_slot_stride = round_up_to_power_of_two(offset, slot_alignment);
-
-    offset = slot_channel_counts_offset + m_config.output_count * sizeof(u32);
-    m_output_samples_offset.ensure_capacity(m_config.output_count);
-    for (u32 output = 0; output < m_config.output_count; ++output) {
-        m_output_samples_offset.unchecked_append(offset);
-        offset += m_config.output_channel_capacity[output] * channel_bytes;
-    }
-    m_output_slot_stride = round_up_to_power_of_two(offset, slot_alignment);
-
-    m_output_region_offset = m_config.ring_capacity * m_input_slot_stride;
-    m_arena = MUST(FixedArray<u8>::create(m_output_region_offset + m_config.ring_capacity * m_output_slot_stride));
+    RustFFI::PipeCallbacks callbacks {
+        { m_callbacks.ptr(), [](void* service) { static_cast<AudioWorkletPipeCallbacks*>(service)->ref(); }, [](void* service) { static_cast<AudioWorkletPipeCallbacks*>(service)->unref(); } },
+        [](void* service, void* task, void (*invoke)(void*)) {
+            static_cast<AudioWorkletPipeCallbacks*>(service)->event_loop.deferred_invoke([task, invoke] { invoke(task); });
+        },
+        [](void* service) {
+            auto& callbacks = *static_cast<AudioWorkletPipeCallbacks*>(service);
+            if (callbacks.pump_callback)
+                callbacks.pump_callback();
+        },
+        [](void*, size_t, u64) { return false; },
+    };
+    RustFFI::WorkletPipeConfig native_config { m_config.quantum_size, m_config.input_count, m_config.output_count, m_config.input_channel_capacity.span(), m_config.output_channel_capacity.span(), m_config.output_channel_count_matches_input, m_config.param_count, m_config.param_is_a_rate.span(), m_config.ring_capacity, m_config.prime_level };
+    m_pipe = RustFFI::web_audio_worklet_pipe_create(native_config, callbacks);
 }
 
-bool AudioWorkletPipe::try_push_input(Function<void(InputSlotWriter&)> const& fill)
+AudioWorkletPipe::~AudioWorkletPipe() { RustFFI::web_audio_worklet_pipe_destroy(m_pipe); }
+AudioWorkletPipe::Config::RingSizing AudioWorkletPipe::Config::ring_sizing_for_device_latency(u32 latency, float sample_rate, size_t quantum_size)
 {
-    auto tail = m_input_ring.tail.load(AK::MemoryOrder::memory_order_relaxed);
-    if (tail - m_input_ring.head.load(AK::MemoryOrder::memory_order_acquire) == m_config.ring_capacity) {
-        m_dropped_input_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-        return false;
-    }
-    auto* slot = input_slot(tail);
-    *reinterpret_cast<u32*>(slot + slot_flags_offset) = 0;
-    InputSlotWriter writer { *this, slot };
-    fill(writer);
-    m_input_ring.tail.store(tail + 1, AK::MemoryOrder::memory_order_release);
-    return true;
+    RingSizing sizing;
+    RustFFI::web_audio_worklet_pipe_ring_sizing(latency, sample_rate, quantum_size, &sizing.ring_capacity, &sizing.prime_level);
+    return sizing;
 }
 
-bool AudioWorkletPipe::try_pop_input(Function<void(InputSlotReader const&)> const& read)
+bool AudioWorkletPipe::try_push_input(Function<void(InputSlotWriter&)> const& callback)
 {
-    auto head = m_input_ring.head.load(AK::MemoryOrder::memory_order_relaxed);
-    if (head == m_input_ring.tail.load(AK::MemoryOrder::memory_order_acquire))
-        return false;
-    InputSlotReader reader { *this, input_slot(head) };
-    read(reader);
-    m_input_ring.head.store(head + 1, AK::MemoryOrder::memory_order_release);
-    return true;
-}
-
-bool AudioWorkletPipe::try_push_output(Function<void(OutputSlotWriter&)> const& fill)
-{
-    auto tail = m_output_ring.tail.load(AK::MemoryOrder::memory_order_relaxed);
-    if (tail - m_output_ring.head.load(AK::MemoryOrder::memory_order_acquire) == m_config.ring_capacity)
-        return false;
-    auto* slot = output_slot(tail);
-    *reinterpret_cast<u32*>(slot + slot_flags_offset) = 0;
-    OutputSlotWriter writer { *this, slot };
-    fill(writer);
-    m_output_ring.tail.store(tail + 1, AK::MemoryOrder::memory_order_release);
-    return true;
-}
-
-bool AudioWorkletPipe::try_pop_output(Function<void(OutputSlotReader const&)> const& read)
-{
-    auto head = m_output_ring.head.load(AK::MemoryOrder::memory_order_relaxed);
-    if (head == m_output_ring.tail.load(AK::MemoryOrder::memory_order_acquire)) {
-        m_underrun_count.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
-        return false;
-    }
-    OutputSlotReader reader { *this, output_slot(head) };
-    read(reader);
-    m_output_ring.head.store(head + 1, AK::MemoryOrder::memory_order_release);
-    return true;
-}
-
-size_t AudioWorkletPipe::output_occupancy() const
-{
-    return m_output_ring.tail.load(AK::MemoryOrder::memory_order_acquire) - m_output_ring.head.load(AK::MemoryOrder::memory_order_relaxed);
-}
-
-void AudioWorkletPipe::discard_outputs_down_to(size_t target_occupancy)
-{
-    // A consumer-side pop-without-read: advancing the head releases the discarded slots back to the producer. New
-    // pushes can only move the tail further along, so the snapshot below never overshoots.
-    auto head = m_output_ring.head.load(AK::MemoryOrder::memory_order_relaxed);
-    auto tail = m_output_ring.tail.load(AK::MemoryOrder::memory_order_acquire);
-    if (tail - head <= target_occupancy)
-        return;
-    m_output_ring.head.store(tail - target_occupancy, AK::MemoryOrder::memory_order_release);
-}
-
-void AudioWorkletPipe::prime_outputs_with_silence(size_t count)
-{
-    for (size_t i = 0; i < count; ++i) {
-        bool pushed = try_push_output([&](OutputSlotWriter& slot) {
-            slot.start_frame() = 0;
-            slot.set_processor_active(true);
-            for (u32 output = 0; output < m_config.output_count; ++output) {
-                auto channel_count = m_config.output_channel_count_matches_input ? 1u : m_config.output_channel_capacity[output];
-                slot.actual_channel_count(output) = channel_count;
-                for (u32 channel = 0; channel < channel_count; ++channel)
-                    slot.output_channel(output, channel).fill(0);
-            }
-        });
-        VERIFY(pushed);
-    }
-}
-
-void AudioWorkletPipe::request_wakeup()
-{
-    // Coalesce a device burst into one main-thread pump instead of posting once per quantum.
-    if (m_pump_scheduled.exchange(true, AK::MemoryOrder::memory_order_acq_rel))
-        return;
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
-        if (self->state() == State::ShutDown)
-            return;
-        if (self->m_pump_callback)
-            self->m_pump_callback();
+    struct Context {
+        AudioWorkletPipe& pipe;
+        Function<void(InputSlotWriter&)> const& callback;
+    } context { *this, callback };
+    return RustFFI::web_audio_worklet_pipe_transfer(m_pipe, false, true, &context, [](void* pointer, u8* slot) {
+        auto& context = *static_cast<Context*>(pointer);
+        InputSlotWriter view { context.pipe, slot };
+        context.callback(view);
     });
 }
 
-void AudioWorkletPipe::clear_wakeup_flag()
+bool AudioWorkletPipe::try_pop_input(Function<void(InputSlotReader const&)> const& callback)
 {
-    // A read-modify-write rather than a plain store: it synchronizes with the audio thread's exchange in
-    // request_wakeup(), so whenever that exchange elides a wakeup (returns true), everything the audio thread
-    // pushed beforehand is visible to this pump run's drain.
-    m_pump_scheduled.exchange(false, AK::MemoryOrder::memory_order_acq_rel);
+    struct Context {
+        AudioWorkletPipe& pipe;
+        Function<void(InputSlotReader const&)> const& callback;
+    } context { *this, callback };
+    return RustFFI::web_audio_worklet_pipe_transfer(m_pipe, false, false, &context, [](void* pointer, u8* slot) {
+        auto& context = *static_cast<Context*>(pointer);
+        InputSlotReader view { context.pipe, slot };
+        context.callback(view);
+    });
 }
 
-void AudioWorkletPipe::set_pump_callback(Function<void()> pump_callback)
+bool AudioWorkletPipe::try_push_output(Function<void(OutputSlotWriter&)> const& callback)
 {
-    m_pump_callback = move(pump_callback);
+    struct Context {
+        AudioWorkletPipe& pipe;
+        Function<void(OutputSlotWriter&)> const& callback;
+    } context { *this, callback };
+    return RustFFI::web_audio_worklet_pipe_transfer(m_pipe, true, true, &context, [](void* pointer, u8* slot) {
+        auto& context = *static_cast<Context*>(pointer);
+        OutputSlotWriter view { context.pipe, slot };
+        context.callback(view);
+    });
 }
 
-void AudioWorkletPipe::clear_pump_callback()
+bool AudioWorkletPipe::try_pop_output(Function<void(OutputSlotReader const&)> const& callback)
 {
-    m_pump_callback = nullptr;
+    struct Context {
+        AudioWorkletPipe& pipe;
+        Function<void(OutputSlotReader const&)> const& callback;
+    } context { *this, callback };
+    return RustFFI::web_audio_worklet_pipe_transfer(m_pipe, true, false, &context, [](void* pointer, u8* slot) {
+        auto& context = *static_cast<Context*>(pointer);
+        OutputSlotReader view { context.pipe, slot };
+        context.callback(view);
+    });
+}
+
+size_t AudioWorkletPipe::output_occupancy() const { return RustFFI::web_audio_worklet_pipe_output_occupancy(m_pipe); }
+void AudioWorkletPipe::discard_outputs_down_to(size_t target) { RustFFI::web_audio_worklet_pipe_discard(m_pipe, target); }
+void AudioWorkletPipe::prime_outputs_with_silence(size_t count) { RustFFI::web_audio_worklet_pipe_prime(m_pipe, count); }
+void AudioWorkletPipe::request_wakeup() { RustFFI::web_audio_worklet_pipe_request_wakeup(m_pipe); }
+void AudioWorkletPipe::clear_wakeup_flag() { RustFFI::web_audio_worklet_pipe_clear_wakeup(m_pipe); }
+void AudioWorkletPipe::set_pump_callback(Function<void()> callback) { m_callbacks->pump_callback = move(callback); }
+void AudioWorkletPipe::clear_pump_callback() { m_callbacks->pump_callback = nullptr; }
+AudioWorkletPipe::State AudioWorkletPipe::state() const { return static_cast<State>(RustFFI::web_audio_worklet_pipe_state(m_pipe)); }
+void AudioWorkletPipe::set_state(State state) { RustFFI::web_audio_worklet_pipe_set_state(m_pipe, static_cast<RustFFI::WorkletPipeState>(state)); }
+u64 AudioWorkletPipe::underrun_count() const { return RustFFI::web_audio_worklet_pipe_counter(m_pipe, false); }
+u64 AudioWorkletPipe::dropped_input_count() const { return RustFFI::web_audio_worklet_pipe_counter(m_pipe, true); }
+
+u64& AudioWorkletPipe::InputSlotWriter::start_frame() { return *RustFFI::web_audio_worklet_slot_frame(m_slot); }
+void AudioWorkletPipe::InputSlotWriter::set_had_gap(bool value) { RustFFI::web_audio_worklet_slot_set_flag(m_slot, value); }
+u32& AudioWorkletPipe::InputSlotWriter::actual_channel_count(size_t index) { return *RustFFI::web_audio_worklet_slot_count(m_pipe.m_pipe, m_slot, false, index); }
+Span<float> AudioWorkletPipe::InputSlotWriter::input_channel(size_t index, size_t channel)
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_channel(m_pipe.m_pipe, m_slot, false, index, channel, &samples);
+    return samples;
+}
+Span<float> AudioWorkletPipe::InputSlotWriter::param_block(size_t param)
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_param(m_pipe.m_pipe, m_slot, param, &samples);
+    return samples;
+}
+
+u64 AudioWorkletPipe::InputSlotReader::start_frame() const { return *RustFFI::web_audio_worklet_slot_frame(const_cast<u8*>(m_slot)); }
+bool AudioWorkletPipe::InputSlotReader::had_gap() const { return RustFFI::web_audio_worklet_slot_flag(m_slot); }
+u32 AudioWorkletPipe::InputSlotReader::actual_channel_count(size_t index) const { return *RustFFI::web_audio_worklet_slot_count(m_pipe.m_pipe, const_cast<u8*>(m_slot), false, index); }
+ReadonlySpan<float> AudioWorkletPipe::InputSlotReader::input_channel(size_t index, size_t channel) const
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_channel(m_pipe.m_pipe, const_cast<u8*>(m_slot), false, index, channel, &samples);
+    return samples;
+}
+ReadonlySpan<float> AudioWorkletPipe::InputSlotReader::param_block(size_t param) const
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_param(m_pipe.m_pipe, const_cast<u8*>(m_slot), param, &samples);
+    return samples;
+}
+
+u64& AudioWorkletPipe::OutputSlotWriter::start_frame() { return *RustFFI::web_audio_worklet_slot_frame(m_slot); }
+void AudioWorkletPipe::OutputSlotWriter::set_processor_active(bool value) { RustFFI::web_audio_worklet_slot_set_flag(m_slot, value); }
+u32& AudioWorkletPipe::OutputSlotWriter::actual_channel_count(size_t index) { return *RustFFI::web_audio_worklet_slot_count(m_pipe.m_pipe, m_slot, true, index); }
+Span<float> AudioWorkletPipe::OutputSlotWriter::output_channel(size_t index, size_t channel)
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_channel(m_pipe.m_pipe, m_slot, true, index, channel, &samples);
+    return samples;
+}
+
+u64 AudioWorkletPipe::OutputSlotReader::start_frame() const { return *RustFFI::web_audio_worklet_slot_frame(const_cast<u8*>(m_slot)); }
+bool AudioWorkletPipe::OutputSlotReader::processor_active() const { return RustFFI::web_audio_worklet_slot_flag(m_slot); }
+u32 AudioWorkletPipe::OutputSlotReader::actual_channel_count(size_t index) const { return *RustFFI::web_audio_worklet_slot_count(m_pipe.m_pipe, const_cast<u8*>(m_slot), true, index); }
+ReadonlySpan<float> AudioWorkletPipe::OutputSlotReader::output_channel(size_t index, size_t channel) const
+{
+    Span<float> samples;
+    RustFFI::web_audio_worklet_slot_channel(m_pipe.m_pipe, const_cast<u8*>(m_slot), true, index, channel, &samples);
+    return samples;
 }
 
 }

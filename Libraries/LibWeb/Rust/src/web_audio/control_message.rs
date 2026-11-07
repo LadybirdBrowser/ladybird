@@ -91,7 +91,7 @@ pub struct FfiSharedCppObject {
 }
 
 impl FfiSharedCppObject {
-    unsafe fn acquire(self) -> Option<SharedCppObject> {
+    pub(crate) unsafe fn acquire(self) -> Option<SharedCppObject> {
         if self.pointer.is_null() {
             return None;
         }

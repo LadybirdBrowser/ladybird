@@ -53,7 +53,6 @@ class WEB_API RenderNode {
 
 public:
     AK_ALLOC_WITH_KMALLOC;
-    RenderNode(NodeID, size_t input_count, size_t output_count, size_t quantum_size, size_t output_channel_count = 1);
     virtual ~RenderNode();
     NodeID node_id() const;
     size_t input_count() const;
@@ -77,12 +76,7 @@ public:
         NonnullRefPtr<RenderAudioParam> destination;
         size_t output_index;
     };
-    virtual void process(RenderGraph&, RenderContext const&) { VERIFY_NOT_REACHED(); }
-    virtual void handle_message(NodeMessage const&) { }
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const&) { }
-    virtual bool take_ended_notification() { return false; }
     void* release_rust_node();
-    bool is_external() const { return m_external; }
 
 protected:
     explicit RenderNode(void*);
@@ -91,8 +85,6 @@ protected:
 private:
     void* m_node { nullptr };
     bool m_owned { true };
-    bool m_external { false };
-    bool m_transferred { false };
 };
 
 }

@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use super::control_message::{ControlMessage, ControlMessages};
 
@@ -30,13 +30,13 @@ impl ControlMessageQueue {
 }
 
 #[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_control_queue_create() -> *mut ControlMessageQueue {
-    Box::into_raw(Box::new(ControlMessageQueue::default()))
+pub(crate) extern "C" fn web_audio_control_queue_create() -> *const ControlMessageQueue {
+    Arc::into_raw(Arc::new(ControlMessageQueue::default()))
 }
 
 #[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_control_queue_destroy(queue: *mut ControlMessageQueue) {
-    drop(unsafe { Box::from_raw(queue) });
+pub(crate) unsafe extern "C" fn web_audio_control_queue_destroy(queue: *const ControlMessageQueue) {
+    drop(unsafe { Arc::from_raw(queue) });
 }
 
 #[unsafe(no_mangle)]

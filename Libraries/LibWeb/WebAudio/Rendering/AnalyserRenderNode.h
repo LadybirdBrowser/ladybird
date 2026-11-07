@@ -17,13 +17,6 @@ namespace Web::WebAudio::Rendering {
 class AnalyserRenderNode final : public RenderNode {
 public:
     AnalyserRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<Audio::SpscAudioFrameRing> time_domain_ring);
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-
-private:
-    NonnullRefPtr<Audio::SpscAudioFrameRing> m_time_domain_ring;
-    Vector<float> m_mono_scratch;
-    Vector<float> m_discard_scratch;
 };
 
 }

@@ -22,17 +22,6 @@ public:
         size_t channel_count, Bindings::ChannelCountMode, Bindings::ChannelInterpretation,
         NonnullRefPtr<AudioWorkletPipe>,
         Vector<NonnullRefPtr<RenderAudioParam>> params);
-
-    virtual ~AudioWorkletRenderNode() override;
-
-    virtual void process(RenderGraph&, RenderContext const&) override;
-    virtual void for_each_param(Function<void(RenderAudioParam&)> const&) override;
-
-private:
-    NonnullRefPtr<AudioWorkletPipe> m_pipe;
-    Vector<NonnullRefPtr<RenderAudioParam>> m_params;
-    Vector<float> m_param_scratch;
-    Vector<u32> m_output_channel_capacities;
 };
 
 }

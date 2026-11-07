@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,8 +8,14 @@
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
+#include <LibWeb/WebAudio/RustFFI.h>
 
 namespace Web::WebAudio::Rendering {
+
+struct RealtimeAudioRendererCallbacks : AtomicRefCounted<RealtimeAudioRendererCallbacks> {
+    Core::EventLoop& event_loop { Core::EventLoop::current() };
+    Function<void(Vector<NodeID> const&)> on_sources_ended;
+};
 
 NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
 {
@@ -16,27 +23,41 @@ NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr
 }
 
 RealtimeAudioRenderer::RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory> audio_output_factory)
-    : m_control_message_queue(move(control_message_queue))
-    , m_destination_node_id(destination_node_id)
-    , m_sample_rate(sample_rate)
-    , m_quantum_size(quantum_size)
-    , m_main_thread_event_loop(Core::EventLoop::current())
+    : m_callbacks(adopt_ref(*new RealtimeAudioRendererCallbacks))
     , m_audio_output_factory(move(audio_output_factory))
 {
+    RustFFI::RendererCallbacks callbacks {
+        { m_callbacks.ptr(), [](void* service) { static_cast<RealtimeAudioRendererCallbacks*>(service)->ref(); }, [](void* service) { static_cast<RealtimeAudioRendererCallbacks*>(service)->unref(); } },
+        [](void* service, void* task, void (*invoke)(void*)) {
+            static_cast<RealtimeAudioRendererCallbacks*>(service)->event_loop.deferred_invoke([task, invoke] { invoke(task); });
+        },
+        [](void*) { },
+        [](void*, double) { },
+        [](void* service, ReadonlySpan<u64> ids) {
+            auto& callbacks = *static_cast<RealtimeAudioRendererCallbacks*>(service);
+            if (!callbacks.on_sources_ended)
+                return;
+            Vector<NodeID> nodes;
+            for (auto id : ids)
+                nodes.append(NodeID { id });
+            callbacks.on_sources_ended(nodes);
+        },
+    };
+    m_renderer = RustFFI::web_audio_realtime_renderer_create(control_message_queue->rust_queue(), destination_node_id.value(), sample_rate, quantum_size, callbacks);
 }
 
-RealtimeAudioRenderer::~RealtimeAudioRenderer() = default;
+RealtimeAudioRenderer::~RealtimeAudioRenderer() { RustFFI::web_audio_realtime_renderer_destroy(m_renderer); }
 
 // The callback is set on the control thread before rendering starts and is always invoked on the control thread. It
 // is cleared when the context closes to break the reference cycle with the context.
 void RealtimeAudioRenderer::set_on_sources_ended(Function<void(Vector<NodeID> const&)> on_sources_ended)
 {
-    m_on_sources_ended = move(on_sources_ended);
+    m_callbacks->on_sources_ended = move(on_sources_ended);
 }
 
 void RealtimeAudioRenderer::clear_callbacks()
 {
-    m_on_sources_ended = nullptr;
+    m_callbacks->on_sources_ended = nullptr;
 }
 
 void RealtimeAudioRenderer::start_rendering()
@@ -54,145 +75,64 @@ void RealtimeAudioRenderer::start_rendering()
 void RealtimeAudioRenderer::prepare_to_start_rendering()
 {
     VERIFY(!m_playback_stream);
-    m_graph.set_destination(m_destination_node_id);
+    RustFFI::web_audio_realtime_renderer_prepare(m_renderer);
 }
 
 void RealtimeAudioRenderer::set_playback_stream(NonnullRefPtr<Audio::PlaybackStream> stream)
 {
-    if (m_shutting_down.load()) {
+    if (RustFFI::web_audio_realtime_renderer_is_shutting_down(m_renderer)) {
         stream->discard_buffer_and_suspend()->when_rejected([](auto&&) { });
         return;
     }
     auto specification = stream->sample_specification();
-    m_device_channel_count = specification.channel_count();
-    m_device_sample_rate = specification.sample_rate();
-    m_device_bus = make<AudioBus>(specification.channel_count(), m_quantum_size);
-
-    // When the device sample rate differs from the context's, the rendered audio is resampled by advancing
-    // through the rendered frames at this rate.
-    m_playhead_step = m_sample_rate / static_cast<double>(specification.sample_rate());
+    RustFFI::web_audio_realtime_renderer_configure(m_renderer, specification.channel_count(), specification.sample_rate());
     m_playback_stream = stream;
     // The device went away with the process behind it: a new stream picks the graph up where it stands.
     stream->on_output_lost = [self = NonnullRefPtr(*this)] {
-        if (self->m_shutting_down.load())
+        if (RustFFI::web_audio_realtime_renderer_is_shutting_down(self->m_renderer))
             return;
         self->m_playback_stream = nullptr;
         self->start_rendering();
     };
 
-    if (!m_suspended.load())
+    if (!RustFFI::web_audio_realtime_renderer_is_suspended(m_renderer))
         stream->resume()->when_rejected([](auto&&) { });
 }
 
 void RealtimeAudioRenderer::resume()
 {
-    m_suspended.store(false);
+    RustFFI::web_audio_realtime_renderer_set_suspended(m_renderer, false);
     if (m_playback_stream)
         m_playback_stream->resume()->when_rejected([](auto&&) { });
 }
 
 void RealtimeAudioRenderer::suspend()
 {
-    m_suspended.store(true);
+    RustFFI::web_audio_realtime_renderer_set_suspended(m_renderer, true);
     if (m_playback_stream)
         m_playback_stream->drain_buffer_and_suspend()->when_rejected([](auto&&) { });
 }
 
 void RealtimeAudioRenderer::stop()
 {
-    m_shutting_down.store(true);
+    RustFFI::web_audio_realtime_renderer_stop(m_renderer);
     if (m_playback_stream) {
         m_playback_stream->discard_buffer_and_suspend()->when_rejected([](auto&&) { });
         m_playback_stream = nullptr;
     }
 }
 
-// The amount of audio the output device has played so far, in seconds.
 double RealtimeAudioRenderer::output_time_played() const
 {
-    auto maybe_anchor = m_output_anchor.read();
-    if (!maybe_anchor.has_value() || m_device_sample_rate == 0)
-        return 0;
-    auto const& anchor = maybe_anchor.value();
-    auto seconds_since_buffer_started = max<i64>(0, MonotonicTime::now().nanoseconds() - anchor.plays_at_nanoseconds) / 1e9;
-    auto buffer_start_seconds = anchor.first_frame_index / static_cast<double>(m_device_sample_rate);
-    auto buffer_end_seconds = anchor.end_frame_index / static_cast<double>(m_device_sample_rate);
-    return min(buffer_start_seconds + seconds_since_buffer_started, buffer_end_seconds);
+    return RustFFI::web_audio_realtime_renderer_output_time(m_renderer, MonotonicTime::now().nanoseconds());
 }
 
 ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer, MonotonicTime buffer_starts_playing_at)
 {
-    if (m_shutting_down.load() || m_device_channel_count == 0)
-        return {};
-
-    auto channel_count = m_device_channel_count;
-    auto frames_requested = buffer.size() / channel_count;
-    m_output_anchor.store({ .first_frame_index = m_frames_output, .end_frame_index = m_frames_output + frames_requested, .plays_at_nanoseconds = buffer_starts_playing_at.nanoseconds() });
-    m_frames_output += frames_requested;
-    for (size_t frame = 0; frame < frames_requested; ++frame) {
-        auto first_frame = static_cast<size_t>(m_playhead);
-        auto fraction = static_cast<float>(m_playhead - first_frame);
-
-        // Interpolation between adjacent rendered frames requires one frame of lookahead.
-        while (m_pending_samples.size() / channel_count < first_frame + 2)
-            render_quantum_into_pending_samples();
-
-        for (size_t channel = 0; channel < channel_count; ++channel) {
-            auto sample = m_pending_samples[first_frame * channel_count + channel];
-            if (fraction != 0.f) {
-                auto next_sample = m_pending_samples[(first_frame + 1) * channel_count + channel];
-                sample += fraction * (next_sample - sample);
-            }
-            buffer[frame * channel_count + channel] = sample;
-        }
-        m_playhead += m_playhead_step;
-    }
-
-    // Trim rendered frames preceding the playhead. If resampling advances the playhead beyond the rendered frames,
-    // carry the remaining offset into the next callback.
-    auto rendered_frames = m_pending_samples.size() / channel_count;
-    auto consumed_frames = min(static_cast<size_t>(m_playhead), rendered_frames);
-    if (consumed_frames > 0) {
-        m_pending_samples.remove(0, consumed_frames * channel_count);
-        m_playhead -= consumed_frames;
-    }
-    return buffer;
+    auto count = RustFFI::web_audio_realtime_renderer_fill(m_renderer, buffer, buffer_starts_playing_at.nanoseconds());
+    return buffer.trim(count);
 }
 
-void RealtimeAudioRenderer::render_quantum_into_pending_samples()
-{
-    m_graph.apply_control_messages(m_control_message_queue->drain());
-
-    RenderContext context {
-        .sample_rate = m_sample_rate,
-        .quantum_size = m_quantum_size,
-        .quantum_start_frame = m_frames_rendered.load(),
-    };
-    m_graph.render_quantum(context);
-
-    // Mix the destination's output to the stream's channel layout and append it as interleaved samples.
-    if (m_device_bus) {
-        auto& device_bus = *m_device_bus;
-        device_bus.zero();
-        if (auto destination_output = m_graph.destination_output(); destination_output.has_value())
-            device_bus.sum_from(*destination_output, Bindings::ChannelInterpretation::Speakers);
-
-        auto sample_offset = m_pending_samples.size();
-        m_pending_samples.resize(sample_offset + m_quantum_size * m_device_channel_count);
-        for (size_t frame = 0; frame < m_quantum_size; ++frame) {
-            for (size_t channel = 0; channel < m_device_channel_count; ++channel)
-                m_pending_samples[sample_offset + frame * m_device_channel_count + channel] = device_bus.channel(channel)[frame];
-        }
-    }
-
-    m_frames_rendered.fetch_add(m_quantum_size);
-
-    if (auto ended_nodes = m_graph.take_ended_nodes(); !ended_nodes.is_empty()) {
-        m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), ended_nodes = move(ended_nodes)] {
-            if (self->m_on_sources_ended)
-                self->m_on_sources_ended(ended_nodes);
-        });
-    }
-}
+u64 RealtimeAudioRenderer::frames_rendered() const { return RustFFI::web_audio_realtime_renderer_frames_rendered(m_renderer); }
 
 }

@@ -459,72 +459,6 @@ impl NodeHandle {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct ExternalNodeCallbacks {
-    pub process: unsafe extern "C" fn(*mut c_void, *const super::render_graph::RenderGraph, *const RenderContext),
-    pub set_ring: unsafe extern "C" fn(*mut c_void, *mut c_void, u32),
-    pub for_each_param:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, unsafe extern "C" fn(*mut c_void, *const RenderAudioParam)),
-    pub ended: unsafe extern "C" fn(*mut c_void) -> bool,
-    pub destroy: unsafe extern "C" fn(*mut c_void),
-}
-
-pub struct ExternalRenderNode {
-    pub data: RenderNodeData,
-    pub cpp_node: *mut c_void,
-    pub callbacks: ExternalNodeCallbacks,
-}
-
-// SAFETY: The C++ node is transferred to the rendering thread together with its Rust base data.
-unsafe impl Send for ExternalRenderNode {}
-impl Drop for ExternalRenderNode {
-    fn drop(&mut self) {
-        unsafe {
-            (self.callbacks.destroy)(self.cpp_node);
-        }
-    }
-}
-
-impl RenderNode for ExternalRenderNode {
-    unsafe fn take_ended_notification(&self) -> bool {
-        unsafe { (self.callbacks.ended)(self.cpp_node) }
-    }
-
-    fn data(&self) -> &RenderNodeData {
-        &self.data
-    }
-
-    unsafe fn process(&self, graph: &super::render_graph::RenderGraph, context: &RenderContext) {
-        unsafe {
-            (self.callbacks.process)(self.cpp_node, graph, context);
-        }
-    }
-
-    unsafe fn handle_message(&self, message: &super::node_message::NodeMessage) {
-        if let super::node_message::NodeMessage::SetMediaStreamSourceRing(message) = message {
-            unsafe {
-                (self.callbacks.set_ring)(
-                    self.cpp_node,
-                    message.ring.as_ref().map_or(std::ptr::null_mut(), |ring| ring.pointer),
-                    message.channel_count,
-                );
-            }
-        }
-    }
-
-    fn for_each_param(&self, callback: &mut dyn FnMut(&RenderAudioParam)) {
-        unsafe extern "C" fn call(context: *mut c_void, param: *const RenderAudioParam) {
-            let callback = unsafe { &mut *context.cast::<&mut dyn FnMut(&RenderAudioParam)>() };
-            callback(unsafe { &*param });
-        }
-        let mut callback = callback;
-        unsafe {
-            (self.callbacks.for_each_param)(self.cpp_node, (&raw mut callback).cast(), call);
-        }
-    }
-}
-
 pub trait OutputGraph {
     fn pull_output(&self, source: u64, output_index: usize, context: &RenderContext) -> *const AudioBus;
 }
@@ -549,25 +483,6 @@ impl RenderAudioParam {
     pub(crate) unsafe fn add_input(&self, source: u64, output_index: usize) {
         unsafe { &mut (*self.state.get()).inputs }.push(Input { source, output_index });
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) extern "C" fn web_audio_node_create_external(
-    node_id: u64,
-    input_count: usize,
-    output_count: usize,
-    quantum_size: usize,
-    output_channel_count: usize,
-    cpp_node: *mut c_void,
-    callbacks: ExternalNodeCallbacks,
-) -> *mut NodeHandle {
-    Box::into_raw(Box::new(NodeHandle {
-        node: Box::new(ExternalRenderNode {
-            data: RenderNodeData::new(node_id, input_count, output_count, quantum_size, output_channel_count),
-            cpp_node,
-            callbacks,
-        }),
-    }))
 }
 
 #[unsafe(no_mangle)]
