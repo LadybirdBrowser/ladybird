@@ -250,7 +250,7 @@ impl EcmascriptFunctionObject {
         shared_data.note_closure_created();
         let function = if private_environment.is_some() || home_object.is_some() || shared_data.is_class_constructor() {
             let function = allocate_object(vm, |defer_gc| EcmascriptFunctionObjectWithRareData {
-                base: Self::new(defer_gc, vm, shared_data, parent_environment, prototype),
+                base: Self::new(defer_gc, vm, realm, shared_data, parent_environment, prototype),
                 private_environment: NullableMember::new(private_environment),
                 home_object: NullableMember::new(home_object),
                 storage: EcmascriptFunctionObjectStorage::default(),
@@ -259,7 +259,7 @@ impl EcmascriptFunctionObject {
             function.upcast()
         } else {
             allocate_object(vm, |defer_gc| {
-                Self::new(defer_gc, vm, shared_data, parent_environment, prototype)
+                Self::new(defer_gc, vm, realm, shared_data, parent_environment, prototype)
             })
         };
         function.initialize(vm, realm);
@@ -299,32 +299,28 @@ impl EcmascriptFunctionObject {
     fn new(
         _: &DeferGc<'_>,
         vm: &Vm,
+        realm: Gc<Realm>,
         shared_data: Gc<SharedFunctionInstanceData>,
         parent_environment: Option<Gc<Environment>>,
         prototype: Gc<Object>,
     ) -> Self {
-        let base =
-            FunctionObject::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
-        base.set_is_ecmascript_function_object();
-        base.class_bits.set(ecmascript_function_flags::IS_ECMASCRIPT_FUNCTION);
-
         // OPTIMIZATION: Start from a premade shape: normal and async functions create their properties lazily, and
         //               the other kinds already have theirs in spec order. Arrow functions use the same shape as other
         //               functions of their kind, but never get a lazy prototype.
-        let realm = base.shape().realm();
-        let function_shape = match shared_data.kind() {
+        let mut shape = match shared_data.kind() {
             FunctionKind::Normal => realm.normal_function_shape(),
             FunctionKind::Generator => realm.generator_function_shape(),
             FunctionKind::Async => realm.async_function_shape(),
             FunctionKind::AsyncGenerator => realm.async_generator_function_shape(),
         };
-        // NB: unsafe_set_shape(); the named storage gets room for the shape's properties when the function is allocated.
-        if function_shape.prototype() == Some(prototype) {
-            base.shape.set(function_shape);
-        } else {
-            base.shape
-                .set(function_shape.create_prototype_transition(vm, Some(prototype)));
+        // NB: The function's [[Realm]] is the realm of its shape, so the shape comes from the function's realm even when
+        //     the prototype belongs to another one.
+        if shape.prototype() != Some(prototype) {
+            shape = shape.create_prototype_transition(vm, Some(prototype));
         }
+        let base = FunctionObject::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
+        base.set_is_ecmascript_function_object();
+        base.class_bits.set(ecmascript_function_flags::IS_ECMASCRIPT_FUNCTION);
 
         let function = Self { base };
         function.fields().shared_data.set(Some(shared_data));
