@@ -301,13 +301,14 @@ u64 IncrementallyPopulatedStream::select_request_position_while_locked(u64 posit
             continue;
         if (now >= other_cursor.m_active_timeout && !other_cursor.m_blocked)
             continue;
-        if (other_cursor.m_position < request_position) {
-            auto* other_cursor_chunk = m_chunks.find_largest_not_above(other_cursor.m_position);
-            if (other_cursor_chunk && other_cursor_chunk->end() >= other_cursor.m_position) {
+        u64 other_position = other_cursor.m_position.load();
+        if (other_position < request_position) {
+            auto* other_cursor_chunk = m_chunks.find_largest_not_above(other_position);
+            if (other_cursor_chunk && other_cursor_chunk->end() >= other_position) {
                 request_position = other_cursor_chunk->end();
                 continue;
             }
-            request_position = other_cursor.m_position;
+            request_position = other_position;
         }
     }
     return request_position;
@@ -504,7 +505,7 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, AK::
     if (position.has_overflow() || position.value() < 0)
         return DecoderError::corrupted("Seek target lies outside the stream"sv);
 
-    m_position = static_cast<size_t>(position.value());
+    m_position.store(static_cast<size_t>(position.value()));
     return {};
 }
 

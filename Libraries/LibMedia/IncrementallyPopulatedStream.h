@@ -84,7 +84,9 @@ public:
 
         NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
         bool m_is_blocking { true };
-        size_t m_position { 0 };
+        // NB: Other cursors read this under the lock of the stream, but its own thread moves it without the lock. It only
+        //     steers where the next request starts, so it needs no ordering.
+        Atomic<size_t, AK::memory_order_relaxed> m_position { 0 };
         // Set from any thread under the stream's mutex, which orders it against the blocked read; only the reading
         // thread clears it, between its reads.
         Atomic<bool> m_aborted { false };
