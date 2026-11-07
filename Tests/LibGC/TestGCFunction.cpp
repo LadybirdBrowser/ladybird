@@ -8,6 +8,7 @@
 #include <AK/RefCounted.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/CompressedPointer.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
@@ -86,6 +87,39 @@ NEVER_INLINE GC::Weak<GC::Function<void()>> make_unrooted_lambda_function_owning
     return function.ptr();
 }
 
+NEVER_INLINE Holders make_function_capturing_cell(GC::Heap& heap)
+{
+    auto cell = heap.allocate<TestCell>();
+    cell->value = 42;
+    auto function = GC::create_function(heap, GC::captures(*cell), [](TestCell& cell) { return static_cast<int>(cell.value); });
+    return { GC::make_root(function), cell.ptr() };
+}
+
+NEVER_INLINE Holders make_function_capturing_cell_address_as_integers(GC::Heap& heap)
+{
+    auto cell = heap.allocate<TestCell>();
+    auto address = bit_cast<FlatPtr>(cell.ptr());
+    auto compressed = GC::compress(cell.ptr());
+    auto function = GC::create_function(heap, GC::captures(address, compressed), [](FlatPtr address, u32 compressed) {
+        return static_cast<int>(address != 0) + static_cast<int>(compressed != 0);
+    });
+    return { GC::make_root(function), cell.ptr() };
+}
+
+NEVER_INLINE GC::Weak<CellWithFunction> make_cycle_through_captured_root(GC::Heap& heap)
+{
+    auto cell = heap.allocate<CellWithFunction>();
+    auto root = GC::make_root(cell);
+    cell->function = GC::create_function(heap, GC::captures(root), [](GC::Ptr<CellWithFunction>&) { });
+    return cell.ptr();
+}
+
+NEVER_INLINE GC::Weak<GC::Function<void()>> make_unrooted_function_owning(GC::Heap& heap, bool& destroyed)
+{
+    auto function = GC::create_function(heap, GC::captures(make<DestructionFlag>(destroyed)), [](NonnullOwnPtr<DestructionFlag>&) { });
+    return function.ptr();
+}
+
 }
 
 TEST_CASE(lambda_captures_are_scanned_conservatively)
@@ -131,4 +165,153 @@ TEST_CASE(function_stays_alive_while_it_runs)
 
     holder->function->function()();
     EXPECT(state->survived_collection);
+}
+
+TEST_CASE(captured_cell_is_traced)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    auto holders = make_function_capturing_cell(heap);
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT(holders.cell);
+    EXPECT_EQ(holders.function->function()(), 42);
+}
+
+TEST_CASE(captured_integers_are_not_cell_pointers)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    auto holders = make_function_capturing_cell_address_as_integers(heap);
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT(!holders.cell);
+    EXPECT_EQ(holders.function->function()(), 2);
+}
+
+TEST_CASE(captures_take_arguments_after_them_and_keep_state)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+
+    auto function = GC::create_function(heap, GC::captures(0), [](int& calls, int argument) {
+        ++calls;
+        return calls * 100 + argument;
+    });
+
+    EXPECT_EQ(function->function()(1), 101);
+    EXPECT_EQ(function->function()(2), 202);
+}
+
+TEST_CASE(function_without_captures)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+
+    auto function = GC::create_function(heap, [](int argument) { return argument * 2; });
+    EXPECT_EQ(function->function()(21), 42);
+}
+
+TEST_CASE(captures_are_destroyed_with_the_function)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    bool destroyed = false;
+    auto function = make_unrooted_function_owning(heap, destroyed);
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT(!function);
+    EXPECT(destroyed);
+}
+
+TEST_CASE(captures_taken_as_auto_with_a_named_function_type)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+
+    auto function = GC::create_function<int(int)>(heap, GC::captures(1, 2), [](auto& first, auto& second, int argument) {
+        return first + second + argument;
+    });
+    EXPECT_EQ(function->function()(3), 6);
+}
+
+TEST_CASE(captures_taken_as_auto_with_a_deduced_function_type)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    auto cell = GC::make_root(heap.allocate<TestCell>());
+    cell->value = 5;
+
+    auto function = GC::create_function(heap, GC::captures(*cell, 10), [](auto& cell, auto& offset, int argument) {
+        return static_cast<int>(cell.value) + offset + argument;
+    });
+    static_assert(IsSame<decltype(function), GC::Ref<GC::Function<int(int)>>>);
+    EXPECT_EQ(function->function()(1), 16);
+}
+
+TEST_CASE(captured_root_does_not_keep_a_cycle_alive)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    auto cell = make_cycle_through_captured_root(heap);
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT(!cell);
+}
+
+TEST_CASE(captured_root_vector_is_traced_as_a_vector)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::Yes);
+    heap.set_incremental_sweep_enabled(false);
+
+    GC::RootVector<GC::Ref<TestCell>> cells;
+    cells.append(heap.allocate<TestCell>());
+    cells[0]->value = 3;
+    auto function = GC::make_root(GC::create_function(heap, GC::captures(move(cells)), [](Vector<GC::Ref<TestCell>>& cells) {
+        return static_cast<int>(cells[0]->value);
+    }));
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+
+    EXPECT_EQ(function->function()(), 3);
+}
+
+TEST_CASE(function_with_captures_stays_alive_while_it_runs)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::No);
+    heap.set_incremental_sweep_enabled(false);
+
+    auto state = adopt_ref(*new RunState);
+    auto holder = GC::make_root(heap.allocate<CellWithFunction>());
+    holder->function = GC::create_function(heap, GC::captures(*holder, state), [](CellWithFunction& holder, NonnullRefPtr<RunState>& state) {
+        holder.function = nullptr;
+        holder.heap().collect_garbage();
+        state->survived_collection = static_cast<bool>(state->function);
+    });
+    state->function = holder->function;
+
+    holder->function->function()();
+    EXPECT(state->survived_collection);
+}
+
+TEST_CASE(captures_too_large_for_their_entry_keep_their_address_as_the_table_grows)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeThreadDefault::Yes);
+
+    Array<u64, 8> values { 1, 2, 3, 4, 5, 6, 7, 8 };
+    auto function = GC::make_root(GC::create_function(heap, GC::captures(values, 0), [](Array<u64, 8>& values, int& padding) {
+        auto const* before = values.data();
+        for (size_t i = 0; i < 1000; ++i)
+            (void)GC::create_function(GC::Heap::the(), [] { });
+        VERIFY(values.data() == before);
+        u64 sum = 0;
+        for (auto value : values)
+            sum += value;
+        return static_cast<int>(sum) + padding;
+    }));
+    EXPECT_EQ(function->function()(), 36);
 }

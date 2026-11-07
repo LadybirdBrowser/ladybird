@@ -7,17 +7,291 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Function.h>
+#include <AK/Optional.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
+#include <AK/Variant.h>
 #include <LibGC/Cell.h>
 #include <LibGC/FunctionTable.h>
 #include <LibGC/Heap.h>
+#include <LibGC/NanBoxedValue.h>
+#include <LibGC/Ptr.h>
 #include <typeinfo>
 
 namespace GC {
 
+template<typename T>
+class Weak;
+
+// A capture whose type the GC does not trace has to hold no cell edges at all. Non-GC objects keep the cells they use in
+// GC::Root, so owning and counted pointers to them hold no edges of the function either. A raw pointer is never one of
+// these, as it may point into a cell, such as at a mixin of one.
+template<typename T>
+struct IsUntracedCapture : FalseType { };
+
+template<typename T>
+requires(IsArithmetic<T> || IsEnum<T>)
+struct IsUntracedCapture<T> : TrueType { };
+
+template<>
+struct IsUntracedCapture<Empty> : TrueType { };
+
+template<>
+struct IsUntracedCapture<AK::String> : TrueType { };
+
+template<>
+struct IsUntracedCapture<AK::Utf16String> : TrueType { };
+
+template<>
+struct IsUntracedCapture<AK::FlyString> : TrueType { };
+
+template<>
+struct IsUntracedCapture<AK::Utf16FlyString> : TrueType { };
+
+template<>
+struct IsUntracedCapture<AK::ByteString> : TrueType { };
+
+template<size_t inline_capacity>
+struct IsUntracedCapture<AK::Detail::ByteBuffer<inline_capacity>> : TrueType { };
+
+template<typename T>
+struct IsUntracedCapture<Weak<T>> : TrueType { };
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsUntracedCapture<AK::RefPtr<T>> : TrueType { };
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsUntracedCapture<AK::NonnullRefPtr<T>> : TrueType { };
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsUntracedCapture<AK::OwnPtr<T>> : TrueType { };
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsUntracedCapture<AK::NonnullOwnPtr<T>> : TrueType { };
+
+template<typename T>
+struct IsUntracedCapture<Optional<T>> : IsUntracedCapture<T> { };
+
+template<typename T, size_t inline_capacity>
+struct IsUntracedCapture<Vector<T, inline_capacity>> : IsUntracedCapture<T> { };
+
+template<typename T, size_t size>
+struct IsUntracedCapture<Array<T, size>> : IsUntracedCapture<T> { };
+
+template<typename... Ts>
+struct IsUntracedCapture<Variant<Ts...>> {
+    static constexpr bool value = (IsUntracedCapture<Ts>::value && ...);
+};
+
+template<typename T>
+struct IsTracedCapture;
+
+// Every part of a capture is either traced or holds no cell edges, so nothing a function captures can keep a cell
+// that the GC does not see.
+template<typename T>
+inline constexpr bool IsCapturable = IsUntracedCapture<T>::value || IsTracedCapture<T>::value;
+
+template<typename T>
+struct IsTracedCapture {
+    static constexpr bool value = IsBaseOf<NanBoxedValue, T> || (!IsCellLike<T> && requires(T& value, Cell::Visitor& visitor) { value.visit_edges(visitor); });
+};
+
+template<typename T>
+struct IsTracedCapture<Ref<T>> : TrueType { };
+
+template<typename T>
+struct IsTracedCapture<Ptr<T>> : TrueType { };
+
+template<typename T>
+struct IsTracedCapture<Optional<T>> {
+    static constexpr bool value = IsCapturable<T>;
+};
+
+template<typename T, size_t inline_capacity>
+struct IsTracedCapture<Vector<T, inline_capacity>> {
+    static constexpr bool value = IsCapturable<T>;
+};
+
+template<typename... Ts>
+struct IsTracedCapture<Variant<Ts...>> {
+    static constexpr bool value = (IsCapturable<Ts> && ...);
+};
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsTracedCapture<AK::RefPtr<T>> : IsTracedCapture<T> { };
+
+template<typename T>
+requires(!IsCellLike<RemoveCV<T>>)
+struct IsTracedCapture<AK::NonnullRefPtr<T>> : IsTracedCapture<T> { };
+
 namespace Detail {
+
+// A cell captured by reference is held as a Ref, and handed to the callable as a reference again.
+template<typename T>
+struct CapturedCellReference {
+    Ref<T> cell;
+
+    T& get() { return *cell; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+};
+
+// A cell captured by pointer is held as a Ptr, and handed to the callable as a pointer again.
+template<typename T>
+struct CapturedCellPointer {
+    Ptr<T> cell;
+
+    T* get() { return cell.ptr(); }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+};
+
+template<typename T>
+struct CapturedValue {
+    static_assert(IsCapturable<T>, "A GC::Function capture must be traced, or hold no cell edges");
+
+    T value;
+
+    T& get() { return value; }
+    void visit_edges(Cell::Visitor& visitor) const
+    {
+        if constexpr (IsVisitable<T>::value)
+            visitor.visit(value);
+    }
+};
+
+// A root that a function captures stops being a root, and is traced through the function instead. A function holding a
+// root would keep what the root names alive for as long as the function lives, even through a cycle back to itself.
+template<typename T>
+struct CapturedRoot {
+    CapturedRoot(Root<T> const& root)
+        : cell(root.ptr())
+    {
+    }
+
+    Ptr<T> cell;
+
+    Ptr<T>& get() { return cell; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(cell); }
+};
+
+template<typename T, size_t inline_capacity>
+struct CapturedRootVector {
+    static_assert(IsCapturable<T>, "A GC::Function capture must be traced, or hold no cell edges");
+
+    CapturedRootVector(RootVector<T, inline_capacity>&& vector)
+        : elements(move(static_cast<Vector<T, inline_capacity>&>(vector)))
+    {
+    }
+
+    CapturedRootVector(RootVector<T, inline_capacity> const& vector)
+        : elements(vector)
+    {
+    }
+
+    Vector<T, inline_capacity> elements;
+
+    Vector<T, inline_capacity>& get() { return elements; }
+    void visit_edges(Cell::Visitor& visitor) const { visitor.visit(elements); }
+};
+
+template<typename T>
+struct CapturedRootStorage {
+    using Type = void;
+};
+
+template<typename T>
+struct CapturedRootStorage<Root<T>> {
+    using Type = CapturedRoot<T>;
+};
+
+template<typename T, size_t inline_capacity>
+struct CapturedRootStorage<RootVector<T, inline_capacity>> {
+    using Type = CapturedRootVector<T, inline_capacity>;
+};
+
+template<typename T>
+struct CaptureStorage {
+    using Type = CapturedValue<RemoveCVReference<T>>;
+};
+
+template<typename T>
+requires(!IsSame<typename CapturedRootStorage<RemoveCVReference<T>>::Type, void>)
+struct CaptureStorage<T> {
+    using Type = typename CapturedRootStorage<RemoveCVReference<T>>::Type;
+};
+
+template<typename T>
+requires(IsLvalueReference<T> && IsCellLike<RemoveCVReference<T>>)
+struct CaptureStorage<T> {
+    using Type = CapturedCellReference<RemoveReference<T>>;
+};
+
+template<typename T>
+requires(IsPointer<RemoveCVReference<T>> && IsCellLike<RemoveCV<RemovePointer<RemoveCVReference<T>>>>)
+struct CaptureStorage<T> {
+    using Type = CapturedCellPointer<RemovePointer<RemoveCVReference<T>>>;
+};
+
+template<size_t index, typename T>
+struct CaptureSlot {
+    T capture;
+};
+
+template<typename Indices, typename... Captures>
+struct CaptureBox;
+
+// The captures of a function, outside the GC heap.
+template<size_t... indices, typename... Captures>
+struct CaptureBox<IndexSequence<indices...>, Captures...> : CaptureSlot<indices, Captures>... {
+    template<typename... Values>
+    explicit CaptureBox(Values&&... values)
+        : CaptureSlot<indices, Captures> { Captures { forward<Values>(values) } }...
+    {
+    }
+
+    template<typename Callable, typename R, typename... Args>
+    R invoke(Args&&... args)
+    {
+        return Callable {}(static_cast<CaptureSlot<indices, Captures>&>(*this).capture.get()..., forward<Args>(args)...);
+    }
+
+    void visit_edges(Cell::Visitor& visitor) const
+    {
+        (static_cast<CaptureSlot<indices, Captures> const&>(*this).capture.visit_edges(visitor), ...);
+    }
+};
+
+template<size_t count, typename T>
+struct DropParameters;
+
+template<typename R, typename... Args>
+struct DropParameters<0, R(Args...)> {
+    using Type = R(Args...);
+};
+
+template<size_t count, typename R, typename First, typename... Rest>
+requires(count > 0)
+struct DropParameters<count, R(First, Rest...)> {
+    using Type = typename DropParameters<count - 1, R(Rest...)>::Type;
+};
+
+// The type of a callable when it is given its captures, which also covers a callable that takes them as auto&.
+template<typename Callable, typename... Captures>
+struct CallableTypeWithCaptures {
+    using Type = EquivalentFunctionType<Callable>;
+};
+
+template<typename Callable, typename... Captures>
+requires(sizeof...(Captures) > 0 && requires { &Callable::template operator()<RemoveReference<decltype(declval<Captures&>().get())>...>; })
+struct CallableTypeWithCaptures<Callable, Captures...> {
+    using Type = EquivalentFunctionType<decltype(&Callable::template operator()<RemoveReference<decltype(declval<Captures&>().get())>...>)>;
+};
 
 // NB: A function is made in one library and called from another, so its signature is the hash of the mangled name of
 //     its type, which every compiler and library spells the same. How a compiler spells the type differs: GCC, for one,
@@ -33,6 +307,39 @@ inline u64 const function_signature = [] {
     return hash;
 }();
 
+template<typename Callable>
+concept CapturesNothing = __is_empty(Callable) && IsConstructible<Callable>;
+
+template<typename Indices, typename... Values>
+struct CaptureReferences;
+
+template<size_t... indices, typename... Values>
+struct CaptureReferences<IndexSequence<indices...>, Values...> : CaptureSlot<indices, Values&&>... {
+    explicit CaptureReferences(Values&&... values)
+        : CaptureSlot<indices, Values&&> { forward<Values>(values) }...
+    {
+    }
+
+    template<typename Box>
+    void make_box(void* storage)
+    {
+        new (storage) Box(static_cast<Values&&>(static_cast<CaptureSlot<indices, Values&&>&>(*this).capture)...);
+    }
+};
+
+}
+
+// What a function captures, as named by GC::captures(). It refers to the values until the function moves or copies them
+// into its box, so it lives only as long as the expression that makes the function.
+template<typename... Values>
+struct CaptureList : Detail::CaptureReferences<MakeIndexSequence<sizeof...(Values)>, Values...> {
+    using Detail::CaptureReferences<MakeIndexSequence<sizeof...(Values)>, Values...>::CaptureReferences;
+};
+
+template<typename... Values>
+CaptureList<Values...> captures(Values&&... values)
+{
+    return CaptureList<Values...> { forward<Values>(values)... };
 }
 
 template<typename R, typename... Args>
@@ -59,6 +366,24 @@ public:
         auto cell = heap.allocate<Function>();
         auto allocation = heap.function_table().allocate(lambda_operations, sizeof(Lambda));
         new (allocation.box) Lambda(move(function));
+        cell->m_handle = allocation.handle;
+        return cell;
+    }
+
+    template<typename Callable, typename... Values>
+    static Ref<Function> create(Heap& heap, CaptureList<Values...>&& captures, Callable&&)
+    {
+        static_assert(Detail::CapturesNothing<RemoveCVReference<Callable>>, "A GC::Function callable takes what it uses from its captures, and captures nothing itself");
+        using Callback = RemoveCVReference<Callable>;
+        using Box = Detail::CaptureBox<MakeIndexSequence<sizeof...(Values)>, typename Detail::CaptureStorage<Values>::Type...>;
+
+        static_assert(alignof(Box) <= FunctionTable::box_alignment);
+
+        auto cell = heap.allocate<Function>();
+        constexpr size_t box_size = sizeof...(Values) > 0 ? sizeof(Box) : 0;
+        auto allocation = heap.function_table().allocate(PreciseOperations<Callback, Box>::operations, box_size);
+        if constexpr (box_size > 0)
+            captures.template make_box<Box>(allocation.box);
         cell->m_handle = allocation.handle;
         return cell;
     }
@@ -112,13 +437,56 @@ private:
         },
     };
 
+    template<typename Callback, typename Box>
+    struct PreciseOperations {
+        static constexpr Operations operations {
+            {
+                .signature = &Detail::function_signature<R(Args...)>,
+                .visit_edges = [](void* box, Visitor& visitor) {
+                    if (box)
+                        static_cast<Box const*>(box)->visit_edges(visitor); },
+                .destroy = [](void* box) {
+                    if (box)
+                        static_cast<Box*>(box)->~Box(); },
+            },
+            [](void* box, Args... args) -> R {
+                if constexpr (IsSame<Box, Detail::CaptureBox<IndexSequence<>>>)
+                    return Callback {}(forward<Args>(args)...);
+                else
+                    return static_cast<Box*>(box)->template invoke<Callback, R>(forward<Args>(args)...);
+            },
+        };
+    };
+
     FunctionTableHandle m_handle;
 };
+
+// Makes a function of a callable that takes everything it uses from its captures. The values named by GC::captures()
+// come first among the callable's parameters, followed by the function's own.
+// NB: No template argument can be given for the leading pack, so a function type given explicitly selects the overload
+//     below instead of being taken as the type of the first capture.
+template<int&... ExplicitArgumentBarrier, typename... Values, typename Callable, typename T = typename Detail::DropParameters<sizeof...(Values), typename Detail::CallableTypeWithCaptures<RemoveCVReference<Callable>, typename Detail::CaptureStorage<Values>::Type...>::Type>::Type>
+static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, ESCAPING Callable&& callable)
+{
+    return Function<T>::create(heap, move(captures), forward<Callable>(callable));
+}
+
+// The same, for a callable whose type does not name the function type, such as one that takes its own parameters as auto.
+template<typename T, typename... Values, typename Callable>
+requires(IsFunction<T>)
+static Ref<Function<T>> create_function(Heap& heap, CaptureList<Values...>&& captures, ESCAPING Callable&& callable)
+{
+    return Function<T>::create(heap, move(captures), forward<Callable>(callable));
+}
 
 template<typename Callable, typename T = EquivalentFunctionType<RemoveCVReference<Callable>>>
 static Ref<Function<T>> create_function(Heap& heap, ESCAPING Callable&& function)
 {
-    return Function<T>::create(heap, AK::Function<T> { forward<Callable>(function) });
+    // NB: A callable that captures nothing needs no AK::Function, and has nothing to visit.
+    if constexpr (Detail::CapturesNothing<RemoveCVReference<Callable>>)
+        return Function<T>::create(heap, CaptureList<> {}, forward<Callable>(function));
+    else
+        return Function<T>::create(heap, AK::Function<T> { forward<Callable>(function) });
 }
 
 template<typename R, typename... Args>
