@@ -79,7 +79,7 @@ public:
     Atomic<u32> m_seek_id { 0 };
     // While the input is seeking, it still reports its state from before the seek.
     bool m_input_seek_in_flight { false };
-    bool m_audio_processor_should_exit { false };
+    Atomic<bool, AK::memory_order_relaxed> m_audio_processor_should_exit { false };
     bool m_waiting_for_upstream_data { false };
     bool m_resume_from_suspension_requested { false };
     bool m_played_out_check_requested { false };
