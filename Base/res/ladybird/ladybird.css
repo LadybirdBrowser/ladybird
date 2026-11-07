@@ -75,6 +75,7 @@
         --preview-tab-inactive: #cfcfd4;
         --preview-tab-current: #bdbdc3;
         --preview-field: #e6e6e9;
+        --preview-sidebar-field: #ffffff;
         --choice: var(--primary);
         --choice-fill: rgba(10, 102, 208, 0.08);
     }
@@ -112,6 +113,7 @@
         --preview-tab-inactive: #4a4a50;
         --preview-tab-current: #5b5b61;
         --preview-field: #3a3a3e;
+        --preview-sidebar-field: #55555b;
         --choice: #3d8bff;
         --choice-fill: rgba(61, 139, 255, 0.16);
     }
@@ -507,12 +509,16 @@ input[type="checkbox"][switch]:checked::before {
     background: var(--preview-tab-current);
 }
 
-/* With everything in the sidebar, the address field heads the sidebar's tabs. */
+/* With everything in the sidebar, the address field sits at the top of the sidebar, above its tabs. */
+.preview-sidebar:has(> b) {
+    padding-top: 6px;
+}
+
 .preview-sidebar b {
-    height: 5px;
-    margin-bottom: 3px;
-    border-radius: 2px;
-    background: var(--page);
+    height: 9px;
+    margin-bottom: 4px;
+    border-radius: 3px;
+    background: var(--preview-sidebar-field);
 }
 
 .preview-main {
