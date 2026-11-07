@@ -12,11 +12,15 @@ const INTERPRETER: &str = include_str!("../../Interpreter/interpreter.flap");
 const LAYOUT: &str = include_str!("interpreter-layout.conf");
 
 fn compile_interpreter(architecture: Architecture) -> String {
+    compile_interpreter_for(Target {
+        architecture,
+        object_format: ObjectFormat::Elf,
+    })
+}
+
+fn compile_interpreter_for(target: Target) -> String {
     let compiler = Compiler::new(CompileOptions {
-        target: Target {
-            architecture,
-            object_format: ObjectFormat::Elf,
-        },
+        target,
         has_jscvt: false,
         has_lzcnt: false,
         has_bmi1: false,
@@ -67,6 +71,22 @@ fn compare_or_rebaseline(file_name: &str, assembly: &str) {
 fn interpreter_assembly_matches_snapshots() {
     compare_or_rebaseline("x86_64.S", &compile_interpreter(Architecture::X86_64));
     compare_or_rebaseline("aarch64.S", &compile_interpreter(Architecture::Aarch64));
+}
+
+/// Handlers move the stack pointer around their calls, so a stack walk can only find the frame through rbp.
+#[test]
+fn describes_the_windows_frame_by_its_frame_register() {
+    let assembly = compile_interpreter_for(Target {
+        architecture: Architecture::X86_64,
+        object_format: ObjectFormat::Coff,
+    });
+    let prologue_start = assembly.find("    .seh_pushreg rbp\n").unwrap();
+    let prologue_end = assembly.find("    .seh_endprologue\n").unwrap();
+    let prologue = &assembly[prologue_start..prologue_end];
+    assert_eq!(prologue.matches("    push ").count(), 7, "{prologue}");
+    assert!(prologue.contains("    sub rsp, 56\n"), "{prologue}");
+    // NB: Seven saved registers of 8 bytes each, and the 56 bytes below them.
+    assert!(prologue.ends_with("    .seh_setframe rbp, 112\n"), "{prologue}");
 }
 
 #[test]
