@@ -41,6 +41,9 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
 {
     s_is_worker_thread = true;
 
+    // NB: A worker has several connections, none of them busy for long, and most workers do not use most of them.
+    IPC::ScopedSharedIOThread shared_io_thread;
+
     auto transport_or_error = worker_handle.create_transport();
     if (transport_or_error.is_error()) {
         dbgln("Unable to take up the transport of a worker: {}", transport_or_error.error());

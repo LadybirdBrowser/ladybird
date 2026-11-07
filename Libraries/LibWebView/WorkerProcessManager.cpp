@@ -218,7 +218,11 @@ WorkerProcessManager::StartedWorkerAgent WorkerProcessManager::start_worker_agen
     bool const host_has_only_this_worker = !host;
     Optional<IPC::TransportHandle> thread_transport;
     auto client_or_error = [&]() -> ErrorOr<NonnullRefPtr<WebWorkerClient>> {
-        auto transport = TRY(IPC::Transport::create_paired());
+        // NB: Only the transport of the worker goes on the shared IO thread. The others here have owners of their own.
+        auto transport = TRY([] {
+            IPC::ScopedSharedIOThread shared_io_thread;
+            return IPC::Transport::create_paired();
+        }());
         if (host_has_only_this_worker) {
             host = TRY(Application::the().launch_web_content_process_without_page(is_private));
             host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);

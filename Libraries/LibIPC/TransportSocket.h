@@ -98,6 +98,11 @@ public:
     explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocket();
 
+    // Makes the transports that this thread creates from now on share one IO thread with all others made this way, or
+    // get an IO thread each, as they do by default. A thread per transport is what a latency-critical connection wants.
+    // Sharing is for the many connections of the agents of a process, of which each is rarely busy.
+    static void set_share_io_thread_on_this_thread(bool);
+
     void set_up_read_hook(Function<void()>);
 
     // Sets what the IO thread shows every message that arrives, before the transport's owner gets to see it, and empty
@@ -150,6 +155,8 @@ public:
     static void set_skip_inloop_read_for_test(bool);
 
 private:
+    friend class SharedIOThread;
+
     enum class TransferState {
         Continue,
         SocketClosed,
@@ -165,6 +172,11 @@ private:
         Stopped,
     };
     intptr_t io_thread_loop();
+    // One round of IO: what to poll the socket for, or nothing once IO is over, and what to do about what poll() found.
+    Optional<short> events_to_poll();
+    void handle_polled_events(short events);
+    // Runs on the IO thread as IO is over. A transport on the shared IO thread can be gone once this returns.
+    void finish_io();
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
     enum class MoreToRead {
@@ -180,6 +192,7 @@ private:
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     Atomic<bool> m_socket_is_open { true };
 
+    bool m_shares_io_thread { false };
     RefPtr<Threading::Thread> m_io_thread;
     RefPtr<SendQueue> m_send_queue;
     // Held by the thread that takes bytes from the send queue and writes them to the socket, which keeps them in order.
