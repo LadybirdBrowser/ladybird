@@ -1222,14 +1222,57 @@ static bool record_declares_no_cell_edges(clang::CXXRecordDecl const& record)
     return !record.forallBases([&](clang::CXXRecordDecl const* base) { return !declares(base); });
 }
 
+// Whether a value of this type holds an AK::Function, or a struct that holds one, whose captures no check can see.
+static bool type_holds_opaque_function(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    if (auto const* array = type->getAsArrayTypeUnsafe())
+        return type_holds_opaque_function(array->getElementType(), visited);
+    if (type->isPointerType() || type->isReferenceType())
+        return false;
+
+    if (auto instance = template_instance_of_type(type)) {
+        if (instance->name == "AK::Function")
+            return true;
+        if (is_type_that_does_not_store_gc_pointers_by_value(instance->name))
+            return false;
+        for (auto const& type_argument : instance->type_arguments) {
+            if (type_holds_opaque_function(type_argument, visited))
+                return true;
+        }
+    }
+
+    auto const* record = type->getAsCXXRecordDecl();
+    if (!record || !record->isCompleteDefinition() || !visited.insert(record).second)
+        return false;
+    if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record))
+        return false;
+    for (auto const& base : record->bases()) {
+        if (type_holds_opaque_function(base.getType(), visited))
+            return true;
+    }
+    for (auto const* field : record->fields()) {
+        if (type_holds_opaque_function(field->getType(), visited))
+            return true;
+    }
+    return false;
+}
+
 // A GC::Function captures a type that declares that it holds no cell edges without tracing it, so the type must not hold
-// a GC pointer, which nothing would keep alive. Roots and weak pointers are fine, as they need no tracing.
+// a GC pointer, which nothing would keep alive. Roots and weak pointers are fine, as they need no tracing. Nor may it hold
+// an AK::Function, whose captures could hold anything.
 void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const& record)
 {
     clang::CXXRecordDecl const* claimed_record = nullptr;
+    bool callbacks_hold_roots = false;
     if (auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(&record)) {
         if (specialization->getSpecializationKind() != clang::TSK_ExplicitSpecialization || specialization->getSpecializedTemplate()->getQualifiedNameAsString() != "GC::IsUntracedCapture")
             return;
+        // NB: GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS() declares that the type's callbacks hold roots, which no check
+        //     can see, so only its other members are checked.
+        for (auto const* declaration : specialization->decls()) {
+            if (auto const* variable = llvm::dyn_cast<clang::VarDecl>(declaration); variable && variable->getName() == "callbacks_hold_roots")
+                callbacks_hold_roots = true;
+        }
         auto const& arguments = specialization->getTemplateArgs();
         if (arguments.size() != 1 || arguments[0].getKind() != clang::TemplateArgument::Type)
             return;
@@ -1246,10 +1289,14 @@ void LibJSGCVisitor::validate_claim_of_no_cell_edges(clang::CXXRecordDecl const&
     auto& diag_engine = m_context.getDiagnostics();
     auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its member %1 holds a GC pointer");
     auto record_name = name_for_diagnostic(m_context, *claimed_record);
+    auto function_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is declared to hold no cell edges, but its member %1 holds an AK::Function, whose captures can't be checked");
     for (auto const* field : claimed_record->fields()) {
         std::set<clang::CXXRecordDecl const*> visited;
         if (type_holds_gc_pointer(field->getType(), visited))
             diag_engine.Report(field->getLocation(), diag_id) << record_name << field->getName();
+        std::set<clang::CXXRecordDecl const*> visited_for_functions;
+        if (!callbacks_hold_roots && type_holds_opaque_function(field->getType(), visited_for_functions))
+            diag_engine.Report(field->getLocation(), function_diag_id) << record_name << field->getName();
     }
 
     // NB: A base that declares the claim itself is checked on its own.
