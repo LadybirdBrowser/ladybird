@@ -76,6 +76,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Ladybird::set_profile_application_icon(Ladybird::Application::profile());
 #endif
         Ladybird::SystemAppearance::the().apply_interface_theme(Ladybird::Application::settings().appearance().interface_theme);
+        Ladybird::SystemAppearance::the().apply_color_theme(Ladybird::Application::settings().appearance().color_theme);
 
         app->on_open_file = [&](auto const& file_url) {
             if (auto* window = app->non_private_window_if_any()) {

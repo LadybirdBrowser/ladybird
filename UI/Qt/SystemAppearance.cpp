@@ -6,6 +6,7 @@
 
 #include <AK/Platform.h>
 #include <UI/Qt/SystemAppearance.h>
+#include <UI/Qt/Theme.h>
 
 #include <QAccessibilityHints>
 #include <QApplication>
@@ -20,6 +21,18 @@ SystemAppearance& SystemAppearance::the()
     return *appearance;
 }
 
+// Widgets restyle themselves on palette changes, so a change to the chrome's colors that leaves the application palette
+// as it is tells them about one.
+static void notify_widgets_of_palette_change()
+{
+    QEvent application_event(QEvent::ApplicationPaletteChange);
+    QCoreApplication::sendEvent(qApp, &application_event);
+    for (auto* widget : QApplication::allWidgets()) {
+        QEvent event(QEvent::PaletteChange);
+        QCoreApplication::sendEvent(widget, &event);
+    }
+}
+
 SystemAppearance::SystemAppearance()
 {
     m_prefers_dark = query_system_prefers_dark();
@@ -28,14 +41,8 @@ SystemAppearance::SystemAppearance()
         update();
     });
     // The chrome's colors depend on the contrast preference, but changing it does not change the application palette.
-    // Widgets restyle themselves on palette changes, so tell them about one.
     QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, [] {
-        QEvent application_event(QEvent::ApplicationPaletteChange);
-        QCoreApplication::sendEvent(qApp, &application_event);
-        for (auto* widget : QApplication::allWidgets()) {
-            QEvent event(QEvent::PaletteChange);
-            QCoreApplication::sendEvent(widget, &event);
-        }
+        notify_widgets_of_palette_change();
     });
     observe_platform_changes();
 }
@@ -67,6 +74,15 @@ void SystemAppearance::apply_interface_theme(WebView::ThemePreference theme)
         QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
         break;
     }
+}
+
+void SystemAppearance::apply_color_theme(WebView::ColorTheme theme)
+{
+    if (theme == m_color_theme)
+        return;
+    m_color_theme = theme;
+    Theme::set_color_theme(theme);
+    notify_widgets_of_palette_change();
 }
 
 #if !defined(AK_OS_MACOS)

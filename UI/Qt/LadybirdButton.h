@@ -15,7 +15,7 @@ class QVariantAnimation;
 
 namespace Ladybird {
 
-// The Ladybird button opens the browser's menu. It shows the logomark in the profile's color and a menu chevron, on a soft
+// The Ladybird button opens the browser's menu. It shows the logomark in the theme's color and a menu chevron, on a soft
 // fill that deepens under the pointer and while the menu is open.
 class LadybirdButton final : public QToolButton {
 public:

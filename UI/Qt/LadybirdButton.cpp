@@ -163,15 +163,15 @@ void LadybirdButton::paintEvent(QPaintEvent*)
     painter.setOpacity(ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive ? 0.55 : 1.0);
 
     // The tile is a hairline outline, with a neutral fill only under the pointer or while pressed. The mark is in the
-    // profile's color, which is the only brand color in the chrome, and doesn't change with the tile's state. A private
-    // window shows its glyph in place of the logomark.
+    // color theme's logomark color, and doesn't change with the tile's state. A private window shows its glyph in place
+    // of the logomark.
     auto is_private = m_is_private == WebView::IsPrivate::Yes;
     auto dark = is_private || Theme::is_dark(*this);
     auto fill_color = dark ? QColor(255, 255, 255) : QColor(0, 0, 0);
     fill_color.setAlphaF((dark ? 0.16 : 0.12) * m_fill);
     auto hairline_color = fill_color;
     hairline_color.setAlphaF(Theme::has_increased_contrast() ? 0.45 : (dark ? 0.16 : 0.14));
-    auto mark_color = is_private ? QColor(0xd8c8ff) : (dark ? QColor(0xa684ff) : QColor(0x4b22ad));
+    auto mark_color = is_private ? QColor(0xd8c8ff) : Theme::logomark();
 
     QRectF tile_rect { this->tile_rect() };
     painter.setPen(Qt::NoPen);

@@ -1859,6 +1859,7 @@ void BrowserWindow::changeEvent(QEvent* event)
 void BrowserWindow::appearance_changed()
 {
     SystemAppearance::the().apply_interface_theme(WebView::Application::settings().appearance().interface_theme);
+    SystemAppearance::the().apply_color_theme(WebView::Application::settings().appearance().color_theme);
     update_menu_bar_visibility();
 
     m_tabs_container->update_bookmarks_bar_visibility();
