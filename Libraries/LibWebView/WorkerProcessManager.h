@@ -90,8 +90,6 @@ public:
     // A process goes on without pages for as long as it runs a shared worker, as the worker's owners can be anywhere.
     bool hosts_shared_worker(WebContentClient const&) const;
 
-    Optional<u64> exclusive_performance_owner(pid_t) const;
-
     size_t client_count() const { return m_agents.size(); }
 
     void update_permission_snapshot(PermissionManager const&);
@@ -140,7 +138,7 @@ private:
     void worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId, u64 policy_index, String effective_directive, URL::URL resource);
     void worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
-    void worker_process_did_exit(WebWorkerClient&);
+    void worker_thread_did_exit(WebWorkerClient&);
     void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);
     void worker_did_write_rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
 
@@ -182,13 +180,12 @@ private:
     static bool is_same_owner(Owner const&, Owner const& identity);
     static void forget_removed_outside_settings_owner(WorkerAgent&);
 
-    // A worker whose agent is gone counts toward the workers of its top-level site until its connection closes: a thread
-    // closes it as it ends, and that also ends a process.
+    // A worker whose agent is gone counts toward the workers of its top-level site until its thread closes its connection
+    // as it ends.
     struct ExitingWorker {
         NonnullRefPtr<WebWorkerClient> client;
         IsPrivate is_private { IsPrivate::No };
         Optional<URL::Origin> top_level_origin;
-        RefPtr<Core::Timer> termination_timer;
     };
     Vector<ExitingWorker> m_exiting_workers;
 

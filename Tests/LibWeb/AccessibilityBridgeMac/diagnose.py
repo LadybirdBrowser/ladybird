@@ -88,7 +88,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "Ladybird"
 FIXTURE = pathlib.Path(__file__).resolve().parents[1] / "AccessibilityBridge" / "input" / "roles.html"
 
-HELPER_NAMES = ("WebContent", "RequestServer", "ImageDecoder", "Compositor", "WebWorker", "WebDriver")
+HELPER_NAMES = ("WebContent", "RequestServer", "ImageDecoder", "Compositor", "WebDriver")
 
 AX_ERROR_NAMES = {
     0: "success",
@@ -993,7 +993,7 @@ class Probe:
             except Exception:
                 continue
             for entry in entries:
-                if not re.match(r"(Ladybird|WebContent|RequestServer|ImageDecoder|Compositor|WebWorker)", entry.name):
+                if not re.match(r"(Ladybird|WebContent|RequestServer|ImageDecoder|Compositor)", entry.name):
                     continue
                 try:
                     if entry.stat().st_mtime < cutoff:

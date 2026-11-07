@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCore/Process.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
@@ -42,8 +41,7 @@ WebWorkerClient::~WebWorkerClient()
 void WebWorkerClient::set_host(WebContentClient& host)
 {
     m_host = host;
-    m_runs_on_thread = true;
-    set_child_identity({ .child_id = host.child_id(), .pid = host.pid() });
+    m_host_child_id = host.child_id();
 }
 
 void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
@@ -54,15 +52,7 @@ void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
         shutdown();
         return;
     }
-    dbgln("WebWorkerClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
-    if (!m_runs_on_thread)
-        terminate_process();
     shutdown();
-}
-
-void WebWorkerClient::terminate_process()
-{
-    (void)Application::process_manager().terminate_child(child_id(), Core::Process::TerminationMode::Forceful);
 }
 
 void WebWorkerClient::die()
@@ -74,11 +64,7 @@ void WebWorkerClient::die()
     if (m_holds_image_decoder_client)
         ImageDecoderManager::the().process_did_release_decoder(child_id());
 
-    // NB: A worker whose connection is gone does no more work, so a process that outlives its connection is ended. A
-    //     thread closes the connection as it ends.
-    if (!m_runs_on_thread)
-        terminate_process();
-    WorkerProcessManager::the().worker_process_did_exit(*this);
+    WorkerProcessManager::the().worker_thread_did_exit(*this);
 
     // Otherwise nested workers we own would outlive us, in violation of the HTML spec.
     WorkerProcessManager::the().remove_web_worker_owner(*this);
@@ -115,7 +101,7 @@ void WebWorkerClient::remove_blob_url_entries()
         session->blob_url_store->remove_entries_added_by(WeakPtr<WebWorkerClient> { *this });
 }
 
-// The environment a worker process names is its worker's.
+// The environment a worker names is its own.
 Optional<CanonicalEnvironmentSettingsObject const&> WebWorkerClient::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
 {
     auto inside_settings = WorkerProcessManager::the().inside_settings(m_agent_id);
@@ -203,7 +189,7 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
     auto connection = connect_new_media_server_client(m_media_server_client, child_id(), [weak_self = make_weak_ptr<WebWorkerClient>()]() -> ErrorOr<IPC::TransportHandle> {
         auto self = weak_self.strong_ref();
         if (!self)
-            return Error::from_string_literal("The worker process is gone");
+            return Error::from_string_literal("The worker is gone");
         TRY(ensure_audio_server_is_running(self->m_audio_server_client, self->child_id()));
         return connect_new_audio_server_client(*self->m_audio_server_client, self->m_audio_tab_id);
     });
@@ -216,9 +202,6 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
 
 Messages::WebWorkerClient::RequestImageDecoderConnectionResponse WebWorkerClient::request_image_decoder_connection()
 {
-    if (!m_runs_on_thread)
-        return ImageDecoderManager::the().connect_requesting_process(child_id(), session(), m_site);
-
     // NB: A thread is part of its process, and what the decoder of a process may see goes by all that the process hosts.
     auto host = m_host.strong_ref();
     if (!host)

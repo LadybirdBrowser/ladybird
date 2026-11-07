@@ -66,7 +66,7 @@ bool CrashReportStore::is_saved_report_name(StringView name)
         if (has_timestamp)
             suffix = name.substring_view(timestamp_pattern.length());
     }
-    for (auto type : { ProcessType::Browser, ProcessType::WebContent, ProcessType::WebWorker,
+    for (auto type : { ProcessType::Browser, ProcessType::WebContent,
              ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor }) {
         auto prefix = ByteString::formatted("{}-", process_name_from_type(type));
         if (!suffix.starts_with(prefix) || suffix.length() != prefix.length() + 10)

@@ -22,8 +22,6 @@ static StringView plain_process_name(StringView process)
         return "Graphics process"sv;
     if (process == "WebContent"sv)
         return "Page"sv;
-    if (process == "WebWorker"sv)
-        return "Worker"sv;
     if (process == "RequestServer"sv)
         return "Network process"sv;
     if (process == "ImageDecoder"sv)

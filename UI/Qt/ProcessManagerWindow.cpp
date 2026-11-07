@@ -621,14 +621,14 @@ void ProcessManagerWindow::refresh()
     auto is_spare = [](WebView::ProcessSnapshot const& process) {
         return process.type == WebView::ProcessType::WebContent && process.title.has_value() && *process.title == "(spare)"_utf16;
     };
-    // NB: A page's process, a worker's process, and a request server or image decoder bound to a site, belong to that site.
+    // NB: A page's process, a process that runs on for a shared worker, and a request server or image decoder bound to a
+    //     site, belong to that site.
     auto site_of = [](WebView::ProcessSnapshot const& process) -> QString {
-        if (!first_is_one_of(process.type, WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder) || !process.site_url.has_value())
+        if (!first_is_one_of(process.type, WebView::ProcessType::WebContent, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder) || !process.site_url.has_value())
             return {};
         return task_manager_site_label(*process.site_url);
     };
-    // NB: A process that works for another may itself work for a third, as a worker's media server works for the
-    //     worker. A worker with its own site stays with that site; an opaque-origin worker follows its owner.
+    // NB: A process that works for another may itself work for a third.
     auto section_process = [&](WebView::ProcessSnapshot const& process) -> WebView::ProcessSnapshot const& {
         auto const* section = &process;
         for (size_t depth = 0; depth < processes.size() && section->owner_child_id.has_value() && site_of(*section).isEmpty(); ++depth) {

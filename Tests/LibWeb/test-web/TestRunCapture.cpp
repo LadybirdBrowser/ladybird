@@ -23,7 +23,6 @@ namespace TestWeb {
 
 static ByteString format_elapsed_time(UnixDateTime run_start_time);
 static ByteString format_exit_status(Optional<int> exit_status);
-static bool exit_status_is_crash(Optional<int> exit_status);
 static bool is_crash_of_worker(WebView::ProcessType, Optional<int> exit_status);
 static void setup_capture_notifier(RefPtr<Core::Notifier>& notifier, Core::File& file, bool drain_available, Function<void(StringView)> on_output);
 static bool drain_capture_output(Core::File& file, bool drain_available, Function<void(StringView)> const& on_output);
@@ -146,31 +145,13 @@ static ByteString format_exit_status(Optional<int> exit_status)
 #endif
 }
 
-bool exit_status_is_crash(Optional<int> exit_status)
-{
-#if defined(AK_OS_WINDOWS)
-    (void)exit_status;
-    return false;
-#else
-    if (!exit_status.has_value())
-        return false;
-
-    // NB: A crash handler ends the process with a status of 128 plus the signal.
-    if (WIFEXITED(*exit_status))
-        return WEXITSTATUS(*exit_status) >= 128;
-
-    // NB: The UI process kills a worker that does not exit in time, so being killed is no crash.
-    return WIFSIGNALED(*exit_status) && !first_is_one_of(WTERMSIG(*exit_status), SIGKILL, SIGTERM);
-#endif
-}
-
-// NB: A dedicated worker runs on a thread of a WebContent process that can go down between tests, or be the process of
-//     a remote frame, where no test would notice.
+// NB: A worker runs on a thread of a WebContent process that can go down between tests, or be the process of a remote
+//     frame or of nothing but shared workers, where no test would notice.
 bool is_crash_of_worker(WebView::ProcessType type, Optional<int> exit_status)
 {
-    if (type == WebView::ProcessType::WebWorker)
-        return exit_status_is_crash(exit_status);
 #if defined(AK_OS_WINDOWS)
+    (void)type;
+    (void)exit_status;
     return false;
 #else
     return type == WebView::ProcessType::WebContent && exit_status.has_value() && WIFEXITED(*exit_status)

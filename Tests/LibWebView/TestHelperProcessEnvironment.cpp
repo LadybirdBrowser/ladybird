@@ -41,7 +41,7 @@ TEST_CASE(helper_environment_keeps_loader_and_session_variables_out)
     MUST(Core::Environment::set("OPENSSL_CONF"sv, "/tmp/openssl.cnf"sv, Core::Environment::Overwrite::Yes));
     MUST(Core::Environment::set("XDG_RUNTIME_DIR"sv, "/run/user/1000"sv, Core::Environment::Overwrite::Yes));
 
-    for (auto type : { WebView::ProcessType::Compositor, WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::MediaServer, WebView::ProcessType::AudioServer }) {
+    for (auto type : { WebView::ProcessType::Compositor, WebView::ProcessType::WebContent, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::MediaServer, WebView::ProcessType::AudioServer }) {
         auto environment = WebView::Process::helper_process_environment(type);
         EXPECT(!environment.contains_slow("LD_PRELOAD=/tmp/evil.so"sv));
         EXPECT(!environment.contains_slow("LD_LIBRARY_PATH=/tmp"sv));
@@ -71,8 +71,6 @@ TEST_CASE(helper_environment_gives_each_helper_only_its_own_configuration)
     EXPECT(audio_server_environment.contains_slow("PULSE_SERVER=unix:/run/user/1000/pulse/native"sv));
     EXPECT(!audio_server_environment.contains_slow("MESA_SHADER_CACHE_DIR=/tmp/mesa"sv));
     EXPECT(!audio_server_environment.contains_slow("SSL_CERT_FILE=/etc/ssl/cert.pem"sv));
-    auto web_worker_environment = WebView::Process::helper_process_environment(WebView::ProcessType::WebWorker);
-    EXPECT(!web_worker_environment.contains_slow("PULSE_SERVER=unix:/run/user/1000/pulse/native"sv));
 
     // Only the Compositor talks to the GPU driver.
     auto compositor_environment = WebView::Process::helper_process_environment(WebView::ProcessType::Compositor);

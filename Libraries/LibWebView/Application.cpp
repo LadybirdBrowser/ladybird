@@ -82,7 +82,6 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
-#include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
 #if defined(AK_OS_MACOS)
@@ -2401,11 +2400,6 @@ void Application::process_did_exit(Process&& process, Optional<int>)
                 client->did_save_crash_report(report_name);
             m_web_content_clients.remove(client.release_nonnull());
         }
-        break;
-    case ProcessType::WebWorker:
-        // NB: A worker that closes itself says so and exits right away, and this can come ahead of what it said.
-        if (auto client = process.client<WebWorkerClient>())
-            client->dispatch_pending_messages();
         break;
     case ProcessType::Browser:
         dbgln("Invalid process type to be dying: Browser");

@@ -193,13 +193,13 @@ TEST_CASE(helpers_run_with_the_hardened_runtime)
 {
     // With the hardened runtime, the kernel refuses to run code from memory that was writable, unless the process may
     // map JIT memory. Only the renderers run code that they compile at runtime.
-    for (auto name : { "AudioServer"sv, "Compositor"sv, "ImageDecoder"sv, "MediaServer"sv, "ProcessReaper"sv, "RequestServer"sv, "WebContent"sv, "WebWorker"sv }) {
+    for (auto name : { "AudioServer"sv, "Compositor"sv, "ImageDecoder"sv, "MediaServer"sv, "ProcessReaper"sv, "RequestServer"sv, "WebContent"sv }) {
         auto signature = signature_of_helper(name);
         if (!signature.has_value()) {
             warnln("Skipping {}, which was not built", name);
             continue;
         }
         EXPECT(signature->uses_hardened_runtime);
-        EXPECT_EQ(signature->may_map_jit_memory, name == "WebContent"sv || name == "WebWorker"sv);
+        EXPECT_EQ(signature->may_map_jit_memory, name == "WebContent"sv);
     }
 }
