@@ -12,8 +12,11 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/Queue.h>
 #include <AK/RefCounted.h>
+#include <AK/String.h>
 #include <AK/Weakable.h>
+#include <LibCore/Notifier.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Forward.h>
 
@@ -23,7 +26,7 @@ class DEVTOOLS_API Connection
     : public RefCounted<Connection>
     , public Weakable<Connection> {
 public:
-    static NonnullRefPtr<Connection> create(NonnullOwnPtr<Core::BufferedTCPSocket>);
+    static NonnullRefPtr<Connection> create(NonnullOwnPtr<Core::TCPSocket>);
     ~Connection();
 
     Function<void()> on_connection_closed;
@@ -32,14 +35,20 @@ public:
     void send_message(JsonValue const&);
 
 private:
-    explicit Connection(NonnullOwnPtr<Core::BufferedTCPSocket>);
+    explicit Connection(NonnullOwnPtr<Core::TCPSocket>);
 
     ErrorOr<void> on_ready_to_read();
     ErrorOr<void> read_available_data();
     ErrorOr<Optional<JsonValue>> read_message();
 
-    NonnullOwnPtr<Core::BufferedTCPSocket> m_socket;
+    void flush_outgoing_packets();
+
+    NonnullOwnPtr<Core::TCPSocket> m_socket;
+    NonnullRefPtr<Core::Notifier> m_write_notifier;
     ByteBuffer m_incoming_buffer;
+
+    Queue<String> m_outgoing_packets;
+    size_t m_outgoing_packet_offset { 0 };
 };
 
 }

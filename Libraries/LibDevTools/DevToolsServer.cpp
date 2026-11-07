@@ -100,9 +100,7 @@ ErrorOr<void> DevToolsServer::on_new_client()
 
     m_did_notify_actors_connection_closed = false;
     m_is_closing_connection = false;
-    auto buffered_socket = TRY(Core::BufferedTCPSocket::create(move(client)));
-
-    m_connection = Connection::create(move(buffered_socket));
+    m_connection = Connection::create(move(client));
 
     m_connection->on_connection_closed = [weak_self = make_weak_ptr<DevToolsServer>()] {
         if (weak_self)
