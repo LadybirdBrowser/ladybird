@@ -17,7 +17,7 @@ ErrorOr<NonnullRefPtr<CMYKBitmap>> CMYKBitmap::create_with_size(IntSize const& s
     final_size.mul(sizeof(CMYK));
     if (final_size.has_overflow())
         return Error::from_string_literal("Image dimensions cause an integer overflow");
-    auto data = TRY(ByteBuffer::create_uninitialized(final_size.value()));
+    auto data = TRY(ByteBuffer::create_zeroed(final_size.value()));
     return adopt_ref(*new CMYKBitmap(size, move(data)));
 }
 
