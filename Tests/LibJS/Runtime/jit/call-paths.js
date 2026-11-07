@@ -71,6 +71,29 @@ describe("calls from JIT code", () => {
         for (let i = 0; i < iterations; ++i) expect(caller(i % 2 ? "{" : `${i}`)).toBe(i % 2 ? "SyntaxError" : i);
     });
 
+    test("native functions with captured state through call, apply, and bind", () => {
+        const format = new Intl.NumberFormat("en", { useGrouping: false }).format;
+        const bound = format.bind(null);
+        const sentinel = {};
+        function caller(value) {
+            try {
+                return [format(value), format.call(null, value), format.apply(null, [value]), bound(value)];
+            } catch (error) {
+                return error;
+            }
+        }
+        for (let i = 0; i < iterations; ++i) {
+            const value = {
+                valueOf() {
+                    if (i % 2) throw sentinel;
+                    // Reenter the native function while it is converting an argument.
+                    return Number(format(i));
+                },
+            };
+            expect(caller(value)).toEqual(i % 2 ? sentinel : Array(4).fill(String(i)));
+        }
+    });
+
     test("stack traces include callers", () => {
         function inner() {
             return new Error().stack;

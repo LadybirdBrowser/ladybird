@@ -33,11 +33,11 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::feedback::CallFeedbackForwarding;
-use crate::layout::function_object::{EcmascriptFunctionObject, RawNativeFunction};
+use crate::layout::function_object::{EcmascriptFunctionObject, NativeFunction, RawNativeFunction};
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    create_unmapped_arguments_object, get_prototype_from_constructor, length_of_array_like,
+    call_function_object, create_unmapped_arguments_object, get_prototype_from_constructor, length_of_array_like,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -429,8 +429,6 @@ fn call_other_function_from_jit(
                 unwrap_depth + 1,
             ));
         }
-
-        return None;
     }
 
     if let Some(bound_function) = callee_object.downcast::<BoundFunction>() {
@@ -472,6 +470,15 @@ fn call_other_function_from_jit(
             bound_function.bound_this(),
             &argument_list.values(),
             unwrap_depth + 1,
+        );
+    }
+
+    if let Some(function) = callee_object.downcast::<NativeFunction>() {
+        return Some(
+            match call_function_object(vm, function.upcast(), this_value, arguments) {
+                Ok(value) => site.store_result(value),
+                Err(throw) => handle_asm_exception(vm, site.pc, throw.value()),
+            },
         );
     }
 
