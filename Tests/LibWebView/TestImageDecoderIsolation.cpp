@@ -344,6 +344,48 @@ TEST_CASE(image_decoders_end_once_released)
     manager.process_did_release_decoder(2'000'005);
     Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
 
+    // A worker that still holds a client when its process leaves the decoder has no say over the next one.
+    Optional<IPC::TransportHandle> client_of_old_decoder = MUST(manager.connect_new_client(2'000'006, session, site));
+    auto generation_of_old_decoder = manager.client_generation(2'000'006);
+    VERIFY(manager.remove_client_from_decoder_of_site(2'000'006));
+    client_of_old_decoder.clear();
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+    Optional<IPC::TransportHandle> client_of_new_decoder = MUST(manager.connect_new_client(2'000'006, session, site));
+    manager.process_did_release_decoder(2'000'006, generation_of_old_decoder);
+    VERIFY(decoder_count() == 1);
+    client_of_new_decoder.clear();
+    manager.process_did_release_decoder(2'000'006, manager.client_generation(2'000'006));
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+
+    // A client that was lost without a release counts as one, once the same renderer or worker connects again.
+    Optional<u64> client_generation;
+    Optional<IPC::TransportHandle> lost_client = MUST(manager.connect_new_client(2'000'007, session, site));
+    manager.note_connected_client(2'000'007, client_generation);
+    Optional<IPC::TransportHandle> next_client = MUST(manager.connect_new_client(2'000'007, session, site));
+    manager.note_connected_client(2'000'007, client_generation);
+    VERIFY(decoder_count() == 1);
+    lost_client.clear();
+    next_client.clear();
+    manager.process_did_release_decoder(2'000'007, *client_generation);
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+
+    // A client that went with its decoder does not count against the decoder that comes next.
+    client_generation.clear();
+    Optional<IPC::TransportHandle> client_of_dead_decoder = MUST(manager.connect_new_client(2'000'008, session, site));
+    manager.note_connected_client(2'000'008, client_generation);
+    WebView::Application::process_manager().for_each_process([&](WebView::Process& process) {
+        if (process.type() == WebView::ProcessType::ImageDecoder)
+            manager.process_did_exit(process.child_id());
+    });
+    client_of_dead_decoder.clear();
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+    Optional<IPC::TransportHandle> client_of_next_decoder = MUST(manager.connect_new_client(2'000'008, session, site));
+    manager.note_connected_client(2'000'008, client_generation);
+    VERIFY(decoder_count() == 1);
+    client_of_next_decoder.clear();
+    manager.process_did_release_decoder(2'000'008, *client_generation);
+    Core::EventLoop::current().spin_until([&] { return decoder_count() == 0; });
+
     // A process that has let go of its decoder gets a new one when it next asks.
     auto handle = MUST(manager.connect_new_client(2'000'003, session, {}));
     VERIFY(decoder_count() == 1);

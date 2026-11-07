@@ -128,7 +128,7 @@ public:
     void did_host_document_of_site(Utf16String site);
 
     // Connects a client to the ImageDecoder of this process, for its main thread or for a worker on a thread of it.
-    Optional<IPC::TransportHandle> connect_new_image_decoder_client();
+    Optional<IPC::TransportHandle> connect_new_image_decoder_client(Optional<u64>& client_generation);
 
     // A process that has hosted local file content may read local files. Site isolation gives such content processes
     // of its own, which host nothing else.
@@ -255,6 +255,7 @@ private:
     bool m_rejected_ipc { false };
     // The site of the documents this process hosts, if it has only hosted those of one.
     Optional<Utf16String> m_site_of_hosted_documents;
+    Optional<u64> m_image_decoder_client_generation;
     bool m_has_hosted_documents_of_several_sites { false };
     bool m_has_hosted_local_file_content { false };
     Optional<String> m_hosted_web_ui;

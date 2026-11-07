@@ -26,7 +26,12 @@ ErrorOr<IPC::TransportHandle> ImageDecoderManager::connect_new_client(u64 client
         site.clear();
 
     // NB: A decoder that died is of no use to anyone, whether or not its clients have noticed yet.
-    m_instances.remove_all_matching([](auto const& instance) { return !instance.control_client->is_open(); });
+    m_instances.remove_all_matching([&](auto const& instance) {
+        if (instance.control_client->is_open())
+            return false;
+        did_lose_decoder(instance);
+        return true;
+    });
 
     auto instance = m_instances.first_matching([&](auto const& instance) {
         if (site.has_value())
@@ -45,7 +50,7 @@ ErrorOr<IPC::TransportHandle> ImageDecoderManager::connect_new_client(u64 client
     return move(channel.second);
 }
 
-Optional<IPC::TransportHandle> ImageDecoderManager::connect_requesting_process(u64 client_child_id, RefPtr<BrowsingSession> const& session, Optional<Utf16String> site)
+Optional<IPC::TransportHandle> ImageDecoderManager::connect_requesting_process(u64 client_child_id, RefPtr<BrowsingSession> const& session, Optional<Utf16String> site, Optional<u64>& client_generation)
 {
     // NB: A request can still be queued when the process's exit is handled. Connecting it then would leave a client that
     //     never exits, which would keep its decoder alive for as long as the Browser runs.
@@ -57,7 +62,21 @@ Optional<IPC::TransportHandle> ImageDecoderManager::connect_requesting_process(u
         warnln("Unable to connect an ImageDecoder client: {}", handle.error());
         return {};
     }
+    note_connected_client(client_child_id, client_generation);
     return handle.release_value();
+}
+
+void ImageDecoderManager::note_connected_client(u64 client_child_id, Optional<u64>& client_generation)
+{
+    auto generation_of_lost_client = exchange(client_generation, this->client_generation(client_child_id));
+    if (generation_of_lost_client.has_value())
+        process_did_release_decoder(client_child_id, *generation_of_lost_client);
+}
+
+void ImageDecoderManager::did_lose_decoder(Instance const& instance)
+{
+    for (auto const& [client_child_id, count] : instance.client_counts)
+        ++m_client_generations.ensure(client_child_id, [] { return 0uz; });
 }
 
 bool ImageDecoderManager::remove_client_from_decoder_of_site(u64 client_child_id)
@@ -69,7 +88,15 @@ bool ImageDecoderManager::remove_client_from_decoder_of_site(u64 client_child_id
         was_removed = true;
         return instance.client_counts.is_empty();
     });
+    if (was_removed)
+        ++m_client_generations.ensure(client_child_id, [] { return 0uz; });
     return was_removed;
+}
+
+void ImageDecoderManager::process_did_release_decoder(u64 client_child_id, u64 client_generation)
+{
+    if (client_generation == this->client_generation(client_child_id))
+        process_did_release_decoder(client_child_id);
 }
 
 void ImageDecoderManager::process_did_release_decoder(u64 client_child_id)
@@ -87,11 +114,15 @@ void ImageDecoderManager::process_did_release_decoder(u64 client_child_id)
 
 void ImageDecoderManager::process_did_exit(u64 child_id)
 {
+    m_client_generations.remove(child_id);
+
     // NB: Letting go of a decoder that exited also closes the channels of any clients that were sent to it, which it can no
     //     longer take up, so that those clients learn they have no decoder.
     m_instances.remove_all_matching([&](auto& instance) {
-        if (instance.control_client->child_id() == child_id)
+        if (instance.control_client->child_id() == child_id) {
+            did_lose_decoder(instance);
             return true;
+        }
         return instance.client_counts.remove(child_id) && instance.client_counts.is_empty();
     });
 }
