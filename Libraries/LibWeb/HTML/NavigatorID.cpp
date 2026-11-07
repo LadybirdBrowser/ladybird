@@ -30,7 +30,7 @@ Utf16String NavigatorIDMixin::app_version() const
     auto trail = MUST(user_agent.substring_from_byte_offset("Mozilla/"sv.length()));
 
     // 4. -> If the navigator compatibility mode is Chrome or WebKit
-    auto navigator_compatibility_mode = ResourceLoader::the().navigator_compatibility_mode();
+    auto navigator_compatibility_mode = ResourceLoader::navigator_compatibility_mode();
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Chrome || navigator_compatibility_mode == NavigatorCompatibilityMode::WebKit) {
         // Return trail.
         return Utf16String::from_ascii_without_validation(trail.bytes());
@@ -63,7 +63,7 @@ Utf16String NavigatorIDMixin::platform() const
     // platform.
 
     // FIXME: Use some portion of the user agent string to make spoofing work 100%
-    return Utf16String::from_ascii_without_validation(ResourceLoader::the().platform().bytes());
+    return Utf16String::from_ascii_without_validation(default_platform.bytes());
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-oscpu
@@ -95,7 +95,7 @@ Utf16String NavigatorIDMixin::oscpu() const
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-productsub
 Utf16FlyString NavigatorIDMixin::product_sub() const
 {
-    auto navigator_compatibility_mode = ResourceLoader::the().navigator_compatibility_mode();
+    auto navigator_compatibility_mode = ResourceLoader::navigator_compatibility_mode();
 
     // Must return the appropriate string from the following list:
 
@@ -125,7 +125,7 @@ Utf16String NavigatorIDMixin::user_agent() const
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-vendor
 Utf16FlyString NavigatorIDMixin::vendor() const
 {
-    auto navigator_compatibility_mode = ResourceLoader::the().navigator_compatibility_mode();
+    auto navigator_compatibility_mode = ResourceLoader::navigator_compatibility_mode();
 
     // Must return the appropriate string from the following list:
 

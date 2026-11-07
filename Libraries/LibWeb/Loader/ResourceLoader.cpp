@@ -7,6 +7,7 @@
 
 #include <AK/AllOf.h>
 #include <AK/Debug.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
@@ -17,7 +18,6 @@
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -35,10 +35,11 @@ namespace Web {
 
 static RefPtr<ResourceLoader>& resource_loader()
 {
-    static RefPtr<ResourceLoader>& resource_loader = *new RefPtr<ResourceLoader>;
-    return resource_loader;
+    static thread_local NeverDestroyed<RefPtr<ResourceLoader>> resource_loader;
+    return *resource_loader;
 }
 
+// NB: This is set from the command line, before any agent starts.
 static Optional<URL::URL>& proxy_autoconfig_url_storage()
 {
     static Optional<URL::URL>& proxy_autoconfig_url = *new Optional<URL::URL>;
@@ -89,11 +90,10 @@ ResourceLoader& ResourceLoader::the()
 
 ResourceLoader::ResourceLoader(GC::Heap& heap)
     : m_heap(heap)
-    , m_platform(MUST(String::from_utf8(default_platform)))
 {
 }
 
-NavigatorCompatibilityMode ResourceLoader::s_navigator_compatibility_mode = default_navigator_compatibility_mode;
+Atomic<NavigatorCompatibilityMode, AK::MemoryOrder::memory_order_relaxed> ResourceLoader::s_navigator_compatibility_mode { default_navigator_compatibility_mode };
 
 void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode mode)
 {
@@ -101,11 +101,10 @@ void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode
 
     // A script reads two strings to tell engines apart that no navigator attribute covers: the frames of an error's
     // stack, and the source text of a built-in function. Both follow the engine the navigator claims.
-    auto& vm = Bindings::main_thread_vm();
     if (mode == NavigatorCompatibilityMode::Chrome)
-        vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::Indented, JS::VM::NativeFunctionSourceSyntax::SingleLine);
+        JS::VM::set_source_text_syntaxes(JS::VM::StackFrameSyntax::Indented, JS::VM::NativeFunctionSourceSyntax::SingleLine);
     else
-        vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::AtSign, JS::VM::NativeFunctionSourceSyntax::MultiLine);
+        JS::VM::set_source_text_syntaxes(JS::VM::StackFrameSyntax::AtSign, JS::VM::NativeFunctionSourceSyntax::MultiLine);
 }
 
 void ResourceLoader::set_client(Optional<Utf16String> const& top_level_site, NonnullRefPtr<Requests::RequestClient> request_client)
