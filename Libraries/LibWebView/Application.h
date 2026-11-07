@@ -307,8 +307,9 @@ public:
     virtual Vector<ViewImplementation&> active_window_web_views() const { return {}; }
     virtual Optional<ViewImplementation&> activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const { return {}; }
 
-    virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
+    virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, ViewImplementation const* = nullptr) const { return {}; }
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
+    virtual void activate_or_open_tab_with_url(URL::URL const&) const;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const;
     virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
     virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const;
@@ -316,7 +317,6 @@ public:
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
 
-    void activate_or_open_tab_with_url(URL::URL const&) const;
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
     void open_bookmark_folder_in_new_tabs(String const& folder_id) const;
     void open_bookmark_in_new_window(String const& bookmark_id, IsPrivate);
@@ -353,6 +353,9 @@ public:
     virtual void set_clipboard_text(String, ClipboardType = ClipboardType::Text);
 
     virtual Web::Clipboard::SystemClipboardItem clipboard_item() const { return m_clipboard; }
+    // The clipboard can be in another process, so reading it does not have to finish right away.
+    virtual void read_clipboard_text(ClipboardType, Function<void(Utf16String)>) const;
+    virtual void read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)>) const;
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) { m_clipboard = move(item); }
     void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation);
 

@@ -337,7 +337,7 @@ static QIcon const& app_icon(WebView::IsPrivate is_private)
     return cached_icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> hub_view_id, Optional<WebView::SessionWindowId> restored_session_window_id)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Optional<u64> hub_view_id, Optional<WebView::SessionWindowId> restored_session_window_id)
     : WebView::SettingsObserver(Application::settings())
     , m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
@@ -416,7 +416,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         sync_session_tab_order();
     });
 
-    if (parent_tab) {
+    if (hub_view_id.has_value()) {
         create_new_tab(Web::HTML::ActivateTab::Yes, hub_view_id);
     } else {
         for (size_t i = 0; i < initial_urls.size(); ++i)
@@ -963,7 +963,7 @@ void BrowserWindow::initialize_tab_view(Tab* tab)
         }
     });
 
-    tab->view().on_open_new_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, u64 hub_view_id) {
+    tab->view().on_open_new_view = [this](auto activate_tab, Web::HTML::WebViewHints hints, u64 hub_view_id) {
         if (hints.popup) {
             auto cascaded_configuration = Application::the().configuration_for_new_window();
             WindowConfiguration configuration {
@@ -972,7 +972,7 @@ void BrowserWindow::initialize_tab_view(Tab* tab)
                 .width = hints.width,
                 .height = hints.height,
             };
-            Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, tab, hub_view_id);
+            Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, hub_view_id);
             return;
         }
         create_new_tab(activate_tab, hub_view_id);
@@ -1075,7 +1075,7 @@ BrowserWindow& BrowserWindow::detach_tab_to_new_window(int index, QPoint global_
         .maximized = follows_pointer == DetachedWindowFollowsPointer::No && isMaximized(),
     };
 
-    auto& window = Application::the().new_window({}, configuration, IsPopupWindow::No, m_is_private, nullptr, {}, ShowWindow::No);
+    auto& window = Application::the().new_window({}, configuration, IsPopupWindow::No, m_is_private, {}, ShowWindow::No);
     move_tab_to_window(index, window, 0);
 
     if (configuration.maximized == true)
@@ -1126,7 +1126,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
             m_session->session_store->active_tab_changed(*session_tab_id);
     }
 
-    WebView::Application::the().update_actions_for_active_web_view();
+    Application::the().report_active_view();
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -1674,7 +1674,7 @@ bool BrowserWindow::event(QEvent* event)
 
     if (event->type() == QEvent::WindowActivate) {
         Application::the().set_active_window(*this);
-        WebView::Application::the().update_actions_for_active_web_view();
+        Application::the().report_active_view();
         // A quit raises and closes windows in its own order, so the restore order keeps how they were used before it.
         if (!Application::the().is_quit_in_progress())
             report_activation_to_session_store();

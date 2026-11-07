@@ -33,6 +33,10 @@ private:
     static View* find_view(u64 view_id);
 
     // ^HubServerEndpoint
+    virtual void active_view_changed(Optional<u64> view_id) override;
+    virtual void answer_clipboard_text(u64 request_id, Utf16String text) override;
+    virtual void answer_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem item) override;
+    virtual void answer_download_path(u64 request_id, Optional<ByteString> path) override;
     virtual void update_settings(ByteString settings_json) override;
     virtual void activate_action(u64 handle, Optional<bool> checked) override;
     virtual void view_answer(u64 view_id, u64 answer_id, bool answer) override;

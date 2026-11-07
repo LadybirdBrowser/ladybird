@@ -52,7 +52,7 @@ public:
         web_content_options.file_scheme_urls_have_tuple_origins = WebView::FileSchemeUrlsHaveTupleOrigins::Yes;
     }
 
-    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override
+    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const*) const override
     {
         ++m_new_tab_requests;
         return {};

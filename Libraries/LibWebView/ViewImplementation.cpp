@@ -2947,6 +2947,11 @@ void ViewImplementation::set_input_method_state(Badge<WebContentPage>, InputMeth
         on_input_method_state_change();
 }
 
+void ViewImplementation::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)> on_read) const
+{
+    on_read(clipboard_item());
+}
+
 Web::Clipboard::SystemClipboardItem ViewImplementation::clipboard_item() const
 {
     return Application::the().clipboard_item();

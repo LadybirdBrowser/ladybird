@@ -29,6 +29,25 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private) override;
+    virtual void app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) override;
+    virtual void app_set_clipboard_text(String text, WebView::Application::ClipboardType type) override;
+    virtual void app_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override;
+    virtual void app_update_tabs_display() override;
+    virtual void app_on_recently_closed_entries_changed() override;
+    virtual void app_did_enable_devtools() override;
+    virtual void app_did_disable_devtools() override;
+    virtual void app_open_urls_in_new_tabs(Vector<URL::URL> urls) override;
+    virtual void app_activate_or_open_tab_with_url(URL::URL url) override;
+    virtual void app_open_view_in_new_tab(u64 view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_display_error_dialog(String message) override;
+    virtual void app_display_download_confirmation_dialog(String download_name, ByteString path) override;
+    virtual void app_open_file(String path) override;
+    virtual void app_read_clipboard_text(u64 request_id, WebView::Application::ClipboardType type) override;
+    virtual void app_read_clipboard_item(u64 request_id) override;
+    virtual void app_ask_user_for_download_path(u64 request_id, ByteString file) override;
     virtual void settings_changed(ByteString settings_json) override;
     virtual void action_changed(Hub::ActionState state) override;
     virtual void bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) override;

@@ -672,6 +672,11 @@ void View::update_zoom()
         ui->async_view_update_zoom(view_id());
 }
 
+void View::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)> on_read) const
+{
+    WebView::Application::the().read_clipboard_item(move(on_read));
+}
+
 void View::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
 {
     if (auto* ui = ConnectionFromUI::the()) {

@@ -34,7 +34,7 @@ public:
     {
     }
 
-    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override
+    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, WebView::ViewImplementation const*) const override
     {
         m_opened_tabs.append(WebView::HeadlessWebView::create(load_theme(), { 800, 600 }));
         auto& tab = m_opened_tabs.last();

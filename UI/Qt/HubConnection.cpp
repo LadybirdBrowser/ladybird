@@ -185,6 +185,101 @@ void HubConnection::view_request_dictionary_lookup(u64 view_id, WebView::Diction
         view->on_request_dictionary_lookup(lookup, position);
 }
 
+void HubConnection::app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab)
+{
+    Application::the().open_url_in_new_tab(move(url), move(activate_tab));
+}
+
+void HubConnection::app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private)
+{
+    Application::the().open_url_in_new_window(move(url), move(is_private));
+}
+
+void HubConnection::app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab)
+{
+    Application::the().open_navigation_in_new_tab(move(navigation), move(activate_tab));
+}
+
+void HubConnection::app_open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
+{
+    Application::the().open_navigation_in_new_window(move(navigation), move(is_private));
+}
+
+void HubConnection::app_set_clipboard_text(String text, WebView::Application::ClipboardType type)
+{
+    Application::the().set_clipboard_text(move(text), move(type));
+}
+
+void HubConnection::app_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item)
+{
+    Application::the().insert_clipboard_item(move(item));
+}
+
+void HubConnection::app_update_tabs_display()
+{
+    Application::the().update_tabs_display();
+}
+
+void HubConnection::app_on_recently_closed_entries_changed()
+{
+    Application::the().on_recently_closed_entries_changed();
+}
+
+void HubConnection::app_did_enable_devtools()
+{
+    Application::the().did_enable_devtools();
+}
+
+void HubConnection::app_did_disable_devtools()
+{
+    Application::the().did_disable_devtools();
+}
+
+void HubConnection::app_open_urls_in_new_tabs(Vector<URL::URL> urls)
+{
+    Application::the().open_urls_in_new_tabs(urls);
+}
+
+void HubConnection::app_activate_or_open_tab_with_url(URL::URL url)
+{
+    Application::the().activate_or_open_tab_with_url(url);
+}
+
+void HubConnection::app_open_view_in_new_tab(u64 view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab)
+{
+    Application::the().open_view_in_new_tab(view_id, is_private, activate_tab);
+}
+
+void HubConnection::app_display_error_dialog(String message)
+{
+    Application::the().display_error_dialog(message);
+}
+
+void HubConnection::app_display_download_confirmation_dialog(String download_name, ByteString path)
+{
+    Application::the().display_download_confirmation_dialog(download_name, path);
+}
+
+void HubConnection::app_open_file(String path)
+{
+    Application::the().open_file(path);
+}
+
+void HubConnection::app_read_clipboard_text(u64 request_id, WebView::Application::ClipboardType type)
+{
+    async_answer_clipboard_text(request_id, Application::the().clipboard_text(type));
+}
+
+void HubConnection::app_read_clipboard_item(u64 request_id)
+{
+    async_answer_clipboard_item(request_id, Application::the().clipboard_item());
+}
+
+void HubConnection::app_ask_user_for_download_path(u64 request_id, ByteString file)
+{
+    Application::the().ask_user_for_download_path(request_id, file);
+}
+
 void HubConnection::settings_changed(ByteString settings_json)
 {
     auto settings = JsonValue::from_string(settings_json);
