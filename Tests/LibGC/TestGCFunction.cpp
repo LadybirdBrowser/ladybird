@@ -101,6 +101,12 @@ static_assert(GC::IsCapturable<OwnPtr<CountedWithoutCells>>);
 static_assert(GC::IsCapturable<NonnullRefPtr<CountedAndTraced>>);
 static_assert(GC::IsCapturable<Optional<RefPtr<CountedAndTraced>>>);
 
+// A root is only capturable on its own, which holds it as a pointer, so that a function never keeps a root.
+static_assert(!GC::IsCapturable<GC::Root<TestCell>>);
+static_assert(!GC::IsCapturable<Optional<GC::Root<TestCell>>>);
+static_assert(!GC::IsCapturable<Vector<GC::Root<TestCell>>>);
+static_assert(IsSame<GC::Detail::CaptureStorage<GC::Root<TestCell>&>::Type, GC::Detail::CapturedRoot<TestCell>>);
+
 struct Holders {
     GC::Root<GC::Function<int()>> function;
     GC::Weak<TestCell> cell;
