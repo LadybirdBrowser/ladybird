@@ -129,7 +129,7 @@ impl TransformSteps for CompressionContext {
         let array = create_uint8_array(cx, &buffer)?;
 
         // 5. For each Uint8Array array of arrays, enqueue array in cs's transform.
-        TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
+        TransformStream::enqueue(transform, cx.vm(), Value::from_object(array))?;
         Ok(())
     }
 
@@ -152,7 +152,7 @@ impl TransformSteps for CompressionContext {
         let array = create_uint8_array(cx, &buffer)?;
 
         // 4. For each Uint8Array array of arrays, enqueue array in cs's transform.
-        TransformStream::enqueue(transform, cx.vm(), Value::from_object(array));
+        TransformStream::enqueue(transform, cx.vm(), Value::from_object(array))?;
         Ok(())
     }
 }

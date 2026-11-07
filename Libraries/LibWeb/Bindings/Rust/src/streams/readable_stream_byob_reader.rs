@@ -70,11 +70,8 @@ impl ReadableStreamBYOBReader {
     }
 
     /// Removes the first of the reader's [[readIntoRequests]], which are not empty.
-    pub(crate) fn take_first_read_into_request(&self, vm: &Vm) -> ReadIntoRequest {
-        self.read_into_requests
-            .borrow_mut(vm)
-            .pop_front()
-            .expect("the reader has a read-into request")
+    pub(crate) fn take_first_read_into_request(&self, vm: &Vm) -> Option<ReadIntoRequest> {
+        self.read_into_requests.borrow_mut(vm).pop_front()
     }
 
     pub(crate) fn read_into_requests_len(&self) -> usize {

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    async function abortAfterTerminate() {
+        let controller;
+        let finishTransform;
+        const stream = new TransformStream(
+            {
+                start: c => (controller = c),
+                transform: () => new Promise(resolve => (finishTransform = resolve)),
+            },
+            {},
+            { highWaterMark: 1 }
+        );
+        const writer = stream.writable.getWriter();
+        await nextTask();
+        const write = writer.write(1).catch(() => {});
+        await nextTask();
+        const abort = writer.abort("reason");
+        controller.terminate();
+        finishTransform();
+        await write;
+        await abort;
+        println("abort after terminate: survived");
+    }
+
+    async function writeWhileClosing() {
+        const writer = new WritableStream({ close: () => new Promise(() => {}) }).getWriter();
+        writer.close();
+        await nextTask();
+        const result = await writer.write(1).catch(error => error.name);
+        println(`write while closing: ${result}`);
+    }
+
+    async function writeAfterCancel() {
+        const stream = new TextDecoderStream();
+        const reader = stream.readable.getReader();
+        const writer = stream.writable.getWriter();
+        await nextTask();
+        const write = writer.write(new Uint8Array([97])).catch(error => error.name);
+        await nextTask();
+        reader.read();
+        reader.cancel();
+        println(`write after cancel: ${await write}`);
+    }
+
+    async function cancelDuringTransform() {
+        const stream = new TextEncoderStream();
+        const reader = stream.readable.getReader();
+        const writer = stream.writable.getWriter();
+        await nextTask();
+        reader.read();
+        const chunk = {
+            toString() {
+                reader.cancel();
+                return "a";
+            },
+        };
+        println(`cancel during transform: ${await writer.write(chunk).catch(error => error.name)}`);
+    }
+
+    async function releaseBetweenRequests() {
+        let controller;
+        const stream = new ReadableStream({ type: "bytes", start: c => (controller = c) });
+        const reader = stream.getReader({ mode: "byob" });
+        const reads = [reader.read(new Uint8Array(1)), reader.read(new Uint8Array(1))];
+        Object.defineProperty(Object.prototype, "then", {
+            configurable: true,
+            get() {
+                delete Object.prototype.then;
+                reader.releaseLock();
+            },
+        });
+        controller.enqueue(new Uint8Array([1, 2]));
+        delete Object.prototype.then;
+        const results = await Promise.allSettled(reads);
+        println(`release between requests: ${results.map(result => result.status).join(" ")}`);
+    }
+
+    promiseTest(async () => {
+        await abortAfterTerminate();
+        await writeWhileClosing();
+        await writeAfterCancel();
+        await cancelDuringTransform();
+        await releaseBetweenRequests();
+    });
+</script>

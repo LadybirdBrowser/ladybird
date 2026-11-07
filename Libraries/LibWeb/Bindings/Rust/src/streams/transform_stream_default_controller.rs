@@ -12,7 +12,7 @@ use core::cell::Cell;
 use libjs_rust::api::{GcRefCell, Throw, Trace, Value};
 
 use crate::bindings::interface::{Ref, Wrappable, allocate};
-use crate::bindings::promise::{WebIdlPromise, exception_value, upon_rejection};
+use crate::bindings::promise::{WebIdlPromise, create_resolved_promise, exception_value, upon_rejection};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::streams::algorithms::{CancelAlgorithm, FlushAlgorithm, TransformAlgorithm};
 use crate::streams::readable_stream_default_controller::{
@@ -306,10 +306,12 @@ pub(crate) fn transform_stream_default_controller_perform_transform(
     let vm = cx.vm();
 
     // 1. Let transformPromise be the result of performing controller.[[transformAlgorithm]], passing chunk.
-    let transform_algorithm = controller
-        .transform_algorithm()
-        .expect("the controller's algorithms are not cleared");
-    let transform_promise = transform_algorithm.run(&controller.stream().context(vm), chunk);
+    // AD-HOC: A write that waited for backpressure to go away can get here after terminate() or an error cleared the
+    //         algorithms. There is nothing left to run then.
+    let transform_promise = match controller.transform_algorithm() {
+        Some(transform_algorithm) => transform_algorithm.run(&controller.stream().context(vm), chunk),
+        None => create_resolved_promise(vm, cx.realm(), Value::UNDEFINED),
+    };
 
     // 2. Return the result of reacting to transformPromise with the following rejection steps given the argument r:
     upon_rejection(vm, transform_promise, controller, |cx, controller, reason| {

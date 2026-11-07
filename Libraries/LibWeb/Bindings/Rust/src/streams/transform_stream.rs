@@ -285,9 +285,11 @@ impl TransformStream {
     }
 
     // https://streams.spec.whatwg.org/#transformstream-enqueue
-    pub(crate) fn enqueue(this: Ref<Self>, vm: &Vm, chunk: Value) {
+    pub(crate) fn enqueue(this: Ref<Self>, vm: &Vm, chunk: Value) -> WebIdlResult<()> {
         // To enqueue the JavaScript value chunk into a TransformStream stream, perform
         // ! TransformStreamDefaultControllerEnqueue(stream.[[controller]], chunk).
+        // AD-HOC: This can throw: a chunk looks up "then" on the read result, and script there can cancel the readable
+        //         side before the next chunk of the same transform.
         let controller = this
             .controller()
             .expect("a transform stream that is set up has a controller");
@@ -296,7 +298,6 @@ impl TransformStream {
             controller,
             chunk,
         )
-        .must();
     }
 }
 
@@ -597,10 +598,13 @@ pub(crate) fn transform_stream_default_sink_abort_algorithm(
     controller.set_finish_promise(Some(create_promise(vm, realm)));
 
     // 5. Let cancelPromise be the result of performing controller.[[cancelAlgorithm]], passing reason.
-    let cancel_algorithm = controller
-        .cancel_algorithm()
-        .expect("the controller's algorithms are not cleared");
-    let cancel_promise = cancel_algorithm.run(&stream.context(vm), reason);
+    // AD-HOC: terminate() and an error clear the algorithms without setting controller.[[finishPromise]], and script can
+    //         get here after that, by aborting the writable side or canceling the readable side. There is nothing left
+    //         to run then.
+    let cancel_promise = match controller.cancel_algorithm() {
+        Some(cancel_algorithm) => cancel_algorithm.run(&stream.context(vm), reason),
+        None => create_resolved_promise(vm, realm, Value::UNDEFINED),
+    };
 
     // 6. Perform ! TransformStreamDefaultControllerClearAlgorithms(controller).
     transform_stream_default_controller_clear_algorithms(controller);
@@ -688,10 +692,11 @@ pub(crate) fn transform_stream_default_sink_close_algorithm(
     controller.set_finish_promise(Some(create_promise(vm, realm)));
 
     // 5. Let flushPromise be the result of performing controller.[[flushAlgorithm]].
-    let flush_algorithm = controller
-        .flush_algorithm()
-        .expect("the controller's algorithms are not cleared");
-    let flush_promise = flush_algorithm.run(&stream.context(vm));
+    // AD-HOC: As with the abort algorithm, there is nothing left to run once the algorithms are cleared.
+    let flush_promise = match controller.flush_algorithm() {
+        Some(flush_algorithm) => flush_algorithm.run(&stream.context(vm)),
+        None => create_resolved_promise(vm, realm, Value::UNDEFINED),
+    };
 
     // 6. Perform ! TransformStreamDefaultControllerClearAlgorithms(controller).
     transform_stream_default_controller_clear_algorithms(controller);
@@ -776,10 +781,13 @@ pub(crate) fn transform_stream_default_source_cancel_algorithm(
     controller.set_finish_promise(Some(create_promise(vm, realm)));
 
     // 5. Let cancelPromise be the result of performing controller.[[cancelAlgorithm]], passing reason.
-    let cancel_algorithm = controller
-        .cancel_algorithm()
-        .expect("the controller's algorithms are not cleared");
-    let cancel_promise = cancel_algorithm.run(&stream.context(vm), reason);
+    // AD-HOC: terminate() and an error clear the algorithms without setting controller.[[finishPromise]], and script can
+    //         get here after that, by aborting the writable side or canceling the readable side. There is nothing left
+    //         to run then.
+    let cancel_promise = match controller.cancel_algorithm() {
+        Some(cancel_algorithm) => cancel_algorithm.run(&stream.context(vm), reason),
+        None => create_resolved_promise(vm, realm, Value::UNDEFINED),
+    };
 
     // 6. Perform ! TransformStreamDefaultControllerClearAlgorithms(controller).
     transform_stream_default_controller_clear_algorithms(controller);

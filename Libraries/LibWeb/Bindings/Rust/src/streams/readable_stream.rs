@@ -1340,14 +1340,18 @@ pub(crate) fn readable_stream_fulfill_read_into_request(
 ) {
     // 1. Assert: ! ReadableStreamHasBYOBReader(stream) is true.
     // 2. Let reader be stream.[[reader]].
+    // AD-HOC: Fulfilling a request looks up "then" on the result, so script can run in between two requests of one chunk.
+    //         A lock that it released took the rest of the requests along, and nobody is waiting for this one anymore.
     let Some(ReadableStreamReader::ReadableStreamBYOBReader(reader)) = stream.reader() else {
-        panic!("the stream has a ReadableStreamBYOBReader");
+        return;
     };
 
     // 3. Assert: reader.[[readIntoRequests]] is not empty.
     // 4. Let readIntoRequest be reader.[[readIntoRequests]][0].
     // 5. Remove readIntoRequest from reader.[[readIntoRequests]].
-    let read_into_request = reader.take_first_read_into_request(vm);
+    let Some(read_into_request) = reader.take_first_read_into_request(vm) else {
+        return;
+    };
 
     // 6. If done is true, perform readIntoRequest’s close steps, given chunk.
     if done {
@@ -1363,14 +1367,17 @@ pub(crate) fn readable_stream_fulfill_read_into_request(
 pub(crate) fn readable_stream_fulfill_read_request(vm: &Vm, stream: Ref<ReadableStream>, chunk: Value, done: bool) {
     // 1. Assert: ! ReadableStreamHasDefaultReader(stream) is true.
     // 2. Let reader be stream.[[reader]].
+    // AD-HOC: See readable_stream_fulfill_read_into_request().
     let Some(ReadableStreamReader::ReadableStreamDefaultReader(reader)) = stream.reader() else {
-        panic!("the stream has a ReadableStreamDefaultReader");
+        return;
     };
 
     // 3. Assert: reader.[[readRequests]] is not empty.
     // 4. Let readRequest be reader.[[readRequests]][0].
     // 5. Remove readRequest from reader.[[readRequests]].
-    let read_request = reader.take_first_read_request(vm);
+    let Some(read_request) = reader.take_first_read_request(vm) else {
+        return;
+    };
 
     // 6. If done is true, perform readRequest’s close steps.
     if done {

@@ -146,15 +146,16 @@ impl EmbedderValue for Decoder {
 }
 
 /// Enqueues the output of the decoder in the transform as a string, unless it is the empty string.
-fn enqueue_output_chunk(cx: &CallContext, transform: Ref<TransformStream>, output: &[u16]) {
+fn enqueue_output_chunk(cx: &CallContext, transform: Ref<TransformStream>, output: &[u16]) -> WebIdlResult<()> {
     let output_chunk = UsvString::from_utf16_replacing_lone_surrogates(output).into_utf16_string();
     if !output_chunk.is_empty() {
         TransformStream::enqueue(
             transform,
             cx.vm(),
             Value::from_string(PrimitiveString::create(cx.vm(), output_chunk)),
-        );
+        )?;
     }
+    Ok(())
 }
 
 fn decoding_failed(_: DecodingFailed) -> Exception {
@@ -188,8 +189,7 @@ impl TransformSteps for Decoder {
         //         the chunk while its bytes are read.
         let output =
             unsafe { buffer_source.with_bytes(|bytes| decoder.decode(bytes, true)) }.map_err(decoding_failed)?;
-        enqueue_output_chunk(cx, transform, &output);
-        Ok(())
+        enqueue_output_chunk(cx, transform, &output)
     }
 
     // https://encoding.spec.whatwg.org/#flush-and-enqueue
@@ -206,7 +206,6 @@ impl TransformSteps for Decoder {
         //     4. Otherwise, if result is error, throw a TypeError.
         // NB: The decoder's I/O queue holds no more bytes, so the decoder decodes the end of the input.
         let output = self.decoder.borrow_mut().decode(&[], false).map_err(decoding_failed)?;
-        enqueue_output_chunk(cx, transform, &output);
-        Ok(())
+        enqueue_output_chunk(cx, transform, &output)
     }
 }
