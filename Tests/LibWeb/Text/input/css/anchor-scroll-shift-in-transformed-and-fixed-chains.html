@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style>
+    html, body { margin: 0; }
+    .scroller { overflow: scroll; width: 200px; height: 100px; }
+    .tall { height: 1000px; }
+    .anchor { anchor-name: --anchor; width: 10px; height: 10px; }
+    .anchored { position-anchor: --anchor; top: anchor(bottom); left: anchor(left); width: 10px; height: 10px; }
+    .transformed { transform: translate(0, 0); height: 300px; padding-top: 80px; }
+</style>
+<body>
+<div id="stage"></div>
+<script src="../include.js"></script>
+<script>
+    const ANCHOR = `<div class="anchor" id="anchor"></div>`;
+    const ANCHORED_ABSOLUTE = `<div class="anchored" id="anchored" style="position: absolute"></div>`;
+    const ANCHORED_FIXED = `<div class="anchored" id="anchored" style="position: fixed"></div>`;
+
+    const scenarios = [
+        {
+            name: "absolute, anchor in a scrolled scroller",
+            html: `<div class="scroller" id="a"><div class="tall" style="padding-top: 200px">${ANCHOR}</div></div>${ANCHORED_ABSOLUTE}`,
+            scroll: () => { a.scrollTop = 50; },
+        },
+        {
+            name: "fixed, anchor in the scrolled document",
+            html: `<div style="height: 3000px; padding-top: 200px">${ANCHOR}</div>${ANCHORED_FIXED}`,
+            scroll: () => window.scrollTo(0, 50),
+        },
+        {
+            name: "fixed and anchor in a transformed box in a scrolled scroller",
+            html: `<div class="scroller" id="a"><div class="tall"><div class="transformed">${ANCHOR}${ANCHORED_FIXED}</div></div></div>`,
+            scroll: () => { a.scrollTop = 50; },
+        },
+        {
+            name: "fixed in a transformed box in a scrolled scroller, anchor in an inner scrolled scroller",
+            html: `<div class="scroller" id="a"><div class="tall"><div class="transformed"><div class="scroller" id="b"><div class="tall" style="padding-top: 40px">${ANCHOR}</div></div>${ANCHORED_FIXED}</div></div></div>`,
+            scroll: () => { a.scrollTop = 50; b.scrollTop = 20; },
+        },
+        {
+            name: "absolute in fixed, anchor in sticky in the same fixed, scrolled document",
+            html: `<div style="height: 3000px"><div style="position: fixed; top: 30px; left: 0; width: 50px; height: 60px"><div style="position: sticky; top: 0">${ANCHOR}</div>${ANCHORED_ABSOLUTE}</div></div>`,
+            scroll: () => window.scrollTo(0, 50),
+        },
+        {
+            name: "absolute in fixed, anchor in stuck sticky in a scrolled scroller, scrolled document",
+            html: `<div style="height: 3000px"><div style="position: fixed; top: 30px; left: 0; width: 200px; height: 120px"><div class="scroller" id="a"><div class="tall"><div style="height: 30px"></div><div style="position: sticky; top: 5px">${ANCHOR}</div></div></div>${ANCHORED_ABSOLUTE}</div></div>`,
+            scroll: () => { a.scrollTop = 80; window.scrollTo(0, 50); },
+        },
+    ];
+
+    promiseTest(async () => {
+        const stage = document.getElementById("stage");
+        const results = [];
+        for (const scenario of scenarios) {
+            stage.innerHTML = scenario.html;
+            await animationFrame();
+            scenario.scroll();
+            await animationFrame();
+            await animationFrame();
+            const anchorBottom = document.getElementById("anchor").getBoundingClientRect().bottom;
+            const anchoredTop = document.getElementById("anchored").getBoundingClientRect().top;
+            results.push(`${scenario.name}: anchor bottom ${anchorBottom}, anchored top ${anchoredTop}`);
+            stage.innerHTML = "";
+            window.scrollTo(0, 0);
+        }
+        results.forEach(line => println(line));
+    });
+</script>

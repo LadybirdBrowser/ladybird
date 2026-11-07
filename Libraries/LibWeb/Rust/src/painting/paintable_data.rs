@@ -52,7 +52,6 @@ pub struct PaintableData {
 
     pub establishes_stacking_context: bool,
 
-    pub enclosing_scroll_node_index: SpatialNodeIndex,
     pub own_scroll_node_index: SpatialNodeIndex,
     pub node_identity: i64,
     pub has_accumulated_visual_context: bool,
@@ -70,7 +69,6 @@ impl Default for PaintableData {
             offset: used_values::FfiCssPixelPoint::default(),
             content_size: used_values::FfiCssPixelSize::default(),
             establishes_stacking_context: false,
-            enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
             node_identity: 0,
             has_accumulated_visual_context: false,

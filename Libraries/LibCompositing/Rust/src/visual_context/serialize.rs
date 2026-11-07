@@ -377,7 +377,6 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
         SPATIAL_KIND_SCROLL => SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         }),
         SPATIAL_KIND_STICKY => {
             let scroller = reader.spatial_index()?;
@@ -980,7 +979,6 @@ mod tests {
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -1494,7 +1492,6 @@ mod tests {
                 SpatialData::Scroll(ScrollData {
                     state_slot: NO_SCROLL_STATE_SLOT,
                     owner_paintable: NodeSlotId::INVALID,
-                    registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
                 }),
                 VISUAL_VIEWPORT_NODE_INDEX,
             );
@@ -1662,7 +1659,6 @@ mod tests {
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -1801,7 +1797,6 @@ mod tests {
         root_is_not_a_transform.spatial_nodes[0].data = SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         });
         assert!(VisualContextTree::from_bytes(&encode_tree(&root_is_not_a_transform)).is_none());
 

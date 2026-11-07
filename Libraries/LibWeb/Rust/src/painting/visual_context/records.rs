@@ -112,22 +112,15 @@ impl BoxVisualContextNodeHandles {
     }
 }
 
-// Nearest ancestor scroll node resolved along the containing block chain, drilled down alongside
-// the visual context indices. A fixed-position ancestor decouples its subtree from all outer
-// scrollers, but sticky boxes must still reference a scrollport through fixed-position ancestors
-// for their sticky offset computation, so both resolutions are carried.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct NearestScrollNodeIndices {
-    pub stopping_at_fixed_position_ancestors: SpatialNodeIndex,
-    pub continuing_through_fixed_position_ancestors: SpatialNodeIndex,
-}
-
-// One positioning chain; effects are shared by all three chains.
+// One positioning chain; effects are shared by all three chains. The nearest scroll-like node is
+// what a sticky box sticks to, resolved along the containing block chain: a fixed-position ancestor
+// takes its subtree off the spatial chain of outer scrollers, but sticky boxes must still reference
+// a scrollport through it for their sticky offset computation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PositioningContext {
     pub spatial: SpatialNodeIndex,
     pub clip: ClipNodeIndex,
-    pub nearest_scroll_nodes: NearestScrollNodeIndices,
+    pub nearest_scroll_like_node: SpatialNodeIndex,
     pub plane_root: SpatialNodeIndex,
 }
 

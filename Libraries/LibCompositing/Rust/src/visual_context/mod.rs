@@ -152,7 +152,6 @@ pub struct MaskData {
 pub struct ScrollData {
     pub state_slot: ScrollStateSlot,
     pub owner_paintable: NodeSlotId,
-    pub registry_parent_node: SpatialNodeIndex,
 }
 
 // A sticky box's shift is derived when the scroll state snapshot is resolved, from the scroller's
@@ -724,7 +723,6 @@ fn for_each_spatial_node_reference(
         visit(node.parent);
     }
     match &node.data {
-        SpatialData::Scroll(scroll) => visit(scroll.registry_parent_node),
         SpatialData::Sticky(sticky) => {
             visit(sticky.scroller);
             if let Some(parent_sticky) = sticky.parent_sticky {
@@ -739,7 +737,7 @@ fn for_each_spatial_node_reference(
         }
         SpatialData::BackfaceVisibility(backface) => visit(backface.plane_root_index),
         SpatialData::AnchorScrollShift(shift) => visit(shift.scroll_node_index),
-        SpatialData::Perspective(_) | SpatialData::Dead => {}
+        SpatialData::Scroll(_) | SpatialData::Perspective(_) | SpatialData::Dead => {}
     }
 }
 
@@ -1530,7 +1528,6 @@ mod tests {
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -1590,7 +1587,6 @@ mod tests {
         SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         })
     }
 

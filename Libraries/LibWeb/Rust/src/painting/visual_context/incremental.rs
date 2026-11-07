@@ -254,20 +254,20 @@ pub(crate) fn register_scroll_like_node(
     node_index: SpatialNodeIndex,
 ) -> Option<RegisteredScrollLikeNode> {
     let index = node_index.0 as usize;
-    let (is_sticky, owner_paintable, registry_parent_node) = match &tree.spatial_nodes[index].data {
-        SpatialData::Scroll(scroll) => (false, scroll.owner_paintable, scroll.registry_parent_node),
-        SpatialData::Sticky(sticky) => (true, sticky.owner_paintable, sticky.registry_parent_node),
+    let (owner_paintable, sticky_registry_parent_node) = match &tree.spatial_nodes[index].data {
+        SpatialData::Scroll(scroll) => (scroll.owner_paintable, None),
+        SpatialData::Sticky(sticky) => (sticky.owner_paintable, Some(sticky.registry_parent_node)),
         _ => return None,
     };
-    let parent_slot = tree.scroll_state_slot_for_node(registry_parent_node);
-    if is_sticky {
+    if let Some(registry_parent_node) = sticky_registry_parent_node {
+        let parent_slot = tree.scroll_state_slot_for_node(registry_parent_node);
         let slot = scroll_state.register_sticky_node(node_index, owner_paintable, parent_slot);
         if let SpatialData::Sticky(sticky) = &mut tree.spatial_nodes[index].data {
             sticky.state_slot = slot;
         }
         Some(RegisteredScrollLikeNode::Sticky)
     } else {
-        let slot = scroll_state.register_scroll_node(node_index, owner_paintable, parent_slot);
+        let slot = scroll_state.register_scroll_node(node_index, owner_paintable);
         if let SpatialData::Scroll(scroll) = &mut tree.spatial_nodes[index].data {
             scroll.state_slot = slot;
         }
@@ -372,15 +372,18 @@ impl<Arena: PaintableRowsRead> AnchorScrollShiftResolver for WalkAnchorScrollShi
         self.layout_arena.default_scroll_shift_anchor(slot)
     }
 
-    fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex {
+    fn spatial_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex {
         if let Some(&index) = self.assignment_index_by_slot.get(&slot) {
-            return self.assignments[index].enclosing_scroll_node_index;
+            return self.assignments[index].accumulated_visual_context.spatial;
         }
         // A box this pass has not rebuilt keeps the record of the tree being updated. A fresh
         // tree dropped every record; a box reached there before its own build is only reachable
         // through a malformed anchor chain and contributes no scroll shift.
         if self.layout_arena.paintable_visual_context_record(slot).is_some() {
-            self.layout_arena.paintable_data(slot).enclosing_scroll_node_index
+            self.layout_arena
+                .paintable_data(slot)
+                .accumulated_visual_context
+                .spatial
         } else {
             VISUAL_VIEWPORT_NODE_INDEX
         }
@@ -497,7 +500,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         scope.rebuilds_every_box() || plan.revalidate_children_of.contains(&viewport),
     );
 
-    // An anchor-positioned box's scroll shift nodes name its anchor's enclosing scroll node, so
+    // An anchor-positioned box's scroll shift nodes name the scroll-like nodes above its anchor, so
     // the box is built once the stack is drained, after every anchor this pass rebuilds.
     let defers_anchor_positioned = layout_arena.may_have_default_scroll_shift_anchor();
     let mut deferred_anchor_positioned: Vec<DeferredAnchorPositionedBox> = Vec::new();

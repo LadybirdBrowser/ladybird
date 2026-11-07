@@ -1,0 +1,6 @@
+absolute, anchor in a scrolled scroller: anchor bottom 160, anchored top 160
+fixed, anchor in the scrolled document: anchor bottom 160, anchored top 160
+fixed and anchor in a transformed box in a scrolled scroller: anchor bottom 40, anchored top 40
+fixed in a transformed box in a scrolled scroller, anchor in an inner scrolled scroller: anchor bottom 60, anchored top 60
+absolute in fixed, anchor in sticky in the same fixed, scrolled document: anchor bottom 40, anchored top 40
+absolute in fixed, anchor in stuck sticky in a scrolled scroller, scrolled document: anchor bottom 45, anchored top 45

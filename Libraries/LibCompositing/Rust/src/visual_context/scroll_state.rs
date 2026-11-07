@@ -17,10 +17,9 @@ pub const NO_SCROLL_STATE_SLOT: ScrollStateSlot = usize::MAX;
 
 // Registry entry of one scroll-like node of the accumulated visual context tree, addressed by the
 // slot stamped into the node's payload. A scroll container's offset is kept beside the entries; a
-// sticky node's entry only links it into the scroll-parent chain, which the anchor default-scroll-shift
-// derivation walks and which decides the node's scroller and parent sticky. That chain follows
-// containing blocks, deliberately unlike the visual context parent chain for sticky content inside
-// fixed-position ancestors.
+// sticky node's entry only links it to its parent, which decides the node's scroller and parent
+// sticky. That link follows containing blocks, deliberately unlike the visual context parent chain
+// for sticky content inside fixed-position ancestors.
 #[derive(Clone, Debug)]
 pub struct ScrollNodeState {
     pub paintable: NodeSlotId,
@@ -30,8 +29,8 @@ pub struct ScrollNodeState {
 }
 
 // Registry of the scroll-like nodes of the accumulated visual context tree: the tree owns
-// structure and identity, entries here carry the scroll containers' offsets and the
-// containing-block-derived scroll-parent references. Rebuilt together with the tree; offsets are
+// structure and identity, entries here carry the scroll containers' offsets and the sticky nodes'
+// containing-block-derived parent references. Rebuilt together with the tree; offsets are
 // refreshed in place between rebuilds. Sticky offsets never live here: they are derived from the
 // tree when the snapshot is resolved.
 #[derive(Clone, Default)]
@@ -64,17 +63,12 @@ impl ScrollState {
         self.states.len() - 1
     }
 
-    pub fn register_scroll_node(
-        &mut self,
-        node_index: SpatialNodeIndex,
-        paintable: NodeSlotId,
-        parent_slot: ScrollStateSlot,
-    ) -> ScrollStateSlot {
+    pub fn register_scroll_node(&mut self, node_index: SpatialNodeIndex, paintable: NodeSlotId) -> ScrollStateSlot {
         self.append(ScrollNodeState {
             paintable,
             is_sticky: false,
             node_index,
-            parent_slot,
+            parent_slot: NO_SCROLL_STATE_SLOT,
         })
     }
 
