@@ -14,6 +14,17 @@
 
 namespace Ladybird {
 
+// Widgets restyle themselves on palette changes, so this tells them about one where the palette itself didn't change.
+static void notify_widgets_of_palette_change()
+{
+    QEvent application_event(QEvent::ApplicationPaletteChange);
+    QCoreApplication::sendEvent(qApp, &application_event);
+    for (auto* widget : QApplication::allWidgets()) {
+        QEvent event(QEvent::PaletteChange);
+        QCoreApplication::sendEvent(widget, &event);
+    }
+}
+
 SystemAppearance& SystemAppearance::the()
 {
     static auto* appearance = new SystemAppearance;
@@ -28,15 +39,7 @@ SystemAppearance::SystemAppearance()
         update();
     });
     // The chrome's colors depend on the contrast preference, but changing it does not change the application palette.
-    // Widgets restyle themselves on palette changes, so tell them about one.
-    QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, [] {
-        QEvent application_event(QEvent::ApplicationPaletteChange);
-        QCoreApplication::sendEvent(qApp, &application_event);
-        for (auto* widget : QApplication::allWidgets()) {
-            QEvent event(QEvent::PaletteChange);
-            QCoreApplication::sendEvent(widget, &event);
-        }
-    });
+    QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, &notify_widgets_of_palette_change);
     observe_platform_changes();
 }
 
@@ -56,6 +59,7 @@ void SystemAppearance::apply_interface_theme(WebView::ThemePreference theme)
         return;
     m_interface_theme = theme;
 
+    auto color_scheme_before = QGuiApplication::styleHints()->colorScheme();
     switch (theme) {
     case WebView::ThemePreference::System:
         QGuiApplication::styleHints()->unsetColorScheme();
@@ -67,6 +71,12 @@ void SystemAppearance::apply_interface_theme(WebView::ThemePreference theme)
         QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
         break;
     }
+
+    // NB: Qt applies a color scheme only where the platform theme supports it; many Linux desktops' themes don't. The
+    //     chrome follows the interface theme regardless, so it restyles itself here where Qt changed nothing, and so
+    //     sent no palette change of its own.
+    if (QGuiApplication::styleHints()->colorScheme() == color_scheme_before)
+        notify_widgets_of_palette_change();
 }
 
 #if !defined(AK_OS_MACOS)

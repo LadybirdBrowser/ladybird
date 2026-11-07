@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
 
 #include <QAccessibilityHints>
@@ -17,6 +18,16 @@ namespace Ladybird::Theme {
 
 bool is_dark()
 {
+    // NB: Qt can ignore the color scheme the interface theme asks for, so the chosen theme decides first.
+    switch (SystemAppearance::the().interface_theme()) {
+    case WebView::ThemePreference::Light:
+        return false;
+    case WebView::ThemePreference::Dark:
+        return true;
+    case WebView::ThemePreference::System:
+        break;
+    }
+
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
     if (color_scheme != Qt::ColorScheme::Unknown)
         return color_scheme == Qt::ColorScheme::Dark;
