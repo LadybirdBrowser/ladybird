@@ -1,0 +1,6 @@
+Ladybird now runs an assignment to a class declaration’s binding that
+reads the binding (“C = C”, “C += 1”) without a ReferenceError, and
+still throws for one that runs before the declaration. V8, JSC, and
+SpiderMonkey give the same results for all three cases, as the spec
+requires: Evaluating a ClassDeclaration initializes its binding with
+InitializeBoundName before any code after the declaration runs.
