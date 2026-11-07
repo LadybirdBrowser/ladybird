@@ -50,7 +50,7 @@ void AudioWorkletRenderNode::process(RenderGraph& graph, RenderContext const& co
         for (size_t input = 0; input < input_count(); ++input) {
             // Unlike the render graph's silent mono bus, an unconnected worklet input
             // is represented by an empty channel array in process().
-            if (input_connections(input).is_empty()) {
+            if (!has_input_connections(input)) {
                 slot.actual_channel_count(input) = 0;
                 continue;
             }
@@ -78,7 +78,7 @@ void AudioWorkletRenderNode::process(RenderGraph& graph, RenderContext const& co
 
     bool popped = m_pipe->try_pop_output([&](AudioWorkletPipe::OutputSlotReader const& slot) {
         for (size_t output = 0; output < output_count(); ++output) {
-            auto& output_bus = this->output(output);
+            auto output_bus = this->output(output);
             auto channel_count = min(static_cast<size_t>(slot.actual_channel_count(output)), static_cast<size_t>(m_output_channel_capacities[output]));
             output_bus.set_channel_count(max(channel_count, static_cast<size_t>(1)));
             output_bus.zero();

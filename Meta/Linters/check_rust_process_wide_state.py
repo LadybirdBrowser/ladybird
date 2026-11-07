@@ -150,6 +150,7 @@ RENDER_STATE_ALLOWED = {
             "css/style_compute.rs:REMAINING_ORDER",
             "css/style_compute.rs:TABLE",
             "style_layout_pool.rs:THREAD_COUNT",
+            "web_audio/rendering/render_nodes.rs:COEFFICIENTS",
         ],
     ),
     **render_state_entries(

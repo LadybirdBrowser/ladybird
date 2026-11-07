@@ -174,8 +174,8 @@ void RealtimeAudioRenderer::render_quantum_into_pending_samples()
     if (m_device_bus) {
         auto& device_bus = *m_device_bus;
         device_bus.zero();
-        if (auto* destination_node = m_graph.destination())
-            device_bus.sum_from(destination_node->output(0), Bindings::ChannelInterpretation::Speakers);
+        if (auto destination_output = m_graph.destination_output(); destination_output.has_value())
+            device_bus.sum_from(*destination_output, Bindings::ChannelInterpretation::Speakers);
 
         auto sample_offset = m_pending_samples.size();
         m_pending_samples.resize(sample_offset + m_quantum_size * m_device_channel_count);

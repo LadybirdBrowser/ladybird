@@ -33,6 +33,8 @@ public:
 
     void const* rust_bus() const { return m_bus; }
 
+    static AudioBus borrow(void*);
+
     void zero();
     bool is_silent() const;
     void set_channel_count(size_t);
@@ -41,7 +43,13 @@ public:
     void sum_from(AudioBus const& source, Bindings::ChannelInterpretation);
 
 private:
+    explicit AudioBus(void* bus)
+        : m_bus(bus)
+        , m_owned(false)
+    {
+    }
     void* m_bus { nullptr };
+    bool m_owned { true };
 };
 
 }

@@ -17,12 +17,13 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#control-message-queue
 class WEB_API ControlMessageQueue : public AtomicRefCounted<ControlMessageQueue> {
 public:
-    void enqueue(ControlMessage);   // Called by the control thread.
-    Vector<ControlMessage> drain(); // Called by the rendering thread.
+    ControlMessageQueue();
+    ~ControlMessageQueue();
+    void enqueue(ControlMessage); // Called by the control thread.
+    void* drain();                // Called by the rendering thread.
 
 private:
-    mutable Mutex m_mutex;
-    Vector<ControlMessage> m_messages;
+    void* m_queue { nullptr };
 };
 
 }

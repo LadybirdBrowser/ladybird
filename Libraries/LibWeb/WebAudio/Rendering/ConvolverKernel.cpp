@@ -15,7 +15,7 @@ RefPtr<ConvolverKernel> ConvolverKernel::create(AudioBufferContents const& conte
     Vector<ReadonlySpan<float>> channels;
     channels.ensure_capacity(contents.channels.size());
     for (auto const& channel : contents.channels)
-        channels.unchecked_append(channel.span());
+        channels.unchecked_append(channel);
     auto const* kernel = RustFFI::web_audio_convolver_kernel_create(channels.span(), contents.sample_rate, partition_size, normalize);
     if (!kernel)
         return nullptr;

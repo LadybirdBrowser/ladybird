@@ -23,6 +23,7 @@ AudioBus::AudioBus(AudioBus const& other)
 
 AudioBus::AudioBus(AudioBus&& other)
     : m_bus(exchange(other.m_bus, nullptr))
+    , m_owned(other.m_owned)
 {
 }
 
@@ -30,8 +31,10 @@ AudioBus& AudioBus::operator=(AudioBus const& other)
 {
     if (this != &other) {
         auto* copy = RustFFI::web_audio_bus_clone(other.m_bus);
-        RustFFI::web_audio_bus_destroy(m_bus);
+        if (m_owned)
+            RustFFI::web_audio_bus_destroy(m_bus);
         m_bus = copy;
+        m_owned = true;
     }
     return *this;
 }
@@ -39,15 +42,23 @@ AudioBus& AudioBus::operator=(AudioBus const& other)
 AudioBus& AudioBus::operator=(AudioBus&& other)
 {
     if (this != &other) {
-        RustFFI::web_audio_bus_destroy(m_bus);
+        if (m_owned)
+            RustFFI::web_audio_bus_destroy(m_bus);
         m_bus = exchange(other.m_bus, nullptr);
+        m_owned = other.m_owned;
     }
     return *this;
 }
 
 AudioBus::~AudioBus()
 {
-    RustFFI::web_audio_bus_destroy(m_bus);
+    if (m_owned)
+        RustFFI::web_audio_bus_destroy(m_bus);
+}
+
+AudioBus AudioBus::borrow(void* bus)
+{
+    return AudioBus(bus);
 }
 
 size_t AudioBus::channel_count() const

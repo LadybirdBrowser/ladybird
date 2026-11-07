@@ -20,7 +20,7 @@ ScriptProcessorRenderNode::~ScriptProcessorRenderNode() = default;
 
 void ScriptProcessorRenderNode::process(RenderGraph& graph, RenderContext const& context)
 {
-    auto& output_bus = output(0);
+    auto output_bus = output(0);
     output_bus.set_channel_count(max(m_pipe->config().output_channel_count, 1uz));
     output_bus.zero();
     if (m_pipe->is_shut_down())
@@ -29,7 +29,7 @@ void ScriptProcessorRenderNode::process(RenderGraph& graph, RenderContext const&
     // https://webaudio.github.io/web-audio-api/#ScriptProcessorNode
     // audioprocess events are only dispatched if the ScriptProcessorNode has at least one input or one output
     // connected.
-    if (input_connections(0).is_empty() && outgoing_node_connections().is_empty() && outgoing_param_connections().is_empty())
+    if (!has_input_connections(0) && outgoing_node_connection_count() == 0 && outgoing_param_connection_count() == 0)
         return;
 
     auto const& config = m_pipe->config();

@@ -45,6 +45,13 @@ impl AudioBus {
         &mut self.channels[index]
     }
 
+    pub(crate) unsafe fn channel_pointer(bus: *mut Self, index: usize) -> (*mut f32, usize) {
+        let channels = unsafe { &raw mut (*bus).channels };
+        assert!(index < unsafe { (*channels).len() });
+        let channel = unsafe { (*channels).as_mut_ptr().add(index) };
+        unsafe { ((*channel).as_mut_ptr(), (*channel).len()) }
+    }
+
     pub fn zero(&mut self) {
         for channel in &mut self.channels {
             channel.fill(0.);

@@ -6,4 +6,6 @@
  */
 
 pub mod audio_param_timeline;
+pub mod control_message;
+pub mod control_message_queue;
 pub mod rendering;
