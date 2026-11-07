@@ -1,4 +1,5 @@
 unknown processor: InvalidStateError
 constructor error reported
 processor sample rate: 44100
+second construction: TypeError
 process error reported

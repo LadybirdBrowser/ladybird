@@ -44,13 +44,13 @@ public:
     ProcessorDefinition const* find_definition(Utf16String const& name) const;
 
     // https://webaudio.github.io/web-audio-api/#pending-processor-construction-data
-    // Set by AudioWorkletNode instantiation immediately before invoking the processor constructor;
-    // consumed by AudioWorkletProcessor's constructor.
     struct PendingProcessorConstructionData {
-        GC::Ref<HTML::MessagePort> port;
+        GC::Ref<AudioWorkletNode> node_reference;
+        GC::Ref<HTML::MessagePort> transferred_port;
     };
-    Optional<PendingProcessorConstructionData> take_pending_processor_construction_data();
+    Optional<PendingProcessorConstructionData> const& pending_processor_construction_data() const { return m_pending_processor_construction_data; }
     void set_pending_processor_construction_data(PendingProcessorConstructionData);
+    void clear_pending_processor_construction_data() { m_pending_processor_construction_data.clear(); }
 
     // Advanced by the render pump as it processes quanta; read by the currentFrame/currentTime getters.
     void set_current_frame_and_time(u64 current_frame, double current_time)
