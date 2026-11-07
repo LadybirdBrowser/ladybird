@@ -64,6 +64,7 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .min_scroll_offset = 0,
         .max_scroll_offset = 100,
         .thumb_color = Gfx::Color::Black,
+        .thumb_outline_color = Gfx::Color::White,
         .track_color = Gfx::Color::Transparent,
         .vertical = vertical,
         .is_painted_by_compositor = true,
@@ -133,6 +134,7 @@ static Compositing::AsyncScrollbar scrollbar_painted_by_display_list()
         .min_scroll_offset = 0,
         .max_scroll_offset = 100,
         .thumb_color = Gfx::Color::Black,
+        .thumb_outline_color = Gfx::Color::White,
         .track_color = Gfx::Color::Transparent,
         .vertical = true,
         .is_painted_by_compositor = false,
@@ -141,7 +143,7 @@ static Compositing::AsyncScrollbar scrollbar_painted_by_display_list()
 
 static Compositor::ScrollbarController::PresentedScrollbar presented_scrollbar(Compositor::ScrollbarController const& controller, Compositing::ScrollStateSnapshot const& scroll_state_snapshot = {})
 {
-    auto scrollbar = controller.presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex { 1 }, true, Gfx::Color(0, 0, 0, 100), Gfx::Color(0, 0, 0, 20), scroll_state_snapshot);
+    auto scrollbar = controller.presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex { 1 }, true, Gfx::Color(0, 0, 0, 100), Gfx::Color(255, 255, 255, 64), Gfx::Color(0, 0, 0, 20), scroll_state_snapshot);
     VERIFY(scrollbar.has_value());
     return *scrollbar;
 }

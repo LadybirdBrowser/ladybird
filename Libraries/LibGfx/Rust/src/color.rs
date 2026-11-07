@@ -61,6 +61,15 @@ impl Color {
     pub const fn inverted(self) -> Self {
         Self::from_rgba(!self.red(), !self.green(), !self.blue(), self.alpha())
     }
+    pub fn lightened(self, amount: f32) -> Self {
+        let lighten = |channel: u8| (channel as f32 * amount).min(255.0) as u8;
+        Self::from_rgba(
+            lighten(self.red()),
+            lighten(self.green()),
+            lighten(self.blue()),
+            self.alpha(),
+        )
+    }
     pub fn interpolate(self, other: Self, weight: f32) -> Self {
         let mix = |a: u8, b: u8| -> u8 {
             let a = a as f32;

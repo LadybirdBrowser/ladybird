@@ -131,6 +131,7 @@ struct AsyncScrollbar {
     float min_scroll_offset { 0 };
     float max_scroll_offset { 0 };
     Color thumb_color;
+    Color thumb_outline_color;
     Color track_color;
     bool vertical { false };
     // The compositor paints the viewport's scrollbars itself. The display list paints every other scrollbar thin, which

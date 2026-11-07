@@ -142,6 +142,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .min_scroll_offset = command.min_scroll_offset,
                 .max_scroll_offset = command.max_scroll_offset,
                 .thumb_color = command.thumb_color,
+                .thumb_outline_color = command.thumb_outline_color,
                 .track_color = command.track_color,
                 .vertical = command.vertical,
                 .is_painted_by_compositor = command.is_painted_by_compositor,
