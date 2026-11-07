@@ -9,9 +9,11 @@ option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they sti
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
 option(BUILD_BROWSER_TESTS_ONLY "Only build the tests that run the browser's own executables" OFF)
 
-# The optimizing JIT for JavaScript generates code for x86-64 and AArch64 with the calling conventions of Linux and
-# macOS. Elsewhere, LibJS runs JavaScript in its interpreter alone.
+# The optimizing JIT for JavaScript generates code for x86-64 and AArch64 on Linux and macOS, and for x86-64 on Windows.
+# Elsewhere, LibJS runs JavaScript in its interpreter alone.
 if (((LINUX AND NOT ANDROID) OR APPLE) AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|arm64|ARM64)$")
+    set(js_jit_default ON)
+elseif (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
     set(js_jit_default ON)
 else()
     set(js_jit_default OFF)
