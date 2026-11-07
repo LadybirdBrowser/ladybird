@@ -31,9 +31,6 @@
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 
-// NB: A load request keeps its page in a GC::Root, and holds no other cell.
-GC_UNTRACED_CAPTURE(Web::LoadRequest);
-
 namespace Web {
 
 static RefPtr<ResourceLoader>& resource_loader()

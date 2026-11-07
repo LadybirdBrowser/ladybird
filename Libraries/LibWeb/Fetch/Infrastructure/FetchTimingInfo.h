@@ -21,6 +21,8 @@ namespace Web::Fetch::Infrastructure {
 // https://fetch.spec.whatwg.org/#fetch-timing-info
 class WEB_API FetchTimingInfo : public AtomicRefCounted<FetchTimingInfo> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     [[nodiscard]] static NonnullRefPtr<FetchTimingInfo> create();
 
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }

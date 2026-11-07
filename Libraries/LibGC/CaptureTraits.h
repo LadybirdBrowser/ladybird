@@ -24,14 +24,18 @@ namespace GC {
 template<typename T>
 class Weak;
 
-// A capture whose type the GC does not trace has to hold no cell edges at all. Non-GC objects keep the cells they use in
-// GC::Root, so owning and counted pointers to them hold no edges of the function either. A raw pointer is never one of
-// these, as it may point into a cell, such as at a mixin of one.
+// A capture whose type the GC does not trace has to hold no cell edges at all. An owning or counted pointer is one if what
+// it points to is, which a type declares with GC_UNTRACED_CAPTURE(). A raw pointer is never one of these, as it may point
+// into a cell, such as at a mixin of one.
 template<typename T>
 struct IsUntracedCapture : FalseType { };
 
 template<typename T>
 requires(IsArithmetic<T> || IsEnum<T>)
+struct IsUntracedCapture<T> : TrueType { };
+
+template<typename T>
+requires(requires { typename T::HoldsNoCellEdges; })
 struct IsUntracedCapture<T> : TrueType { };
 
 template<>
@@ -96,19 +100,19 @@ struct IsUntracedCapture<AK::JsonArray> : TrueType { };
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::RefPtr<T>> : TrueType { };
+struct IsUntracedCapture<AK::RefPtr<T>> : IsUntracedCapture<RemoveCV<T>> { };
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::NonnullRefPtr<T>> : TrueType { };
+struct IsUntracedCapture<AK::NonnullRefPtr<T>> : IsUntracedCapture<RemoveCV<T>> { };
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::OwnPtr<T>> : TrueType { };
+struct IsUntracedCapture<AK::OwnPtr<T>> : IsUntracedCapture<RemoveCV<T>> { };
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsUntracedCapture<AK::NonnullOwnPtr<T>> : TrueType { };
+struct IsUntracedCapture<AK::NonnullOwnPtr<T>> : IsUntracedCapture<RemoveCV<T>> { };
 
 template<typename T>
 struct IsUntracedCapture<Optional<T>> : IsUntracedCapture<T> { };
@@ -130,7 +134,17 @@ struct IsTracedCapture;
 // Every part of a capture is either traced or holds no cell edges, so nothing a function captures can keep a cell
 // that the GC does not see.
 template<typename T>
-inline constexpr bool IsCapturable = IsUntracedCapture<T>::value || IsTracedCapture<T>::value;
+consteval bool is_capturable()
+{
+    // NB: A type that holds no cell edges may be incomplete here, which asking whether it is traced would not allow.
+    if constexpr (IsUntracedCapture<T>::value)
+        return true;
+    else
+        return IsTracedCapture<T>::value;
+}
+
+template<typename T>
+inline constexpr bool IsCapturable = is_capturable<T>();
 
 template<typename T>
 struct IsTracedCapture {
@@ -160,11 +174,11 @@ struct IsTracedCapture<Variant<Ts...>> {
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsTracedCapture<AK::RefPtr<T>> : IsTracedCapture<T> { };
+struct IsTracedCapture<AK::RefPtr<T>> : IsTracedCapture<RemoveCV<T>> { };
 
 template<typename T>
 requires(!IsCellLike<RemoveCV<T>>)
-struct IsTracedCapture<AK::NonnullRefPtr<T>> : IsTracedCapture<T> { };
+struct IsTracedCapture<AK::NonnullRefPtr<T>> : IsTracedCapture<RemoveCV<T>> { };
 
 // Visits a member of a value type, such as a generated dictionary, from its visit_edges(). Every member must be traced or
 // hold no cell edges, so that the value can be captured by a GC::Function.

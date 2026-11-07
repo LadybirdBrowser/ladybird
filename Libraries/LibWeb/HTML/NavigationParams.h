@@ -10,6 +10,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Utf16String.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/PerformanceNavigationTiming.h>
@@ -32,6 +33,7 @@ namespace Web::HTML {
 // NB: Reconstructed response callbacks and download adoption share one terminal-event owner.
 struct NavigationResponseNetworkEventState : RefCounted<NavigationResponseNetworkEventState> {
     AK_ALLOC_WITH_KMALLOC;
+    GC_HOLDS_NO_CELL_EDGES;
 
     enum class Owner {
         Renderer,

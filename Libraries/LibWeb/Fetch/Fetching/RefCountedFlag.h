@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <LibGC/Forward.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -14,6 +15,8 @@ namespace Web::Fetch::Fetching {
 /// This is used to share flags between multiple callback closures.
 class RefCountedFlag : public RefCounted<RefCountedFlag> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     static NonnullRefPtr<RefCountedFlag> create(bool);
 
     [[nodiscard]] bool value() const { return m_value; }

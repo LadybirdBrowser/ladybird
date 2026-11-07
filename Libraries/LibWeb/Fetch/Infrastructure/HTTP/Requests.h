@@ -49,6 +49,8 @@ class Response;
 // https://fetch.spec.whatwg.org/#concept-request
 class WEB_API Request final : public RefCounted<Request> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     enum class CredentialsMode {
         Omit,
         SameOrigin,

@@ -13,6 +13,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
+#include <LibGC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DedicatedWorkerThreadLink.h>
@@ -64,3 +65,6 @@ private:
 };
 
 }
+
+// NB: The tasks the link keeps cross between threads, so they can't be GC::Functions. They capture no cells.
+GC_UNTRACED_CAPTURE(WebWorker::DedicatedWorkerThreadLink);

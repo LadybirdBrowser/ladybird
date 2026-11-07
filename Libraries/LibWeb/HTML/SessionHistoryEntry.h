@@ -29,6 +29,8 @@ namespace Web::HTML {
 
 class WEB_API SessionHistoryEntry final : public RefCounted<SessionHistoryEntry> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     static NonnullRefPtr<SessionHistoryEntry> create();
     static NonnullRefPtr<SessionHistoryEntry> create(NonnullRefPtr<DirectiveState>);
 

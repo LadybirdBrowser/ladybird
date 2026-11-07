@@ -21,6 +21,8 @@ struct RemoteClientNavigation {
 
 // The settings of an environment another process hosts, as that process serialized them.
 struct RemoteEnvironmentSettings final : public AtomicRefCounted<RemoteEnvironmentSettings> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     static NonnullRefPtr<RemoteEnvironmentSettings const> create(SerializedEnvironmentSettingsObject settings)
     {
         return adopt_ref(*new RemoteEnvironmentSettings(move(settings)));

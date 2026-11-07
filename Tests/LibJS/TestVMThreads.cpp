@@ -316,6 +316,8 @@ static constexpr StringView NEVER_ENDING_PROMISE_JOBS[] = {
 
 // NB: The native function the script calls sets this, so it is shared with the function's captures.
 struct JobRanFlag : AtomicRefCounted<JobRanFlag> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     Atomic<bool> value { false };
 };
 

@@ -34,6 +34,8 @@ static WebIDL::UnsignedLong s_next_watch_id = 0;
 
 class GeolocationRequestState : public RefCounted<GeolocationRequestState> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     u64 request_id { 0 };
     bool completed { false };
     bool timeout_stopped { false };

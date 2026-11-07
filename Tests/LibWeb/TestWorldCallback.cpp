@@ -30,6 +30,8 @@ static void install_test_host_defined(JS::Realm& realm, Web::Bindings::WrapperWo
 }
 
 struct ListenerCall : RefCounted<ListenerCall> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     bool value { false };
 };
 

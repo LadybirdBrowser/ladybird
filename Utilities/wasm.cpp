@@ -45,6 +45,8 @@ using WasmValue = Wasm::Runtime::Value;
 
 // What a host function's "invoke" calls back into. NB: Both live in main() for as long as the utility runs.
 struct ReentryTarget : RefCounted<ReentryTarget> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     ReentryTarget(Wasm::Runtime::Store& store, Entity& main_instance)
         : store(store)
         , main_instance(main_instance)

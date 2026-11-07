@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGC/Forward.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Position.h>
@@ -26,6 +27,8 @@ class JS_API SourceCode {
     AK_MAKE_NONMOVABLE(SourceCode);
 
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, Utf16String code);
 
     Utf16String const& filename() const;

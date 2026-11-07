@@ -30,6 +30,8 @@ namespace {
 
 // What the algorithms of a fetch saw, which the test reads once they have run.
 struct AlgorithmCalls : RefCounted<AlgorithmCalls> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     Vector<StringView> calls;
     Vector<GC::Root<ResponseView>> responses;
     Optional<ByteBuffer> consumed_bytes;

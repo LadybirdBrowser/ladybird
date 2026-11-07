@@ -17,6 +17,9 @@
         static constexpr bool value = true;     \
     }
 
+// Declares inside a type that it holds no cell edges, for a type that can't be named at global scope.
+#define GC_HOLDS_NO_CELL_EDGES using HoldsNoCellEdges = void
+
 namespace GC {
 
 // Whether a type holds no cell edges, so that a GC::Function may capture it untraced. See LibGC/CaptureTraits.h.

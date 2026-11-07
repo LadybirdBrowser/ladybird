@@ -17,9 +17,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Page/Page.h>
 
-// NB: A request holds its nodes weakly, so a function can capture it without an edge to trace.
-GC_UNTRACED_CAPTURE(Web::Editing::WritingSuggestionController::Request);
-
 namespace Web::Editing {
 
 WritingSuggestionController::WritingSuggestionController(DOM::Document& document)

@@ -27,6 +27,8 @@ class WEB_API FetchParams
     : public RefCounted<FetchParams>
     , public Weakable<FetchParams> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, NonnullRefPtr<Response>>;
 

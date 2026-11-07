@@ -31,6 +31,8 @@ namespace Web::Fetch::Infrastructure {
 // https://fetch.spec.whatwg.org/#concept-response
 class WEB_API Response : public RefCounted<Response> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     using CacheState = ResponseCacheState;
 
     enum class Type {

@@ -819,6 +819,8 @@ void capture_screenshot(HTML::Navigable& navigable, JsonObject const& params, On
     // NB: Visibility and activity changes complete a pending capture without waiting for its callback to be collected.
     struct State : RefCounted<State>
         , Weakable<State> {
+        GC_HOLDS_NO_CELL_EDGES;
+
         AK_ALLOC_WITH_KMALLOC;
 
         OnCommandComplete on_complete;
