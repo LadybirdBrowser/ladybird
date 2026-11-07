@@ -1,0 +1,4 @@
+same-origin width: 20
+direct width: 0, cross-origin requests: 0
+same-origin redirect requests: 1
+redirect width: 0, cross-origin requests: 0

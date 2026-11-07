@@ -36,7 +36,10 @@ static u64 s_next_memory_cache_touch_serial;
 
 GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, URL::URL const& url, CORSSettingAttribute cors_setting)
 {
-    return get_or_create(document, { url, cors_setting, {}, ReferrerPolicy::ReferrerPolicy::EmptyString });
+    using Request = Fetch::Infrastructure::Request;
+    auto mode = cors_setting == CORSSettingAttribute::NoCORS ? Request::Mode::NoCORS : Request::Mode::CORS;
+    auto credentials_mode = cors_setting == CORSSettingAttribute::Anonymous ? Request::CredentialsMode::SameOrigin : Request::CredentialsMode::Include;
+    return get_or_create(document, { url, mode, credentials_mode, {}, ReferrerPolicy::ReferrerPolicy::EmptyString });
 }
 
 GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, Key key)
@@ -53,20 +56,13 @@ GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Documen
 
 GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(DOM::Document& document, Fetch::Infrastructure::Request const& request)
 {
-    // NB: This is the CORS settings attribute state that creating a potential-CORS request turns into the mode and
-    //     credentials mode of request.
-    auto cors_setting = CORSSettingAttribute::NoCORS;
-    if (request.mode() != Fetch::Infrastructure::Request::Mode::NoCORS) {
-        cors_setting = request.credentials_mode() == Fetch::Infrastructure::Request::CredentialsMode::Include
-            ? CORSSettingAttribute::UseCredentials
-            : CORSSettingAttribute::Anonymous;
-    }
-    return get_or_create(document, { request.url(), cors_setting, request.integrity_metadata(), request.referrer_policy() });
+    return get_or_create(document, { request.url(), request.mode(), request.credentials_mode(), request.integrity_metadata(), request.referrer_policy() });
 }
 
 GC::Ref<SharedResourceRequest> SharedResourceRequest::create_from_navigation_response_body(DOM::Document& document, Fetch::Infrastructure::Body const& body, GC::Ref<GC::Function<void()>> on_body_read)
 {
-    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), Key { document.url(), CORSSettingAttribute::NoCORS, {}, ReferrerPolicy::ReferrerPolicy::EmptyString }, document);
+    using Request = Fetch::Infrastructure::Request;
+    auto request = GC::Heap::the().allocate<SharedResourceRequest>(document.page(), Key { document.url(), Request::Mode::NoCORS, Request::CredentialsMode::Include, {}, ReferrerPolicy::ReferrerPolicy::EmptyString }, document);
     request->m_can_be_shared = false;
     request->m_state = State::Fetching;
     // NB: The element that presents the image may start to wait for it only after the body has been read.
