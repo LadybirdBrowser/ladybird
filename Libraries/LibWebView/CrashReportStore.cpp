@@ -351,15 +351,29 @@ static void remove_orphaned_websites(Core::Directory const& directory)
     }
 }
 
-ErrorOr<void> CrashReportStore::remove_expired_reports(UnixDateTime now) const
+static ErrorOr<void> remove_reports_in_directory(ByteString const& path, Optional<UnixDateTime> earliest_time)
 {
-    auto directory = TRY(open_report_directory(m_directory));
-    auto earliest_time = now - maximum_unsent_report_age;
+    auto directory = TRY(open_report_directory(path));
     remove_reports_older_than(directory, earliest_time);
     remove_orphaned_websites(directory);
     if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
         remove_reports_older_than(*seen_directory, earliest_time);
     return {};
+}
+
+// A report that could not be moved in stays where it was, but it is still ours to delete.
+ErrorOr<void> CrashReportStore::remove_reports(Optional<UnixDateTime> earliest_time) const
+{
+    ErrorOr<void> adopted_directory_result {};
+    if (m_adopted_directory.has_value() && FileSystem::exists(*m_adopted_directory))
+        adopted_directory_result = remove_reports_in_directory(*m_adopted_directory, earliest_time);
+    TRY(remove_reports_in_directory(m_directory, earliest_time));
+    return adopted_directory_result;
+}
+
+ErrorOr<void> CrashReportStore::remove_expired_reports(UnixDateTime now) const
+{
+    return remove_reports(now - maximum_unsent_report_age);
 }
 
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const& name) const
@@ -397,10 +411,11 @@ Optional<String> CrashReportStore::website(ByteString const& name) const
     return String::from_utf8_with_replacement_character(contents.value().view());
 }
 
-ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const& directory) const
+ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const& directory)
 {
     if (directory == m_directory || !FileSystem::exists(directory))
         return {};
+    m_adopted_directory = directory;
 
     auto from = TRY(open_report_directory(directory, Core::Directory::CreateDirectories::No));
     auto to = TRY(open_report_directory(m_directory));
@@ -431,12 +446,7 @@ ErrorOr<void> CrashReportStore::remove_websites_saved_since(UnixDateTime since) 
 
 ErrorOr<void> CrashReportStore::remove_all_reports() const
 {
-    auto directory = TRY(open_report_directory(m_directory));
-    remove_reports_older_than(directory, {});
-    remove_orphaned_websites(directory);
-    if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value())
-        remove_reports_older_than(*seen_directory, {});
-    return {};
+    return remove_reports({});
 }
 
 ErrorOr<void> CrashReportStore::remove_report(ByteString const& name) const
@@ -618,7 +628,7 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime)
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_report(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_all_reports() const { return {}; }
-ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const&) const { return {}; }
+ErrorOr<void> CrashReportStore::adopt_reports_from(ByteString const&) { return {}; }
 ErrorOr<void> CrashReportStore::save_website(ByteString const&, StringView) const { return {}; }
 Optional<String> CrashReportStore::website(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_websites_saved_since(UnixDateTime) const { return {}; }
