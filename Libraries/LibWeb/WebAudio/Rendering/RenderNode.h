@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,25 +43,18 @@ class WEB_API RenderAudioParam : public AtomicRefCounted<RenderAudioParam> {
 public:
     RenderAudioParam(NonnullRefPtr<AudioParamTimeline> timeline, float min_value, float max_value, Bindings::AutomationRate);
 
-    void set_automation_rate(Bindings::AutomationRate automation_rate) { m_automation_rate.store(automation_rate); }
-    Bindings::AutomationRate automation_rate() const { return m_automation_rate.load(); }
+    ~RenderAudioParam();
+
+    void set_automation_rate(Bindings::AutomationRate);
+    Bindings::AutomationRate automation_rate() const;
 
     void compute(RenderGraph&, RenderContext const&, Span<float> output);
 
-    struct Input {
-        NodeID source;
-        size_t output_index;
-    };
-    Vector<Input>& inputs() { return m_inputs; }
+    void clear_inputs();
+    void add_input(NodeID source, size_t output_index);
 
 private:
-    NonnullRefPtr<AudioParamTimeline> m_timeline;
-    float m_min_value { 0 };
-    float m_max_value { 0 };
-    Atomic<Bindings::AutomationRate> m_automation_rate;
-
-    Vector<Input> m_inputs;
-    OwnPtr<AudioBus> m_input_scratch;
+    void const* m_param { nullptr };
 };
 
 // Base class for the rendering thread's counterparts of AudioNodes. Render nodes are constructed on the control thread

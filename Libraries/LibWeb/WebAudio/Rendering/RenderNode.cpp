@@ -1,81 +1,56 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Math.h>
+#include <LibWeb/WebAudio/RustFFI.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio::Rendering {
 
 RenderAudioParam::RenderAudioParam(NonnullRefPtr<AudioParamTimeline> timeline, float min_value, float max_value, Bindings::AutomationRate automation_rate)
-    : m_timeline(move(timeline))
-    , m_min_value(min_value)
-    , m_max_value(max_value)
-    , m_automation_rate(automation_rate)
+    : m_param(RustFFI::web_audio_render_param_create(timeline->rust_timeline(), min_value, max_value, static_cast<RustFFI::AutomationRate>(automation_rate)))
 {
+    static_assert(to_underlying(Bindings::AutomationRate::ARate) == to_underlying(RustFFI::AutomationRate::ARate));
+    static_assert(to_underlying(Bindings::AutomationRate::KRate) == to_underlying(RustFFI::AutomationRate::KRate));
 }
 
-// https://webaudio.github.io/web-audio-api/#computation-of-value
+RenderAudioParam::~RenderAudioParam()
+{
+    RustFFI::web_audio_render_param_destroy(m_param);
+}
+
+void RenderAudioParam::set_automation_rate(Bindings::AutomationRate rate)
+{
+    RustFFI::web_audio_render_param_set_automation_rate(m_param, static_cast<RustFFI::AutomationRate>(rate));
+}
+
+Bindings::AutomationRate RenderAudioParam::automation_rate() const
+{
+    return static_cast<Bindings::AutomationRate>(RustFFI::web_audio_render_param_automation_rate(m_param));
+}
+
+void RenderAudioParam::clear_inputs()
+{
+    RustFFI::web_audio_render_param_clear_inputs(m_param);
+}
+
+void RenderAudioParam::add_input(NodeID source, size_t output_index)
+{
+    RustFFI::web_audio_render_param_add_input(m_param, source.value(), output_index);
+}
+
 void RenderAudioParam::compute(RenderGraph& graph, RenderContext const& context, Span<float> output)
 {
-    // 1. paramIntrinsicValue will be calculated at each time, which is either the value set directly to the value
-    //    attribute, or, if there are any automation events with times before or at this time, the value as calculated
-    //    from these events.
-    // NB: An a-rate parameter takes the exact value of the signal at each sample frame of the render quantum, while a
-    //     k-rate parameter uses the value of the very first sample frame for the entire quantum.
-    auto rate = automation_rate();
-    if (rate == Bindings::AutomationRate::KRate) {
-        auto value = m_timeline->value_at_time(context.quantum_start_time());
-        output.fill(value);
-    } else {
-        m_timeline->sample(context.quantum_start_time(), context.sample_period(), output);
-    }
-
-    // 2. Set [[current value]] to the value of paramIntrinsicValue at the beginning of this render quantum.
-    // NB: The render param keeps no [[current value]] slot of its own; the AudioParam's value getter reads the shared
-    //     automation timeline directly on the control thread.
-
-    // 3. paramComputedValue is the sum of the paramIntrinsicValue value and the value of the input AudioParam
-    //    buffer. If the sum is NaN, replace the sum with the defaultValue.
-    for (auto const& input : m_inputs) {
-        auto const* bus = graph.pull_output(input.source, input.output_index, context);
-        if (!bus)
-            continue;
-
-        // The AudioParam will take the rendered audio data from any AudioNode output connected to it and convert it to
-        // mono by down-mixing if it is not already mono.
-        if (!m_input_scratch || m_input_scratch->frame_count() != context.quantum_size)
-            m_input_scratch = make<AudioBus>(1, context.quantum_size);
-        m_input_scratch->zero();
-        m_input_scratch->sum_from(*bus, Bindings::ChannelInterpretation::Speakers);
-
-        auto input_samples = m_input_scratch->channel(0);
-        if (rate == Bindings::AutomationRate::KRate) {
-            for (auto& value : output)
-                value += input_samples[0];
-        } else {
-            for (size_t frame = 0; frame < output.size(); ++frame)
-                output[frame] += input_samples[frame];
-        }
-    }
-    auto default_value = m_timeline->default_value();
-    for (auto& value : output) {
-        if (isnan(value))
-            value = default_value;
-    }
-
-    // 4. If this AudioParam is a compound parameter, compute its final value with other AudioParams.
-    // NB: None of the AudioParams backed by a render node are compound parameters.
-
-    // 5. Set computedValue to paramComputedValue.
-
-    // NB: The computedValue is clamped to the simple nominal range for this parameter.
-    // https://webaudio.github.io/web-audio-api/#simple-nominal-range
-    for (auto& value : output)
-        value = clamp(value, m_min_value, m_max_value);
+    RustFFI::RenderContext rust_context { context.sample_rate, context.quantum_size, context.quantum_start_frame };
+    RustFFI::web_audio_render_param_compute(m_param, &graph, [](void* graph, u64 source, size_t output_index, RustFFI::RenderContext const* context) -> void const* {
+        RenderContext render_context { context->sample_rate, context->quantum_size, context->quantum_start_frame };
+        auto const* bus = static_cast<RenderGraph*>(graph)->pull_output(source, output_index, render_context);
+        return bus ? bus->rust_bus() : nullptr;
+    }, &rust_context, output);
 }
 
 RenderNode::RenderNode(NodeID node_id, size_t input_count, size_t output_count, size_t quantum_size, size_t output_channel_count)

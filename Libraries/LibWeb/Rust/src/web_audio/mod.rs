@@ -5,4 +5,5 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod audio_param_timeline;
 pub mod rendering;
