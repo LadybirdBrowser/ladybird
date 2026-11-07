@@ -278,12 +278,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
     Web::HTML::WindowOrWorkerGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
 
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::Bindings::set_collect_garbage_on_every_allocation_in_new_agents(collect_garbage_on_every_allocation);
+    Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
     if (stats_log)
         Web::Bindings::main_thread_vm().heap().enable_stats();
-
-    if (collect_garbage_on_every_allocation)
-        Web::Bindings::main_thread_vm().heap().set_should_collect_on_every_allocation(true);
 
     if (log_all_js_exceptions) {
         JS::set_log_all_js_exceptions(true);

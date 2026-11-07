@@ -113,7 +113,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     //     cross-origin isolation mode is "none" until the worker's response sets it.
     auto agent_cluster_cross_origin_isolation_mode = is_shared ? Web::HTML::CrossOriginIsolationMode::None : outside_settings_snapshot.agent_cluster_cross_origin_isolation_mode;
     auto realm_execution_context = Web::Bindings::create_a_new_javascript_realm(
-        Web::Bindings::main_thread_vm(),
+        JS::VM::the(),
         agent_cluster_cross_origin_isolation_mode,
         [page, is_shared](JS::Realm& realm) -> GC::Ref<JS::Object> {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.

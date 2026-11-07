@@ -214,7 +214,7 @@ void initialize_web_platform()
     // the bundled fonts from.
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
 
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
 }
 
 Web::HTML::PaintConfig benchmark_paint_config()
