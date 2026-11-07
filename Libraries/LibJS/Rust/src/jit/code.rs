@@ -543,8 +543,11 @@ impl Executable {
         }
     }
 
-    /// Frees the slot of the executable, which died, and drops its JIT code.
+    /// Frees the slot of the executable, which died, and drops its compile job and its JIT code.
     pub fn free_jit_entry_slot(&self, vm: &Vm, sweep: &Sweep<'_>) {
+        if self.jit_compile_state() == CompileState::Queued {
+            vm.jit.abandon_compile_job_of(self);
+        }
         let Some(table) = vm.jit.entry_table.as_ref() else {
             return;
         };
@@ -569,9 +572,13 @@ impl Executable {
         table.code(slot)
     }
 
-    /// Visits the cells the executable's attached JIT code keeps alive.
+    /// Visits the cells the executable's compile job and its attached JIT code keep alive.
     pub fn trace_jit_code(&self, visitor: &mut Visitor) {
-        if let Some(code) = self.jit_code(Vm::of_cell(self)) {
+        let vm = Vm::of_cell(self);
+        if self.jit_compile_state() == CompileState::Queued {
+            vm.jit.trace_compile_job_of(self, visitor);
+        }
+        if let Some(code) = self.jit_code(vm) {
             code.trace(visitor);
         }
     }

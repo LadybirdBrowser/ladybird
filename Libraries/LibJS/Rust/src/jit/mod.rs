@@ -111,8 +111,9 @@ impl InterpreterTier {
     pub const ALL: [InterpreterTier; 4] = [Self::Plain, Self::WarmingUp, Self::Unprofiled, Self::Profiling];
 }
 
-/// A compile job running on a compile thread. The VM keeps the executable and every cell its snapshot refers to
-/// alive until the job's code is installed or the job is abandoned.
+/// A compile job running on a compile thread. Its executable keeps every cell its snapshot refers to alive until the
+/// job's code is installed or the job is abandoned, as it does for the cells of its code. Nothing else keeps them alive:
+/// a job can wait a long time for script to run again and install it, which must not keep a closed page's realm alive.
 #[derive(Trace)]
 pub struct CompileJob {
     pub executable: Gc<Executable>,
@@ -405,6 +406,15 @@ impl JitState {
             .retain(|_, job| !core::ptr::eq(job.executable.as_ptr(), executable));
     }
 
+    /// Visits the cells the compile job of `executable` keeps alive.
+    pub(crate) fn trace_compile_job_of(&self, executable: &Executable, visitor: &mut Visitor) {
+        for job in self.jobs.borrow().values() {
+            if core::ptr::eq(job.executable.as_ptr(), executable) {
+                job.trace(visitor);
+            }
+        }
+    }
+
     pub(crate) fn take_job<'d>(&self, id: u64, defer_gc: &'d DeferGc<'_>) -> Option<Deferred<'d, CompileJob>> {
         self.jobs.borrow_mut().remove(&id).map(|job| defer_gc.cover(job))
     }
@@ -457,14 +467,6 @@ impl JitState {
 impl Drop for JitState {
     fn drop(&mut self) {
         self.flush_coverage();
-    }
-}
-
-unsafe impl Trace for JitState {
-    fn trace(&self, visitor: &mut Visitor) {
-        for job in self.jobs.borrow().values() {
-            job.trace(visitor);
-        }
     }
 }
 
