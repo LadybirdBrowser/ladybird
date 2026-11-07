@@ -1525,56 +1525,9 @@ impl Parser {
                             } else if matches!(c, '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-') {
                                 return Err(Error::InvalidCharacterClass);
                             } else if c == '\\' {
-                                let escaped = self.advance().ok_or(Error::LoneTrailingBackslash)?;
-                                current.push(match escaped {
-                                    'n' => '\n',
-                                    'r' => '\r',
-                                    't' => '\t',
-                                    'f' => '\u{0C}',
-                                    'v' => '\u{0B}',
-                                    '|' => '|',
-                                    '\\' => '\\',
-                                    '0' => '\0',
-                                    'b' => '\u{08}',
-                                    'x' => {
-                                        let val = self.parse_hex_escape(2)?;
-                                        char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)?
-                                    }
-                                    'u' => {
-                                        let is_braced = self.peek() == Some('{');
-                                        let val = self.parse_unicode_escape()?;
-                                        // Handle surrogate pairs: \uD800\uDC00
-                                        if !is_braced && (0xD800..=0xDBFF).contains(&val) {
-                                            let saved = self.pos;
-                                            if self.eat('\\') && self.eat('u') && self.peek() != Some('{') {
-                                                let low = self.parse_unicode_escape()?;
-                                                if (0xDC00..=0xDFFF).contains(&low) {
-                                                    let combined = 0x10000 + ((val - 0xD800) << 10) + (low - 0xDC00);
-                                                    char::from_u32(combined).ok_or(Error::InvalidUnicodeEscape)?
-                                                } else {
-                                                    self.pos = saved;
-                                                    char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)?
-                                                }
-                                            } else {
-                                                self.pos = saved;
-                                                char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)?
-                                            }
-                                        } else {
-                                            char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)?
-                                        }
-                                    }
-                                    'c' => {
-                                        let ctrl = self.advance().ok_or(Error::UnexpectedEnd)?;
-                                        if ctrl.is_ascii_alphabetic() {
-                                            char::from_u32((ctrl as u32) & 0x1F).unwrap()
-                                        } else {
-                                            return Err(Error::InvalidEscape(ctrl));
-                                        }
-                                    }
-                                    // Only syntax characters and `-` may be escaped in \q{}.
-                                    _ if is_syntax_character(escaped) || escaped == '-' => escaped,
-                                    _ => return Err(Error::InvalidEscape(escaped)),
-                                });
+                                // ClassString :: ClassSetCharacter — so \q{} takes the same escapes as a class set operand.
+                                let value = self.parse_class_set_char_escape()?;
+                                current.push(char::from_u32(value).ok_or(Error::InvalidUnicodeEscape)?);
                             } else {
                                 current.push(c);
                             }
@@ -1701,7 +1654,14 @@ impl Parser {
                 }
                 Ok(val)
             }
-            _ if is_syntax_character(ch) || ch == '/' || ch == '-' => Ok(ch as u32),
+            'c' => match self.peek() {
+                Some(letter) if letter.is_ascii_alphabetic() => {
+                    self.advance();
+                    Ok((letter as u32) & 0x1F)
+                }
+                _ => Err(Error::InvalidEscape(ch)),
+            },
+            _ if is_syntax_character(ch) || ch == '/' || is_class_set_reserved_punctuator(ch) => Ok(ch as u32),
             _ => Err(Error::InvalidEscape(ch)),
         }
     }
@@ -1752,6 +1712,14 @@ fn is_syntax_character(ch: char) -> bool {
 /// ClassSetSyntaxCharacter :: one of ( ) [ ] { } / - \ |
 fn is_class_set_syntax_character(ch: char) -> bool {
     matches!(ch, '(' | ')' | '{' | '}' | '/' | '-' | '|')
+}
+
+/// ClassSetReservedPunctuator :: one of & - ! # % , : ; < = > @ ` ~
+fn is_class_set_reserved_punctuator(ch: char) -> bool {
+    matches!(
+        ch,
+        '&' | '-' | '!' | '#' | '%' | ',' | ':' | ';' | '<' | '=' | '>' | '@' | '`' | '~'
+    )
 }
 
 /// Characters that form ClassSetReservedDoublePunctuator when doubled.
