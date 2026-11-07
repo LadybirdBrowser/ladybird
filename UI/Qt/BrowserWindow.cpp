@@ -1404,7 +1404,8 @@ void BrowserWindow::update_menu_bar_visibility()
 
     if (m_menu_bar_window_controls)
         m_menu_bar_window_controls->setVisible(show_menu_bar && uses_client_side_decorations());
-    m_tabs_container->set_window_controls_visible(!show_menu_bar && has_chrome_in_titlebar());
+    // NB: A full-screen window has no window controls of its own on display, so the chrome leaves no room for them.
+    m_tabs_container->set_window_controls_visible(!show_menu_bar && has_chrome_in_titlebar() && !isFullScreen());
 }
 
 void BrowserWindow::update_menu_bar_window_control_icons()
@@ -1898,6 +1899,7 @@ void BrowserWindow::changeEvent(QEvent* event)
         update_menu_bar_window_control_icons();
         update_tab_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {
+        update_menu_bar_visibility();
         update_menu_bar_window_control_icons();
         m_tabs_container->update_window_button_icons();
         update_window_border();
