@@ -10,6 +10,7 @@
 #include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -206,6 +207,8 @@ BookmarksBar::BookmarksBar(QWidget* parent)
     setVisible(false);
     setMovable(false);
     setFloatable(false);
+    setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
+    setContextMenuPolicy(Qt::PreventContextMenu);
     update_chrome_style();
 
     installEventFilter(this);
