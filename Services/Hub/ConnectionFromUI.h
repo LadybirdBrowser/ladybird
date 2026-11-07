@@ -33,6 +33,7 @@ private:
     static View* find_view(u64 view_id);
 
     // ^HubServerEndpoint
+    virtual void release_backing_store(u64 page_id, i32 bitmap_id) override;
     virtual void view_enqueue_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
     virtual void view_enqueue_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event) override;
     virtual void view_enqueue_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;

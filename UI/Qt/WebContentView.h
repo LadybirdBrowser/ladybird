@@ -223,6 +223,8 @@ private:
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
     virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
+
+    // ^RemoteView
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
@@ -429,7 +431,7 @@ private:
     bool vulkan_window_update_would_only_resize() const;
     void remap_unexposed_vulkan_window();
 
-    virtual void release_backing_store(i32 bitmap_id) override;
+    virtual void release_backing_store(u64 page_id, i32 bitmap_id) override;
 
 #    ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
     bool create_page_surface();
@@ -457,7 +459,7 @@ private:
     // The backing stores the view is done with that the compositor of the desktop may still read. The page they belong
     // to can stop displaying the tab before the compositor is done.
     struct BackingStoreWaitingForRelease {
-        NonnullRefPtr<WebView::WebContentPage> page;
+        u64 page_id { 0 };
         i32 bitmap_id { -1 };
     };
     Vector<BackingStoreWaitingForRelease> m_backing_stores_waiting_for_release;

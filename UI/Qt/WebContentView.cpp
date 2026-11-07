@@ -1070,10 +1070,10 @@ Optional<WebContentView::Paintable> WebContentView::current_paintable() const
     if (!frame.has_value())
         return {};
     return Paintable {
-        .shared_image_buffer = &frame->shared_image_buffer,
+        .shared_image_buffer = frame->shared_image_buffer,
         .bitmap_size = frame->size,
         .bitmap_id = frame->bitmap_id.value_or(-1),
-        .page_id = frame->bitmap_id.has_value() ? page().id().value() : 0,
+        .page_id = frame->bitmap_id.has_value() ? backing_stores_page_id() : 0,
     };
 }
 

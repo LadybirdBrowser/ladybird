@@ -140,7 +140,7 @@ public:
         VERIFY_NOT_REACHED();
     }
     Gfx::Color page_background_color() const { return m_state.page_background_color; }
-    WebView::PageBackingStores const& backing_stores() const { return m_view->backing_stores(); }
+    WebView::PageBackingStores const& backing_stores() const { return m_backing_stores; }
     void take_and_save_screenshot(ScreenshotType screenshot_type) { HubConnection::the().async_view_take_and_save_screenshot(view_id(), move(screenshot_type)); }
     void save_screenshot(Gfx::Bitmap const& bitmap) { m_view->save_screenshot(bitmap); }
     void request_close() { HubConnection::the().async_view_request_close(view_id()); }
@@ -169,10 +169,25 @@ public:
 
     bool scales_frames_to_fit() const { return m_view->scales_frames_to_fit(); }
 
-    // ^Hub::ViewHost
-    virtual void release_backing_store(i32 bitmap_id) override { m_view->release_backing_store_to_page(bitmap_id); }
+    void did_install_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) { m_backing_stores.add(move(bitmap_ids), move(backing_stores)); }
+    void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids) { m_backing_stores.retire(bitmap_ids); }
+    void did_present_backing_store(u64 page_id, i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
+    void did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect);
+    void did_keep_front_backing_store_as_backup() { m_backing_stores.keep_front_as_backup(); }
+    void did_clear_backup_backing_store() { m_backing_stores.clear_backup(); }
+    void did_clear_backing_stores() { m_backing_stores.clear(); }
+
+    // Hands a backing store back to the page that presented it, which can have outlived the view.
+    static void release_backing_store_to_page(u64 page_id, i32 bitmap_id);
+
+    // The page that presented the backing stores that the view holds.
+    u64 backing_stores_page_id() const { return m_backing_stores_page_id; }
 
 protected:
+    virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
+    virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
+
     void initialize_tab(Web::HTML::VisibilityState state, Optional<WebView::CanonicalTraversable&> traversable = {})
     {
         m_view->initialize_tab(state, traversable);
@@ -187,6 +202,8 @@ protected:
 private:
     NonnullOwnPtr<Hub::View> m_view;
     Hub::ViewState m_state;
+    WebView::PageBackingStores m_backing_stores;
+    u64 m_backing_stores_page_id { 0 };
 
     // What only the UI can hold of the input events that the Hub has yet to finish with.
     HashMap<u64, OwnPtr<Web::BrowserInputData>> m_input_in_hub;
@@ -195,7 +212,7 @@ private:
 public:
     decltype(Hub::View::on_load_start) on_load_start;
     decltype(Hub::View::on_load_finish) on_load_finish;
-    decltype(Hub::View::on_ready_to_paint)& on_ready_to_paint { m_view->on_ready_to_paint };
+    decltype(Hub::View::on_ready_to_paint) on_ready_to_paint;
     decltype(Hub::View::on_performance_stats) on_performance_stats;
     decltype(Hub::View::on_new_web_view)& on_new_web_view { m_view->on_new_web_view };
     decltype(Hub::View::on_activate_tab) on_activate_tab;

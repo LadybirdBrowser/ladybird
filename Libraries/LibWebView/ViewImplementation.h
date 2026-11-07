@@ -338,7 +338,7 @@ public:
     Optional<ByteString> const& page_tooltip_for_testing() const { return m_page_tooltip; }
     Optional<double> displayed_frame_device_pixel_ratio_for_testing() const
     {
-        return m_backing_stores.displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
+        return m_backing_stores->displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
     }
 
     String force_dark_host() const;
@@ -561,7 +561,7 @@ public:
     void did_change_background_color(Badge<WebContentPage>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
-    PageBackingStores const& backing_stores() const { return m_backing_stores; }
+    PageBackingStores const& backing_stores() const { return *m_backing_stores; }
     void did_allocate_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids);
@@ -887,7 +887,7 @@ protected:
     void download_url(URL::URL const&, PromptForPath, Optional<String> const& image_mime_type = {});
 
     String m_window_handle;
-    PageBackingStores m_backing_stores;
+    NonnullOwnPtr<PageBackingStores> m_backing_stores { make<PageBackingStores>() };
     bool m_pinch_gesture_was_canceled { false };
     bool m_presents_from_cpu_memory { false };
 

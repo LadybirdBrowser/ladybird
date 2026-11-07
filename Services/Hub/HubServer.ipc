@@ -11,6 +11,7 @@
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    release_backing_store(u64 page_id, i32 bitmap_id) =|
     view_enqueue_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) =|
     view_enqueue_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event) =|
     view_enqueue_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) =|

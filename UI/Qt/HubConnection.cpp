@@ -27,8 +27,65 @@ HubConnection& HubConnection::the()
     return *s_the;
 }
 
+HubConnection* HubConnection::the_if_connected()
+{
+    return s_the;
+}
+
 void HubConnection::die()
 {
+}
+
+void HubConnection::view_install_backing_stores(u64 view_id, u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_install_backing_stores(page_id, move(bitmap_ids), move(backing_stores));
+    else if (!bitmap_ids.is_empty())
+        RemoteView::release_backing_store_to_page(page_id, bitmap_ids[0]);
+}
+
+void HubConnection::view_add_backing_stores(u64 view_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_add_backing_stores(move(bitmap_ids), move(backing_stores));
+}
+
+void HubConnection::view_retire_backing_stores(u64 view_id, Vector<i32> bitmap_ids)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_retire_backing_stores(bitmap_ids);
+}
+
+void HubConnection::view_present_backing_store(u64 view_id, u64 page_id, i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_present_backing_store(page_id, bitmap_id, size, device_pixel_ratio);
+    else
+        RemoteView::release_backing_store_to_page(page_id, bitmap_id);
+}
+
+void HubConnection::view_accept_presented_backing_store(u64 view_id, i32 bitmap_id, Gfx::IntRect damage_rect)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_accept_backing_store(bitmap_id, damage_rect);
+}
+
+void HubConnection::view_keep_front_backing_store_as_backup(u64 view_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_keep_front_backing_store_as_backup();
+}
+
+void HubConnection::view_clear_backup_backing_store(u64 view_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_clear_backup_backing_store();
+}
+
+void HubConnection::view_clear_backing_stores(u64 view_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_clear_backing_stores();
 }
 
 void HubConnection::view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event)

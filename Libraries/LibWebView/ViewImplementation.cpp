@@ -450,10 +450,10 @@ void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 // it there, before a document activates in the new page.
 void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect, double device_pixel_ratio)
 {
-    auto [did_swap_bitmap, bitmap_id_to_release] = m_backing_stores.present(bitmap_id, size, device_pixel_ratio);
+    auto [did_swap_bitmap, bitmap_id_to_release] = m_backing_stores->present(bitmap_id, size, device_pixel_ratio);
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={}",
-        bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_backing_stores.front_bitmap_id());
+        bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_backing_stores->front_bitmap_id());
 
     release_backing_store(bitmap_id_to_release);
 
@@ -2430,7 +2430,7 @@ ViewImplementation::UIOverlayPosition ViewImplementation::ui_overlay_position(We
 {
     auto view_size = viewport_size().to_type<int>();
     auto view_position = position.to_type<int>();
-    auto frame = m_backing_stores.displayed_frame();
+    auto frame = m_backing_stores->displayed_frame();
     if (!frame.has_value() || frame->size.is_empty())
         return { view_position, view_size, m_device_pixel_ratio };
     if (!m_scales_frames_to_fit || frame->size == view_size)
@@ -3075,19 +3075,19 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentPage>, Vect
 
 void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
-    m_backing_stores.add(move(bitmap_ids), move(backing_stores));
+    m_backing_stores->add(move(bitmap_ids), move(backing_stores));
 }
 
 void ViewImplementation::did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids)
 {
-    m_backing_stores.retire(bitmap_ids);
+    m_backing_stores->retire(bitmap_ids);
 }
 
 void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
-        backing_stores.size(), page().id(), m_backing_stores.has_usable_front_bitmap());
-    m_backing_stores.install(move(bitmap_ids), move(backing_stores));
+        backing_stores.size(), page().id(), m_backing_stores->has_usable_front_bitmap());
+    m_backing_stores->install(move(bitmap_ids), move(backing_stores));
 }
 
 void ViewImplementation::update_zoom()
@@ -3611,7 +3611,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         reset_page_media_state();
 
         // Keep showing the outgoing page until the page paints its first frame.
-        m_backing_stores.keep_front_as_backup();
+        m_backing_stores->keep_front_as_backup();
         if (previous_page->is_open()) {
             Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);
             previous_page->async_set_has_devtools_client(false);
@@ -3634,7 +3634,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
     }
-    m_backing_stores.clear();
+    m_backing_stores->clear();
     if (auto backing_stores = page.take_presented_backing_stores(); backing_stores.has_value())
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
@@ -4339,7 +4339,7 @@ void ViewImplementation::respawn_web_content_process_after_crash()
         queue_promise->resolve({});
     cancel_all_native_geolocation_requests();
     // Don't keep a stale backup bitmap around.
-    m_backing_stores.clear_backup();
+    m_backing_stores->clear_backup();
 
     // The tab is displayed by a page of a new process, standing in for the document the crashed process destroyed
     // until a document activates in the tab: the traversal recovering the tab populates one in that page.
@@ -4802,8 +4802,8 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     switch (type) {
     case ScreenshotType::Visible: {
         RefPtr<Gfx::Bitmap> visible_bitmap;
-        if (auto frame = m_backing_stores.displayed_frame(); frame.has_value())
-            visible_bitmap = frame->shared_image_buffer.bitmap_if_present();
+        if (auto frame = m_backing_stores->displayed_frame(); frame.has_value() && frame->shared_image_buffer)
+            visible_bitmap = frame->shared_image_buffer->bitmap_if_present();
         if (visible_bitmap)
             return write_screenshot(visible_bitmap.ptr());
 
