@@ -617,7 +617,7 @@ void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::Act
         return;
     }
 
-    Application::the().open_url_in_new_tab(url, activate_tab);
+    Application::the().open_url_in_new_tab(url, activate_tab, this);
 }
 
 void ViewImplementation::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab)
@@ -632,7 +632,7 @@ void ViewImplementation::open_navigation_in_new_tab(Web::HTML::PreparedNavigatio
         return;
     }
 
-    Application::the().open_navigation_in_new_tab(move(navigation), activate_tab);
+    Application::the().open_navigation_in_new_tab(move(navigation), activate_tab, this);
 }
 
 void ViewImplementation::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, IsPrivate is_private)
@@ -5111,7 +5111,7 @@ static NonnullRefPtr<Action> create_copy_url_action(StringView text, URL::URL co
     });
 }
 
-static void add_search_action(Menu& menu, Optional<String> const& selected_text)
+static void add_search_action(ViewImplementation& view, Menu& menu, Optional<String> const& selected_text)
 {
     auto const& search_engine = Application::settings().search_engine_settings().engine;
     if (!search_engine.has_value() || !selected_text.has_value())
@@ -5120,8 +5120,8 @@ static void add_search_action(Menu& menu, Optional<String> const& selected_text)
     auto url = URL::Parser::basic_parse(search_engine->format_search_query_for_navigation(*selected_text));
     VERIFY(url.has_value());
 
-    menu.add_action(Action::create(search_engine->format_search_query_for_display(*selected_text), ActionID::SearchSelectedText, [url = url.release_value()]() {
-        Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
+    menu.add_action(Action::create(search_engine->format_search_query_for_display(*selected_text), ActionID::SearchSelectedText, [&view, url = url.release_value()]() {
+        view.open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
     }));
 }
 
@@ -5150,7 +5150,7 @@ NonnullRefPtr<Menu> ViewImplementation::create_page_context_menu(bool is_editabl
     menu->add_separator();
     add_text_edit_actions(*menu, is_editable, selected_text.has_value());
     menu->add_separator();
-    add_search_action(*menu, selected_text);
+    add_search_action(*this, *menu, selected_text);
     menu->add_action(*m_copy_link_to_highlight_action);
     menu->add_separator();
     if (is_about_page)
@@ -5176,7 +5176,7 @@ NonnullRefPtr<Menu> ViewImplementation::create_selected_text_link_context_menu(b
     menu->add_separator();
     add_text_edit_actions(*menu, is_editable, true);
     menu->add_separator();
-    add_search_action(*menu, selected_text);
+    add_search_action(*this, *menu, selected_text);
     menu->add_action(*m_copy_link_to_highlight_action);
     menu->add_separator();
     menu->add_action(*m_inspect_element_action);

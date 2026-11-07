@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/JsonObject.h>
 #include <Hub/HubClientEndpoint.h>
 #include <Hub/HubServerEndpoint.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebView/ReportSubmission.h>
 
 namespace Ladybird {
 
@@ -25,10 +27,37 @@ public:
     static HubConnection& the();
     static HubConnection* the_if_connected();
 
+    // The Hub has answered initialize(), so from now on the UI cannot go on without it.
+    void did_initialize();
+
+    u64 post_report(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(WebView::ReportSubmission::PostResponse)>);
+    void cancel_report_post(u64 post_id);
+
+    void set_settings_from_hub(JsonValue const&);
+    void send_settings_changes(JsonValue const&);
+
 private:
+    bool m_did_initialize { false };
+    u64 m_next_report_post_id { 1 };
+    HashMap<u64, Function<void(WebView::ReportSubmission::PostResponse)>> m_report_posts;
+
+    // The Hub owns the settings. The settings here are its last word, plus the changes it has yet to confirm.
+    struct SettingsChange {
+        u64 id { 0 };
+        JsonObject changes;
+    };
+    JsonObject m_last_known_settings;
+    Vector<SettingsChange> m_unconfirmed_settings_changes;
+    u64 m_next_settings_change_id { 1 };
+
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void crash_reports_changed() override;
+    virtual void report_post_finished(u64 post_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) override;
+    virtual void app_open_urls(Vector<URL::URL> urls) override;
+    virtual void app_open_new_tab(Vector<URL::URL> urls) override;
+    virtual void app_open_new_window(Vector<URL::URL> urls) override;
     virtual void view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) override;
     virtual void view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) override;
     virtual void view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) override;
@@ -45,16 +74,16 @@ private:
     virtual void external_url_release_handler(u64 handler_id) override;
     virtual void omnibox_suggestions(u64 client_id, u64 query_id, Vector<WebView::AutocompleteSuggestion> suggestions) override;
     virtual void bookmarks_changed(ByteString bookmarks_json) override;
-    virtual void app_read_bookmarks_for_all_tabs(u64 request_id) override;
+    virtual void app_read_bookmarks_for_all_tabs(u64 request_id, u64 view_id) override;
     virtual void app_show_bookmark_popover() override;
     virtual void app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) override;
     virtual void app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) override;
     virtual void download_added(Hub::DownloadState download) override;
     virtual void download_updated(Hub::DownloadState download) override;
     virtual void download_removed(u64 id, WebView::IsPrivate is_private) override;
-    virtual void app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_open_url_in_new_tab(URL::URL url, Web::HTML::ActivateTab activate_tab, Optional<u64> source_view_id, WebView::IsPrivate is_private) override;
     virtual void app_open_url_in_new_window(URL::URL url, WebView::IsPrivate is_private) override;
-    virtual void app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab, Optional<u64> source_view_id, WebView::IsPrivate is_private) override;
     virtual void app_open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) override;
     virtual void app_set_clipboard_text(String text, WebView::Application::ClipboardType type) override;
     virtual void app_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override;
@@ -64,17 +93,17 @@ private:
     virtual void app_did_disable_devtools() override;
     virtual void app_open_urls_in_new_tabs(Vector<URL::URL> urls) override;
     virtual void app_activate_or_open_tab_with_url(URL::URL url) override;
-    virtual void app_open_view_in_new_tab(u64 view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab) override;
+    virtual void app_open_view_in_new_tab(u64 view_id, Optional<u64> source_view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab) override;
     virtual void app_display_error_dialog(String message) override;
     virtual void app_display_download_confirmation_dialog(String download_name, ByteString path) override;
     virtual void app_open_file(String path) override;
     virtual void app_read_clipboard_text(u64 request_id, WebView::Application::ClipboardType type) override;
     virtual void app_read_clipboard_item(u64 request_id) override;
     virtual void app_ask_user_for_download_path(u64 request_id, ByteString file) override;
-    virtual void settings_changed(ByteString settings_json) override;
+    virtual void settings_changed(ByteString settings_json, u64 last_applied_change_id) override;
     virtual void action_changed(Hub::ActionState state) override;
-    virtual void bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) override;
     virtual void action_retired(u64 handle) override;
+    virtual void bookmarks_menu_changed(Vector<Hub::MenuEntry> entries) override;
     virtual void view_show_context_menu(u64 view_id, Vector<Hub::MenuEntry> entries, Gfx::IntPoint widget_position) override;
     virtual void view_favicon_change(u64 view_id, Optional<Gfx::ShareableBitmap> favicon) override;
     virtual void view_request_before_unload(u64 view_id, u64 answer_id, String source) override;

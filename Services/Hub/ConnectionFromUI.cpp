@@ -8,7 +8,16 @@
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
+#include <LibCore/EventLoop.h>
+#include <LibHTTP/HeaderList.h>
+#include <LibRequests/RequestClient.h>
+#include <LibWebView/BrowsingSession.h>
+#include <LibWebView/CrashReportStore.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
+#include <LibWebView/PageTranslation.h>
+#include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/WebCompatReport.h>
 
 namespace Hub {
@@ -21,17 +30,26 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     s_the = this;
 
     Application::settings().on_persist = [this](JsonValue const& settings) {
-        async_settings_changed(settings.serialized().to_byte_string());
+        async_settings_changed(settings.serialized().to_byte_string(), m_last_applied_settings_change_id);
     };
     Application::bookmark_store().on_persist = [this](JsonValue const& bookmarks) {
         async_bookmarks_changed(bookmarks.serialized().to_byte_string());
     };
+    (void)WebView::TabPerformanceMonitor::the();
+
+    auto& browser_process = Application::the().browser_process();
+    browser_process.on_open_urls = [this](auto const& urls) { async_app_open_urls(urls); };
+    browser_process.on_new_tab = [this](auto const& urls) { async_app_open_new_tab(urls); };
+    browser_process.on_new_window = [this](auto const& urls) { async_app_open_new_window(urls); };
 }
 
 ConnectionFromUI::~ConnectionFromUI()
 {
     Application::settings().on_persist = nullptr;
     Application::bookmark_store().on_persist = nullptr;
+    auto& browser_process = Application::the().browser_process();
+    browser_process.on_new_tab = nullptr;
+    browser_process.on_new_window = nullptr;
     s_the = nullptr;
 }
 
@@ -42,6 +60,8 @@ ConnectionFromUI* ConnectionFromUI::the()
 
 void ConnectionFromUI::die()
 {
+    // The UI is gone, which ends the browser, however that came to be.
+    Core::EventLoop::current().quit(0);
 }
 
 // What the UI knows an input event by, while the Hub has it. The event carries it through the view's queue, in place of
@@ -467,12 +487,336 @@ void ConnectionFromUI::open_microphone_system_settings()
     static_cast<WebView::Application&>(Application::the()).microphone_authorizer().open_system_settings();
 }
 
-void ConnectionFromUI::update_settings(ByteString settings_json)
+static WebView::SessionStore& session_store_of(WebView::IsPrivate is_private)
 {
-    auto settings = JsonValue::from_string(settings_json);
-    if (settings.is_error() || !settings.value().is_object())
+    return *Application::session_for_new_view(is_private)->session_store;
+}
+
+Messages::HubServer::InitializeResponse ConnectionFromUI::initialize()
+{
+    auto& application = Application::the();
+    auto const& options = Application::browser_options();
+
+    InitialState state;
+    state.settings_json = Application::settings().serialize_json().serialized().to_byte_string();
+    state.bookmarks_json = Application::bookmark_store().serialize_store().serialized().to_byte_string();
+    state.actions = ActionMirror::the().application_actions();
+    state.downloads = downloads();
+    state.urls = options.urls;
+    state.raw_urls = options.raw_urls;
+    state.crash_report_directory = WebView::CrashReportStore::the().directory();
+    state.devtools_port = options.devtools_port;
+    state.has_translator = application.translator() != nullptr;
+    return state;
+}
+
+Messages::HubServer::CreateViewResponse ConnectionFromUI::create_view(Hub::NewViewRequest request)
+{
+    auto& view = Application::the().create_view({
+        .is_private = request.is_private,
+        .device_pixel_ratio = request.device_pixel_ratio,
+        .maximum_frames_per_second = request.maximum_frames_per_second,
+        .display_id = request.display_id,
+        .system_theme = move(request.system_theme),
+        .screen_rects = move(request.screen_rects),
+        .owner_view_id = request.owner_view_id,
+        .websites_prefer_dark = request.websites_prefer_dark,
+        .is_tab = request.is_tab,
+    });
+    return { view.view_id(), view.current_state(), ActionMirror::the().view_actions(view) };
+}
+
+Messages::HubServer::ViewDescriptionResponse ConnectionFromUI::view_description(u64 view_id)
+{
+    // NB: The UI can ask about a view that the Hub has let go of already, and must not take the Hub down by that.
+    auto* view = find_view(view_id);
+    if (!view)
+        return { Hub::ViewState {}, Hub::ViewActions {} };
+    return { view->current_state(), ActionMirror::the().view_actions(*view) };
+}
+
+void ConnectionFromUI::crash_reports_changed()
+{
+    async_crash_reports_changed();
+}
+
+void ConnectionFromUI::ui_did_start()
+{
+    Application::the().ui_did_start();
+}
+
+void ConnectionFromUI::post_report(u64 post_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body)
+{
+    RefPtr<Requests::Request> request;
+    if (auto client = WebView::Application::request_server_client(WebView::IsPrivate::No); !client.is_error()) {
+        request = client.value()->start_request("POST"sv, url, HTTP::Cookie::SameSiteContext::same_site(), *HTTP::HeaderList::create(move(headers)), body.bytes(),
+            HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::No);
+    }
+    if (!request) {
+        async_report_post_finished(post_id, true, {}, {}, {});
         return;
-    Application::settings().replace_with_json(settings.value(), WebView::Settings::PersistChange::Yes);
+    }
+
+    request->set_buffered_request_finished_callback(
+        [this, post_id](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
+            HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const&,
+            Requests::CacheState, Core::ImmutableBytes payload) {
+            async_report_post_finished(post_id, network_error.has_value(), response_code, response_headers.headers(), ByteString::copy(payload.bytes()));
+
+            // A request cannot be destroyed from inside its own callback.
+            Core::deferred_invoke([this, post_id] {
+                m_report_posts.remove(post_id);
+            });
+        });
+    m_report_posts.set(post_id, request.release_nonnull());
+}
+
+void ConnectionFromUI::cancel_report_post(u64 post_id)
+{
+    if (auto request = m_report_posts.take(post_id); request.has_value())
+        (*request)->stop();
+}
+
+void ConnectionFromUI::open_bookmark_in_new_tab(String bookmark_id, Web::HTML::ActivateTab activate_tab)
+{
+    Application::the().open_bookmark_in_new_tab(bookmark_id, activate_tab);
+}
+
+void ConnectionFromUI::toggle_devtools_enabled()
+{
+    if (auto result = Application::the().toggle_devtools_enabled(); result.is_error())
+        dbgln("Unable to toggle DevTools: {}", result.error());
+}
+
+void ConnectionFromUI::launch_devtools_client()
+{
+    if (auto result = Application::the().launch_devtools_client(); result.is_error())
+        dbgln("Unable to launch DevTools client: {}", result.error());
+}
+
+void ConnectionFromUI::reset_private_browsing_session()
+{
+    Application::the().reset_private_browsing_session();
+}
+
+void ConnectionFromUI::notify_compositor_gpu_presentation_unavailable()
+{
+    Application::the().notify_compositor_gpu_presentation_unavailable();
+}
+
+void ConnectionFromUI::ui_info_changed(Hub::UIInfo info)
+{
+    Application::the().set_ui_info(move(info));
+}
+
+Messages::HubServer::ProcessSnapshotsResponse ConnectionFromUI::process_snapshots()
+{
+    return WebView::process_snapshots(Application::process_manager());
+}
+
+Messages::HubServer::TerminateProcessResponse ConnectionFromUI::terminate_process(u64 child_id)
+{
+    return WebView::end_process(Application::process_manager(), child_id);
+}
+
+Messages::HubServer::ViewNeedsBeforeunloadCheckResponse ConnectionFromUI::view_needs_beforeunload_check(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    return view && view->needs_beforeunload_check();
+}
+
+Messages::HubServer::ViewRecentHistoryEntriesResponse ConnectionFromUI::view_recent_history_entries(u64 view_id, u64 limit)
+{
+    if (auto* view = find_view(view_id))
+        return view->recent_history_entries(limit);
+    return Vector<WebView::HistoryEntry> {};
+}
+
+Messages::HubServer::ViewSessionHistoryTraversalMenuItemsResponse ConnectionFromUI::view_session_history_traversal_menu_items(u64 view_id, i32 direction)
+{
+    if (auto* view = find_view(view_id))
+        return view->session_history_traversal_menu_items(direction);
+    return Vector<WebView::ViewImplementation::SessionHistoryTraversalMenuItem> {};
+}
+
+Messages::HubServer::ViewSessionHistorySnapshotResponse ConnectionFromUI::view_session_history_snapshot(u64 view_id)
+{
+    if (auto* view = find_view(view_id))
+        return Optional<WebView::SessionHistorySnapshot> { view->session_history_snapshot() };
+    return Optional<WebView::SessionHistorySnapshot> {};
+}
+
+Messages::HubServer::ViewRestoreSessionHistoryFromSnapshotResponse ConnectionFromUI::view_restore_session_history_from_snapshot(u64 view_id, WebView::SessionHistorySnapshot snapshot)
+{
+    auto* view = find_view(view_id);
+    return view && !view->restore_session_history_from_snapshot(move(snapshot)).is_error();
+}
+
+Messages::HubServer::ViewHistoryStepAtDeltaResponse ConnectionFromUI::view_history_step_at_delta(u64 view_id, i32 delta)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return Optional<i32> {};
+    auto const& traversable = view->traversable();
+    auto used_steps = traversable.session_history().used_steps();
+    auto step_index = traversable.effective_current_session_history_step_index() + delta;
+    if (step_index >= used_steps.size())
+        return Optional<i32> {};
+    return Optional<i32> { used_steps[step_index] };
+}
+
+Messages::HubServer::ViewLookUpSelectedTextAtResponse ConnectionFromUI::view_look_up_selected_text_at(u64 view_id, Gfx::IntPoint position)
+{
+    auto* view = find_view(view_id);
+    return view && view->look_up_selected_text_at(position);
+}
+
+Messages::HubServer::ViewPageDescriptionResponse ConnectionFromUI::view_page_description(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return { URL::URL {}, String {}, Gfx::IntSize {}, 1.0, 1.0 };
+    auto page = WebView::WebCompatReport::describe_page(*view);
+    return { move(page.url), move(page.user_agent), page.viewport_size, page.device_pixel_ratio, page.zoom_level };
+}
+
+Messages::HubServer::ViewTranslationMenuResponse ConnectionFromUI::view_translation_menu(u64 view_id)
+{
+    auto* view = find_view(view_id);
+    if (!view)
+        return Vector<MenuEntry> {};
+    return ActionMirror::the().entries_of(view->page_translation().translation_menu());
+}
+
+Messages::HubServer::SessionWindowOpenedResponse ConnectionFromUI::session_window_opened(WebView::IsPrivate is_private)
+{
+    auto id = session_store_of(is_private).window_opened();
+    if (id.is_error())
+        return Optional<WebView::SessionWindowId> {};
+    return Optional<WebView::SessionWindowId> { id.value() };
+}
+
+Messages::HubServer::SessionWindowClosingResponse ConnectionFromUI::session_window_closing(WebView::IsPrivate is_private, WebView::SessionStore::WindowClosing closing)
+{
+    return !session_store_of(is_private).window_closing(move(closing)).is_error();
+}
+
+void ConnectionFromUI::session_window_activated(WebView::IsPrivate is_private, WebView::SessionWindowId id)
+{
+    session_store_of(is_private).window_activated(id);
+}
+
+void ConnectionFromUI::session_window_geometry_changed(WebView::IsPrivate is_private, WebView::SessionWindowId id, WebView::SessionWindowGeometry geometry)
+{
+    session_store_of(is_private).window_geometry_changed(id, geometry);
+}
+
+Messages::HubServer::SessionTabOpenedResponse ConnectionFromUI::session_tab_opened(WebView::IsPrivate is_private, WebView::SessionStore::TabOpened opened)
+{
+    auto id = session_store_of(is_private).tab_opened(move(opened));
+    if (id.is_error())
+        return Optional<WebView::SessionTabId> {};
+    return Optional<WebView::SessionTabId> { id.value() };
+}
+
+Messages::HubServer::SessionTabClosedResponse ConnectionFromUI::session_tab_closed(WebView::IsPrivate is_private, WebView::SessionStore::TabClosed closed)
+{
+    return !session_store_of(is_private).tab_closed(move(closed)).is_error();
+}
+
+void ConnectionFromUI::session_tab_detached(WebView::IsPrivate is_private, WebView::SessionTabId id)
+{
+    session_store_of(is_private).tab_detached(id);
+}
+
+void ConnectionFromUI::session_tab_moved(WebView::IsPrivate is_private, WebView::SessionStore::TabMoved moved)
+{
+    session_store_of(is_private).tab_moved(move(moved));
+}
+
+void ConnectionFromUI::session_tab_order_changed(WebView::IsPrivate is_private, WebView::SessionStore::TabOrderChanged changed)
+{
+    session_store_of(is_private).tab_order_changed(move(changed));
+}
+
+Messages::HubServer::SessionTabPinnedChangedResponse ConnectionFromUI::session_tab_pinned_changed(WebView::IsPrivate is_private, WebView::SessionTabId id, bool pinned)
+{
+    return !session_store_of(is_private).tab_pinned_changed(id, pinned).is_error();
+}
+
+void ConnectionFromUI::session_active_tab_changed(WebView::IsPrivate is_private, WebView::SessionTabId id)
+{
+    session_store_of(is_private).active_tab_changed(id);
+}
+
+void ConnectionFromUI::session_application_quitting(WebView::IsPrivate is_private)
+{
+    session_store_of(is_private).application_quitting();
+}
+
+void ConnectionFromUI::session_application_quit_aborted(WebView::IsPrivate is_private)
+{
+    session_store_of(is_private).application_quit_aborted();
+}
+
+Messages::HubServer::SessionConsecutiveUncleanExitsResponse ConnectionFromUI::session_consecutive_unclean_exits(WebView::IsPrivate is_private)
+{
+    return session_store_of(is_private).consecutive_unclean_exits();
+}
+
+Messages::HubServer::SessionHasClosedUnitsResponse ConnectionFromUI::session_has_closed_units(WebView::IsPrivate is_private)
+{
+    return session_store_of(is_private).has_closed_units();
+}
+
+static Optional<WebView::ClosedSessionUnit> unit_or_nothing(ErrorOr<Optional<WebView::ClosedSessionUnit>> unit)
+{
+    if (unit.is_error())
+        return {};
+    return unit.release_value();
+}
+
+Messages::HubServer::SessionTakeMostRecentlyClosedResponse ConnectionFromUI::session_take_most_recently_closed(WebView::IsPrivate is_private)
+{
+    return unit_or_nothing(session_store_of(is_private).take_most_recently_closed());
+}
+
+Messages::HubServer::SessionRecentlyClosedUnitsResponse ConnectionFromUI::session_recently_closed_units(WebView::IsPrivate is_private, u64 limit)
+{
+    return session_store_of(is_private).recently_closed_units(limit);
+}
+
+Messages::HubServer::SessionTakeClosedUnitResponse ConnectionFromUI::session_take_closed_unit(WebView::IsPrivate is_private, WebView::SessionWindowId id)
+{
+    return unit_or_nothing(session_store_of(is_private).take_closed_unit(id));
+}
+
+Messages::HubServer::SessionTakeLaunchPlanResponse ConnectionFromUI::session_take_launch_plan(WebView::IsPrivate is_private)
+{
+    return session_store_of(is_private).take_launch_plan();
+}
+
+Messages::HubServer::SessionLoadTabHistoryResponse ConnectionFromUI::session_load_tab_history(WebView::IsPrivate is_private, WebView::SessionTabId id)
+{
+    return session_store_of(is_private).load_tab_history(id);
+}
+
+Messages::HubServer::HistoryEntryForUrlResponse ConnectionFromUI::history_entry_for_url(WebView::IsPrivate is_private, URL::URL url)
+{
+    return Application::session_for_new_view(is_private)->history_store->entry_for_url(url);
+}
+
+void ConnectionFromUI::update_settings(u64 change_id, ByteString changes_json)
+{
+    auto changes = JsonValue::from_string(changes_json);
+    if (changes.is_error() || !changes.value().is_object())
+        return;
+
+    // NB: This process owns the settings, so what the UI did not change stays as it is here, however old its copy is.
+    auto settings = Application::settings().serialize_json();
+    WebView::Settings::apply_changes(settings.as_object(), changes.value().as_object());
+    m_last_applied_settings_change_id = change_id;
+    Application::settings().replace_with_json(settings, WebView::Settings::PersistChange::Yes);
 }
 
 void ConnectionFromUI::activate_action(u64 handle, Optional<bool> checked)

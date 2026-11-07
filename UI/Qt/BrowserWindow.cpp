@@ -23,6 +23,7 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DevToolsBanner.h>
+#include <UI/Qt/HubConnection.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
 #include <UI/Qt/Menu.h>
@@ -348,7 +349,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     // NB: The toolbar is made before the rest of the window, so it learns of the session's downloads once it is all here.
     toolbar().update_downloads_button();
 
-    auto const& browser_options = WebView::Application::browser_options();
+    auto const& browser_options = Application::browser_options();
 
     // A restored window keeps the session row the store re-adopted for it.
     if (restored_session_window_id.has_value())
@@ -434,11 +435,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_devtools_banner = new DevToolsBanner(main_widget);
     connect(m_devtools_banner, &DevToolsBanner::launch_client_requested, this, [] {
-        if (auto result = WebView::Application::the().launch_devtools_client(); result.is_error())
-            WebView::Application::the().display_error_dialog(MUST(String::formatted("Unable to launch the DevTools client: {}", result.error())));
+        HubConnection::the().async_launch_devtools_client();
     });
     connect(m_devtools_banner, &DevToolsBanner::disable_requested, this, [] {
-        MUST(WebView::Application::the().toggle_devtools_enabled());
+        HubConnection::the().async_toggle_devtools_enabled();
     });
     m_devtools_banner->hide();
     main_layout->addWidget(m_devtools_banner);
@@ -727,7 +727,7 @@ void BrowserWindow::rebuild_bookmarks_menu()
 
 void BrowserWindow::on_devtools_enabled()
 {
-    m_devtools_banner->set_port(WebView::Application::browser_options().devtools_port.value_or(0));
+    m_devtools_banner->set_port(Application::browser_options().devtools_port.value_or(0));
     m_devtools_banner->show();
 }
 
@@ -2108,11 +2108,11 @@ void BrowserWindow::bring_to_front()
     activateWindow();
 }
 
-Tab* BrowserWindow::tab_for_view(WebView::ViewImplementation const& view) const
+Tab* BrowserWindow::tab_for_view(RemoteView const& view) const
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
         auto* tab = m_tabs_container->tab(index);
-        if (tab && &tab->view().hub_view() == &view)
+        if (tab && &tab->view() == &view)
             return tab;
     }
     return nullptr;

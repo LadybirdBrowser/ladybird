@@ -11,6 +11,7 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/ProcessSnapshot.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 
 #include <QAction>
@@ -32,12 +33,20 @@
 #    include <unistd.h>
 #endif
 
+static Ladybird::ProcessManagerWindow::Source source_for(WebView::ProcessManager& manager)
+{
+    return {
+        .take_snapshots = [&manager] { return WebView::process_snapshots(manager); },
+        .end_process = [&manager](u64 child_id) { return WebView::end_process(manager, child_id); },
+    };
+}
+
 TEST_CASE(palette_changes_do_not_reenter_style_updates)
 {
     Core::EventLoop event_loop;
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     window.ensurePolished();
 
     for (auto color : { Qt::black, Qt::white, Qt::black }) {
@@ -61,7 +70,7 @@ TEST_CASE(search_keeps_matching_child_processes_visible)
     Core::EventLoop event_loop;
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     auto* processes = window.findChild<QTreeWidget*>();
     auto* search = window.findChild<QLineEdit*>();
 
@@ -100,7 +109,7 @@ TEST_CASE(browser_is_not_terminable_and_can_be_copied)
     Core::EventLoop event_loop;
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     window.show();
     auto* processes = window.findChild<QTreeWidget*>();
     auto* button = window.findChild<QPushButton*>();
@@ -155,7 +164,7 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
         (void)Core::System::close(pipe[1]);
     };
     auto identity = manager.add_process(WebView::Process(WebView::ProcessType::WebContent, nullptr, move(child)));
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     window.show();
     auto* processes = window.findChild<QTreeWidget*>();
     auto* button = window.findChild<QPushButton*>();
@@ -263,7 +272,7 @@ TEST_CASE(helper_processes_are_listed_with_the_site_they_work_for)
     auto frame_worker_host = add_process(WebView::ProcessType::WebContent, {}, "https://example.net"sv);
     add_process(WebView::ProcessType::ImageDecoder, frame_worker_host, {});
 
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     window.show();
     auto* processes = window.findChild<QTreeWidget*>();
     auto child_count_of_site = [&](QString const& name) -> Optional<int> {
@@ -288,7 +297,7 @@ TEST_CASE(pressing_the_title_bar_moves_the_window)
     Core::EventLoop event_loop;
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
-    Ladybird::ProcessManagerWindow window(manager);
+    Ladybird::ProcessManagerWindow window(source_for(manager));
     size_t drag_count = 0;
     window.on_title_bar_drag = [&] {
         ++drag_count;

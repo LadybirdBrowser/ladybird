@@ -5,9 +5,11 @@
  */
 
 #include <AK/HashMap.h>
-#include <Hub/ActionMirror.h>
-#include <Hub/Application.h>
-#include <LibWebView/PageTranslation.h>
+#ifndef LADYBIRD_HUB_IN_OWN_PROCESS
+#    include <Hub/ActionMirror.h>
+#    include <Hub/Application.h>
+#    include <LibWebView/PageTranslation.h>
+#endif
 #include <UI/Qt/RemoteActions.h>
 #include <UI/Qt/RemoteView.h>
 
@@ -20,6 +22,30 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     , m_device_pixel_ratio(initial_state.device_pixel_ratio)
     , m_display_id(initial_state.display_id)
 {
+#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+    Hub::ViewActions actions;
+    if (view_id.has_value()) {
+        auto description = HubConnection::the().view_description(*view_id);
+        m_view_id = *view_id;
+        m_state = description.take_state();
+        actions = description.take_actions();
+    } else {
+        auto view = HubConnection::the().create_view({
+            .is_private = initial_state.is_private,
+            .device_pixel_ratio = initial_state.device_pixel_ratio,
+            .maximum_frames_per_second = initial_state.maximum_frames_per_second,
+            .display_id = initial_state.display_id,
+            .system_theme = move(initial_state.system_theme),
+            .screen_rects = move(initial_state.screen_rects),
+            .owner_view_id = initial_state.owner_view_id,
+            .websites_prefer_dark = initial_state.websites_prefer_dark,
+            .is_tab = initial_state.is_tab,
+        });
+        m_view_id = view.view_id();
+        m_state = view.take_state();
+        actions = view.take_actions();
+    }
+#else
     if (view_id.has_value()) {
         auto view = WebView::ViewImplementation::find_view_by_id(*view_id);
         VERIFY(view.has_value());
@@ -29,8 +55,9 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     }
     m_view_id = m_view->view_id();
     m_state = m_view->current_state();
-
     auto actions = Hub::ActionMirror::the().view_actions(*m_view);
+#endif
+
     auto& remote_actions = RemoteActions::the();
     m_navigate_back_action = remote_actions.action_for(actions.navigate_back_action);
     m_navigate_forward_action = remote_actions.action_for(actions.navigate_forward_action);
@@ -251,6 +278,56 @@ void RemoteView::prepare_for_immediate_close()
     HubConnection::the().async_view_prepare_for_immediate_close(view_id());
 }
 
+#ifdef LADYBIRD_HUB_IN_OWN_PROCESS
+Optional<i32> RemoteView::history_step_at_delta(int delta) const
+{
+    return HubConnection::the().view_history_step_at_delta(view_id(), delta);
+}
+
+WebView::WebCompatReport::Page RemoteView::describe_page() const
+{
+    auto page = HubConnection::the().view_page_description(view_id());
+    return { .url = page.take_url(), .user_agent = page.take_user_agent(), .viewport_size = page.viewport_size(), .device_pixel_ratio = page.device_pixel_ratio(), .zoom_level = page.zoom_level() };
+}
+
+WebView::Menu& RemoteView::translation_menu()
+{
+    m_translation_menu = RemoteActions::the().menu_for(HubConnection::the().view_translation_menu(view_id()));
+    return *m_translation_menu;
+}
+
+Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
+{
+    return HubConnection::the().view_recent_history_entries(view_id(), limit);
+}
+
+bool RemoteView::look_up_selected_text_at(Gfx::IntPoint widget_position)
+{
+    return HubConnection::the().view_look_up_selected_text_at(view_id(), widget_position);
+}
+
+bool RemoteView::needs_beforeunload_check() const
+{
+    return HubConnection::the().view_needs_beforeunload_check(view_id());
+}
+
+Vector<RemoteView::SessionHistoryTraversalMenuItem> RemoteView::session_history_traversal_menu_items(int direction) const
+{
+    return HubConnection::the().view_session_history_traversal_menu_items(view_id(), direction);
+}
+
+WebView::SessionHistorySnapshot RemoteView::session_history_snapshot() const
+{
+    return HubConnection::the().view_session_history_snapshot(view_id()).value_or({});
+}
+
+ErrorOr<void> RemoteView::restore_session_history_from_snapshot(WebView::SessionHistorySnapshot snapshot)
+{
+    if (!HubConnection::the().view_restore_session_history_from_snapshot(view_id(), move(snapshot)))
+        return Error::from_string_literal("Unable to restore the session history");
+    return {};
+}
+#else
 Optional<i32> RemoteView::history_step_at_delta(int delta) const
 {
     auto const& traversable = m_view->traversable();
@@ -272,21 +349,40 @@ WebView::Menu& RemoteView::translation_menu()
     return *m_translation_menu;
 }
 
+Vector<WebView::HistoryEntry> RemoteView::recent_history_entries(size_t limit) const
+{
+    return m_view->recent_history_entries(limit);
+}
+
+bool RemoteView::look_up_selected_text_at(Gfx::IntPoint widget_position)
+{
+    return m_view->look_up_selected_text_at(widget_position);
+}
+
+bool RemoteView::needs_beforeunload_check() const
+{
+    return m_view->needs_beforeunload_check();
+}
+
+Vector<RemoteView::SessionHistoryTraversalMenuItem> RemoteView::session_history_traversal_menu_items(int direction) const
+{
+    return m_view->session_history_traversal_menu_items(direction);
+}
+
+WebView::SessionHistorySnapshot RemoteView::session_history_snapshot() const
+{
+    return m_view->session_history_snapshot();
+}
+
+ErrorOr<void> RemoteView::restore_session_history_from_snapshot(WebView::SessionHistorySnapshot snapshot)
+{
+    return m_view->restore_session_history_from_snapshot(move(snapshot));
+}
+#endif
+
 RemoteView* RemoteView::find(u64 view_id)
 {
     return s_views.get(view_id).value_or(nullptr);
-}
-
-RemoteView& RemoteView::of(WebView::ViewImplementation const& view)
-{
-    auto* remote_view = of_if_any(view);
-    VERIFY(remote_view);
-    return *remote_view;
-}
-
-RemoteView* RemoteView::of_if_any(WebView::ViewImplementation const& view)
-{
-    return find(view.view_id());
 }
 
 void RemoteView::did_request_context_menu(Vector<Hub::MenuEntry> const& entries, Gfx::IntPoint widget_position)

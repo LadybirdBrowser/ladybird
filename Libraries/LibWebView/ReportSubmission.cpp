@@ -199,9 +199,16 @@ ErrorOr<ReportSubmission::Payload, String> ReportSubmission::prepare()
 
 ReportSubmission::~ReportSubmission()
 {
+    cancel_post();
     m_proof_cancelled.store(true);
     if (m_proof_thread && m_proof_thread->needs_to_be_joined())
         (void)m_proof_thread->join();
+}
+
+void ReportSubmission::cancel_post()
+{
+    if (auto cancel_post = move(m_cancel_post))
+        cancel_post();
 }
 
 // A submission keeps itself alive until it is sent or fails for good, so it outlives the review that started it.
@@ -236,6 +243,7 @@ void ReportSubmission::cancel()
     }
     if (auto request = move(m_request))
         request->stop();
+    cancel_post();
     m_self_while_in_flight = nullptr;
 
     did_finish();
@@ -382,12 +390,13 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
     }
 
     if (s_post_function) {
-        s_post_function(*url, headers->headers(), move(body),
+        m_cancel_post = s_post_function(*url, headers->headers(), move(body),
             [weak_this = make_weak_ptr<ReportSubmission>(), serial = ++m_post_serial, activity = ByteString { activity },
                 on_success = move(on_success)](PostResponse response) {
                 auto self = weak_this.strong_ref();
                 if (!self || self->m_post_serial != serial)
                     return;
+                self->m_cancel_post = nullptr;
                 self->did_receive_response(activity, response.had_network_error, response.response_code,
                     *HTTP::HeaderList::create(move(response.headers)), response.body.bytes(), on_success);
             });
@@ -442,6 +451,7 @@ void ReportSubmission::arm_request_timeout()
             ++self->m_post_serial;
             if (request)
                 request->stop();
+            self->cancel_post();
             self->fail("The report server did not respond in time."_string, ShouldRetry::Yes);
         });
     m_request_timeout->start();

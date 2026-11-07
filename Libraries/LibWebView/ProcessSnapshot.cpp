@@ -119,4 +119,10 @@ Optional<ByteBuffer> favicon_png_for_page(ProcessPageSnapshot const& page)
     return view->session().favicon_store->favicon_png(*page.favicon_hash);
 }
 
+bool end_process(ProcessManager& process_manager, u64 child_id)
+{
+    auto result = process_manager.terminate_child(child_id, Core::Process::TerminationMode::Forceful);
+    return !result.is_error() || (result.error().is_errno() && result.error().code() == ESRCH);
+}
+
 }

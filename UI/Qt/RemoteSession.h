@@ -50,8 +50,6 @@ private:
     {
     }
 
-    WebView::SessionStore& store() const;
-
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
 };
 

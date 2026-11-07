@@ -274,7 +274,7 @@ public:
 
     void reset_private_browsing_session();
 
-    void notify_webdriver_window_created(String const& handle);
+    virtual void notify_webdriver_window_created(String const& handle);
     void notify_webdriver_window_closed(String const& handle);
     void webdriver_browser_connection_died(Badge<WebDriverBrowserConnection>);
     void push_webdriver_session_config(ViewImplementation&);
@@ -308,11 +308,11 @@ public:
     virtual Optional<ViewImplementation&> activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const { return {}; }
 
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab, ViewImplementation const* = nullptr) const { return {}; }
-    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
+    virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab, ViewImplementation const* source_view = nullptr) const;
     virtual void activate_or_open_tab_with_url(URL::URL const&) const;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const;
     virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
-    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const;
+    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab, ViewImplementation const* source_view = nullptr) const;
     virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate) { }
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }

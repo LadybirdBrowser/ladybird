@@ -638,6 +638,30 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
     }
 }
 
+JsonObject Settings::changes_between(JsonObject const& from, JsonObject const& to)
+{
+    JsonObject changes;
+    to.for_each_member([&](auto const& key, auto const& value) {
+        if (auto previous = from.get(key); !previous.has_value() || !previous->equals(value))
+            changes.set(key, value);
+    });
+    from.for_each_member([&](auto const& key, auto const&) {
+        if (!to.has(key))
+            changes.set(key, JsonValue {});
+    });
+    return changes;
+}
+
+void Settings::apply_changes(JsonObject& settings, JsonObject const& changes)
+{
+    changes.for_each_member([&](auto const& key, auto const& value) {
+        if (value.is_null())
+            settings.remove(key);
+        else
+            settings.set(key, value);
+    });
+}
+
 Settings Settings::create(ByteString settings_path, Vector<String> platform_languages)
 {
     Settings settings { move(settings_path) };
