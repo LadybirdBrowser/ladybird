@@ -85,7 +85,7 @@ All sizes are in logical pixels.
 | Tab strip | 35 px | Window-level items (traffic lights, Ladybird button, Linux close button) sit on one line 18 px from the top. The Ladybird button and the all-tabs button run from 5 to 31 px: their tops are level with the active tab's top, with 4 px below. Tab contents and the new tab button are centered on the tab row, 20 px from the top, the exact middle of the active tab. |
 | Toolbar | 40 px | Directly below the tab strip, in the toolbar color. |
 | Drag space | 44 px | Always kept free after the + button (before the window controls on Windows), so there is somewhere to grab and move the window even with many tabs open. |
-| Bookmarks bar | 30 px | Optional, below the toolbar. |
+| Bookmarks bar | 30 px | Optional, below the toolbar. Set to show on hover, it slides down over the page while the pointer is over the toolbar, the sidebar or the bar itself. |
 | Window corner radius | 10 px (macOS) | Follows the platform elsewhere. |
 
 ### Tabs
@@ -130,10 +130,12 @@ All sizes are in logical pixels.
 | Element | Size |
 |---|---|
 | Sidebar width | 236 px |
-| Tab rows | 30 px, 6 px radius. Selected: toolbar color with a soft shadow in light; white 15% with a white 10% hairline ring in dark and private. |
+| Tab rows | 30 px, 6 px radius. Selected: toolbar color with a soft shadow in light; white 15% fill only in dark and private, with no ring: on the dark sidebar the fill is enough, and stacked outlines (Ladybird button, focused field, row) make the column busy. The × on each row is lighter at rest (`#9C9CA3` light, `#7A7A81` dark) and takes the `muted` color on the hovered and selected rows, so a full list does not draw a dark stripe down the sidebar. It is always there; only its tone changes. |
 | Collapsed rail | 52 px. Tiles are 36 × 32 with the favicon centered. Badges sit on the favicon's corners, 18 px round on a toolbar-colored backing with a hairline ring: × top left (on hover only), speaker bottom right (while playing or muted). Both are buttons, and opposite corners keep them apart. |
 | Header | Traffic lights, Ladybird button, all tabs, then empty space, then the hide-sidebar toggle at the sidebar's right edge. With the sidebar collapsed, the toolbar starts the same way: traffic lights, Ladybird button, all tabs, show-sidebar toggle. |
 | Background | `sidebar` token: the strip color in light, the toolbar color in dark and private. The page must never sit directly against near-black chrome. |
+| Sidebar on the right | Only the sidebar moves: tab list, rail and the hide/show toggle, which sits at the sidebar's inner edge (facing the page). The traffic lights, Ladybird button and All tabs button stay top left, at the start of the toolbar row, exactly as in collapsed mode. Rail badges keep their corners (× top left, speaker bottom right). Dragging a tab out of the sidebar goes sideways toward the page. On Windows, the sidebar header holds the minimize, maximize and close buttons, with the toggle to their left. Settings → Appearance → Layout shows "Sidebar on: Left / Right" below the layout cards, only while Tabs on the side is selected. |
+| Everything in the sidebar | A third tab layout (Arc/Zen style): no toolbar row; the page runs to the top of the window. The sidebar holds, top to bottom: the top row (traffic lights, Ladybird button, then back, forward and reload at the right end, 26 × 28 each so they fit), the full-width address field directly below it, 4 px down (domain only while idle; the full URL when focused), pinned tabs, the tab list and new tab, and a bottom bar with the sidebar toggle and All tabs on the left and Feedback and Downloads on the right. This is the one layout where All tabs and the toggle leave the top row: keeping the top row to one quiet line, like Arc and Zen, is worth more here than matching the other layouts. Same `sidebar` color and opaque chrome as the normal sidebar: no inset page card, no gradients, no translucency. The page meets the sidebar at the `divider` line. Focus alone never grows the field: focused and empty (a new tab, startup, ⌘L on a blank tab) it stays sidebar width with its focus ring. It grows into the suggestions surface (see Suggestions), 600 px wide over the page, only once there are rows to show. If the text is cleared and no rows are left, it shrinks back. Esc, Return or a click outside also shrink it back to the sidebar field. The panel is never shown empty. Collapsing the sidebar falls back to the normal collapsed layout (toolbar row plus rail), except that the sidebar toggle stays at the bottom left of the rail, in the same place as in the open sidebar. In Settings → Appearance → Layout it is the third card, "Everything in the sidebar". |
 
 ### Popovers and pages
 
@@ -218,7 +220,10 @@ used for:
 - switches that are on, checked checkboxes, primary buttons
 
 Nothing else is accent-colored. Specifically not: bookmarked stars, active tabs, links in
-chrome, icons.
+chrome, icons. Actions written as text in the chrome and on Ladybird pages ("Clear finished",
+"Reset permissions", "Add filter list…") are in the `text` color at weight 500, underlined on
+hover. Blue `link` text is only for links inside a sentence ("See everything", "Show
+report"), so the eye never mistakes an action for focus or progress.
 
 Selection values for the default blue accent:
 
@@ -248,7 +253,8 @@ same bar.
 
 Private windows have their own violet-dark chrome in both light and dark appearance, so a
 private window never looks like a normal one. Pages inside keep following the system
-appearance.
+appearance. The Lavender color theme stays clear of it: its base color (`#7563D4`) is a
+bluer, lighter lavender, and its dark surfaces carry less tint than other themes'.
 
 | Token | Private |
 |---|---|
@@ -340,6 +346,8 @@ Don't invent new shadows. Pick a level.
 - Line weight is 1.55 on the 22-unit grid wherever the mark is shown at 20 px or larger:
   the Ladybird button, the app icon at 64 px and up, the Dock and taskbar. Don't let the
   weights drift apart; they should look like the same drawing.
+- Shown large (the About page, about 170 px wide), the mark uses a lighter 0.95 line. At
+  1.55 it would look much heavier than the page's bold title.
 - Very small renderings (app icon at 32 and 16 px) use a heavier line (2.1 and 2.4) so the
   crossings don't break up. They keep the same breathing room as the big icon.
 - The mark appears in the window only on the Ladybird button. Ladybird pages may show it
@@ -366,7 +374,7 @@ Don't invent new shadows. Pick a level.
 |---|---|---|
 | Primary | Accent fill, white text, weight 500 | The one main action in a panel, dialog or page |
 | Secondary | `ctl` fill, text color | Every other action |
-| Link button | No fill, `link` color, 12 px | Low-weight actions in panel footers ("Clear finished", "All site settings") |
+| Text button | No fill, `text` color, weight 500, underline on hover | Low-weight actions in panel headers and footers ("Clear finished", "All site settings") |
 | Toolbar button | No fill at rest; `hover` fill on hover; `press` while pressed | Icon-only controls in the chrome |
 
 - Push buttons are 28 px tall with a 7 px radius and 13 px text. Page-level actions (error
@@ -457,7 +465,19 @@ settings.
 
 ### Suggestions
 
-- Panel aligned to the field, rows 34 px.
+- The field and its suggestions are one surface, in every tab layout. There is no separate
+  popover: the field grows downward, and the text row stays exactly where it was, at the
+  same left edge and with the same corner radius (7 px), so the text and caret never move.
+  With the field in the toolbar, the surface keeps the field's width; in the sidebar it
+  grows to 600 px over the page.
+- While open, the surface has the field's focused fill and Popover elevation, and the focus
+  ring runs around the whole surface, in place of its hairline edge. The ring never fades
+  or jumps when the surface opens or closes: focus hasn't moved, so its indicator doesn't
+  change either.
+- A `sep-soft` divider, inset 8 px, separates the text row from the suggestions. Rows are
+  34 px, in a 6 px padded list.
+- The surface only opens when there are rows to show, and shrinks back to the field when
+  there are none. It is never shown empty.
 - The top row is selected (selected-row colors), so Return acts on it.
 - Search suggestions first, then history and bookmark matches, separated by a divider.
 - "Switch to tab" is the only trailing hint; no "Return" keycaps, no "Search the web" labels.
@@ -500,7 +520,9 @@ settings.
      only on a website
   2. Report a bug: opens GitHub's new-issue page in a new tab, prefilled with version, OS
      and build where possible
-  3. Crash reports, "2 to review": only while reports are waiting; opens the review page
+  3. Crash reports, "2 to review": only while reports are waiting; opens the review page.
+     The same amber dot as on the button sits just before "2 to review", so the label
+     stays aligned with the rows above it
 
 ### Crash reports
 
@@ -551,14 +573,14 @@ settings.
   2. New Tab, New Window, New Private Window, Reopen Closed Tab
   3. History ▸, Bookmarks ▸, Downloads
   4. Zoom (− 100% +), Find in Page…
-  5. Settings, Inspect ▸
-  6. Help ▸ (Report Website Issue…, About Ladybird), then Quit on Linux and Windows only.
-     macOS has Quit in the app menu, so the Ladybird menu leaves it out.
+  5. Settings, Inspect ▸, Help ▸ (Report Website Issue…, About Ladybird), then Quit on
+     Linux and Windows only. macOS has Quit in the app menu, so the Ladybird menu leaves it
+     out.
 - One right edge: shortcuts are right-aligned, submenu chevrons and the zoom control end at
   the same 10 px inset as the shortcuts.
 - Zoom: `ctl`-filled − and + buttons, 28×22; the percentage between them is a borderless
   button that resets to 100%, in tabular figures.
-- Debug tools only appear when developer mode is on.
+- The Debug menu appears only when Settings → Advanced → "Show Debug menu" is on.
 - Never put a group of one item in its own section.
 
 ### Find in page
@@ -578,15 +600,47 @@ never shows "about:blank".
 
 - Page titles are 22 px weight 600.
 - Content sits in a centered column. Settings uses a 232 px sidebar and a 600 px content
-  column.
+  column, centered in the space to the right of the sidebar, so wide windows don't leave
+  the page leaning left.
 - About: the logomark, "Ladybird" in 40 px with the release badge, one tagline, and a card
   with version, build and platform plus a Copy button. Nothing else.
-- Welcome (`about:welcome`): one centered column, in this order: search engine (optional,
+- Welcome (`about:welcome`): the logomark at 56 px (0.85 line, so it doesn't get heavy), the title, then one centered column, in this order: search engine (optional,
   nothing preselected, engines in a new random order each time, so none is favored by its
   place), tab layout, content blocking switch, "Start browsing" (enabled as soon as the
   current settings are loaded; it never waits for a choice).
-- Error pages: icon, title, one line of detail, buttons. Security errors may use two lines,
-  because the second line protects people.
+- Error pages: icon, title, one line of detail, buttons, centered like every other
+  single-message page ("Report sent"). Security errors may use two lines, because the
+  second line protects people.
+
+### Settings
+
+- Sections, in this order: Appearance, Search, Tabs and startup, Privacy and security,
+  Permissions, Content blocking, Languages, Feedback, Advanced. Settings opens on
+  Appearance. The order is by how often people come looking, not by how the code is split.
+- No "General" section. Everything has a home with a name that says what it is; a section
+  named "General" or "Other" collects settings nobody could find.
+- Appearance, top to bottom: Theme, Color theme, Website appearance, Force dark mode,
+  Layout, Show bookmarks bar, Default page zoom.
+- Layout is three picture cards: Tabs on top, Tabs on the side, Everything in the sidebar.
+  It is called Layout, not Tabs, because the third choice moves the toolbar too. Each
+  label names what is different about it, and each picture draws the address field where
+  it really is (in the toolbar row, or at the top of the sidebar). With Tabs on the side, a
+  "Sidebar on: Left / Right" control appears below the cards. Everything in the sidebar
+  is always on the left, where the traffic lights are. The welcome page
+  uses the same heading and labels.
+- Settings that change how websites look (Website appearance, Force dark mode, zoom) live
+  in Appearance, next to the browser's own look, not in a separate section.
+- Permissions: one row per permission (camera, microphone, location, notifications, …),
+  each with its default and an "Exceptions…" button. Never one long list of sites.
+- Advanced holds network, cache and developer settings: Disk cache size, DNS, proxy, and
+  "Show Debug menu". Nothing a typical person needs lives here.
+- The sidebar shows the selected section with the `hover` fill. The focus ring appears
+  only for keyboard focus, never after a click.
+- Within a section, groups get a 13 px weight 600 subheading above them ("Layout",
+  "Crash reports"), the same in every section and on the welcome page. At regular weight
+  it would read as a setting with a missing control. Single rows don't get one.
+- Setting names use sentence case and say what they do: "Show Debug menu", not "Advanced
+  Debug Menu" or "Enable debug menu".
 
 ---
 
@@ -632,6 +686,31 @@ never shows "about:blank".
 | Feedback | The waiting-reports dot scales in (0 → 100%, base, enter) when the first report is saved. Later reports while the dot is showing change nothing, and the icon itself never moves, so a crash loop can't animate the toolbar. |
 | New tab (+) | No motion. The new tab appearing is the feedback. |
 | Ladybird button | No motion. Only its fill changes on hover, press and while the menu is open. |
+
+### Sidebar collapse with everything in the sidebar
+
+Collapsed, this layout is the normal collapsed layout (toolbar row plus rail), so expanding
+and collapsing move the toolbar's controls into the sidebar and back. Nothing flies from
+one place to the other: controls that change place fade out and in, and only edges move.
+
+- Expanding, all over `slow` (220 ms) with `move`:
+  1. The toolbar row's contents (back, forward, reload, field, buttons) fade out in the
+     first 80 ms.
+  2. The sidebar widens from 52 to 236 px while the toolbar row's height shrinks to 0. The
+     page slides up with the toolbar row's bottom edge and is covered by the widening
+     sidebar; it is moved, not laid out again, on every frame.
+  3. The sidebar's back, forward and reload (in the top row), field and bottom bar fade in
+     over the last 120 ms. Rail tiles
+     become rows as in the normal sidebar: the titles fade in, and the favicons stay put.
+  4. The page resizes once, at the end, to its new width and height.
+- Collapsing is the same in reverse: sidebar contents fade out first, the width and the
+  toolbar row animate together, and the toolbar contents fade in last.
+- The traffic lights, Ladybird button and sidebar toggle (at the bottom left) are in the
+  same place in both layouts and never move. Everything else that changes place (back,
+  forward, reload, the field and All tabs) fades out and in like the rest.
+- If the address field is focused, focus, text, selection and caret move to the other
+  field. The field itself does not animate; it fades like the rest.
+- With reduced motion, the two layouts swap instantly.
 
 The full motion catalog (tabs, sidebar, suggestions, swipe navigation, find, bookmarks,
 zoom chip, drag and drop) is on the canvas's motion spec board.
