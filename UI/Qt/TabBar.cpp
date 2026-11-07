@@ -442,15 +442,18 @@ static QColor horizontal_tab_separator(QPalette const& palette)
 // In the sidebar, the selected tab is raised: a card in the toolbar's color, with a fine outline and a soft shadow.
 static void paint_selected_vertical_tab(QPainter& painter, QPalette const& palette, QRectF const& shape_rect, qreal radius)
 {
-    // NB: On a dark sidebar a card of the toolbar's color barely stands out, so there the selected tab is lit instead,
-    //     and ringed with a hairline inside its edge.
+    // NB: On a dark sidebar a card of the toolbar's color barely stands out, so there the selected tab is lit instead.
+    //     The fill is enough there, and a ring would stack up with the other outlines in the sidebar. With increased
+    //     contrast, it is outlined like the active tab.
     if (Theme::is_dark(palette)) {
         painter.setPen(Qt::NoPen);
         painter.setBrush(QColor(255, 255, 255, 38));
         painter.drawRoundedRect(shape_rect, radius, radius);
-        painter.setPen(QPen(QColor(255, 255, 255, 26), 1));
-        painter.setBrush(Qt::NoBrush);
-        painter.drawRoundedRect(shape_rect.adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5);
+        if (auto edge = Theme::chrome(palette).active_tab_edge; edge.alpha() > 0) {
+            painter.setPen(QPen(edge, 1));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRoundedRect(shape_rect.adjusted(0.5, 0.5, -0.5, -0.5), radius - 0.5, radius - 0.5);
+        }
         return;
     }
 
