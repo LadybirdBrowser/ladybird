@@ -119,7 +119,7 @@ void ConnectionFromClient::set_user_agent(String user_agent)
 
 void ConnectionFromClient::set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
 {
-    Web::ResourceLoader::the().set_navigator_compatibility_mode(mode);
+    Web::ResourceLoader::set_navigator_compatibility_mode(mode);
 }
 
 void ConnectionFromClient::set_preferred_languages(Vector<String> preferred_languages)
@@ -138,8 +138,8 @@ void ConnectionFromClient::begin_closing()
         m_worker_host->terminate();
         return;
     }
-    Web::Bindings::main_thread_vm().request_interrupt();
-    Web::HTML::main_thread_event_loop().destroy_once_script_has_finished();
+    JS::VM::the().request_interrupt();
+    Web::HTML::current_event_loop().destroy_once_script_has_finished();
 }
 
 void ConnectionFromClient::die()
@@ -210,13 +210,13 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     // down right away, rather than handle startup messages and make sync requests on a closed connection.
     set_peer_owns_this_process(true);
 
-    Web::HTML::main_thread_event_loop().set_on_destroyed([] {
+    Web::HTML::current_event_loop().set_on_destroyed([] {
         Core::EventLoop::current().quit(0);
     });
 
     // NB: The thread that handles close_worker() may be stuck in script, so that message and the loss of the client have
     //     to abort the script from the IO thread, for this thread to get to them at all.
-    auto& agent = *static_cast<Web::HTML::Agent*>(Web::Bindings::main_thread_vm().agent());
+    auto& agent = Web::HTML::surrounding_agent();
     this->transport().set_incoming_message_observer([script_abort_handle = agent.script_abort_handle()](ReadonlyBytes message) {
         struct [[gnu::packed]] Header {
             u32 endpoint_magic;
@@ -258,7 +258,7 @@ void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type
     bool const is_shared = agent_type == Web::HTML::AgentType::SharedWorker;
     VERIFY(is_shared || agent_type == Web::HTML::AgentType::DedicatedWorker);
 
-    // FIXME: Add an assertion that the agent_type passed here is the same that was passed at process creation to initialize_main_thread_vm()
+    // FIXME: Add an assertion that the agent_type passed here is the same that was passed to initialize_agent()
 
     m_worker_host->set_on_script_ready([this] {
         auto pending = move(m_pending_transform_inits);

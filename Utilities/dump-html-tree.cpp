@@ -331,7 +331,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     [[maybe_unused]] auto& event_loop = Core::EventLoop::initialize_for_current_thread();
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
 
     auto& vm = Web::Bindings::main_thread_vm();
     auto page_client = DumpHTMLTreePageClient::create(vm);

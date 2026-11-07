@@ -108,8 +108,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (auto result = Core::Platform::adopt_foreground_application_task_role(); result.is_error())
         warnln("Could not adopt the foreground application task role: {}", result.error());
-    if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInitiated); result.is_error())
-        warnln("Could not set main thread QoS: {}", result.error());
 
     if (file_origins_are_tuple_origins)
         URL::set_file_scheme_urls_have_tuple_origins();
@@ -129,16 +127,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
-    Web::Bindings::initialize_main_thread_vm(worker_type);
+    Web::Bindings::initialize_agent(worker_type);
     if (stats_log)
-        Web::Bindings::main_thread_vm().heap().enable_stats();
+        JS::VM::the().heap().enable_stats();
 
     if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(mach_server_name));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name, enable_test_mode));
 
-    auto& heap = Web::Bindings::main_thread_vm().heap();
+    auto& heap = JS::VM::the().heap();
     client->on_request_server_connection = [&heap](auto const& handle, auto client_id, auto const& top_level_site) {
         if (auto result = connect_to_resource_loader(heap, handle, client_id, top_level_site); result.is_error())
             dbgln("Failed to connect to resource loader: {}", result.error());

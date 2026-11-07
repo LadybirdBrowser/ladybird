@@ -18,7 +18,7 @@ struct Globals {
 Globals::Globals()
 {
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
 }
 
 }

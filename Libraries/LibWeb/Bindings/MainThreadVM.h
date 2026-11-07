@@ -42,12 +42,19 @@ private:
 
 HTML::Script* active_script();
 
-WEB_API void initialize_main_thread_vm(HTML::AgentType);
+// Sets up the agent of the current thread, with its VM, heap and event loop. Any thread that has none can host one,
+// but a process has one window agent at most. What belongs to the process, such as the plugins, is not set up by this.
+WEB_API void initialize_agent(HTML::AgentType);
+
+// Agents that start after this inherit it.
+WEB_API void set_collect_garbage_on_every_allocation_in_new_agents(bool);
+
+// The VM of the window agent, from that agent's thread only. Code that a worker can reach has to use JS::VM::the().
 WEB_API JS::VM& main_thread_vm();
 
 // Ends the agent of the current thread: releases what it keeps outside its heap, runs the events queued on the thread,
 // and destroys its VM and heap. The caller has run its closing steps and given up its roots. None of this ends the
-// thread or the process, and the agent's thread has to be the one that calls it.
+// thread or the process, and the agent's thread has to be the one that calls it. Other agents carry on.
 WEB_API void shut_down_agent();
 
 WEB_API NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, HTML::CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_object, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_this_value);
