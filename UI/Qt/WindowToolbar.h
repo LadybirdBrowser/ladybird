@@ -38,8 +38,8 @@ class Tab;
 enum class ToolbarArrangement : u8 {
     // One row above the page.
     Row,
-    // Two rows in the open sidebar: the navigation buttons, then the address field. The toolbar's other buttons sit in
-    // its sidebar footer, which the sidebar shows at its bottom.
+    // In the open sidebar: the toolbar holds the address field, and the sidebar shows the navigation buttons in its top
+    // row and the toolbar's other buttons in the sidebar footer at its bottom.
     Sidebar,
 };
 
@@ -76,6 +76,11 @@ public:
     // The sidebar's own margin plus the given inset keeps the toolbar's contents clear of the sidebar's edges.
     void set_arrangement(ToolbarArrangement, int sidebar_inset = 0);
     QWidget& sidebar_footer() { return *m_sidebar_footer; }
+    QWidget& navigation_buttons() { return *m_navigation_buttons; }
+    static int navigation_buttons_width_in_sidebar();
+    static int sidebar_footer_height();
+    // What lies over the start of the sidebar footer, which its buttons keep clear of.
+    void set_sidebar_footer_leading_room(int);
     // The row of its own that the tab performance monitor shows in, which ends the page column in every layout.
     QWidget& performance_monitor_row() { return *m_performance_monitor_row; }
     // The toolbar's height in either arrangement, whichever it is in now.
@@ -113,6 +118,7 @@ private:
     void show_feedback_popover();
     void fit_feedback_popover();
     void move_popover_to_button(Popover&, QWidget& button);
+    void size_navigation_buttons(QSize, int spacing);
     void lay_out_as_row();
     void lay_out_in_sidebar();
     void create_field_panel();
@@ -141,6 +147,7 @@ private:
     QWidget* m_suggestions_area { nullptr };
     bool m_window_controls_visible { false };
     int m_sidebar_inset { 0 };
+    int m_sidebar_footer_leading_room { 0 };
     qreal m_contents_opacity { 1 };
     Optional<QRect> m_field_clip;
     // NB: The fields of the tabs shown so far share this layout, which leaves room around them for the focus ring.

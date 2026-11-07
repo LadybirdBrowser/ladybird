@@ -296,6 +296,7 @@ QWidget#LadybirdToolbarContainer[inSidebar="true"] {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton,
+QWidget#LadybirdNavigationButtons QToolButton,
 QWidget#LadybirdSidebarFooter QToolButton {{
     color: {4};
     background: transparent;
@@ -306,20 +307,26 @@ QWidget#LadybirdSidebarFooter QToolButton {{
     padding: 0;
 }}
 
-/* NB: Beside the collapsed sidebar, the all-tabs button sits in the toolbar, and keeps its own size there. */
-QWidget#LadybirdNavigationToolbar QToolButton#LadybirdAllTabsButton {{
+/* NB: The all-tabs button keeps its own size in the toolbar and the sidebar's footer, and the navigation buttons theirs,
+       which is smaller in the sidebar. */
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdAllTabsButton,
+QWidget#LadybirdSidebarFooter QToolButton#LadybirdAllTabsButton,
+QWidget#LadybirdNavigationButtons QToolButton {{
     min-width: 0;
     min-height: 0;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:hover,
+QWidget#LadybirdNavigationButtons QToolButton:hover,
 QWidget#LadybirdSidebarFooter QToolButton:hover {{
     background: transparent;
     border-color: transparent;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:pressed,
+QWidget#LadybirdNavigationButtons QToolButton:pressed,
 QWidget#LadybirdNavigationToolbar QToolButton:checked,
+QWidget#LadybirdNavigationButtons QToolButton:checked,
 QWidget#LadybirdSidebarFooter QToolButton:pressed,
 QWidget#LadybirdSidebarFooter QToolButton:checked {{
     background: transparent;
@@ -327,6 +334,7 @@ QWidget#LadybirdSidebarFooter QToolButton:checked {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:disabled,
+QWidget#LadybirdNavigationButtons QToolButton:disabled,
 QWidget#LadybirdSidebarFooter QToolButton:disabled {{
     color: {5};
     background: transparent;
@@ -334,6 +342,7 @@ QWidget#LadybirdSidebarFooter QToolButton:disabled {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator,
+QWidget#LadybirdNavigationButtons QToolButton::menu-indicator,
 QWidget#LadybirdSidebarFooter QToolButton::menu-indicator {{
     image: none;
 }}
