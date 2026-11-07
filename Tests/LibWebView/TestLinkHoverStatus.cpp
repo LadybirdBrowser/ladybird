@@ -71,6 +71,7 @@ TEST_CASE(link_hover_status)
 
     size_t hovers_reported = 0;
     size_t unhovers_reported = 0;
+    size_t unhovers_of_the_page_link = 0;
     Optional<URL::URL> hovered_url;
     view->on_link_hover = [&](auto const& url) {
         ++hovers_reported;
@@ -78,6 +79,8 @@ TEST_CASE(link_hover_status)
     };
     view->on_link_unhover = [&] {
         ++unhovers_reported;
+        if (hovered_url.has_value() && hovered_url->serialize() == "https://example.com/parent"sv)
+            ++unhovers_of_the_page_link;
         hovered_url.clear();
     };
 
@@ -141,8 +144,9 @@ TEST_CASE(link_hover_status)
     view->on_title_change = [&](auto const& title) { last_title = title; };
     view->load_html(R"~~~(<!DOCTYPE html>
 <iframe id="frame" style="position:fixed;left:0;top:0;width:400px;height:300px;border:0" srcdoc="<a href='https://example.com/in-iframe' style='position:fixed;left:0;top:0;width:400px;height:300px'>Link</a>"></iframe>
-<a href="https://example.com/parent" style="position:fixed;left:400px;top:0;width:400px;height:300px">Link</a>
+<a id="page_link" href="https://example.com/parent" style="position:fixed;left:400px;top:0;width:400px;height:300px">Link</a>
 <script>
+page_link.addEventListener("mouseover", () => { document.title = "over the page link"; });
 let frame_loads = 0;
 frame.addEventListener("load", () => { document.title = "frame load " + (++frame_loads); });
 function navigate_frame() { frame.srcdoc = frame.getAttribute("srcdoc") + "<!-- " + frame_loads + " -->"; }
@@ -160,21 +164,26 @@ function navigate_frame() { frame.srcdoc = frame.getAttribute("srcdoc") + "<!-- 
     Core::EventLoop::current().spin_until([&]() { return unhovers_reported >= 6; });
     Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 2"sv; });
 
-    // The new iframe document's link is a fresh target. Then over to the page's own link: The iframe's handler hears
-    // that the pointer left the iframe, and reports the unhover, before the page's handler reports the page's link.
+    // The new iframe document's link is a fresh target. Then over to the page's own link: Either the iframe's handler
+    // hears that the pointer left the iframe, and reports the unhover, before the page's handler reports the page's
+    // link — or a hover of the render clock reports the page's link first, and the iframe's handler then leaves it be,
+    // since it's no link of the iframe's.
     move_mouse_to(*view, { 20, 20 });
     Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 7; });
     VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
+    // The page's handler reports its link after it fires mouseover at it. By then, the iframe's handler has sent all it
+    // will for the move, and in neither order may it have ended the page's link.
     move_mouse_to(*view, { 600, 20 });
-    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 8; });
-    VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
-    VERIFY(unhovers_reported == 7);
+    Core::EventLoop::current().spin_until([&]() {
+        return last_title == "over the page link"sv && hovered_url.has_value() && hovered_url->serialize() == "https://example.com/parent"sv;
+    });
+    VERIFY(unhovers_of_the_page_link == 0);
 
     // So, the iframe navigating now must leave the page's link reported: The hover the client shows is the page's
     // handler's to end, not the iframe's. The iframe's load comes after any unhover its replacement would have sent.
     view->run_javascript("navigate_frame()"_string);
     Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 3"sv; });
-    VERIFY(unhovers_reported == 7);
+    VERIFY(unhovers_of_the_page_link == 0);
     VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
 
     // Back over the iframe's link, then a new top-level document: The iframe dies along with the old one, and its
