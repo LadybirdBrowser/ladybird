@@ -782,34 +782,10 @@ void ConnectionFromUI::view_load(u64 view_id, URL::URL url, Web::Bindings::Navig
     }
 }
 
-void ConnectionFromUI::view_load_url_from_user_input(u64 view_id, URL::URL url)
-{
-    if (auto* view = find_view(view_id)) {
-        view->load_from_user_input(url);
-        view->push_state_to_ui();
-    }
-}
-
-void ConnectionFromUI::view_load_from_user_input(u64 view_id, ByteString input, Optional<URL::URL> fallback_url)
-{
-    if (auto* view = find_view(view_id)) {
-        view->load_from_user_input(input, move(fallback_url));
-        view->push_state_to_ui();
-    }
-}
-
 void ConnectionFromUI::view_load_html(u64 view_id, ByteString html)
 {
     if (auto* view = find_view(view_id)) {
         view->load_html(html);
-        view->push_state_to_ui();
-    }
-}
-
-void ConnectionFromUI::view_load_navigation_error_page(u64 view_id, ByteString html)
-{
-    if (auto* view = find_view(view_id)) {
-        view->load_navigation_error_page(html);
         view->push_state_to_ui();
     }
 }

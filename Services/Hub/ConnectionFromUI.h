@@ -144,10 +144,7 @@ private:
     virtual void view_enqueue_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;
     virtual void view_enqueue_pinch_event(u64 view_id, Web::PinchEvent event) override;
     virtual void view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior) override;
-    virtual void view_load_url_from_user_input(u64 view_id, URL::URL url) override;
-    virtual void view_load_from_user_input(u64 view_id, ByteString input, Optional<URL::URL> fallback_url) override;
     virtual void view_load_html(u64 view_id, ByteString html) override;
-    virtual void view_load_navigation_error_page(u64 view_id, ByteString html) override;
     virtual void view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches) override;
     virtual void view_set_window_position(u64 view_id, Gfx::IntPoint position) override;
     virtual void view_set_window_size(u64 view_id, Gfx::IntSize size) override;
