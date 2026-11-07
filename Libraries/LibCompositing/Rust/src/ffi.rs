@@ -694,11 +694,6 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_sticky(
             inset_left: inset(constraints.inset_left),
             state_slot: crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: if constraints.has_parent_sticky {
-                SpatialNodeIndex(constraints.parent_sticky)
-            } else {
-                SpatialNodeIndex(constraints.scroller)
-            },
         }),
         SpatialNodeIndex(parent),
     )

@@ -177,7 +177,6 @@ pub struct StickyData {
     pub inset_left: Option<f32>,
     pub state_slot: ScrollStateSlot,
     pub owner_paintable: NodeSlotId,
-    pub registry_parent_node: SpatialNodeIndex,
 }
 
 impl StickyData {
@@ -186,7 +185,6 @@ impl StickyData {
         parent_sticky: Option<SpatialNodeIndex>,
         state_slot: ScrollStateSlot,
         owner_paintable: NodeSlotId,
-        registry_parent_node: SpatialNodeIndex,
     ) -> Self {
         Self {
             scroller,
@@ -203,8 +201,11 @@ impl StickyData {
             inset_left: None,
             state_slot,
             owner_paintable,
-            registry_parent_node,
         }
+    }
+
+    pub fn parent_sticky_or_scroller(&self) -> SpatialNodeIndex {
+        self.parent_sticky.unwrap_or(self.scroller)
     }
 }
 
@@ -728,7 +729,6 @@ fn for_each_spatial_node_reference(
             if let Some(parent_sticky) = sticky.parent_sticky {
                 visit(parent_sticky);
             }
-            visit(sticky.registry_parent_node);
         }
         SpatialData::Transform(transform) => {
             if let Some(root) = transform.sorting_context_root_index {
@@ -1603,7 +1603,6 @@ mod tests {
                 None,
                 NO_SCROLL_STATE_SLOT,
                 NodeSlotId::INVALID,
-                scroll,
             )),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

@@ -170,7 +170,6 @@ pub(crate) fn compute_sticky_data(
         parent_sticky,
         sticky_slot,
         paintable,
-        scroll_state.node_index_for_slot(sticky_state.parent_slot),
     );
     if scroller_slot == NO_SCROLL_STATE_SLOT {
         return data;
