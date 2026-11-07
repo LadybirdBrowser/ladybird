@@ -36,6 +36,7 @@ using SupportedAlgorithmsMap = HashMap<String, RegisteredAlgorithms>;
 
 static SupportedAlgorithmsMap& supported_algorithms_internal();
 static SupportedAlgorithmsMap const& supported_algorithms();
+static void define_supported_algorithms();
 
 template<typename Methods, typename Param = AlgorithmParams>
 static void define_an_algorithm(String op, StringView algorithm);
@@ -1876,14 +1877,20 @@ SupportedAlgorithmsMap& supported_algorithms_internal()
     return *supported_algorithms;
 }
 
-// https://w3c.github.io/webcrypto/#algorithm-normalization-internal
 SupportedAlgorithmsMap const& supported_algorithms()
 {
-    auto& internal_object = supported_algorithms_internal();
+    // NB: Every agent of the process reads this map, so it is defined once and never changes after that.
+    [[maybe_unused]] static bool const is_defined = [] {
+        define_supported_algorithms();
+        return true;
+    }();
+    return supported_algorithms_internal();
+}
 
-    if (!internal_object.is_empty()) {
-        return internal_object;
-    }
+// https://w3c.github.io/webcrypto/#algorithm-normalization-internal
+void define_supported_algorithms()
+{
+    auto& internal_object = supported_algorithms_internal();
 
     // 1. For each value, v in the List of supported operations,
     // set the v key of the internal object supportedAlgorithms to a new associative container.
@@ -2087,8 +2094,6 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<KMAC>("exportKey"_string, algorithm);
         define_an_algorithm<KMAC, KmacImportParams>("get key length"_string, algorithm);
     }
-
-    return internal_object;
 }
 
 // https://w3c.github.io/webcrypto/#concept-define-an-algorithm

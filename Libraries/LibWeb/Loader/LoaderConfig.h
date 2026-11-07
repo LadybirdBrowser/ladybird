@@ -13,7 +13,7 @@
 
 namespace Web {
 
-// The process's loader configuration, read and changed on the main thread. A snapshot already taken never changes.
+// The process's loader configuration, which any thread may read and change. A snapshot already taken never changes.
 WEB_API NonnullRefPtr<LoaderConfigSnapshot const> current_loader_config();
 WEB_API void update_loader_config(Function<void(LoaderConfig&)> const& change);
 WEB_API void set_site_compatibility_data(SiteCompatibilityData);

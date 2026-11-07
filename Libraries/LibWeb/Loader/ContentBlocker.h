@@ -43,8 +43,8 @@ public:
 
     static ContentBlocker& the();
 
-    bool has_rules() const { return m_engine != nullptr; }
-    bool has_cosmetic_rules() const { return m_has_cosmetic_rules; }
+    bool has_rules() const { return m_engine.load(AK::MemoryOrder::memory_order_relaxed) != nullptr; }
+    bool has_cosmetic_rules() const { return m_has_cosmetic_rules.load(AK::MemoryOrder::memory_order_relaxed); }
 
     bool is_filtered(URL::URL const&) const;
     bool is_filtered(URL::URL const&, URL::URL const& source_url, ResourceType) const;
@@ -63,8 +63,11 @@ private:
     ContentBlocker();
     ~ContentBlocker();
 
-    bool m_has_cosmetic_rules { false };
-    void* m_engine { nullptr };
+    // Agents on any thread ask, and the engine is not one that several threads can use at once. The atomics let a check
+    // for no rules at all skip the lock.
+    mutable Mutex m_mutex;
+    Atomic<bool> m_has_cosmetic_rules { false };
+    Atomic<void*> m_engine { nullptr };
 };
 
 }
