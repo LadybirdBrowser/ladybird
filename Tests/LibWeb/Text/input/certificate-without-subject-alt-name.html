@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="./include.js"></script>
+<script>
+    // A certificate that names its host only in the Common Name must not be accepted for that host.
+    asyncTest(async done => {
+        const base = httpTestServer().baseURL;
+
+        let config;
+        try {
+            config = await (await fetch(`${base}/aia-test/config`)).json();
+        } catch (error) {
+            println("FAIL - could not read TLS test config: " + error);
+            done();
+            return;
+        }
+
+        if (!config.common_name_only) {
+            println(
+                "FAIL - TLS test HTTPS servers unavailable (is the 'cryptography' package installed for the test runner's python?)"
+            );
+            done();
+            return;
+        }
+
+        async function loads(port) {
+            try {
+                await fetch(`https://localhost:${port}/`, { mode: "no-cors" });
+                return "loaded";
+            } catch {
+                return "failed";
+            }
+        }
+
+        function opens(port) {
+            return new Promise(resolve => {
+                const ws = new WebSocket(`wss://localhost:${port}/`);
+                ws.onopen = () => {
+                    ws.close();
+                    resolve("opened");
+                };
+                ws.onerror = () => resolve("failed");
+            });
+        }
+
+        println("localhost in subjectAltName: " + (await loads(config.subject_alt_name)));
+        println("localhost only in Common Name: " + (await loads(config.common_name_only)));
+        println("wss:// with localhost in subjectAltName: " + (await opens(config.subject_alt_name)));
+        println("wss:// with localhost only in Common Name: " + (await opens(config.common_name_only)));
+        done();
+    });
+</script>

@@ -11,6 +11,7 @@
 #include <RequestServer/CURL.h>
 #include <RequestServer/Resolver.h>
 #include <openssl/ssl.h>
+#include <openssl/x509v3.h>
 #include <string.h>
 
 namespace RequestServer {
@@ -59,6 +60,30 @@ static void share_certificate_store(SSL_CTX* ssl_context)
 }
 #endif
 
+// curl matches the server's certificate against its Common Name when the certificate has no DNS or IP subject
+// alternative name. Fail verification of such certificates, so that only subject alternative names identify a server.
+static int verify_server_certificate_has_subject_alt_name(int preverify_ok, X509_STORE_CTX* context)
+{
+    if (!preverify_ok || X509_STORE_CTX_get_error_depth(context) != 0)
+        return preverify_ok;
+
+    auto* names = static_cast<GENERAL_NAMES*>(X509_get_ext_d2i(X509_STORE_CTX_get_current_cert(context), NID_subject_alt_name, nullptr, nullptr));
+    auto has_host_name = false;
+    for (int i = 0; i < sk_GENERAL_NAME_num(names); ++i) {
+        auto type = sk_GENERAL_NAME_value(names, i)->type;
+        if (type == GEN_DNS || type == GEN_IPADD) {
+            has_host_name = true;
+            break;
+        }
+    }
+    GENERAL_NAMES_free(names);
+
+    if (has_host_name)
+        return 1;
+    X509_STORE_CTX_set_error(context, X509_V_ERR_HOSTNAME_MISMATCH);
+    return 0;
+}
+
 CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
 {
     // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
@@ -75,6 +100,12 @@ CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[mayb
     if (curl_uses_openssl)
         SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
 #endif
+
+    // Keep curl's verify mode: it sets SSL_VERIFY_NONE and checks the verification result once the handshake is done.
+    if (curl_uses_openssl) {
+        auto* context = static_cast<SSL_CTX*>(ssl_context);
+        SSL_CTX_set_verify(context, SSL_CTX_get_verify_mode(context), verify_server_certificate_has_subject_alt_name);
+    }
 
 #ifdef AK_OS_MACOS
     if (curl_uses_openssl)
