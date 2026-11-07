@@ -18,6 +18,7 @@ set(TEST_SOURCES
 if (LINUX)
     list(APPEND TEST_SOURCES
         TestLibCoreFileWatcher.cpp
+        TestLibCoreProcessStatistics.cpp
     )
 endif()
 
