@@ -6,6 +6,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibWebView/Application.h>
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
@@ -137,7 +138,7 @@ void LadybirdButton::animate_fill(qreal fill)
 QSize LadybirdButton::sizeHint() const
 {
     auto tile = tile_size(m_is_private);
-    return { tile.width(), tile.height() + (2 * TILE_VERTICAL_MARGIN) };
+    return { tile.width() + (2 * LADYBIRD_BUTTON_FOCUS_RING_ROOM), tile.height() + (2 * TILE_VERTICAL_MARGIN) };
 }
 
 QRect LadybirdButton::tile_rect() const
