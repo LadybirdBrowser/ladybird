@@ -87,6 +87,8 @@ static ActionsOptions actions_options()
 
 // NB: The actions running for a command stay alive until they complete.
 struct ActionsInFlight : RefCounted<ActionsInFlight> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     AK_ALLOC_WITH_KMALLOC;
 
     Optional<GC::Root<JS::Cell>> executor;

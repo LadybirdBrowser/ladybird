@@ -10,8 +10,10 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
 #include <LibCompositing/Forward.h>
+#include <LibCore/Forward.h>
 #include <LibGC/Forward.h>
 #include <LibGfx/Forward.h>
+#include <LibHTTP/Forward.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Forward.h>
@@ -21,6 +23,28 @@
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Forward.h>
 
+namespace Gfx {
+
+class Typeface;
+
+}
+
+namespace Web::Fetch::Engine {
+
+class FetchBodyDeliveryGate;
+class FetchByteChannel;
+class WholeBodyTransport;
+
+}
+
+// NB: The fetch engine can't include LibGC, so these are declared here.
+GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchBodyDeliveryGate);
+GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchByteChannel);
+GC_UNTRACED_CAPTURE(Web::Fetch::Engine::WholeBodyTransport);
+GC_UNTRACED_CAPTURE(Core::Timer);
+GC_UNTRACED_CAPTURE(Gfx::Typeface);
+GC_UNTRACED_CAPTURE(HTTP::HeaderList);
+GC_UNTRACED_CAPTURE(HTTP::MemoryCache);
 GC_UNTRACED_CAPTURE(URL::URL);
 GC_UNTRACED_CAPTURE(URL::Origin);
 

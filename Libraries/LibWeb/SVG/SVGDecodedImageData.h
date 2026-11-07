@@ -216,3 +216,6 @@ private:
 };
 
 }
+
+// NB: The promise resolves to a root.
+GC_UNTRACED_CAPTURE(Web::SVG::SVGDecodedImageData::DecodePromise);

@@ -63,7 +63,10 @@ public:
     void visit_edges(GC::Cell::Visitor&);
 
 private:
+    // NB: A request holds its nodes weakly, so a function can capture it without an edge to trace.
     struct Request {
+        GC_HOLDS_NO_CELL_EDGES;
+
         u64 generation { 0 };
         GC::Weak<DOM::Text> text;
         size_t offset { 0 };

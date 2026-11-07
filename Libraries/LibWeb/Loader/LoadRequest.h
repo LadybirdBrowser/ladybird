@@ -22,8 +22,11 @@
 
 namespace Web {
 
+// NB: A load request keeps its page in a GC::Root, and holds no other cell.
 class WEB_API LoadRequest {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     explicit LoadRequest(NonnullRefPtr<HTTP::HeaderList> headers)
         : m_headers(move(headers))
     {

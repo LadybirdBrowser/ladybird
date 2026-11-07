@@ -112,6 +112,8 @@ GC::Ref<DOM::IDLEventListener> MediaControls::add_event_listener(JS::Realm& real
     // NB: A handler uses these controls, which remove their listeners when they go away. It holds no strong pointer to
     //     a cell, as nothing traces it.
     struct HandlerHolder : RefCounted<HandlerHolder> {
+        GC_HOLDS_NO_CELL_EDGES;
+
         explicit HandlerHolder(Handler handler)
             : handler(move(handler))
         {

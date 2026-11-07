@@ -52,6 +52,8 @@ private:
 GC_DEFINE_ALLOCATOR(CellWithFunction);
 
 struct DestructionFlag {
+    GC_HOLDS_NO_CELL_EDGES;
+
     AK_ALLOC_WITH_KMALLOC;
 
     explicit DestructionFlag(bool& destroyed)
@@ -64,9 +66,40 @@ struct DestructionFlag {
 };
 
 struct RunState : RefCounted<RunState> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     GC::Weak<GC::Function<void()>> function;
     bool survived_collection { false };
 };
+
+struct CountedWithCell : RefCounted<CountedWithCell> {
+    GC::Ptr<TestCell> cell;
+};
+
+struct CountedWithoutCells : RefCounted<CountedWithoutCells> {
+    GC_HOLDS_NO_CELL_EDGES;
+};
+
+struct CountedAndTraced : RefCounted<CountedAndTraced> {
+    GC::Ptr<TestCell> cell;
+
+    void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(cell); }
+};
+
+// Nothing can reach a capture without saying how it is traced, also not through a counted or owning pointer.
+static_assert(!GC::IsCapturable<CountedWithCell>);
+static_assert(!GC::IsCapturable<NonnullRefPtr<CountedWithCell>>);
+static_assert(!GC::IsCapturable<RefPtr<CountedWithCell>>);
+static_assert(!GC::IsCapturable<OwnPtr<CountedWithCell>>);
+static_assert(!GC::IsCapturable<NonnullOwnPtr<CountedWithCell>>);
+static_assert(!GC::IsCapturable<Vector<NonnullRefPtr<CountedWithCell>>>);
+static_assert(!GC::IsCapturable<AK::Function<void()>>);
+static_assert(!GC::IsCapturable<int*>);
+static_assert(GC::IsCapturable<NonnullRefPtr<CountedWithoutCells>>);
+static_assert(GC::IsCapturable<NonnullRefPtr<CountedWithoutCells const>>);
+static_assert(GC::IsCapturable<OwnPtr<CountedWithoutCells>>);
+static_assert(GC::IsCapturable<NonnullRefPtr<CountedAndTraced>>);
+static_assert(GC::IsCapturable<Optional<RefPtr<CountedAndTraced>>>);
 
 struct Holders {
     GC::Root<GC::Function<int()>> function;

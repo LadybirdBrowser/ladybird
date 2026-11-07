@@ -343,6 +343,8 @@ namespace {
 
 // NB: The session keeps an awaited promise and its evaluation alive until it settles or its environment is destroyed.
 struct PendingEvaluation : RefCounted<PendingEvaluation> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     AK_ALLOC_WITH_KMALLOC;
 
     String environment_id;

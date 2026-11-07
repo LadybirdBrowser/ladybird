@@ -27,6 +27,8 @@ namespace WebWorker {
 
 class WorkerHost : public RefCounted<WorkerHost> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     explicit WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name);
     ~WorkerHost();
 

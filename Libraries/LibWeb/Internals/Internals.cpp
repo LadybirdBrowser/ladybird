@@ -728,6 +728,8 @@ void Internals::grant_transient_activation()
 namespace {
 
 struct MouseEventsTheUIProcessHasNotHandledYet : public RefCounted<MouseEventsTheUIProcessHasNotHandledYet> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     size_t count { 0 };
 };
 
@@ -3692,6 +3694,8 @@ namespace {
 
 // The bytes of a stream from create_stream_pulling_from_bytes() that it has not pulled yet.
 struct UnpulledBytes final : public RefCounted<UnpulledBytes> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     explicit UnpulledBytes(ByteBuffer bytes)
         : bytes(move(bytes))
     {

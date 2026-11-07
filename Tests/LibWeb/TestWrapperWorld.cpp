@@ -875,6 +875,8 @@ TEST_CASE(cross_origin_descriptor_cache_does_not_root_realm_after_wrapper_dies)
 }
 
 struct TimerFired : RefCounted<TimerFired> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     bool value { false };
 };
 

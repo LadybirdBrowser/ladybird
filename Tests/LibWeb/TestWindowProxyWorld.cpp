@@ -70,6 +70,8 @@ GC_DEFINE_ALLOCATOR(TestPageClient);
 }
 
 struct ListenerCall : RefCounted<ListenerCall> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     bool value { false };
 };
 

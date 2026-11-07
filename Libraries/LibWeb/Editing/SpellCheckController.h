@@ -75,7 +75,10 @@ private:
         Other,
     };
 
+    // NB: A request holds its nodes weakly, so a function can capture it without an edge to trace.
     struct Request {
+        GC_HOLDS_NO_CELL_EDGES;
+
         RequestKind kind { RequestKind::Other };
         Utf16String text;
         Vector<RequestPiece> pieces;

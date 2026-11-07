@@ -134,6 +134,8 @@ struct BodyStreamHarness {
 };
 
 struct SniffWaiter : RefCounted<SniffWaiter> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     size_t wake_count { 0 };
     ByteBuffer bytes;
     Optional<Body::SniffOutcome> outcome;
@@ -151,6 +153,8 @@ struct SniffWaiter : RefCounted<SniffWaiter> {
 // A value that the callbacks of a test change, and the test reads afterwards.
 template<typename T>
 struct SharedValue : RefCounted<SharedValue<T>> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     T value {};
 };
 

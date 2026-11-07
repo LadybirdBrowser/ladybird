@@ -33,6 +33,8 @@
 namespace Web::SVG {
 
 struct DocumentObserverRoot : RefCounted<DocumentObserverRoot> {
+    GC_HOLDS_NO_CELL_EDGES;
+
     explicit DocumentObserverRoot(DOM::DocumentObserver& observer)
         : observer(observer)
     {
