@@ -201,7 +201,7 @@
         {
           "type": "git",
           "url": "https://github.com/unicode-org/icu.git",
-          "tag": "release-78.3"
+          "tag": "release-79.1"
         }
       ],
       "subdir": "icu4c/source/",
