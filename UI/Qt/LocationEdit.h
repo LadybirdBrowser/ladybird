@@ -120,6 +120,8 @@ private:
     void schedule_chrome_style_update();
     void show_focus_ring();
     void hide_focus_ring();
+    qreal focus_ring_opacity_while_editing() const;
+    void animate_focus_ring();
     void update_trailing_action_visibility();
     void slide_site_settings_knobs(qreal travel);
     void update_completion_title();

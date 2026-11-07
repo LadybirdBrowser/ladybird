@@ -23,6 +23,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QDynamicPropertyChangeEvent>
 #include <QEasingCurve>
 #include <QGraphicsEffect>
 #include <QGuiApplication>
@@ -572,7 +573,7 @@ void LocationEdit::changeEvent(QEvent* event)
         if (!isActiveWindow())
             update_focus_ring(0);
         else if (m_is_editing_location && hasFocus())
-            update_focus_ring(1);
+            update_focus_ring(focus_ring_opacity_while_editing());
     }
     // NB: Repolishing for the hover look changes our palette to the hovered colors, which needs no new style.
     if (event->type() == QEvent::PaletteChange && m_is_updating_field_hover)
@@ -588,6 +589,8 @@ bool LocationEdit::event(QEvent* event)
         set_field_hovered(true);
     else if (event->type() == QEvent::Leave)
         set_field_hovered(false);
+    else if (event->type() == QEvent::DynamicPropertyChange && static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen" && m_is_editing_location)
+        show_focus_ring_at_once();
     return QLineEdit::event(event);
 }
 
@@ -792,13 +795,23 @@ void LocationEdit::show_focus_ring()
         emit editing_location_changed();
     }
     update_trailing_action_visibility();
+    animate_focus_ring();
+}
 
+// While the field lists suggestions, it is part of their surface, and the ring goes around the whole surface instead.
+qreal LocationEdit::focus_ring_opacity_while_editing() const
+{
+    return property("autocompleteOpen").toBool() ? 0 : 1;
+}
+
+void LocationEdit::animate_focus_ring()
+{
     if (!m_focus_ring_animation)
         return;
 
     m_focus_ring_animation->stop();
     m_focus_ring_animation->setStartValue(m_focus_ring_opacity);
-    m_focus_ring_animation->setEndValue(1.0);
+    m_focus_ring_animation->setEndValue(focus_ring_opacity_while_editing());
     m_focus_ring_animation->start();
 }
 
@@ -808,7 +821,7 @@ void LocationEdit::show_focus_ring_at_once()
         return;
     if (m_focus_ring_animation)
         m_focus_ring_animation->stop();
-    update_focus_ring(1);
+    update_focus_ring(focus_ring_opacity_while_editing());
 }
 
 void LocationEdit::hide_focus_ring()

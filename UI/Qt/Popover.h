@@ -148,6 +148,8 @@ enum class FloatingShadowKind : u8 {
     Popover,
     // A sheet hangs from the top of the page, and casts the deeper shadow of a dialog below it only.
     Sheet,
+    // A focused field that grows into a popover keeps its focus ring around the whole surface.
+    FocusedField,
 };
 QWidget& cast_floating_shadow(QWidget& surface, qreal corner_radius, FloatingShadowTone = FloatingShadowTone::FollowTheme, FloatingShadowKind = FloatingShadowKind::Popover);
 

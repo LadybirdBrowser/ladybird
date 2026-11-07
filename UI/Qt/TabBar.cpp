@@ -3725,6 +3725,7 @@ void TabWidget::slide_page_with_toggling_sidebar()
     if (!slides_page_with_toggling_sidebar()) {
         m_toolbar->set_leading_room(0);
         m_toolbar->set_contents_opacity(1);
+        m_toolbar->set_field_clip({});
         if (m_toolbar_row_backdrop)
             m_toolbar_row_backdrop->hide();
         return;
@@ -3789,6 +3790,8 @@ void TabWidget::move_toolbar_with_toggling_sidebar()
         // NB: The row's contents stay where they are beside the collapsed sidebar, whose buttons are in the sidebar now.
         m_toolbar->set_leading_room(m_toolbar->lead_beside_collapsed_sidebar(*m_ladybird_buttons, COLLAPSED_VERTICAL_TABS_TOGGLE_BUTTON_SIZE));
         m_toolbar->set_contents_opacity(clamp(1 - (static_cast<qreal>(opening_time) / TOOLBAR_ROW_FADE_DURATION), 0.0, 1.0));
+        // NB: The field's panel is above the page, which slides up over the row.
+        m_toolbar->set_field_clip(QRect(mapTo(window(), QPoint()), QSize(width(), row_height)));
         if (m_toolbar_row_backdrop)
             m_toolbar_row_backdrop->hide();
         return;
@@ -3806,6 +3809,7 @@ void TabWidget::move_toolbar_with_toggling_sidebar()
     footer.setGeometry(side_margin, footer_bottom - footer_height, contents_width, footer_height);
     auto fade_in_start = Motion::SLOW - SIDEBAR_CONTENTS_FADE_DURATION;
     m_toolbar->set_contents_opacity(clamp(static_cast<qreal>(opening_time - fade_in_start) / SIDEBAR_CONTENTS_FADE_DURATION, 0.0, 1.0));
+    m_toolbar->set_field_clip({});
 
     // The row that the toolbar has left shrinks above the page.
     if (!m_toolbar_row_backdrop) {

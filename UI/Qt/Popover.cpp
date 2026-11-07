@@ -594,10 +594,10 @@ public:
         , m_margins(kind == FloatingShadowKind::Sheet
                   ? QMargins(SHEET_SHADOW_MARGIN, 0, SHEET_SHADOW_MARGIN, SHEET_SHADOW_MARGIN)
                   : POPOVER_SHADOW_MARGINS)
-#if defined(AK_OS_MACOS)
         , m_corner_radius(corner_radius)
-        , m_tone(tone)
         , m_kind(kind)
+#if defined(AK_OS_MACOS)
+        , m_tone(tone)
 #endif
     {
 #if !defined(AK_OS_MACOS)
@@ -620,6 +620,26 @@ public:
 #endif
 
 private:
+    // The focus ring's line right outside the surface's edge is inside a softer ring this wide.
+    static constexpr qreal FOCUS_RING_WIDTH = 2;
+
+#if !defined(AK_OS_MACOS)
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        if (m_kind != FloatingShadowKind::FocusedField)
+            return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(Qt::NoBrush);
+        auto surface_rect = QRectF(rect().marginsRemoved(m_margins));
+        auto ring_outset = 1 + (FOCUS_RING_WIDTH / 2);
+        painter.setPen(QPen(Theme::focus_ring(), FOCUS_RING_WIDTH));
+        painter.drawRoundedRect(surface_rect.adjusted(-ring_outset, -ring_outset, ring_outset, ring_outset), m_corner_radius + ring_outset, m_corner_radius + ring_outset);
+        painter.setPen(QPen(Theme::focus_edge(), 1));
+        painter.drawRoundedRect(surface_rect.adjusted(-0.5, -0.5, 0.5, 0.5), m_corner_radius + 0.5, m_corner_radius + 0.5);
+    }
+#endif
+
     virtual bool eventFilter(QObject*, QEvent* event) override
     {
         switch (event->type()) {
@@ -677,6 +697,8 @@ private:
         auto fill_color = m_tone == FloatingShadowTone::Dark ? QColor(28, 28, 30) : Theme::panel().surface;
         if (m_kind == FloatingShadowKind::Sheet)
             m_view_shadow.follow(*m_surface, m_margins, m_corner_radius, 17, 18, QColor(0, 0, 0, is_dark ? 140 : 56), fill_color);
+        else if (m_kind == FloatingShadowKind::FocusedField)
+            m_view_shadow.follow(*m_surface, m_margins, m_corner_radius, 15, 14, QColor(0, 0, 0, is_dark ? 115 : 41), fill_color, AppKitViewFocusRing { Theme::focus_edge(), Theme::focus_ring(), FOCUS_RING_WIDTH });
         else
             m_view_shadow.follow(*m_surface, m_margins, m_corner_radius, 15, 14, QColor(0, 0, 0, is_dark ? 115 : 41), fill_color);
 #else
@@ -691,10 +713,10 @@ private:
     QPointer<QWidget> m_surface;
     QMargins m_margins;
     bool m_is_following { false };
-#if defined(AK_OS_MACOS)
     qreal m_corner_radius { 0 };
-    FloatingShadowTone m_tone { FloatingShadowTone::FollowTheme };
     FloatingShadowKind m_kind { FloatingShadowKind::Popover };
+#if defined(AK_OS_MACOS)
+    FloatingShadowTone m_tone { FloatingShadowTone::FollowTheme };
     AppKitViewShadow m_view_shadow;
 #endif
 };
