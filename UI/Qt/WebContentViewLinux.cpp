@@ -204,7 +204,7 @@ RefPtr<Gfx::Bitmap const> WebContentView::cpu_bitmap_to_paint(Paintable const& p
     //     what it paints, and painting the frame there would be slow: from GPU memory it has to be read back, and a
     //     linear frame is mapped from memory that is slow to read.
     QRect visible_frame { 0, 0, paintable.bitmap_size.width(), paintable.bitmap_size.height() };
-    visible_frame &= QRect { QPoint { 0, 0 }, size() * m_device_pixel_ratio };
+    visible_frame &= QRect { QPoint { 0, 0 }, size() * device_pixel_ratio() };
     if (visible_frame.isEmpty() || rect_covered_by_page_window().contains(visible_frame))
         return {};
     return cpu_bitmap_of(paintable);
@@ -941,7 +941,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         };
         vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-        bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size, m_view.m_scales_frames_to_fit);
+        bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size, m_view.scales_frames_to_fit());
 
         if (rendered && m_view.m_vulkan_window_supports_alpha_blending.value_or(false)) {
             // Clear the regions covered by hover-expanded browser chrome to transparent so widgets painted in the
@@ -1110,7 +1110,7 @@ bool WebContentView::vulkan_window_update_would_only_resize() const
     if (!m_vulkan_window || m_presented_page_window_size.isEmpty() || QGuiApplication::platformName() != "wayland")
         return false;
     // NB: A frame scaled to fit the view has to be scaled again for its new size.
-    if (m_scales_frames_to_fit)
+    if (scales_frames_to_fit())
         return false;
     if (m_presented_page_window_content_serial != m_page_window_content_serial)
         return false;
@@ -1270,7 +1270,7 @@ void WebContentView::release_backing_store(i32 bitmap_id)
         return;
     }
 #endif
-    WebView::ViewImplementation::release_backing_store(bitmap_id);
+    RemoteView::release_backing_store(bitmap_id);
 }
 
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
@@ -1304,7 +1304,7 @@ bool WebContentView::page_surface_can_show_frames() const
         return false;
     // NB: The page surface leaves the strips that hover-expanded chrome covers to Qt, except for a frame scaled to fit.
     auto has_hover_expanded_chrome = m_vertical_tab_overlay_left != 0 || m_vertical_tab_overlay_right != 0 || m_bookmarks_bar_overlay_height != 0;
-    return !m_scales_frames_to_fit || !has_hover_expanded_chrome;
+    return !scales_frames_to_fit() || !has_hover_expanded_chrome;
 }
 
 void WebContentView::hide_page_surface()
@@ -1334,7 +1334,7 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     QRect frame_rect;
     QRect source;
     QRect target;
-    if (m_scales_frames_to_fit) {
+    if (scales_frames_to_fit()) {
         auto fitted = rect_fitting_frame(bitmap_size, m_viewport_size);
         frame_rect = { fitted.x(), fitted.y(), fitted.width(), fitted.height() };
         source = { 0, 0, bitmap_size.width(), bitmap_size.height() };
@@ -1342,21 +1342,21 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     } else {
         // NB: The view can already be smaller than the viewport the page has, and the compositor doesn't clip the
         //     page surface to the browser window.
-        auto view_size = size() * m_device_pixel_ratio;
+        auto view_size = size() * device_pixel_ratio();
         frame_rect = { 0, 0, min(min(bitmap_size.width(), m_viewport_size.width()), view_size.width()), min(min(bitmap_size.height(), m_viewport_size.height()), view_size.height()) };
         // NB: Hover-expanded chrome paints in the view over strips of the page, which the page surface would cover.
-        auto left = qRound(m_vertical_tab_overlay_left * m_device_pixel_ratio);
-        auto right = qRound(m_vertical_tab_overlay_right * m_device_pixel_ratio);
-        auto top = qRound(m_bookmarks_bar_overlay_height * m_device_pixel_ratio);
+        auto left = qRound(m_vertical_tab_overlay_left * device_pixel_ratio());
+        auto right = qRound(m_vertical_tab_overlay_right * device_pixel_ratio());
+        auto top = qRound(m_bookmarks_bar_overlay_height * device_pixel_ratio());
         source = frame_rect.intersected({ left, top, view_size.width() - left - right, view_size.height() - top });
         // NB: Qt clips the view to the widgets it is in, such as while the page slides along with a toggling sidebar,
         //     but the compositor clips the page surface to nothing.
         auto shown = rect_shown_in_window();
-        source &= QRect { qRound(shown.x() * m_device_pixel_ratio), qRound(shown.y() * m_device_pixel_ratio), qRound(shown.width() * m_device_pixel_ratio), qRound(shown.height() * m_device_pixel_ratio) };
+        source &= QRect { qRound(shown.x() * device_pixel_ratio()), qRound(shown.y() * device_pixel_ratio()), qRound(shown.width() * device_pixel_ratio()), qRound(shown.height() * device_pixel_ratio()) };
         target = source;
     }
 
-    auto to_logical = [&](int device_pixels) { return max(1, qRound(device_pixels / m_device_pixel_ratio)); };
+    auto to_logical = [&](int device_pixels) { return max(1, qRound(device_pixels / device_pixel_ratio())); };
     auto view_position = mapTo(window(), QPoint { 0, 0 });
     WaylandPageSurface::Frame frame {
         .shared_image_buffer = *paintable->shared_image_buffer,
@@ -1364,7 +1364,7 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
         .page_id = paintable->page_id,
         .bitmap_id = paintable->bitmap_id,
         .source = source,
-        .position = view_position + QPoint { qRound(target.x() / m_device_pixel_ratio), qRound(target.y() / m_device_pixel_ratio) },
+        .position = view_position + QPoint { qRound(target.x() / device_pixel_ratio()), qRound(target.y() / device_pixel_ratio()) },
         .destination = { to_logical(target.width()), to_logical(target.height()) },
         .has_new_content = content == PageSurfaceContent::MayHaveChanged,
     };

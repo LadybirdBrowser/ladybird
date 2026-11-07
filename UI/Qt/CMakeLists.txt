@@ -42,6 +42,7 @@ add_library(ladybird_impl STATIC
     PlainText.cpp
     Popover.cpp
     ProcessManagerWindow.cpp
+    RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
     ScreenshotSelectionOverlay.cpp
