@@ -3318,6 +3318,11 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_vertical_tabs_content_separator->setAttribute(Qt::WA_TransparentForMouseEvents);
     m_vertical_tabs_content_separator->hide();
 
+    m_collapsed_sidebar_top_edge = new QWidget(this);
+    m_collapsed_sidebar_top_edge->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_collapsed_sidebar_top_edge->setAutoFillBackground(true);
+    m_collapsed_sidebar_top_edge->hide();
+
     m_vertical_tabs_reserved_space = new QWidget(m_vertical_tabs_content);
     m_vertical_tabs_reserved_space->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     // NB: While the sidebar narrows, the room it leaves shows the strip until the page takes it.
@@ -4860,6 +4865,8 @@ void TabWidget::place_toolbar_over_page_column()
     if (m_page_column->parentWidget() == this)
         m_page_column->stackUnder(m_toolbar);
 
+    if (m_collapsed_sidebar_top_edge->isVisible())
+        m_collapsed_sidebar_top_edge->raise();
     if (m_vertical_tabs_content_separator->isVisible())
         m_vertical_tabs_content_separator->raise();
 }
@@ -4944,6 +4951,19 @@ void TabWidget::update_vertical_tabs_resize_handle()
 
 void TabWidget::update_vertical_tabs_content_separator()
 {
+    // NB: The toolbar's bottom line is only there over the page. Over the collapsed sidebar, the sidebar's color takes its
+    //     place, so that the toolbar's color doesn't show in a line along the sidebar's top.
+    auto show_top_edge = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !m_vertical_tabs_expanded;
+    m_collapsed_sidebar_top_edge->setVisible(show_top_edge);
+    if (show_top_edge) {
+        auto palette = m_collapsed_sidebar_top_edge->palette();
+        palette.setColor(QPalette::Window, Theme::chrome(*this).sidebar);
+        m_collapsed_sidebar_top_edge->setPalette(palette);
+        auto sidebar_width = current_vertical_tabs_width();
+        m_collapsed_sidebar_top_edge->setGeometry(vertical_tabs_are_on_right() ? width() - sidebar_width : 0, max(0, m_toolbar->height() - 1), sidebar_width, 1);
+        m_collapsed_sidebar_top_edge->raise();
+    }
+
     auto has_page_bookmarks_bar = !m_bookmarks_bar->isHidden();
     auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !has_page_bookmarks_bar;
     m_vertical_tabs_content_separator->setVisible(show_content_separator);
