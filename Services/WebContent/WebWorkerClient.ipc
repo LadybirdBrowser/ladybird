@@ -15,6 +15,7 @@ endpoint WebWorkerClient {
     did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
 
     did_close_worker() =|
+    did_close_shared_worker() => ()
     did_finish_loading_worker_script(bool worker_is_secure_context) =|
     did_fail_loading_worker_script() =|
     did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno) =|

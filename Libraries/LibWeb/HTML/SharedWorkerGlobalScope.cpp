@@ -44,6 +44,10 @@ void SharedWorkerGlobalScope::close()
 {
     // The close() method steps are to close a worker given this.
     close_a_worker();
+
+    // NB: This script can run on for as long as it wants to. The UI process has to know by the time it returns, as a
+    //     constructor that runs after that may not pick a global whose closing flag is true.
+    page()->client().page_did_close_shared_worker();
 }
 
 #define __ENUMERATE(attribute_name, event_name)                                     \

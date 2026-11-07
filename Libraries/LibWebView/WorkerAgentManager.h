@@ -141,6 +141,7 @@ private:
     void worker_did_report_exception(Web::HTML::WorkerAgentId, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     void worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId, u64 policy_index, String effective_directive, URL::URL resource);
     void worker_did_close(Web::HTML::WorkerAgentId);
+    void shared_worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
     void worker_thread_did_exit(WebWorkerClient&);
     void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);

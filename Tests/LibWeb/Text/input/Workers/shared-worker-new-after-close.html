@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const workerScript = `
+            let connections = 0;
+            const workerId = Math.random();
+            onconnect = event => {
+                const port = event.ports[0];
+                port.onmessage = () => {
+                    close();
+                    port.postMessage("closed");
+                    // The closing flag is set, and this script and its thread go on.
+                    const end = Date.now() + 200;
+                    while (Date.now() < end);
+                };
+                port.postMessage({ workerId, connection: ++connections });
+            };
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" }));
+
+        function connect() {
+            const worker = new SharedWorker(workerURL, "new-after-close");
+            return new Promise(resolve => {
+                worker.port.onmessage = event => resolve({ worker, ...event.data });
+            });
+        }
+
+        const first = await connect();
+        println(`first worker, connection ${first.connection}`);
+
+        const closed = new Promise(resolve => {
+            first.worker.port.onmessage = event => resolve(event.data);
+        });
+        first.worker.port.postMessage("close");
+        println(await closed);
+
+        const second = await connect();
+        println(`fresh worker: ${second.workerId !== first.workerId}, connection ${second.connection}`);
+
+        // The closed worker goes away, and has to leave the one that took its place alone.
+        while (internals.workerAgentCount() !== 1) await new Promise(resolve => setTimeout(resolve, 10));
+
+        const third = await connect();
+        println(`same worker: ${third.workerId === second.workerId}, connection ${third.connection}`);
+    });
+</script>

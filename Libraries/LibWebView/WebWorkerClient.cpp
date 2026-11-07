@@ -75,6 +75,11 @@ void WebWorkerClient::did_close_worker()
     WorkerAgentManager::the().worker_did_close(m_agent_id);
 }
 
+void WebWorkerClient::did_close_shared_worker()
+{
+    WorkerAgentManager::the().shared_worker_did_close(m_agent_id);
+}
+
 void WebWorkerClient::did_finish_loading_worker_script(bool worker_is_secure_context)
 {
     WorkerAgentManager::the().worker_did_finish_loading_script(m_agent_id, worker_is_secure_context);

@@ -53,6 +53,7 @@ public:
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
 
     virtual void did_close_worker() override;
+    virtual void did_close_shared_worker() override;
     virtual void did_finish_loading_worker_script(bool worker_is_secure_context) override;
     virtual void did_fail_loading_worker_script() override;
     virtual void did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;

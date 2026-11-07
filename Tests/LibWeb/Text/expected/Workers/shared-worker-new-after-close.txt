@@ -1,0 +1,4 @@
+first worker, connection 1
+closed
+fresh worker: true, connection 1
+same worker: true, connection 2
