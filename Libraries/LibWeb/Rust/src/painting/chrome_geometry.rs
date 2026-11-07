@@ -469,20 +469,14 @@ fn is_canvas_background_source(
         || (root_background_source.use_body_background_properties && root_background_source.body_layout_node == slot)
 }
 
-pub(crate) fn scrollbar_colors_for_paint(
+/// The color behind what `slot` paints, as far as background colors tell: the canvas's, with the backgrounds of `slot`
+/// and its ancestors composited over it. Background images, and content of other boxes painted underneath, don't count.
+pub(crate) fn estimated_backdrop_color(
     arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
     canvas_background_color: Color,
-) -> (Color, Color) {
-    let Some(style) = arena.node_style_if_live(slot) else {
-        return (Color::TRANSPARENT, Color::TRANSPARENT);
-    };
-    let colors = style.inherited_ui().scrollbar_color;
-    if !colors.is_auto {
-        return (Color(colors.thumb_color), Color(colors.track_color));
-    }
-
+) -> Color {
     let mut ancestors = Vec::new();
     let mut current = Some(slot);
     while let Some(ancestor) = current {
@@ -502,6 +496,24 @@ pub(crate) fn scrollbar_colors_for_paint(
             background_color = background_color.blend(color);
         }
     }
+    background_color
+}
+
+pub(crate) fn scrollbar_colors_for_paint(
+    arena: &impl PaintRead,
+    slot: NodeSlotId,
+    root_background_source: RootBackgroundSource,
+    canvas_background_color: Color,
+) -> (Color, Color) {
+    let Some(style) = arena.node_style_if_live(slot) else {
+        return (Color::TRANSPARENT, Color::TRANSPARENT);
+    };
+    let colors = style.inherited_ui().scrollbar_color;
+    if !colors.is_auto {
+        return (Color(colors.thumb_color), Color(colors.track_color));
+    }
+
+    let background_color = estimated_backdrop_color(arena, slot, root_background_source, canvas_background_color);
     let black_thumb = Color::from_rgb(0, 0, 0).with_alpha(128);
     let white_thumb = Color::from_rgb(255, 255, 255).with_alpha(128);
     let black_contrast = background_color.contrast_ratio(background_color.blend(black_thumb));
