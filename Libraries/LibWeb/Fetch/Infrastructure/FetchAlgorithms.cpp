@@ -16,12 +16,18 @@ GC_DEFINE_ALLOCATOR(FetchAlgorithms);
 
 GC::Ref<FetchAlgorithms> FetchAlgorithms::create(Input input)
 {
-    auto process_request_body_chunk_length = GC::create_function(GC::Heap::the(), move(input.process_request_body_chunk_length));
-    auto process_request_end_of_body = GC::create_function(GC::Heap::the(), move(input.process_request_end_of_body));
-    auto process_early_hints_response = GC::create_function(GC::Heap::the(), move(input.process_early_hints_response));
-    auto process_response = GC::create_function(GC::Heap::the(), move(input.process_response));
-    auto process_response_end_of_body = GC::create_function(GC::Heap::the(), move(input.process_response_end_of_body));
-    auto process_response_consume_body = GC::create_function(GC::Heap::the(), move(input.process_response_consume_body));
+    // NB: An algorithm the caller left out has no function, which the fetch steps check for.
+    auto make_function = [](auto&& function) -> GC::Ptr<GC::Function<typename RemoveCVReference<decltype(function)>::FunctionType>> {
+        if (!function)
+            return nullptr;
+        return GC::create_function(GC::Heap::the(), move(function));
+    };
+    auto process_request_body_chunk_length = make_function(move(input.process_request_body_chunk_length));
+    auto process_request_end_of_body = make_function(move(input.process_request_end_of_body));
+    auto process_early_hints_response = make_function(move(input.process_early_hints_response));
+    auto process_response = make_function(move(input.process_response));
+    auto process_response_end_of_body = make_function(move(input.process_response_end_of_body));
+    auto process_response_consume_body = make_function(move(input.process_response_consume_body));
     return GC::Heap::the().allocate<FetchAlgorithms>(
         input.body_intent,
         process_request_body_chunk_length,

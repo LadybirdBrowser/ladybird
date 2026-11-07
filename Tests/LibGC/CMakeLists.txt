@@ -7,6 +7,7 @@ set(TEST_SOURCES
     TestGCContainers.cpp
     TestGCEphemeron.cpp
     TestGCFreeList.cpp
+    TestGCFunction.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp
     TestGCIncrementalSweep.cpp

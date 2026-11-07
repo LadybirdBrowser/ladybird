@@ -33,12 +33,12 @@ public:
     using ProcessResponseEndOfBodyFunction = Function<void(GC::Ref<Infrastructure::ResponseView>)>;
     using ProcessResponseConsumeBodyFunction = Function<void(GC::Ref<Infrastructure::ResponseView>, BodyBytes)>;
 
-    using ProcessRequestBodyChunkLengthHeapFunction = GC::Ref<GC::Function<ProcessRequestBodyChunkLengthFunction::FunctionType>>;
-    using ProcessRequestEndOfBodyHeapFunction = GC::Ref<GC::Function<ProcessRequestEndOfBodyFunction::FunctionType>>;
-    using ProcessEarlyHintsResponseHeapFunction = GC::Ref<GC::Function<ProcessEarlyHintsResponseFunction::FunctionType>>;
-    using ProcessResponseHeapFunction = GC::Ref<GC::Function<ProcessResponseFunction::FunctionType>>;
-    using ProcessResponseEndOfBodyHeapFunction = GC::Ref<GC::Function<ProcessResponseEndOfBodyFunction::FunctionType>>;
-    using ProcessResponseConsumeBodyHeapFunction = GC::Ref<GC::Function<ProcessResponseConsumeBodyFunction::FunctionType>>;
+    using ProcessRequestBodyChunkLengthHeapFunction = GC::Ptr<GC::Function<ProcessRequestBodyChunkLengthFunction::FunctionType>>;
+    using ProcessRequestEndOfBodyHeapFunction = GC::Ptr<GC::Function<ProcessRequestEndOfBodyFunction::FunctionType>>;
+    using ProcessEarlyHintsResponseHeapFunction = GC::Ptr<GC::Function<ProcessEarlyHintsResponseFunction::FunctionType>>;
+    using ProcessResponseHeapFunction = GC::Ptr<GC::Function<ProcessResponseFunction::FunctionType>>;
+    using ProcessResponseEndOfBodyHeapFunction = GC::Ptr<GC::Function<ProcessResponseEndOfBodyFunction::FunctionType>>;
+    using ProcessResponseConsumeBodyHeapFunction = GC::Ptr<GC::Function<ProcessResponseConsumeBodyFunction::FunctionType>>;
 
     // A request body whose stream is the only place its bytes are, with the reader fetch() acquired for that stream.
     struct RequestBodyReader {
@@ -66,12 +66,12 @@ public:
 
     Engine::BodyIntent body_intent() const { return m_body_intent; }
     Optional<RequestBodyReader> const& request_body_reader() const { return m_request_body_reader; }
-    ProcessRequestBodyChunkLengthFunction const& process_request_body_chunk_length() const { return m_process_request_body_chunk_length->function(); }
-    ProcessRequestEndOfBodyFunction const& process_request_end_of_body() const { return m_process_request_end_of_body->function(); }
-    ProcessEarlyHintsResponseFunction const& process_early_hints_response() const { return m_process_early_hints_response->function(); }
-    ProcessResponseFunction const& process_response() const { return m_process_response->function(); }
-    ProcessResponseEndOfBodyFunction const& process_response_end_of_body() const { return m_process_response_end_of_body->function(); }
-    ProcessResponseConsumeBodyFunction const& process_response_consume_body() const { return m_process_response_consume_body->function(); }
+    ProcessRequestBodyChunkLengthHeapFunction process_request_body_chunk_length() const { return m_process_request_body_chunk_length; }
+    ProcessRequestEndOfBodyHeapFunction process_request_end_of_body() const { return m_process_request_end_of_body; }
+    ProcessEarlyHintsResponseHeapFunction process_early_hints_response() const { return m_process_early_hints_response; }
+    ProcessResponseHeapFunction process_response() const { return m_process_response; }
+    ProcessResponseEndOfBodyHeapFunction process_response_end_of_body() const { return m_process_response_end_of_body; }
+    ProcessResponseConsumeBodyHeapFunction process_response_consume_body() const { return m_process_response_consume_body; }
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

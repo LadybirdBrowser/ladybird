@@ -1130,7 +1130,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             //    end-of-body given response.
             auto algorithms = controller->algorithms();
             if (algorithms->process_response_end_of_body())
-                (algorithms->process_response_end_of_body())(response_view);
+                algorithms->process_response_end_of_body()->function()(response_view);
 
             report_timing_if_appropriate();
         });
@@ -1143,7 +1143,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //    given response, with fetchParams’s task destination.
     if (controller->algorithms()->process_response()) {
         Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), [controller, response_view]() {
-            controller->algorithms()->process_response()(response_view);
+            controller->algorithms()->process_response()->function()(response_view);
         }));
     }
 
@@ -1290,18 +1290,18 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         auto process_body = GC::create_function(GC::Heap::the(), [algorithms, response = response_view->record(), response_view](ByteBuffer bytes) {
             if (auto body = response->body(); body.has_value()) {
                 if (auto source = body->source(); source.has_value()) {
-                    (algorithms->process_response_consume_body())(response_view, *source);
+                    algorithms->process_response_consume_body()->function()(response_view, *source);
                     return;
                 }
             }
             // A body the transport delivered as slices of one mapping keeps that mapping instead of the bytes read.
             if (auto const& network_transport = response->network_transport(); network_transport.has_value()) {
                 if (auto whole_body = network_transport->body_channel->whole_body(); whole_body.has_value()) {
-                    (algorithms->process_response_consume_body())(response_view, whole_body.release_value());
+                    algorithms->process_response_consume_body()->function()(response_view, whole_body.release_value());
                     return;
                 }
             }
-            (algorithms->process_response_consume_body())(response_view, Core::ImmutableBytes::adopt(move(bytes)));
+            algorithms->process_response_consume_body()->function()(response_view, Core::ImmutableBytes::adopt(move(bytes)));
         });
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
@@ -1311,7 +1311,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             setup_report_timing_steps();
             // NB: A failed read does not always close or error the body's stream, which would otherwise end this.
             end_rendering_pending_operation(controller.ptr());
-            (algorithms->process_response_consume_body())(response_view, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
+            algorithms->process_response_consume_body()->function()(response_view, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
         });
 
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
@@ -1320,12 +1320,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             // AD-HOC: For a sync XHR's body, run processBody directly (see read_body_in_parallel above;
             //         processResponseEndOfBody already ran, right after it).
             if (read_body_in_parallel) {
-                (algorithms->process_response_consume_body())(response_view, Empty {});
+                algorithms->process_response_consume_body()->function()(response_view, Empty {});
             } else {
                 Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), [algorithms, response_view]() {
                     // NB: We have to provide fully_read a callback which accepts a ByteBuffer. Since that's not
                     //     nullable, we just invoke process_response_consume_body with a null value manually here.
-                    (algorithms->process_response_consume_body())(response_view, Empty {});
+                    algorithms->process_response_consume_body()->function()(response_view, Empty {});
                 }));
             }
         }
@@ -2991,7 +2991,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     if (request->body().has<Empty>()) {
         if (fetch_params.controller()->algorithms()->process_request_end_of_body()) {
             Infrastructure::queue_fetch_task(fetch_params.controller(), fetch_params.controller()->task_destination(), GC::create_function(GC::Heap::the(), [fetch_params = NonnullRefPtr { fetch_params }]() {
-                fetch_params->controller()->algorithms()->process_request_end_of_body()();
+                fetch_params->controller()->algorithms()->process_request_end_of_body()->function()();
             }));
         }
     }
@@ -3010,7 +3010,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             // 3. If fetchParams’s process request body chunk length is non-null, then run fetchParams’s process
             //    request body chunk length given bytes’s length.
             if (controller->algorithms()->process_request_body_chunk_length())
-                controller->algorithms()->process_request_body_chunk_length()(length);
+                controller->algorithms()->process_request_body_chunk_length()->function()(length);
         };
 
         // 2. Let processEndOfBody be these steps:
@@ -3022,7 +3022,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             // 2. If fetchParams’s process request end-of-body is non-null, then run fetchParams’s process request
             //    end-of-body.
             if (controller->algorithms()->process_request_end_of_body())
-                controller->algorithms()->process_request_end_of_body()();
+                controller->algorithms()->process_request_end_of_body()->function()();
         });
 
         // 3. Let processBodyError given e be these steps:
