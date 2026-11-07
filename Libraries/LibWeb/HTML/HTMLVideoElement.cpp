@@ -338,6 +338,9 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             (void)Platform::ImageCodecPlugin::the().decode_image(
                 image_data,
                 [weak_self, poster_url](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
+                    // NB: Only the first frame is used, so an animation the decoder opened is stopped right away.
+                    if (image.session_id != 0)
+                        Platform::ImageCodecPlugin::the().stop_animation_decode(image.session_id);
                     if (!weak_self)
                         return {};
                     RefPtr<Gfx::Bitmap> poster_frame;

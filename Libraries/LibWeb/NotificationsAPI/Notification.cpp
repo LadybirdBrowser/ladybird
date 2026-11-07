@@ -420,6 +420,9 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
         //     resource to are rooted for the wait: Nothing else holds the step once the fetch is over. An answer for a
         //     notification that's gone in the meantime is dropped.
         auto on_decoded = [self = GC::Root(*this), process_resource = GC::Root(*process_resource)](Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+            // NB: Only the first frame is used, so an animation the decoder opened is stopped right away.
+            if (decoded_image.session_id != 0)
+                Platform::ImageCodecPlugin::the().stop_animation_decode(decoded_image.session_id);
             if (self->m_state != State::Pending)
                 return {};
             auto* this_notification = self.ptr();
