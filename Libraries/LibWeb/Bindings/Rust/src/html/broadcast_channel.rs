@@ -44,9 +44,7 @@ unsafe extern "C" {
         realm: *mut c_void,
         channel_name: usize,
         serialized_message: ak::Span<'_, u8>,
-        shared_memory: *const c_int,
-        shared_memory_sizes: *const usize,
-        shared_memory_count: usize,
+        shared_store_lifeline: c_int,
     );
 }
 
@@ -250,9 +248,8 @@ impl BroadcastChannel {
         }
 
         // 3. Let serialized be StructuredSerialize(message). Rethrow any exceptions.
-        // AD-HOC: This message reaches agents in other processes through the browser process — so a shared-memory-backed
-        //         SharedArrayBuffer travels beside the record, by file descriptor, and every receiver references the same
-        //         [[ArrayBufferData]] rather than a copy.
+        // AD-HOC: This message reaches agents through the browser process, also those in this process, which then reference
+        //         the same [[ArrayBufferData]] rather than a copy.
         let serialized = structured_serialize_for_message(cx.vm(), cx.realm(), message)?;
 
         // 4. Let sourceOrigin be this's relevant settings object's origin.
@@ -271,17 +268,14 @@ impl BroadcastChannel {
         // Steps 6-9.
         Self::deliver_message_locally(cx.vm(), message, Some(*this));
 
-        let (shared_memory, shared_memory_sizes) = message.serialized.duplicate_shared_memory();
         // SAFETY: The realm is live, the name and the bytes are lent for the call, and the call takes over the
-        //         duplicated descriptors.
+        //         duplicated descriptor.
         unsafe {
             web_html_broadcast_channel_post_message_to_other_processes(
                 this.realm.as_ptr().cast(),
                 message.channel_name.raw_identity(),
                 ak::Span::new(&message.serialized.bytes),
-                shared_memory.as_ptr(),
-                shared_memory_sizes.as_ptr(),
-                shared_memory.len(),
+                message.serialized.duplicate_shared_store_lifeline(),
             );
         }
 

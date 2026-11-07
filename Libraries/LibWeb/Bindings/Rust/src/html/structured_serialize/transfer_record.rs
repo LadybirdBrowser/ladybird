@@ -13,6 +13,7 @@ use core::ptr::NonNull;
 
 use libjs_rust::api::{
     ArrayBuffer, DeferGc, EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Trace, Vm, into_raw_descriptor,
+    lifeline_into_raw_descriptor,
 };
 
 use super::cpp::{OwnedSerializedTransferRecord, SerializedTransferRecord, objects_into_abi};
@@ -20,7 +21,7 @@ use super::message_record::{MessageRecord, SharedMemory};
 use super::transfer_data_holder::TransferPayload;
 use libipc_rust::wire::File;
 use libipc_rust::{DecodeError, Decoder, EncodeError, Encoder};
-use libjs_rust::api::{AsSharedMemory, owned_from_raw_descriptor, raw_descriptor};
+use libjs_rust::api::{AsSharedMemory, lifeline_from_raw_descriptor, owned_from_raw_descriptor, raw_descriptor};
 
 unsafe extern "C" {
     fn web_structured_serialize_validate_shared_memory(descriptor: c_int, size: usize) -> bool;
@@ -31,6 +32,7 @@ unsafe extern "C" {
         descriptors: *const c_int,
         sizes: *const usize,
         shared_memory_count: usize,
+        shared_store_lifeline: c_int,
         holders: *const *mut c_void,
         holder_count: usize,
     ) -> *mut c_void;
@@ -45,9 +47,21 @@ unsafe extern "C" {
             *const c_int,
             *const usize,
             usize,
+            c_int,
         ),
         append_holder: unsafe extern "C" fn(*mut c_void, *mut c_void),
     );
+}
+
+/// The descriptor as what the record encodes, which takes it over.
+fn file_from_raw_descriptor(raw: c_int) -> File {
+    #[cfg(unix)]
+    // SAFETY: The caller hands the descriptor over.
+    let descriptor = unsafe { std::os::fd::FromRawFd::from_raw_fd(raw) };
+    #[cfg(windows)]
+    // SAFETY: The caller hands the descriptor over.
+    let descriptor = unsafe { libipc_rust::transport_windows::OwnedDescriptor::from_raw(raw) };
+    File(descriptor)
 }
 
 #[derive(Trace)]
@@ -85,13 +99,16 @@ impl TransferRecord {
 
     pub(crate) fn into_cpp(record: TransferRecordRef, vm: &Vm) -> OwnedSerializedTransferRecord {
         DeferGc::scope(vm, |_defer_gc| {
-            let message = record.serialized.replace(None).expect("a record is handed over once");
+            let mut message = record.serialized.replace(None).expect("a record is handed over once");
             let buffers = objects_into_abi(&message.shared_array_buffers);
-            let (descriptors, sizes): (Vec<_>, Vec<_>) = message
-                .shared_memory
+            let (descriptors, sizes): (Vec<_>, Vec<_>) = core::mem::take(&mut message.shared_memory)
                 .into_iter()
                 .map(|memory| (into_raw_descriptor(memory.descriptor), memory.size))
                 .unzip();
+            let shared_store_lifeline = message
+                .shared_store_lifeline
+                .take()
+                .map_or(-1, lifeline_into_raw_descriptor);
             let holders: Vec<_> = record
                 .data_holders
                 .borrow_mut()
@@ -108,6 +125,7 @@ impl TransferRecord {
                     descriptors.as_ptr(),
                     sizes.as_ptr(),
                     descriptors.len(),
+                    shared_store_lifeline,
                     holders.as_ptr(),
                     holders.len(),
                 ))
@@ -118,20 +136,20 @@ impl TransferRecord {
     /// The IPC encoding of a SerializedTransferRecord, without its same-process SharedArrayBuffers.
     pub(crate) fn encode_into(record: TransferRecordRef, vm: &Vm, encoder: &mut Encoder) -> Result<(), EncodeError> {
         DeferGc::scope(vm, |_| {
-            let message = record.serialized.replace(None).expect("a record is handed over once");
+            let mut message = record.serialized.replace(None).expect("a record is handed over once");
             encoder.encode(message.bytes.as_slice())?;
             let holders = core::mem::take(&mut *record.data_holders.borrow_mut());
             encoder.encode_owned(holders)?;
             encoder.encode_size(message.shared_memory.len())?;
-            for memory in message.shared_memory {
+            for memory in core::mem::take(&mut message.shared_memory) {
                 encoder.encode(&true)?;
                 encoder.encode(&(memory.size as u64))?;
-                let raw = into_raw_descriptor(memory.descriptor);
-                #[cfg(unix)]
-                let descriptor = unsafe { std::os::fd::FromRawFd::from_raw_fd(raw) };
-                #[cfg(windows)]
-                let descriptor = unsafe { libipc_rust::transport_windows::OwnedDescriptor::from_raw(raw) };
-                encoder.encode_owned(File(descriptor))?;
+                encoder.encode_owned(file_from_raw_descriptor(into_raw_descriptor(memory.descriptor)))?;
+            }
+            let shared_store_lifeline = message.shared_store_lifeline.take();
+            encoder.encode(&shared_store_lifeline.is_some())?;
+            if let Some(lifeline) = shared_store_lifeline {
+                encoder.encode_owned(file_from_raw_descriptor(lifeline_into_raw_descriptor(lifeline)))?;
             }
             Ok(())
         })
@@ -175,12 +193,25 @@ impl TransferRecord {
                 shared_memory.push(memory);
             }
         }
+        let shared_store_lifeline = decoder
+            .decode::<bool>()?
+            .then(|| decoder.decode::<File>())
+            .transpose()?
+            .map(|File(descriptor)| {
+                #[cfg(unix)]
+                let raw = std::os::fd::IntoRawFd::into_raw_fd(descriptor);
+                #[cfg(windows)]
+                let raw = descriptor.into_raw();
+                // SAFETY: File hands its descriptor over to the lifeline.
+                unsafe { lifeline_from_raw_descriptor(raw) }
+            });
         Ok(Self::create(
             vm,
             |_| MessageRecord {
                 bytes,
                 shared_array_buffers: Vec::new(),
                 shared_memory,
+                shared_store_lifeline,
             },
             holders,
         ))
@@ -201,28 +232,33 @@ impl TransferRecord {
             descriptors: *const c_int,
             sizes: *const usize,
             shared_memory_count: usize,
+            shared_store_lifeline: c_int,
         ) {
             // SAFETY: from_cpp() lends the state under its allocation's deferral, and C++ lends every input slice.
             let received = unsafe { &mut *context.cast::<Received<'_>>() };
-            received.message = Some(MessageRecord {
-                shared_array_buffers: unsafe { ak::slice_from_raw_parts(buffers, buffer_count) }
-                    .iter()
-                    .map(|&buffer| {
-                        // SAFETY: C++ lends live ArrayBuffers while the collector is deferred.
-                        unsafe {
-                            Gc::from_non_null(NonNull::new(buffer.cast::<ArrayBuffer>()).expect("C++ lends a buffer"))
-                        }
-                    })
-                    .collect(),
-                ..unsafe {
-                    MessageRecord::received(
-                        received.defer_gc,
-                        bytes.as_slice(),
-                        ak::slice_from_raw_parts(descriptors, shared_memory_count),
-                        ak::slice_from_raw_parts(sizes, shared_memory_count),
-                    )
-                }
-            });
+            #[cfg_attr(
+                ladybird_gc_lints,
+                expect(gc_container_on_stack, reason = "the collector is deferred while C++ lends them")
+            )]
+            let mut message = unsafe {
+                MessageRecord::received(
+                    received.defer_gc,
+                    bytes.as_slice(),
+                    ak::slice_from_raw_parts(descriptors, shared_memory_count),
+                    ak::slice_from_raw_parts(sizes, shared_memory_count),
+                    shared_store_lifeline,
+                )
+            };
+            message.shared_array_buffers = unsafe { ak::slice_from_raw_parts(buffers, buffer_count) }
+                .iter()
+                .map(|&buffer| {
+                    // SAFETY: C++ lends live ArrayBuffers while the collector is deferred.
+                    unsafe {
+                        Gc::from_non_null(NonNull::new(buffer.cast::<ArrayBuffer>()).expect("C++ lends a buffer"))
+                    }
+                })
+                .collect();
+            received.message = Some(message);
         }
 
         unsafe extern "C" fn append(context: *mut c_void, holder: *mut c_void) {

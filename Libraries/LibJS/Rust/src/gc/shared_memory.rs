@@ -4,14 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The descriptor of a shared memory object, as LibGC's C interface and Core::AnonymousBuffer pass it as an int: a
-//! file descriptor, or on Windows a HANDLE that AK's to_fd() narrowed.
+//! The descriptor of a shared memory object, as Core::AnonymousBuffer passes it as an int: a file descriptor, or on
+//! Windows a HANDLE that AK's to_fd() narrowed.
 
 use core::ffi::c_int;
-use core::ptr::NonNull;
-
-use super::capi;
-use super::primitive_storage::OutOfMemory;
 
 #[cfg(unix)]
 pub type OwnedSharedMemory = std::os::fd::OwnedFd;
@@ -105,39 +101,5 @@ pub unsafe fn borrowed_from_raw_descriptor<'descriptor>(descriptor: c_int) -> Bo
     {
         // SAFETY: As the caller guarantees.
         unsafe { BorrowedSharedMemory::borrow_raw(handle_from_descriptor(descriptor)) }
-    }
-}
-
-/// gc_shared_memory_view_outside_cage_create(): the first `size` bytes of a shared memory object, mapped outside the
-/// cage on a platform that cannot map it into the cage. The view unmaps the bytes when it is dropped.
-pub struct SharedMemoryViewOutsideCage {
-    view: NonNull<capi::GCSharedMemoryViewOutsideCage>,
-    data: *mut u8,
-    size: usize,
-}
-
-impl SharedMemoryViewOutsideCage {
-    pub fn map(shared_memory: BorrowedSharedMemory<'_>, size: usize) -> Result<Self, OutOfMemory> {
-        // SAFETY: The descriptor is open for the duration of the call, which duplicates it.
-        let view = unsafe { capi::gc_shared_memory_view_outside_cage_create(raw_descriptor(shared_memory), size) };
-        let view = NonNull::new(view).ok_or(OutOfMemory)?;
-        // SAFETY: The view is live.
-        let data = unsafe { capi::gc_shared_memory_view_outside_cage_data(view.as_ptr()) };
-        Ok(Self { view, data, size })
-    }
-
-    pub fn data(&self) -> *mut u8 {
-        self.data
-    }
-
-    pub fn size(&self) -> usize {
-        self.size
-    }
-}
-
-impl Drop for SharedMemoryViewOutsideCage {
-    fn drop(&mut self) {
-        // SAFETY: The view is live, and nothing uses it after this.
-        unsafe { capi::gc_shared_memory_view_outside_cage_destroy(self.view.as_ptr()) };
     }
 }

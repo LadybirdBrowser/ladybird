@@ -48,9 +48,9 @@ static GC::Ref<JS::ArrayBuffer> make_shared_array_buffer(JS::Realm& realm, Reado
     return buffer;
 }
 
-// The SharedArrayBuffer constructor's path: A fixed-length shared Data Block is backed by cross-process shared memory,
-// unlike the process-local storage that ArrayBuffer::create(Realm&, size_t, Shared) allocates above.
-static GC::Ref<JS::ArrayBuffer> make_shared_memory_backed_array_buffer(JS::Realm& realm, ReadonlyBytes contents)
+// The SharedArrayBuffer constructor's path: A fixed-length shared Data Block is a store that agents on other threads can
+// share, unlike the storage of one buffer that ArrayBuffer::create(Realm&, size_t, Shared) allocates above.
+static GC::Ref<JS::ArrayBuffer> make_array_buffer_in_shared_store(JS::Realm& realm, ReadonlyBytes contents)
 {
     Web::HTML::TemporaryExecutionContext execution_context { realm };
     auto& buffer = as<JS::ArrayBuffer>(*MUST(JS::construct(realm.vm(), *realm.intrinsics().shared_array_buffer_constructor(), JS::Value(contents.size()))));
@@ -121,22 +121,20 @@ TEST_CASE(same_process_clone_aliases_the_backing_store)
     EXPECT_EQ(source_contents[1], static_cast<u8>('C'));
 }
 
-TEST_CASE(shared_memory_backed_clone_references_the_same_shared_object)
+TEST_CASE(clone_in_a_shared_store_references_the_same_store)
 {
-    auto source = make_shared_memory_backed_array_buffer(source_realm(), "shared memory"sv.bytes());
-    EXPECT(source->shared_buffer().has_value());
+    auto source = make_array_buffer_in_shared_store(source_realm(), "shared store"sv.bytes());
+    EXPECT(source->data_block().is_in_shared_store());
 
     auto& clone = as_array_buffer(deserialize(serialize_same_agent(JS::Value { source.ptr() }), target_realm()));
     EXPECT(clone.is_shared_array_buffer());
     EXPECT_EQ(clone.byte_length(), source->byte_length());
     EXPECT(&clone != source.ptr());
 
-    // The clone references the source's shared object, rather than a process-local alias of it — so it can itself
-    // be shared with an agent in another process.
-    auto clone_shared_memory = clone.shared_buffer();
-    EXPECT(clone_shared_memory.has_value());
-    clone_shared_memory->data<u8>()[2] = static_cast<u8>('M');
-    EXPECT_EQ(contents_of(*source)[2], static_cast<u8>('M'));
+    // The clone references the source's store, rather than a local alias of the buffer, so it can itself be shared with
+    // an agent on another thread.
+    EXPECT(clone.data_block().is_in_shared_store());
+    EXPECT_EQ(clone.data_at(0), source->data_at(0));
 
     source->overwrite(0, "S", 1);
     auto clone_contents = contents_of(clone);

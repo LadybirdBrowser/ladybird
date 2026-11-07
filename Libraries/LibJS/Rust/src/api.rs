@@ -46,8 +46,7 @@ pub use crate::runtime::agent::agent_can_suspend;
 pub use crate::runtime::array::Array;
 pub use crate::runtime::array_buffer::{
     ArrayBuffer, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, Order as ArrayBufferOrder, OutOfMemory,
-    OwnedBackingStore, Shared as ArrayBufferShared, SharedBackingStore, clone_array_buffer, create_byte_data_block,
-    detach_array_buffer,
+    OwnedBackingStore, Shared as ArrayBufferShared, clone_array_buffer, create_byte_data_block, detach_array_buffer,
 };
 pub use crate::runtime::big_int::BigInt;
 pub use crate::runtime::big_int_object::BigIntObject;
@@ -86,6 +85,11 @@ pub use crate::runtime::realm::Realm;
 pub use crate::runtime::regexp_object::{RegExpObject, regexp_create};
 pub use crate::runtime::set::Set;
 pub use crate::runtime::set_iterator::SetIterator;
+pub use crate::runtime::shared_backing_store::{
+    SharedBackingStore, SharedStoreLifeline, duplicate_lifeline_from_raw_descriptor, lifeline_from_raw_descriptor,
+    lifeline_into_raw_descriptor,
+    pin_stores_for_a_message, release_stores_of_lost_messages,
+};
 pub use crate::runtime::string_object::StringObject;
 pub use crate::runtime::typed_array::{
     Kind as TypedArrayKind, TypedArrayBase, TypedArrayWithBufferWitness, create_typed_array,

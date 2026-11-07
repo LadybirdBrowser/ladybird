@@ -16,6 +16,18 @@ namespace Web::HTML {
 
 SameProcessSerializationSideTable::~SameProcessSerializationSideTable() = default;
 
+SharedStoreLifeline SharedStoreLifeline::adopting_fd(int fd)
+{
+    if (fd < 0)
+        return {};
+    return { IPC::File::adopt_fd(fd) };
+}
+
+int SharedStoreLifeline::fd() const
+{
+    return file.has_value() ? file->fd() : -1;
+}
+
 void append_storage_format_prologue(ByteBuffer& data)
 {
     data.append(storage_format_magic.data(), storage_format_magic.size());
@@ -136,6 +148,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedTransferRecord const
     TRY(encoder.encode(record.serialized));
     TRY(encoder.encode(record.transfer_data_holders));
     TRY(encoder.encode(record.shared_buffers));
+    TRY(encoder.encode(record.shared_store_lifeline));
     return {};
 }
 
@@ -145,8 +158,27 @@ ErrorOr<Web::HTML::SerializedTransferRecord> decode(Decoder& decoder)
     auto serialized = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto transfer_data_holders = TRY(decoder.decode<Vector<Web::HTML::TransferDataEncoder>>());
     auto shared_buffers = TRY(decoder.decode<Vector<Core::AnonymousBuffer>>());
+    auto shared_store_lifeline = TRY(decoder.decode<Web::HTML::SharedStoreLifeline>());
 
-    return Web::HTML::SerializedTransferRecord { move(serialized), move(transfer_data_holders), move(shared_buffers) };
+    return Web::HTML::SerializedTransferRecord { move(serialized), move(transfer_data_holders), move(shared_buffers), move(shared_store_lifeline) };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::SharedStoreLifeline const& lifeline)
+{
+    // NB: A record may go out more than once, so what goes out is a duplicate.
+    TRY(encoder.encode(lifeline.file.has_value()));
+    if (lifeline.file.has_value())
+        TRY(encoder.encode(TRY(File::clone_fd(lifeline.file->fd()))));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::SharedStoreLifeline> decode(Decoder& decoder)
+{
+    if (!TRY(decoder.decode<bool>()))
+        return Web::HTML::SharedStoreLifeline {};
+    return Web::HTML::SharedStoreLifeline { TRY(decoder.decode<File>()) };
 }
 
 }

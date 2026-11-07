@@ -11,7 +11,7 @@
 //! object that agents in other processes map too. Storage handles cross as the GCPrimitiveStorageHandle word of
 //! LibGC/CAPI.h. Every function here must be called on the thread that runs the VM.
 
-use core::ffi::{c_int, c_void};
+use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::embedding::abi_types::{
@@ -21,7 +21,6 @@ use crate::embedding::abi_types::{
 use crate::gc::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
 use crate::gc::class::{Extends, GcCell};
 use crate::gc::foreign::ForeignCellSlot;
-use crate::gc::shared_memory::{borrowed_from_raw_descriptor, into_raw_descriptor};
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::object::Object;
@@ -35,6 +34,7 @@ use crate::runtime::data_view::{
     DataView, DataViewWithBufferWitness, get_view_byte_length, is_view_out_of_bounds,
     make_data_view_with_buffer_witness_record,
 };
+use crate::runtime::shared_backing_store::SharedBackingStore;
 
 /// JSArrayBufferStorage.kind of a detached buffer, which has no storage.
 pub const JS_ARRAY_BUFFER_STORAGE_DETACHED: u8 = 0;
@@ -43,7 +43,7 @@ pub const JS_ARRAY_BUFFER_STORAGE_OWNED: u8 = 1;
 /// JSArrayBufferStorage.kind of storage that a GC cell of the embedder owns.
 pub const JS_ARRAY_BUFFER_STORAGE_EXTERNAL: u8 = 2;
 /// JSArrayBufferStorage.kind of a fixed-length SharedArrayBuffer in a shared memory object.
-pub const JS_ARRAY_BUFFER_STORAGE_SHARED_MEMORY: u8 = 3;
+pub const JS_ARRAY_BUFFER_STORAGE_SHARED_STORE: u8 = 3;
 
 /// JS::ArrayBuffer::Order, the order of the read of a SharedArrayBuffer's byte length.
 pub const JS_ARRAY_BUFFER_ORDER_SEQ_CST: u8 = 0;
@@ -92,9 +92,6 @@ pub struct JSArrayBufferStorage {
     pub handle: u64,
     /// For JS_ARRAY_BUFFER_STORAGE_EXTERNAL, the owner and the byte length; zero otherwise.
     pub external: JSExternalPrimitiveStorage,
-    /// For JS_ARRAY_BUFFER_STORAGE_SHARED_MEMORY, the id that names the shared memory object in every agent, or 0 if it
-    /// has none; zero otherwise.
-    pub shared_memory_object_id: u64,
 }
 
 /// The DataView With Buffer Witness Record of the spec, which C++ calls DataViewWithBufferWitness.
@@ -263,30 +260,36 @@ pub unsafe extern "C" fn js_array_buffer_create_with_external_storage(
     object_into_abi(ArrayBuffer::create_from_data_block(vm, realm, block))
 }
 
-/// ArrayBuffer::create(Realm&, Core::AnonymousBuffer, u64 shared_object_id): a fixed-length SharedArrayBuffer over the
-/// first `byte_length` bytes of a shared memory object, which `object_id` names in every agent, as structured
-/// deserialization creates it. The embedder keeps owning `shared_memory_fd` and may close it right away, as the buffer
-/// keeps a duplicate. Returns null if the object cannot be mapped into the cage, which includes a `byte_length` of 0
-/// and an object smaller than `byte_length`. Main thread only.
+/// The id of the store of a SharedArrayBuffer, or 0 if it has none.
 ///
 /// # Safety
 ///
-/// `vm` and `realm` must be live, and `shared_memory_fd` an open descriptor.
+/// `buffer` must be a live ArrayBuffer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_array_buffer_create_from_shared_memory(
+pub unsafe extern "C" fn js_array_buffer_shared_store_id(buffer: *mut JSObject) -> u64 {
+    // SAFETY: The caller passes a live ArrayBuffer.
+    let buffer = unsafe { array_buffer_from_abi(buffer) };
+    buffer.with_data_block(|data_block| match &data_block.byte_buffer {
+        DataBlockStorage::Shared(store) => store.id(),
+        _ => 0,
+    })
+}
+
+/// A new SharedArrayBuffer in the realm over the store of this process that `id` names, or null if there is none.
+///
+/// # Safety
+///
+/// `vm` and `realm` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_array_buffer_create_from_shared_store(
     vm: *mut JSVM,
     realm: *mut JSRealm,
-    shared_memory_fd: c_int,
-    byte_length: usize,
-    object_id: u64,
+    id: u64,
 ) -> *mut JSObject {
     // SAFETY: The caller passes a live VM and realm.
     let (vm, realm) = unsafe { (vm_from_abi(vm), cell_from_abi(realm)) };
-    assert!(shared_memory_fd >= 0, "the embedder passes an open descriptor");
-    // SAFETY: The caller guarantees that the descriptor stays open for the duration of the call.
-    let shared_memory = unsafe { borrowed_from_raw_descriptor(shared_memory_fd) };
     optional_object_into_abi(
-        ArrayBuffer::create_from_shared_memory(vm, realm, shared_memory, byte_length, object_id).ok(),
+        SharedBackingStore::with_id(id).map(|store| ArrayBuffer::create_from_shared_store(vm, realm, store)),
     )
 }
 
@@ -336,7 +339,6 @@ pub unsafe extern "C" fn js_array_buffer_storage(buffer: *mut JSObject, out: *mu
             fixed_byte_length: 0,
             has_fixed_byte_length: false,
         },
-        shared_memory_object_id: 0,
     };
     buffer.with_data_block(|block| match &block.byte_buffer {
         DataBlockStorage::Empty => {}
@@ -355,45 +357,12 @@ pub unsafe extern "C" fn js_array_buffer_storage(buffer: *mut JSObject, out: *mu
             };
         }
         DataBlockStorage::Shared(shared) => {
-            storage.kind = JS_ARRAY_BUFFER_STORAGE_SHARED_MEMORY;
+            storage.kind = JS_ARRAY_BUFFER_STORAGE_SHARED_STORE;
             storage.handle = shared.handle();
-            storage.shared_memory_object_id = shared.object_id();
         }
     });
     // SAFETY: The caller passes a valid out parameter.
     unsafe { out.write(storage) };
-}
-
-/// A new descriptor of the shared memory object behind a buffer of kind JS_ARRAY_BUFFER_STORAGE_SHARED_MEMORY, which
-/// the caller owns and has to close, with the byte length of the buffer in `out_byte_length`. This is what the
-/// embedder sends another agent, along with the id from js_array_buffer_storage(). Returns -1 for any other buffer, or
-/// when no descriptor is left. Main thread only.
-///
-/// # Safety
-///
-/// `buffer` must be a live ArrayBuffer, and `out_byte_length` valid for writes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_array_buffer_duplicate_shared_memory(
-    buffer: *mut JSObject,
-    out_byte_length: *mut usize,
-) -> c_int {
-    assert!(!out_byte_length.is_null(), "the embedder passes an out parameter");
-    // SAFETY: The caller passes a live buffer.
-    let buffer = unsafe { array_buffer_from_abi(buffer) };
-    let duplicate = buffer.with_data_block(|block| match &block.byte_buffer {
-        DataBlockStorage::Shared(shared) => shared
-            .shared_memory()
-            .try_clone_to_owned()
-            .ok()
-            .map(|descriptor| (descriptor, shared.size())),
-        _ => None,
-    });
-    let Some((descriptor, byte_length)) = duplicate else {
-        return -1;
-    };
-    // SAFETY: The caller passes a valid out parameter.
-    unsafe { out_byte_length.write(byte_length) };
-    into_raw_descriptor(descriptor)
 }
 
 /// [[ArrayBufferByteLength]], which is 0 for a detached buffer. Main thread only.
@@ -526,7 +495,6 @@ pub unsafe extern "C" fn js_array_buffer_detach_and_take_storage(
                 fixed_byte_length: 0,
                 has_fixed_byte_length: false,
             },
-            shared_memory_object_id: 0,
         };
         match block.byte_buffer {
             DataBlockStorage::Empty => {}

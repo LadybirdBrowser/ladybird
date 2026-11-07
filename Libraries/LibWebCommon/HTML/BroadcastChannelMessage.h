@@ -24,17 +24,14 @@ struct WEBCOMMON_API BroadcastChannelMessage {
     Utf16FlyString channel_name;
     URL::Origin source_origin;
     IPCSerializationRecord serialized_message;
-    // AD-HOC: Cross-process shared memory backing the SharedArrayBuffers in serialized_message, by file descriptor
-    //         — referenced by index from the record, whose bytes can't carry one. So the browser process's fan-out
-    //         hands every receiving process the same memory. See SerializedTransferRecord.
-    Vector<Core::AnonymousBuffer> shared_buffers;
+    SharedStoreLifeline shared_store_lifeline;
 };
 
 struct WEBCOMMON_API PostedBroadcastChannelMessage {
     EnvironmentId environment_id;
     Utf16FlyString channel_name;
     IPCSerializationRecord serialized_message;
-    Vector<Core::AnonymousBuffer> shared_buffers;
+    SharedStoreLifeline shared_store_lifeline;
 };
 
 }

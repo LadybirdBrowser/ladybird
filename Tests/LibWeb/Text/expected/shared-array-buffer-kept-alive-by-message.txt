@@ -1,0 +1,2 @@
+received a SharedArrayBuffer: true
+value: 42

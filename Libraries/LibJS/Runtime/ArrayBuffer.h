@@ -10,7 +10,6 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/Variant.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -172,41 +171,14 @@ struct DataBlock {
         GC::Ref<GC::Cell> owner;
     };
 
-    // AD-HOC: Backs a shared, fixed-length Data Block with cross-process shared memory, so a SharedArrayBuffer can be
-    //         genuinely shared (not copied) across agents in different processes. object_id names the shared object
-    //         in every agent that maps it, and is 0 for an object without one. The runtime maps the object into the
-    //         primitive storage cage when a buffer is created over it.
+    // AD-HOC: A shared, fixed-length Data Block is a store that the runtime shares between the agents of the process
+    //         and keeps alive. This describes one.
     struct SharedBackingStore {
-        explicit SharedBackingStore(Core::AnonymousBuffer buffer, u64 object_id = 0)
-            : buffer(move(buffer))
-            , object_id(object_id)
-        {
-        }
+        u8* data() { return GC::PrimitiveStorage::the().data(handle); }
+        u8 const* data() const { return GC::PrimitiveStorage::the().data(handle); }
+        size_t size() const { return GC::PrimitiveStorage::the().size(handle); }
 
-        SharedBackingStore(SharedBackingStore&& other)
-            : buffer(move(other.buffer))
-            , object_id(exchange(other.object_id, 0))
-        {
-        }
-
-        SharedBackingStore& operator=(SharedBackingStore&& other)
-        {
-            if (this != &other) {
-                buffer = move(other.buffer);
-                object_id = exchange(other.object_id, 0);
-            }
-            return *this;
-        }
-
-        SharedBackingStore(SharedBackingStore const&) = delete;
-        SharedBackingStore& operator=(SharedBackingStore const&) = delete;
-
-        u8* data() { return buffer.data<u8>(); }
-        u8 const* data() const { return buffer.data<u8>(); }
-        size_t size() const { return buffer.size(); }
-
-        Core::AnonymousBuffer buffer;
-        u64 object_id { 0 };
+        GC::PrimitiveStorageHandle handle;
     };
 
     u8* data_at(size_t byte_offset)
@@ -284,21 +256,7 @@ struct DataBlock {
     }
 
     bool is_external() const { return byte_buffer.has<ExternalPrimitiveStorage>(); }
-    bool is_cross_process_shared() const { return byte_buffer.has<SharedBackingStore>(); }
-
-    Optional<Core::AnonymousBuffer> shared_anonymous_buffer() const
-    {
-        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>())
-            return shared->buffer;
-        return {};
-    }
-
-    u64 shared_object_id() const
-    {
-        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>())
-            return shared->object_id;
-        return 0;
-    }
+    bool is_in_shared_store() const { return byte_buffer.has<SharedBackingStore>(); }
 
     Variant<Empty, OwnedBackingStore, ExternalPrimitiveStorage, SharedBackingStore> byte_buffer;
     Shared is_shared = { Shared::No };
@@ -307,7 +265,7 @@ struct DataBlock {
 // An ArrayBuffer or a SharedArrayBuffer of the Rust runtime, whose data block the runtime keeps.
 //
 // The members that make or take a DataBlock are defined in this header, over out-of-line members that describe the
-// storage in plain values, because a DataBlock can hold a Core::AnonymousBuffer, and LibJS links LibCore privately.
+// storage in plain values.
 class JS_API ArrayBuffer final : public Object {
 public:
     static bool is_engine_class_of(Object const& object) { return object.engine_class_id() == JS_LAYOUT_CLASS_ID_ARRAY_BUFFER; }
@@ -315,7 +273,6 @@ public:
     static ThrowCompletionOr<GC::Ref<ArrayBuffer>> create(Realm&, size_t, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, DataBlock);
-    static GC::Ref<ArrayBuffer> create(Realm&, Core::AnonymousBuffer, u64 shared_object_id);
 
     size_t byte_length() const;
 
@@ -325,8 +282,6 @@ public:
     void copy_to(size_t offset, Bytes destination) const;
     ErrorOr<ByteBuffer> copy_to_byte_buffer(size_t offset, size_t count) const;
     ErrorOr<ByteBuffer> copy_to_byte_buffer() const;
-    Optional<Core::AnonymousBuffer> shared_buffer() const;
-    u64 shared_object_id() const;
     template<typename Callback>
     decltype(auto) with_readonly_bytes(size_t offset, size_t count, Callback callback) const;
     void copy_data_to(ArrayBuffer& destination, size_t source_offset, size_t destination_offset, size_t count) const;
@@ -359,6 +314,12 @@ public:
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer
     bool is_shared_array_buffer() const;
+
+    // The id of the store that agents of this process share, or 0 if this buffer has none.
+    u64 shared_store_id() const;
+
+    // A new SharedArrayBuffer over the store that the id names, if this process has it.
+    static GC::Ptr<ArrayBuffer> create_from_shared_store(Realm&, u64 shared_store_id);
 
     enum Order {
         SeqCst,
@@ -429,20 +390,16 @@ private:
         Detached,
         Owned,
         External,
-        SharedMemory,
+        SharedStore,
     };
 
-    // The storage of a data block in plain values. A description of the storage of a buffer comes with a duplicate of
-    // the descriptor of its shared memory object, which the receiver owns.
+    // The storage of a data block in plain values.
     struct StorageDescription {
         StorageKind kind { StorageKind::Detached };
         DataBlock::Shared is_shared { DataBlock::Shared::No };
         GC::PrimitiveStorageHandle handle;
         GC::Ptr<GC::Cell> external_owner;
         Optional<size_t> external_fixed_byte_length;
-        int shared_memory_fd { -1 };
-        size_t shared_memory_byte_length { 0 };
-        u64 shared_memory_object_id { 0 };
     };
 
     enum class OwnedStorageGoesToTheBlock {
@@ -457,7 +414,6 @@ private:
 
     static GC::Ref<ArrayBuffer> create_taking_over_storage(Realm&, GC::PrimitiveStorageHandle, DataBlock::Shared);
     static GC::Ref<ArrayBuffer> create_over_external_storage(Realm&, DataBlock::ExternalPrimitiveStorage const&, DataBlock::Shared);
-    static GC::Ptr<ArrayBuffer> create_over_shared_memory(Realm&, int shared_memory_fd, size_t byte_length, u64 shared_object_id);
     static GC::Ref<ArrayBuffer> create_detached(Realm&);
     void set_external_storage(DataBlock::ExternalPrimitiveStorage const&, DataBlock::Shared);
 };
@@ -475,10 +431,8 @@ inline DataBlock ArrayBuffer::data_block_from(StorageDescription const& storage,
         if (storage.external_fixed_byte_length.has_value())
             return DataBlock { DataBlock::ExternalPrimitiveStorage { *storage.external_owner, storage.handle, *storage.external_fixed_byte_length }, storage.is_shared };
         return DataBlock { DataBlock::ExternalPrimitiveStorage { *storage.external_owner, storage.handle }, storage.is_shared };
-    case StorageKind::SharedMemory: {
-        auto shared_memory = MUST(Core::AnonymousBuffer::create_from_anon_fd(storage.shared_memory_fd, storage.shared_memory_byte_length));
-        return DataBlock { DataBlock::SharedBackingStore { move(shared_memory), storage.shared_memory_object_id }, DataBlock::Shared::Yes };
-    }
+    case StorageKind::SharedStore:
+        return DataBlock { DataBlock::SharedBackingStore { storage.handle }, DataBlock::Shared::Yes };
     }
     VERIFY_NOT_REACHED();
 }
@@ -496,29 +450,10 @@ inline GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
         [&](DataBlock::ExternalPrimitiveStorage const& external) {
             return create_over_external_storage(realm, external, block.is_shared);
         },
-        [&](DataBlock::SharedBackingStore const& shared) {
-            VERIFY(block.is_shared == DataBlock::Shared::Yes);
-            return create(realm, shared.buffer, shared.object_id);
+        [&](DataBlock::SharedBackingStore const&) -> GC::Ref<ArrayBuffer> {
+            // NB: Only the runtime can share a store with a new buffer.
+            VERIFY_NOT_REACHED();
         });
-}
-
-inline GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, Core::AnonymousBuffer shared_memory, u64 shared_object_id)
-{
-    if (auto buffer = create_over_shared_memory(realm, shared_memory.fd(), shared_memory.size(), shared_object_id))
-        return *buffer;
-
-    // The runtime cannot map the object into the primitive storage cage, where the bytes of every buffer live, so the
-    // buffer gets a copy of its bytes instead. A buffer of no bytes has none to share.
-    auto bytes = shared_memory.size() > 0 ? MUST(ByteBuffer::copy(shared_memory.data<u8>(), shared_memory.size())) : ByteBuffer {};
-    return create(realm, move(bytes), DataBlock::Shared::Yes);
-}
-
-inline Optional<Core::AnonymousBuffer> ArrayBuffer::shared_buffer() const
-{
-    auto storage = describe_storage();
-    if (storage.kind != StorageKind::SharedMemory)
-        return {};
-    return MUST(Core::AnonymousBuffer::create_from_anon_fd(storage.shared_memory_fd, storage.shared_memory_byte_length));
 }
 
 inline DataBlock const ArrayBuffer::data_block() const

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script type="worker">
+    const channel = new BroadcastChannel("kept-alive");
+    self.onmessage = () => {
+        const view = new Int32Array(new SharedArrayBuffer(4096));
+        view[0] = 42;
+        channel.postMessage(view.buffer);
+        self.close();
+    };
+    postMessage("ready");
+</script>
+<script src="include.js"></script>
+<script>
+    // A message on its way may be the only thing that still has the memory of a SharedArrayBuffer: here, the only agent
+    // that had the buffer is gone before this thread gets to read the message.
+    asyncTest((done) => {
+        const receiver = new BroadcastChannel("kept-alive");
+        receiver.onmessage = (e) => {
+            println(`received a SharedArrayBuffer: ${e.data instanceof SharedArrayBuffer}`);
+            println(`value: ${new Int32Array(e.data)[0]}`);
+            done();
+        };
+        receiver.onmessageerror = () => {
+            println("messageerror");
+            done();
+        };
+
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = () => {
+            worker.postMessage("go");
+            // NB: The worker closes itself once it posted the buffer, and its agent counts as gone once it shut down.
+            const start = performance.now();
+            while (internals.workerAgentCount() !== 0 && performance.now() - start < 5000);
+        };
+    });
+</script>

@@ -14,7 +14,10 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{ArrayBuffer, AsSharedMemory, Gc, Object, RawNativeFunctionResult, Realm, Value, raw_descriptor};
+use libjs_rust::api::{
+    ArrayBuffer, AsSharedMemory, Gc, Object, RawNativeFunctionResult, Realm, Value, raw_descriptor,
+    release_stores_of_lost_messages,
+};
 
 use crate::bindings::{Exception, WebIdlResult};
 use crate::html::structured_serialize::message_record::SharedMemory;
@@ -316,6 +319,7 @@ impl Drop for OwnedSerializedTransferRecord {
     fn drop(&mut self) {
         // SAFETY: This owns the record.
         unsafe { web_structured_serialize_transfer_record_destroy(self.0.0.as_ptr()) };
+        release_stores_of_lost_messages();
     }
 }
 

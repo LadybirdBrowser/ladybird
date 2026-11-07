@@ -6,7 +6,7 @@
 
 //! Declarations of Libraries/LibGC/CAPI.h.
 
-use core::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_char, c_void};
 
 use super::class::CellTypeInfo;
 
@@ -35,11 +35,6 @@ pub struct GCRoot {
 
 #[repr(C)]
 pub struct GCWeakImpl {
-    _private: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GCSharedMemoryViewOutsideCage {
     _private: [u8; 0],
 }
 
@@ -163,12 +158,6 @@ unsafe extern "C" {
         out_handle: *mut GCPrimitiveStorageHandle,
         out_layout: *mut GCPrimitiveStorageLayout,
     ) -> bool;
-    pub fn gc_primitive_storage_adopt_shared_fd(
-        fd: c_int,
-        size: usize,
-        out_handle: *mut GCPrimitiveStorageHandle,
-        out_layout: *mut GCPrimitiveStorageLayout,
-    ) -> bool;
     pub fn gc_primitive_storage_resize(
         handle: GCPrimitiveStorageHandle,
         new_size: usize,
@@ -195,11 +184,6 @@ unsafe extern "C" {
     pub safe fn gc_primitive_storage_capacity(handle: GCPrimitiveStorageHandle) -> usize;
     pub safe fn gc_primitive_storage_committed_size(handle: GCPrimitiveStorageHandle) -> usize;
     pub fn gc_primitive_storage_data(handle: GCPrimitiveStorageHandle) -> *mut u8;
-
-    pub fn gc_shared_memory_create(size: usize, out_fd: *mut c_int) -> bool;
-    pub fn gc_shared_memory_view_outside_cage_create(fd: c_int, size: usize) -> *mut GCSharedMemoryViewOutsideCage;
-    pub fn gc_shared_memory_view_outside_cage_data(view: *mut GCSharedMemoryViewOutsideCage) -> *mut u8;
-    pub fn gc_shared_memory_view_outside_cage_destroy(view: *mut GCSharedMemoryViewOutsideCage);
 }
 
 // On Windows, a variable that a DLL exports is only reachable through the DLL's import table, which the reference has

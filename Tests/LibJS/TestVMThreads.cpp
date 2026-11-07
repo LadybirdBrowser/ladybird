@@ -11,7 +11,6 @@
 #include <AK/Time.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
@@ -358,8 +357,17 @@ static constexpr i32 RESULT_TIMED_OUT = 3;
 class SharedMemoryScripts {
 public:
     SharedMemoryScripts()
-        : m_memory(MUST(Core::AnonymousBuffer::create_with_size(4096)))
     {
+        // NB: The agent that created the memory keeps it for the test, as the others come and go.
+        auto owner = Threading::Thread::construct("VMThreadTestOwner"sv, [this] {
+            own_memory();
+            return static_cast<intptr_t>(0);
+        });
+        owner->set_stack_size(JS::VM::MINIMUM_THREAD_STACK_SIZE);
+        owner->start();
+        m_threads.append(move(owner));
+        while (!m_words.load())
+            MUST(Core::System::sleep_ms(1));
     }
 
     ~SharedMemoryScripts()
@@ -369,7 +377,7 @@ public:
             MUST(thread->join());
     }
 
-    // Runs a script on a VM and thread of its own, which each map the memory again, like another process would.
+    // Runs a script on a VM and thread of its own, which shares the memory as a worker's agent would.
     void start(ByteString source, Optional<size_t> index = {})
     {
         auto thread = Threading::Thread::construct("VMThreadTest"sv, [this, source = move(source), index] {
@@ -431,9 +439,28 @@ public:
         return m_did_throw[index] && !has_result(index);
     }
 
-    AK::Atomic<i32>& word(size_t index) { return reinterpret_cast<AK::Atomic<i32>*>(m_memory.data<i32>())[index]; }
+    AK::Atomic<i32>& word(size_t index) { return m_words.load()[index]; }
 
 private:
+    void own_memory()
+    {
+        auto vm = JS::VM::create();
+        vm->heap().set_incremental_sweep_enabled(false);
+        auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+        auto& realm = *root_execution_context->realm;
+
+        auto source_text = "new SharedArrayBuffer(4096)"_utf16;
+        auto script = JS::Script::parse(source_text.utf16_view(), realm);
+        VERIFY(!script.is_error());
+        auto& buffer = as<JS::ArrayBuffer>(vm->run(script.value()).value().as_object());
+        EXPECT_NE(buffer.shared_store_id(), 0u);
+        m_shared_store_id = buffer.shared_store_id();
+        m_words = reinterpret_cast<AK::Atomic<i32>*>(const_cast<u8*>(buffer.data_at(0)));
+
+        while (!m_may_destroy_vms)
+            MUST(Core::System::sleep_ms(1));
+    }
+
     void run(ByteString const& source, Optional<size_t> index)
     {
         auto vm = JS::VM::create();
@@ -441,9 +468,8 @@ private:
         auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
         auto& realm = *root_execution_context->realm;
 
-        auto memory = MUST(Core::AnonymousBuffer::create_from_anon_fd(MUST(Core::System::dup(m_memory.fd())), m_memory.size()));
-        auto buffer = JS::ArrayBuffer::create(realm, move(memory), 1);
-        EXPECT(buffer->shared_buffer().has_value());
+        auto buffer = JS::ArrayBuffer::create_from_shared_store(realm, m_shared_store_id.load());
+        VERIFY(buffer);
         MUST(realm.global_object().set(JS::PropertyKey { "memory"_utf16_fly_string }, buffer, JS::Object::ShouldThrowExceptions::Yes));
 
         auto text = ByteString::formatted("const words = new Int32Array(memory); {}", source);
@@ -465,7 +491,8 @@ private:
 
     static constexpr size_t MAX_WAITER_COUNT = 8;
 
-    Core::AnonymousBuffer m_memory;
+    AK::Atomic<u64> m_shared_store_id { 0 };
+    AK::Atomic<AK::Atomic<i32>*> m_words { nullptr };
     Vector<NonnullRefPtr<Threading::Thread>> m_threads;
     Array<AK::Atomic<JS::VM*>, MAX_WAITER_COUNT> m_vms;
     Array<AK::Atomic<bool>, MAX_WAITER_COUNT> m_did_throw;
