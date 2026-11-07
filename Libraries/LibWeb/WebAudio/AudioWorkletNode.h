@@ -12,9 +12,6 @@ namespace Web::WebAudio {
 
 class WEB_API AudioWorkletNode final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(AudioWorkletNode, audio_worklet_node);
-
-public:
-    void fire_processor_error(JS::Value);
 };
 
 }

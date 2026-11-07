@@ -23,7 +23,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
-#include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/RustFFI.h>
 
@@ -47,7 +46,6 @@ extern "C" bool web_audio_context_document_is_fully_active(DOM::EventTarget*);
 extern "C" bool web_audio_context_responsible_document_is_fully_active(DOM::EventTarget*);
 extern "C" bool web_audio_context_navigable_is_destroyed(DOM::EventTarget*);
 extern "C" AudioWorklet* web_audio_context_get_worklet(BaseAudioContext*);
-extern "C" void web_audio_context_shutdown_worklet(AudioWorklet*);
 extern "C" JS::Object* web_audio_context_wrap_worklet(JS::Realm*, AudioWorklet*);
 extern "C" void web_audio_context_decode(ReadonlyBytes, u32, GC::Cell*);
 extern "C" void web_audio_context_decoded_destroy(MediaClient::Client::DecodedAudioData*);
@@ -93,11 +91,6 @@ bool web_audio_context_navigable_is_destroyed(DOM::EventTarget* global)
     return navigable && navigable->has_been_destroyed();
 }
 AudioWorklet* web_audio_context_get_worklet(BaseAudioContext* context) { return AudioWorklet::create(*context).ptr(); }
-void web_audio_context_shutdown_worklet(AudioWorklet* worklet)
-{
-    if (auto scope = worklet->audio_worklet_global_scope())
-        scope->shutdown_all_slots();
-}
 JS::Object* web_audio_context_wrap_worklet(JS::Realm* realm, AudioWorklet* worklet) { return Bindings::wrap(Bindings::host_defined_wrapper_world(*realm), *realm, GC::Ref { *worklet }).ptr(); }
 void web_audio_context_decode(ReadonlyBytes data, u32 sample_rate, GC::Cell* operation)
 {

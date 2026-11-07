@@ -10,20 +10,23 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    Array, EmbedderClass, EmbedderValue, FunctionObject, Object, PropertyKey, RawNativeFunctionResult, Value, Vm,
-    construct,
+    Array, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, FunctionObject, GcWeak, MarkedVec, Object,
+    PropertyKey, RawNativeFunctionResult, TypedArrayBase, TypedArrayKind, Value, Vm, call, construct,
+    create_typed_array,
 };
 use libjs_rust::api::{Gc, Realm, Trace};
-use libweb_rust::web_audio::control_message::FfiSharedCppObject;
-use libweb_rust::web_audio::rendering::audio_worklet_pipe::{AudioWorkletPipe, WorkletPipeConfig, WorkletPipeState};
+use libweb_rust::web_audio::rendering::audio_worklet_pipe::{
+    AudioWorkletPipe, AudioWorkletPipeClient, Config, WorkletPipeState, ring_sizing_for_device_latency,
+};
 use libweb_rust::web_audio::rendering::audio_worklet_render_node::create_audio_worklet_render_node;
-use libweb_rust::web_audio::rendering::node_message::SharedCppObject;
 use libweb_rust::web_audio::rendering::render_node::RenderAudioParam;
 
+use super::audio_array::{float32_array_length, overwrite_float32_array};
 use super::audio_node::{
     AnyAudioNode, AudioNode, AudioNodeDefaultOptions, AudioNodeOptions, ChannelCountMode, ChannelInterpretation,
 };
@@ -32,8 +35,8 @@ use super::audio_param_map::AudioParamMap;
 use super::base_audio_context::{AnyBaseAudioContext, BaseAudioContext};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
-use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
-use crate::bindings::interface::{cell_from_abi, cell_into_abi, with_temporary_execution_context_and_callbacks};
+use crate::bindings::interface::{Inherits, Ref, Wrappable, Wrapped, allocate};
+use crate::bindings::interface::{cell_into_abi, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::message_port::MessagePort;
@@ -49,13 +52,13 @@ pub(crate) struct AudioWorkletNode {
     number_of_inputs: u32,
     number_of_outputs: u32,
     parameter_map: Ref<AudioParamMap>,
+    parameter_names: Vec<Utf16String>, // descriptor order; keys for the `parameters` argument
     port: Ref<MessagePort>,
+    scope: CppCell,
     processor: Cell<Option<Gc<Object>>>,
     processor_errored: Cell<bool>,
     #[gc(untraced)]
     pipe: RefCell<Option<Arc<AudioWorkletPipe>>>,
-    #[gc(untraced)]
-    pipe_service: RefCell<Option<SharedCppObject>>,
 }
 
 impl Inherits<AudioNode> for AudioWorkletNode {
@@ -72,10 +75,8 @@ impl Wrappable for AudioWorkletNode {
     const FINALIZES: bool = true;
 
     fn finalize(node: Ref<Self>) {
-        if let Some(service) = &*node.pipe_service.borrow() {
-            unsafe { web_audio_worklet_clear_pump(service.pointer) };
-        }
         if let Some(pipe) = &*node.pipe.borrow() {
+            pipe.set_client(None);
             pipe.set_state(WorkletPipeState::ShutDown);
         }
         node.node.finalize_node();
@@ -135,26 +136,27 @@ unsafe extern "C" {
         error_realm: *mut c_void,
         options: *mut c_void,
     ) -> RawNativeFunctionResult;
-    fn web_audio_worklet_create_pipe(
-        config: WorkletPipeConfig<'_>,
-        sample_rate: f32,
-        native_pipe: *mut *const c_void,
-    ) -> FfiSharedCppObject;
-    fn web_audio_worklet_set_pump(pipe: *mut c_void, scope: *mut c_void, node_id: u64);
-    fn web_audio_worklet_clear_pump(pipe: *mut c_void);
     fn web_audio_worklet_processor_constructor(scope: *mut c_void, name: usize) -> *mut c_void;
     fn web_audio_worklet_set_pending_port(scope: *mut c_void, port: *mut c_void);
     fn web_audio_worklet_clear_pending_data(scope: *mut c_void);
-    fn web_audio_worklet_add_processor_slot(
-        scope: *mut c_void,
-        node_id: u64,
-        processor: *mut c_void,
-        port: *mut c_void,
-        node: *mut c_void,
-        pipe: *mut c_void,
-        names: ak::Span<'_, usize>,
-    );
+    fn web_audio_worklet_set_current_frame(scope: *mut c_void, current_frame: u64);
     fn web_audio_worklet_queue_processor_error(node: *mut c_void, target: *mut c_void, global: *mut c_void, error: u64);
+}
+
+struct PumpClient {
+    vm: NonNull<Vm>,
+
+    // weak: the slot must not keep the node alive (see keep-alive notes)
+    node: GcWeak<EmbedderCell<Wrapped<AudioWorkletNode>>>,
+}
+
+impl AudioWorkletPipeClient for PumpClient {
+    fn pump(&self) {
+        if let Some(node) = self.node.get() {
+            // SAFETY: The VM of the control thread outlives its audio nodes.
+            node.pump(unsafe { self.vm.as_ref() });
+        }
+    }
 }
 
 impl AudioWorkletNode {
@@ -253,11 +255,12 @@ impl AudioWorkletNode {
             number_of_inputs: options.number_of_inputs,
             number_of_outputs: options.number_of_outputs,
             parameter_map,
+            parameter_names: descriptors.iter().map(|descriptor| descriptor.name.clone()).collect(),
             port: node_port,
+            scope: scope.clone(),
             processor: Cell::new(None),
             processor_errored: Cell::new(false),
             pipe: RefCell::new(None),
-            pipe_service: RefCell::new(None),
         });
         node.node.set_this(AnyAudioNode::AudioWorkletNode(node));
         node.node.event_target().set_owner(node);
@@ -415,37 +418,32 @@ impl AudioWorkletNode {
         for descriptor in &descriptors {
             param_is_a_rate.push(descriptor.automation_rate == AutomationRate::ARate);
         }
-        let sizing = libweb_rust::web_audio::rendering::audio_worklet_pipe::ring_sizing_for_device_latency(
+        let sizing = ring_sizing_for_device_latency(
             100,
             context.sample_rate_value(),
             BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
         );
-        let config = WorkletPipeConfig {
+        let pipe = AudioWorkletPipe::new(Config {
             quantum_size: BaseAudioContext::RENDER_QUANTUM_SIZE as usize,
-            input_count: options.number_of_inputs,
-            output_count: options.number_of_outputs,
-            input_channel_capacity: ak::Span::new(&input_channel_capacity),
-            output_channel_capacity: ak::Span::new(&output_channel_capacity),
+            input_count: options.number_of_inputs as usize,
+            output_count: options.number_of_outputs as usize,
+            input_channel_capacity,
+            output_channel_capacity: output_channel_capacity.clone(),
             output_channel_count_matches_input,
-            param_count: descriptors.len() as u32,
-            param_is_a_rate: ak::Span::new(&param_is_a_rate),
+            param_count: descriptors.len(),
+            param_is_a_rate,
             ring_capacity: sizing.ring_capacity,
             prime_level: sizing.prime_level,
-        };
-        let mut native_pipe = std::ptr::null();
-        let service =
-            unsafe { web_audio_worklet_create_pipe(config, context.sample_rate_value(), &raw mut native_pipe) };
-        let native_pipe = native_pipe.cast::<AudioWorkletPipe>();
-        unsafe { Arc::increment_strong_count(native_pipe) };
-        let pipe = unsafe { Arc::from_raw(native_pipe) };
+        });
         unsafe { pipe.prime_outputs_with_silence(sizing.prime_level) };
         *node.pipe.borrow_mut() = Some(Arc::clone(&pipe));
-        *node.pipe_service.borrow_mut() = Some(SharedCppObject {
-            pointer: service.pointer,
-            retain: service.retain,
-            release: service.release,
-        });
-        unsafe { web_audio_worklet_set_pump(service.pointer, scope.as_ptr(), node.node.node_id()) };
+        pipe.set_client(Some(Rc::new(PumpClient {
+            vm: NonNull::from(vm),
+            node: GcWeak::new(vm.heap(), node),
+        })));
+
+        // Create the render mirror. Channel configuration rides in the constructor (the graph drops
+        // SetChannelConfig messages that precede AddNode).
         let render_params: Vec<Arc<RenderAudioParam>> = parameter_map
             .values(vm)
             .values()
@@ -533,33 +531,239 @@ impl AudioWorkletNode {
                 }
             };
             self.processor.set(Some(processor));
-            let worklet = self.node.context_value().audio_worklet_cell(vm);
-            let mut names = Vec::<Utf16String>::new();
-            unsafe extern "C" fn append(context: *mut c_void, name: usize, _: f32, _: f32, _: f32, _: AutomationRate) {
-                unsafe { &mut *context.cast::<Vec<Utf16String>>() }
-                    .push(unsafe { ak::Utf16FlyString::from_raw_borrowed(name) }.into());
-            }
-            unsafe {
-                web_audio_worklet_find_definition(
-                    worklet.as_ptr(),
-                    self.name.raw_identity(),
-                    (&raw mut names).cast(),
-                    append,
-                )
-            };
-            let raw_names: Vec<usize> = names.iter().map(Utf16String::raw_identity).collect();
-            unsafe {
-                web_audio_worklet_add_processor_slot(
-                    scope.as_ptr(),
-                    self.node.node_id(),
-                    processor.as_ptr().cast(),
-                    cell_into_abi(processor_port),
-                    cell_into_abi(self.this()),
-                    self.pipe_service.borrow().as_ref().unwrap().pointer,
-                    ak::Span::new(&raw_names),
-                );
-            };
+            self.node
+                .context_value()
+                .add_audio_worklet_pipe(Arc::clone(self.pipe.borrow().as_ref().unwrap()));
+
+            // 4. Enable the processor-side port's message queue: pending messages posted since node construction
+            //    are now delivered, after the constructor had its chance to register listeners.
             MessagePort::enable(processor_port, vm);
+        });
+    }
+
+    // Drains one node's input ring, runs its processor's process() per quantum, and pushes the
+    // results back. Scheduled (coalesced) by the render thread via the pipe's wakeup callback.
+    fn pump(&self, vm: &Vm) {
+        let pipe = Arc::clone(self.pipe.borrow().as_ref().expect("a pumped node has a pipe"));
+
+        // Every invocation consumes its scheduled wakeup, including stale callbacks for removed slots.
+        pipe.clear_wakeup_flag();
+        let Some(processor) = self.processor.get() else {
+            return;
+        };
+        if pipe.state() == WorkletPipeState::ShutDown || self.processor_errored.get() {
+            return;
+        }
+
+        let realm: Gc<Realm> = unsafe {
+            Gc::from_non_null(NonNull::new(web_audio_worklet_scope_realm(self.scope.as_ptr()).cast()).unwrap())
+        };
+
+        // Keep one execution context for the batch so its microtask checkpoint runs after all available quanta.
+        with_temporary_execution_context_and_callbacks(realm, || {
+            let config = &pipe.config;
+            loop {
+                if pipe.output_occupancy() == config.ring_capacity {
+                    break;
+                }
+                let mut processed_one = false;
+                let mut pump_failed = false;
+                let mut output_full = false;
+
+                let _ = unsafe {
+                    pipe.try_read_input(|input_slot| {
+                        processed_one = true;
+
+                        // https://webaudio.github.io/web-audio-api/#rendering-loop — currentFrame/currentTime
+                        // reflect the block being processed.
+                        web_audio_worklet_set_current_frame(self.scope.as_ptr(), input_slot.start_frame());
+
+                        // The processor may detach channel arrays, so they cannot be reused without checking their buffers.
+                        // FIXME: Reuse arrays that remain attached.
+                        let build_channel_array =
+                            |channel_count: usize, fill_channel: &dyn Fn(usize, &TypedArrayBase)| {
+                                let channels = Array::create(vm, realm, channel_count as u64, None)
+                                    .expect("a channel array is created");
+                                for channel in 0..channel_count {
+                                    let float32_array = create_typed_array(
+                                        vm,
+                                        realm,
+                                        TypedArrayKind::Float32Array,
+                                        config.quantum_size,
+                                    )
+                                    .expect("a channel's Float32Array is created");
+                                    fill_channel(channel, &float32_array);
+                                    channels
+                                        .create_data_property(
+                                            vm,
+                                            &PropertyKey::from(channel as u32),
+                                            Value::from_object(float32_array),
+                                            None,
+                                            None,
+                                        )
+                                        .expect("a new array accepts a property");
+                                }
+                                channels
+                            };
+
+                        let inputs = Array::create(vm, realm, config.input_count as u64, None)
+                            .expect("the inputs array is created");
+                        for input in 0..config.input_count {
+                            let channels = build_channel_array(
+                                input_slot.actual_channel_count(input) as usize,
+                                &|channel, float32_array| {
+                                    overwrite_float32_array(float32_array, input_slot.input_channel(input, channel));
+                                },
+                            );
+                            inputs
+                                .create_data_property(
+                                    vm,
+                                    &PropertyKey::from(input as u32),
+                                    Value::from_object(channels),
+                                    None,
+                                    None,
+                                )
+                                .expect("a new array accepts a property");
+                        }
+
+                        let output_channel_count = |output: usize| -> usize {
+                            if config.output_channel_count_matches_input {
+                                return (input_slot.actual_channel_count(0) as usize).max(1);
+                            }
+                            config.output_channel_capacity[output] as usize
+                        };
+                        let outputs = Array::create(vm, realm, config.output_count as u64, None)
+                            .expect("the outputs array is created");
+                        let output_channel_arrays = MarkedVec::with_capacity(vm, config.output_count);
+                        for output in 0..config.output_count {
+                            let channels = build_channel_array(output_channel_count(output), &|_, _| {});
+                            output_channel_arrays.push(channels);
+                            outputs
+                                .create_data_property(
+                                    vm,
+                                    &PropertyKey::from(output as u32),
+                                    Value::from_object(channels),
+                                    None,
+                                    None,
+                                )
+                                .expect("a new array accepts a property");
+                        }
+
+                        let parameters = Object::create(vm, realm, Some(realm.intrinsics().object_prototype(vm)));
+                        for param_index in 0..config.param_count {
+                            let block = input_slot.param_block(param_index);
+                            let float32_array =
+                                create_typed_array(vm, realm, TypedArrayKind::Float32Array, block.len())
+                                    .expect("a parameter's Float32Array is created");
+                            overwrite_float32_array(&float32_array, block);
+                            parameters
+                                .create_data_property(
+                                    vm,
+                                    &PropertyKey::from_utf16_string(&self.parameter_names[param_index]),
+                                    Value::from_object(float32_array),
+                                    None,
+                                    None,
+                                )
+                                .expect("a new parameters object accepts a property");
+                        }
+
+                        // Look up process on the instance each call (spec); a non-callable value fails the node.
+                        let process_value = match processor.get(vm, &PropertyKey::from_utf8("process")) {
+                            Ok(value) if value.is_function() => value,
+                            Ok(_) => {
+                                pump_failed = true;
+                                let error = vm
+                                    .throw_completion_with_message::<()>(
+                                        ErrorKind::TypeError,
+                                        "AudioWorkletProcessor.process must be a function".to_string(),
+                                    )
+                                    .unwrap_err();
+                                self.fire_processor_error(error.value());
+                                return;
+                            }
+                            Err(error) => {
+                                pump_failed = true;
+                                self.fire_processor_error(error.value());
+                                return;
+                            }
+                        };
+
+                        let process_arguments = [
+                            Value::from_object(inputs),
+                            Value::from_object(outputs),
+                            Value::from_object(parameters),
+                        ];
+                        let result = match call(vm, process_value, Value::from_object(processor), &process_arguments) {
+                            Ok(result) => result,
+                            Err(error) => {
+                                pump_failed = true;
+                                self.fire_processor_error(error.value());
+                                return;
+                            }
+                        };
+
+                        if pipe.state() == WorkletPipeState::ShutDown {
+                            return;
+                        }
+
+                        let processor_active = result.to_boolean();
+
+                        // Push the processed quantum back; read outputs defensively (detached → silence).
+                        let pushed = pipe.try_write_output(|output_slot| {
+                            output_slot.set_start_frame(input_slot.start_frame());
+                            output_slot.set_processor_active(processor_active);
+                            for output in 0..config.output_count {
+                                let channel_count = output_channel_count(output);
+                                output_slot.set_actual_channel_count(output, channel_count as u32);
+                                let channels = output_channel_arrays.get(output).unwrap();
+                                for channel in 0..channel_count {
+                                    let destination = output_slot.output_channel(output, channel);
+                                    let channel_value = channels
+                                        .get(vm, &PropertyKey::from(channel as u32))
+                                        .expect("a channel array's element is a data property");
+                                    let float32_array = channel_value
+                                        .is_object()
+                                        .then(|| channel_value.as_object().downcast::<TypedArrayBase>())
+                                        .flatten()
+                                        .filter(|array| array.kind() == TypedArrayKind::Float32Array);
+                                    let Some(float32_array) = float32_array.filter(|array| {
+                                        !array.viewed_array_buffer().is_detached()
+                                            && float32_array_length(array) >= config.quantum_size
+                                    }) else {
+                                        destination.fill(0.);
+                                        continue;
+                                    };
+                                    let bytes = ak::slice_from_raw_parts_mut(
+                                        destination.as_mut_ptr().cast::<u8>(),
+                                        size_of_val(destination),
+                                    );
+                                    float32_array
+                                        .viewed_array_buffer()
+                                        .copy_to(float32_array.byte_offset(), bytes);
+                                }
+                            }
+                        });
+                        if !pushed {
+                            output_full = true;
+                        }
+                    })
+                };
+
+                if pump_failed {
+                    self.processor_errored.set(true);
+                    pipe.set_state(WorkletPipeState::Failed);
+                    return;
+                }
+                if pipe.state() == WorkletPipeState::ShutDown {
+                    return;
+                }
+                if output_full {
+                    break;
+                }
+                if !processed_one {
+                    break;
+                }
+            }
         });
     }
 
@@ -592,10 +796,4 @@ impl AudioWorkletNode {
     pub(crate) fn number_of_outputs_value(&self) -> u32 {
         self.number_of_outputs
     }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_rust_audio_worklet_node_fire_error(cell: *mut c_void, error: u64) {
-    let node: Ref<AudioWorkletNode> = unsafe { cell_from_abi(cell) };
-    node.fire_processor_error(unsafe { Value::from_raw(error) });
 }

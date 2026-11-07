@@ -6,12 +6,15 @@
  */
 
 use std::cell::UnsafeCell;
-use std::ffi::c_void;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use super::pipe_callbacks::{CallbackService, PipeCallbacks};
-use crate::web_audio::control_message::clone_arc;
+use crate::web_audio::control_thread::{ControlThread, ControlThreadCell};
+
+pub trait AudioWorkletPipeClient {
+    fn pump(&self);
+}
 
 pub struct Config {
     pub quantum_size: usize,
@@ -36,21 +39,7 @@ pub struct Config {
     pub prime_level: usize,
 }
 
-#[repr(C)]
-pub struct WorkletPipeConfig<'a> {
-    pub quantum_size: usize,
-    pub input_count: u32,
-    pub output_count: u32,
-    pub input_channel_capacity: ak::Span<'a, u32>,
-    pub output_channel_capacity: ak::Span<'a, u32>,
-    pub output_channel_count_matches_input: bool,
-    pub param_count: u32,
-    pub param_is_a_rate: ak::Span<'a, bool>,
-    pub ring_capacity: usize,
-    pub prime_level: usize,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum WorkletPipeState {
     Running,
@@ -102,7 +91,8 @@ pub struct AudioWorkletPipe {
     arena: Box<[UnsafeCell<u64>]>,
     input_ring: Ring,
     output_ring: Ring,
-    callbacks: CallbackService,
+    control_thread: ControlThread,
+    client: ControlThreadCell<Option<Rc<dyn AudioWorkletPipeClient>>>,
     pump_scheduled: AtomicBool,
     state: AtomicU8,
     underrun_count: AtomicU64,
@@ -117,7 +107,7 @@ const SLOT_CHANNEL_COUNTS_OFFSET: usize = 12;
 const SLOT_ALIGNMENT: usize = 64;
 
 impl AudioWorkletPipe {
-    fn new(config: Config, callbacks: CallbackService) -> Self {
+    pub fn new(config: Config) -> Arc<Self> {
         assert!(config.quantum_size > 0);
         assert_eq!(config.input_channel_capacity.len(), config.input_count);
         assert_eq!(config.output_channel_capacity.len(), config.output_count);
@@ -153,7 +143,7 @@ impl AudioWorkletPipe {
         let output_slot_stride = (offset + SLOT_ALIGNMENT - 1) & !(SLOT_ALIGNMENT - 1);
         let output_region_offset = config.ring_capacity * input_slot_stride;
         let arena_size = output_region_offset + config.ring_capacity * output_slot_stride;
-        Self {
+        Arc::new(Self {
             ring_index_mask: config.ring_capacity - 1,
             config,
             input_slot_stride,
@@ -166,12 +156,18 @@ impl AudioWorkletPipe {
             arena: (0..arena_size / size_of::<u64>()).map(|_| UnsafeCell::new(0)).collect(),
             input_ring: Ring::default(),
             output_ring: Ring::default(),
-            callbacks,
+            control_thread: ControlThread::current(),
+            client: ControlThreadCell::new(None),
             pump_scheduled: AtomicBool::new(false),
             state: AtomicU8::new(WorkletPipeState::Running as u8),
             underrun_count: AtomicU64::new(0),
             dropped_input_count: AtomicU64::new(0),
-        }
+        })
+    }
+
+    // Accessed only on the control thread, including by deferred wakeups.
+    pub fn set_client(&self, client: Option<Rc<dyn AudioWorkletPipeClient>>) {
+        self.client.replace(client);
     }
 
     fn input_slot(&self, counter: usize) -> *mut u8 {
@@ -310,19 +306,15 @@ impl AudioWorkletPipe {
         if self.pump_scheduled.swap(true, Ordering::AcqRel) {
             return;
         }
-        unsafe extern "C" fn invoke(task: *mut c_void) {
-            let pipe = unsafe { Arc::from_raw(task.cast::<AudioWorkletPipe>()) };
+        let pipe = Arc::clone(self);
+        self.control_thread.post(move || {
             if pipe.state() == WorkletPipeState::ShutDown {
                 return;
             }
-            unsafe {
-                (pipe.callbacks.callbacks.on_wakeup)(pipe.callbacks.owner.pointer);
+            if let Some(client) = pipe.client.get() {
+                client.pump();
             }
-        }
-        let task = Arc::into_raw(Arc::clone(self));
-        unsafe {
-            self.callbacks.post(task.cast_mut().cast(), invoke);
-        }
+        });
     }
 
     // The pump calls this before draining the input ring, so a burst that lands while the pump is running schedules
@@ -345,6 +337,30 @@ impl AudioWorkletPipe {
 
     pub fn set_state(&self, state: WorkletPipeState) {
         self.state.store(state as u8, Ordering::Release);
+    }
+
+    pub fn underrun_count(&self) -> u64 {
+        self.underrun_count.load(Ordering::Relaxed)
+    }
+
+    pub fn dropped_input_count(&self) -> u64 {
+        self.dropped_input_count.load(Ordering::Relaxed)
+    }
+
+    /// # Safety
+    /// The caller must be the only consumer of the input ring.
+    pub unsafe fn try_read_input(&self, read: impl FnOnce(&InputSlotReader<'_>)) -> bool {
+        unsafe { self.try_pop_input(|slot| read(&InputSlotReader { pipe: self, slot })) }
+    }
+
+    /// # Safety
+    /// The caller must be the only producer of the output ring.
+    pub unsafe fn try_write_output(&self, fill: impl FnOnce(&mut OutputSlotWriter<'_>)) -> bool {
+        unsafe { self.try_push_output(|slot| fill(&mut OutputSlotWriter { pipe: self, slot })) }
+    }
+
+    pub(crate) unsafe fn start_frame(slot: *const u8) -> u64 {
+        unsafe { *slot.cast::<u64>() }
     }
 
     pub(crate) unsafe fn set_start_frame(slot: *mut u8, frame: u64) {
@@ -434,171 +450,55 @@ pub fn ring_sizing_for_device_latency(device_latency_ms: u32, sample_rate: f32, 
     }
 }
 
-/// # Safety
-/// Both output pointers must point to writable `usize` slots.
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_ring_sizing(
-    device_latency_ms: u32,
-    sample_rate: f32,
-    quantum_size: usize,
-    ring_capacity: *mut usize,
-    prime_level: *mut usize,
-) {
-    let sizing = ring_sizing_for_device_latency(device_latency_ms, sample_rate, quantum_size);
-    unsafe {
-        *ring_capacity = sizing.ring_capacity;
-        *prime_level = sizing.prime_level;
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_create(
-    config: WorkletPipeConfig<'_>,
-    callbacks: PipeCallbacks,
-) -> *const AudioWorkletPipe {
-    let config = Config {
-        quantum_size: config.quantum_size,
-        input_count: config.input_count as usize,
-        output_count: config.output_count as usize,
-        input_channel_capacity: config.input_channel_capacity.as_slice().to_vec(),
-        output_channel_capacity: config.output_channel_capacity.as_slice().to_vec(),
-        output_channel_count_matches_input: config.output_channel_count_matches_input,
-        param_count: config.param_count as usize,
-        param_is_a_rate: config.param_is_a_rate.as_slice().to_vec(),
-        ring_capacity: config.ring_capacity,
-        prime_level: config.prime_level,
-    };
-    Arc::into_raw(Arc::new(AudioWorkletPipe::new(config, unsafe {
-        CallbackService::new(callbacks)
-    })))
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_destroy(pipe: *const AudioWorkletPipe) {
-    drop(unsafe { Arc::from_raw(pipe) });
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_transfer(
-    pipe: *const AudioWorkletPipe,
-    output: bool,
-    push: bool,
-    context: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, *mut u8),
-) -> bool {
-    let pipe = unsafe { &*pipe };
-    let callback = |slot| unsafe {
-        callback(context, slot);
-    };
-    match (output, push) {
-        (false, true) => unsafe { pipe.try_push_input(callback) },
-        (false, false) => unsafe { pipe.try_pop_input(callback) },
-        (true, true) => unsafe { pipe.try_push_output(callback) },
-        (true, false) => unsafe { pipe.try_pop_output(callback) },
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_output_occupancy(pipe: *const AudioWorkletPipe) -> usize {
-    unsafe { &*pipe }.output_occupancy()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_discard(pipe: *const AudioWorkletPipe, target: usize) {
-    unsafe { &*pipe }.discard_outputs_down_to(target);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_prime(pipe: *const AudioWorkletPipe, count: usize) {
-    unsafe {
-        (&*pipe).prime_outputs_with_silence(count);
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_request_wakeup(pipe: *const AudioWorkletPipe) {
-    unsafe { clone_arc(pipe) }.request_wakeup();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_clear_wakeup(pipe: *const AudioWorkletPipe) {
-    unsafe { &*pipe }.clear_wakeup_flag();
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_state(pipe: *const AudioWorkletPipe) -> WorkletPipeState {
-    unsafe { &*pipe }.state()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_set_state(
-    pipe: *const AudioWorkletPipe,
-    state: WorkletPipeState,
-) {
-    unsafe { &*pipe }.set_state(state);
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_pipe_counter(pipe: *const AudioWorkletPipe, dropped: bool) -> u64 {
-    let pipe = unsafe { &*pipe };
-    if dropped {
-        pipe.dropped_input_count.load(Ordering::Relaxed)
-    } else {
-        pipe.underrun_count.load(Ordering::Relaxed)
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_frame(slot: *mut u8) -> *mut u64 {
-    slot.cast()
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_flag(slot: *const u8) -> bool {
-    unsafe { AudioWorkletPipe::flag(slot) }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_set_flag(slot: *mut u8, enabled: bool) {
-    unsafe {
-        AudioWorkletPipe::set_flag(slot, enabled);
-    }
-}
-
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_count(
-    pipe: *const AudioWorkletPipe,
+pub struct InputSlotReader<'a> {
+    pipe: &'a AudioWorkletPipe,
     slot: *mut u8,
-    output: bool,
-    index: usize,
-) -> *mut u32 {
-    unsafe { (&*pipe).channel_count(slot, output, index) }
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_channel(
-    pipe: *const AudioWorkletPipe,
-    slot: *mut u8,
-    output: bool,
-    index: usize,
-    channel: usize,
-    result: *mut ak::SpanMut<'static, f32>,
-) {
-    let (pointer, length) = unsafe { (&*pipe).channel(slot, output, index, channel) };
-    unsafe {
-        *result = ak::SpanMut::new(ak::slice_from_raw_parts_mut(pointer, length));
+impl InputSlotReader<'_> {
+    pub fn start_frame(&self) -> u64 {
+        unsafe { AudioWorkletPipe::start_frame(self.slot) }
+    }
+
+    pub fn had_gap(&self) -> bool {
+        unsafe { AudioWorkletPipe::flag(self.slot) }
+    }
+
+    pub fn actual_channel_count(&self, input: usize) -> u32 {
+        unsafe { *self.pipe.channel_count(self.slot, false, input) }
+    }
+
+    pub fn input_channel(&self, input: usize, channel: usize) -> &[f32] {
+        let (samples, length) = unsafe { self.pipe.channel(self.slot, false, input, channel) };
+        unsafe { ak::slice_from_raw_parts(samples, length) }
+    }
+
+    pub fn param_block(&self, param: usize) -> &[f32] {
+        let (samples, length) = unsafe { self.pipe.param_block(self.slot, param) };
+        unsafe { ak::slice_from_raw_parts(samples, length) }
     }
 }
 
-#[unsafe(no_mangle)]
-pub(crate) unsafe extern "C" fn web_audio_worklet_slot_param(
-    pipe: *const AudioWorkletPipe,
+pub struct OutputSlotWriter<'a> {
+    pipe: &'a AudioWorkletPipe,
     slot: *mut u8,
-    param: usize,
-    result: *mut ak::SpanMut<'static, f32>,
-) {
-    let (pointer, length) = unsafe { (&*pipe).param_block(slot, param) };
-    unsafe {
-        *result = ak::SpanMut::new(ak::slice_from_raw_parts_mut(pointer, length));
+}
+
+impl OutputSlotWriter<'_> {
+    pub fn set_start_frame(&mut self, frame: u64) {
+        unsafe { AudioWorkletPipe::set_start_frame(self.slot, frame) };
+    }
+
+    pub fn set_processor_active(&mut self, active: bool) {
+        unsafe { AudioWorkletPipe::set_flag(self.slot, active) };
+    }
+
+    pub fn set_actual_channel_count(&mut self, output: usize, channel_count: u32) {
+        unsafe { *self.pipe.channel_count(self.slot, true, output) = channel_count };
+    }
+
+    pub fn output_channel(&mut self, output: usize, channel: usize) -> &mut [f32] {
+        let (samples, length) = unsafe { self.pipe.channel(self.slot, true, output, channel) };
+        unsafe { ak::slice_from_raw_parts_mut(samples, length) }
     }
 }
