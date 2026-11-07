@@ -538,6 +538,21 @@ TEST_CASE(test_jpeg_cmyk_no_adobe_marker)
     EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(9, 9), Gfx::Color(24, 24, 194));
 }
 
+TEST_CASE(test_jpeg_cmyk_truncated)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/cmyk-no-adobe-marker.jpg"sv)));
+    auto truncated_file = file->bytes().slice(0, 450);
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(truncated_file));
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
+
+    auto image = plugin_decoder->frame(0).value().image;
+    EXPECT_EQ(image->get_pixel(8, 1), Gfx::Color(44, 184, 97));
+    for (int y = 8; y < 10; ++y) {
+        for (int x = 0; x < 10; ++x)
+            EXPECT_EQ(image->get_pixel(x, y), Gfx::Color(0, 0, 0));
+    }
+}
+
 TEST_CASE(test_jpeg_cmyk_adobe_transform_0)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/cmyk-adobe-transform-0.jpg"sv)));
