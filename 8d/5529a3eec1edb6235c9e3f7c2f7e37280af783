@@ -1,0 +1,9 @@
+Text after an atomic inline can wrap away from it, except when it starts
+with a character of the GL (other than U+00A0), WJ, or ZWJ line breaking
+class, or when the nearest common ancestor of the box and the text
+doesn’t wrap. Ladybird decides that with the box standing in the text
+before it as U+FFFC OBJECT REPLACEMENT CHARACTER, as Blink does: Its
+InlineItemsBuilder puts U+FFFC in the text for each atomic inline, so
+UAX #14 decides the breaks around it. Blink still breaks before U+2060
+WORD JOINER after an atomic inline, though, where the CSS Text rule and
+WPT’s line-breaking-atomic-005 don’t, and Ladybird follows the spec.
