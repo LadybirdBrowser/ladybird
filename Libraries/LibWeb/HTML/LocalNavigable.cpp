@@ -559,7 +559,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         return true;
 
     JsonValue network_response = navigation_params->webdriver_bidi_network_response;
-    if (WebDriver::BiDi::g_network_events_enabled && response->network_transport().has_value() && !network_response.is_object() && navigation_params->request) {
+    if (WebDriver::BiDi::network_events_enabled() && response->network_transport().has_value() && !network_response.is_object() && navigation_params->request) {
         RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info = navigation_params->fetch_timing_info;
         if (navigation_params->fetch_controller)
             timing_info = navigation_params->fetch_controller->full_timing_info();
@@ -704,7 +704,8 @@ void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visit
 
 HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables()
 {
-    static NeverDestroyed<HashTable<GC::RawRef<LocalNavigable>>> set;
+    // NB: Worker agents have no navigables, and these are cells of the window agent's heap.
+    static thread_local NeverDestroyed<HashTable<GC::RawRef<LocalNavigable>>> set;
     return *set;
 }
 
@@ -2596,7 +2597,7 @@ static void create_navigation_params_by_fetching(
     request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Manual);
     request->set_replaces_client_id(active_document.relevant_settings_object().id);
     request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
-    if (WebDriver::BiDi::g_network_events_enabled || WebDriver::BiDi::g_network_configuration_enabled)
+    if (WebDriver::BiDi::network_events_enabled() || WebDriver::BiDi::network_configuration_enabled())
         WebDriver::BiDi::initialize_network_request(*request, navigable, navigation_id);
     request->set_referrer(document_state.request_referrer);
     request->set_referrer_policy(document_state.request_referrer_policy);

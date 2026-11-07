@@ -125,7 +125,7 @@ void NetworkBodyPump::handle_network_complete(Optional<u64> encoded_body_size)
 
 void NetworkBodyPump::handle_network_error(StringView error_message)
 {
-    if (WebDriver::BiDi::g_network_events_enabled && m_fetch_params)
+    if (WebDriver::BiDi::network_events_enabled() && m_fetch_params)
         WebDriver::BiDi::network_fetch_error(*m_fetch_params, error_message);
     abandon_cache_entry();
     m_channel->error({ .message = MUST(ByteBuffer::copy(error_message.bytes())) });

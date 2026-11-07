@@ -77,7 +77,7 @@ void FetchController::set_original_fetch_params(Badge<FetchParams>, FetchParams 
 
 void FetchController::report_webdriver_bidi_fetch_error(StringView error_text) const
 {
-    if (!WebDriver::BiDi::g_network_events_enabled)
+    if (!WebDriver::BiDi::network_events_enabled())
         return;
     if (auto fetch_params = m_original_fetch_params.strong_ref())
         WebDriver::BiDi::network_fetch_error(*fetch_params, error_text);
