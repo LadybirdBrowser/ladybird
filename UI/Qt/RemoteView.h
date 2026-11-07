@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <Hub/View.h>
 #include <LibWebView/HistoryStore.h>
+#include <UI/Qt/HubConnection.h>
 
 namespace Ladybird {
 
@@ -36,7 +37,7 @@ public:
     URL::Origin permission_origin() const { return m_view->permission_origin(); }
     Vector<WebView::SitePermissionRow> site_permission_rows() const { return m_view->site_permission_rows(); }
     void set_site_permission(URL::Origin const& origin, Web::Permissions::PermissionName permission_name, Optional<WebView::PermissionDecision> decision) { m_view->set_site_permission(origin, permission_name, decision); }
-    void reset_site_permissions(URL::Origin const& origin) { m_view->reset_site_permissions(origin); }
+    void reset_site_permissions(URL::Origin const& origin) { HubConnection::the().async_view_reset_site_permissions(view_id(), origin); }
     void did_show_permission_prompt(WebView::PermissionPromptRequest const& permission_prompt_request) { m_view->did_show_permission_prompt(permission_prompt_request); }
     u64 view_id() const { return m_view->view_id(); }
     pid_t web_content_pid() const { return m_view->web_content_pid(); }
@@ -46,25 +47,25 @@ public:
     Utf16String const& title() const { return m_view->title(); }
     Optional<String> const& favicon_hash() const { return m_view->favicon_hash(); }
     String const& handle() const { return m_view->handle(); }
-    void set_window_position(Gfx::IntPoint position) { m_view->set_window_position(position); }
-    void set_window_size(Gfx::IntSize size) { m_view->set_window_size(size); }
-    void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_view->set_system_visibility_state(move(visibility_state)); }
-    void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { m_view->set_presents_from_cpu_memory(presents_from_cpu_memory); }
-    void set_has_system_focus(bool has_system_focus) { m_view->set_has_system_focus(has_system_focus); }
-    void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { m_view->load(url, move(navigation_history_behavior)); }
-    void load_from_user_input(URL::URL const& url) { m_view->load_from_user_input(url); }
-    void load_from_user_input(StringView input) { m_view->load_from_user_input(input); }
-    void load_from_user_input(StringView input, Optional<URL::URL> fallback_url) { m_view->load_from_user_input(input, move(fallback_url)); }
-    void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) { m_view->open_url_in_new_tab(url, move(activate_tab)); }
-    void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) { m_view->open_url_in_new_window(url, move(is_private)); }
+    void set_window_position(Gfx::IntPoint position) { HubConnection::the().async_view_set_window_position(view_id(), position); }
+    void set_window_size(Gfx::IntSize size) { HubConnection::the().async_view_set_window_size(view_id(), size); }
+    void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { HubConnection::the().async_view_set_system_visibility_state(view_id(), move(visibility_state)); }
+    void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { HubConnection::the().async_view_set_presents_from_cpu_memory(view_id(), presents_from_cpu_memory); }
+    void set_has_system_focus(bool has_system_focus) { HubConnection::the().async_view_set_has_system_focus(view_id(), has_system_focus); }
+    void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { HubConnection::the().async_view_load(view_id(), url, navigation_history_behavior); }
+    void load_from_user_input(URL::URL const& url) { HubConnection::the().async_view_load_url_from_user_input(view_id(), url); }
+    void load_from_user_input(StringView input) { HubConnection::the().async_view_load_from_user_input(view_id(), input, {}); }
+    void load_from_user_input(StringView input, Optional<URL::URL> fallback_url) { HubConnection::the().async_view_load_from_user_input(view_id(), input, move(fallback_url)); }
+    void open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) { HubConnection::the().async_view_open_url_in_new_tab(view_id(), url, move(activate_tab)); }
+    void open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private) { HubConnection::the().async_view_open_url_in_new_window(view_id(), url, move(is_private)); }
     void load(Web::HTML::PreparedNavigationDescriptor navigation) { m_view->load(move(navigation)); }
     void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) { m_view->open_navigation_in_new_tab(move(navigation), move(activate_tab)); }
     void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private) { m_view->open_navigation_in_new_window(move(navigation), move(is_private)); }
-    void set_next_history_visit_transition(WebView::HistoryVisitTransition transition) { m_view->set_next_history_visit_transition(move(transition)); }
-    void load_html(StringView html) { m_view->load_html(html); }
-    void load_navigation_error_page(StringView html) { m_view->load_navigation_error_page(html); }
-    void reload(WebView::BypassCache bypass_cache = WebView::BypassCache::No) { m_view->reload(move(bypass_cache)); }
-    void stop_loading() { m_view->stop_loading(); }
+    void set_next_history_visit_transition(WebView::HistoryVisitTransition transition) { HubConnection::the().async_view_set_next_history_visit_transition(view_id(), move(transition)); }
+    void load_html(StringView html) { HubConnection::the().async_view_load_html(view_id(), html); }
+    void load_navigation_error_page(StringView html) { HubConnection::the().async_view_load_navigation_error_page(view_id(), html); }
+    void reload(WebView::BypassCache bypass_cache = WebView::BypassCache::No) { HubConnection::the().async_view_reload(view_id(), move(bypass_cache)); }
+    void stop_loading() { HubConnection::the().async_view_stop_loading(view_id()); }
     bool is_loading() const { return m_view->is_loading(); }
     bool crash_overlay_active() const { return m_view->crash_overlay_active(); }
     String crash_overlay_failed_url() const { return m_view->crash_overlay_failed_url(); }
@@ -75,55 +76,55 @@ public:
     Optional<WebView::SessionTabId> session_tab_id() const { return m_view->session_tab_id(); }
     void set_session_tab_id(WebView::SessionTabId session_tab_id) { m_view->set_session_tab_id(move(session_tab_id)); }
     void clear_session_tab_id() { m_view->clear_session_tab_id(); }
-    void zoom_in() { m_view->zoom_in(); }
-    void zoom_out() { m_view->zoom_out(); }
-    void reset_zoom() { m_view->reset_zoom(); }
+    void zoom_in() { HubConnection::the().async_view_zoom_in(view_id()); }
+    void zoom_out() { HubConnection::the().async_view_zoom_out(view_id()); }
+    void reset_zoom() { HubConnection::the().async_view_reset_zoom(view_id()); }
     double zoom_level() const { return m_view->zoom_level(); }
     double device_pixel_ratio() const { return m_view->device_pixel_ratio(); }
     Optional<u64> display_id() const { return m_view->display_id(); }
-    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second) { m_view->set_display_metadata(move(display_id), maximum_frames_per_second); }
-    void update_screen_rects() { m_view->update_screen_rects(); }
-    void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_view->set_scales_frames_to_fit(scales_frames_to_fit); }
-    void enable_picture_in_picture_controls() { m_view->enable_picture_in_picture_controls(); }
+    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second) { HubConnection::the().async_view_set_display_metadata(view_id(), move(display_id), maximum_frames_per_second); }
+    void update_screen_rects() { HubConnection::the().async_view_update_screen_rects(view_id()); }
+    void set_scales_frames_to_fit(bool scales_frames_to_fit) { HubConnection::the().async_view_set_scales_frames_to_fit(view_id(), scales_frames_to_fit); }
+    void enable_picture_in_picture_controls() { HubConnection::the().async_view_enable_picture_in_picture_controls(view_id()); }
     void enqueue_input_event(Web::InputEvent input_event) { m_view->enqueue_input_event(move(input_event)); }
     String force_dark_host() const { return m_view->force_dark_host(); }
-    void update_interface_color_scheme() { m_view->update_interface_color_scheme(); }
+    void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
     void update_system_theme(Core::AnonymousBuffer const& anonymous_buffer) { m_view->update_system_theme(anonymous_buffer); }
     NonnullRefPtr<Core::Promise<ByteString>> selected_text() { return m_view->selected_text(); }
     bool look_up_selected_text_at(Gfx::IntPoint widget_position) { return m_view->look_up_selected_text_at(move(widget_position)); }
-    void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { m_view->find_in_page(query, move(case_sensitivity), highlight_all_matches); }
-    void find_in_page_next_match() { m_view->find_in_page_next_match(); }
-    void find_in_page_previous_match() { m_view->find_in_page_previous_match(); }
-    void find_in_page_end() { m_view->find_in_page_end(); }
+    void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity), highlight_all_matches); }
+    void find_in_page_next_match() { HubConnection::the().async_view_find_in_page_next_match(view_id()); }
+    void find_in_page_previous_match() { HubConnection::the().async_view_find_in_page_previous_match(view_id()); }
+    void find_in_page_end() { HubConnection::the().async_view_find_in_page_end(view_id()); }
     bool can_report_website_issue() const { return m_view->can_report_website_issue(); }
-    void report_website_issue() { m_view->report_website_issue(); }
-    void request_accessibility_tree() { m_view->request_accessibility_tree(); }
-    void perform_accessibility_action(i64 node_id, String action) { m_view->perform_accessibility_action(node_id, move(action)); }
-    void clear_node_picker() { m_view->clear_node_picker(); }
+    void report_website_issue() { HubConnection::the().async_view_report_website_issue(view_id()); }
+    void request_accessibility_tree() { HubConnection::the().async_view_request_accessibility_tree(view_id()); }
+    void perform_accessibility_action(i64 node_id, String action) { HubConnection::the().async_view_perform_accessibility_action(view_id(), node_id, move(action)); }
+    void clear_node_picker() { HubConnection::the().async_view_clear_node_picker(view_id()); }
     bool is_node_picker_active() const { return m_view->is_node_picker_active(); }
-    void node_picker_hover(Web::DevicePixelPoint device_pixel_point) { m_view->node_picker_hover(move(device_pixel_point)); }
-    void node_picker_pick(Web::DevicePixelPoint device_pixel_point) { m_view->node_picker_pick(move(device_pixel_point)); }
-    void node_picker_preview(Web::DevicePixelPoint device_pixel_point) { m_view->node_picker_preview(move(device_pixel_point)); }
-    void node_picker_cancel() { m_view->node_picker_cancel(); }
+    void node_picker_hover(Web::DevicePixelPoint device_pixel_point) { HubConnection::the().async_view_node_picker_hover(view_id(), move(device_pixel_point)); }
+    void node_picker_pick(Web::DevicePixelPoint device_pixel_point) { HubConnection::the().async_view_node_picker_pick(view_id(), move(device_pixel_point)); }
+    void node_picker_preview(Web::DevicePixelPoint device_pixel_point) { HubConnection::the().async_view_node_picker_preview(view_id(), move(device_pixel_point)); }
+    void node_picker_cancel() { HubConnection::the().async_view_node_picker_cancel(view_id()); }
     WebView::ContentBlockingSnapshot content_blocking_snapshot() const { return m_view->content_blocking_snapshot(); }
-    void alert_closed() { m_view->alert_closed(); }
-    void confirm_closed(bool accepted) { m_view->confirm_closed(accepted); }
-    void prompt_closed(Optional<Utf16String> const& response) { m_view->prompt_closed(response); }
-    void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) { m_view->color_picker_update(move(picked_color), move(state)); }
-    void date_picker_closed(Optional<Utf16String> picked_value) { m_view->date_picker_closed(move(picked_value)); }
+    void alert_closed() { HubConnection::the().async_view_alert_closed(view_id()); }
+    void confirm_closed(bool accepted) { HubConnection::the().async_view_confirm_closed(view_id(), accepted); }
+    void prompt_closed(Optional<Utf16String> const& response) { HubConnection::the().async_view_prompt_closed(view_id(), response); }
+    void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) { HubConnection::the().async_view_color_picker_update(view_id(), move(picked_color), move(state)); }
+    void date_picker_closed(Optional<Utf16String> picked_value) { HubConnection::the().async_view_date_picker_closed(view_id(), move(picked_value)); }
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files) { m_view->file_picker_closed(move(selected_files)); }
-    void select_dropdown_closed(Optional<u32> const& selected_item_id) { m_view->select_dropdown_closed(selected_item_id); }
-    void set_marked_text_from_input_method(Utf16String const& text) { m_view->set_marked_text_from_input_method(text); }
-    void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0) { m_view->commit_text_from_input_method(text, replacement_start, replacement_length); }
+    void select_dropdown_closed(Optional<u32> const& selected_item_id) { HubConnection::the().async_view_select_dropdown_closed(view_id(), selected_item_id); }
+    void set_marked_text_from_input_method(Utf16String const& text) { HubConnection::the().async_view_set_marked_text_from_input_method(view_id(), text); }
+    void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0) { HubConnection::the().async_view_commit_text_from_input_method(view_id(), text, replacement_start, replacement_length); }
     InputMethodState const& input_method_state() const { return m_view->input_method_state(); }
     Web::HTML::MuteState page_mute_state() const { return m_view->page_mute_state(); }
-    void toggle_page_mute_state() { m_view->toggle_page_mute_state(); }
+    void toggle_page_mute_state() { HubConnection::the().async_view_toggle_page_mute_state(view_id()); }
     bool tab_indicator_visible(WebView::TabIndicator indicator) const { return m_view->tab_indicator_visible(move(indicator)); }
     Gfx::Color page_background_color() const { return m_view->page_background_color(); }
     WebView::PageBackingStores const& backing_stores() const { return m_view->backing_stores(); }
-    void take_and_save_screenshot(ScreenshotType screenshot_type) { m_view->take_and_save_screenshot(move(screenshot_type)); }
+    void take_and_save_screenshot(ScreenshotType screenshot_type) { HubConnection::the().async_view_take_and_save_screenshot(view_id(), move(screenshot_type)); }
     void save_screenshot(Gfx::Bitmap const& bitmap) { m_view->save_screenshot(bitmap); }
-    void request_close() { m_view->request_close(); }
+    void request_close() { HubConnection::the().async_view_request_close(view_id()); }
     void request_close_preflight(Function<void(bool)> on_complete) { m_view->request_close_preflight(move(on_complete)); }
     bool needs_beforeunload_check() const { return m_view->needs_beforeunload_check(); }
     u64 add_navigation_listener(NavigationListener navigation_listener) { return m_view->add_navigation_listener(move(navigation_listener)); }
@@ -141,9 +142,9 @@ public:
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const { return m_view->session_history_traversal_menu_items(direction); }
     WebView::SessionHistorySnapshot session_history_snapshot() const { return m_view->session_history_snapshot(); }
     ErrorOr<void> restore_session_history_from_snapshot(WebView::SessionHistorySnapshot snapshot) { return m_view->restore_session_history_from_snapshot(move(snapshot)); }
-    void exit_fullscreen() { m_view->exit_fullscreen(); }
-    void deny_fullscreen_window() { m_view->deny_fullscreen_window(); }
-    void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen) { m_view->set_is_fullscreen(is_fullscreen); }
+    void exit_fullscreen() { HubConnection::the().async_view_exit_fullscreen(view_id()); }
+    void deny_fullscreen_window() { HubConnection::the().async_view_deny_fullscreen_window(view_id()); }
+    void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen) { HubConnection::the().async_view_set_is_fullscreen(view_id(), is_fullscreen); }
     Function<void()> prepare_for_close_without_prompting() { return m_view->prepare_for_close_without_prompting(); }
     Function<void()> prepare_for_immediate_close() { return m_view->prepare_for_immediate_close(); }
 

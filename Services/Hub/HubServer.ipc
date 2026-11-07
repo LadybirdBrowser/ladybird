@@ -1,0 +1,64 @@
+#include <AK/StringUtils.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Size.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
+#include <LibWebCommon/HTML/ActivateTab.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebView/ViewImplementation.h>
+
+// What the UI asks of the Hub.
+endpoint HubServer
+{
+    view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior) =|
+    view_load_url_from_user_input(u64 view_id, URL::URL url) =|
+    view_load_from_user_input(u64 view_id, ByteString input, Optional<URL::URL> fallback_url) =|
+    view_load_html(u64 view_id, ByteString html) =|
+    view_load_navigation_error_page(u64 view_id, ByteString html) =|
+    view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches) =|
+    view_set_window_position(u64 view_id, Gfx::IntPoint position) =|
+    view_set_window_size(u64 view_id, Gfx::IntSize size) =|
+    view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) =|
+    view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) =|
+    view_set_has_system_focus(u64 view_id, bool has_system_focus) =|
+    view_open_url_in_new_tab(u64 view_id, URL::URL url, Web::HTML::ActivateTab activate_tab) =|
+    view_open_url_in_new_window(u64 view_id, URL::URL url, WebView::IsPrivate is_private) =|
+    view_set_next_history_visit_transition(u64 view_id, WebView::HistoryVisitTransition transition) =|
+    view_reload(u64 view_id, WebView::BypassCache bypass_cache) =|
+    view_stop_loading(u64 view_id) =|
+    view_zoom_in(u64 view_id) =|
+    view_zoom_out(u64 view_id) =|
+    view_reset_zoom(u64 view_id) =|
+    view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second) =|
+    view_update_screen_rects(u64 view_id) =|
+    view_set_scales_frames_to_fit(u64 view_id, bool scales_frames_to_fit) =|
+    view_enable_picture_in_picture_controls(u64 view_id) =|
+    view_update_interface_color_scheme(u64 view_id) =|
+    view_find_in_page_next_match(u64 view_id) =|
+    view_find_in_page_previous_match(u64 view_id) =|
+    view_find_in_page_end(u64 view_id) =|
+    view_report_website_issue(u64 view_id) =|
+    view_request_accessibility_tree(u64 view_id) =|
+    view_perform_accessibility_action(u64 view_id, i64 node_id, String action) =|
+    view_clear_node_picker(u64 view_id) =|
+    view_node_picker_hover(u64 view_id, Web::DevicePixelPoint position) =|
+    view_node_picker_pick(u64 view_id, Web::DevicePixelPoint position) =|
+    view_node_picker_preview(u64 view_id, Web::DevicePixelPoint position) =|
+    view_node_picker_cancel(u64 view_id) =|
+    view_alert_closed(u64 view_id) =|
+    view_confirm_closed(u64 view_id, bool accepted) =|
+    view_prompt_closed(u64 view_id, Optional<Utf16String> response) =|
+    view_color_picker_update(u64 view_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
+    view_date_picker_closed(u64 view_id, Optional<Utf16String> picked_value) =|
+    view_select_dropdown_closed(u64 view_id, Optional<u32> selected_item_id) =|
+    view_set_marked_text_from_input_method(u64 view_id, Utf16String text) =|
+    view_commit_text_from_input_method(u64 view_id, Utf16String text, i32 replacement_start, i32 replacement_length) =|
+    view_toggle_page_mute_state(u64 view_id) =|
+    view_take_and_save_screenshot(u64 view_id, WebView::ViewImplementation::ScreenshotType screenshot_type) =|
+    view_request_close(u64 view_id) =|
+    view_exit_fullscreen(u64 view_id) =|
+    view_deny_fullscreen_window(u64 view_id) =|
+    view_set_is_fullscreen(u64 view_id, Web::ViewportIsFullscreen is_fullscreen) =|
+    view_reset_site_permissions(u64 view_id, URL::Origin origin) =|
+}

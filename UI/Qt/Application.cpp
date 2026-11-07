@@ -608,6 +608,14 @@ ErrorOr<NonnullOwnPtr<Application>> Application::create(Main::Arguments const& a
 {
     auto application = adopt_own(*new Application);
     application->m_hub = TRY(Hub::Application::create(arguments, static_cast<Hub::ApplicationHost&>(*application)));
+
+    // Headless mode has no UI to connect to the Hub.
+    if (browser_options().headless_mode.has_value())
+        return application;
+
+    auto transports = TRY(IPC::TransportHandle::create_pair());
+    application->m_connection_from_ui = Hub::ConnectionFromUI::construct(TRY(transports.first.create_transport()));
+    application->m_hub_connection = adopt_ref(*new HubConnection(TRY(transports.second.create_transport())));
     return application;
 }
 
@@ -622,6 +630,8 @@ Application::~Application()
     //     with nothing left here to call back into.
     ScopeGuard tear_down_hub = [this] {
         m_application = nullptr;
+        m_hub_connection = nullptr;
+        m_connection_from_ui = nullptr;
         if (m_hub)
             m_hub->detach_from_host();
         m_hub = nullptr;

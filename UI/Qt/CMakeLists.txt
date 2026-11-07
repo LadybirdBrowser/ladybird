@@ -28,6 +28,7 @@ add_library(ladybird_impl STATIC
     FeedbackPopover.cpp
     FindInPageWidget.cpp
     HiddenPageSizing.cpp
+    HubConnection.cpp
     Icon.cpp
     InputMethodUtils.cpp
     JavaScriptDialog.cpp

@@ -10,12 +10,14 @@
 #include <AK/Function.h>
 #include <AK/Platform.h>
 #include <Hub/Application.h>
+#include <Hub/ConnectionFromUI.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/HubConnection.h>
 
 #include <QApplication>
 #include <QPointer>
@@ -230,6 +232,8 @@ private:
     static Application* s_the;
 
     OwnPtr<Hub::Application> m_hub;
+    RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
+    RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;

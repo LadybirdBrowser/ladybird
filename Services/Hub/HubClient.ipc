@@ -1,0 +1,5 @@
+// What the Hub tells the UI.
+endpoint HubClient
+{
+    hub_is_ready() =|
+}
