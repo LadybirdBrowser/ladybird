@@ -1,0 +1,11 @@
+Ladybird checks the length that Function.prototype.apply, Reflect.apply,
+and Reflect.construct read as soon as they read it, and throws before
+reading any element if it’s longer than any call can take. The other
+engines check the length at the same point: V8’s Object::
+CreateListFromArrayLike() throws a RangeError for a length above
+FixedArray::kMaxLength, WebKit’s sizeOfVarargs() throws a stack-overflow
+error above maxArguments, and Gecko’s CreateListFromArrayLikeForArgs(),
+in Reflect.js, throws a RangeError above MAX_ARGS_LENGTH. Ladybird
+throws the InternalError it already threw for an argument list too long
+for the interpreter stack, rather than a RangeError: A length below the
+limit can still fail that way, and both mean the same thing.
