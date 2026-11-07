@@ -1,0 +1,5 @@
+isolated true
+wait returned ok, word is 7
+nested worker wrote 3
+worker wrote 1
+counted to 200000

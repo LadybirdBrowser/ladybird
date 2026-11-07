@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/worker-terminate-during-sync-xhr", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+            body: "late",
+            delay_ms: 5000,
+        });
+
+        const script = `
+            postMessage("sending");
+            const request = new XMLHttpRequest();
+            request.open("GET", ${JSON.stringify(url)}, false);
+            request.send();
+            postMessage("the request finished");
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([script], { type: "text/javascript" })));
+        let finished = false;
+        worker.onerror = () => println("error");
+        await new Promise(resolve => {
+            worker.onmessage = ({ data }) => {
+                if (data === "sending") resolve();
+                else finished = true;
+            };
+        });
+        // NB: Nothing tells when the worker got into the request, which it starts right after it posted.
+        await timeout(10);
+
+        const start = performance.now();
+        worker.terminate();
+        await waitForCondition(() => internals.workerAgentCount() === 0, 5000, 1);
+        println(`stopped ahead of the response: ${performance.now() - start < 4000}`);
+        println(`finished: ${finished}`);
+    });
+</script>

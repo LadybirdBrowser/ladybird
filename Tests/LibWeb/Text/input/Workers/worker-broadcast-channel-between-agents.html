@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const AGENT = `
+        const channel = new BroadcastChannel("between-agents");
+        channel.onmessage = ({ data }) => {
+            if (data.startsWith("hello from "))
+                channel.postMessage(self.name + " heard " + data.substring(11));
+        };
+        function sayHello() {
+            channel.postMessage("hello from " + self.name);
+        }
+    `;
+
+    const NESTED_WORKER = `
+        ${AGENT}
+        self.onmessage = sayHello;
+        postMessage("ready");
+    `;
+
+    const WORKER = `
+        ${AGENT}
+        const nested = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(NESTED_WORKER)}], { type: "text/javascript" })), { name: "nested worker" });
+        nested.onmessage = () => postMessage("ready");
+        self.onmessage = ({ data }) => {
+            if (data === "you") sayHello();
+            else nested.postMessage("say hello");
+        };
+    `;
+
+    promiseTest(async () => {
+        const worker = new Worker(URL.createObjectURL(new Blob([WORKER], { type: "text/javascript" })), { name: "worker" });
+        await new Promise(resolve => (worker.onmessage = resolve));
+
+        const channel = new BroadcastChannel("between-agents");
+        const heard = [];
+        channel.onmessage = ({ data }) => {
+            heard.push(data);
+            if (data.startsWith("hello from ")) channel.postMessage("window heard " + data.substring(11));
+        };
+
+        channel.postMessage("hello from window");
+        const heardAll = async count => {
+            if (!(await waitForCondition(() => heard.length >= count))) println(`only heard ${heard.length} of ${count}`);
+        };
+
+        // Each hello reaches the two agents that did not send it, and whichever of them is a worker answers it.
+        await heardAll(2);
+        worker.postMessage("you");
+        await heardAll(4);
+        worker.postMessage("your nested worker");
+        await heardAll(6);
+
+        // NB: What else was on its way has had the time to show up here by now.
+        await timeout(50);
+        for (const line of heard.sort()) println(line);
+        worker.terminate();
+    });
+</script>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const WORKER = `
+        postMessage("isolated " + crossOriginIsolated + ", " + typeof SharedArrayBuffer);
+        try {
+            postMessage(new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer);
+        } catch (error) {
+            postMessage(error.name);
+        }
+    `;
+
+    promiseTest(async () => {
+        println("window: isolated " + crossOriginIsolated + ", " + typeof SharedArrayBuffer);
+        const worker = new Worker(URL.createObjectURL(new Blob([WORKER], { type: "text/javascript" })));
+        await new Promise(resolve => {
+            let count = 0;
+            worker.onmessage = ({ data }) => {
+                println("worker: " + data);
+                if (++count === 2) resolve();
+            };
+        });
+        worker.terminate();
+    });
+</script>

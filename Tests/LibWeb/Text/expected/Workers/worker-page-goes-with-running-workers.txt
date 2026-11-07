@@ -1,0 +1,6 @@
+running before a navigation: 4
+running after a navigation: 0
+running before removal: 4
+running after removal: 0
+running before closing a page: 4
+running after closing a page: 0

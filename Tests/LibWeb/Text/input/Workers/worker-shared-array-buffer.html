@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const NESTED_WORKER = `
+        self.onmessage = ({ data }) => {
+            const words = new Int32Array(data);
+            Atomics.store(words, 2, 3);
+            Atomics.notify(words, 2);
+        };
+    `;
+
+    const WORKER = `
+        const nested = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(NESTED_WORKER)}], { type: "text/javascript" })));
+        self.onmessage = ({ data }) => {
+            const words = new Int32Array(data);
+            postMessage("isolated " + crossOriginIsolated);
+
+            // The window writes word 0 from another thread, with no message to tell us. It then wakes us through word 4,
+            // which never changes, so that this wait blocks no matter how late we get here.
+            const waited = Atomics.wait(words, 4, 0);
+            Atomics.add(words, 1, 1);
+            postMessage("wait returned " + waited + ", word is " + Atomics.load(words, 0));
+
+            nested.postMessage(data);
+            Atomics.wait(words, 2, 0);
+            postMessage("nested worker wrote " + Atomics.load(words, 2));
+
+            for (let i = 0; i < 100000; ++i)
+                Atomics.add(words, 3, 1);
+            postMessage("done");
+        };
+    `;
+
+    promiseTest(async () => {
+        const memory = new SharedArrayBuffer(20);
+        const words = new Int32Array(memory);
+        const worker = new Worker(URL.createObjectURL(new Blob([WORKER], { type: "text/javascript" })));
+        let finished = false;
+        worker.onmessage = ({ data }) => {
+            if (data === "done") finished = true;
+            else println(data);
+        };
+        worker.onerror = () => println("error");
+        worker.postMessage(memory);
+
+        Atomics.store(words, 0, 7);
+        while (Atomics.notify(words, 4) === 0) await timeout(1);
+        await waitForCondition(() => Atomics.load(words, 1) === 1);
+
+        for (let i = 0; i < 100000; ++i) Atomics.add(words, 3, 1);
+        await waitForCondition(() => finished);
+        println("worker wrote " + Atomics.load(words, 1));
+        println("counted to " + Atomics.load(words, 3));
+        worker.terminate();
+    });
+</script>

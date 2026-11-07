@@ -1,0 +1,3 @@
+window: isolated false, undefined
+worker: isolated false, undefined
+worker: DataCloneError
