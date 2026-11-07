@@ -218,6 +218,7 @@ struct HostFunctionSteps {
     function: Gc<FunctionObject>,
     ty: FuncType,
     index: u32,
+    use_stack_arguments: bool,
 }
 
 impl HostFunction for HostFunctionSteps {
@@ -228,7 +229,7 @@ impl HostFunction for HostFunctionSteps {
         let agent = Agent::current();
         let vm = agent.vm();
         // FIXME: The settings steps around the call.
-        let result = run_a_host_function(vm, self.function, &self.ty, arguments);
+        let result = run_a_host_function(vm, self.function, &self.ty, arguments, self.use_stack_arguments);
 
         let throw = match result {
             Ok(results) => return Ok(results),
@@ -267,6 +268,7 @@ fn run_a_host_function(
     function: Gc<FunctionObject>,
     functype: &FuncType,
     arguments: &[WasmValue],
+    use_stack_arguments: bool,
 ) -> ThrowCompletionOr<Vec<WasmValue>> {
     // 1. Let func parameters → results be the expansion of functype.
     let FuncType {
@@ -282,22 +284,34 @@ fn run_a_host_function(
         );
     }
 
-    // 3. Let jsArguments be « ».
-    let js_arguments = MarkedVec::with_capacity(vm, arguments.len());
+    let callee = Value::from_object(function.upcast::<Object>());
 
-    // 4. For each arg of arguments,
-    for (arg, &parameter) in arguments.iter().zip(parameters) {
-        // 1. Append ToJSValue(arg) to jsArguments.
-        js_arguments.push(to_js_value(vm, *arg, parameter)?);
-    }
+    // OPTIMIZATION: These conversions produce only Numbers, so the arguments need no GC roots.
+    let ret = if use_stack_arguments {
+        // 3. Let jsArguments be « ».
+        let mut js_arguments = [Value::UNDEFINED; STACK_SLOT_CAPACITY];
 
-    // 5. Let ret be ? Call(func, undefined, jsArguments).
-    let ret = call(
-        vm,
-        Value::from_object(function.upcast::<Object>()),
-        Value::UNDEFINED,
-        &js_arguments.values(),
-    )?;
+        // 4. For each arg of arguments,
+        for (i, (arg, &parameter)) in arguments.iter().zip(parameters).enumerate() {
+            // 1. Append ToJSValue(arg) to jsArguments.
+            js_arguments[i] = to_js_value(vm, *arg, parameter)?;
+        }
+
+        // 5. Let ret be ? Call(func, undefined, jsArguments).
+        call(vm, callee, Value::UNDEFINED, &js_arguments[..arguments.len()])?
+    } else {
+        // 3. Let jsArguments be « ».
+        let js_arguments = MarkedVec::with_capacity(vm, arguments.len());
+
+        // 4. For each arg of arguments,
+        for (arg, &parameter) in arguments.iter().zip(parameters) {
+            // 1. Append ToJSValue(arg) to jsArguments.
+            js_arguments.push(to_js_value(vm, *arg, parameter)?);
+        }
+
+        // 5. Let ret be ? Call(func, undefined, jsArguments).
+        call(vm, callee, Value::UNDEFINED, &js_arguments.values())?
+    };
 
     // 6. Let resultsSize be results's size.
     // 7. If resultsSize is 0, return « ».
@@ -305,17 +319,18 @@ fn run_a_host_function(
         return Ok(Vec::new());
     }
 
-    // NB: The converted values may refer to new cells, which the cell of the values keeps alive until the engine has
-    //     them.
-    let converted = WasmValues::allocate(vm);
-
     // 8. Otherwise, if resultsSize is 1, return « ? ToWebAssemblyValue(ret, results[0]) ».
     if results.len() == 1 {
         let value = to_webassembly_value(vm, ret, results[0])?;
-        converted.0.borrow_mut().push(value);
+        // OPTIMIZATION: No further conversion or GC allocation can occur before the engine receives this value.
+        return Ok(vec![value]);
     }
+
+    // NB: Converting subsequent results can collect garbage, so keep earlier reference results in a traced cell.
+    let converted = WasmValues::allocate(vm);
+
     // 9. Otherwise,
-    else {
+    {
         // 1. Let method be ? GetMethod(ret, %Symbol.iterator%).
         let method = ret.get_method(vm, &PropertyKey::from(vm.well_known_symbols().iterator))?;
 
@@ -379,6 +394,11 @@ pub(crate) fn create_host_function(vm: &Vm, function: Gc<FunctionObject>, ty: Fu
         )]
         let steps: HostCallback = Rc::new(HostFunctionSteps {
             function,
+            use_stack_arguments: ty.params.len() <= STACK_SLOT_CAPACITY
+                && ty
+                    .params
+                    .iter()
+                    .all(|ty| matches!(ty, ValType::I32 | ValType::F32 | ValType::F64)),
             ty: ty.clone(),
             index,
         });

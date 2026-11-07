@@ -1232,13 +1232,22 @@ impl Store {
         let function = unsafe { address.get() };
         let parameter_slots = function.header.param_slots as usize;
         let slots = unsafe { ak::slice_from_raw_parts(arguments, parameter_slots) };
-        let mut values = Vec::with_capacity(function.ty.params.len());
+        // Host calls are frequent in code that uses JavaScript wrappers for exception handling. Most have only a
+        // few arguments, so keep those on the stack instead of allocating a vector for each call.
+        let mut small_values = [Value::I32(0); 8];
+        let mut large_values = Vec::new();
+        let values = if function.ty.params.len() <= small_values.len() {
+            &mut small_values[..function.ty.params.len()]
+        } else {
+            large_values.resize(function.ty.params.len(), Value::I32(0));
+            &mut large_values
+        };
         let mut slot = parameter_slots;
-        for &ty in &function.ty.params {
+        for (value, &ty) in values.iter_mut().zip(&function.ty.params) {
             slot -= ty.slot_count() as usize;
-            values.push(Value::from_slots(ty, &slots[slot..]));
+            *value = Value::from_slots(ty, &slots[slot..]);
         }
-        let values = self.call_host(address, &values)?;
+        let values = self.call_host(address, values)?;
         let mut next = results;
         for value in values.iter().rev() {
             let (value, count) = value.to_slots();

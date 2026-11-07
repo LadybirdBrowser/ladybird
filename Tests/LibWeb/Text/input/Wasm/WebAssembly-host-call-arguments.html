@@ -1,0 +1,65 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module (type (func (param T...) (result T...)))
+    //   (import "m" "f" (func (type 0)))
+    //   (export "imported" (func 0))
+    //   (func (export "forward") (type 0) (call 0 (local.get 0) ...)))
+    function forwardingModule(types, callback) {
+        const section = (id, bytes) => [id, bytes.length, ...bytes];
+        const string = value => [value.length, ...Array.from(value, c => c.charCodeAt(0))];
+        const body = [0, ...types.flatMap((_, i) => [0x20, i]), 0x10, 0, 0x0b];
+        return new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([
+            0, 97, 115, 109, 1, 0, 0, 0,
+            ...section(1, [1, 0x60, types.length, ...types, types.length, ...types]),
+            ...section(2, [1, ...string("m"), ...string("f"), 0, 0]),
+            ...section(3, [1, 0]),
+            ...section(7, [2, ...string("imported"), 0, 0, ...string("forward"), 0, 1]),
+            ...section(10, [1, body.length, ...body]),
+        ])), { m: { f: callback } }).exports;
+    }
+
+    test(() => {
+        const i32 = 0x7f, i64 = 0x7e, f32 = 0x7d, f64 = 0x7c, externref = 0x6f;
+        const nested = forwardingModule([i32], value => value + 1).forward;
+        const types = [i32, f32, f64, i32, f64, f32, i32, f64];
+        const values = [-2147483648, Math.fround(1 / 3), -0, 2147483647, Infinity, -Infinity, 42, NaN];
+        let calls = 0;
+        const functions = forwardingModule(types, (...args) => {
+            if (calls++ % 1024 === 0)
+                internals.gc();
+            if (nested(99) !== 100)
+                throw new Error("nested call failed");
+            return args;
+        });
+        let correct = true;
+        for (let i = 0; i < 2000; ++i) {
+            const result = functions.forward(...values);
+            correct &&= result.every((value, index) => Object.is(value, values[index]));
+        }
+        println(`numeric arguments across nested calls: ${correct}`);
+        println(`reexported import: ${functions.imported(...values).every((v, i) => Object.is(v, values[i]))}`);
+        println(`wide arguments: ${forwardingModule(Array(9).fill(i32), (...args) => args).forward(1, 2, 3, 4, 5, 6, 7, 8, 9).join(", ")}`);
+
+        const object = { marker: 42 };
+        const refs = forwardingModule([i64, externref], (integer, ref) => {
+            internals.gc();
+            nested(1);
+            return [integer, ref];
+        }).forward((1n << 63n) - 1n, object);
+        println(`rooted arguments: ${refs[0] === (1n << 63n) - 1n && refs[1] === object}`);
+
+        const sentinel = {};
+        const throwing = forwardingModule([i32], value => {
+            if (value === 0)
+                throw sentinel;
+            return { valueOf() { internals.gc(); return nested(value); } };
+        }).forward;
+        try {
+            throwing(0);
+        } catch (e) {
+            println(`host exception: ${e === sentinel}`);
+        }
+        println(`call after exception and result coercion: ${throwing(41)}`);
+    });
+</script>
