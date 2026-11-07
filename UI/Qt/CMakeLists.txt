@@ -23,6 +23,7 @@ add_library(ladybird_impl STATIC
     Bookmarks.cpp
     BookmarksBar.cpp
     BookmarksPage.cpp
+    DownloadsPage.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
     ContextMenus.cpp

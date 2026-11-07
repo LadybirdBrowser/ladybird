@@ -6,12 +6,11 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <LibWebView/Application.h>
-#include <LibWebView/WebContentClient.h>
-#include <LibWebView/WebContentPage.h>
-#include <LibWebView/WebUI/DownloadsUI.h>
+#include <UI/Qt/DownloadsPage.h>
 
-namespace WebView {
+namespace Ladybird {
+
+using WebView::FileDownloader;
 
 static StringView status_to_string(FileDownloader::DownloadStatus status)
 {
@@ -55,7 +54,7 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
     serialized.set("secondsRemaining"sv, time_remaining.has_value() ? JsonValue { time_remaining->to_seconds() } : JsonValue {});
 
     JsonArray segments;
-    for (auto const& segment : Application::the().file_downloader().segment_progress(download.id)) {
+    for (auto const& segment : RemoteDownloads::the().segment_progress(download.id)) {
         JsonObject serialized_segment;
         serialized_segment.set("start"sv, segment.start_offset);
         serialized_segment.set("end"sv, segment.end_offset);
@@ -70,75 +69,66 @@ static JsonObject serialize_download(FileDownloader::Download const& download)
 
 // The page lists and acts on the downloads of its own browsing session only, so those of a private session stay out of
 // the pages of every other session.
-static bool is_download_of_session(FileDownloader::Download const& download, IsPrivate is_private)
+static bool is_download_of_session(FileDownloader::Download const& download, WebView::IsPrivate is_private)
 {
     return download.is_private == is_private;
 }
 
-void DownloadsUI::register_interfaces()
+DownloadsPage::DownloadsPage(u64 web_ui_id, WebView::IsPrivate is_private)
+    : WebUIPage(web_ui_id)
+    , m_is_private(is_private)
 {
-    register_interface("loadDownloads"sv, [this](auto const&) {
+}
+
+void DownloadsPage::received_message(String const& name, JsonValue const& data)
+{
+    if (name == "loadDownloads"sv)
         load_downloads();
-    });
-    register_interface("pruneInactiveDownloads"sv, [this](auto const&) {
-        prune_inactive_downloads();
-    });
-    register_interface("cancelDownload"sv, [this](auto const& data) {
+    else if (name == "pruneInactiveDownloads"sv)
+        RemoteDownloads::the().prune_inactive_downloads(m_is_private);
+    else if (name == "cancelDownload"sv)
         cancel_download(data);
-    });
-    register_interface("pauseDownload"sv, [this](auto const& data) {
+    else if (name == "pauseDownload"sv)
         pause_download(data);
-    });
-    register_interface("resumeDownload"sv, [this](auto const& data) {
+    else if (name == "resumeDownload"sv)
         resume_download(data);
-    });
-    register_interface("openDownload"sv, [this](auto const& data) {
+    else if (name == "openDownload"sv)
         open_download(data);
-    });
-    register_interface("showDownloadInFolder"sv, [this](auto const& data) {
+    else if (name == "showDownloadInFolder"sv)
         show_download_in_folder(data);
-    });
 }
 
-void DownloadsUI::download_added(FileDownloader::Download const& download)
+void DownloadsPage::download_added(FileDownloader::Download const& download)
 {
-    if (!has_client() || !is_download_of_session(download, client().is_private()))
-        return;
-    async_send_message("downloadAdded"sv, serialize_download(download));
+    if (is_download_of_session(download, m_is_private))
+        send_message("downloadAdded"_string, serialize_download(download));
 }
 
-void DownloadsUI::download_updated(FileDownloader::Download const& download)
+void DownloadsPage::download_updated(FileDownloader::Download const& download)
 {
-    if (!has_client() || !is_download_of_session(download, client().is_private()))
-        return;
-    async_send_message("downloadUpdated"sv, serialize_download(download));
+    if (is_download_of_session(download, m_is_private))
+        send_message("downloadUpdated"_string, serialize_download(download));
 }
 
-void DownloadsUI::download_removed(u64 id, IsPrivate is_private)
+void DownloadsPage::download_removed(u64 id, WebView::IsPrivate is_private)
 {
-    if (!has_client() || is_private != client().is_private())
-        return;
-    async_send_message("downloadRemoved"sv, JsonValue { id });
+    if (is_private == m_is_private)
+        send_message("downloadRemoved"_string, JsonValue { id });
 }
 
-void DownloadsUI::load_downloads()
+void DownloadsPage::load_downloads()
 {
-    auto downloads = Application::the().file_downloader().downloads_of_session(client().is_private());
+    auto downloads = RemoteDownloads::the().downloads_of_session(m_is_private);
 
     JsonArray serialized_downloads;
     serialized_downloads.ensure_capacity(downloads.size());
     for (auto const& download : downloads)
         serialized_downloads.must_append(serialize_download(download));
 
-    async_send_message("loadDownloads"sv, move(serialized_downloads));
+    send_message("loadDownloads"_string, move(serialized_downloads));
 }
 
-void DownloadsUI::prune_inactive_downloads()
-{
-    (void)Application::the().file_downloader().prune_inactive_downloads(client().is_private());
-}
-
-static Optional<FileDownloader::Download const&> download_from_message(JsonValue const& data, IsPrivate is_private)
+static Optional<FileDownloader::Download const&> download_from_message(JsonValue const& data, WebView::IsPrivate is_private)
 {
     if (!data.is_object())
         return {};
@@ -147,81 +137,75 @@ static Optional<FileDownloader::Download const&> download_from_message(JsonValue
     if (!id.has_value())
         return {};
 
-    auto download = Application::the().file_downloader().download(*id);
+    auto download = RemoteDownloads::the().download(*id);
     if (!download.has_value() || !is_download_of_session(*download, is_private))
         return {};
     return download;
 }
 
-void DownloadsUI::cancel_download(JsonValue const& data)
+void DownloadsPage::cancel_download(JsonValue const& data)
 {
-    auto download = download_from_message(data, client().is_private());
+    auto download = download_from_message(data, m_is_private);
     if (!download.has_value())
         return;
 
     if (!FileDownloader::status_is_active(download->status))
         return;
 
-    Application::the().file_downloader().cancel_download(download->id);
+    RemoteDownloads::the().cancel_download(download->id);
 }
 
-void DownloadsUI::pause_download(JsonValue const& data)
+void DownloadsPage::pause_download(JsonValue const& data)
 {
-    auto download = download_from_message(data, client().is_private());
+    auto download = download_from_message(data, m_is_private);
     if (!download.has_value())
         return;
 
     if (download->status != FileDownloader::DownloadStatus::InProgress || !download->can_resume)
         return;
 
-    Application::the().file_downloader().pause_download(download->id);
+    RemoteDownloads::the().pause_download(download->id);
 }
 
-void DownloadsUI::resume_download(JsonValue const& data)
+void DownloadsPage::resume_download(JsonValue const& data)
 {
-    auto download = download_from_message(data, client().is_private());
+    auto download = download_from_message(data, m_is_private);
     if (!download.has_value())
         return;
 
     if (download->status != FileDownloader::DownloadStatus::Paused)
         return;
 
-    Application::the().file_downloader().resume_download(download->id);
+    RemoteDownloads::the().resume_download(download->id);
 }
 
 // Opening a download can run it, so only the user's own click in the page opens one or shows it in its folder.
-static bool consume_user_activation_of_page(WebContentClient& client, Web::PageId page_id)
+void DownloadsPage::open_download(JsonValue const& data)
 {
-    auto* page = client.page(page_id);
-    return page && page->consume_transient_user_activation();
-}
-
-void DownloadsUI::open_download(JsonValue const& data)
-{
-    auto download = download_from_message(data, client().is_private());
+    auto download = download_from_message(data, m_is_private);
     if (!download.has_value())
         return;
 
     if (download->status != FileDownloader::DownloadStatus::Completed)
         return;
 
-    if (!consume_user_activation_of_page(client(), page_id()))
+    if (!consume_user_activation())
         return;
-    Application::the().open_download(*download);
+    RemoteDownloads::the().open(download->id);
 }
 
-void DownloadsUI::show_download_in_folder(JsonValue const& data)
+void DownloadsPage::show_download_in_folder(JsonValue const& data)
 {
-    auto download = download_from_message(data, client().is_private());
+    auto download = download_from_message(data, m_is_private);
     if (!download.has_value())
         return;
 
     if (download->status != FileDownloader::DownloadStatus::Completed)
         return;
 
-    if (!consume_user_activation_of_page(client(), page_id()))
+    if (!consume_user_activation())
         return;
-    Application::the().show_download_in_folder(*download);
+    RemoteDownloads::the().show_in_folder(download->id);
 }
 
 }

@@ -62,6 +62,7 @@ private:
     virtual void ui_did_start() override;
     virtual void add_web_ui_page(String host, String title) override;
     virtual void send_web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
+    virtual Messages::HubServer::WebUiConsumeUserActivationResponse web_ui_consume_user_activation(u64 web_ui_id) override;
     virtual void start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private) override;
     virtual void stop_request(u64 request_id) override;
     virtual void toggle_devtools_enabled() override;
@@ -122,6 +123,7 @@ private:
     virtual void cancel_download(u64 id) override;
     virtual void pause_download(u64 id) override;
     virtual void resume_download(u64 id) override;
+    virtual void open_download(u64 id) override;
     virtual void show_download_in_folder(u64 id) override;
     virtual void prune_inactive_downloads(WebView::IsPrivate is_private) override;
     virtual void pause_active_downloads() override;

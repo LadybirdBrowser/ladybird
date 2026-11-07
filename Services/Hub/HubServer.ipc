@@ -117,6 +117,7 @@ endpoint HubServer
     ui_did_start() =|
     add_web_ui_page(String host, String title) =|
     send_web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
+    web_ui_consume_user_activation(u64 web_ui_id) => (bool consumed)
     start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private) =|
     stop_request(u64 request_id) =|
 
@@ -190,6 +191,7 @@ endpoint HubServer
     cancel_download(u64 id) =|
     pause_download(u64 id) =|
     resume_download(u64 id) =|
+    open_download(u64 id) =|
     show_download_in_folder(u64 id) =|
     prune_inactive_downloads(WebView::IsPrivate is_private) =|
     pause_active_downloads() =|

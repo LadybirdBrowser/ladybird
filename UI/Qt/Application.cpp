@@ -51,6 +51,7 @@
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/Bookmarks.h>
 #include <UI/Qt/ChromeLayout.h>
+#include <UI/Qt/DownloadsPage.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/HistoryPage.h>
@@ -1028,10 +1029,13 @@ void Application::create_platform_actions()
     };
     m_web_ui_pages = make<WebUIPages>();
     m_bookmarks = make<Bookmarks>(*m_bookmark_store);
-    m_web_ui_pages->register_page("history"_string, "History"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+    m_web_ui_pages->register_page("history"_string, "History"_string, [](u64 web_ui_id, WebView::IsPrivate) -> NonnullOwnPtr<WebUIPage> {
         return make<HistoryPage>(web_ui_id);
     });
-    m_web_ui_pages->register_page("version"_string, "Version"_string, [](u64 web_ui_id) -> NonnullOwnPtr<WebUIPage> {
+    m_web_ui_pages->register_page("downloads"_string, "Downloads"_string, [](u64 web_ui_id, WebView::IsPrivate is_private) -> NonnullOwnPtr<WebUIPage> {
+        return make<DownloadsPage>(web_ui_id, is_private);
+    });
+    m_web_ui_pages->register_page("version"_string, "Version"_string, [](u64 web_ui_id, WebView::IsPrivate) -> NonnullOwnPtr<WebUIPage> {
         return make<VersionPage>(web_ui_id);
     });
 
