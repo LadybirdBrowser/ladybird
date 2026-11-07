@@ -12,6 +12,7 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebView/AccessibilityTreeManager.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/TabPerformanceStats.h>
@@ -164,6 +165,29 @@ struct Hub::DownloadState {
     UnixDateTime created_time;
 }
 
+[ExistingCpp]
+struct WebView::BookmarkItem::Bookmark {
+    URL::URL url;
+    Optional<String> title;
+    Optional<String> favicon_hash;
+}
+
+enum Hub::BookmarkDialogKind : u8 {
+    AddBookmark,
+    EditBookmark,
+    AddFolder,
+    EditFolder,
+}
+
+// What the user entered in a bookmark dialog.
+struct Hub::BookmarkDialogResult {
+    bool is_folder;
+    Optional<URL::URL> url;
+    Optional<String> title;
+    Optional<String> favicon_hash;
+    Optional<String> target_folder_id;
+}
+
 // What the UI needs to know about a view at any time, without having to ask.
 struct Hub::ViewState {
     URL::URL url;
@@ -195,6 +219,11 @@ struct Hub::ViewState {
 // What the Hub tells the UI.
 endpoint HubClient
 {
+    bookmarks_changed(ByteString bookmarks_json) =|
+    app_read_bookmarks_for_all_tabs(u64 request_id) =|
+    app_show_bookmark_popover() =|
+    app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) =|
+    app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) =|
     download_added(Hub::DownloadState download) =|
     download_updated(Hub::DownloadState download) =|
     download_removed(u64 id, WebView::IsPrivate is_private) =|

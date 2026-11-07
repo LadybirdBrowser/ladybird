@@ -29,6 +29,11 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void bookmarks_changed(ByteString bookmarks_json) override;
+    virtual void app_read_bookmarks_for_all_tabs(u64 request_id) override;
+    virtual void app_show_bookmark_popover() override;
+    virtual void app_show_bookmark_context_menu(Gfx::IntPoint position, Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) override;
+    virtual void app_display_bookmark_dialog(u64 request_id, Hub::BookmarkDialogKind kind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) override;
     virtual void download_added(Hub::DownloadState download) override;
     virtual void download_updated(Hub::DownloadState download) override;
     virtual void download_removed(u64 id, WebView::IsPrivate is_private) override;

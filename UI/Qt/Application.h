@@ -63,6 +63,7 @@ public:
     static WebView::BrowserOptions const& browser_options() { return WebView::Application::browser_options(); }
     static WebView::Settings& settings() { return *s_the->m_settings; }
     static WebView::Profile const& profile() { return WebView::Application::profile(); }
+    static WebView::BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
 
     virtual ~Application() override;
 
@@ -161,7 +162,7 @@ private:
 
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;
-    virtual bool show_bookmark_ui_for_view(WebView::ViewImplementation&) override;
+    void show_bookmark_popover();
     virtual Optional<String> system_font_family() const override;
 
     virtual OwnPtr<WebView::NotificationBackend> create_notification_backend() override;
@@ -171,7 +172,7 @@ private:
     virtual bool supports_picture_in_picture() const override { return true; }
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) override;
 
-    virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const override;
+    Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const;
     Tab* activate_tab_with_url(URL::URL const&, URL::ExcludeFragment) const;
     void activate_or_open_tab_with_url(URL::URL const&);
 
@@ -220,12 +221,11 @@ private:
     void update_tabs_display() const;
 
     virtual void rebuild_bookmarks_menu() const override;
-    virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) override;
-    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}, Optional<String const&> target_folder_id = {}) const override;
-    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
+    void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id);
+    NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id = {}) const;
+    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const;
+    NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}, Optional<String const&> target_folder_id = {}) const;
+    NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const;
 
     void did_enable_devtools() const;
     void did_disable_devtools() const;
@@ -235,6 +235,7 @@ private:
 
     OwnPtr<Hub::Application> m_hub;
     OwnPtr<WebView::Settings> m_settings;
+    OwnPtr<WebView::BookmarkStore> m_bookmark_store;
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
     RefPtr<HubConnection> m_hub_connection;
     OwnPtr<QApplication> m_application;

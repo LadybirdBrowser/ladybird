@@ -56,6 +56,8 @@ private:
     bool m_has_been_built { false };
     QPointer<QMenu> m_context_menu;
 
+    void report_context_menu_item_to_hub() const;
+
     String m_selected_bookmark_menu_item_id;
     QString m_selected_bookmark_menu_item_type;
     Optional<String> m_selected_bookmark_menu_target_folder_id;

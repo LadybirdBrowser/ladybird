@@ -1,4 +1,5 @@
 #include <AK/StringUtils.h>
+#include <Hub/HubClientEndpoint.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
@@ -20,6 +21,10 @@ struct WebView::ViewImplementation::ScreenRects {
 // What the UI asks of the Hub.
 endpoint HubServer
 {
+    update_bookmarks(ByteString bookmarks_json) =|
+    answer_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark> bookmarks) =|
+    answer_bookmark_dialog(u64 request_id, Optional<Hub::BookmarkDialogResult> result) =|
+    bookmark_context_menu_item_changed(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id) =|
     cancel_download(u64 id) =|
     pause_download(u64 id) =|
     resume_download(u64 id) =|

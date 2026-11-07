@@ -534,6 +534,7 @@ private:
     void create_bookmark_menu_items(Optional<MenuData> = {});
 
     virtual Vector<BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const;
+    virtual void read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<BookmarkItem::Bookmark>)>) const;
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;

@@ -28,9 +28,6 @@ public:
     virtual OwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() = 0;
     virtual OwnPtr<WebView::NotificationBackend> create_notification_backend() = 0;
 
-    // Returns whether the UI took care of it, by asking the user.
-    virtual bool show_bookmark_ui_for_view(WebView::ViewImplementation&) = 0;
-
     virtual void create_platform_actions() = 0;
     virtual Optional<String> ui_font_family() const = 0;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const = 0;
@@ -39,7 +36,6 @@ public:
     virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) = 0;
     virtual bool supports_picture_in_picture() const = 0;
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::ViewImplementation& owner_view, u64 view_id, Gfx::IntSize video_size) = 0;
-    virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const = 0;
     virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const = 0;
     virtual bool supports_clipboard_type(WebView::Application::ClipboardType type) const = 0;
     virtual bool supports_system_menu_bar() const = 0;
@@ -53,12 +49,6 @@ public:
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const = 0;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const = 0;
     virtual void rebuild_bookmarks_menu() const = 0;
-    virtual void show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) = 0;
-    virtual Optional<WebView::Application::BookmarkID> bookmark_item_id_for_context_menu() const = 0;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id) const = 0;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const = 0;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const = 0;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const = 0;
 };
 
 // The browser itself: its state, and the helper processes that do its work.
@@ -74,6 +64,9 @@ public:
     void destroy_all_views() { m_views.clear(); }
 
     void set_active_view(Optional<u64> view_id);
+    void did_read_bookmarks_for_all_tabs(u64 request_id, Vector<WebView::BookmarkItem::Bookmark>);
+    void did_get_bookmark_dialog_result(u64 request_id, Optional<Hub::BookmarkDialogResult>);
+    void set_bookmark_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id);
     void did_read_clipboard_text(u64 request_id, Utf16String);
     void did_read_clipboard_item(u64 request_id, Web::Clipboard::SystemClipboardItem);
     void did_get_download_path(u64 request_id, Optional<ByteString>);
@@ -107,6 +100,13 @@ private:
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual void toggle_bookmark_for_view(WebView::ViewImplementation&) override;
+    virtual void read_bookmarks_for_all_tabs_in_current_window(Function<void(Vector<WebView::BookmarkItem::Bookmark>)>) const override;
+    virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) override;
+    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const override { return m_bookmark_context_menu_item; }
+    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id) const override;
+    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const override;
+    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const override;
+    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
     virtual bool captures_browser_crashes() const override { return true; }
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
@@ -119,7 +119,6 @@ private:
     virtual void open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable* canonical_traversable, WebView::IsPrivate is_private) override;
     virtual bool supports_picture_in_picture() const override;
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable& canonical_traversable, Gfx::IntSize video_size) override;
-    virtual Vector<WebView::BookmarkItem::Bookmark> bookmarks_for_all_tabs_in_current_window() const override;
     virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const override;
     virtual bool supports_clipboard_type(WebView::Application::ClipboardType type) const override;
     virtual bool supports_system_menu_bar() const override;
@@ -133,12 +132,6 @@ private:
     virtual Optional<Gfx::GpuDeviceIdentity> platform_presentation_gpu_device() const override;
     virtual Vector<u64> platform_presentation_drm_format_modifiers() const override;
     virtual void rebuild_bookmarks_menu() const override;
-    virtual void show_bookmark_context_menu(Gfx::IntPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id) override;
-    virtual Optional<WebView::Application::BookmarkID> bookmark_item_id_for_context_menu() const override;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_dialog(Optional<String const&> target_folder_id) const override;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_dialog(WebView::BookmarkItem const& current_bookmark, Optional<String const&> parent_folder_id) const override;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title, Optional<String const&> target_folder_id) const override;
-    virtual NonnullRefPtr<WebView::Application::BookmarkPromise> display_edit_bookmark_folder_dialog(WebView::BookmarkItem const& current_folder, Optional<String const&> parent_folder_id) const override;
 
     ApplicationHost* m_host { nullptr };
     HashMap<u64, NonnullOwnPtr<View>> m_views;
@@ -148,7 +141,13 @@ private:
     mutable HashMap<u64, Function<void(Utf16String)>> m_pending_clipboard_text_reads;
     mutable HashMap<u64, Function<void(Web::Clipboard::SystemClipboardItem)>> m_pending_clipboard_item_reads;
     mutable HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_download_paths;
+    mutable HashMap<u64, Function<void(Vector<WebView::BookmarkItem::Bookmark>)>> m_pending_bookmarks_for_all_tabs;
+    mutable HashMap<u64, NonnullRefPtr<BookmarkPromise>> m_pending_bookmark_dialogs;
     mutable u64 m_next_ui_request_id { 1 };
+
+    NonnullRefPtr<BookmarkPromise> display_bookmark_dialog(BookmarkDialogKind, Optional<String> item_id, Optional<String> default_title, Optional<String> folder_id) const;
+
+    Optional<BookmarkID> m_bookmark_context_menu_item;
 };
 
 }

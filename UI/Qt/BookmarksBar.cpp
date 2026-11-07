@@ -13,6 +13,7 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/HubConnection.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
@@ -387,6 +388,12 @@ void BookmarksBar::rebuild()
     }
 }
 
+void BookmarksBar::report_context_menu_item_to_hub() const
+{
+    if (auto* hub = HubConnection::the_if_connected())
+        hub->async_bookmark_context_menu_item_changed(m_selected_bookmark_menu_item_id, m_selected_bookmark_menu_target_folder_id, m_selected_bookmark_menu_parent_folder_id);
+}
+
 void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
     auto* view = current_view();
@@ -397,6 +404,7 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
         m_selected_bookmark_menu_item_id = item->id;
         m_selected_bookmark_menu_target_folder_id = target_folder_id.copy();
         m_selected_bookmark_menu_parent_folder_id = parent_folder_id.copy();
+        report_context_menu_item_to_hub();
 
         if (item->is_bookmark())
             execute_context_menu_later(m_context_menu, *this, view->bookmark_context_menu(), position);
@@ -407,6 +415,7 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = target_folder_id.copy();
         m_selected_bookmark_menu_parent_folder_id = {};
+        report_context_menu_item_to_hub();
 
         execute_context_menu_later(m_context_menu, *this, view->bookmarks_bar_context_menu(), position);
     }
