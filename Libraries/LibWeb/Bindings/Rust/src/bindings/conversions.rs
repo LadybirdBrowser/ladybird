@@ -495,6 +495,32 @@ pub(crate) struct BufferSourceRules {
     pub(crate) allow_resizable: bool,
 }
 
+// https://webidl.spec.whatwg.org/#js-ArrayBuffer
+pub(crate) fn to_array_buffer(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
+    // 1. If V is not an Object, or V does not have an [[ArrayBufferData]] internal slot, then throw a TypeError.
+    let buffer = value
+        .is_object()
+        .then(|| value.as_object().downcast::<ArrayBuffer>())
+        .flatten();
+    let Some(buffer) = buffer else {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"ArrayBuffer"]);
+    };
+    // 2. If IsSharedArrayBuffer(V) is true, then throw a TypeError.
+    if buffer.is_shared_array_buffer() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::SharedArrayBuffer, &[]);
+    }
+    // 3. If the conversion is not to an IDL type associated with the [AllowResizable] extended attribute, and IsFixedLengthArrayBuffer(V) is false, then throw a TypeError.
+    if !rules.allow_resizable && !buffer.is_fixed_length() {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::NotAnObjectOfType,
+            &[&"fixed-length ArrayBuffer"],
+        );
+    }
+    // 4. Return the IDL ArrayBuffer value that is a reference to the same object as V.
+    Ok(buffer)
+}
+
 /// A JS value converted to an IDL typed array value of the kind, whose name is the type's name.
 pub(crate) fn to_typed_array(
     vm: &Vm,

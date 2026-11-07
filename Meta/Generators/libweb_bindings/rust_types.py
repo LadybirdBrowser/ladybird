@@ -435,7 +435,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return "Gc<Object>"
     if name in TYPED_ARRAY_NAMES:
         return "Gc<TypedArrayBase>"
-    if name == "ArrayBuffer" and is_result:
+    if name == "ArrayBuffer":
         return "Gc<ArrayBuffer>"
     callback_function = context.callback_function(idl_type)
     if callback_function is not None:
