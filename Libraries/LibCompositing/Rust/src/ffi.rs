@@ -659,7 +659,6 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_scroll(builder:
         crate::visual_context::SpatialData::Scroll(crate::visual_context::ScrollData {
             state_slot: crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: SpatialNodeIndex(parent),
         }),
         SpatialNodeIndex(parent),
     )

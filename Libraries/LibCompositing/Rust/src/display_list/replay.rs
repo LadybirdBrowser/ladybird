@@ -2166,7 +2166,6 @@ mod tests {
             SpatialData::Scroll(crate::visual_context::ScrollData {
                 state_slot: crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
-                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

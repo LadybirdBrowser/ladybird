@@ -10,7 +10,6 @@ use super::*;
 pub(crate) enum SpatialNodeShape {
     Scroll {
         parent: SpatialNodeIndex,
-        registry_parent_node: SpatialNodeIndex,
     },
     Sticky {
         parent: SpatialNodeIndex,
@@ -75,10 +74,7 @@ pub(crate) struct EffectNodeShape {
 pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
     let parent = node.parent;
     match &node.data {
-        SpatialData::Scroll(scroll) => SpatialNodeShape::Scroll {
-            parent,
-            registry_parent_node: scroll.registry_parent_node,
-        },
+        SpatialData::Scroll(_) => SpatialNodeShape::Scroll { parent },
         SpatialData::Sticky(sticky) => SpatialNodeShape::Sticky {
             parent,
             registry_parent_node: sticky.registry_parent_node,

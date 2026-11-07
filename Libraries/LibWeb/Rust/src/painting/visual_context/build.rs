@@ -297,7 +297,6 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
         SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: viewport,
-            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         }),
         VISUAL_VIEWPORT_NODE_INDEX,
     );
@@ -307,14 +306,10 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
         effect: root_isolation_effect,
     };
 
-    let viewport_nearest_scroll_nodes = NearestScrollNodeIndices {
-        stopping_at_fixed_position_ancestors: viewport_scroll_node,
-        continuing_through_fixed_position_ancestors: viewport_scroll_node,
-    };
     let scrolled = PositioningContext {
         spatial: viewport_scroll_node,
         clip: ClipNodeIndex::NONE,
-        nearest_scroll_nodes: viewport_nearest_scroll_nodes,
+        nearest_scroll_like_node: viewport_scroll_node,
         plane_root: viewport_scroll_node,
     };
     let viewport_contexts = DescendantVisualContexts {
@@ -341,7 +336,6 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
             stacking_context: crate::painting::stacking_context::StackingContextFacts::for_viewport(),
         },
     );
-    viewport_assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     viewport_assignment.own_scroll_node_index = viewport_scroll_node;
     viewport_assignment.has_accumulated_visual_context = true;
     viewport_assignment.accumulated_visual_context = root_context;

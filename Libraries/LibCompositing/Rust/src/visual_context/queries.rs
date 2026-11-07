@@ -916,7 +916,6 @@ mod tests {
         SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
             owner_paintable: NodeSlotId::INVALID,
-            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         })
     }
 
@@ -1632,10 +1631,6 @@ mod tests {
                 parent_sticky: sticky.parent_sticky.map(map),
                 registry_parent_node: map(sticky.registry_parent_node),
                 ..*sticky
-            }),
-            SpatialData::Scroll(scroll) => SpatialData::Scroll(ScrollData {
-                registry_parent_node: map(scroll.registry_parent_node),
-                ..*scroll
             }),
             other => other.clone(),
         }
