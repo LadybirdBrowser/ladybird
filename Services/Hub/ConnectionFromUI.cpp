@@ -30,6 +30,64 @@ void ConnectionFromUI::die()
 {
 }
 
+// What the UI knows an input event by, while the Hub has it. The event carries it through the view's queue, in place of
+// the data about the event that only the UI can hold. Once the event is gone, the UI can let go of that data.
+struct InputFromUI final : public Web::BrowserInputData {
+    InputFromUI(u64 view_id, u64 input_id)
+        : view_id(view_id)
+        , input_id(input_id)
+    {
+    }
+
+    virtual ~InputFromUI() override
+    {
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_release_input(view_id, input_id);
+    }
+
+    u64 view_id { 0 };
+    u64 input_id { 0 };
+};
+
+u64 ConnectionFromUI::input_id_of(Web::BrowserInputData const& browser_data)
+{
+    return as<InputFromUI>(browser_data).input_id;
+}
+
+template<typename EventType>
+static void enqueue_input_from_ui(View& view, u64 input_id, EventType event)
+{
+    event.browser_data = make<InputFromUI>(view.view_id(), input_id);
+    view.enqueue_input_event(move(event));
+    view.push_state_to_ui();
+}
+
+void ConnectionFromUI::view_enqueue_key_event(u64 view_id, u64 input_id, Web::KeyEvent event)
+{
+    if (auto* view = find_view(view_id))
+        enqueue_input_from_ui(*view, input_id, move(event));
+}
+
+void ConnectionFromUI::view_enqueue_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event)
+{
+    if (auto* view = find_view(view_id))
+        enqueue_input_from_ui(*view, input_id, move(event));
+}
+
+void ConnectionFromUI::view_enqueue_drag_event(u64 view_id, u64 input_id, Web::DragEvent event)
+{
+    if (auto* view = find_view(view_id))
+        enqueue_input_from_ui(*view, input_id, move(event));
+}
+
+void ConnectionFromUI::view_enqueue_pinch_event(u64 view_id, Web::PinchEvent event)
+{
+    if (auto* view = find_view(view_id)) {
+        view->enqueue_input_event(move(event));
+        view->push_state_to_ui();
+    }
+}
+
 View* ConnectionFromUI::find_view(u64 view_id)
 {
     auto view = WebView::ViewImplementation::find_view_by_id(view_id);

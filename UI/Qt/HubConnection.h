@@ -28,6 +28,10 @@ private:
     virtual void die() override;
 
     // ^HubClientEndpoint
+    virtual void view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
+    virtual void view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result) override;
+    virtual void view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;
+    virtual void view_release_input(u64 view_id, u64 input_id) override;
     virtual void view_state_changed(u64 view_id, Hub::ViewState state) override;
     virtual void view_load_start(u64 view_id) override;
     virtual void view_load_finish(u64 view_id, URL::URL url) override;

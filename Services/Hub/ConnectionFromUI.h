@@ -22,6 +22,9 @@ public:
 
     static ConnectionFromUI* the();
 
+    // The ID that the UI gave an input event, from the browser data of the event.
+    static u64 input_id_of(Web::BrowserInputData const&);
+
     virtual void die() override;
 
 private:
@@ -30,6 +33,10 @@ private:
     static View* find_view(u64 view_id);
 
     // ^HubServerEndpoint
+    virtual void view_enqueue_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
+    virtual void view_enqueue_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event) override;
+    virtual void view_enqueue_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;
+    virtual void view_enqueue_pinch_event(u64 view_id, Web::PinchEvent event) override;
     virtual void view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior) override;
     virtual void view_load_url_from_user_input(u64 view_id, URL::URL url) override;
     virtual void view_load_from_user_input(u64 view_id, ByteString input, Optional<URL::URL> fallback_url) override;
