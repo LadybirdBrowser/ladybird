@@ -89,8 +89,9 @@ private:
 };
 
 // NB: Fetch checks this cached flag before doing any network instrumentation.
-WEB_API extern bool g_network_events_enabled;
-WEB_API extern bool g_network_configuration_enabled;
+// NB: A session reaches only the window agent, so these are false on the thread of a worker.
+WEB_API bool network_events_enabled();
+WEB_API bool network_configuration_enabled();
 
 void network_session_state_changed();
 void cancel_network_interception(Fetch::Infrastructure::FetchParams const&);

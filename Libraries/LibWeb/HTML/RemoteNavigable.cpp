@@ -25,7 +25,8 @@ GC_DEFINE_ALLOCATOR(RemoteNavigable);
 
 HashTable<GC::RawRef<RemoteNavigable>>& all_remote_navigables()
 {
-    static NeverDestroyed<HashTable<GC::RawRef<RemoteNavigable>>> set;
+    // NB: Worker agents have no navigables, and these are cells of the window agent's heap.
+    static thread_local NeverDestroyed<HashTable<GC::RawRef<RemoteNavigable>>> set;
     return *set;
 }
 

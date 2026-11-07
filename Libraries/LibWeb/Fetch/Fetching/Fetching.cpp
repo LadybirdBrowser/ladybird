@@ -569,7 +569,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
-    if (WebDriver::BiDi::g_network_events_enabled)
+    if (WebDriver::BiDi::network_events_enabled())
         WebDriver::BiDi::initialize_network_request(*request);
 
     // 2. Let response be null.
@@ -985,7 +985,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     // 1. Let timingInfo be fetchParams’s timing info.
     auto timing_info = fetch_params.timing_info();
 
-    if (WebDriver::BiDi::g_network_events_enabled) {
+    if (WebDriver::BiDi::network_events_enabled()) {
         if (response.is_network_error())
             WebDriver::BiDi::network_fetch_error(fetch_params, response.network_error_message().value_or("Network error"_string));
         else {
@@ -1117,7 +1117,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     auto process_response_end_of_body = [fetch_params = NonnullRefPtr { fetch_params }, controller, response_view, setup_report_timing_steps, report_timing_if_appropriate] {
         // 1-2. (See setup_report_timing_steps above)
         setup_report_timing_steps();
-        if (WebDriver::BiDi::g_network_events_enabled && !response_view->is_network_error())
+        if (WebDriver::BiDi::network_events_enabled() && !response_view->is_network_error())
             WebDriver::BiDi::network_response_completed(fetch_params, *response_view->record()->unsafe_response());
 
         // 3. Let processResponseEndOfBodyTask be the following steps:
@@ -1152,11 +1152,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // AD-HOC: Report a body's timing once the network has delivered it. Fetch reports it from the flush of the
     //         transform the body is piped through, which backpressure on an unread body can hold back.
-    if (internal_body.has_value() && (fetch_params.request()->initiator_type().has_value() || (WebDriver::BiDi::g_network_events_enabled && !fetch_params.request()->is_navigation_request()))) {
+    if (internal_body.has_value() && (fetch_params.request()->initiator_type().has_value() || (WebDriver::BiDi::network_events_enabled() && !fetch_params.request()->is_navigation_request()))) {
         auto network_completion_steps = GC::create_function(GC::Heap::the(), [fetch_params = NonnullRefPtr { fetch_params }, response_view, setup_report_timing_steps, report_timing_if_appropriate] {
             setup_report_timing_steps();
             report_timing_if_appropriate();
-            if (WebDriver::BiDi::g_network_events_enabled)
+            if (WebDriver::BiDi::network_events_enabled())
                 WebDriver::BiDi::network_response_completed(*fetch_params, *response_view->record()->unsafe_response());
         });
         internal_body->bytes().visit(
@@ -1661,7 +1661,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
         // 1. Let requestForServiceWorker be a clone of request.
         auto request_for_service_worker = request->clone();
-        if (WebDriver::BiDi::g_network_events_enabled || WebDriver::BiDi::g_network_configuration_enabled)
+        if (WebDriver::BiDi::network_events_enabled() || WebDriver::BiDi::network_configuration_enabled())
             request_for_service_worker->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
         // 2. If requestForServiceWorker’s body is non-null, then:
@@ -1821,7 +1821,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         // 6. If internalResponse’s status is a redirect status:
         if (Infrastructure::is_redirect_status(internal_response->status())) {
-            if (WebDriver::BiDi::g_network_events_enabled)
+            if (WebDriver::BiDi::network_events_enabled())
                 WebDriver::BiDi::network_response_completed(fetch_params, *internal_response);
             // 1. If request is a navigation request, then append to request's navigation timing allow values list
             //    given request and internalResponse.
@@ -2099,7 +2099,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
                 return;
             }
 
-            if (WebDriver::BiDi::g_network_events_enabled && authentication_handled == AuthenticationHandled::No) {
+            if (WebDriver::BiDi::network_events_enabled() && authentication_handled == AuthenticationHandled::No) {
                 auto intercepts = WebDriver::BiDi::get_network_intercepts(fetch_params, "authRequired"sv);
                 if (!intercepts.is_empty()) {
                     WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, fetch_params = NonnullRefPtr { fetch_params }, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
@@ -2264,7 +2264,7 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
         // 11. Set response’s URL list to a clone of httpRequest’s URL list.
         response->set_url_list(http_request->url_list());
 
-        if (WebDriver::BiDi::g_network_events_enabled) {
+        if (WebDriver::BiDi::network_events_enabled()) {
             // NB: Instrumentation may have been enabled after httpRequest was cloned. The controller's original
             //     request must share the identity reported by the prepared request, including on cancellation.
             WebDriver::BiDi::synchronize_network_request(*fetch_params->request(), *http_request);
@@ -2294,10 +2294,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     // 1. Let request be fetchParams’s request.
     auto request = fetch_params.request();
 
-    if (WebDriver::BiDi::g_network_events_enabled)
+    if (WebDriver::BiDi::network_events_enabled())
         WebDriver::BiDi::initialize_network_request(*request);
 
-    if (WebDriver::BiDi::g_network_configuration_enabled)
+    if (WebDriver::BiDi::network_configuration_enabled())
         WebDriver::BiDi::apply_network_cache_behavior(*request);
 
     // 2. Let httpFetchParams be null.
@@ -2552,7 +2552,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // NOTE: This intentionally does not depend on httpRequest’s credentials mode.
 
         WebDriver::BiDi::apply_network_request_header_overrides(*http_request);
-        if (WebDriver::BiDi::g_network_configuration_enabled)
+        if (WebDriver::BiDi::network_configuration_enabled())
             WebDriver::BiDi::apply_network_extra_headers(*http_request);
 
         // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
@@ -2596,7 +2596,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     if (aborted)
         return PendingResponse::create(fetch_params, Infrastructure::Response::appropriate_network_error(fetch_params));
 
-    if (WebDriver::BiDi::g_network_events_enabled) {
+    if (WebDriver::BiDi::network_events_enabled()) {
         auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "beforeRequestSent"sv);
         if (!intercepts.is_empty()) {
             auto returned_pending_response = PendingResponse::create(fetch_params);
@@ -3143,7 +3143,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller = GC::Ref { *preflight_controller }, preflight_fetch_params](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
-        if (WebDriver::BiDi::g_network_events_enabled) {
+        if (WebDriver::BiDi::network_events_enabled()) {
             if (response->is_network_error())
                 WebDriver::BiDi::network_fetch_error(*preflight_fetch_params, response->network_error_message().value_or("Preflight failed"_string));
             else

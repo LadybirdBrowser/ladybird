@@ -24,10 +24,9 @@
 //     this work while the browser process says a BiDi session is active, which only WebDriver can start.
 namespace Web::WebDriver::BiDi {
 
-WEB_API extern bool g_is_active;
-
 // Whether a BiDi session is active.
-inline bool is_active() { return g_is_active; }
+// NB: A session reaches only the window agent, so this is false on the thread of a worker.
+WEB_API bool is_active();
 
 WEB_API void set_session_state(BiDiSessionState);
 WEB_API BiDiSessionState const& session_state();

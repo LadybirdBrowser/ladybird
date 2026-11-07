@@ -26,7 +26,12 @@
 
 namespace Web::WebDriver::BiDi {
 
-bool g_is_active { false };
+static thread_local bool g_is_active { false };
+
+bool is_active()
+{
+    return g_is_active;
+}
 
 static BiDiSessionState& state()
 {
