@@ -12,5 +12,11 @@ race:libweb_rust::css::parser::stylesheet_cache
 # libavcodec, libavutil and libdav1d, which are not instrumented, so touching a buffer another frame
 # thread wrote looks like a race.
 race:libavcodec.so
+race:libavcodec-ladybird.so
 race:libavutil.so
+race:libavutil-ladybird.so
 race:libdav1d.so
+
+# HarfBuzz's language list is lock-free: an item is complete before a compare-and-swap in the uninstrumented library
+# publishes it, and it never changes after that. TSan sees the allocation and the reads, but not the atomic.
+race:lang_find_or_insert
