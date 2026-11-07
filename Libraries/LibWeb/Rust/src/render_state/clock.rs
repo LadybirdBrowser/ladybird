@@ -1411,6 +1411,7 @@ impl Lane {
             }
         };
         let ticked = self.tick(&mut fork, frame_time_nanoseconds, pointer, samples_animations);
+        fork.engine_mut().free_style_records_after_tick();
         self.state = LaneState::Forked { fork, state_moved_on };
         Some(ticked)
     }

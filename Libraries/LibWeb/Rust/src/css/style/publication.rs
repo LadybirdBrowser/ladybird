@@ -693,6 +693,12 @@ impl StyleEngine {
         self.reclaim_unreachable_computed_records();
     }
 
+    /// Frees the records the samples of a clock tick let go of, as a style update does: a fork of the render state sees
+    /// no style update for as long as a task keeps the host from one.
+    pub(crate) fn free_style_records_after_tick(&mut self) {
+        self.reclaim_unreachable_computed_records();
+    }
+
     /// Frees the installed records nothing holds, where nothing views them, and once enough were freed reclaims the
     /// custom-property environments no record names any more. Answers whether it reclaimed them.
     pub(super) fn reclaim_unreachable_computed_records(&mut self) -> bool {
