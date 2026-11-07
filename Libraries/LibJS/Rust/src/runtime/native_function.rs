@@ -244,6 +244,16 @@ impl NativeFunction {
         function.native_function.captures().downcast_ref::<C>()
     }
 
+    /// The entry JIT code can call in an already initialized native frame, if this is a capturing native function.
+    #[cfg(feature = "jit")]
+    pub(crate) fn capturing_call_entry(&self) -> RawNativeFunctionPointer {
+        self.as_native_function_gc().downcast::<CapturingNativeFunction>()?;
+        crate::raw_native!(|vm| {
+            let function = vm.active_function_object().expect("the native frame has its function");
+            CapturingNativeFunction::call(cast_ref(&*function), vm)
+        })
+    }
+
     pub fn as_native_function_gc(&self) -> Gc<NativeFunction> {
         Gc::from_ref(self)
     }
