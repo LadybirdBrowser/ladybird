@@ -1,0 +1,5 @@
+input type: insertFromPaste
+editor: seed<svg><noscript>&lt;/svg&gt;&lt;script&gt;pastedScriptRan = true&lt;/script&gt;&lt;img src=x onerror="pastedScriptRan = true"&gt;</noscript></svg>
+script elements: 0
+img elements: 0
+pasted script ran: false

@@ -14,7 +14,6 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/TagNames.h>
-#include <LibWeb/HTML/XMLSerializer.h>
 
 namespace Web::Editing {
 
@@ -56,12 +55,13 @@ static bool is_unsafe_attribute(DOM::Element const& element, DOM::Attr const& at
     return url.has_value() && url->scheme() == "javascript"sv;
 }
 
-WebIDL::ExceptionOr<Utf16String> sanitize_clipboard_html(DOM::Range& range, Utf16View html)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> sanitize_clipboard_html(DOM::Range& range, Utf16View html)
 {
     // INTEROP: Blink and WebKit parse native clipboard markup in a staging document with scripting disabled before
     //          inserting it. Clipboard data is not TrustedHTML, even when it originated in another browser tab.
+    // NB: Parse inert so that a script the checks below miss cannot run once the fragment is inserted.
     auto markup = Utf16String::from_utf16(html);
-    auto fragment = TRY(range.create_contextual_fragment(markup.to_utf8_but_should_be_ported_to_utf16()));
+    auto fragment = TRY(range.create_contextual_fragment(markup.to_utf8_but_should_be_ported_to_utf16(), HTML::ParserScriptingMode::Inert));
     GC::RootVector<GC::Ref<DOM::Element>> active_elements;
     fragment->for_each_in_subtree([&](GC::Ref<DOM::Node> node) {
         auto* element = as_if<DOM::Element>(*node);
@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<Utf16String> sanitize_clipboard_html(DOM::Range& range, Utf1
 
     for (auto& element : active_elements.in_reverse())
         element->remove();
-    return fragment->serialize_fragment(HTML::RequireWellFormed::No);
+    return fragment;
 }
 
 }

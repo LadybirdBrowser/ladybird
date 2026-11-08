@@ -6,17 +6,13 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
+#include <LibGC/Ptr.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-
-namespace Web::DOM {
-
-class Range;
-
-}
 
 namespace Web::Editing {
 
-WebIDL::ExceptionOr<Utf16String> sanitize_clipboard_html(DOM::Range&, Utf16View);
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> sanitize_clipboard_html(DOM::Range&, Utf16View);
 
 }

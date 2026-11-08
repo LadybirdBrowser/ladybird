@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWebCommon/WebIDL/Types.h>
@@ -106,7 +107,7 @@ public:
     void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const&);
-    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(StringView fragment, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(StringView fragment, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Fragment);
 
     template<typename Callback>
     void for_each_contained(Callback callback) const
