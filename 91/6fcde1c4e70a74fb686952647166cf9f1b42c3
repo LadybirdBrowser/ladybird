@@ -1,0 +1,7 @@
+Ladybird finds the word to select in the text that flows through inline
+elements, stopping at boxes and line breaks. The other engines also read
+words across inline elements: Blink’s SelectionController::
+SelectClosestWordFromHitTestResult() selects between the flat-tree
+positions StartOfWordPosition() and EndOfWordPosition() give, WebKit’s
+startOfWord() and endOfWord() walk visible positions across nodes, and
+Gecko’s nsIFrame::PeekOffsetForWord() moves on across sibling frames.
