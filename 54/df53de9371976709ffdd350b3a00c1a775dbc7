@@ -1,0 +1,6 @@
+Ladybird counts a font’s ascent and descent in whole pixels in layout,
+and puts the floor of the leading above the text and the rest below.
+Blink does the same: FontMetrics::AscentDescentWithHacks() rounds the
+font’s ascent and descent with SkScalarRoundToScalar(), except for
+tiny fonts, and CalculateLeadingSpace() gives the ascent side
+((line_height - height) / 2).Floor() and the descent side the rest.
