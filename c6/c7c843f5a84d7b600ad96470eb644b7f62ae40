@@ -1,0 +1,7 @@
+Ladybird lays out and repaints an SVG image again when a web font its
+document uses finishes loading. The other engines do too: In Blink,
+RemoteFontFaceSource::NotifyFinished() invalidates the image document’s
+font selector, and SVGImageChromeClient::InvalidateContainer() tells the
+image’s observers. In WebKit, CSSFontSelector::fontLoaded() starts the
+document’s font update. And in Gecko, UserFontSetUpdated() dirties the
+frames using the font, which VectorImage reports to its observers.
