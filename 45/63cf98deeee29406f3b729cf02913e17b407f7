@@ -1,0 +1,6 @@
+Ladybird scrolls the beginning of a find-in-page match into view. The
+other engines also scroll the match’s own geometry, not an element
+around it: Blink’s TextFinder scrolls the match’s Range::BoundingBox()
+in ScrollToVisible(), WebKit’s FrameSelection::revealSelection() shows
+the selected match, and Gecko’s nsTypeAheadFind::FindItNow() calls
+ScrollSelectionIntoView() on the selection it makes of the match.
