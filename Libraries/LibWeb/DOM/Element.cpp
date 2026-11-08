@@ -4584,8 +4584,9 @@ void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarg
                 return element->get_bounding_client_rect();
             },
             [](Range* range) {
-                // AD-HOC: Text-fragment scrolling centers the beginning of a match. Using the union
-                //         of every client rect can put the beginning of a long passage outside the viewport.
+                // AD-HOC: A range is scrolled to by its beginning, as text-fragment and find-in-page scrolling show a
+                //         match. Using the union of every client rect can put the beginning of a long passage outside
+                //         the viewport.
                 auto rects = range->client_rects();
                 if (rects.is_empty())
                     return CSSPixelRect {};
