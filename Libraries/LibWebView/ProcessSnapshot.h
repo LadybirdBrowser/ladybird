@@ -37,6 +37,12 @@ struct ProcessTabSnapshot {
     ProcessPageSnapshot page;
 };
 
+// A frame whose document a WebContent process hosts for a tab another process displays.
+struct ProcessFrameSnapshot {
+    URL::URL url;
+    bool is_sandboxed { false };
+};
+
 struct ProcessSnapshot {
     u64 child_id { 0 };
     pid_t pid { 0 };
@@ -47,9 +53,9 @@ struct ProcessSnapshot {
     float cpu_percent { 0 };
     u64 memory_usage_bytes { 0 };
     Optional<ProcessPageSnapshot> page;
-    // The tabs whose pages the process hosts, and how many frames of other tabs' pages it hosts.
+    // The tabs whose pages the process hosts, and the frames of other tabs' pages it hosts.
     Vector<ProcessTabSnapshot> tabs;
-    size_t frame_count { 0 };
+    Vector<ProcessFrameSnapshot> frames;
 };
 
 // Updates the process statistics, and describes every process with the page that best represents it.

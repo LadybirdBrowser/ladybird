@@ -78,6 +78,7 @@ enum class RowKind {
     Site,
     Group,
     Tab,
+    Frame,
 };
 
 // Process rows are identified by the process's child ID, which, unlike its PID, never comes to name another process.
@@ -275,6 +276,16 @@ public:
         painter->restore();
     }
 };
+
+// A frame's URL without what follows its path, which on the frames this names most often is a long tracking query.
+static QString frame_name(URL::URL const& url)
+{
+    if (url.host().has_value())
+        return qstring_from_ak_string(ByteString::formatted("{}{}", url.host()->serialize(), url.serialize_path()));
+    if (url.scheme() == "data"sv)
+        return QStringLiteral("data:");
+    return qstring_from_ak_string(url.serialize_for_display());
+}
 
 // What a row is sorted by in a column.
 QVariant sort_key(QTreeWidgetItem const* item, int column)
@@ -677,7 +688,7 @@ void ProcessManagerWindow::refresh()
         }
         site->processes.append(&process);
         site->tab_count += process.tabs.size();
-        site->frame_count += process.frame_count;
+        site->frame_count += process.frames.size();
         if (process.page.has_value() && (!site->page || (process.page->kind == WebView::ProcessPageKind::TopLevel && site->page->kind != WebView::ProcessPageKind::TopLevel)))
             site->page = &*process.page;
         site->cpu += process.cpu_percent;
@@ -751,6 +762,27 @@ void ProcessManagerWindow::refresh()
             tab_item->setFlags(Qt::ItemIsEnabled);
             tab_item->setToolTip(Name, title);
             tab_item->setIcon(Name, favicon_for(tab.page));
+        }
+        size_t sandboxed_frame_count = 0;
+        for (auto const& frame : process.frames) {
+            auto* frame_item = new QTreeWidgetItem(item, { frame_name(frame.url) });
+            frame_item->setData(Name, KindRole, static_cast<int>(RowKind::Frame));
+            frame_item->setFlags(Qt::ItemIsEnabled);
+            frame_item->setToolTip(Name, qstring_from_ak_string(frame.url.serialize_for_display()));
+            if (frame.is_sandboxed) {
+                frame_item->setData(Name, NoteRole, tr("Sandboxed"));
+                ++sandboxed_frame_count;
+            }
+        }
+        if (auto frame_count = process.frames.size(); frame_count > 0) {
+            if (sandboxed_frame_count == frame_count)
+                item->setData(Name, NoteRole, frame_count == 1 ? tr("1 sandboxed frame") : tr("%1 sandboxed frames").arg(frame_count));
+            else if (sandboxed_frame_count > 0)
+                item->setData(Name, NoteRole, tr("%1 frames, %2 sandboxed").arg(frame_count).arg(sandboxed_frame_count));
+            else
+                item->setData(Name, NoteRole, frame_count == 1 ? tr("1 frame") : tr("%1 frames").arg(frame_count));
+            if (sandboxed_frame_count > 0)
+                item->setToolTip(Name, tr("Sandboxed frames run apart from the other documents of their site."));
         }
         return item;
     };
