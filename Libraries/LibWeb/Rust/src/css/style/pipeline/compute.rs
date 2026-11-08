@@ -2296,7 +2296,16 @@ impl<'a> DecidedWinners<'_, 'a> {
                         )
                         .filter(|value| !value.pointer().is_null())
                     };
-                    initial_value(property).filter(|value| initial_value(inherited_property) == Some(*value))
+                    // NB: A system color resolves against the element's own used color scheme, which the
+                    //     initial style can't know, so that initial value computes with the element.
+                    initial_value(property)
+                        .filter(|value| initial_value(inherited_property) == Some(*value))
+                        .filter(|_| {
+                            !matches!(
+                                crate::css::style_compute::initial_value_handle(property).data(),
+                                StyleValueData::Keyword { keyword } if crate::css::style_compute::keyword_is_color(*keyword)
+                            )
+                        })
                 }
             }
             .filter(|value| {
