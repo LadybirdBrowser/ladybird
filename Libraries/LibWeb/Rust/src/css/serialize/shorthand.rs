@@ -224,7 +224,7 @@ pub(super) fn initial(property: u16) -> Cow<'static, StyleValueData> {
     if !longhands.is_empty() {
         return Cow::Owned(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
             shorthand_property: property,
-            sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+            sub_properties: RetainedPropertyIdList::from_vec(longhands.to_vec()),
             values: RetainedStyleValueDataList::from_retained_values(
                 longhands
                     .iter()

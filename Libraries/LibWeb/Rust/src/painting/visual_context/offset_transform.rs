@@ -99,7 +99,7 @@ fn containing_block_inset_shape(arena: &impl PaintRead, node: NodeSlotId) -> Own
         v3: zero(),
         v4: RetainedStyleValueData::from_owned(radii),
         fill_rule: 0,
-        points: crate::css::style_value::RetainedShapePointList::from_retained_points(Vec::new()),
+        points: crate::css::style_value::RetainedShapePointList::from_vec(Vec::new()),
         path: crate::css::css_path::CssPath::none(),
         commands: crate::css::style_value::ShapeCommands::default(),
     })

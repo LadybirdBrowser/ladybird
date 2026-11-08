@@ -826,7 +826,7 @@ fn build_grid_group(values: &LonghandSource, parent: GroupShares<'_>) -> *const 
 
     let retained_slot = |property: u16| ComputedStyleValueHandle::from_retained(values.handle(property));
     let built = GridValues {
-        names: RetainedUtf16FlyStringList::from_retained_strings(arena.names),
+        names: RetainedUtf16FlyStringList::from_vec(arena.names),
         name_indices: RetainedGridNameIndexList::from_vec(arena.name_indices),
         entries: RetainedGridTrackEntryList::from_vec(arena.entries),
         areas: RetainedGridAreaList::from_vec(arena.areas),
@@ -2366,9 +2366,8 @@ fn build_inherited_ui_group(
         unreachable!("a computed color-scheme is a color-scheme value");
     };
     let ColorSchemePayload { schemes, only, .. } = &**color_scheme_payload;
-    let color_schemes = RetainedUtf16FlyStringList::from_retained_strings(
-        schemes.as_slice().iter().map(|name| name.to_fly_string()).collect(),
-    );
+    let color_schemes =
+        RetainedUtf16FlyStringList::from_vec(schemes.as_slice().iter().map(|name| name.to_fly_string()).collect());
 
     crate::css::computed_values::build_group_payload_with_rust_fill(
         group_index::INHERITED_UI,
@@ -2991,9 +2990,9 @@ fn build_anchor_group(
     }
 
     let built = AnchorValues {
-        anchor_names: RetainedUtf16FlyStringList::from_retained_strings(anchor_names),
+        anchor_names: RetainedUtf16FlyStringList::from_vec(anchor_names),
         anchor_scope_all,
-        anchor_scope_names: RetainedUtf16FlyStringList::from_retained_strings(anchor_scope_names),
+        anchor_scope_names: RetainedUtf16FlyStringList::from_vec(anchor_scope_names),
         position_anchor_type,
         position_anchor_name,
         position_area: RetainedPositionAreaList::from_vec(position_area_keywords),
@@ -3315,7 +3314,7 @@ fn build_box_group(
         is_size_container,
         is_inline_size_container,
         is_scroll_state_container,
-        container_name: RetainedUtf16FlyStringList::from_retained_strings(container_names),
+        container_name: RetainedUtf16FlyStringList::from_vec(container_names),
     };
     crate::css::computed_values::rust_build_box_group(group_index::BOX, built, parent)
 }

@@ -417,7 +417,7 @@ mod tests {
                 StyleValueData::Url(StyleValueBox::new(UrlPayload {
                     url: RetainedString::from_ascii(url.to_owned()),
                     url_type: 0,
-                    modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+                    modifiers: RetainedRequestUrlModifierList::from_vec(Vec::new()),
                 }))
             };
             let first = store(property_id::FILL, url_value());
@@ -428,7 +428,7 @@ mod tests {
             StyleValueData::Image(StyleValueBox::new(ImagePayload {
                 url: RetainedString::from_ascii("https://example.com/image.png".to_owned()),
                 url_type: 0,
-                url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+                url_modifiers: RetainedRequestUrlModifierList::from_vec(Vec::new()),
                 resource_context: ImageResourceContext {
                     base_url: RetainedString::from_ascii(base_url.to_owned()),
                     has_base_url: true,

@@ -656,7 +656,7 @@ fn parse_import_url(context: &ParseContext, value: &ComponentValue) -> Option<Pa
         ComponentKind::Token(ParserTokenKind::String(url)) => StyleValueData::Url(StyleValueBox::new(UrlPayload {
             url: RetainedString::from_utf16(url)?,
             url_type: 0,
-            modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            modifiers: RetainedRequestUrlModifierList::from_vec(Vec::new()),
         })),
         ComponentKind::Token(ParserTokenKind::Url(_)) => parse_url_value(context, value)?,
         ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"url") => {

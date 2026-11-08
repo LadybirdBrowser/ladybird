@@ -50,7 +50,7 @@ fn url_dependencies_only_read_a_base_for_relative_urls() {
         let value = StyleValueData::Url(StyleValueBox::new(UrlPayload {
             url: crate::css::style_value::RetainedString::from_utf16(&url.encode_utf16().collect::<Vec<_>>()).unwrap(),
             url_type: 0,
-            modifiers: crate::css::style_value::RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            modifiers: crate::css::style_value::RetainedRequestUrlModifierList::from_vec(Vec::new()),
         }));
         let dependencies = collect_external_value_dependencies(&value);
         assert_eq!(dependencies.needs_document_base_url, needs_base, "{url}");

@@ -555,10 +555,10 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
             local_name: retained(local_name),
             url: RetainedString::from_ascii(String::new()),
             url_type: 0,
-            url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            url_modifiers: RetainedRequestUrlModifierList::from_vec(Vec::new()),
             has_format: false,
             format: crate::css::css_string::CssString::none(),
-            tech: RetainedByteList::from_bytes(Vec::new()),
+            tech: RetainedByteList::from_vec(Vec::new()),
         })));
     }
 
@@ -602,7 +602,7 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
             Some(format) => CssString::from_utf16(&format),
             None => crate::css::css_string::CssString::none(),
         },
-        tech: RetainedByteList::from_bytes(tech),
+        tech: RetainedByteList::from_vec(tech),
     })))
 }
 

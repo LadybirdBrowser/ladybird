@@ -302,7 +302,7 @@ fn parse_background_position(
     }
     Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property_id::BACKGROUND_POSITION,
-        sub_properties: RetainedPropertyIdList::from_property_ids(vec![
+        sub_properties: RetainedPropertyIdList::from_vec(vec![
             property_id::BACKGROUND_POSITION_X,
             property_id::BACKGROUND_POSITION_Y,
         ]),
@@ -514,7 +514,7 @@ fn parse_border_radius_shorthand(
     } = border_radius_rect_payload.into_inner();
     Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property_id::BORDER_RADIUS,
-        sub_properties: RetainedPropertyIdList::from_property_ids(vec![
+        sub_properties: RetainedPropertyIdList::from_vec(vec![
             property_id::BORDER_TOP_LEFT_RADIUS,
             property_id::BORDER_TOP_RIGHT_RADIUS,
             property_id::BORDER_BOTTOM_RIGHT_RADIUS,
@@ -626,7 +626,7 @@ fn positional_shorthand(property: u16, values: Vec<StyleValueData>) -> Option<St
     };
     Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+        sub_properties: RetainedPropertyIdList::from_vec(longhands.to_vec()),
         values: RetainedStyleValueDataList::from_retained_values(expanded.into_iter().map(retained).collect()),
     })))
 }
@@ -749,7 +749,7 @@ fn basic_shape(
             v3: values.remove(0),
             v4: values.remove(0),
             fill_rule,
-            points: RetainedShapePointList::from_retained_points(points),
+            points: RetainedShapePointList::from_vec(points),
             path,
             commands: crate::css::style_value::ShapeCommands::default(),
         }),
@@ -940,7 +940,7 @@ fn parse_circle_or_ellipse(
             v3: RetainedStyleValueData::none(),
             v4: RetainedStyleValueData::none(),
             fill_rule: 0,
-            points: RetainedShapePointList::from_retained_points(vec![]),
+            points: RetainedShapePointList::from_vec(vec![]),
             path: CssPath::none(),
             commands: crate::css::style_value::ShapeCommands::default(),
         }),
@@ -1330,9 +1330,9 @@ fn parse_shape(context: &ParseContext, property: u16, arguments: &[ComponentValu
             v3: RetainedStyleValueData::none(),
             v4: RetainedStyleValueData::none(),
             fill_rule,
-            points: RetainedShapePointList::from_retained_points(points),
+            points: RetainedShapePointList::from_vec(points),
             path: CssPath::none(),
-            commands: ShapeCommands::new(commands),
+            commands: ShapeCommands::from_vec(commands),
         }),
     })
 }

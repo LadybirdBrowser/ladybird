@@ -10,7 +10,7 @@
 //! module so the same struct layout is emitted into each header's namespace,
 //! the same arrangement `display.rs` uses for `FfiDisplay`.
 
-use crate::css::style_value::retained_list_partial_eq;
+use crate::css::style_value::retained_list;
 /// A retained `AK::Utf16FlyString` with the same one-word representation.
 #[repr(C)]
 pub struct RetainedUtf16FlyString {
@@ -131,24 +131,6 @@ pub struct RetainedUtf16FlyStringList {
 }
 
 impl RetainedUtf16FlyStringList {
-    pub(crate) fn from_retained_strings(strings: Vec<RetainedUtf16FlyString>) -> Self {
-        let slice = strings.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self { pointer, length }
-    }
-
-    pub(crate) fn clone_retained(&self) -> Self {
-        Self::from_retained_strings(self.as_slice().to_vec())
-    }
-
-    pub(crate) fn as_slice(&self) -> &[RetainedUtf16FlyString] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-
     /// The list viewed as raw fly-string words; fly strings are interned, so
     /// equal raws mean equal strings.
     pub(crate) fn raws(&self) -> &[usize] {
@@ -160,17 +142,4 @@ impl RetainedUtf16FlyStringList {
     }
 }
 
-impl Clone for RetainedUtf16FlyStringList {
-    fn clone(&self) -> Self {
-        self.clone_retained()
-    }
-}
-
-impl Drop for RetainedUtf16FlyStringList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
-retained_list_partial_eq!(RetainedUtf16FlyStringList, RetainedUtf16FlyString);
+retained_list!(RetainedUtf16FlyStringList, RetainedUtf16FlyString);

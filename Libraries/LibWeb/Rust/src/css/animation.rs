@@ -187,7 +187,7 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
     StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Easing(StyleValueBox::new(
         crate::css::style_value::EasingPayload {
             kind: descriptor.kind as u8,
-            linear_stops: RetainedLinearEasingStopList::from_retained_elements(stops),
+            linear_stops: RetainedLinearEasingStopList::from_vec(stops),
             x1,
             y1,
             x2,
@@ -1417,7 +1417,7 @@ fn retained_calculation(
             has_percentages_resolve_as: context.has_percentages_resolve_as,
             percentages_resolve_as: context.percentages_resolve_as,
             resolve_numbers_as_integers: context.resolve_numbers_as_integers,
-            accepted_ranges: context.accepted_ranges.clone_owned(),
+            accepted_ranges: context.accepted_ranges.clone(),
         },
     ))))
 }
@@ -2640,7 +2640,7 @@ fn combine_legacy_rgb(
 }
 
 fn empty_shape_points() -> RetainedShapePointList {
-    RetainedShapePointList::from_retained_points(Vec::new())
+    RetainedShapePointList::from_vec(Vec::new())
 }
 
 fn empty_retained_fly_string() -> CssString {
@@ -2890,7 +2890,7 @@ fn interpolate_basic_shape(
                     v3: empty(),
                     v4: empty(),
                     fill_rule: *from_fill_rule,
-                    points: RetainedShapePointList::from_retained_points(points),
+                    points: RetainedShapePointList::from_vec(points),
                     path: crate::css::css_path::CssPath::none(),
                     commands: crate::css::style_value::ShapeCommands::default(),
                 }),
@@ -3007,9 +3007,9 @@ fn interpolate_shape_commands(
             v3: empty(),
             v4: empty(),
             fill_rule: from_fill_rule,
-            points: RetainedShapePointList::from_retained_points(points),
+            points: RetainedShapePointList::from_vec(points),
             path: crate::css::css_path::CssPath::none(),
-            commands: crate::css::style_value::ShapeCommands::new(commands),
+            commands: crate::css::style_value::ShapeCommands::from_vec(commands),
         }),
     })
 }
@@ -3191,7 +3191,7 @@ fn composite_basic_shape(
                     v3: empty(),
                     v4: empty(),
                     fill_rule: *underlying_fill_rule,
-                    points: RetainedShapePointList::from_retained_points(points),
+                    points: RetainedShapePointList::from_vec(points),
                     path: crate::css::css_path::CssPath::none(),
                     commands: crate::css::style_value::ShapeCommands::default(),
                 }),
