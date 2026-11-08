@@ -464,18 +464,7 @@ impl EcmascriptFunctionObject {
     fn instantiate_lazy_prototype(&self, vm: &Vm) {
         self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
 
-        debug_assert!(
-            self.shape().lookup(&vm.names.prototype).is_none(),
-            "a function with a lazy prototype does not have one yet"
-        );
-
-        let realm = self.realm().expect("an ECMAScript function has a realm");
-        let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
-        prototype.initialize_direct(
-            realm.normal_function_prototype_constructor_offset(),
-            Value::from_object(self.as_function_object_gc()),
-        );
-
+        let prototype = self.create_prototype_object(vm);
         let attributes = PropertyAttributes::new(Attribute::WRITABLE);
         // NB: Lazy "length" and "name" are put in front of all other properties when they are made.
         let index = if self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME) {
@@ -508,8 +497,48 @@ impl EcmascriptFunctionObject {
     /// Gives the function all of the properties it makes lazily. This must happen before its shape changes in a way that
     /// insert_properties() cannot rebuild.
     pub(crate) fn reify_lazy_properties(&self, vm: &Vm) {
+        // OPTIMIZATION: When "length", "name" and "prototype" are all lazy, one rebuild of the shape makes them.
+        if self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
+            && self.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
+        {
+            self.set_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME, false);
+            self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
+            let name_string = PrimitiveString::create_from_fly_string(vm, &self.name());
+            let prototype = self.create_prototype_object(vm);
+            let length_and_name_attributes = PropertyAttributes::new(Attribute::CONFIGURABLE);
+            self.insert_properties(
+                vm,
+                0,
+                &[
+                    (&vm.names.length, length_and_name_attributes),
+                    (&vm.names.name, length_and_name_attributes),
+                    (&vm.names.prototype, PropertyAttributes::new(Attribute::WRITABLE)),
+                ],
+                &[
+                    Value::from_i32(self.function_length()),
+                    Value::from_string(name_string),
+                    Value::from_object(prototype),
+                ],
+            );
+            return;
+        }
         self.reify_length_and_name(vm);
         self.instantiate_lazy_prototype_if_needed(vm);
+    }
+
+    /// The object a lazy "prototype" property holds, made as MakeConstructor would make it.
+    fn create_prototype_object(&self, vm: &Vm) -> Gc<Object> {
+        debug_assert!(
+            self.shape().lookup(&vm.names.prototype).is_none(),
+            "a function with a lazy prototype does not have one yet"
+        );
+        let realm = self.realm().expect("an ECMAScript function has a realm");
+        let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
+        prototype.initialize_direct(
+            realm.normal_function_prototype_constructor_offset(),
+            Value::from_object(self.as_function_object_gc()),
+        );
+        prototype
     }
 
     /// Rebuilds the shape from the premade shape of the function's kind with the given properties in front of the one
