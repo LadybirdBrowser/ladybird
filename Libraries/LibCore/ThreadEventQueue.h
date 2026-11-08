@@ -39,6 +39,9 @@ public:
     // Posts an event to the event queue.
     void post_event(EventReceiver*, Core::Event::Type);
 
+    // Posts a Timer event for the timer of the given generation to the event queue.
+    void post_timer_event(EventReceiver*, u64 timer_generation);
+
     // Post a deferred invocation to the event queue.
     void deferred_invoke(Function<void()>&&);
 

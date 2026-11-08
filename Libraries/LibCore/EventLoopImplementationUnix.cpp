@@ -118,12 +118,13 @@ public:
             }
         }
 
-        ThreadEventQueue::current().post_event(strong_owner, Event::Type::Timer);
+        ThreadEventQueue::current().post_timer_event(strong_owner, generation);
     }
 
     AK::Duration interval;
     bool should_reload { false };
     WeakPtr<EventReceiver> owner;
+    u64 generation { 0 };
     AK::ThreadID owner_thread;
     Atomic<bool> is_being_deleted { false };
 };
@@ -583,6 +584,7 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, AK::Duratio
     auto timer = new EventLoopTimer;
     timer->owner_thread = thread_data.thread_id;
     timer->owner = object;
+    timer->generation = object.timer_generation();
     timer->interval = interval;
     // NB: The timer is armed and expired on the precise clock. CLOCK_MONOTONIC_COARSE lags it by up to a scheduler
     //     tick on Linux, so a timer armed against the coarse clock could fire that much before its deadline on the
