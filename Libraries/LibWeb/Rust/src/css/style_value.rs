@@ -3235,6 +3235,142 @@ impl StyleValueData {
         }
     }
 
+    /// Calls `visit` with each value this one directly holds. The operands of a calculation are not
+    /// values: `CalcNode::for_each_child` walks those.
+    pub(crate) fn for_each_child(&self, visit: &mut impl FnMut(&Self)) {
+        fn grid_entries(entries: &[RetainedGridTrackEntry], values: &mut impl FnMut(&[&RetainedStyleValueData])) {
+            for entry in entries {
+                match entry.kind {
+                    GridTrackEntryKind::LineNames => {}
+                    GridTrackEntryKind::Size => values(&[&entry.size_value]),
+                    GridTrackEntryKind::MinMax => values(&[&entry.min_value, &entry.max_value]),
+                    GridTrackEntryKind::Repeat => {
+                        grid_entries(entry.repeat_entries(), values);
+                        values(&[&entry.repeat_count]);
+                    }
+                }
+            }
+        }
+
+        let mut values = |children: &[&RetainedStyleValueData]| {
+            for child in children {
+                if let Some(child) = child.optional_data() {
+                    visit(child);
+                }
+            }
+        };
+        match self {
+            Self::Ratio(ratio) => values(&[&ratio.numerator, &ratio.denominator]),
+            Self::Edge { offset, .. } | Self::OverflowClipMargin { offset, .. } => values(&[offset]),
+            Self::Anchor(_) | Self::AnchorSize(_) => values(&[self.anchor_name_and_fallback().unwrap().2]),
+            Self::RandomValueSharing(sharing) => values(&[&sharing.fixed_value]),
+            Self::Ray(ray) => values(&[&ray.angle, &ray.position]),
+            Self::Function(function) => values(&[&function.value]),
+            Self::OpenTypeTagged(open_type_tagged) => values(&[&open_type_tagged.value]),
+            Self::GridTrackPlacement(placement) => values(&[&placement.value]),
+            Self::OpacityValue { value } | Self::Filter { value, .. } => values(&[value]),
+            Self::GridTrackSizeList(list) => grid_entries(list.entries.as_slice(), &mut values),
+            Self::ColorFunction(color) => values(&[
+                &color.channel_0,
+                &color.channel_1,
+                &color.channel_2,
+                &color.alpha,
+                &color.origin_color,
+            ]),
+            Self::BorderImageSlice(slice) => values(&[&slice.top, &slice.right, &slice.bottom, &slice.left]),
+            Self::Rect(rect) => values(&[&rect.top, &rect.right, &rect.bottom, &rect.left]),
+            Self::Content(content) => values(&[&content.content, &content.alt_text]),
+            Self::RadialSize(size) => values(&[&size.value_0, &size.value_1]),
+            Self::BasicShape { shape } => {
+                let shape = shape.as_ref();
+                values(&[&shape.v0, &shape.v1, &shape.v2, &shape.v3, &shape.v4]);
+                for point in shape.points.as_slice() {
+                    values(&point.values());
+                }
+            }
+            Self::Counter(counter) => values(&[&counter.counter_style]),
+            Self::Cursor(cursor) => values(&[&cursor.image, &cursor.x, &cursor.y]),
+            Self::Easing(easing) => {
+                values(&[
+                    &easing.x1,
+                    &easing.y1,
+                    &easing.x2,
+                    &easing.y2,
+                    &easing.number_of_intervals,
+                ]);
+                for stop in easing.linear_stops.as_slice() {
+                    values(&stop.values());
+                }
+            }
+            Self::ImageSet(image_set) => {
+                for option in image_set.options.as_slice() {
+                    values(&option.values());
+                }
+            }
+            Self::CounterDefinitions(definitions) => {
+                for definition in definitions.counter_definitions.as_slice() {
+                    values(&[definition.value()]);
+                }
+            }
+            Self::LinearGradient(gradient) => {
+                values(&[&gradient.direction_value, &gradient.color_interpolation_method]);
+                for stop in gradient.color_stop_list.as_slice() {
+                    values(&stop.values());
+                }
+            }
+            Self::ConicGradient(gradient) => {
+                values(&[
+                    &gradient.from_angle,
+                    &gradient.position,
+                    &gradient.color_interpolation_method,
+                ]);
+                for stop in gradient.color_stop_list.as_slice() {
+                    values(&stop.values());
+                }
+            }
+            Self::RadialGradient(gradient) => {
+                values(&[&gradient.size, &gradient.position, &gradient.color_interpolation_method]);
+                for stop in gradient.color_stop_list.as_slice() {
+                    values(&stop.values());
+                }
+            }
+            Self::ColorMix(mix) => {
+                values(&[&mix.color_interpolation_method]);
+                for color in mix.colors.as_slice() {
+                    values(&[color]);
+                }
+                for percentage in mix.percentages.as_slice() {
+                    values(&[percentage]);
+                }
+            }
+            Self::ContrastColor { color, .. } => values(&[color]),
+            Self::LightDark(light_dark) => values(&[&light_dark.light, &light_dark.dark]),
+            Self::Superellipse { parameter } => values(&[parameter]),
+            Self::ScrollbarColor(scrollbar) => values(&[&scrollbar.thumb_color, &scrollbar.track_color]),
+            Self::FontStyle { angle_value, .. } => values(&[angle_value]),
+            Self::TextIndent { length_percentage, .. } => values(&[length_percentage]),
+            Self::BackgroundSize(size) => values(&[&size.size_x, &size.size_y]),
+            Self::Position(position) => values(&[&position.edge_x, &position.edge_y]),
+            Self::Shadow(shadow) => values(&[
+                &shadow.color,
+                &shadow.offset_x,
+                &shadow.offset_y,
+                &shadow.blur_radius,
+                &shadow.spread_distance,
+            ]),
+            Self::Shorthand(_) | Self::ValueList { .. } | Self::Tuple { .. } | Self::Transformation(_) => {
+                for child in self.child_values().unwrap().as_slice() {
+                    values(&[child]);
+                }
+            }
+            Self::BorderRadiusRect(rect) => {
+                values(&[&rect.top_left, &rect.top_right, &rect.bottom_right, &rect.bottom_left]);
+            }
+            Self::BorderRadius(radius) => values(&[&radius.horizontal_radius, &radius.vertical_radius]),
+            _ => {}
+        }
+    }
+
     pub(crate) fn as_counter_style_system(&self) -> Option<&CounterStyleSystemPayload> {
         match self {
             Self::CounterStyleSystem(system) => Some(system),
