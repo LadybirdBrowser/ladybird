@@ -31,10 +31,8 @@ Alongside the clocks, the same ledgers carry the physical-work counters: how man
 answer pass reached, how many cold matching rows and candidate checks ran, how many record
 drives started, how many longhand evaluations were physically executed as opposed to
 accepted, and how many drive table slots were copied. A drive that borrows its base copies no
-slots, so that last field reads zero; the copies a published result still makes are counted
-by the FFI diagnostics counters `longhandTableCopiedSlots` and `longhandTableCopyRetains`.
-These are counts of work performed, not of output kept, and they do not depend on how fast
-the machine is.
+slots, so that last field reads zero. These are counts of work performed, not of output kept,
+and they do not depend on how fast the machine is.
 
 `internals.styleCounters()` lists the counters, and `StyleCounter` in `css/style/pipeline/counters.rs` describes each.
 
