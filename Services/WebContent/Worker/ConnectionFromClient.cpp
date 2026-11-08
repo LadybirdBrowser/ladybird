@@ -152,6 +152,7 @@ void ConnectionFromClient::set_preferred_languages(Vector<String> preferred_lang
 
 void ConnectionFromClient::close_worker()
 {
+    m_was_told_to_close = true;
     begin_closing();
 }
 
@@ -170,6 +171,7 @@ void ConnectionFromClient::die()
     if (m_shutdown_finished)
         return;
 
+    m_lost_browser_connection = true;
     begin_closing();
 }
 
@@ -178,6 +180,7 @@ void ConnectionFromClient::did_lose_peer_during_sync_request()
     // NB: Whatever made the request cannot be unwound from here, and a thread cannot take its process with it. So, the
     //     script stops, and the request fails. That is every caller's to handle, as the connection is shut down from the
     //     event loop the script returns to.
+    m_lost_browser_connection = true;
     m_script_abort_handle->abort_script();
     deferred_invoke([this] {
         shutdown();
@@ -212,6 +215,13 @@ void ConnectionFromClient::release_agent_state()
 {
     if (is_open())
         async_did_close_worker();
+
+    if (m_dedicated_worker_thread_link) {
+        if (m_lost_browser_connection && !m_was_told_to_close)
+            m_dedicated_worker_thread_link->report_death_to_owner();
+        else
+            m_dedicated_worker_thread_link->report_close_to_owner();
+    }
 
     if (m_worker_host)
         m_worker_host->run_closing_steps();
@@ -328,31 +338,6 @@ void ConnectionFromClient::handle_file_return(i32 error, Optional<IPC::File> fil
     VERIFY(file_request.value().on_file_request_finish);
 
     file_request.value().on_file_request_finish(error != 0 ? Error::from_errno(error) : ErrorOr<i32> { file->take_fd() });
-}
-
-void ConnectionFromClient::did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    Web::HTML::WorkerAgentParent::did_fail_loading_worker_script(owner_token);
-}
-
-void ConnectionFromClient::did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
-{
-    Web::HTML::WorkerAgentParent::did_report_worker_exception(owner_token, move(message), move(filename), lineno, colno);
-}
-
-void ConnectionFromClient::did_worker_agent_report_content_security_policy_violation(Web::HTML::WorkerAgentOwnerToken owner_token, u64 policy_index, String effective_directive, URL::URL resource)
-{
-    Web::HTML::WorkerAgentParent::did_report_content_security_policy_violation(owner_token, policy_index, move(effective_directive), move(resource));
-}
-
-void ConnectionFromClient::did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    Web::HTML::WorkerAgentParent::did_close_worker(owner_token);
-}
-
-void ConnectionFromClient::did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    Web::HTML::WorkerAgentParent::did_worker_agent_die(owner_token);
 }
 
 void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)

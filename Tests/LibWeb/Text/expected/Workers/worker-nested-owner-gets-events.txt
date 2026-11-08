@@ -1,0 +1,5 @@
+exception: true
+load failure: Event
+ticks long after terminate: 0
+closing
+agents after the owner closed: 0

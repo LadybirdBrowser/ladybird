@@ -7,6 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 #include <WebContent/Worker/PageHost.h>
 #include <WebContent/Worker/WebWorkerCompositorHost.h>
 #include <WebContent/Worker/WorkerThread.h>
@@ -116,12 +117,17 @@ bool PageHost::page_did_is_known_hsts_host(String const& domain)
 
 void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
 {
-    m_client.async_did_report_worker_exception(message, filename, lineno, colno);
+    if (auto* link = m_client.dedicated_worker_thread_link())
+        link->report_exception_to_owner(message, filename, lineno, colno);
 }
 
 // NB: The worker's only client another process hosts is outside settings, whose violations its owner reports.
 void PageHost::page_did_report_violation_of_remote_client(u64 policy_index, String effective_directive, URL::URL resource)
 {
+    if (auto* link = m_client.dedicated_worker_thread_link()) {
+        link->report_content_security_policy_violation_to_owner(policy_index, move(effective_directive), resource);
+        return;
+    }
     m_client.async_did_report_outside_settings_content_security_policy_violation(policy_index, effective_directive, resource);
 }
 
@@ -200,6 +206,8 @@ void PageHost::did_finish_loading_worker_script(bool worker_is_secure_context)
 
 void PageHost::did_fail_loading_worker_script()
 {
+    if (auto* link = m_client.dedicated_worker_thread_link())
+        link->report_script_load_failure_to_owner();
     m_client.async_did_fail_loading_worker_script();
 }
 

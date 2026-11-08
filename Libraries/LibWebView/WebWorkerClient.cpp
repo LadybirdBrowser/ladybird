@@ -92,11 +92,6 @@ void WebWorkerClient::did_fail_loading_worker_script()
     WorkerAgentManager::the().worker_did_fail_loading_script(m_agent_id);
 }
 
-void WebWorkerClient::did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno)
-{
-    WorkerAgentManager::the().worker_did_report_exception(m_agent_id, move(message), move(filename), lineno, colno);
-}
-
 void WebWorkerClient::did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
 {
     WorkerAgentManager::the().worker_did_report_outside_settings_content_security_policy_violation(m_agent_id, policy_index, move(effective_directive), move(resource));

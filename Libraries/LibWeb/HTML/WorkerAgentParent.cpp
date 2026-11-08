@@ -138,6 +138,17 @@ void WorkerAgentParent::start()
     m_agent_id = started_agent.agent_id;
     m_dedicated_worker_thread_link = move(started_agent.dedicated_worker_thread_link);
 
+    if (m_agent_id == 0) {
+        dispatch_error_event();
+        forget_agent();
+        return;
+    }
+    if (m_agent_type == AgentType::DedicatedWorker && !m_dedicated_worker_thread_link) {
+        dispatch_error_event();
+        terminate();
+        return;
+    }
+
     // NB: This is before any script can use the port, so that it finds out right now whether its peer is in this process.
     if (!started_agent.is_hosted_in_this_process)
         give_up_on_parked_end();
