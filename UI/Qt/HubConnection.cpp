@@ -7,6 +7,7 @@
 #include <AK/JsonValue.h>
 #include <LibCore/Process.h>
 #include <LibWebView/CrashReportOutbox.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/Bookmarks.h>
@@ -527,6 +528,18 @@ void HubConnection::translator_open_language_download_settings()
 {
     if (auto* translator = Application::the().translator())
         translator->open_language_download_settings();
+}
+
+void HubConnection::microphone_request_authorization()
+{
+    auto* authorizer = Application::the().microphone_authorizer();
+    if (!authorizer) {
+        async_microphone_authorization_changed(WebView::MicrophoneAuthorization::Authorized);
+        return;
+    }
+    authorizer->request_authorization([this](WebView::MicrophoneAuthorization authorization) {
+        async_microphone_authorization_changed(authorization);
+    });
 }
 
 // The Hub picks its own tag for each document, and the platform gets a tag of its own the first time one is used.

@@ -145,6 +145,7 @@ if (APPLE)
         LadybirdAccessibilityElement.mm
         MacWindow.mm
         MacWindowFocus.mm
+        MicrophoneAuthorizerMacOS.mm
         NativeTextEditingBindings.mm
         Menu.mm
         ScrollbarPreferencesMac.mm
@@ -154,9 +155,10 @@ if (APPLE)
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
-    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework Cocoa" "-framework IOSurface" "-framework QuartzCore")
+    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework AVFoundation" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
         LadybirdAccessibilityElement.mm
+        MicrophoneAuthorizerMacOS.mm
         SpellCheckerMac.mm
         TranslateIconMac.mm
         TranslatorMac.mm

@@ -574,7 +574,8 @@ void Tab::initialize(Optional<u64> hub_view_id)
             view().did_show_permission_prompt(request);
         };
         popover->on_open_settings = [] {
-            HubConnection::the().async_open_microphone_system_settings();
+            if (auto* authorizer = Application::the().microphone_authorizer())
+                authorizer->open_system_settings();
         };
         return popover;
     };

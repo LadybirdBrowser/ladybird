@@ -12,6 +12,7 @@
 #include <Hub/View.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibWebView/ExternalURLHandler.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/SpellChecker.h>
@@ -95,6 +96,26 @@ private:
     HashMap<u64, NonnullRefPtr<Client>> m_clients;
     u64 m_next_id { 1 };
     Core::GeolocationAuthorization m_authorization { Core::GeolocationAuthorization::Unknown };
+};
+
+// NB: The Hub never waits for the UI, so it keeps the last authorization the UI told it about.
+class MicrophoneAuthorizerInUI final : public WebView::MicrophoneAuthorizer {
+public:
+    explicit MicrophoneAuthorizerInUI(WebView::MicrophoneAuthorization);
+    virtual ~MicrophoneAuthorizerInUI() override;
+
+    static MicrophoneAuthorizerInUI* the();
+
+    void did_change_authorization(WebView::MicrophoneAuthorization);
+
+private:
+    virtual WebView::MicrophoneAuthorization authorization() const override { return m_authorization; }
+    virtual void request_authorization(Function<void(WebView::MicrophoneAuthorization)> on_complete) override;
+    // NB: The UI opens the system settings itself.
+    virtual void open_system_settings() override { }
+
+    WebView::MicrophoneAuthorization m_authorization;
+    Vector<Function<void(WebView::MicrophoneAuthorization)>> m_pending_requests;
 };
 
 class TranslatorInUI final : public WebView::Translator {

@@ -71,6 +71,7 @@
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
+#    include <UI/Qt/MicrophoneAuthorizerMacOS.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
 #    include <UI/Qt/SpellCheckerMac.h>
 #endif
@@ -705,6 +706,8 @@ Hub::UIInfo Application::current_ui_info() const
     info.has_spell_checker = m_spell_checker != nullptr;
     info.spell_checker_learns_for_every_tag = m_spell_checker && m_spell_checker->learns_for_every_tag();
     info.spell_checker_can_suggest = m_spell_checker && m_spell_checker->can_suggest();
+    if (m_microphone_authorizer)
+        info.microphone_authorization = m_microphone_authorizer->authorization();
     info.supports_selection_clipboard = supports_clipboard_type(ClipboardType::Selection);
     info.supports_system_menu_bar = supports_system_menu_bar();
     info.supports_vertical_tabs = supports_vertical_tabs();
@@ -728,6 +731,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 #    endif
 #    if defined(AK_OS_MACOS)
     m_spell_checker = create_platform_spell_checker();
+    m_microphone_authorizer = make<MicrophoneAuthorizerMacOS>();
 #    endif
 
     IPC::MessageBuffer ui_info_buffer;
@@ -862,6 +866,17 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         };
     }
 #    endif
+
+    // NB: The user can give the browser the microphone in the system settings at any time, and comes back to the browser
+    //     after doing it.
+    if (m_microphone_authorizer) {
+        QObject::connect(qGuiApp, &QGuiApplication::applicationStateChanged, [this](Qt::ApplicationState state) {
+            if (state != Qt::ApplicationActive)
+                return;
+            if (auto* hub = HubConnection::the_if_connected())
+                hub->async_microphone_authorization_changed(m_microphone_authorizer->authorization());
+        });
+    }
 
     QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, [this] {
         if (auto* hub = HubConnection::the_if_connected())

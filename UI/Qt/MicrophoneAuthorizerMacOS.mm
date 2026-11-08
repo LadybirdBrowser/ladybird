@@ -8,12 +8,14 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
-#include <LibWebView/MicrophoneAuthorizerMacOS.h>
+#include <UI/Qt/MicrophoneAuthorizerMacOS.h>
 
 #import <AVFoundation/AVFoundation.h>
 #import <CoreServices/CoreServices.h>
 
-namespace WebView {
+namespace Ladybird {
+
+using WebView::MicrophoneAuthorization;
 
 namespace Detail {
 

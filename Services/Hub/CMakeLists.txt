@@ -31,5 +31,4 @@ add_executable(Hub main.cpp)
 target_include_directories(Hub PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 target_link_libraries(Hub PRIVATE hubservice hubipc LibCore LibHTTP LibIPC LibMain LibRequests LibURL LibWebView)
 
-# NB: The hardened runtime refuses a process that asks for the microphone unless it has this entitlement.
-ladybird_sign_helper_process(Hub ENTITLEMENTS com.apple.security.device.audio-input)
+ladybird_sign_helper_process(Hub)
