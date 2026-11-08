@@ -634,6 +634,7 @@ set(SOURCES
     HTML/VideoPlaybackQuality.cpp
     HTML/VideoTrack.cpp
     HTML/VideoTrackList.cpp
+    HTML/VisibilityStateEntry.cpp
     HTML/WebViewHints.cpp
     HTML/Window.cpp
     HTML/WindowEventHandlers.cpp

@@ -28,6 +28,7 @@ inline bool is_supported_for_global(SupportedPerformanceEntryTypeGlobals globals
     __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::measure, UserTiming::PerformanceMeasure, WindowAndWorker)                             \
     __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::navigation, NavigationTiming::PerformanceNavigationTiming, WindowOnly)                \
     __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::paint, PaintTiming::PerformancePaintTiming, WindowOnly)                               \
-    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::resource, ResourceTiming::PerformanceResourceTiming, WindowAndWorker)
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::resource, ResourceTiming::PerformanceResourceTiming, WindowAndWorker)                 \
+    __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(PerformanceTimeline::EntryTypes::visibility_state, HTML::VisibilityStateEntry, WindowOnly)
 
 }

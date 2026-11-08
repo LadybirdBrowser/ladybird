@@ -1,0 +1,9 @@
+Supported: true
+Initial: 1 visible startTime=0 duration=0
+toJSON: {"name":"visible","entryType":"visibility-state","startTime":0,"duration":0}
+After hiding and showing: 3
+VisibilityStateEntry visibility-state hidden startTime>0=true duration=0
+VisibilityStateEntry visibility-state visible startTime>0=true duration=0
+Ordered: true
+Observed: hidden, visible
+Iframe created while hidden: hidden@0

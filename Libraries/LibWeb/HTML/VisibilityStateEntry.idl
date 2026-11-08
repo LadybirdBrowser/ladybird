@@ -1,0 +1,5 @@
+// https://html.spec.whatwg.org/multipage/interaction.html#visibilitystateentry
+[Exposed=Window]
+interface VisibilityStateEntry : PerformanceEntry {
+    [Default] object toJSON();
+};

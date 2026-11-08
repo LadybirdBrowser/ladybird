@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Timer.h>
+#include <LibWeb/HTML/VisibilityStateEntry.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -1139,6 +1140,12 @@ void WindowOrWorkerGlobalScopeMixin::queue_performance_entry(GC::Ref<Performance
     //         the performance observer task. The users of the Performance Timeline specification also do not expect
     //         this function to add to the entry buffer, instead queuing the observer task, then adding to the entry
     //         buffer separately.
+
+    // OPTIMIZATION: The PerformanceObserver task delivers only what observers have buffered. An entry that no observer
+    //               is interested in buffers nothing, so it doesn't queue the task. A document's initial visibility
+    //               state entry, e.g., then doesn't queue a task for every new document.
+    if (interested_observers.is_empty())
+        return;
 
     // 10. Queue the PerformanceObserver task with relevantGlobal as input.
     queue_the_performance_observer_task();

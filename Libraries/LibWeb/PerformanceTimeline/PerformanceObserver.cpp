@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/PerformanceObserverEntryList.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/VisibilityStateEntry.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
