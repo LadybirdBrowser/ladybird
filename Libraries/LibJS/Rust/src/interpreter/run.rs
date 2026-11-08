@@ -616,10 +616,16 @@ impl Vm {
                 previous_context = Some((context.caller_frame.get(), context.caller_return_pc.get()));
 
                 let executable = Executable::from_head(executable);
-                let handler = executable.exception_handlers_for_offset(context_program_counter);
-                if handler.is_some_and(|handler| handler.catches_exception) {
-                    exception_will_be_caught = true;
-                    return ControlFlow::Break(());
+                let mut offset = context_program_counter;
+                for _ in 0..executable.exception_handlers().len() {
+                    let Some(handler) = executable.exception_handlers_for_offset(offset) else {
+                        break;
+                    };
+                    if handler.catches_exception {
+                        exception_will_be_caught = true;
+                        return ControlFlow::Break(());
+                    }
+                    offset = handler.handler_offset;
                 }
                 ControlFlow::Continue(())
             });
