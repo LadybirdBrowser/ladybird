@@ -627,9 +627,9 @@ GC::Ref<HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
         auto& root = as<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
-        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, const_cast<HTMLFormElement&>(*this), [this](Element const& element) {
-            return is_form_control(element, *this);
-        });
+        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, const_cast<HTMLFormElement&>(*this), GC::create_function(heap(), GC::captures(*this), [](HTMLFormElement const& form, Element const& element) {
+            return is_form_control(element, form);
+        }));
     }
     return *m_elements;
 }
@@ -1224,14 +1224,14 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto filter = [this, name](DOM::Node const& node) -> bool {
+    auto filter = [](HTMLFormElement const& form, Utf16FlyString const& name, DOM::Node const& node) -> bool {
         auto const* element = as_if<DOM::Element>(node);
         if (!element)
             return false;
 
         // Form controls are defined as listed elements, with the exception of input elements in the Image Button state,
         // whose form owner is the form element.
-        if (!is_form_control(*element, *this))
+        if (!is_form_control(*element, form))
             return false;
 
         return name == element->id() || name == element->name();
@@ -1240,12 +1240,12 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
     // 2. If candidates is empty, let candidates be a live RadioNodeList object containing all the img elements,
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
-    auto image_filter = [this, name](DOM::Node const& node) -> bool {
+    auto image_filter = [](HTMLFormElement const& form, Utf16FlyString const& name, DOM::Node const& node) -> bool {
         auto const* element = as_if<HTMLImageElement>(node);
         if (!element)
             return false;
 
-        if (element->form() != this)
+        if (element->form() != &form)
             return false;
 
         return name == element->id() || name == element->name();
@@ -1260,7 +1260,7 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
         first_candidate = nullptr;
         candidate_count = 0;
         for (auto const& element : m_associated_elements_in_tree_order) {
-            if (!candidate_filter(*element))
+            if (!candidate_filter(*this, name, *element))
                 continue;
             if (!first_candidate)
                 first_candidate = element;
@@ -1284,8 +1284,8 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
     // 4. If candidates contains more than one node, return candidates.
     if (candidate_count > 1) {
         if (candidates_are_images)
-            return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(image_filter));
-        return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(filter), DOM::LiveNodeList::Kind::FormControls);
+            return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, GC::create_function(heap(), GC::captures(*this, name), image_filter));
+        return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, GC::create_function(heap(), GC::captures(*this, name), filter), DOM::LiveNodeList::Kind::FormControls);
     }
 
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form

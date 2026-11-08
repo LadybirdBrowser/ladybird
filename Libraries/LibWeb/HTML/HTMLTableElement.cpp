@@ -357,7 +357,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::t_bodies()
     // The tBodies attribute must return an HTMLCollection rooted at the table node,
     // whose filter matches only tbody elements that are children of the table element.
     if (!m_t_bodies) {
-        m_t_bodies = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Children, [](DOM::Element const& element) { return element.local_name() == TagNames::tbody; }, DOM::HTMLCollection::AttributeInvalidationType::None);
+        m_t_bodies = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Children, GC::create_function(GC::Heap::the(), [](DOM::Element const& element) { return element.local_name() == TagNames::tbody; }), DOM::HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_t_bodies;
 }
@@ -389,7 +389,6 @@ GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_body()
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-rows
 GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
 {
-    HTMLTableElement* table_node = this;
     // The elements in the collection must be ordered such that those elements whose parent is a thead are included
     // first, in tree order, followed by those elements whose parent is either a table or tbody element, again in tree
     // order, followed finally by those elements whose parent is a tfoot element, still in tree order.
@@ -397,22 +396,22 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
         m_rows = DOM::HTMLCollection::create(
             *this,
             DOM::HTMLCollection::Scope::Descendants,
-            [table_node](DOM::Element const& element) {
+            GC::create_function(heap(), GC::captures(*this), [](HTMLTableElement const& table_node, DOM::Element const& element) {
             // Only match TR elements which are:
             // * children of the table element
             // * children of the thead, tbody, or tfoot elements that are themselves children of the table element
             if (!is<HTMLTableRowElement>(element)) {
                 return false;
             }
-            if (element.parent_element().ptr() == table_node)
+            if (element.parent_element().ptr() == &table_node)
                 return true;
 
-            if (element.parent_element() && element.parent_element()->local_name().is_one_of(TagNames::thead, TagNames::tbody, TagNames::tfoot) && element.parent()->parent() == table_node)
+            if (element.parent_element() && element.parent_element()->local_name().is_one_of(TagNames::thead, TagNames::tbody, TagNames::tfoot) && element.parent()->parent() == &table_node)
                 return true;
 
-            return false; },
+            return false; }),
             DOM::HTMLCollection::AttributeInvalidationType::None,
-            [](Element const& a, Element const& b) -> bool {
+            GC::create_function(heap(), [](Element const& a, Element const& b) -> bool {
                 auto static sort_priority = [](Element const& element) {
                     auto const& parent_tag = element.parent_element()->local_name();
                     if (parent_tag == TagNames::thead)
@@ -430,7 +429,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
                 if (prio_a != prio_b)
                     return prio_a < prio_b;
 
-                return false; });
+                return false; }));
     }
     return *m_rows;
 }

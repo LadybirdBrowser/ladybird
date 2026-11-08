@@ -19,16 +19,16 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(HTMLCollection);
 
-GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, AttributeInvalidationType attribute_invalidation_type, Function<bool(Element const&, Element const&)> sort, Kind kind)
+GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Filter filter, AttributeInvalidationType attribute_invalidation_type, Sort sort, Kind kind)
 {
-    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), attribute_invalidation_type, move(sort), kind);
+    return GC::Heap::the().allocate<HTMLCollection>(root, scope, filter, attribute_invalidation_type, sort, kind);
 }
 
-HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, AttributeInvalidationType attribute_invalidation_type, Function<bool(Element const&, Element const&)> sort, Kind kind)
+HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Filter filter, AttributeInvalidationType attribute_invalidation_type, Sort sort, Kind kind)
     : GC::WeakContainer(heap())
     , m_root(root)
-    , m_filter(move(filter))
-    , m_sort(move(sort))
+    , m_filter(filter)
+    , m_sort(sort)
     , m_cache_registration(*this)
     , m_scope(scope)
     , m_kind(kind)
@@ -48,8 +48,8 @@ void HTMLCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
-    visitor.visit_possible_values(m_filter.raw_capture_range());
-    visitor.visit_possible_values(m_sort.raw_capture_range());
+    visitor.visit(m_filter);
+    visitor.visit(m_sort);
 }
 
 GC::Cell const& HTMLCollection::owner_cell(Badge<GC::Heap>) const
@@ -98,13 +98,13 @@ void HTMLCollection::collect_elements_into(Vector<GC::RawPtr<Element>>& elements
 {
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree_of_type<Element>([&](auto& element) {
-            if (m_filter(element))
+            if ((*m_filter)(element))
                 elements.append(element);
             return TraversalDecision::Continue;
         });
     } else {
         m_root->for_each_child_of_type<Element>([&](auto& element) {
-            if (m_filter(element))
+            if ((*m_filter)(element))
                 elements.append(element);
             return IterationDecision::Continue;
         });
@@ -130,7 +130,7 @@ void HTMLCollection::update_cache_if_needed() const
 
     if (m_sort) {
         insertion_sort(m_cached_elements, [this](auto const& a, auto const& b) {
-            return this->m_sort(*a, *b);
+            return (*this->m_sort)(*a, *b);
         });
     }
 
@@ -190,7 +190,7 @@ void HTMLCollection::invalidate_cache_for_attribute_change(Element const& elemen
     // OPTIMIZATION: The cache still records whether the element matched before the attribute
     // change. Keep the element vector when reevaluating the filter produces the same result.
     bool was_matching = m_cached_elements.contains([&](auto const& cached_element) { return cached_element.ptr() == &element; });
-    if (was_matching != m_filter(element)) {
+    if (was_matching != (*m_filter)(element)) {
         invalidate_cache();
         return;
     }

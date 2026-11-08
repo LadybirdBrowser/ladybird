@@ -1691,11 +1691,11 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
         return;
     if (!document->url().scheme().is_one_of("http"sv, "https"sv))
         return;
-    auto icon_link_elements = DOM::HTMLCollection::create(*document, DOM::HTMLCollection::Scope::Descendants, [](DOM::Element const& element) {
+    auto icon_link_elements = DOM::HTMLCollection::create(*document, DOM::HTMLCollection::Scope::Descendants, GC::create_function(GC::Heap::the(), [](DOM::Element const& element) {
         if (!is<HTMLLinkElement>(element))
             return false;
 
-        return static_cast<HTMLLinkElement const&>(element).has_icon_keyword(); }, DOM::HTMLCollection::AttributeInvalidationType::None);
+        return static_cast<HTMLLinkElement const&>(element).has_icon_keyword(); }), DOM::HTMLCollection::AttributeInvalidationType::None);
     if (icon_link_elements->length() != 0)
         return;
 

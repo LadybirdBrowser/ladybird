@@ -3047,9 +3047,9 @@ GC::Ref<NodeList> Node::child_nodes()
 {
     auto& child_nodes = ensure_rare_data().child_nodes;
     if (!child_nodes) {
-        child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, [](auto&) {
+        child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, GC::create_function(heap(), [](Node const&) {
             return true;
-        });
+        }));
     }
     return *child_nodes;
 }

@@ -98,13 +98,13 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
 {
     // The elements IDL attribute must return an HTMLCollection rooted at the fieldset element, whose filter matches listed elements.
     if (!m_elements) {
-        auto filter = [](DOM::Element const& element) {
+        auto filter = GC::create_function(heap(), [](DOM::Element const& element) {
             if (auto const* form_associated_element = as_if<FormAssociatedElement>(element); form_associated_element && form_associated_element->is_listed())
                 return true;
 
             return false;
-        };
-        m_elements = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), DOM::HTMLCollection::AttributeInvalidationType::FormControls, nullptr, DOM::HTMLCollection::Kind::FormControls);
+        });
+        m_elements = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, filter, DOM::HTMLCollection::AttributeInvalidationType::FormControls, nullptr, DOM::HTMLCollection::Kind::FormControls);
     }
     return m_elements;
 }
