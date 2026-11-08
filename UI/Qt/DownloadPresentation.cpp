@@ -8,9 +8,9 @@
 #include <AK/StdLibExtras.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
-#include <LibWebView/DownloadPresentation.h>
+#include <UI/Qt/DownloadPresentation.h>
 
-namespace WebView {
+namespace Ladybird {
 
 static constexpr auto max_visible_downloads_in_popover = 5uz;
 
@@ -85,9 +85,9 @@ String download_time_remaining_text(AK::Duration time_remaining)
     return MUST(String::formatted("{} {} left", download_count_text(hours, "hour"sv, "hours"sv), download_count_text(minutes, "minute"sv, "minutes"sv)));
 }
 
-String download_status_text(FileDownloader::Download const& download)
+String download_status_text(WebView::FileDownloader::Download const& download)
 {
-    using DownloadStatus = FileDownloader::DownloadStatus;
+    using DownloadStatus = WebView::FileDownloader::DownloadStatus;
 
     // The progress bar beside the status shows how far along a download is, so the status says only how much of
     // it has arrived, such as "12.4 of 19.3 MB".
@@ -131,9 +131,9 @@ String download_status_text(FileDownloader::Download const& download)
     VERIFY_NOT_REACHED();
 }
 
-Vector<FileDownloader::Download const*> recent_downloads_for_popover(ReadonlySpan<FileDownloader::Download> downloads)
+Vector<WebView::FileDownloader::Download const*> recent_downloads_for_popover(ReadonlySpan<WebView::FileDownloader::Download> downloads)
 {
-    Vector<FileDownloader::Download const*> visible_downloads;
+    Vector<WebView::FileDownloader::Download const*> visible_downloads;
     visible_downloads.ensure_capacity(AK::min(downloads.size(), max_visible_downloads_in_popover));
 
     for (size_t i = downloads.size(); i > 0 && visible_downloads.size() < max_visible_downloads_in_popover; --i)
@@ -142,7 +142,7 @@ Vector<FileDownloader::Download const*> recent_downloads_for_popover(ReadonlySpa
     return visible_downloads;
 }
 
-DownloadsButtonState downloads_button_state(ReadonlySpan<FileDownloader::Download> downloads)
+DownloadsButtonState downloads_button_state(ReadonlySpan<WebView::FileDownloader::Download> downloads)
 {
     DownloadsButtonState state;
     state.has_downloads = !downloads.is_empty();
@@ -153,7 +153,7 @@ DownloadsButtonState downloads_button_state(ReadonlySpan<FileDownloader::Downloa
 
     for (auto const& download : downloads) {
         switch (download.status) {
-        case FileDownloader::DownloadStatus::InProgress:
+        case WebView::FileDownloader::DownloadStatus::InProgress:
             ++state.active_download_count;
             if (download.total_size.has_value() && *download.total_size > 0) {
                 known_downloaded_size += AK::min(download.downloaded_size, *download.total_size);
@@ -162,15 +162,15 @@ DownloadsButtonState downloads_button_state(ReadonlySpan<FileDownloader::Downloa
                 ++unknown_active_download_count;
             }
             break;
-        case FileDownloader::DownloadStatus::Paused:
+        case WebView::FileDownloader::DownloadStatus::Paused:
             ++state.paused_download_count;
             break;
-        case FileDownloader::DownloadStatus::Completed:
+        case WebView::FileDownloader::DownloadStatus::Completed:
             ++state.completed_download_count;
             break;
-        case FileDownloader::DownloadStatus::Canceled:
+        case WebView::FileDownloader::DownloadStatus::Canceled:
             break;
-        case FileDownloader::DownloadStatus::Failed:
+        case WebView::FileDownloader::DownloadStatus::Failed:
             ++state.failed_download_count;
             break;
         }

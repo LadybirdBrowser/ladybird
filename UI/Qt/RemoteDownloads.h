@@ -45,6 +45,8 @@ public:
 private:
     friend class RemoteDownloadsObserver;
 
+    static void open_path(ByteString const& path, StringView error_message);
+
     Vector<Download> m_downloads;
     HashMap<u64, Vector<WebView::FileDownloader::SegmentProgress>> m_segments;
     Vector<RemoteDownloadsObserver&> m_observers;

@@ -132,7 +132,6 @@ private:
     virtual void app_open_view_in_new_tab(u64 view_id, Optional<u64> source_view_id, WebView::IsPrivate is_private, Web::HTML::ActivateTab activate_tab) override;
     virtual void app_display_error_dialog(String message) override;
     virtual void app_display_download_confirmation_dialog(String download_name, ByteString path) override;
-    virtual void app_open_file(String path) override;
     virtual void app_read_clipboard_text(u64 request_id, WebView::Application::ClipboardType type) override;
     virtual void app_read_clipboard_item(u64 request_id) override;
     virtual void app_ask_user_for_download_path(u64 request_id, ByteString file) override;

@@ -28,7 +28,6 @@ set(SOURCES
     CrashReportReview.cpp
     CrashReportStore.cpp
     CrashReportSubmission.cpp
-    DownloadPresentation.cpp
     DownloadSegmentation.cpp
     DownloadStore.cpp
     ExternalURLHandler.cpp

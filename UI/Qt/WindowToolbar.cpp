@@ -11,13 +11,13 @@
 #include <AK/kmalloc.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReportOutbox.h>
-#include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/WebCompatReport.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ApplicationActions.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/DownloadPresentation.h>
 #include <UI/Qt/FeedbackPopover.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/LadybirdButton.h>
@@ -927,7 +927,7 @@ public:
         m_file_name_label->setToolTip(qstring_from_ak_string(download.destination.string()));
         m_file_icon->set_extension(qstring_from_ak_string(download.destination.extension()));
 
-        auto status_text = qstring_from_ak_string(WebView::download_status_text(download));
+        auto status_text = qstring_from_ak_string(download_status_text(download));
         m_status_label->setText(status_text);
         m_status_label->setToolTip(status_text);
         auto failed = download.status == WebView::FileDownloader::DownloadStatus::Failed;
@@ -1059,7 +1059,7 @@ public:
     bool set_downloads(ReadonlySpan<WebView::FileDownloader::Download> downloads)
     {
         bool geometry_changed = false;
-        auto visible_downloads = WebView::recent_downloads_for_popover(downloads);
+        auto visible_downloads = recent_downloads_for_popover(downloads);
 
         if (!rows_match(visible_downloads)) {
             rebuild_rows(visible_downloads);
@@ -1947,7 +1947,7 @@ void WindowToolbar::recreate_icons()
 void WindowToolbar::update_downloads_button()
 {
     auto downloads = RemoteDownloads::the().downloads_of_session(m_is_private);
-    auto button_state = WebView::downloads_button_state(downloads);
+    auto button_state = downloads_button_state(downloads);
 
     if (!button_state.has_downloads && m_downloads_popover)
         m_downloads_popover->close();
@@ -2041,7 +2041,7 @@ void WindowToolbar::show_feedback_popover()
 void WindowToolbar::show_downloads_popover()
 {
     auto downloads = RemoteDownloads::the().downloads_of_session(m_is_private);
-    if (!WebView::downloads_button_state(downloads).has_downloads) {
+    if (!downloads_button_state(downloads).has_downloads) {
         m_open_downloads_page_action->trigger();
         return;
     }

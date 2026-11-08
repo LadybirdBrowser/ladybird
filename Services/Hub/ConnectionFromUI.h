@@ -129,8 +129,6 @@ private:
     virtual void cancel_download(u64 id) override;
     virtual void pause_download(u64 id) override;
     virtual void resume_download(u64 id) override;
-    virtual void open_download(u64 id) override;
-    virtual void show_download_in_folder(u64 id) override;
     virtual void prune_inactive_downloads(WebView::IsPrivate is_private) override;
     virtual void pause_active_downloads() override;
     virtual void cancel_unresumable_downloads() override;

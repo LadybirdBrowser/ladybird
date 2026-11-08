@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <UI/Qt/Application.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/RemoteDownloads.h>
 
@@ -117,14 +118,29 @@ void RemoteDownloads::resume_download(u64 id)
     HubConnection::the().async_resume_download(id);
 }
 
+void RemoteDownloads::open_path(ByteString const& path, StringView error_message)
+{
+    if (auto path_string = String::from_byte_string(path); !path_string.is_error())
+        Application::the().open_file(path_string.value());
+    else
+        Application::the().display_error_dialog(error_message);
+}
+
+// NB: The UI opens a download itself, as only it sees the user ask for that. The Hub cannot have the UI open any file.
 void RemoteDownloads::open(u64 id)
 {
-    HubConnection::the().async_open_download(id);
+    auto download = this->download(id);
+    if (!download.has_value() || download->status != WebView::FileDownloader::DownloadStatus::Completed)
+        return;
+    open_path(download->destination.string(), "Unable to open downloaded file: path cannot be represented by this frontend"sv);
 }
 
 void RemoteDownloads::show_in_folder(u64 id)
 {
-    HubConnection::the().async_show_download_in_folder(id);
+    auto download = this->download(id);
+    if (!download.has_value() || download->status != WebView::FileDownloader::DownloadStatus::Completed)
+        return;
+    open_path(download->destination.dirname(), "Unable to show downloaded file: path cannot be represented by this frontend"sv);
 }
 
 void RemoteDownloads::prune_inactive_downloads(WebView::IsPrivate is_private)

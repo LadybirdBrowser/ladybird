@@ -2289,31 +2289,6 @@ void Application::display_error_dialog(StringView error_message) const
     warnln("{}", error_message);
 }
 
-static ErrorOr<String> download_path_for_frontend_action(LexicalPath const& path)
-{
-    return String::from_utf8(path.string().view());
-}
-
-ErrorOr<String> Application::download_file_path_for_frontend_action(FileDownloader::Download const& download) const
-{
-    return download_path_for_frontend_action(download.destination);
-}
-
-ErrorOr<String> Application::download_directory_path_for_frontend_action(FileDownloader::Download const& download) const
-{
-    return download_path_for_frontend_action(LexicalPath { download.destination.dirname() });
-}
-
-void Application::open_download(FileDownloader::Download const& download) const
-{
-    outln("Open downloaded file: {}", download.destination);
-}
-
-void Application::show_download_in_folder(FileDownloader::Download const& download) const
-{
-    outln("Show downloaded file in folder: {}", download.destination);
-}
-
 bool Application::supports_clipboard_type(ClipboardType type) const
 {
     return type == ClipboardType::Text;

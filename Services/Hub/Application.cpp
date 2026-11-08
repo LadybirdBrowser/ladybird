@@ -230,28 +230,6 @@ void Application::display_error_dialog(StringView error_message) const
         WebView::Application::display_error_dialog(error_message);
 }
 
-void Application::open_download(WebView::FileDownloader::Download const& download) const
-{
-    auto path = download_file_path_for_frontend_action(download);
-    if (path.is_error()) {
-        display_error_dialog("Unable to open downloaded file: path cannot be represented by this frontend"sv);
-        return;
-    }
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_open_file(path.release_value());
-}
-
-void Application::show_download_in_folder(WebView::FileDownloader::Download const& download) const
-{
-    auto path = download_directory_path_for_frontend_action(download);
-    if (path.is_error()) {
-        display_error_dialog("Unable to show downloaded file: path cannot be represented by this frontend"sv);
-        return;
-    }
-    if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_open_file(path.release_value());
-}
-
 void Application::set_clipboard_text(String text, ClipboardType type)
 {
     if (auto* ui = ConnectionFromUI::the())

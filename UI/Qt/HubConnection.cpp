@@ -320,11 +320,6 @@ void HubConnection::app_display_download_confirmation_dialog(String download_nam
     Application::the().display_download_confirmation_dialog(download_name, path);
 }
 
-void HubConnection::app_open_file(String path)
-{
-    Application::the().open_file(path);
-}
-
 void HubConnection::app_read_clipboard_text(u64 request_id, WebView::Application::ClipboardType type)
 {
     async_answer_clipboard_text(request_id, Application::the().clipboard_text(type));
