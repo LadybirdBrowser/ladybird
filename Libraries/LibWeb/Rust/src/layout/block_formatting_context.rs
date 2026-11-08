@@ -215,6 +215,8 @@ struct UnplacedBlockLevelBox {
     has_unbreakable_lines: bool,
     broken_token_of_box: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
     fragment_facts: run_state::FragmentFactsDecidedByParent,
+    /// Whether placing the box introduced clearance.
+    introduced_clearance: bool,
 }
 
 /// The floats and margins of a block formatting context before finding where lines break changes them.
@@ -2672,13 +2674,19 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Whether margins collapse through the box `sized_child` sizes, a box without a formatting context of its own that
-    /// this flow laid out, where `children` sums up the children laid out in its flow.
-    fn margins_collapse_through(&self, sized_child: ChildSizedHere<'_>, children: Option<&ChildrenSummary>) -> bool {
+    /// this flow laid out, where `introduced_clearance` says if placing it introduced clearance, and `children` sums up
+    /// the children laid out in its flow.
+    fn margins_collapse_through(
+        &self,
+        sized_child: ChildSizedHere<'_>,
+        introduced_clearance: bool,
+        children: Option<&ChildrenSummary>,
+    ) -> bool {
         let node = sized_child.node;
         // AD-HOC: The "and no in-flow children" of the margin collapsing rules is wrong, so margins collapse through a
         //         box with in-flow children where they collapse through each of them.
         //         (see https://github.com/w3c/csswg-drafts/pull/13699 )
-        margins_can_collapse_through_box_itself(self.facts(node), self.style(node), || {
+        margins_can_collapse_through_box_itself(self.facts(node), introduced_clearance, || {
             self.cells_laid_out_here(sized_child).border_box_block_size(false)
         }) && children.is_none_or(|children| !children.has_child_whose_margins_do_not_collapse_through)
     }
@@ -3427,7 +3435,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.sizing().resolve_percentage_block_size_dependency(node),
             );
             return Some(LaidOutBlockLevelBox {
-                collapses_through: self.margins_collapse_through(sized_child, None),
+                collapses_through: self.margins_collapse_through(sized_child, introduced_clearance, None),
                 ..LaidOutBlockLevelBox::of_box(
                     Self::laid_out_box_of_box_laid_out_here(sized_child, DerivedBaselines::default()),
                     fragment_facts,
@@ -4007,6 +4015,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             has_unbreakable_lines,
             broken_token_of_box,
             fragment_facts,
+            introduced_clearance,
         }
     }
 
@@ -4031,6 +4040,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             has_unbreakable_lines,
             broken_token_of_box,
             fragment_facts,
+            introduced_clearance,
         } = unplaced;
         let node = sized_child.node;
         let has_independent_formatting_context =
@@ -4070,7 +4080,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let collapses_through = !has_independent_formatting_context
-            && self.margins_collapse_through(sized_child, summary_of_children_laid_out_in_this_flow.as_ref());
+            && self.margins_collapse_through(
+                sized_child,
+                introduced_clearance,
+                summary_of_children_laid_out_in_this_flow.as_ref(),
+            );
         // NB: A child its own run laid out has the metrics that run handed back, and any other those of its cells here.
         let metrics = match &laid_out_box_handed_back_by_its_run {
             Some(handed_back) => handed_back.cells,
@@ -7350,11 +7364,12 @@ pub(crate) fn table_wrapper_flow_children(pass: LayoutPass<'_>, wrapper: Node) -
     flow_children
 }
 
-/// Whether margins can collapse through `node` as far as the box itself goes, before its children are considered. The
-/// block size of its border box is read only where nothing else keeps margins from collapsing through it.
+/// Whether margins can collapse through `node` as far as the box itself goes, before its children are considered, where
+/// `introduced_clearance` says if placing it introduced clearance. The block size of its border box is read only where
+/// nothing else keeps margins from collapsing through it.
 pub(crate) fn margins_can_collapse_through_box_itself(
     facts: NodeFacts<'_>,
-    style: StyleValues<'_>,
+    introduced_clearance: bool,
     border_box_block_size: impl FnOnce() -> CssPixels,
 ) -> bool {
     // https://drafts.csswg.org/css2/#adjoining-margins
@@ -7364,8 +7379,9 @@ pub(crate) fn margins_can_collapse_through_box_itself(
 
     // - no line boxes, no clearance, no padding and no border separate them (Note that certain zero-height line boxes
     //   (see 9.4.2) are ignored for this purpose.)
-    // NB: Border and padding are handled further down.
-    if style.clear() != clear::NONE {
+    // NB: Border and padding are handled further down. A box with clear introduces clearance only where there's a float
+    //     for it to clear; otherwise clear has no effect, and margins collapse through it like through any other box.
+    if introduced_clearance {
         return false;
     }
     // - both belong to vertically-adjacent box edges, i.e. form one of the following pairs:
