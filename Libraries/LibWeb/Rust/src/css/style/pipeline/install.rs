@@ -81,10 +81,6 @@ impl StyleSwap {
     }
 }
 
-/// The index of an element's effects among those of a style installation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct EffectsIndex(u32);
-
 /// What the main thread does to take a style installation: the styles it swaps in, and the side effects of the
 /// elements whose styles move, both in tree order, each element's pseudo-elements following it. An element's effects
 /// name its swaps, which the main thread performs before them, and before it swaps in the styles of the elements after
@@ -101,7 +97,7 @@ pub(crate) struct StyleInstallation {
     pub(crate) pinned_records: Vec<u64>,
     /// The elements taking their first style whose parent, its layout tree parent as well, takes its first style in
     /// this installation too, in the order of their effects, each with the index of those and that parent.
-    first_styles_below_first_styles: Vec<(EffectsIndex, StyleNodeID)>,
+    first_styles_below_first_styles: Vec<(u32, StyleNodeID)>,
 }
 
 impl StyleInstallation {
@@ -181,15 +177,12 @@ impl StyleInstallation {
     /// takes its first style too.
     fn note_first_style_below_first_style(&mut self, parent: StyleNodeID) {
         let index = u32::try_from(self.effects.len() - 1).expect("an installation's effects fit their index");
-        self.first_styles_below_first_styles.push((EffectsIndex(index), parent));
+        self.first_styles_below_first_styles.push((index, parent));
     }
 
     /// Takes the elements `note_first_style_below_first_style` noted.
     pub(crate) fn take_first_styles_below_first_styles(&mut self) -> Vec<(u32, StyleNodeID)> {
         std::mem::take(&mut self.first_styles_below_first_styles)
-            .into_iter()
-            .map(|(EffectsIndex(index), parent)| (index, parent))
-            .collect()
     }
 
     /// Keeps the effects of only the elements the main thread has anything to do for beside swapping in their styles.
@@ -205,11 +198,6 @@ impl StyleInstallation {
             self.swaps.len() == first_swap || self.effects.last().is_some_and(|effects| effects.node() == node),
             "every element with a style to swap in has effects"
         );
-    }
-
-    /// Ends the installation: what all its moves damage is `document_damage`.
-    fn finish(&mut self, document_damage: u32) {
-        self.document_damage = document_damage;
     }
 }
 
@@ -670,10 +658,8 @@ impl RetainedState {
             installation.end_element(node, first_swap);
         }
         scratch.ordered = ordered;
-        installation.finish(super::super::style_invalidation::merged_damage(
-            Some(0),
-            scratch.document_damage.iter().copied(),
-        ));
+        installation.document_damage =
+            super::super::style_invalidation::merged_damage(Some(0), scratch.document_damage.iter().copied());
         rows
     }
 

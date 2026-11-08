@@ -2735,13 +2735,6 @@ fn font_group_carries_longhand(property: u16) -> bool {
         )
 }
 
-/// The proof that a record reads no resource context: no value its winners give it resolves a
-/// `url()` against a style sheet's or the document's base URL. The engine keeps only such records
-/// across transactions, so a move of those base URLs, which every `history.pushState()` makes
-/// without a `<base>`, leaves nothing it keeps to forget.
-#[derive(Clone, Copy)]
-pub(in crate::css::style) struct ReadsNoResourceContexts(pub(in crate::css::style) ());
-
 /// Static checks attached to the original declaration spelling at input preparation, in one word:
 /// the external dependencies of the value a longhand computes from, packed the way a winner
 /// memoizes them (bits 0-20 and 31), or zero for a value that waits on substitution (bit 23), and how
