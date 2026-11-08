@@ -16,18 +16,12 @@
 namespace Web::Crypto {
 
 enum class AlgorithmId : u8 {
-    X25519,
-    X448,
-    ED25519,
-    ED448,
     MLDSA,
     MLKEM,
 };
 
 enum class ParameterId : u8 {
     AlgorithmParams,
-    EcdhKeyDeriveParams,
-    Ed448Params,
     ContextParams,
 };
 
@@ -197,14 +191,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
     auto& realm = *realm_pointer;
     auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
         switch (method_id) {
-        case AlgorithmId::X25519:
-            return X25519::create();
-        case AlgorithmId::X448:
-            return X448::create();
-        case AlgorithmId::ED25519:
-            return ED25519::create();
-        case AlgorithmId::ED448:
-            return ED448::create();
         case AlgorithmId::MLDSA:
             return MLDSA::create();
         case AlgorithmId::MLKEM:
@@ -217,10 +203,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
         switch (parameter_id) {
         case ParameterId::AlgorithmParams:
             return adopt_own(*new AlgorithmParams {});
-        case ParameterId::EcdhKeyDeriveParams:
-            return EcdhKeyDeriveParams::from_value(realm, object);
-        case ParameterId::Ed448Params:
-            return Ed448Params::from_value(realm, object);
         case ParameterId::ContextParams:
             return ContextParams::from_value(realm, object);
         }

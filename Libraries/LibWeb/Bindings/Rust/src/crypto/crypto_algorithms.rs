@@ -146,7 +146,6 @@ pub enum Base64DecodeResult {
 pub enum Asn1Structure {
     SubjectPublicKeyInfo,
     PrivateKeyInfo,
-    #[allow(dead_code, reason = "the native ASN.1 callers supply this structure")]
     OctetString,
 }
 
@@ -327,10 +326,6 @@ pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum AlgorithmId {
-    X25519,
-    X448,
-    ED25519,
-    ED448,
     MlDsa,
     MlKem,
 }
@@ -343,8 +338,6 @@ pub(crate) enum AlgorithmId {
 )]
 pub(crate) enum ParameterId {
     AlgorithmParams,
-    EcdhKeyDeriveParams,
-    Ed448Params,
     ContextParams,
 }
 
@@ -11466,6 +11459,2633 @@ impl AlgorithmMethods for Ecdh {
 
     fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
         Some(Vec::new())
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct Ed448Params {
+    context: Option<Bytes>,
+}
+
+impl Ed448Params {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let mut context = None;
+        let context_property = PropertyKey::from_utf8("context");
+        if object.has_property(vm, &context_property)? {
+            let context_value = object.get(vm, &context_property)?;
+            let Some(context_source) = buffer_source_type_of(context_value) else {
+                return vm
+                    .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                    .map_err(Into::into);
+            };
+            context = Some(get_a_copy_of_the_bytes(vm, context_source)?);
+        }
+        Ok(Self { context })
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum OkpCurve {
+    Ed25519,
+    Ed448,
+    X25519,
+    X448,
+}
+
+unsafe extern "C" {
+    fn web_crypto_okp_generate_private_key(curve: OkpCurve, state: *mut c_void, receive: ReceiveBytes) -> bool;
+    fn web_crypto_okp_generate_public_key(
+        curve: OkpCurve,
+        private_key: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_okp_compute_coordinate(
+        curve: OkpCurve,
+        private_key: Span<'_, u8>,
+        public_key: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_okp_sign(
+        curve: OkpCurve,
+        private_key: Span<'_, u8>,
+        message: Span<'_, u8>,
+        context: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_okp_verify(
+        curve: OkpCurve,
+        public_key: Span<'_, u8>,
+        signature: Span<'_, u8>,
+        message: Span<'_, u8>,
+        context: Span<'_, u8>,
+        verified: &mut bool,
+    ) -> usize;
+    fn web_crypto_okp_key_info_has_oid(curve: OkpCurve, structure: Asn1Structure, key_info: *const c_void) -> bool;
+    fn web_crypto_asn1_key_info_raw_key(structure: Asn1Structure, key_info: *const c_void, bytes: &mut Span<'_, u8>);
+    fn web_crypto_asn1_octet_string_bytes(string: *const c_void, bytes: &mut Span<'_, u8>);
+    fn web_crypto_okp_export_der(
+        curve: OkpCurve,
+        is_public: bool,
+        key: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+}
+
+impl Asn1KeyInfo {
+    fn has_okp_oid(&self, curve: OkpCurve) -> bool {
+        // SAFETY: This object owns the live structure.
+        unsafe { web_crypto_okp_key_info_has_oid(curve, self.structure, self.key_info.as_ptr()) }
+    }
+
+    fn raw_key(&self) -> &[u8] {
+        let mut bytes = Span::new(&[]);
+        // SAFETY: This object owns the structure that the bytes borrow from.
+        unsafe { web_crypto_asn1_key_info_raw_key(self.structure, self.key_info.as_ptr(), &mut bytes) };
+        bytes.as_slice()
+    }
+}
+
+fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
+    // SAFETY: The service allocates an empty native StringView.
+    let string = unsafe { web_crypto_asn1_allocate_key_info(Asn1Structure::OctetString) };
+    let string = Asn1KeyInfo {
+        structure: Asn1Structure::OctetString,
+        key_info: NonNull::new(string).expect("LibCrypto returns an ASN.1 view"),
+    };
+    // SAFETY: The bytes and the native StringView live for the call.
+    unsafe {
+        parse_an_asn1_structure(
+            Span::new(bytes),
+            Asn1Structure::OctetString,
+            true,
+            string.key_info.as_ptr(),
+        )
+    }
+    .map_err(|message| Exception::Dom("DataError", message))?;
+    let mut octets = Span::new(&[]);
+    // SAFETY: The StringView borrows from the input bytes for the duration of the copy.
+    unsafe { web_crypto_asn1_octet_string_bytes(string.key_info.as_ptr(), &mut octets) };
+    copy_bytes(vm, octets.as_slice())
+}
+
+fn okp_generate_private_key(curve: OkpCurve) -> Result<Bytes, ()> {
+    let mut key: Option<Bytes> = None;
+    // SAFETY: The output slot is lent for the call.
+    if !unsafe { web_crypto_okp_generate_private_key(curve, core::ptr::from_mut(&mut key).cast(), receive_bytes) } {
+        return Err(());
+    }
+    Ok(key.expect("LibCrypto returns the private key"))
+}
+
+fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Bytes, ()> {
+    let mut key: Option<Bytes> = None;
+    // SAFETY: The private key and output slot are lent for the call.
+    if !unsafe {
+        web_crypto_okp_generate_public_key(
+            curve,
+            Span::new(private_key),
+            core::ptr::from_mut(&mut key).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(());
+    }
+    Ok(key.expect("LibCrypto returns the public key"))
+}
+
+fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebIdlResult<Bytes> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key and the output slot are lent for the call.
+    if !unsafe {
+        web_crypto_okp_export_der(
+            curve,
+            is_public,
+            Span::new(key),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    Ok(result.expect("LibCrypto returns the DER bytes"))
+}
+
+fn okp_encode_jwk_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Utf16String> {
+    let Ok(encoded) = base64_url_bytes_encode(bytes) else {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    };
+    Ok(encoded)
+}
+
+fn out_of_memory(vm: &Vm) -> Exception {
+    vm.throw_completion::<()>(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+        .expect_err("creating an out-of-memory exception throws")
+        .into()
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Ed25519;
+
+impl AlgorithmMethods for Ed25519 {
+    // https://w3c.github.io/webcrypto/#ed25519-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate an Ed25519 key pair, as defined in [RFC8032], section 5.1.5.
+        let maybe_private_key = okp_generate_private_key(OkpCurve::Ed25519);
+        let Ok(private_key_data) = maybe_private_key else {
+            return Err(dom_error("OperationError", b"Failed to generate private key"));
+        };
+
+        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key_data.as_slice());
+        let Ok(public_key_data) = maybe_public_key else {
+            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        };
+
+        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        // and representing the public key of the generated key pair.
+        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+
+        // 6. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "Ed25519".
+        // 7. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"Ed25519"),
+        });
+
+        // 8. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 9. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
+
+        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        // and representing the private key of the generated key pair.
+        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+
+        // 11. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"Ed25519"),
+        });
+
+        // 13. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Sign]));
+
+        // 15. Let result be a new CryptoKeyPair dictionary.
+        // 16. Set the publicKey attribute of result to be publicKey.
+        // 17. Set the privateKey attribute of result to be privateKey.
+        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#ed25519-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks key usage in a separate step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let key;
+
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
+            if !spki.has_okp_oid(OkpCurve::Ed25519) {
+                return Err(dom_error("DataError", b"Invalid algorithm identifier"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let publicKey be the Ed25519 public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
+            //    and that represents publicKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 9. Let algorithm be a new KeyAlgorithm.
+            // 10. Set the name attribute of algorithm to "Ed25519".
+            // 11. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed25519"),
+            });
+        }
+        // 2. If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurs while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
+            //    of privateKeyInfo is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
+            if !private_key_info.has_okp_oid(OkpCurve::Ed25519) {
+                return Err(dom_error("DataError", b"Invalid algorithm identifier"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
+            //    then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
+            //    specified in Section 7 of [RFC8410], and exactData set to true.
+            // 7. If an error occurred while parsing, then throw a DataError.
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+
+            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
+            //    and that represents the Ed25519 private key identified by curvePrivateKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+
+            // 9. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to "Ed25519".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed25519"),
+            });
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+            //    Otherwise: Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and usages contains a value which is not "sign",
+            //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Sign {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            } else {
+                for &usage in usages {
+                    if usage != KeyUsage::Verify {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the kty field of jwk is not "OKP", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If the crv field of jwk is not "Ed25519", then throw a DataError.
+            if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed25519")) {
+                return Err(dom_error("DataError", b"Invalid curve"));
+            }
+
+            // 5. If the alg field of jwk is present and is not "Ed25519" or "EdDSA", then throw a DataError.
+            if jwk.alg.as_ref().is_some_and(|alg| {
+                *alg != Utf16String::from_ascii(b"Ed25519") && *alg != Utf16String::from_ascii(b"EdDSA")
+            }) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid key usage"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            // 9. If the d field is present:
+            if let Some(d) = &jwk.d {
+                // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037],
+                //    then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed25519")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_none() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                if private_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                let derived_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key.as_slice())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                if derived_public_key.as_slice() != public_key.as_slice() {
+                    return Err(dom_error("DataError", b"Invalid key pair"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the Ed25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "private".
+                key.set_type(KeyType::Private);
+            }
+            // Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed25519")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_some() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the Ed25519 public key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "public".
+                key.set_type(KeyType::Public);
+            }
+
+            // 10. Let algorithm be a new instance of a KeyAlgorithm object.
+            // 11. Set the name attribute of algorithm to "Ed25519".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed25519"),
+            });
+        }
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. If the length in bits of keyData is not 256 then throw a DataError.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            if data.as_slice().len() * 8 != 256 {
+                return Err(dom_error("DataError", b"Invalid key length"));
+            }
+
+            // 5. Let key be a new CryptoKey representing the key data provided in keyData.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+
+            // 6. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 3. Let algorithm be a new KeyAlgorithm object.
+            // 4. Set the name attribute of algorithm to "Ed25519".
+            // 7. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed25519"),
+            });
+        }
+        // 2. Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 3. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#ed25519-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
+            //    * Set the subjectPublicKey field to keyData.
+            let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, true, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 3. If format is "pkcs8":
+        if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type,
+            //      as defined in Section 7 of [RFC8410], that represents the Ed25519 private key
+            //      represented by the [[handle]] internal slot of key
+
+            let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, false, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 2. If format is "jwk":
+        if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "OKP".
+            jwk.kty = Some(Utf16String::from_ascii(b"OKP"));
+
+            // 3. Set the alg attribute of jwk to "Ed25519".
+            jwk.alg = Some(Utf16String::from_ascii(b"Ed25519"));
+
+            // 4. Set the crv attribute of jwk to "Ed25519".
+            jwk.crv = Some(Utf16String::from_ascii(b"Ed25519"));
+
+            // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+            if key.key_type() == KeyType::Public {
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            } else {
+                // The "x" parameter of the "epk" field is set as follows:
+                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
+                // and the standard base point (as u-coordinate input).
+                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
+                let public_key = okp_generate_public_key(OkpCurve::Ed25519, key.okp_handle_bytes())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+            }
+
+            // 6. If the [[type]] internal slot of key is "private"
+            if key.key_type() == KeyType::Private {
+                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            }
+
+            // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            return Ok(ExportKeyResult::JsonWebKey(jwk));
+        }
+
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an octet string representing the Ed25519 public key represented by the [[handle]] internal slot of key.
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+        }
+
+        // 2. Otherwise:
+        //    throw a NotSupportedError.
+        Err(dom_error("NotSupportedError", b"Invalid key format"))
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
+    }
+
+    // https://w3c.github.io/webcrypto/#ed25519-operations-sign
+    fn sign(&self, cx: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 2. Perform the Ed25519 signing process, as specified in [RFC8032], Section 5.1.6,
+        // with message as M, using the Ed25519 private key associated with key.
+        let private_key = key.okp_handle_bytes();
+
+        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed25519, private_key);
+        if maybe_public_key.is_err() {
+            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        }
+
+        let mut signature: Option<Bytes> = None;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_signature = unsafe {
+            web_crypto_okp_sign(
+                OkpCurve::Ed25519,
+                Span::new(key.okp_handle_bytes()),
+                Span::new(message.as_slice()),
+                Span::new(&[]),
+                core::ptr::from_mut(&mut signature).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_signature {
+            return Err(dom_error("OperationError", b"Failed to sign message"));
+        }
+
+        // 3. Return a new ArrayBuffer associated with the relevant global object of this [HTML],
+        // and containing the bytes of the signature resulting from performing the Ed25519 signing process.
+        let signature = signature.expect("LibCrypto returns the signature");
+        let result = Bytes::new(copy_bytes(cx.vm(), signature.as_slice())?);
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#ed25519-operations-verify
+    fn verify(
+        &self,
+        _: &CallContext,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        // NOTE: this is checked by ED25519::verify().
+        // 2. If the key data of key represents an invalid point or a small-order element on the Elliptic Curve of Ed25519, return false.
+        // 3. If the point R, encoded in the first half of signature, represents an invalid point or a small-order element on the Elliptic Curve of Ed25519, return false.
+
+        // 4. Perform the Ed25519 verification steps, as specified in [RFC8032], Section 5.1.7,
+        // using the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
+        // with message as M, using the Ed25519 public key associated with key.
+
+        // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
+        let mut verified = false;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_verified = unsafe {
+            web_crypto_okp_verify(
+                OkpCurve::Ed25519,
+                Span::new(key.okp_handle_bytes()),
+                Span::new(signature.as_slice()),
+                Span::new(message.as_slice()),
+                Span::new(&[]),
+                &mut verified,
+            )
+        };
+        if maybe_verified != 0 {
+            // SAFETY: LibCrypto transfers ownership of the error message.
+            let error = unsafe { Utf16String::from_raw_owned(maybe_verified) };
+            return Err(Exception::Dom("OperationError", error));
+        }
+
+        // 10. Return result.
+        Ok(verified)
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Ed448 {
+    parameters: Option<Ed448Params>,
+}
+
+impl Ed448 {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, has_parameters: bool) -> WebIdlResult<Self> {
+        let parameters = if has_parameters {
+            Some(Ed448Params::from_value(vm, object)?)
+        } else {
+            None
+        };
+        Ok(Self { parameters })
+    }
+}
+
+impl AlgorithmMethods for Ed448 {
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate an Ed448 key pair, as defined in [RFC8032], section 5.1.5.
+        let maybe_private_key = okp_generate_private_key(OkpCurve::Ed448);
+        let Ok(private_key_data) = maybe_private_key else {
+            return Err(dom_error("OperationError", b"Failed to generate private key"));
+        };
+
+        let maybe_public_key = okp_generate_public_key(OkpCurve::Ed448, private_key_data.as_slice());
+        let Ok(public_key_data) = maybe_public_key else {
+            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        };
+
+        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        // and representing the public key of the generated key pair.
+        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+
+        // 6. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "Ed448".
+        // 7. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"Ed448"),
+        });
+
+        // 8. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 9. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
+
+        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        // and representing the private key of the generated key pair.
+        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+
+        // 11. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"Ed448"),
+        });
+
+        // 13. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Sign]));
+
+        // 15. Let result be a new CryptoKeyPair dictionary.
+        // 16. Set the publicKey attribute of result to be publicKey.
+        // 17. Set the privateKey attribute of result to be privateKey.
+        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks key usage in a separate step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let key;
+
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
+            if !spki.has_okp_oid(OkpCurve::Ed448) {
+                return Err(dom_error("DataError", b"Invalid algorithm identifier"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let publicKey be the Ed448 public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
+            //    and that represents publicKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 9. Let algorithm be a new KeyAlgorithm.
+            // 10. Set the name attribute of algorithm to "Ed448".
+            // 11. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed448"),
+            });
+        }
+        // 2. If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If usages contains a value which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurs while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
+            //    of privateKeyInfo is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
+            if !private_key_info.has_okp_oid(OkpCurve::Ed448) {
+                return Err(dom_error("DataError", b"Invalid algorithm identifier"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
+            //    then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey structure
+            //    specified in Section 7 of [RFC8410], and exactData set to true.
+            // 7. If an error occurred while parsing, then throw a DataError.
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+
+            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
+            //    and that represents the Ed448 private key identified by curvePrivateKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+
+            // 9. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to "Ed448".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed448"),
+            });
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+            //    Otherwise: Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and usages contains a value which is not "sign",
+            //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Sign {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            } else {
+                for &usage in usages {
+                    if usage != KeyUsage::Verify {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the kty field of jwk is not "OKP", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If the crv field of jwk is not "Ed448", then throw a DataError.
+            if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed448")) {
+                return Err(dom_error("DataError", b"Invalid curve"));
+            }
+
+            // 5. If the alg field of jwk is present and is not "Ed448" or "EdDSA", then throw a DataError.
+            if jwk.alg.as_ref().is_some_and(|alg| {
+                *alg != Utf16String::from_ascii(b"Ed448") && *alg != Utf16String::from_ascii(b"EdDSA")
+            }) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid key usage"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            // 9. If the d field is present:
+            if let Some(d) = &jwk.d {
+                // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037],
+                //    then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed448")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 57 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_none() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                if private_key.as_slice().len() != 57 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                let derived_public_key = okp_generate_public_key(OkpCurve::Ed448, private_key.as_slice())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                if derived_public_key.as_slice() != public_key.as_slice() {
+                    return Err(dom_error("DataError", b"Invalid key pair"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the Ed448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "private".
+                key.set_type(KeyType::Private);
+            }
+            // Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"Ed448")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 57 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_some() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the Ed448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "public".
+                key.set_type(KeyType::Public);
+            }
+
+            // 10. Let algorithm be a new instance of a KeyAlgorithm object.
+            // 11. Set the name attribute of algorithm to "Ed448".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed448"),
+            });
+        }
+        // 2. If format is "raw":
+        else if format == KeyFormat::Raw {
+            // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let data be keyData.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+
+            // 3. If the length in bits of data is not 448 then throw a DataError.
+            // AD-HOC: The spec has a typo with the size of the key length
+            //         See spec comment: https://github.com/w3c/webcrypto/pull/425#discussion_r3070135408
+            if data.as_slice().len() * 8 != 456 {
+                return Err(dom_error("DataError", b"Invalid key length"));
+            }
+
+            // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+
+            // 7. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 4. Let algorithm be a new KeyAlgorithm object.
+            // 5. Set the name attribute of algorithm to "Ed448".
+            // 8. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"Ed448"),
+            });
+        }
+        // 2. Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
+            //    * Set the subjectPublicKey field to keyData.
+            let data = okp_export_der(cx.vm(), OkpCurve::Ed448, true, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 3. If format is "pkcs8":
+        if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type,
+            //      as defined in Section 7 of [RFC8410], that represents the Ed448 private key
+            //      represented by the [[handle]] internal slot of key
+
+            let data = okp_export_der(cx.vm(), OkpCurve::Ed448, false, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 2. If format is "jwk":
+        if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "OKP".
+            jwk.kty = Some(Utf16String::from_ascii(b"OKP"));
+
+            // 3. Set the alg attribute of jwk to "Ed448".
+            jwk.alg = Some(Utf16String::from_ascii(b"Ed448"));
+
+            // 4. Set the crv attribute of jwk to "Ed448".
+            jwk.crv = Some(Utf16String::from_ascii(b"Ed448"));
+
+            // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+            if key.key_type() == KeyType::Public {
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            } else {
+                // The "x" parameter of the "epk" field is set as follows:
+                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
+                // and the standard base point (as u-coordinate input).
+                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
+                let public_key = okp_generate_public_key(OkpCurve::Ed448, key.okp_handle_bytes())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+            }
+
+            // 6. If the [[type]] internal slot of key is "private"
+            if key.key_type() == KeyType::Private {
+                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            }
+
+            // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            return Ok(ExportKeyResult::JsonWebKey(jwk));
+        }
+
+        // 2. If format is "raw":
+        if format == KeyFormat::Raw {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+        }
+
+        // 2. Otherwise:
+        //    throw a NotSupportedError.
+        Err(dom_error("NotSupportedError", b"Invalid key format"))
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 2. Let context be the contents of the context member of normalizedAlgorithm
+        //    or the empty octet string if the context member of normalizedAlgorithm is not present.
+        let algorithm = self.parameters.as_ref().expect("the operation uses Ed448 parameters");
+        let context = algorithm.context.as_ref().map_or(&[][..], Bytes::as_slice);
+
+        // 3. If context has a length greater than 255 bytes, then throw an OperationError.
+        if context.len() > 255 {
+            return Err(dom_error("OperationError", b"Context is too long"));
+        }
+
+        // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
+        //    with message as M and context as C, using the Ed448 private key associated with key.
+        let mut signature: Option<Bytes> = None;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_signature = unsafe {
+            web_crypto_okp_sign(
+                OkpCurve::Ed448,
+                Span::new(key.okp_handle_bytes()),
+                Span::new(message.as_slice()),
+                Span::new(context),
+                core::ptr::from_mut(&mut signature).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_signature {
+            return Err(dom_error("OperationError", b"Failed to sign message"));
+        }
+
+        // 5. Return a new ArrayBuffer associated with the relevant global object of this [HTML],
+        //    and containing the bytes of the signature resulting from performing the Ed448 signing process.
+        Ok(signature.expect("LibCrypto returns the signature"))
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    fn verify(
+        &self,
+        _: &CallContext,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        // 2. Let context be the contents of the context member of normalizedAlgorithm
+        //    or the empty octet string if the context member of normalizedAlgorithm is not present.
+        let algorithm = self.parameters.as_ref().expect("the operation uses Ed448 parameters");
+        let context = algorithm.context.as_ref().map_or(&[][..], Bytes::as_slice);
+
+        // 3. If context has a length greater than 255 bytes, then throw an OperationError.
+        if context.len() > 255 {
+            return Err(dom_error("OperationError", b"Context is too long"));
+        }
+
+        // 4. If the key data of key represents an invalid point or a small-order element
+        //    on the Elliptic Curve of Ed448, return false.
+        // NOTE: https://github.com/WICG/webcrypto-secure-curves/issues/27
+
+        // 5. If the point R, encoded in the first half of signature, represents an invalid point
+        //    or a small-order element on the Elliptic Curve of Ed448, return false.
+        // NOTE: https://github.com/WICG/webcrypto-secure-curves/issues/27
+
+        // 6. Perform the Ed448 verification steps, as specified in [RFC8032], Section 5.2.7, using
+        //    the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
+        //    with message as M and context as C, using the Ed448 public key associated with key.
+        let mut verified = false;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_verified = unsafe {
+            web_crypto_okp_verify(
+                OkpCurve::Ed448,
+                Span::new(key.okp_handle_bytes()),
+                Span::new(signature.as_slice()),
+                Span::new(message.as_slice()),
+                Span::new(context),
+                &mut verified,
+            )
+        };
+        if maybe_verified != 0 {
+            // SAFETY: LibCrypto transfers ownership of the error message.
+            let error = unsafe { Utf16String::from_raw_owned(maybe_verified) };
+            return Err(Exception::Dom("OperationError", error));
+        }
+
+        // 7. Let result be a boolean with the value true if the signature is valid
+        //    and the value false otherwise.
+        // 8. Return result.
+        Ok(verified)
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct X25519 {
+    parameters: Option<EcdhKeyDeriveParams>,
+}
+
+impl X25519 {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, has_parameters: bool) -> WebIdlResult<Self> {
+        let parameters = if has_parameters {
+            Some(EcdhKeyDeriveParams::from_value(vm, object)?)
+        } else {
+            None
+        };
+        Ok(Self { parameters })
+    }
+}
+
+impl AlgorithmMethods for X25519 {
+    // https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
+    fn validate_derive_bits_parameters(
+        &self,
+        _: Gc<Realm>,
+        algorithm: &AlgorithmParams,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<()> {
+        let normalized_algorithm = self
+            .parameters
+            .as_ref()
+            .expect("the operation uses key agreement parameters");
+
+        // 1. Let publicKey be the public member of normalizedAlgorithm.
+        let public_key = normalized_algorithm.public_key;
+
+        // 2. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+        if public_key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Public key is not a public key"));
+        }
+
+        // 3. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to the name member of
+        //    normalizedAlgorithm, then throw an InvalidAccessError.
+        if public_key.algorithm_name() != algorithm.name {
+            return Err(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+        }
+
+        // 4. If length is not null and is greater than 256, then throw an OperationError.
+        if length_optional.is_some_and(|length| length > 256) {
+            return Err(dom_error("OperationError", b"Length is too large"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
+    fn derive_bits(
+        &self,
+        cx: &CallContext,
+        algorithm: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self
+            .parameters
+            .as_ref()
+            .expect("the operation uses key agreement parameters");
+
+        // NB: Steps 1 to 4 are performed by validate_derive_bits_parameters().
+        self.validate_derive_bits_parameters(cx.realm(), algorithm, length_optional)?;
+        let public_key = normalized_algorithm.public_key;
+
+        // 5. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 6. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+        //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+        if key.algorithm_name() != public_key.algorithm_name() {
+            return Err(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+        }
+
+        // 7. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
+        //    key as the X25519 private key k and
+        //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
+        let private_key = key.okp_handle_bytes();
+        let public_key_data = public_key.okp_handle_bytes();
+
+        let mut secret: Option<Bytes> = None;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_secret = unsafe {
+            web_crypto_okp_compute_coordinate(
+                OkpCurve::X25519,
+                Span::new(private_key),
+                Span::new(public_key_data),
+                core::ptr::from_mut(&mut secret).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_secret {
+            return Err(dom_error("OperationError", b"Failed to compute secret"));
+        }
+
+        let secret = secret.expect("LibCrypto returns the shared secret");
+
+        // 8. If secret is the all-zero value, then throw a OperationError.
+        //    This check must be performed in constant-time, as per [RFC7748] Section 6.1.
+        // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
+        //       as this eliminates standard side-channels in software implementations.
+        let mut or_bytes = 0;
+        for &byte in secret.as_slice() {
+            or_bytes |= byte;
+        }
+
+        if or_bytes == 0 {
+            return Err(dom_error("OperationError", b"Secret is the all-zero value"));
+        }
+
+        // 9. If length is null: Return secret.
+        let Some(length) = length_optional else {
+            let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
+            return Ok(result);
+        };
+
+        // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+        let length = length as usize;
+        if secret.as_slice().len() * 8 < length {
+            return Err(dom_error("OperationError", b"Secret is too short"));
+        }
+
+        // Otherwise: Return an octet string containing the first length bits of secret.
+        let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
+        if !length.is_multiple_of(8) {
+            // Zero out the last bits
+            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
+        }
+
+        Ok(Bytes::new(slice))
+    }
+
+    // https://w3c.github.io/webcrypto/#x25519-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate an X25519 key pair, with the private key being 32 random bytes,
+        //    and the public key being X25519(a, 9), as defined in [RFC7748], section 6.1.
+        let maybe_private_key = okp_generate_private_key(OkpCurve::X25519);
+        let Ok(private_key_data) = maybe_private_key else {
+            return Err(dom_error("OperationError", b"Failed to generate private key"));
+        };
+
+        let maybe_public_key = okp_generate_public_key(OkpCurve::X25519, private_key_data.as_slice());
+        let Ok(public_key_data) = maybe_public_key else {
+            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        };
+
+        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        //    and representing the public key of the generated key pair.
+        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+
+        // 6. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "X25519".
+        // 7. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"X25519"),
+        });
+
+        // 8. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 9. Set the [[usages]] internal slot of publicKey to be the empty list.
+        public_key.set_usages(Vec::new());
+
+        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
+        //     and representing the private key of the generated key pair.
+        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+
+        // 11. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"X25519"),
+        });
+
+        // 13. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
+        private_key.set_usages(usage_intersection(
+            key_usages,
+            &[KeyUsage::DeriveKey, KeyUsage::DeriveBits],
+        ));
+
+        // 15. Let result be a new CryptoKeyPair dictionary.
+        // 16. Set the publicKey attribute of result to be publicKey.
+        // 17. Set the privateKey attribute of result to be privateKey.
+        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#x25519-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks key usage in a separate step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // NOTE: This is a parameter to the function
+        // 1. Let keyData be the key data to be imported.
+
+        let key;
+
+        // 2. If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages is not empty then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
+            if !spki.has_okp_oid(OkpCurve::X25519) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let publicKey be the X25519 public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 9. Let algorithm be a new KeyAlgorithm.
+            // 10. Set the name attribute of algorithm to "X25519".
+            // 11. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X25519"),
+            });
+        }
+        // 2. If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
+            if !private_key_info.has_okp_oid(OkpCurve::X25519) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo,
+            //    structure as the ASN.1 CurvePrivateKey structure specified in Section 7 of [RFC8410], and
+            //    exactData set to true.
+            // 7. If an error occurred while parsing, then throw a DataError.
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+
+            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
+            //    and that represents the X25519 private key identified by curvePrivateKey.
+            key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+
+            // 9. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to "X25519".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X25519"),
+            });
+        }
+        // 2. If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+            //    Otherwise: Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            if jwk.d.is_some() && !usages.is_empty() {
+                for &usage in usages {
+                    if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
+            if jwk.d.is_none() && !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty if d is missing"));
+            }
+
+            // 4. If the kty field of jwk is not "OKP", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 5. If the crv field of jwk is not "X25519", then throw a DataError.
+            if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X25519")) {
+                return Err(dom_error("DataError", b"Invalid curve"));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            // 9. If the d field is present:
+            if let Some(d) = &jwk.d {
+                // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037], then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X25519")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_none() {
+                    return Err(dom_error("DataError", b"Missing d field"));
+                }
+                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                if private_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                let derived_public_key = okp_generate_public_key(OkpCurve::X25519, private_key.as_slice())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                if derived_public_key.as_slice() != public_key.as_slice() {
+                    return Err(dom_error("DataError", b"Invalid key pair"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "private".
+                key.set_type(KeyType::Private);
+            }
+            // 9. Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X25519")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 32 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_some() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+
+                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "public".
+                key.set_type(KeyType::Public);
+            }
+
+            // 10. Let algorithm be a new instance of a KeyAlgorithm object.
+            // 11. Set the name attribute of algorithm to "X25519".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X25519"),
+            });
+        }
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic {
+            // 1. If usages is not empty then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 2. If the length in bits of keyData is not 256 then throw a DataError.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            if data.as_slice().len() * 8 != 256 {
+                return Err(dom_error("DataError", b"Invalid key length"));
+            }
+
+            // 5. Let key be a new CryptoKey representing the key data provided in keyData.
+            key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+
+            // 6. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 3. Let algorithm be a new KeyAlgorithm object.
+            // 4. Set the name attribute of algorithm to "X25519".
+            // 7. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X25519"),
+            });
+        }
+        // 2. Otherwise: throw a NotSupportedError.
+        else {
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 3. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#x25519-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // NOTE: This is a parameter to the function
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki":
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
+            //    Set the subjectPublicKey field to keyData.
+            let data = okp_export_der(cx.vm(), OkpCurve::X25519, true, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // 3. If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    Set the version field to 0.
+            //    Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
+            //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
+            //    that represents the X25519 private key represented by the [[handle]] internal slot of key
+
+            let data = okp_export_der(cx.vm(), OkpCurve::X25519, false, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // 3. If format is "jwt":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionar1y.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "OKP".
+            jwk.kty = Some(Utf16String::from_ascii(b"OKP"));
+
+            // 3. Set the crv attribute of jwk to "X25519".
+            jwk.crv = Some(Utf16String::from_ascii(b"X25519"));
+
+            // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+            if key.key_type() == KeyType::Public {
+                let public_key = key.okp_handle_bytes();
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key)?);
+            } else {
+                // The "x" parameter of the "epk" field is set as follows:
+                // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
+                // and the standard base point (as u-coordinate input).
+                // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
+                let public_key = okp_generate_public_key(OkpCurve::X25519, key.okp_handle_bytes())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+            }
+
+            // 5. If the [[type]] internal slot of key is "private"
+            if key.key_type() == KeyType::Private {
+                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                let private_key = key.okp_handle_bytes();
+                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), private_key)?);
+            }
+
+            // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // 3. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an octet string representing the X25519 public key represented by the [[handle]] internal slot of key.
+            let public_key = key.okp_handle_bytes();
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            ExportKeyResult::Bytes(Bytes::new(public_key.to_vec()))
+        }
+        // 3. Otherwise:
+        else {
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        };
+
+        // 4. Return result.
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(Vec::new())
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct X448 {
+    parameters: Option<EcdhKeyDeriveParams>,
+}
+
+impl X448 {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, has_parameters: bool) -> WebIdlResult<Self> {
+        let parameters = if has_parameters {
+            Some(EcdhKeyDeriveParams::from_value(vm, object)?)
+        } else {
+            None
+        };
+        Ok(Self { parameters })
+    }
+}
+
+impl AlgorithmMethods for X448 {
+    // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
+    fn derive_bits(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 2. Let publicKey be the public member of normalizedAlgorithm.
+        let public_key = self
+            .parameters
+            .as_ref()
+            .expect("the operation uses key agreement parameters")
+            .public_key;
+
+        // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+        if public_key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Public key is not a public key"));
+        }
+
+        // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+        //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+        if key.algorithm_name() != public_key.algorithm_name() {
+            return Err(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+        }
+
+        // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
+        //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
+        //    internal slot of publicKey as the X448 public key u.
+        let private_key = key.okp_handle_bytes();
+        let public_key_data = public_key.okp_handle_bytes();
+
+        let mut secret: Option<Bytes> = None;
+        // SAFETY: The input bytes and output slot are lent for the call.
+        let maybe_secret = unsafe {
+            web_crypto_okp_compute_coordinate(
+                OkpCurve::X448,
+                Span::new(private_key),
+                Span::new(public_key_data),
+                core::ptr::from_mut(&mut secret).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_secret {
+            return Err(dom_error("OperationError", b"Failed to compute secret"));
+        }
+
+        let secret = secret.expect("LibCrypto returns the shared secret");
+
+        // 6. If secret is the all-zero value, then throw a OperationError. This check must be performed in constant-time, as per [RFC7748] Section 6.2.
+        // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
+        //       as this eliminates standard side-channels in software implementations.
+        let mut or_bytes = 0;
+        for &byte in secret.as_slice() {
+            or_bytes |= byte;
+        }
+
+        if or_bytes == 0 {
+            return Err(dom_error("OperationError", b"Secret is the all-zero value"));
+        }
+
+        // 7. If length is null: Return secret
+        let Some(length) = length_optional else {
+            let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
+            return Ok(result);
+        };
+
+        // Otherwise: Return an octet string containing the first length bits of secret.
+        let length = length as usize;
+        if secret.as_slice().len() * 8 < length {
+            return Err(dom_error("OperationError", b"Secret is too short"));
+        }
+
+        let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
+        if !length.is_multiple_of(8) {
+            // Zero out the last bits
+            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
+        }
+
+        Ok(Bytes::new(slice))
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+        for &usage in usages {
+            if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate an X448 key pair, with the private key being 56 random bytes, and the public key being X448(a, 5), as defined in [RFC7748], section 6.2.
+        let maybe_private_key = okp_generate_private_key(OkpCurve::X448);
+        let Ok(private_key_data) = maybe_private_key else {
+            return Err(dom_error("OperationError", b"Failed to generate private key"));
+        };
+        let maybe_public_key = okp_generate_public_key(OkpCurve::X448, private_key_data.as_slice());
+        let Ok(public_key_data) = maybe_public_key else {
+            return Err(dom_error("OperationError", b"Failed to generate public key"));
+        };
+
+        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the public key of the generated key pair.
+        let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
+
+        // 6. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 3. Let algorithm be a new KeyAlgorithm object.
+        // 4. Set the name attribute of algorithm to "X448".
+        // 7. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"X448"),
+        });
+
+        // 8. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 9. Set the [[usages]] internal slot of publicKey to be the empty list.
+        public_key.set_usages(Vec::new());
+
+        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML], and representing the private key of the generated key pair.
+        let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
+
+        // 11. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 12. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"X448"),
+        });
+
+        // 13. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
+        private_key.set_usages(usage_intersection(usages, &[KeyUsage::DeriveKey, KeyUsage::DeriveBits]));
+
+        // 15. Let result be a new CryptoKeyPair dictionary.
+        // 16. Set the publicKey attribute of result to be publicKey.
+        // 17. Set the privateKey attribute of result to be privateKey.
+        let result = CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        };
+
+        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
+            //    * Set the subjectPublicKey field to keyData.
+            let data = okp_export_der(cx.vm(), OkpCurve::X448, true, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 3. If format is "pkcs8":
+        if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
+
+            let data = okp_export_der(cx.vm(), OkpCurve::X448, false, key.okp_handle_bytes())?;
+
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(data));
+        }
+
+        // 3. If format is "jwk":
+        if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "OKP".
+            jwk.kty = Some(Utf16String::from_ascii(b"OKP"));
+
+            // 3. Set the crv attribute of jwk to "X448".
+            jwk.crv = Some(Utf16String::from_ascii(b"X448"));
+
+            // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
+            if key.key_type() == KeyType::Public {
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            } else {
+                let public_key = okp_generate_public_key(OkpCurve::X448, key.okp_handle_bytes())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+            }
+
+            // 5. If the [[type]] internal slot of key is "private"
+            if key.key_type() == KeyType::Private {
+                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+            }
+
+            // 6. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            return Ok(ExportKeyResult::JsonWebKey(jwk));
+        }
+
+        // 3. If format is "raw":
+        if format == KeyFormat::Raw {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
+            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
+        }
+
+        // 3. Otherwise:
+        //    throw a NotSupportedError.
+        Err(dom_error("NotSupportedError", b"Invalid key format"))
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(Vec::new())
+    }
+
+    // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks key usage in a separate step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If usages is not empty then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
+            if !spki.has_okp_oid(OkpCurve::X448) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let publicKey be the X448 public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
+            let key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 9. Let algorithm be a new KeyAlgorithm.
+            // 10. Set the name attribute of algorithm to "X448".
+            // 11. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X448"),
+            });
+
+            return Ok(key);
+        }
+
+        // 3. If format is "pkcs8":
+        if format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
+            if !private_key_info.has_okp_oid(OkpCurve::X448) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 CurvePrivateKey
+            //    structure specified in Section 7 of [RFC8410], and exactData set to true.
+            // 7. If an error occurred while parsing, then throw a DataError.
+            let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
+
+            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents the X448 private key identified by curvePrivateKey.
+            let key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
+
+            // 9. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to "X448".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X448"),
+            });
+
+            return Ok(key);
+        }
+
+        // 3. If format is "jwk":
+        if format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            //    Otherwise:
+            //    Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"Data is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
+            if jwk.d.is_none() && !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 4. If the kty field of jwk is not "OKP", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 5. If the crv field of jwk is not "X448", then throw a DataError.
+            if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X448")) {
+                return Err(dom_error("DataError", b"Invalid curve"));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            let key;
+
+            // 9. If the d field is present:
+            if let Some(d) = &jwk.d {
+                // 1. If jwk does not meet the requirements of the JWK private key format described in Section 2 of [RFC8037], then throw a DataError.
+
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X448")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 56 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_none() {
+                    return Err(dom_error("DataError", b"Missing d field"));
+                }
+                let private_key = base64_url_bytes_decode(cx.vm(), d)?;
+                if private_key.as_slice().len() != 56 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                let derived_public_key = okp_generate_public_key(OkpCurve::X448, private_key.as_slice())
+                    .map_err(|()| out_of_memory(cx.vm()))?;
+                if derived_public_key.as_slice() != public_key.as_slice() {
+                    return Err(dom_error("DataError", b"Invalid key pair"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the X448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), true, private_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "private".
+                key.set_type(KeyType::Private);
+            }
+            // Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of the JWK public key format described in Section 2 of [RFC8037], then throw a DataError.
+                // o  The parameter "kty" MUST be "OKP".
+                if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"OKP")) {
+                    return Err(dom_error("DataError", b"Invalid key type"));
+                }
+
+                // https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+                // o  The parameter "crv" MUST be present and contain the subtype of the key (from the "JSON Web Elliptic Curve" registry).
+                if jwk.crv.as_ref() != Some(&Utf16String::from_ascii(b"X448")) {
+                    return Err(dom_error("DataError", b"Invalid curve"));
+                }
+
+                // o  The parameter "x" MUST be present and contain the public key encoded using the base64url [RFC4648] encoding.
+                if jwk.x.is_none() {
+                    return Err(dom_error("DataError", b"Missing x field"));
+                }
+                let public_key = base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"))?;
+                if public_key.as_slice().len() != 56 {
+                    return Err(dom_error("DataError", b"Invalid key length"));
+                }
+
+                // o  The parameter "d" MUST be present for private keys and contain the private key encoded using the base64url encoding.
+                //    This parameter MUST NOT be present for public keys.
+                if jwk.d.is_some() {
+                    return Err(dom_error("DataError", b"Present d field"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the X448 public key identified by interpreting jwk according to Section 2 of [RFC8037].
+                key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of Key to "public".
+                key.set_type(KeyType::Public);
+            }
+
+            // 10. Let algorithm be a new instance of a KeyAlgorithm object.
+            // 11. Set the name attribute of algorithm to "X448".
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X448"),
+            });
+
+            return Ok(key);
+        }
+
+        // 3. If format is "raw":
+        if format == KeyFormat::Raw {
+            // 1. If usages is not empty then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 2.Let data be keyData.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+
+            // 3. If the length in bits of data is not 448 then throw a DataError.
+            if data.as_slice().len() * 8 != 448 {
+                return Err(dom_error("DataError", b"Invalid key length"));
+            }
+
+            // 6. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents data.
+            let key = CryptoKey::from_okp_handle(cx.vm(), false, data.as_slice());
+
+            // 7. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 4. Let algorithm be a new KeyAlgorithm object.
+            // 5. Set the name attribute of algorithm to "X448".
+            // 8. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: Utf16String::from_ascii(b"X448"),
+            });
+
+            return Ok(key);
+        }
+
+        let _ = extractable;
+
+        // 3. Otherwise:
+        //    throw a NotSupportedError.
+        Err(dom_error("NotSupportedError", b"Invalid key format"))
     }
 }
 

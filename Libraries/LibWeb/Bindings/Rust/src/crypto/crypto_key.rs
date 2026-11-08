@@ -302,6 +302,22 @@ impl CryptoKey {
         bytes.as_slice()
     }
 
+    pub(crate) fn from_okp_handle(vm: &Vm, is_private: bool, bytes: &[u8]) -> Ref<Self> {
+        // SAFETY: The bytes are lent to the service for the copy.
+        let handle = unsafe { web_crypto_key_create_okp_handle(is_private, Span::new(bytes)) };
+        Self::create(
+            vm,
+            CryptoKeyHandle(NonNull::new(handle).expect("LibWeb returns an OKP key handle")),
+        )
+    }
+
+    pub(crate) fn okp_handle_bytes(&self) -> &[u8] {
+        let mut bytes = Span::new(&[]);
+        // SAFETY: The service borrows bytes from the handle for as long as the key is borrowed.
+        unsafe { web_crypto_key_okp_handle_bytes(self.handle().as_ptr(), &mut bytes) };
+        bytes.as_slice()
+    }
+
     pub(crate) fn handle(&self) -> NonNull<c_void> {
         self.handle.borrow().as_ref().expect("a live key has its handle").0
     }
@@ -426,6 +442,8 @@ struct RawHandle<'a> {
 unsafe extern "C" {
     fn web_crypto_key_destroy_handle(handle: *mut c_void);
     fn web_crypto_key_create_byte_handle(bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_key_create_okp_handle(is_private: bool, bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_key_okp_handle_bytes(handle: *mut c_void, bytes: &mut Span<'_, u8>);
     fn web_crypto_key_byte_handle_bytes(handle: *mut c_void, bytes: &mut Span<'_, u8>);
     fn web_crypto_key_encode_handle(
         handle: *mut c_void,

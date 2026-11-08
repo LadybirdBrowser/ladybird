@@ -63,6 +63,8 @@ void web_rust_crypto_key_set_usages(CryptoKey*, ReadonlySpan<KeyUsage>);
 
 void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData*);
 CryptoKey::InternalKeyData* web_crypto_key_create_byte_handle(ReadonlyBytes);
+CryptoKey::InternalKeyData* web_crypto_key_create_okp_handle(bool, ReadonlyBytes);
+void web_crypto_key_okp_handle_bytes(CryptoKey::InternalKeyData const*, ReadonlyBytes*);
 void web_crypto_key_byte_handle_bytes(CryptoKey::InternalKeyData const*, ReadonlyBytes*);
 void web_crypto_key_encode_handle(CryptoKey::InternalKeyData const*, void*, void (*)(void*, CryptoKeyHandleFields const*));
 JSCompletion web_crypto_key_decode_handle(void* realm, CryptoKeyHandleFields const*, CryptoKey::InternalKeyData** out_handle);
@@ -91,6 +93,22 @@ CryptoKey::InternalKeyData* web_crypto_key_create_byte_handle(ReadonlyBytes byte
 void web_crypto_key_byte_handle_bytes(CryptoKey::InternalKeyData const* handle, ReadonlyBytes* bytes)
 {
     *bytes = handle->get<ByteBuffer>().bytes();
+}
+
+CryptoKey::InternalKeyData* web_crypto_key_create_okp_handle(bool is_private, ReadonlyBytes bytes)
+{
+    auto key_bytes = MUST(ByteBuffer::copy(bytes));
+    if (is_private)
+        return new CryptoKey::InternalKeyData(OKPPrivateKey { move(key_bytes) });
+    return new CryptoKey::InternalKeyData(OKPPublicKey { move(key_bytes) });
+}
+
+void web_crypto_key_okp_handle_bytes(CryptoKey::InternalKeyData const* handle, ReadonlyBytes* bytes)
+{
+    if (handle->has<OKPPrivateKey>())
+        *bytes = handle->get<OKPPrivateKey>().bytes;
+    else
+        *bytes = handle->get<OKPPublicKey>().bytes;
 }
 
 CryptoKey::InternalKeyData const& CryptoKey::handle() const
