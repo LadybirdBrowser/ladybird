@@ -394,9 +394,6 @@ pub struct RuleStore {
     /// How many rules declare a custom property. A document without any resolves no environment
     /// of its own, and a cascade need not look.
     rules_declaring_custom_properties: usize,
-    /// How many rules sit behind a container query. A document without any answers that no rule
-    /// is gated without reading the rule's record.
-    rules_gated_by_container_query: usize,
     rule_versions: RuleVersionTable,
 
     /// Sheet order within each tree context. Sheets in different tree contexts are ordered by the
@@ -977,13 +974,6 @@ impl RuleStore {
                 self.rules_declaring_custom_properties -= 1;
             }
         }
-        if entry.gated_by_container_query {
-            if live {
-                self.rules_gated_by_container_query += 1;
-            } else {
-                self.rules_gated_by_container_query -= 1;
-            }
-        }
         entry.live = live;
         true
     }
@@ -1184,22 +1174,12 @@ impl RuleStore {
     /// can disagree about it. Until the style-layout coordinator can answer it, matching reports
     /// the rule and the consumer applies the query, which is what the matcher already does.
     pub fn set_rule_gated_by_container_query(&mut self, rule: RuleID, gated: bool) {
-        if self.rules[rule.0 as usize].gated_by_container_query == gated {
-            return;
-        }
         self.rules[rule.0 as usize].gated_by_container_query = gated;
-        if self.rules[rule.0 as usize].live {
-            if gated {
-                self.rules_gated_by_container_query += 1;
-            } else {
-                self.rules_gated_by_container_query -= 1;
-            }
-        }
     }
 
     #[must_use]
     pub fn rule_is_gated_by_container_query(&self, rule: RuleID) -> bool {
-        self.rules_gated_by_container_query != 0 && self.record(rule).gated_by_container_query
+        self.record(rule).gated_by_container_query
     }
 
     /// Record the declarations a rule declares.
@@ -1763,32 +1743,5 @@ mod tests {
         for _ in 0..100 {
             program.append_rule(sheet, None, RuleKind::Style);
         }
-    }
-
-    #[test]
-    fn container_gate_count_tracks_rule_liveness() {
-        let (mut program, sheet) = program_with_sheet();
-        let parent = program.append_rule(sheet, None, RuleKind::Style);
-        let child = program.append_rule(sheet, Some(parent), RuleKind::Style);
-        program.set_rule_gated_by_container_query(parent, true);
-        program.set_rule_gated_by_container_query(child, true);
-        assert_eq!(program.rules_gated_by_container_query, 2);
-
-        program.remove_rule(parent);
-        assert_eq!(program.rules_gated_by_container_query, 0);
-        assert!(!program.set_rule_live(parent, false));
-        assert_eq!(program.rules_gated_by_container_query, 0);
-
-        program.set_rule_gated_by_container_query(child, false);
-        program.set_rule_gated_by_container_query(child, true);
-        assert_eq!(program.rules_gated_by_container_query, 0);
-        program.set_rule_liveness(&[(parent, true), (child, true)]);
-        assert_eq!(program.rules_gated_by_container_query, 2);
-        assert!(program.rule_is_gated_by_container_query(child));
-        program.set_rule_liveness(&[(parent, true), (child, true)]);
-        assert_eq!(program.rules_gated_by_container_query, 2);
-        program.set_rule_gated_by_container_query(parent, false);
-        program.set_rule_gated_by_container_query(child, false);
-        assert_eq!(program.rules_gated_by_container_query, 0);
     }
 }
