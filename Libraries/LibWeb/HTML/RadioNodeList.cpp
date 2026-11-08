@@ -13,13 +13,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(RadioNodeList);
 
-GC::Ref<RadioNodeList> RadioNodeList::create(DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter, Kind kind)
+GC::Ref<RadioNodeList> RadioNodeList::create(DOM::Node const& root, Scope scope, Filter filter, Kind kind)
 {
-    return GC::Heap::the().allocate<RadioNodeList>(root, scope, move(filter), kind);
+    return GC::Heap::the().allocate<RadioNodeList>(root, scope, filter, kind);
 }
 
-RadioNodeList::RadioNodeList(DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter, Kind kind)
-    : DOM::LiveNodeList(root, scope, move(filter), kind)
+RadioNodeList::RadioNodeList(DOM::Node const& root, Scope scope, Filter filter, Kind kind)
+    : DOM::LiveNodeList(root, scope, filter, kind)
 {
 }
 

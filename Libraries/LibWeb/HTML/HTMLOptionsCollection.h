@@ -22,7 +22,7 @@ class HTMLOptionsCollection final : public DOM::HTMLCollection {
     GC_DECLARE_ALLOCATOR(HTMLOptionsCollection);
 
 public:
-    [[nodiscard]] static GC::Ref<HTMLOptionsCollection> create(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLOptionsCollection> create(DOM::ParentNode& root, Filter filter);
     virtual ~HTMLOptionsCollection() override;
 
     WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, Optional<GC::Ref<DOM::Element>>);
@@ -37,7 +37,7 @@ public:
     WebIDL::ExceptionOr<void> set_selected_index(WebIDL::Long);
 
 private:
-    HTMLOptionsCollection(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
+    HTMLOptionsCollection(DOM::ParentNode& root, Filter filter);
 };
 
 }

@@ -17,14 +17,14 @@ class HTMLFormControlsCollection : public DOM::HTMLCollection {
     GC_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
 
 public:
-    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, HTMLFormElement& form, Filter filter);
 
     virtual ~HTMLFormControlsCollection() override;
 
     Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(Utf16View name) const;
 
 private:
-    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
+    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, Filter filter);
 
     virtual void collect_elements_into(Vector<GC::RawPtr<DOM::Element>>&) const override;
 

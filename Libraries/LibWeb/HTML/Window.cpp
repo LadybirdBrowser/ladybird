@@ -2471,10 +2471,10 @@ Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCol
 
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
-    auto collection = DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) -> bool {
+    auto collection = DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(name), [](Utf16FlyString const& name, DOM::Element const& element) -> bool {
         if (is_named_element_by_name(element) && element.name() == name)
             return true;
-        return element.id() == name; }, DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
+        return element.id() == name; }), DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
     return collection;
 }
 

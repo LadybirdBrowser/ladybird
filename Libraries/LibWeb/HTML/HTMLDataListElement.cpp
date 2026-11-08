@@ -31,7 +31,7 @@ GC::Ref<DOM::HTMLCollection> HTMLDataListElement::options()
 {
     // The options IDL attribute must return an HTMLCollection rooted at the datalist node, whose filter matches option elements.
     if (!m_options) {
-        m_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLOptionElement>(element); }, DOM::HTMLCollection::AttributeInvalidationType::None);
+        m_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, GC::create_function(GC::Heap::the(), [](Element const& element) { return is<HTML::HTMLOptionElement>(element); }), DOM::HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_options;
 }

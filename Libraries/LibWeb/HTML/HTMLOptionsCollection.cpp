@@ -17,13 +17,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLOptionsCollection);
 
-GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& root, Filter filter)
 {
-    return GC::Heap::the().allocate<HTMLOptionsCollection>(root, move(filter));
+    return GC::Heap::the().allocate<HTMLOptionsCollection>(root, filter);
 }
 
-HTMLOptionsCollection::HTMLOptionsCollection(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
-    : DOM::HTMLCollection(root, Scope::Descendants, move(filter), AttributeInvalidationType::None)
+HTMLOptionsCollection::HTMLOptionsCollection(DOM::ParentNode& root, Filter filter)
+    : DOM::HTMLCollection(root, Scope::Descendants, filter, AttributeInvalidationType::None)
 {
 }
 

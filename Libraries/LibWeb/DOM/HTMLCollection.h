@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <AK/Function.h>
+#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakContainer.h>
@@ -51,7 +51,10 @@ public:
     using AttributeInvalidationType = HTMLCollectionCacheRegistration::AttributeInvalidationType;
     using AttributeInvalidationTypes = HTMLCollectionCacheRegistration::AttributeInvalidationTypes;
 
-    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, AttributeInvalidationType, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
+    using Filter = GC::Ref<GC::Function<bool(Element const&)>>;
+    using Sort = GC::Ptr<GC::Function<bool(Element const&, Element const&)>>;
+
+    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, Filter, AttributeInvalidationType, Sort = nullptr, Kind = Kind::Generic);
 
     virtual ~HTMLCollection() override;
 
@@ -65,11 +68,11 @@ public:
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
 protected:
-    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, AttributeInvalidationType, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
+    HTMLCollection(ParentNode& root, Scope, Filter, AttributeInvalidationType, Sort = nullptr, Kind = Kind::Generic);
 
     GC::Ref<ParentNode> root() { return *m_root; }
     GC::Ref<ParentNode const> root() const { return *m_root; }
-    bool element_matches_filter(Element const& element) const { return m_filter(element); }
+    bool element_matches_filter(Element const& element) const { return (*m_filter)(element); }
 
     virtual void collect_elements_into(Vector<GC::RawPtr<Element>>&) const;
 
@@ -100,8 +103,8 @@ private:
     mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
 
     GC::Ref<ParentNode> m_root;
-    Function<bool(Element const&)> m_filter;
-    Function<bool(Element const&, Element const&)> m_sort;
+    Filter m_filter;
+    Sort m_sort;
 
     mutable HTMLCollectionCacheRegistration m_cache_registration;
 

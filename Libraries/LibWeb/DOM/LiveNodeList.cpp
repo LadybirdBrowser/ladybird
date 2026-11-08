@@ -16,16 +16,16 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(LiveNodeList);
 
-GC::Ref<NodeList> LiveNodeList::create(Node const& root, Scope scope, Function<bool(Node const&)> filter, Kind kind)
+GC::Ref<NodeList> LiveNodeList::create(Node const& root, Scope scope, Filter filter, Kind kind)
 {
-    return GC::Heap::the().allocate<LiveNodeList>(root, scope, move(filter), kind);
+    return GC::Heap::the().allocate<LiveNodeList>(root, scope, filter, kind);
 }
 
-LiveNodeList::LiveNodeList(Node const& root, Scope scope, Function<bool(Node const&)> filter, Kind kind)
+LiveNodeList::LiveNodeList(Node const& root, Scope scope, Filter filter, Kind kind)
     : NodeList()
     , GC::WeakContainer(heap())
     , m_root(root)
-    , m_filter(move(filter))
+    , m_filter(filter)
     , m_scope(scope)
     , m_kind(kind)
 {
@@ -37,7 +37,7 @@ void LiveNodeList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
-    visitor.visit_possible_values(m_filter.raw_capture_range());
+    visitor.visit(m_filter);
 }
 
 GC::Cell const& LiveNodeList::owner_cell(Badge<GC::Heap>) const
@@ -66,13 +66,13 @@ void LiveNodeList::update_cache_if_needed() const
     m_cached_nodes.clear_with_capacity();
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
-            if (m_filter(node))
+            if ((*m_filter)(node))
                 m_cached_nodes.append(const_cast<Node&>(node));
             return TraversalDecision::Continue;
         });
     } else {
         m_root->for_each_child([&](auto& node) {
-            if (m_filter(node))
+            if ((*m_filter)(node))
                 m_cached_nodes.append(const_cast<Node&>(node));
             return IterationDecision::Continue;
         });
