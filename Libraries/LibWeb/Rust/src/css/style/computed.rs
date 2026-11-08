@@ -406,6 +406,10 @@ impl<'a> ViewLonghands<'a> {
 }
 
 impl<'a> StyleRecordView<'a> {
+    pub(crate) fn computed_values(&self) -> crate::css::computed_value_views::ComputedValuesView<'a> {
+        crate::css::computed_value_views::ComputedValuesView::of(self.payloads)
+    }
+
     /// The base record's longhands.
     pub(crate) fn longhands(&self) -> ViewLonghands<'a> {
         ViewLonghands::of_record(self.record)

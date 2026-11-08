@@ -5,7 +5,7 @@
  */
 
 use super::bridge::{ElementBoxKind, FfiAnimationInvalidation, FfiStyleInvalidationField, element_adjustment_fact};
-use super::computed::{ComputedGroupSets, FinalStyleRecordID, StyleRecordView, ViewLonghands};
+use super::computed::{StyleRecordView, ViewLonghands};
 use super::{RetainedState, StyleNodeID};
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_value_types::{ComputedFilter, SVG_PAINT_NONE};
@@ -38,41 +38,19 @@ pub(crate) struct SampleBounds {
     pub subtree_follows: bool,
 }
 
-/// A style record read through its view, with the identity it is live under where it is installed,
-/// which memoizes comparisons between installed records. A record not installed yet has none.
-#[derive(Clone, Copy)]
-pub(crate) struct RecordView<'a> {
-    pub values: StyleRecordView<'a>,
-    pub identity: Option<FinalStyleRecordID>,
-}
-
-impl<'a> RecordView<'a> {
-    /// The view of the live record `raw_style_record` names, if the engine can read it.
-    pub(crate) fn installed(sets: &'a ComputedGroupSets, raw_style_record: u64) -> Option<Self> {
-        Some(Self {
-            values: sets.style_record_view(raw_style_record)?,
-            identity: FinalStyleRecordID::from_raw(raw_style_record),
-        })
-    }
-
-    fn computed_values(&self) -> ComputedValuesView<'a> {
-        ComputedValuesView::of(self.values.payloads)
-    }
-}
-
 /// An element, or one of its pseudo-elements, moving from one record to another.
 #[derive(Clone, Copy)]
 pub(crate) struct RecordMove<'a> {
-    pub old: RecordView<'a>,
-    pub new: RecordView<'a>,
+    pub old: StyleRecordView<'a>,
+    pub new: StyleRecordView<'a>,
 }
 
 /// A pseudo-element moving from one record to another, where either can be absent: its box then
 /// appears or goes away.
 #[derive(Clone, Copy)]
 pub(crate) struct PseudoElementRecordMove<'a> {
-    pub old: Option<RecordView<'a>>,
-    pub new: Option<RecordView<'a>>,
+    pub old: Option<StyleRecordView<'a>>,
+    pub new: Option<StyleRecordView<'a>>,
 }
 
 /// The facts the engine holds of an element and its place in the tree that what moving it, or one
@@ -1041,8 +1019,8 @@ impl RetainedState {
         let facts = self.element_damage_facts(node, is_pseudo_element);
         let sets = &self.computed_group_sets;
         let (Some(old), Some(new)) = (
-            RecordView::installed(sets, old_style_record),
-            RecordView::installed(sets, new_style_record),
+            sets.style_record_view(old_style_record),
+            sets.style_record_view(new_style_record),
         ) else {
             return unreadable_record_damage();
         };
@@ -1057,13 +1035,10 @@ impl RetainedState {
         old_style_record: u64,
         new: &std::sync::Arc<super::pipeline::Record>,
     ) -> u32 {
-        let Some(old) = RecordView::installed(&self.computed_group_sets, old_style_record) else {
+        let Some(old) = self.computed_group_sets.style_record_view(old_style_record) else {
             return unreadable_record_damage();
         };
-        let new = RecordView {
-            values: new.view(),
-            identity: None,
-        };
+        let new = new.view();
         element_record_damage_of_views(self.element_damage_facts(node, false), RecordMove { old, new })
     }
 
@@ -1079,15 +1054,25 @@ impl RetainedState {
         originating_style_record: u64,
         counter_styles_changed: bool,
     ) -> u32 {
-        if let Some(damage) = pseudo_element_damage_without_records(pseudo_kind, old_style_record == new_style_record) {
-            return damage;
+        if old_style_record == new_style_record {
+            return 0;
+        }
+        // NB: Highlight pseudo-elements do not generate boxes or affect layout.
+        if super::publication::pseudo_kind::is_highlight(pseudo_kind) {
+            return StyleInvalidation {
+                level: INVALIDATION_REPAINT,
+                repaint_highlights: true,
+                any_computed_value_changed: true,
+                ..StyleInvalidation::default()
+            }
+            .pack();
         }
         let facts = self.element_damage_facts(node, true);
         let sets = &self.computed_group_sets;
         // A zero record is an absent one; a nonzero record the engine cannot read is none at all.
         let view = |record: u64| match record {
             0 => Some(None),
-            record => RecordView::installed(sets, record).map(Some),
+            record => sets.style_record_view(record).map(Some),
         };
         let (Some(old), Some(new), Some(Some(originating))) = (
             view(old_style_record),
@@ -1154,7 +1139,7 @@ fn compare_record_views(
     element_propagates_overflow_to_viewport: bool,
     verifies_reads: bool,
 ) -> u32 {
-    let (old_longhands, new_longhands) = (record_move.old.values.longhands(), record_move.new.values.longhands());
+    let (old_longhands, new_longhands) = (record_move.old.longhands(), record_move.new.longhands());
     let packed = record_move_damage(
         record_move,
         [old_longhands, new_longhands],
@@ -1189,8 +1174,8 @@ fn record_move_damage(
     element_folds_transform_into_layout: bool,
     element_propagates_overflow_to_viewport: bool,
 ) -> StyleInvalidation {
-    let old_record = record_move.old.values;
-    let new_record = record_move.new.values;
+    let old_record = record_move.old;
+    let new_record = record_move.new;
     let old_values = record_move.old.computed_values();
     let new_values = record_move.new.computed_values();
 
@@ -1413,47 +1398,18 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
     damage.pack()
 }
 
-/// What moving a pseudo-element answers without reading its records: nothing when it stays on the
-/// same record, and a repaint of a highlight pseudo-element, which generates no box.
-fn pseudo_element_damage_without_records(pseudo_kind: u8, stays_on_its_record: bool) -> Option<u32> {
-    if stays_on_its_record {
-        return Some(0);
-    }
-    // NB: Highlight pseudo-elements do not generate boxes or affect layout.
-    if super::publication::pseudo_kind::is_highlight(pseudo_kind) {
-        return Some(
-            StyleInvalidation {
-                level: INVALIDATION_REPAINT,
-                repaint_highlights: true,
-                any_computed_value_changed: true,
-                ..StyleInvalidation::default()
-            }
-            .pack(),
-        );
-    }
-    None
-}
-
 /// What moving the pseudo-element of `pseudo_kind` of an element with `facts` between the records
 /// of `record_move` damages. The originating element holds `originating`, which decides whether the
 /// box stays inside the originating one. `counter_styles_changed` is the host's answer for what the
 /// box was built with: the counter styles its generated content and marker resolved.
-pub(crate) fn pseudo_element_record_damage_of_views(
+fn pseudo_element_record_damage_of_views(
     facts: ElementDamageFacts,
     pseudo_kind: u8,
     record_move: PseudoElementRecordMove<'_>,
-    originating: RecordView<'_>,
+    originating: StyleRecordView<'_>,
     counter_styles_changed: bool,
 ) -> u32 {
     use super::publication::pseudo_kind::{AFTER, BEFORE, MARKER};
-    let stays_on_its_record = match (record_move.old, record_move.new) {
-        (None, None) => true,
-        (Some(old), Some(new)) => old.identity.is_some() && old.identity == new.identity,
-        _ => false,
-    };
-    if let Some(damage) = pseudo_element_damage_without_records(pseudo_kind, stays_on_its_record) {
-        return damage;
-    }
     let old_values = record_move.old.map(|record| record.computed_values());
     let new_values = record_move.new.map(|record| record.computed_values());
     let originating_values = originating.computed_values();
@@ -1550,94 +1506,9 @@ const _: () = assert!(FIRST_LONGHAND_PROPERTY_ID <= LAST_LONGHAND_PROPERTY_ID);
 
 #[cfg(test)]
 mod tests {
-    use super::super::publication::pseudo_kind::BEFORE;
     use super::super::{StyleEngine, computed};
     use super::*;
-    use crate::css::style_value::RetainedStyleValueData;
     use crate::css::table_group_builder::group_index;
-
-    /// Install a record of the default groups over a longhand table holding `opacity` and the
-    /// initial value of every other longhand for `target`, with `font_cascade_list` for its font
-    /// cascade list.
-    fn publish(
-        engine: &mut StyleEngine,
-        target: computed::ComputedStyleTarget,
-        font_cascade_list: *const std::ffi::c_void,
-        opacity: f64,
-    ) -> u64 {
-        let value_of = |property| match property {
-            property_id::OPACITY => RetainedStyleValueData::from_owned(StyleValueData::Number { value: opacity }),
-            _ => crate::css::style_compute::initial_value_handle(property).clone(),
-        };
-        // Comparing records reads their font cascade lists, which the default font group holds
-        // none of. The test stubs compare lists by address.
-        let mut payloads = engine.default_groups().groups().clone();
-        // SAFETY: The font group holds a `FontValues`.
-        unsafe {
-            payloads.write_group::<crate::css::computed_value_types::FontValues>(group_index::FONT, |font| {
-                font.font_cascade_list = libgfx_rust::font::FontCascadeListHandle::retain(font_cascade_list);
-            });
-        }
-        let record = engine
-            .install_test_record(target, Some(&value_of), Some(&payloads), 0)
-            .raw();
-        record
-    }
-
-    #[test]
-    fn record_damage_read_from_views_matches_damage_read_by_identities() {
-        let mut engine = StyleEngine::new();
-        let mut raw_node = [0];
-        engine.allocate_style_nodes(&mut raw_node);
-        let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
-        let element = computed::ComputedStyleTarget::new(node, u8::MAX);
-        let font_cascade_list = Box::new(0_u8);
-        let font_cascade_list = (&raw const *font_cascade_list).cast();
-        let old = publish(&mut engine, element, font_cascade_list, 1.0);
-        let new = publish(&mut engine, element, font_cascade_list, 0.5);
-        assert_ne!(old, new);
-
-        let by_identities = engine.element_record_damage(node, false, old, new);
-        let pseudo_by_identities = engine.pseudo_element_record_damage(node, BEFORE, old, new, new, false);
-        let appearing_pseudo_by_identities = engine.pseudo_element_record_damage(node, BEFORE, 0, new, new, false);
-        assert_ne!(by_identities, 0);
-
-        // Views of records that are not installed read as installed ones do.
-        let not_installed = |raw| RecordView {
-            identity: None,
-            ..RecordView::installed(&engine.computed_group_sets, raw).unwrap()
-        };
-        let record_move = RecordMove {
-            old: not_installed(old),
-            new: not_installed(new),
-        };
-        let by_views = element_record_damage_of_views(engine.element_damage_facts(node, false), record_move);
-        assert_eq!(by_views, by_identities);
-
-        let pseudo_facts = engine.element_damage_facts(node, true);
-        let pseudo_by_views = pseudo_element_record_damage_of_views(
-            pseudo_facts,
-            BEFORE,
-            PseudoElementRecordMove {
-                old: Some(record_move.old),
-                new: Some(record_move.new),
-            },
-            record_move.new,
-            false,
-        );
-        assert_eq!(pseudo_by_views, pseudo_by_identities);
-        let appearing_pseudo_by_views = pseudo_element_record_damage_of_views(
-            pseudo_facts,
-            BEFORE,
-            PseudoElementRecordMove {
-                old: None,
-                new: Some(record_move.new),
-            },
-            record_move.new,
-            false,
-        );
-        assert_eq!(appearing_pseudo_by_views, appearing_pseudo_by_identities);
-    }
 
     #[test]
     fn a_color_change_repaints_a_decoration_of_current_color() {
@@ -1669,7 +1540,9 @@ mod tests {
         let blue = publish_decorated(0xff00_00ff, current_color);
         let red = publish_decorated(0xffff_0000, current_color);
         let view = |raw| {
-            RecordView::installed(&engine.computed_group_sets, raw)
+            engine
+                .computed_group_sets
+                .style_record_view(raw)
                 .unwrap()
                 .computed_values()
         };

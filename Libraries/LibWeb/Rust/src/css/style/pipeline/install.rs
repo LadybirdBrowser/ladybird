@@ -8,7 +8,6 @@
 //! and handed to the host as rows.
 
 use super::super::pointer_key::{PointerKey, PointerLookup};
-use super::super::style_invalidation::RecordView;
 use super::super::*;
 use super::install_scratch::InstallScratch;
 use super::live::Live;
@@ -627,8 +626,8 @@ impl RetainedState {
                 || self.container_effects_for_host.get(&node).is_some()
             {
                 let sets = &self.computed_group_sets;
-                let old_view = RecordView::installed(sets, old).filter(|_| !below_display_none);
-                let new_view = RecordView::installed(sets, new).expect("an installed record is live");
+                let old_view = sets.style_record_view(old).filter(|_| !below_display_none);
+                let new_view = sets.style_record_view(new).expect("an installed record is live");
                 let facts = super::main_effects::InstallationFacts {
                     composed_by_the_host,
                     owes_an_animation_plan,
