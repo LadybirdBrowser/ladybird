@@ -7,7 +7,6 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapHashTable.h>
 #include <LibGC/HeapVector.h>
@@ -31,40 +30,6 @@ class TestCell : public GC::Cell {
 };
 
 GC_DEFINE_ALLOCATOR(TestCell);
-
-// Probe the public container type, including aliases and incomplete pointees, rather than its implementation trait.
-template<typename T>
-concept ConservativeVectorAccepts = requires { typename GC::ConservativeVector<T>; };
-
-class ForwardDeclaredCell;
-using AliasedCellPtr = GC::Ptr<ForwardDeclaredCell>;
-using AliasedCellRef = GC::Ref<ForwardDeclaredCell>;
-struct ConservativeRecord {
-    GC::Ref<TestCell> cell;
-    FlatPtr payload;
-};
-
-static_assert(ConservativeVectorAccepts<FlatPtr>);
-static_assert(ConservativeVectorAccepts<TestCell*>);
-static_assert(ConservativeVectorAccepts<ConservativeRecord>);
-static_assert(!ConservativeVectorAccepts<GC::Ptr<TestCell>>);
-static_assert(!ConservativeVectorAccepts<GC::Ref<TestCell>>);
-static_assert(!ConservativeVectorAccepts<GC::Ptr<TestCell const>>);
-static_assert(!ConservativeVectorAccepts<GC::Ref<TestCell const>>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr const>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef volatile>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr volatile>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef const>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr const volatile>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef const volatile>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr&>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef&>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr const&>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef const&>);
-static_assert(!ConservativeVectorAccepts<AliasedCellPtr&&>);
-static_assert(!ConservativeVectorAccepts<AliasedCellRef&&>);
 
 class FinalizerObservingCell : public GC::Cell {
     GC_CELL(FinalizerObservingCell, GC::Cell);
@@ -100,21 +65,10 @@ TEST_SETUP
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.set(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue>) override { }
-    virtual void visit_possible_values(ReadonlyBytes) override { }
 
 public:
     HashTable<GC::Cell*> visited_cells;
 };
-
-static bool possible_values_contain(GC::ConservativeVectorBase const& container, GC::Cell* cell)
-{
-    auto target = bit_cast<FlatPtr>(cell);
-    for (auto value : container.possible_values()) {
-        if (value == target)
-            return true;
-    }
-    return false;
-}
 
 TEST_CASE(root_vector_reports_roots)
 {
@@ -355,29 +309,6 @@ TEST_CASE(root_vector_of_traced_values_keeps_their_cells_alive)
     GC::scrub_stack_for_testing();
     heap.collect_garbage();
     EXPECT(weak_cell);
-}
-
-TEST_CASE(conservative_vector_adopts_moved_vector)
-{
-    auto& heap = test_heap();
-    Vector<FlatPtr> vector;
-
-    auto cell = heap.allocate<TestCell>();
-    vector.append(bit_cast<FlatPtr>(cell.ptr()));
-    GC::ConservativeVector<FlatPtr> conservative_vector { move(vector) };
-
-    EXPECT(possible_values_contain(conservative_vector, cell.ptr()));
-}
-
-TEST_CASE(conservative_vector_reports_possible_values)
-{
-    auto& heap = test_heap();
-    GC::ConservativeVector<ConservativeRecord> vector;
-
-    auto cell = heap.allocate<TestCell>();
-    vector.append({ cell, 0x1234 });
-
-    EXPECT(possible_values_contain(vector, cell.ptr()));
 }
 
 TEST_CASE(heap_vector_visit_edges_reports_cells)

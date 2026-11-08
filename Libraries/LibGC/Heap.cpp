@@ -122,7 +122,6 @@ struct PhaseTimings {
     // gather_conservative_roots() subphases.
     i64 conservative_register_scan_us { 0 };
     i64 conservative_stack_scan_us { 0 };
-    i64 conservative_vector_scan_us { 0 };
     i64 conservative_cell_lookup_us { 0 };
 
     // mark_live_cells() subphases.
@@ -207,7 +206,6 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("    conservative roots          {:>10} us ({:>5.1f}%)", t.gather_conservative_roots_us, pct(t.gather_conservative_roots_us));
     dbgln("      register scan             {:>10} us ({:>5.1f}%)", t.conservative_register_scan_us, pct(t.conservative_register_scan_us));
     dbgln("      stack scan                {:>10} us ({:>5.1f}%)", t.conservative_stack_scan_us, pct(t.conservative_stack_scan_us));
-    dbgln("      conservative-vector scan  {:>10} us ({:>5.1f}%)", t.conservative_vector_scan_us, pct(t.conservative_vector_scan_us));
     dbgln("      cell lookup               {:>10} us ({:>5.1f}%)", t.conservative_cell_lookup_us, pct(t.conservative_cell_lookup_us));
     dbgln("    explicit roots              {:>10} us ({:>5.1f}%)", t.gather_explicit_roots_us, pct(t.gather_explicit_roots_us));
     dbgln("  mark_live_cells               {:>10} us ({:>5.1f}%)", t.mark_live_cells_us, pct(t.mark_live_cells_us));
@@ -554,28 +552,6 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
     possible_pointers.pointers.set(possible_pointer, move(origin));
 }
 
-// Adds the possible values in the captures of an AK::Function that a cell visits. Its captures start 8-byte aligned, but
-// may end with a lone compressed cell pointer, as a capture of nothing but one member does. That one is no half of a
-// whole word, so it is added on its own. A member elsewhere in the captures is either half of one of the whole words.
-static void add_possible_captured_values(PossiblePointers& possible_pointers, ReadonlyBytes bytes, PossiblePointerBounds const& bounds)
-{
-    HeapRoot const origin { .type = HeapRoot::Type::AKFunctionCapturedPointer };
-    ASSERT(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(FlatPtr) == 0);
-    auto const* words = reinterpret_cast<FlatPtr const*>(bytes.data());
-    auto word_count = bytes.size() / sizeof(FlatPtr);
-    for (size_t i = 0; i < word_count; ++i)
-        add_possible_value(possible_pointers, words[i], origin, bounds);
-
-    // NB: Anything shorter than 4 bytes past the last whole word is too short to be a member, and anything that is a
-    //     member is 4-byte aligned.
-    auto tail = bytes.slice(word_count * sizeof(FlatPtr));
-    if (tail.size() >= sizeof(u32)) {
-        u32 compressed;
-        memcpy(&compressed, tail.data(), sizeof(compressed));
-        add_possible_compressed_pointer(possible_pointers, compressed, origin, bounds);
-    }
-}
-
 template<typename Callback>
 static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& all_live_heap_blocks, PossiblePointers& possible_pointers, Callback callback)
 {
@@ -601,10 +577,8 @@ static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& a
 
 class GraphConstructorVisitor final : public Cell::Visitor {
 public:
-    explicit GraphConstructorVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
-        : m_heap(heap)
+    explicit GraphConstructorVisitor(HashMap<Cell*, HeapRoot> const& roots)
     {
-        m_possible_pointer_bounds = PossiblePointerBounds::current();
         m_work_queue.ensure_capacity(roots.size());
 
         for (auto& [root, root_origin] : roots) {
@@ -631,25 +605,6 @@ public:
     {
         for (auto const& value : values)
             visit(value);
-    }
-
-    virtual void visit_possible_values(ReadonlyBytes bytes) override
-    {
-        PossiblePointers possible_pointers;
-
-        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
-
-        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {
-            if (cell->state() != Cell::State::Live)
-                return;
-
-            if (m_node_being_visited)
-                m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
-
-            if (m_graph.get(reinterpret_cast<FlatPtr>(cell)).has_value())
-                return;
-            m_work_queue.append(*cell);
-        });
     }
 
     void visit_all_cells()
@@ -697,9 +652,6 @@ private:
     GraphNode* m_node_being_visited { nullptr };
     Vector<Ref<Cell>> m_work_queue;
     HashMap<FlatPtr, GraphNode> m_graph;
-
-    Heap& m_heap;
-    PossiblePointerBounds m_possible_pointer_bounds;
 };
 
 NO_SANITIZE_ADDRESS AK::JsonObject Heap::dump_graph()
@@ -731,7 +683,7 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
     HashMap<Cell*, HeapRoot> roots;
     Vector<StackFrameInfo> stack_frames;
     gather_roots(origin, roots, &stack_frames);
-    GraphConstructorVisitor visitor(*this, roots);
+    GraphConstructorVisitor visitor(roots);
     visitor.visit_all_cells();
     auto graph = visitor.dump();
 
@@ -752,12 +704,8 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
 String Heap::describe_root(HeapRoot const& root)
 {
     switch (root.type) {
-    case HeapRoot::Type::ConservativeVector:
-        return "ConservativeVector"_string;
     case HeapRoot::Type::CrossHeapMember:
         return "CrossHeapMember"_string;
-    case HeapRoot::Type::AKFunctionCapturedPointer:
-        return "AKFunctionCapturedPointer"_string;
     case HeapRoot::Type::Root:
         return MUST(String::formatted("Root {} {}:{}", root.location->function_name(), root.location->filename(), root.location->line_number()));
     case HeapRoot::Type::RootVector:
@@ -779,42 +727,24 @@ String Heap::describe_root(HeapRoot const& root)
 // Visits every reachable cell breadth first, so the parent it records for each is on a shortest path from a root.
 class RetainingPathVisitor final : public Cell::Visitor {
 public:
-    struct Node {
-        Cell* parent { nullptr };
-        Heap::RetainingEdgeKind edge_kind { Heap::RetainingEdgeKind::Precise };
-    };
-
-    RetainingPathVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
-        : m_heap(heap)
-        , m_possible_pointer_bounds(PossiblePointerBounds::current())
+    explicit RetainingPathVisitor(HashMap<Cell*, HeapRoot> const& roots)
     {
         m_queue.ensure_capacity(roots.size());
         for (auto& [root, root_origin] : roots) {
-            m_nodes.set(root, {});
+            m_parents.set(root, nullptr);
             m_queue.append(*root);
         }
     }
 
     virtual void visit_impl(Cell& cell) override
     {
-        reach(cell, Heap::RetainingEdgeKind::Precise);
+        reach(cell);
     }
 
     virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
     {
         for (auto const& value : values)
             visit(value);
-    }
-
-    virtual void visit_possible_values(ReadonlyBytes bytes) override
-    {
-        PossiblePointers possible_pointers;
-        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
-        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto& candidates, FlatPtr) {
-            if (cell->state() != Cell::State::Live)
-                return;
-            reach(*cell, &candidates == &possible_pointers.compressed_pointers ? Heap::RetainingEdgeKind::ConservativeHalf : Heap::RetainingEdgeKind::ConservativeWord);
-        });
     }
 
     void visit_all_cells()
@@ -828,20 +758,18 @@ public:
     }
 
     ReadonlySpan<Ref<Cell>> cells() const { return m_queue; }
-    Node const& node(Cell& cell) const { return *m_nodes.get(&cell); }
+    Cell* parent(Cell& cell) const { return *m_parents.get(&cell); }
 
 private:
-    void reach(Cell& cell, Heap::RetainingEdgeKind edge_kind)
+    void reach(Cell& cell)
     {
-        if (m_nodes.contains(&cell))
+        if (m_parents.contains(&cell))
             return;
-        m_nodes.set(&cell, { m_cell_being_visited, edge_kind });
+        m_parents.set(&cell, m_cell_being_visited);
         m_queue.append(cell);
     }
 
-    Heap& m_heap;
-    PossiblePointerBounds m_possible_pointer_bounds;
-    HashMap<Cell*, Node> m_nodes;
+    HashMap<Cell*, Cell*> m_parents;
     Vector<Ref<Cell>> m_queue;
     Cell* m_cell_being_visited { nullptr };
 };
@@ -867,7 +795,7 @@ Vector<Heap::RetainingPath> Heap::build_retaining_paths(ReadonlySpan<FlatPtr> ca
 
     HashMap<Cell*, HeapRoot> roots;
     gather_roots(origin, roots);
-    RetainingPathVisitor visitor(*this, roots);
+    RetainingPathVisitor visitor(roots);
     visitor.visit_all_cells();
 
     Vector<RetainingPath> paths;
@@ -878,14 +806,14 @@ Vector<Heap::RetainingPath> Heap::build_retaining_paths(ReadonlySpan<FlatPtr> ca
             continue;
 
         Vector<Cell*> path_cells;
-        for (Cell* step = cell.ptr(); step; step = visitor.node(*step).parent)
+        for (Cell* step = cell.ptr(); step; step = visitor.parent(*step))
             path_cells.append(step);
 
         RetainingPath path { .root = *roots.get(path_cells.last()), .steps = {} };
         path.steps.ensure_capacity(path_cells.size());
         for (size_t i = path_cells.size(); i > 0; --i) {
             auto& step = *path_cells[i - 1];
-            path.steps.unchecked_append({ class_name_of(step), visitor.node(step).edge_kind });
+            path.steps.unchecked_append({ class_name_of(step) });
         }
         paths.append(move(path));
     }
@@ -1164,8 +1092,6 @@ void Heap::dump_allocators()
 class CensusVisitor final : public Cell::Visitor {
 public:
     size_t cell_edges { 0 };
-
-    virtual void visit_possible_values(ReadonlyBytes) override { }
 
 private:
     virtual void visit_impl(Cell&) override { ++cell_edges; }
@@ -1481,15 +1407,6 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
     }
 
     {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_vector_scan_us };
-        for (auto& vector : m_conservative_vectors) {
-            for (auto possible_value : vector.possible_values()) {
-                add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
-            }
-        }
-    }
-
-    {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_cell_lookup_us };
         for_each_cell_among_possible_pointers(m_live_heap_blocks, possible_pointers, [&](Cell* cell, HashMap<FlatPtr, HeapRoot>& candidates, FlatPtr possible_pointer) {
             if (cell->state() == Cell::State::Live) {
@@ -1508,7 +1425,6 @@ public:
     explicit MarkingVisitor(ReadonlySpan<Heap* const> domain, HashMap<Cell*, HeapRoot> const& roots)
         : m_domain(domain)
     {
-        m_possible_pointer_bounds = PossiblePointerBounds::current();
         for (auto* root : roots.keys()) {
             visit(root);
         }
@@ -1554,24 +1470,6 @@ public:
 
             cell.set_marked(true);
             m_work_queue.unchecked_append(cell);
-        }
-    }
-
-    virtual void visit_possible_values(ReadonlyBytes bytes) override
-    {
-        PossiblePointers possible_pointers;
-
-        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
-
-        for (auto* heap : m_domain) {
-            for_each_cell_among_possible_pointers(heap->m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto&, FlatPtr) {
-                if (cell->is_marked())
-                    return;
-                if (cell->state() != Cell::State::Live)
-                    return;
-                cell->set_marked(true);
-                m_work_queue.append(*cell);
-            });
         }
     }
 
@@ -1622,7 +1520,6 @@ private:
     ReadonlySpan<Heap* const> m_domain;
     Vector<Ref<Cell>> m_work_queue;
     Vector<Ephemeron> m_pending_ephemerons;
-    PossiblePointerBounds m_possible_pointer_bounds;
 };
 
 void Heap::mark_live_cells(HashMap<Cell*, HeapRoot>& roots)

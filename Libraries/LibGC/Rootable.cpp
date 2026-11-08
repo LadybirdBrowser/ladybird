@@ -8,12 +8,6 @@
 
 namespace GC::Detail {
 
-void RootGatheringVisitor::visit_possible_values(ReadonlyBytes)
-{
-    // NB: Roots are gathered precisely.
-    VERIFY_NOT_REACHED();
-}
-
 void RootGatheringVisitor::visit_impl(Cell& cell)
 {
     m_roots.set(&cell, HeapRoot { .type = m_root_type });

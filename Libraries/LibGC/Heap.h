@@ -21,7 +21,6 @@
 #include <LibCore/Forward.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/CrossHeapMember.h>
 #include <LibGC/Forward.h>
 #include <LibGC/FunctionTable.h>
@@ -88,20 +87,13 @@ public:
     NEVER_INLINE void collect_garbage(CollectionType = CollectionType::CollectGarbage, bool print_report = false);
     NEVER_INLINE AK::JsonObject dump_graph();
 
-    // How a cell on a retaining path reaches the next one: through a field it visits, or through a word a conservative
-    // scan of its contents (the captures of an AK::Function, for example) took for a pointer, whole or as either 32-bit half.
-    enum class RetainingEdgeKind : u8 {
-        Precise,
-        ConservativeWord,
-        ConservativeHalf,
-    };
+    // A cell on a retaining path, which reaches the next one through a field it visits.
     struct RetainingPathStep {
         StringView class_name;
-        RetainingEdgeKind edge_kind { RetainingEdgeKind::Precise };
     };
     struct RetainingPath {
         HeapRoot root;
-        // The first step is the root cell, whose edge kind is unused, and the last is the target.
+        // The first step is the root cell, and the last is the target.
         Vector<RetainingPathStep> steps;
     };
     // The shortest path from a root to each reachable cell that is_target accepts, for at most max_paths of them.
@@ -131,8 +123,6 @@ public:
     void did_create_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
     void did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
 
-    void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
-    void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
     void did_destroy_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
 
@@ -183,8 +173,6 @@ private:
     friend class CellAllocator;
     friend class HeapBlock;
     friend class MarkingVisitor;
-    friend class GraphConstructorVisitor;
-    friend class RetainingPathVisitor;
     friend class DeferGC;
 
     void defer_gc();
@@ -343,7 +331,6 @@ private:
     RootVectorBase::List m_root_vectors;
     RootHashMapBase::List m_root_hash_maps;
     RootHashTableBase::List m_root_hash_tables;
-    ConservativeVectorBase::List m_conservative_vectors;
     HashTable<CrossHeapMemberBase*> m_incoming_cross_heap_members;
     HeapGroup* m_group { nullptr };
     bool m_incremental_sweep_enabled { true };
@@ -438,18 +425,6 @@ inline void Heap::did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHash
 {
     VERIFY(m_root_hash_tables.contains(hash_table));
     m_root_hash_tables.remove(hash_table);
-}
-
-inline void Heap::did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase& vector)
-{
-    VERIFY(!m_conservative_vectors.contains(vector));
-    m_conservative_vectors.append(vector);
-}
-
-inline void Heap::did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase& vector)
-{
-    VERIFY(m_conservative_vectors.contains(vector));
-    m_conservative_vectors.remove(vector);
 }
 
 inline void Heap::did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase& member)

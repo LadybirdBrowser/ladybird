@@ -168,7 +168,6 @@ static FFI::GcInterface gc_interface(GC::Heap& heap)
         .gc_root_create = function_cast<decltype(Interface::gc_root_create)>(gc_root_create),
         .gc_root_destroy = function_cast<decltype(Interface::gc_root_destroy)>(gc_root_destroy),
         .gc_visitor_visit_cell = function_cast<decltype(Interface::gc_visitor_visit_cell)>(gc_visitor_visit_cell),
-        .gc_visitor_visit_possible_values = function_cast<decltype(Interface::gc_visitor_visit_possible_values)>(gc_visitor_visit_possible_values),
         .gc_primitive_storage_reserve = function_cast<decltype(Interface::gc_primitive_storage_reserve)>(gc_primitive_storage_reserve),
         .gc_primitive_storage_resize = function_cast<decltype(Interface::gc_primitive_storage_resize)>(gc_primitive_storage_resize),
         .gc_primitive_storage_free = gc_primitive_storage_free,

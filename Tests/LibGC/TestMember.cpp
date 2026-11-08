@@ -181,7 +181,6 @@ TEST_CASE(members_hash_like_pointers)
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.append(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue>) override { }
-    virtual void visit_possible_values(ReadonlyBytes) override { }
 
 public:
     Vector<GC::Cell*> visited_cells;
@@ -251,39 +250,6 @@ static NEVER_INLINE GC::Root<GC::Function<size_t()>> make_function_capturing_a_m
     }));
 }
 
-// Scans the captures of an AK::Function for cell pointers, as a timer does for its callback.
-class CallbackScanningCell final : public GC::Cell {
-    GC_CELL(CallbackScanningCell, GC::Cell);
-    GC_DECLARE_ALLOCATOR(CallbackScanningCell);
-
-public:
-    explicit CallbackScanningCell(AK::Function<size_t()> callback)
-        : m_callback(move(callback))
-    {
-    }
-
-    size_t call() const { return m_callback(); }
-
-private:
-    virtual void visit_edges(Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit_possible_values(m_callback.raw_capture_range());
-    }
-
-    AK::Function<size_t()> m_callback;
-};
-
-GC_DEFINE_ALLOCATOR(CallbackScanningCell);
-
-// Keeps nothing on the stack that points at the cell the callback captures, other than the root of the scanning cell.
-template<typename MakeCallable>
-static NEVER_INLINE GC::Root<CallbackScanningCell> make_callback_capturing_a_member(bool& finalized, MakeCallable make_callable)
-{
-    GC::Member<FinalizationTrackingCell> member = test_heap().allocate<FinalizationTrackingCell>(finalized);
-    return GC::make_root(test_heap().allocate<CallbackScanningCell>(make_callable(member)));
-}
-
 static NEVER_INLINE void clobber_the_stack()
 {
     u8 volatile scratch[16 * KiB];
@@ -303,45 +269,6 @@ TEST_CASE(function_capturing_a_member_keeps_its_cell_alive)
 
     EXPECT(!finalized);
     EXPECT_NE(function->function()(), 0u);
-}
-
-TEST_CASE(callback_whose_only_capture_is_a_member_keeps_its_cell_alive)
-{
-    // NB: Static, since the cell outlives the test once nothing holds it anymore.
-    static bool finalized;
-    finalized = false;
-    auto cell = make_callback_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
-        auto callable = [member] { return reinterpret_cast<size_t>(member.ptr()); };
-        static_assert(sizeof(callable) == sizeof(u32));
-        return callable;
-    });
-    clobber_the_stack();
-
-    test_heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
-
-    EXPECT(!finalized);
-    EXPECT_NE(cell->call(), 0u);
-}
-
-TEST_CASE(callback_whose_captures_end_in_a_member_keeps_its_cell_alive)
-{
-    // NB: Static, since the cell outlives the test once nothing holds it anymore.
-    static bool finalized;
-    finalized = false;
-    auto cell = make_callback_capturing_a_member(finalized, [](GC::Member<FinalizationTrackingCell> member) {
-        auto callable = [first = static_cast<u32>(1), second = static_cast<u32>(2), member] {
-            return reinterpret_cast<size_t>(member.ptr()) + first + second;
-        };
-        // NB: The member is past the last whole word of the captures.
-        static_assert(sizeof(callable) == 3 * sizeof(u32));
-        return callable;
-    });
-    clobber_the_stack();
-
-    test_heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
-
-    EXPECT(!finalized);
-    EXPECT_NE(cell->call(), 0u);
 }
 
 // Walks a list of cells through compressed pointers, decoding them against the base copy or against the base exported

@@ -1105,21 +1105,7 @@ static void report_leaked_documents()
         builder.append(GC::Heap::describe_root(path.root));
         for (size_t i = 0; i < path.steps.size(); ++i) {
             auto const& step = path.steps[i];
-            if (i == 0) {
-                builder.append(": "sv);
-            } else {
-                switch (step.edge_kind) {
-                case GC::Heap::RetainingEdgeKind::Precise:
-                    builder.append(" -> "sv);
-                    break;
-                case GC::Heap::RetainingEdgeKind::ConservativeWord:
-                    builder.append(" ~word~> "sv);
-                    break;
-                case GC::Heap::RetainingEdgeKind::ConservativeHalf:
-                    builder.append(" ~half~> "sv);
-                    break;
-                }
-            }
+            builder.append(i == 0 ? ": "sv : " -> "sv);
             builder.append(step.class_name);
         }
         auto signature = builder.to_string_without_validation();

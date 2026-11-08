@@ -14,9 +14,7 @@ namespace GC {
 
 struct GC_API HeapRoot {
     enum class Type {
-        ConservativeVector,
         CrossHeapMember,
-        AKFunctionCapturedPointer,
         RegisterPointer,
         Root,
         RootHashMap,

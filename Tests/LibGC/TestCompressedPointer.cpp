@@ -8,7 +8,6 @@
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/CompressedPointer.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Testing.h>
 #include <LibGC/Weak.h>
@@ -113,30 +112,6 @@ TEST_CASE(conservative_scanner_ignores_compressed_pointer_into_a_cell)
     heap.collect_garbage();
     EXPECT(!weak_cell);
     EXPECT(word != 0);
-}
-
-static NEVER_INLINE void allocate_cell_into_vector(GC::Weak<TestCell>& weak_cell, GC::ConservativeVector<u64>& words)
-{
-    auto cell = test_heap().allocate<TestCell>();
-    weak_cell = cell.ptr();
-    words.append(static_cast<u64>(GC::compress(cell.ptr())) << 32);
-}
-
-TEST_CASE(conservative_vector_keeps_compressed_pointer_alive)
-{
-    auto& heap = test_heap();
-    GC::Weak<TestCell> weak_cell;
-    GC::ConservativeVector<u64> words;
-    allocate_cell_into_vector(weak_cell, words);
-
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage();
-    EXPECT(weak_cell);
-
-    words.clear();
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage();
-    EXPECT(!weak_cell);
 }
 
 }
