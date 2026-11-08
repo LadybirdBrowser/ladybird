@@ -74,7 +74,6 @@ public:
     BookmarksBar& bar() { return *m_bar; }
 
     void bind(Tab*);
-    // Hovering the sidebar shows the bar, like hovering the toolbar.
     void set_sidebar(QWidget&);
     bool shows_over_page() const;
     void update_geometry();

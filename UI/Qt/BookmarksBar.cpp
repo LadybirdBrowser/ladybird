@@ -670,7 +670,9 @@ bool BookmarksBarContainer::cursor_is_over_hover_region() const
     auto contains_cursor = [&](QWidget const& widget) {
         return widget.isVisible() && QRect { widget.mapToGlobal(QPoint {}), widget.size() }.contains(cursor_position);
     };
-    return contains_cursor(m_toolbar) || contains_cursor(*this) || (m_sidebar && contains_cursor(*m_sidebar));
+
+    return contains_cursor(m_toolbar) || contains_cursor(*this)
+        || (m_sidebar && m_toolbar.arrangement() == ToolbarArrangement::Sidebar && contains_cursor(*m_sidebar));
 }
 
 void BookmarksBarContainer::update_hover()
