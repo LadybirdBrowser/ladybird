@@ -20,10 +20,12 @@ static_assert(IsMoveConstructible<EngineCommand>);
 static_assert(!IsConstructible<Command::CompletedPreloadResponse::Completed, NullBody>);
 static_assert(!IsConstructible<Delivered<NonNullLocalBodyHandle>, NullBody>);
 
+// Only fetch params build the input that starts a fetch.
+static_assert(!IsConstructible<StartFetchInput, FetchId, BodyIntent, Optional<Web::FileAPI::SerializedBlobURLEntry>>);
+
 TEST_CASE(commands_round_trip_their_payloads)
 {
     Vector<EngineCommand> commands;
-    commands.append(Command::StartFetch { .input = { .fetch_id = FetchId(1), .body_intent = BodyIntent::DrainAndDiscard, .blob_url_entry = {} } });
     commands.append(Command::Abort { .fetch_id = FetchId(2) });
     commands.append(Command::Terminate { .fetch_id = FetchId(3) });
     commands.append(Command::Stop { .fetch_id = FetchId(4) });
@@ -37,11 +39,7 @@ TEST_CASE(commands_round_trip_their_payloads)
     Vector<u64> seen_ids;
     for (auto& command : commands) {
         command.visit(
-            [&](Command::StartFetch const& start) {
-                EXPECT_EQ(start.input.body_intent, BodyIntent::DrainAndDiscard);
-                EXPECT(!start.input.blob_url_entry.has_value());
-                seen_ids.append(start.input.fetch_id.value());
-            },
+            [&](Command::StartFetch const&) { FAIL("no fetch was started"); },
             [&](Command::Abort const& abort) { seen_ids.append(abort.fetch_id.value()); },
             [&](Command::Terminate const& terminate) { seen_ids.append(terminate.fetch_id.value()); },
             [&](Command::Stop const& stop) { seen_ids.append(stop.fetch_id.value()); },
@@ -62,7 +60,7 @@ TEST_CASE(commands_round_trip_their_payloads)
             },
             [&](Command::AdoptNetworkTransport const&) { FAIL("no transport was posted"); });
     }
-    EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 7, 8 }));
+    EXPECT_EQ(seen_ids, (Vector<u64> { 2, 3, 4, 5, 7, 8 }));
 }
 
 static bool peer_has_hung_up(IPC::Transport& transport)

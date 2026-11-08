@@ -10,9 +10,11 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
@@ -52,6 +54,7 @@ TEST_CASE(each_favicon_is_decoded_once)
     Web::Platform::ImageCodecPlugin::install(image_codec);
 
     auto realm = Web::Bindings::create_a_principal_javascript_realm();
+    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
     auto& page = Web::Bindings::principal_host_defined_page(*realm);
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
     page.set_top_level_traversable(traversable);

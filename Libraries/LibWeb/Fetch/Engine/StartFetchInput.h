@@ -6,14 +6,28 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Optional.h>
 #include <LibWeb/Fetch/Engine/BodyIntent.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 
+namespace Web::Fetch::Infrastructure {
+
+class FetchParams;
+
+}
+
 namespace Web::Fetch::Engine {
 
 struct StartFetchInput {
+    StartFetchInput(Badge<Infrastructure::FetchParams>, FetchId fetch_id, BodyIntent body_intent, Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry)
+        : fetch_id(fetch_id)
+        , body_intent(body_intent)
+        , blob_url_entry(move(blob_url_entry))
+    {
+    }
+
     FetchId fetch_id;
     BodyIntent body_intent;
 
