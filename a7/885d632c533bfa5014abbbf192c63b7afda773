@@ -1,0 +1,9 @@
+Ladybird takes the view box of an SVG view specification in an SVG
+image’s URL fragment as the active view, and ignores a specification
+that names an attribute twice, as the spec’s “each type may only occur
+at most one time in a correctly formed SVGViewSpec” requires. Gecko does
+the same: Its SVGFragmentIdentifier ProcessViewSpecAttr() rejects a
+repeated attribute. But Blink and WebKit let a repeated attribute
+replace the earlier one, in SVGViewSpec::ParseViewSpecInternal() and
+SVGViewSpec::parseViewSpec(). And all three apply the specification’s
+preserveAspectRatio and transform, which Ladybird doesn’t yet.
