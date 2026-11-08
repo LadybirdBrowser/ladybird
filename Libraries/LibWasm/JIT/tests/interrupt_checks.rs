@@ -199,3 +199,19 @@ fn a_subtraction_counts_too() {
     .concat();
     assert_eq!(check_count(&in_a_loop(inner)), 1);
 }
+
+#[test]
+fn a_counter_set_to_a_constant_keeps_its_check() {
+    // The loop goes on while its counter is nonzero, and the back edge gives the counter a constant, whose value isn't
+    // the index of any value in the function.
+    let body = [
+        LOOP.to_vec(),
+        get(I),
+        constant(2185),
+        set(I),
+        BR_IF_0.to_vec(),
+        vec![END],
+    ]
+    .concat();
+    assert_eq!(check_count(&body), 1);
+}
