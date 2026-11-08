@@ -12,6 +12,7 @@
 #include <AK/StdLibExtras.h>
 #include <LibGC/CaptureTraits.h>
 #include <LibGC/Cell.h>
+#include <LibGC/DeferGC.h>
 #include <LibGC/FunctionTable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Member.h>
@@ -298,15 +299,20 @@ public:
 
         static_assert(alignof(Box) <= FunctionTable::box_alignment);
 
-        // NB: The function is allocated before its box is made, so a collection that the allocation runs still finds the
-        //     captured values where the caller holds them.
-        auto cell = heap.allocate<Function>();
-        constexpr size_t box_size = sizeof...(Values) > 0 ? sizeof(Box) : 0;
-        auto allocation = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, box_size);
-        if constexpr (box_size > 0)
+        if constexpr (sizeof...(Values) == 0) {
+            auto cell = heap.allocate<Function>();
+            cell->m_handle = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, 0).handle;
+            return cell;
+        } else {
+            // NB: A collection waits until the function holds its box. Until then, the captured values may be where a
+            //     conservative scan of the stack doesn't look, such as the storage of a temporary Vector of cells.
+            DeferGC defer_gc { heap };
+            auto cell = heap.allocate<Function>();
+            auto allocation = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, sizeof(Box));
             captures.template make_box<Box>(allocation.box);
-        cell->m_handle = allocation.handle;
-        return cell;
+            cell->m_handle = allocation.handle;
+            return cell;
+        }
     }
 
     R operator()(Args... args) const
