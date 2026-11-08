@@ -16,6 +16,9 @@ GC_DEFINE_ALLOCATOR(FetchAlgorithms);
 
 GC::Ref<FetchAlgorithms> FetchAlgorithms::create(Input input)
 {
+    auto has_consuming_intent = input.body_intent == Engine::BodyIntent::ConsumeForCallback || input.body_intent == Engine::BodyIntent::SyncAccumulate;
+    VERIFY(has_consuming_intent || !input.process_response_consume_body);
+
     return GC::Heap::the().allocate<FetchAlgorithms>(
         input.body_intent,
         input.process_request_body_chunk_length,

@@ -1066,3 +1066,21 @@ TEST_CASE(a_fetch_reads_the_network_activity_observers_of_its_agent)
     agent.network_activity_observers->page_did_lose_devtools_client();
     EXPECT(!fetch_params->engine_record()->network_activity_observers().has_devtools_client());
 }
+
+TEST_CASE(algorithms_that_consume_a_body_need_a_consuming_intent)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+
+    auto& heap = harness.realm->heap();
+    auto algorithms_that_consume_a_body = [&heap](Web::Fetch::Engine::BodyIntent body_intent) {
+        FetchAlgorithms::Input input { body_intent };
+        input.process_response_consume_body = GC::create_function(heap, [](GC::Ref<ResponseView>, FetchAlgorithms::BodyBytes) { });
+        return FetchAlgorithms::create(move(input));
+    };
+
+    EXPECT_DEATH("algorithms that consume a body have a consuming intent", (void)algorithms_that_consume_a_body(Web::Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent));
+    EXPECT_DEATH("algorithms that consume a body have a consuming intent", (void)algorithms_that_consume_a_body(Web::Fetch::Engine::BodyIntent::DrainAndDiscard));
+    EXPECT_EQ(algorithms_that_consume_a_body(Web::Fetch::Engine::BodyIntent::SyncAccumulate)->body_intent(), Web::Fetch::Engine::BodyIntent::SyncAccumulate);
+}
