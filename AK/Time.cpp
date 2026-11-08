@@ -434,13 +434,13 @@ Duration now_time_from_filetime()
 
 Duration now_time_from_query_performance_counter()
 {
-    static LARGE_INTEGER ticks_per_second;
-    static f64 ticks_per_nanosecond;
-    if (ticks_per_second.QuadPart == 0) {
+    // Set once, before any thread reads it, even where several threads ask for the time for the first time at once.
+    static f64 const ticks_per_nanosecond = [] {
+        LARGE_INTEGER ticks_per_second {};
         QueryPerformanceFrequency(&ticks_per_second);
         VERIFY(ticks_per_second.QuadPart != 0);
-        ticks_per_nanosecond = static_cast<f64>(ticks_per_second.QuadPart) / 1'000'000'000.0;
-    }
+        return static_cast<f64>(ticks_per_second.QuadPart) / 1'000'000'000.0;
+    }();
 
     LARGE_INTEGER now_time {};
     QueryPerformanceCounter(&now_time);
