@@ -88,8 +88,7 @@
         async function copyAndPaste(selection, sourceStart, sourceStartOffset, sourceEnd, sourceEndOffset, target, targetOffset) {
             selection.setBaseAndExtent(sourceStart, sourceStartOffset, sourceEnd, sourceEndOffset);
             internals.sendKey(host, "C", platformControl);
-            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-            await navigator.clipboard.read();
+            await readClipboardFromPaste(host);
 
             selection.collapse(target, targetOffset);
             const pasteInput = new Promise(resolve => host.addEventListener("input", event => {

@@ -168,8 +168,7 @@
         internals.sendKey(host, "C", platformControl);
 
         // Synchronize the renderer-to-UI-process clipboard write without relying on timing.
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const lastLineText = host.lastElementChild.firstChild;
         selection.collapse(lastLineText, 5);
@@ -251,8 +250,7 @@
         const emptyParagraphBreak = host.querySelector("ul + div").firstChild;
         selection.setBaseAndExtent(emptyParagraphBreak, 0, listItemText, 3);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(listItemText, 3);
         const listPasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -278,8 +276,7 @@
         const redParagraph = host.querySelector('font[color="#ff00"]').parentNode;
         selection.setBaseAndExtent(redParagraph, redParagraph.childNodes.length, firstParagraphText, 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const listItemMiddle = host.querySelector("li").firstChild;
         selection.collapse(listItemMiddle, 2);
@@ -306,8 +303,7 @@
         const trailingText = host.lastElementChild.childNodes[2];
         selection.setBaseAndExtent(trailingText, 29, secondListItemText, 4);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(trailingText, 20);
         const whitespacePasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -332,8 +328,7 @@
         const listItemTexts = host.querySelectorAll("li");
         selection.setBaseAndExtent(listItemTexts[0].firstChild, 1, listItemTexts[1].firstChild, 12);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const listTargetText = host.lastElementChild.childNodes[2];
         selection.collapse(listTargetText, 2);
@@ -359,8 +354,7 @@
         const blockBoundaryListItems = host.querySelectorAll("li");
         selection.setBaseAndExtent(blockBoundaryListItems[0].firstChild, 4, blockBoundaryListItems[1].firstChild, 12);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host, 4);
         const blockBoundaryPasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -386,8 +380,7 @@
         const boundaryFirstListItem = boundaryList.firstElementChild;
         selection.setBaseAndExtent(boundaryList, 2, boundaryFirstListItem, 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host, 11);
         const leadingListBoundaryPasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -412,8 +405,7 @@
         const whitespaceListItems = host.querySelectorAll("li");
         selection.setBaseAndExtent(whitespaceListItems[0].firstChild, 12, whitespaceListItems[1].firstChild, 14);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(whitespaceListItems[1].firstChild, 8);
         const listWhitespacePasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -438,8 +430,7 @@
         const emptyParagraphListItems = host.querySelectorAll("li");
         selection.setBaseAndExtent(emptyParagraphListItems[0].firstChild, 9, emptyParagraphListItems[1].firstChild, 12);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const firstEmptyParagraph = host.childNodes[2];
         selection.collapse(firstEmptyParagraph, 0);
@@ -466,8 +457,7 @@
         const tailSourceText = host.lastElementChild.firstChild;
         selection.setBaseAndExtent(listWithTail, 0, tailSourceText, 4);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const plainTextTailTarget = host.lastElementChild.childNodes[2];
         selection.collapse(plainTextTailTarget, 25);
@@ -494,8 +484,7 @@
         const paragraphAfterLeadingSpaceList = leadingSpaceList.nextElementSibling;
         selection.setBaseAndExtent(leadingSpaceList, 0, paragraphAfterLeadingSpaceList.nextSibling, 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const ordinaryLeadingSpaceTarget = host.lastElementChild.childNodes[2];
         selection.collapse(ordinaryLeadingSpaceTarget, 1);
@@ -522,8 +511,7 @@
         const singleRunTransferSourceText = host.lastElementChild.firstChild;
         selection.setBaseAndExtent(singleRunTransferSourceList, 2, singleRunTransferSourceText, 6);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const singleRunTransferTarget = host.lastElementChild.childNodes[2];
         selection.collapse(singleRunTransferTarget, 3);
@@ -549,8 +537,7 @@
         const foldedParagraphSource = host.lastElementChild.childNodes[2];
         selection.setBaseAndExtent(host.lastChild, 0, foldedParagraphSource, 23);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const foldedParagraphTarget = host.lastElementChild.lastChild;
         selection.collapse(foldedParagraphTarget, 10);

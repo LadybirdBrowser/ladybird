@@ -12,8 +12,7 @@
         selection.selectAllChildren(source);
         editor.focus();
         internals.sendKey(editor, "C", platformControl);
-        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(editor);
 
         selection.collapse(targetText, 4);
         const pasteInput = new Promise(resolve => editor.addEventListener("input", resolve, { once: true }));

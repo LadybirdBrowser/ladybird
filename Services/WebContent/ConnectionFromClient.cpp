@@ -3196,11 +3196,11 @@ void ConnectionFromClient::paste(Web::PageId page_id, Utf16String text)
     }
 }
 
-void ConnectionFromClient::paste_from_clipboard(Web::PageId page_id)
+void ConnectionFromClient::paste_from_clipboard(Web::PageId page_id, Vector<Web::Clipboard::SystemClipboardItem> system_clipboard_data)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
-            navigable->paste_from_clipboard();
+            navigable->paste_from_clipboard(system_clipboard_data);
     }
 }
 

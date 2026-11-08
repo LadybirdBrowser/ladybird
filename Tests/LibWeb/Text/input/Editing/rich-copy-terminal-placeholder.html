@@ -27,8 +27,7 @@
         const source = host.querySelector("#source");
         selection.setBaseAndExtent(source.firstElementChild.firstChild, 0, source.lastElementChild, 2);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host.querySelector("#target").firstChild, 1);
         let clipboardHTML;

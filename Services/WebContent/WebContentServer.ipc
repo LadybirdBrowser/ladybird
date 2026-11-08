@@ -247,7 +247,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     undo(Web::PageId page_id) =|
     redo(Web::PageId page_id) =|
     paste(Web::PageId page_id, Utf16String text) =|
-    paste_from_clipboard(Web::PageId page_id) =|
+    paste_from_clipboard(Web::PageId page_id, Vector<Web::Clipboard::SystemClipboardItem> system_clipboard_data) =|
     set_marked_text_from_input_method(Web::PageId page_id, Utf16String text) =|
     commit_text_from_input_method(Web::PageId page_id, Utf16String text, i32 replacement_start, i32 replacement_length) =|
     unmark_text_from_input_method(Web::PageId page_id) =|

@@ -15,9 +15,8 @@
             activate();
             await navigator.clipboard.writeText("seed");
         }
-        async function clipboard() {
-            activate();
-            return navigator.clipboard.readText();
+        function clipboard() {
+            return readClipboardFromPaste(document.body, clipboard => clipboard.readText());
         }
         function makeEditor() {
             const editor = document.body.appendChild(document.createElement("div"));

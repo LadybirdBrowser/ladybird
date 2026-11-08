@@ -60,8 +60,7 @@
         const firstLine = host.firstChild.firstChild;
         selection.setBaseAndExtent(redText, 12, firstLine, 15);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host.lastElementChild, 0);
         const pasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -90,8 +89,7 @@
         const tailText = host.children[2].firstChild;
         selection.setBaseAndExtent(blueText, 1, tailText, tailText.length);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const destinationText = host.children[0].querySelector("font").firstChild;
         selection.collapse(destinationText, 1);
@@ -121,8 +119,7 @@
         const matchingTailText = host.children[2].firstChild;
         selection.setBaseAndExtent(redSourceText, 0, matchingTailText, matchingTailText.length);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const blueDestinationText = host.children[0].querySelector("font").firstChild;
         selection.collapse(blueDestinationText, 1);
@@ -157,8 +154,7 @@
         const partialRedText = host.querySelector('font[color="#ff00"]').firstChild;
         selection.setBaseAndExtent(firstListItemText, 12, partialRedText, 13);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host, 13);
         const partialAncestorPasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -192,8 +188,7 @@
         const finalParagraphText = host.lastElementChild.childNodes[2];
         selection.setBaseAndExtent(blueFont, 1, finalParagraphText, 13);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(finalParagraphText, 14);
         const emptyInlineEdgePasteInput = new Promise(resolve => host.addEventListener("input", event => {
@@ -227,8 +222,7 @@
         const integratedFinalParagraph = host.lastElementChild;
         selection.setBaseAndExtent(integratedRedText, 6, integratedFinalParagraph, 5);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(integratedRedText, 13);
         const integratedPasteInput = new Promise(resolve => host.addEventListener("input", event => {

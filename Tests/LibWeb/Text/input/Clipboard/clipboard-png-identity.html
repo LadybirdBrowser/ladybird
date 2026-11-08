@@ -35,8 +35,7 @@
         internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
         await navigator.clipboard.write([new ClipboardItem({ "image/png": fetchedBlob })]);
 
-        internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
-        const items = await navigator.clipboard.read();
+        const items = await readClipboardFromPaste(document.body);
 
         for (const item of items) {
             const imageType = item.types.find(type => type.startsWith("image/"));

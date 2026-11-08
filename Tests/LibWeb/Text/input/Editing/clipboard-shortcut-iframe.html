@@ -16,8 +16,7 @@
             event.preventDefault();
         }, { once: true });
         internals.sendKey(body, "C", platformControl);
-        internals.dispatchUserActivatedEvent(body, new Event("mousedown"));
-        const [clipboardItem] = await frame.contentWindow.navigator.clipboard.read();
+        const [clipboardItem] = await readClipboardFromPaste(body);
         println(`copy formats: ${JSON.stringify(clipboardItem.types)}`);
 
         const pasteEvent = new Promise(resolve => body.addEventListener("paste", event => {
