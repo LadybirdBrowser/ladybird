@@ -1,0 +1,9 @@
+Ladybird reports the document’s title to the page when a title
+element is inserted into a document or removed from one, and when a
+connected title element’s children change. Blink does the same in
+HTMLTitleElement::InsertedInto(), RemovedFrom() and ChildrenChanged(),
+the last only for an element in the document tree. WebKit does it in
+HTMLTitleElement::postConnectionSteps(), removingSteps() and
+childrenChanged(), the last only for a connected element. And Gecko’s
+HTMLTitleElement::BindToTree() and UnbindFromTree() each tell the
+document of a possible title change, in SendTitleChangeEvent().
