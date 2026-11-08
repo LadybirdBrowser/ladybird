@@ -14,6 +14,10 @@
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/Tab.h>
 
+#include <QApplication>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+
 namespace Ladybird {
 
 static ApplicationActions* s_the;
@@ -40,6 +44,37 @@ static Function<void()> on_active_view(Callback callback)
     };
 }
 
+static bool is_text_field(QWidget const* widget)
+{
+    return qobject_cast<QLineEdit const*>(widget) || qobject_cast<QPlainTextEdit const*>(widget);
+}
+
+// NB: Menu bar actions don't reach a focused text field in the browser chrome on their own. Run them on that field
+//     instead of on the page behind it.
+template<typename TextFieldCallback, typename ViewCallback>
+static Function<void()> on_focused_text_field_or_active_view(TextFieldCallback text_field_callback, ViewCallback view_callback)
+{
+    return [text_field_callback = move(text_field_callback), view_callback = move(view_callback)] {
+        auto* focus_widget = QApplication::focusWidget();
+        if (auto* line_edit = qobject_cast<QLineEdit*>(focus_widget)) {
+            text_field_callback(*line_edit);
+            return;
+        }
+        if (auto* text_edit = qobject_cast<QPlainTextEdit*>(focus_widget)) {
+            text_field_callback(*text_edit);
+            return;
+        }
+        if (auto* view = active_view())
+            view_callback(*view);
+    };
+}
+
+static constexpr auto undo_text_field = [](auto& text_field) { text_field.undo(); };
+static constexpr auto redo_text_field = [](auto& text_field) { text_field.redo(); };
+static constexpr auto copy_text_field = [](auto& text_field) { text_field.copy(); };
+static constexpr auto cut_text_field = [](auto& text_field) { text_field.cut(); };
+static constexpr auto select_all_text_field = [](auto& text_field) { text_field.selectAll(); };
+
 static Function<void()> debug_request(StringView request)
 {
     return on_active_view([request](RemoteView& view) {
@@ -60,25 +95,25 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
         view.reload(WebView::BypassCache::Yes);
     }));
 
-    m_undo_action = Action::create("Undo"sv, ActionID::Undo, on_active_view([](RemoteView& view) {
+    m_undo_action = Action::create("Undo"sv, ActionID::Undo, on_focused_text_field_or_active_view(undo_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_undo(view.view_id());
     }));
-    m_redo_action = Action::create("Redo"sv, ActionID::Redo, on_active_view([](RemoteView& view) {
+    m_redo_action = Action::create("Redo"sv, ActionID::Redo, on_focused_text_field_or_active_view(redo_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_redo(view.view_id());
     }));
-    m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, on_active_view([](RemoteView& view) {
+    m_copy_selection_action = Action::create("Copy"sv, ActionID::CopySelection, on_focused_text_field_or_active_view(copy_text_field, [](RemoteView& view) {
         view.selected_text()->when_resolved([](ByteString const& text) {
             if (!text.is_empty())
                 Application::the().set_clipboard_text(MUST(String::from_byte_string(text)));
         });
     }));
-    m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, on_active_view([](RemoteView& view) {
+    m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, on_focused_text_field_or_active_view(cut_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_cut_selection(view.view_id());
     }));
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, on_active_view([](RemoteView& view) {
         HubConnection::the().async_view_paste(view.view_id());
     }));
-    m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, on_active_view([](RemoteView& view) {
+    m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, on_focused_text_field_or_active_view(select_all_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_select_all(view.view_id());
     }));
 
@@ -193,10 +228,15 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
 
     create_debug_menu(options);
     update_for_active_view();
+
+    m_focus_changed_connection = QObject::connect(qApp, &QApplication::focusChanged, qApp, [this] {
+        update_for_active_view();
+    });
 }
 
 ApplicationActions::~ApplicationActions()
 {
+    QObject::disconnect(m_focus_changed_connection);
     s_the = nullptr;
 }
 
@@ -292,8 +332,10 @@ void ApplicationActions::create_debug_menu(PageOptions const& options)
 void ApplicationActions::update_for_active_view()
 {
     auto* view = active_view();
-    m_undo_action->set_enabled(view && view->can_undo());
-    m_redo_action->set_enabled(view && view->can_redo());
+    // NB: The page's undo state says nothing about a focused text field, where these actions go instead.
+    auto text_field_has_focus = is_text_field(QApplication::focusWidget());
+    m_undo_action->set_enabled(text_field_has_focus || (view && view->can_undo()));
+    m_redo_action->set_enabled(text_field_has_focus || (view && view->can_redo()));
     m_view_source_action->set_enabled(!view || view->can_view_source());
     m_report_website_issue_action->set_enabled(view && view->can_report_website_issue());
     update_force_dark_action();
