@@ -1,0 +1,9 @@
+In Ladybird, an opaque system selection color is made translucent, so
+that it looks like itself over white, only in a light color scheme. A
+dark scheme keeps the color as it is, at alpha 204. Blink’s Color::
+BlendWithWhite() and WebKit’s blendWithWhite() compute the same
+translucent color for a light scheme. On macOS in a dark scheme, Blink’s
+LayoutTheme::ActiveSelectionBackgroundColor() keeps the system color’s
+RGB at alpha 204, and WebKit gives an opaque one alpha 0.8, as Ladybird
+now does. Gecko applies no general transparency on Linux, and on macOS
+leaves the selection color of a dark appearance unchanged.
