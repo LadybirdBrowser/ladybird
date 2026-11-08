@@ -1,0 +1,7 @@
+Ladybird applies an element’s clip-path, clip and masks to its filtered
+output. Gecko’s nsIFrame::BuildDisplayListForStackingContext() wraps
+the contents in nsDisplayFilters first, and then wraps that in
+nsDisplayMasksAndClipPaths. Blink’s FragmentPaintPropertyTreeBuilder
+builds the clip-path clip, the effect node holding the mask, and the CSS
+clip all outside the filter node: It calls UpdateClipPathClip(),
+UpdateEffect() and UpdateCssClip() before UpdateFilter().
