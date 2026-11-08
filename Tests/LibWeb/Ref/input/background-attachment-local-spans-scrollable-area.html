@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-attachment-local-spans-scrollable-area-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-40000" />
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: hidden;
+        background: linear-gradient(red, blue) local;
+    }
+    #content {
+        height: 600px;
+    }
+</style>
+<!-- A local background's positioning area is the scroller's whole scrollable area, so the gradient spans all 600px of
+     the content once, rather than repeating at the scroller's size. -->
+<div id="scroller"><div id="content"></div></div>
+<script>
+    document.getElementById("scroller").scrollTop = 150;
+</script>
