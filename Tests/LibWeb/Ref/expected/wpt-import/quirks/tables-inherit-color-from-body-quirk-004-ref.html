@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Quirks Mode Reference: The tables inherit color from body quirk - Table with body removed, light mode</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="stylesheet" type="text/css" href="../fonts/ahem.css">
+<style>
+html { color-scheme: light; }
+p { color: initial; }
+table { font: 200px/1 Ahem; color: initial; }
+</style>
+<p>Test passes if there is a square filled with initial color and <strong>no red</strong>.</p>
+<table cellspacing="0" cellpadding="0">
+  <tr>
+    <td>X</td>
+  </tr>
+</table>

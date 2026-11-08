@@ -127,7 +127,37 @@ fn initial_drive_font_request(
     Box::new(suspended_font.expect("an unanswered initial drive waits on a font"))
 }
 
+fn is_quirk_inherit(property: u16, value: &RetainedStyleValueData) -> bool {
+    property == crate::css::property_metadata::property_id::COLOR
+        && matches!(
+            value.data(),
+            StyleValueData::Keyword {
+                keyword: crate::css::style_compute::keyword::_LIBWEB_QUIRK_INHERIT
+            }
+        )
+}
+
 impl RetainedState {
+    pub(super) fn is_quirks_table(&self, node: StyleNodeID) -> bool {
+        self.document_style_computation_inputs.in_quirks_mode
+            && self.projection.adjustment_facts(node) & bridge::element_adjustment_fact::IS_TABLE != 0
+    }
+
+    // https://quirks.spec.whatwg.org/#the-document%27s-body-element
+    // The first HTML body child of the HTML document element supplies the color, wherever the table is.
+    pub(super) fn quirks_table_body(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        use bridge::element_adjustment_fact as fact;
+        let root = std::iter::successors(Some(node), |&node| self.projection.inheritance_parent(node))
+            .find(|&node| self.projection.adjustment_facts(node) & fact::IS_DOCUMENT_ELEMENT != 0)?;
+        if self.projection.adjustment_facts(root) & fact::IS_HTML_HTML_ELEMENT == 0 {
+            return None;
+        }
+        std::iter::successors(self.projection.first_element_child(root), |&child| {
+            self.projection.next_element_sibling(child)
+        })
+        .find(|&child| self.projection.adjustment_facts(child) & fact::IS_HTML_BODY_ELEMENT != 0)
+    }
+
     /// The engine: the computed initial values, as an element with no declarations and no parent
     /// computes them, with the groups they assemble into, each holding one reference, and the
     /// color they resolve. Every table is seeded from this one, and an element whose
@@ -393,6 +423,7 @@ impl RetainedState {
         target_pseudo_element: super::PseudoElementTarget,
         root_font: Option<RootFontInputs>,
         group_seeds: GroupSeeds<'_>,
+        quirks_color: Option<&RetainedStyleValueData>,
     ) -> Option<ComputedElement> {
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT, property_id as prop};
         use crate::css::style_compute::{
@@ -517,7 +548,10 @@ impl RetainedState {
                 .declared_property(index)
                 .expect("the style engine answers every row");
             let written = block.written(index);
-            if !checks.is_plain() || declaration.operator() != CascadeOperator::Declared {
+            if !checks.is_plain()
+                || declaration.operator() != CascadeOperator::Declared
+                || is_quirk_inherit(property, written)
+            {
                 plain_dependencies = None;
                 break;
             }
@@ -557,6 +591,7 @@ impl RetainedState {
                     winner.property,
                     winner.source,
                     winner.index,
+                    quirks_color,
                 );
                 let rolls_back = classified.rolls_back();
                 if !rolls_back {
@@ -572,6 +607,7 @@ impl RetainedState {
                 &element_declarations,
                 custom_properties,
                 &defaulting,
+                quirks_color,
             );
         }
         let ElementWinnerReads {
@@ -1291,6 +1327,7 @@ impl RetainedState {
     /// decided before that was known.
     #[cold]
     #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
     fn decide_rolling_back<'a>(
         &'a self,
         decided: &mut DecidedWinners<'_, 'a>,
@@ -1302,6 +1339,7 @@ impl RetainedState {
         )>; 3],
         custom_properties: super::custom_properties::CustomPropertyStores<'_>,
         defaulting: &WinnerDefaulting<'_>,
+        quirks_color: Option<&RetainedStyleValueData>,
     ) {
         decided.easy.clear();
         decided.hard.clear();
@@ -1329,8 +1367,14 @@ impl RetainedState {
                     source,
                     index,
                 } = winner;
-                let mut classified =
-                    self.classify_winner(element_declarations, custom_properties, property, source, index);
+                let mut classified = self.classify_winner(
+                    element_declarations,
+                    custom_properties,
+                    property,
+                    source,
+                    index,
+                    quirks_color,
+                );
                 // A declaration that rolls back still decides where it does.
                 decided
                     .reads
@@ -1466,8 +1510,30 @@ impl RetainedState {
         property: u16,
         source: WinnerSource,
         index: usize,
+        quirks_color: Option<&RetainedStyleValueData>,
     ) -> ClassifiedWinner<'a> {
         let (declaration, written, checks) = self.declaration_of(element_declarations, source, index);
+        // https://quirks.spec.whatwg.org/#the-tables-inherit-color-from-body-quirk
+        // Resolve the UA marker before computation, including when a revert exposes it.
+        if is_quirk_inherit(property, written) {
+            let value = quirks_color
+                .unwrap_or_else(|| crate::css::style_compute::initial_value_handle(property))
+                .clone();
+            let computation = match crate::css::style_compute::value_computes_directly(property, value.data(), None) {
+                true => WinnerComputation::Direct(None),
+                false => WinnerComputation::Full,
+            };
+            let environment = environment_reads(Some(value.data()), None);
+            return ClassifiedWinner {
+                value: ResolvedWinnerValue::Substituted(value),
+                computation,
+                reads: WinnerReads {
+                    element: true,
+                    environment,
+                    ..WinnerReads::default()
+                },
+            };
+        }
         if checks.waits_on_substitution() {
             use crate::css::style_value::StyleValueData;
             let value = match written.data() {

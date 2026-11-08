@@ -76,7 +76,8 @@ pub(super) fn key_of(
     facts: &ElementFacts,
 ) -> Option<SharingKey> {
     let id = facts.id();
-    if (id != StyleAtomID::NONE && index.tests_id(id))
+    if state.is_quirks_table(node)
+        || (id != StyleAtomID::NONE && index.tests_id(id))
         || !state.element_declarations.custom_declarations(node).is_empty()
         || [
             ElementDeclarationKind::InlineStyle,

@@ -134,6 +134,7 @@ impl RetainedState {
                 super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                 None,
                 initial.group_seeds(None),
+                None,
             );
             font_requests.extend(suspended_font);
             let mut computed = driven.ok_or(())?;

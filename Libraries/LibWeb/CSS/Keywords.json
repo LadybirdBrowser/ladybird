@@ -6,6 +6,7 @@
   "-libweb-center",
   "-libweb-inherit-or-center",
   "-libweb-left",
+  "-libweb-quirk-inherit",
   "-libweb-right",
   "-webkit-box",
   "-webkit-fill-available",

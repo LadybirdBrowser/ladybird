@@ -1,0 +1,156 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-tables-inherit-color-from-body-quirk">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const doctypes = {
+        quirks: "",
+        standards: "<!doctype html>",
+        limited: '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">',
+    };
+    const frameFor = async (mode, zoom, setup = "", scheme = "light", withoutBody = false) => {
+        const frame = document.createElement("iframe");
+        const content = '<div id="wrapper" style="color: red"><table><tr><td>X</td><th>Y</th></tr></table></div>';
+        const style = `<style>
+            html { color-scheme: ${scheme}; color: orange; zoom: ${zoom}; }
+            body { color: green; }
+            @layer lower, higher;
+            @layer lower { .layered { color: purple; } }
+            @layer higher { .layered { color: revert-layer; } }
+        </style>`;
+        const script = withoutBody ? `
+            const root = document.documentElement;
+            const content = document.createElement("div");
+            content.innerHTML = ${JSON.stringify(content)};
+            root.append(content);
+            root.remove();
+            document.append(root.cloneNode(true));
+        ` : setup;
+        // NB: An iframe srcdoc document is never in quirks mode, so each document is written into an about:blank one.
+        document.body.append(frame);
+        const doc = frame.contentDocument;
+        doc.open();
+        doc.write(doctypes[mode] + style + (withoutBody ? "" : "<body>" + content)
+            + "<script>" + script + "<" + "/script>");
+        doc.close();
+        return frame;
+    };
+    const inspect = frame => {
+        const doc = frame.contentDocument;
+        const style = element => frame.contentWindow.getComputedStyle(element);
+        return { doc, style, table: doc.querySelector("table"), wrapper: doc.querySelector("#wrapper") };
+    };
+
+    println(`author keyword: ${CSS.supports("color", "-libweb-quirk-inherit")}`);
+    for (const zoom of [1, 2]) {
+        const frame = await frameFor("quirks", zoom);
+        const { doc, style, table, wrapper } = inspect(frame);
+        const print = (label, element = table) => println(`zoom ${zoom} ${label}: ${style(element).color}`);
+        print("table");
+        print("td", table.querySelector("td"));
+        print("th", table.querySelector("th"));
+
+        doc.body.style.color = "purple";
+        const cached = table.cloneNode(true);
+        wrapper.append(cached);
+        print("cache insert", cached);
+        doc.body.style.color = "green";
+        table.style.outlineWidth = "1px";
+        print("cache recompute");
+        table.style.removeProperty("outline-width");
+        cached.remove();
+
+        doc.body.style.color = "canvastext";
+        doc.body.style.colorScheme = "dark";
+        table.style.colorScheme = "light";
+        print("body used color");
+        doc.body.style.color = "green";
+        doc.body.style.colorScheme = "light";
+        table.style.removeProperty("color-scheme");
+        table.style.border = "1px solid currentcolor";
+        println(`zoom ${zoom} border: ${style(table).borderTopColor}`);
+        for (const value of ["blue", "inherit", "unset", "initial", "currentcolor", "var(--missing)", "revert"]) {
+            table.style.color = value;
+            print(value);
+        }
+        table.style.removeProperty("color");
+        table.className = "layered";
+        print("revert-layer");
+        table.className = "";
+        table.style.setProperty("--internal", "-libweb-quirk-inherit");
+        table.style.color = "var(--internal)";
+        print("invalid substituted keyword");
+        table.style.removeProperty("color");
+
+        const fake = doc.createElement("div");
+        fake.style.display = "table";
+        wrapper.append(fake);
+        print("display table", fake);
+        const foreign = doc.createElementNS("urn:test", "table");
+        wrapper.append(foreign);
+        print("foreign table", foreign);
+
+        const animation = table.animate({ color: ["blue", "blue"] }, { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        print("animation");
+        animation.cancel();
+        print("animation canceled");
+
+        doc.body.style.color = "purple";
+        table.style.outlineWidth = "2px";
+        print("recomputed");
+        const clone = table.cloneNode(true);
+        wrapper.append(clone);
+        print("inserted", clone);
+        frame.remove();
+
+        for (const position of ["before", "after"]) {
+            const moved = await frameFor("quirks", zoom,
+                `document.body.${position}(document.querySelector("#wrapper"));`);
+            const { doc, style, table } = inspect(moved);
+            println(`zoom ${zoom} ${position} body: ${style(table).color}`);
+            doc.body.style.color = "purple";
+            table.style.outlineWidth = "3px";
+            println(`zoom ${zoom} ${position} body recomputed: ${style(table).color}`);
+            moved.remove();
+        }
+
+        for (const scheme of ["light", "dark"]) {
+            const removed = await frameFor("quirks", zoom, "", scheme);
+            const { doc, style, table, wrapper } = inspect(removed);
+            style(doc.body).color;
+            doc.body.replaceWith(wrapper);
+            println(`zoom ${zoom} removed body ${scheme}: ${style(table).color}`);
+            removed.remove();
+            const absent = await frameFor("quirks", zoom, "", scheme, true);
+            const absentState = inspect(absent);
+            println(`zoom ${zoom} absent body ${scheme}: ${absentState.style(absentState.table).color}`);
+            absent.remove();
+        }
+
+        for (const mode of ["standards", "limited"]) {
+            const other = await frameFor(mode, zoom);
+            const { style, table } = inspect(other);
+            println(`zoom ${zoom} ${mode}: ${style(table).color}`);
+            other.remove();
+        }
+
+        const firstBody = await frameFor("quirks", zoom, `
+            const first = document.createElement("body");
+            first.style.color = "blue";
+            document.body.before(first);
+            const frameset = document.createElement("frameset");
+            frameset.style.color = "red";
+            first.before(frameset);
+        `);
+        const first = inspect(firstBody);
+        println(`zoom ${zoom} first body: ${first.style(first.table).color}`);
+        first.doc.querySelector("body").remove();
+        first.table.style.outlineWidth = "4px";
+        println(`zoom ${zoom} first body removed: ${first.style(first.table).color}`);
+        firstBody.remove();
+    }
+});
+</script>
