@@ -564,7 +564,7 @@ static void add_possible_value(PossiblePointers& possible_pointers, FlatPtr data
 // whole word, so it is added on its own. A member elsewhere in the captures is either half of one of the whole words.
 static void add_possible_captured_values(PossiblePointers& possible_pointers, ReadonlyBytes bytes, PossiblePointerBounds const& bounds)
 {
-    HeapRoot const origin { .type = HeapRoot::Type::HeapFunctionCapturedPointer };
+    HeapRoot const origin { .type = HeapRoot::Type::AKFunctionCapturedPointer };
     ASSERT(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(FlatPtr) == 0);
     auto const* words = reinterpret_cast<FlatPtr const*>(bytes.data());
     auto word_count = bytes.size() / sizeof(FlatPtr);
@@ -765,8 +765,8 @@ String Heap::describe_root(HeapRoot const& root)
         return "ConservativeVector"_string;
     case HeapRoot::Type::CrossHeapMember:
         return "CrossHeapMember"_string;
-    case HeapRoot::Type::HeapFunctionCapturedPointer:
-        return "HeapFunctionCapturedPointer"_string;
+    case HeapRoot::Type::AKFunctionCapturedPointer:
+        return "AKFunctionCapturedPointer"_string;
     case HeapRoot::Type::Root:
         return MUST(String::formatted("Root {} {}:{}", root.location->function_name(), root.location->filename(), root.location->line_number()));
     case HeapRoot::Type::RootVector:
