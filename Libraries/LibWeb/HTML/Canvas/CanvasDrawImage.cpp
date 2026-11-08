@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/HTML/ImageBitmapRenderingContext.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/Layout/ImageProvider.h>
 
@@ -73,7 +74,12 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         // HTMLCanvasElement
         [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
-            if (canvas_element->width() == 0 || canvas_element->height() == 0)
+            // NB: A valid output bitmap of an ImageBitmapRenderingContext has the dimensions of its bitmap data.
+            auto const* bitmap_renderer = canvas_element->canvas_bitmap_renderer_context();
+            auto const has_zero_dimension = bitmap_renderer && !bitmap_renderer->is_blank()
+                ? canvas_element->bitmap_size_for_canvas().is_empty()
+                : canvas_element->width() == 0 || canvas_element->height() == 0;
+            if (has_zero_dimension)
                 return WebIDL::InvalidStateError::create("Canvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },

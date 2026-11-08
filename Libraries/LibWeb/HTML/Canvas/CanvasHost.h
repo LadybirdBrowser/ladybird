@@ -26,6 +26,7 @@ public:
 
     virtual Canvas2DContextBase* canvas_2d_context() const = 0;
     virtual WebGL::WebGLRenderingContextBase* canvas_webgl_context() const = 0;
+    virtual ImageBitmapRenderingContext* canvas_bitmap_renderer_context() const { return nullptr; }
 
     virtual Page& canvas_page() = 0;
     virtual DOM::EventTarget& canvas_event_target() = 0;

@@ -51,6 +51,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/HTML/ImageBitmapRenderingContext.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
@@ -772,7 +773,11 @@ void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind
             auto width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
             auto height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
 
-            return { width, height }; }, [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize { return { source->width(), source->height() }; }, [](GC::Ref<OffscreenCanvas> source) -> Gfx::IntSize { return source->bitmap_size_for_canvas(); }, [](GC::Ref<HTMLVideoElement> source) -> Gfx::IntSize { return { source->video_width(), source->video_height() }; }, [](GC::Ref<ImageBitmap>) -> Gfx::IntSize { VERIFY_NOT_REACHED(); });
+            return { width, height }; }, [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize {
+            // NB: A valid output bitmap of an ImageBitmapRenderingContext has the dimensions of its bitmap data.
+            if (auto const* bitmap_renderer = source->canvas_bitmap_renderer_context(); bitmap_renderer && !bitmap_renderer->is_blank())
+                return source->bitmap_size_for_canvas();
+            return { source->width(), source->height() }; }, [](GC::Ref<OffscreenCanvas> source) -> Gfx::IntSize { return source->bitmap_size_for_canvas(); }, [](GC::Ref<HTMLVideoElement> source) -> Gfx::IntSize { return { source->video_width(), source->video_height() }; }, [](GC::Ref<ImageBitmap>) -> Gfx::IntSize { VERIFY_NOT_REACHED(); });
     *out_width = size.width();
     *out_height = size.height();
 }

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<body>
+  <p>
+    Test creating an ImageBitmap from the transferToImageBitmap of a webgl OffscreenCanvas, and then
+    transferred to an ImageBitmapRenderingContext.
+  </p>
+  <canvas id="canvas" width="300" height="300"></canvas>
+</body>
+<script>
+
+  function drawSquares(ctx) {
+    ctx.enable(ctx.SCISSOR_TEST);
+    ctx.scissor(0, 150, 150, 150);
+    ctx.clearColor(1, 0, 0, 1);
+    ctx.clear(ctx.COLOR_BUFFER_BIT);
+    ctx.scissor(150, 150, 300, 150);
+    ctx.clearColor(0, 1, 0, 1);
+    ctx.clear(ctx.COLOR_BUFFER_BIT);
+    ctx.scissor(0, 0, 150, 150);
+    ctx.clearColor(0, 0, 1, 1);
+    ctx.clear(ctx.COLOR_BUFFER_BIT);
+  }
+
+  async function runTest() {
+    const canvas = document.getElementById('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('webgl');
+    drawSquares(ctx);
+  }
+
+  runTest();
+
+</script>

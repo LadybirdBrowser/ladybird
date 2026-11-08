@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test that createImageBitmap from a bitmaprenderer canvas produces correct result
+Pass	Test that createImageBitmap on a bitmaprenderer canvas that never consumes any source produces correct result
+Pass	Test that createImageBitmap on a bitmaprenderer canvas that consumes null produces correct result

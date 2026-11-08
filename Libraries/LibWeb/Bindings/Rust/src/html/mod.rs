@@ -59,6 +59,8 @@ pub(crate) mod exports;
 #[cfg(not(test))]
 pub(crate) mod image_bitmap;
 #[cfg(not(test))]
+pub(crate) mod image_bitmap_rendering_context;
+#[cfg(not(test))]
 pub(crate) mod image_data;
 #[cfg(not(test))]
 pub(crate) mod message_channel;

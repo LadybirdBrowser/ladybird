@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas's ImageBitmapRenderingContext test</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#the-imagebitmap-rendering-context">
+<script>
+var width = 10;
+var height = 10;
+
+function testImageBitmap(image, opts, expectedR, expectedG, expectedB, expectedA)
+{
+    var dstCanvas = document.createElement('canvas');
+    dstCanvas.width = width;
+    dstCanvas.height = height;
+    var dstCtx = dstCanvas.getContext('bitmaprenderer', opts);
+    dstCtx.transferFromImageBitmap(image);
+
+    var myCanvas = document.createElement('canvas');
+    myCanvas.width = width;
+    myCanvas.height = height;
+    var myCtx = myCanvas.getContext('2d');
+    myCtx.drawImage(dstCanvas, 0, 0);
+    var color = myCtx.getImageData(5, 5, 1, 1).data;
+    assert_array_approx_equals(color, [expectedR, expectedG, expectedB, expectedA],1);
+}
+
+promise_test(function() {
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = width;
+    srcCanvas.height = height;
+    var ctx = srcCanvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+    return createImageBitmap(srcCanvas).then(function(image) {
+        testImageBitmap(image, {alpha: false}, 0, 255, 0, 128);
+    });
+}, "Test that an ImageBitmapRenderingContext with alpha disabled makes the canvas opaque");
+
+promise_test(function() {
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = width;
+    srcCanvas.height = height;
+    var ctx = srcCanvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+    return createImageBitmap(srcCanvas).then(function(image) {
+        testImageBitmap(image, {alpha: true}, 0, 255, 0, 128);
+    });
+}, "Test that an ImageBitmapRenderingContext with alpha enabled preserves the alpha");
+
+promise_test(function() {
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = width;
+    srcCanvas.height = height;
+    var ctx = srcCanvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+    return createImageBitmap(srcCanvas).then(function(image) {
+        testImageBitmap(image, {}, 0, 255, 0, 128);
+    });
+}, "Test that the 'alpha' context creation attribute is true by default");
+
+</script>

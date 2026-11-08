@@ -1,0 +1,6 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#the-imagebitmaprenderingcontext-interface
+[Exposed=(Window,Worker), ImplementedIn=Rust]
+interface ImageBitmapRenderingContext {
+    readonly attribute (HTMLCanvasElement or OffscreenCanvas) canvas;
+    undefined transferFromImageBitmap(ImageBitmap? bitmap);
+};

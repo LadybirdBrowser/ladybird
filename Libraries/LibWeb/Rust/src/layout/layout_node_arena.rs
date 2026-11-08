@@ -4501,7 +4501,8 @@ impl LayoutNodeArena {
 
     /// Writes `facts` onto the box `target` names, and every row sharing its DOM node, where the box paints facts of
     /// their kind. A box that owns the provider of its image shows that provider's image, which only facts naming the
-    /// box by its row carry, and none before the host hands it the provider.
+    /// box by its row carry, and none before the host hands it the provider. A canvas whose context is an
+    /// ImageBitmapRenderingContext paints the output bitmap of the context as its image.
     pub(crate) fn set_replaced_paint_facts(
         &mut self,
         target: super::tree_update_marks::MarkedBox,
@@ -4517,6 +4518,7 @@ impl LayoutNodeArena {
             ReplacedPaintFacts::FormControl(_) => matches!(kind, NodeKind::CheckBox | NodeKind::RadioButton),
             ReplacedPaintFacts::Canvas(_) => kind == NodeKind::CanvasBox,
             ReplacedPaintFacts::NavigableContainer(_) => kind == NodeKind::NavigableContainerViewport,
+            ReplacedPaintFacts::Image(_) if kind == NodeKind::CanvasBox => true,
             ReplacedPaintFacts::Image(_) => {
                 matches!(kind, NodeKind::ImageBox | NodeKind::SVGImageBox)
                     && match self.owned_image_provider(id) {

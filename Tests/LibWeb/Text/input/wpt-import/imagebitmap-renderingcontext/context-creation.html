@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas's ImageBitmapRenderingContext test</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#the-imagebitmap-rendering-context">
+<script>
+var width = 10;
+var height = 10;
+
+test(function() {
+    var canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext('bitmaprenderer');
+    assert_true(ctx instanceof ImageBitmapRenderingContext);
+}, "Test that canvas.getContext('bitmaprenderer') returns an instance of ImageBitmapRenderingContext");
+
+</script>

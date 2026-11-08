@@ -20,6 +20,7 @@ use liburl_rust::FfiOrigin;
 
 use super::broadcast_channel::{BROADCAST_CHANNEL_MESSAGE_CLASS, BroadcastChannel, BroadcastChannelMessage};
 use super::image_bitmap::ImageBitmap;
+use super::image_bitmap_rendering_context::ImageBitmapRenderingContext;
 use super::image_data::ImageData;
 use super::message_port::MessagePort;
 use super::storage::{Storage, StorageType};
@@ -31,8 +32,9 @@ use crate::bindings::conversions::UsvString;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEventTarget;
-use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments, wrap};
+use crate::bindings::interface::{Interface, Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments, wrap};
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
+use crate::canvas_2d::canvas::Canvas;
 use crate::dom::event::EventInit;
 use crate::html::port_channel::give_up_on_parked_end;
 use crate::html::structured_serialize::cpp::SerializedTransferRecord;
@@ -670,4 +672,66 @@ pub unsafe extern "C" fn web_rust_structured_clone(
     let (value, transfer) = unsafe { (Value::from_raw(value), objects_from_abi(vm, transfer, count)) };
     let result = structured_clone(&cx, value, &transfer.values());
     RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
+}
+
+/// Creates the ImageBitmapRenderingContext of the HTMLCanvasElement whose cell is `canvas` and whose
+/// Web::HTML::CanvasHost is `canvas_host`, and returns its cell.
+///
+/// # Safety
+///
+/// `canvas` must be the live cell of the canvas, and `canvas_host` the same object as a Web::HTML::CanvasHost.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_rendering_context_create(
+    vm: &Vm,
+    canvas: *mut c_void,
+    canvas_host: *mut c_void,
+    alpha: bool,
+) -> *mut c_void {
+    let canvas = Canvas {
+        cell: NonNull::new(canvas).expect("C++ passes the canvas"),
+        host: NonNull::new(canvas_host).expect("C++ passes the canvas"),
+        is_offscreen: false,
+    };
+    cell_into_abi(allocate(vm, |defer_gc| {
+        ImageBitmapRenderingContext::new(defer_gc, canvas, alpha)
+    }))
+}
+
+/// The Gfx::DecodedImageFrame of the output bitmap of the context, which stays valid until the output bitmap changes,
+/// or null for none.
+///
+/// # Safety
+///
+/// `context` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_rendering_context_frame(context: *mut c_void) -> *const c_void {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.raw_frame()
+}
+
+/// # Safety
+///
+/// `context` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_rendering_context_is_blank(context: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.is_blank()
+}
+
+/// # Safety
+///
+/// `context` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_rendering_context_origin_clean(context: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.origin_clean()
+}
+
+/// # Safety
+///
+/// `context` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_rendering_context_alpha(context: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmapRenderingContext>(context) }.alpha()
 }

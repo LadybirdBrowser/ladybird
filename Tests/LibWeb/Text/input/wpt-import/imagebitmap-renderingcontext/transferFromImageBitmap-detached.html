@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas's ImageBitmapRenderingContext test</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#the-imagebitmap-rendering-context">
+<script>
+var width = 10;
+var height = 10;
+
+promise_test(function() {
+    function testException(image) {
+        var dstCanvas = document.createElement('canvas');
+        dstCanvas.width = width;
+        dstCanvas.height = height;
+        var dstCtx = dstCanvas.getContext('bitmaprenderer');
+        dstCtx.transferFromImageBitmap(image);
+
+        // The image should be detached after transferFromImageBitmap.
+        assert_equals(image.width, 0);
+        assert_equals(image.height, 0);
+        assert_throws_dom("InvalidStateError", function() { dstCtx.transferFromImageBitmap(image); });
+    }
+
+    var srcCanvas = document.createElement('canvas');
+    srcCanvas.width = width;
+    srcCanvas.height = height;
+    var ctx = srcCanvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+    ctx.fillRect(0, 0, width, height);
+    return createImageBitmap(srcCanvas).then(testException);
+}, "Test transferFromImageBitmap(image) with a detached image should throw InvalidStateError");
+
+</script>
