@@ -4860,7 +4860,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat for
         //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //    Set the subjectPublicKey field to keyData
         //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
@@ -4923,7 +4923,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat for
         //      Set the privateKey field to keyData.
         //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
             // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
@@ -4982,7 +4982,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat for
         jwk.kty = "EC"_utf16;
 
         // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
             if (algorithm.named_curve() == "P-256"_utf16) {
@@ -5095,7 +5095,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat for
         ByteBuffer data;
 
         // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let data be an octet string representing the Elliptic Curve point Q represented by [[handle]] internal slot
             // of key according to [SEC1] 2.3.3 using the uncompressed format.
@@ -5288,8 +5288,8 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
 
     // 7. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
     //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
-    auto& internal_algorithm = key->ec_algorithm();
-    auto& public_internal_algorithm = public_key->ec_algorithm();
+    auto internal_algorithm = key->ec_algorithm();
+    auto public_internal_algorithm = public_key->ec_algorithm();
     if (internal_algorithm.name() != public_internal_algorithm.name()) {
         return WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16);
     }
@@ -5839,7 +5839,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
         //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //    Set the subjectPublicKey field to keyData
         //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
@@ -5902,7 +5902,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
         //      Set the privateKey field to keyData.
         //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
         //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
             // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
@@ -5961,7 +5961,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
         jwk.kty = "EC"_utf16;
 
         // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
             if (algorithm.named_curve() == "P-256"_utf16) {
@@ -6074,7 +6074,7 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
         ByteBuffer data;
 
         // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        auto& algorithm = key->ec_algorithm();
+        auto algorithm = key->ec_algorithm();
         if (algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             // Let data be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
             // of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.

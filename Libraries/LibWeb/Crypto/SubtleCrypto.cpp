@@ -1522,7 +1522,8 @@ static ErrorOr<CryptoKey::InternalKeyData> public_key_for_private_key(CryptoKey 
             if (private_key.public_key().has_value())
                 return *private_key.public_key();
 
-            auto const& named_curve = key.ec_algorithm().named_curve();
+            auto algorithm = key.ec_algorithm();
+            auto const& named_curve = algorithm.named_curve();
             auto point = TRY([&] -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> {
                 if (named_curve == "P-256"_utf16)
                     return ::Crypto::Curves::SECP256r1 {}.generate_public_key(private_key.d());

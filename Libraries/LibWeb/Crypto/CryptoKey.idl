@@ -4,7 +4,7 @@ enum KeyType { "public", "private", "secret" };
 enum KeyUsage { "encrypt", "decrypt", "sign", "verify", "deriveKey", "deriveBits", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits", "decapsulateKey", "decapsulateBits" };
 
 // https://w3c.github.io/webcrypto/#cryptokey-interface
-[SecureContext,Exposed=(Window,Worker),Serializable]
+[SecureContext,Exposed=(Window,Worker),Serializable,ImplementedIn=Rust]
 interface CryptoKey {
     [ImplementedAs=bindings_type] readonly attribute KeyType type;
     readonly attribute boolean extractable;
