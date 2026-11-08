@@ -1,0 +1,9 @@
+Ladybird exposes a color input’s swatch as the standard ::color-swatch,
+aliased as ::-webkit-color-swatch and ::-moz-color-swatch, inside a
+wrapper exposed as ::-webkit-color-swatch-wrapper, and styles both from
+its default stylesheet. Blink’s ColorInputType::CreateShadowSubtree()
+and WebKit’s ColorInputType::createShadowSubtree() build that same
+wrapper and swatch, with those two -webkit- names, and style them from
+html.css (padding 4px 2px on the wrapper, a 1px #777777 border on the
+swatch). Gecko exposes just the swatch, as ::-moz-color-swatch, which
+its forms.css styles the same way.
