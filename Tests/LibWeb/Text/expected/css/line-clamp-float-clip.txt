@@ -1,0 +1,12 @@
+float above the clamp edge: float
+float below the clamp edge: HTML
+float above the moved clamp edge: float
+float below the moved clamp edge: HTML
+padding of a float that clamps its own lines: clamping-float
+float in a nested block above the clamp edge: block-float
+float in a nested block below the clamp edge: HTML
+float in a nested formatting context below the clamp edge: flow-root-float
+float in a nested block above the moved clamp edge: block-float
+float in a nested block below the moved clamp edge: HTML
+vertical float before the clamp edge: vertical-float
+vertical float past the clamp edge: HTML

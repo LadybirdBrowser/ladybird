@@ -173,6 +173,21 @@ impl Frame {
         other.rect_from_physical(self.rect_to_physical(rect, container_size), container_size)
     }
 
+    /// The physical half-plane before the block-end edge of a content box whose contents use this frame and whose
+    /// physical size is `content_size`, relative to that content box.
+    pub(crate) fn half_plane_before_block_end(self, content_size: FfiCssPixelSize) -> CssPixelRect {
+        let extent = CssPixels::from_integer((crate::css::css_pixels::MAX_INTEGER_VALUE / 4) as i64);
+        let block_size = if self.is_transposed() {
+            content_size.width
+        } else {
+            content_size.height
+        };
+        self.rect_to_physical(
+            CssPixelRect::new(-extent, -extent, extent * 2, extent + block_size),
+            content_size,
+        )
+    }
+
     /// Maps a size in this frame to the physical plane.
     #[inline]
     pub(crate) fn size_to_physical(self, width: CssPixels, height: CssPixels) -> FfiCssPixelSize {

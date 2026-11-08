@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Reference</title>
+<style>
+.clamp {
+  font: 16px / 32px serif;
+  padding: 4px;
+  background-color: yellow;
+}
+.parent {
+  /* We need the small slice of the float that extends out of .clamp
+   * but above the content edge to not be clamped.
+   * The 12px covers the 8px of the body margin plus .clamp's 4px padding.
+   */
+  overflow: clip;
+  transform: translateX(-12px);
+  padding-left: 12px;
+}
+.float {
+  float: left;
+  margin: 5px;
+  width: 50px;
+  height: 200px;
+  background-color: skyblue;
+  transform: rotate(30deg);
+}
+</style>
+<div class="clamp">
+  <div class="parent">
+    <div class="float"></div>
+    Line 1 <br>
+    Line 2 <br>
+    Line 3 <br>
+    Line 4…
+  </div>
+</div>

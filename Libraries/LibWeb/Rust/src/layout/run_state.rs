@@ -226,7 +226,8 @@ pub(crate) struct BoxPlacement {
 }
 
 /// What the placement of a box shows of the layout of its parent, which decides it: the link that places the box's
-/// fragment shows the table and line clamp facts, and the fragment shows whether fragmentation broke the box.
+/// fragment shows the table and line clamp facts and the clip, and the fragment shows whether fragmentation broke the
+/// box.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FragmentFactsDecidedByParent {
     /// For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
@@ -238,10 +239,21 @@ pub(crate) struct FragmentFactsDecidedByParent {
     pub(crate) hidden_by_collapsed_columns: bool,
     /// Whether the box lies after the clamp point of a line-clamp container, which hides it.
     pub(crate) is_invisible_for_line_clamp: bool,
+    /// The physical clip an ancestor's layout puts on the box and its contents, relative to the box's border box: empty
+    /// for a box hidden after a clamp point, and the area before the block-end content edge of a line-clamp container
+    /// for a float inside it.
+    pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
     /// Whether fragmentation broke the box, so that this fragment continues one in an earlier fragmentainer, or
     /// continues in a later one.
     pub(crate) continues_from_previous_fragment: bool,
     pub(crate) continues_in_next_fragment: bool,
+}
+
+impl FragmentFactsDecidedByParent {
+    pub(crate) fn hide_after_clamp_point(&mut self) {
+        self.is_invisible_for_line_clamp = true;
+        self.clip_decided_by_parent = Some(CssPixelRect::default());
+    }
 }
 
 /// What the parent of a box decides about the box, kept with the box by the run that holds it.
