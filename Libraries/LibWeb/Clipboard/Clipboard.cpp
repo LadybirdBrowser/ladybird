@@ -146,31 +146,45 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
         representations.empend(move(format_string), move(payload));
     }
 
-    window.page().client().page_did_insert_clipboard_item({ move(representations) }, presentation_style);
+    window.page().client().page_did_insert_clipboard_item({ move(representations) }, presentation_style, window.associated_document().id());
 
     // FIXME: 3. Write web custom formats given webCustomFormats.
 }
 
+// AD-HOC: Besides true and false, checking the clipboard read permission can allow reading only data that the reader's
+//         own origin wrote to the clipboard.
+enum class ClipboardReadPermission : u8 {
+    Denied,
+    Granted,
+    GrantedForOwnOriginData,
+};
+
 // https://w3c.github.io/clipboard-apis/#h-clipboard-read-permission
-static bool check_clipboard_read_permission(JS::Realm& realm, bool is_running_from_paste)
+static ClipboardReadPermission check_clipboard_read_permission(JS::Realm& realm, bool is_running_from_paste)
 {
     // NOTE: The clipboard permission is undergoing a refactor because the clipboard-read permission was removed from
     //       the Permissions spec. So this partially implements the proposed update:
     //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#read-permission
 
+    auto& window = HTML::relevant_window(realm.global_object());
+
     // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
-    auto has_gesture = HTML::relevant_window(realm.global_object()).has_transient_activation();
+    auto has_gesture = window.has_transient_activation();
 
     // 2. If hasGesture then,
     if (has_gesture) {
         // 1. Return true if the current script is running as a result of user interaction with a "Paste" element
         //    created by the user agent or operating system.
         if (is_running_from_paste)
-            return true;
+            return ClipboardReadPermission::Granted;
+
+        // AD-HOC: Reading back data that the reader's own origin wrote to the clipboard tells it nothing new, so allow
+        //         that without a "Paste" element.
+        return ClipboardReadPermission::GrantedForOwnOriginData;
     }
 
     // 3. Otherwise, return false.
-    return false;
+    return ClipboardReadPermission::Denied;
 }
 
 // https://w3c.github.io/clipboard-apis/#check-clipboard-write-permission
@@ -219,7 +233,7 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
         auto result = check_clipboard_read_permission(realm, pasted_data.has_value());
 
         // 2. If r is false, then:
-        if (!result) {
+        if (result == ClipboardReadPermission::Denied) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
@@ -335,9 +349,26 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
         });
 
         // 3. Let data be the system clipboard data.
-        // NB: Only a read running as a result of a paste of the system clipboard gets here, and it reads the data being
-        //     pasted.
-        steps_with_data->function()(pasted_data.release_value());
+        // NB: A read running as a result of a paste of the system clipboard reads the data being pasted.
+        if (result == ClipboardReadPermission::Granted) {
+            steps_with_data->function()(pasted_data.release_value());
+            return;
+        }
+
+        // AD-HOC: For any other read, the UI process hands over the system clipboard data only if all of it is data that
+        //         the reading document's origin wrote.
+        auto& document = HTML::relevant_window(realm.global_object()).associated_document();
+        document.page().request_clipboard_entries(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, steps_with_data), [](auto& realm, auto& promise, auto& steps_with_data, Vector<SystemClipboardItem> data) {
+            if (data.is_empty()) {
+                queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
+                    HTML::TemporaryExecutionContext execution_context { realm };
+                    WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed while the user pastes"_utf16));
+                }));
+                return;
+            }
+            steps_with_data->function()(move(data));
+        }),
+            document.id());
     }));
 }
 
@@ -356,7 +387,7 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
         auto result = check_clipboard_read_permission(realm, pasted_data.has_value());
 
         // 2. If r is false, then:
-        if (!result) {
+        if (result == ClipboardReadPermission::Denied) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
@@ -430,9 +461,26 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
         });
 
         // 3. Let data be a copy of the system clipboard data.
-        // NB: Only a read running as a result of a paste of the system clipboard gets here, and it reads the data being
-        //     pasted.
-        steps_with_data->function()(pasted_data.release_value());
+        // NB: A read running as a result of a paste of the system clipboard reads the data being pasted.
+        if (result == ClipboardReadPermission::Granted) {
+            steps_with_data->function()(pasted_data.release_value());
+            return;
+        }
+
+        // AD-HOC: For any other read, the UI process hands over the system clipboard data only if all of it is data that
+        //         the reading document's origin wrote.
+        auto& document = HTML::relevant_window(realm.global_object()).associated_document();
+        document.page().request_clipboard_entries(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, steps_with_data), [](auto& realm, auto& promise, auto& steps_with_data, Vector<SystemClipboardItem> data) {
+            if (data.is_empty()) {
+                queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
+                    HTML::TemporaryExecutionContext execution_context { realm };
+                    WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed while the user pastes"_utf16));
+                }));
+                return;
+            }
+            steps_with_data->function()(move(data));
+        }),
+            document.id());
     }));
 }
 

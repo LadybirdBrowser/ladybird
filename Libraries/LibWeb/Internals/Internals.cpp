@@ -1176,7 +1176,8 @@ WebIDL::ExceptionOr<void> Internals::set_clipboard_file(Utf16String const& name,
     HTML::SelectedFile file { name, MUST(ByteBuffer::copy(data_utf8.bytes())) };
     Clipboard::SystemClipboardRepresentation item { move(mime_type_utf8), move(file) };
 
-    page().client().page_did_insert_clipboard_item({ { move(item) } }, "unspecified"sv);
+    // NB: This stands in for another application writing to the clipboard, so no origin wrote it.
+    page().client().page_did_insert_clipboard_item({ { move(item) } }, "unspecified"sv, {});
     return {};
 }
 

@@ -305,6 +305,9 @@ public:
     // Whether the page has yet to finish handling input that gives it user activation.
     bool is_delivering_user_activation_to(WebContentPage const&) const;
     bool take_paste_shortcut_handled_by(Badge<WebContentPage>, WebContentPage const&);
+
+    void did_insert_clipboard_item_written_by(URL::Origin, Web::Clipboard::SystemClipboardItem);
+    bool is_clipboard_data_written_by(Web::Clipboard::SystemClipboardItem const&, URL::Origin const&) const;
     // Consumes the activation of the earliest input giving the page activation that the page has yet to finish
     // handling, which leaves the input queued behind it the activation it gives.
     void consume_user_activation_of_input_in_flight_to(Badge<WebContentPage>, WebContentPage const&);
@@ -968,6 +971,12 @@ protected:
         Optional<MonotonicTime> paste_shortcut_time {};
     };
     Vector<PendingInputEvent> m_pending_input_events;
+
+    struct ClipboardWrite {
+        URL::Origin writer;
+        Web::Clipboard::SystemClipboardItem item;
+    };
+    Optional<ClipboardWrite> m_last_clipboard_write_by_a_page;
     void send_queued_input_events();
     void send_input_event(size_t index);
     bool may_scroll_for_key_event_in_compositor(size_t index) const;

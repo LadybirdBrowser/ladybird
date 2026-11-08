@@ -2642,7 +2642,7 @@ static void write_data_transfer_to_clipboard(DOM::Document& document, HTML::Drag
         representations.empend(move(mime_type), item.data.to_byte_string());
     }
     if (!representations.is_empty())
-        document.page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
+        document.page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv, document.id());
 }
 
 EventResult EventHandler::perform_copy_action()
@@ -2716,7 +2716,7 @@ bool EventHandler::perform_copy_action(ClipboardActionTrigger trigger)
         if (!text.is_empty())
             representations.empend("text/plain"_string, text.to_byte_string());
         if (!representations.is_empty())
-            document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
+            document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv, document->id());
 
         // FIXME: 2. Fire a clipboard event named clipboardchange.
     }
@@ -2796,7 +2796,7 @@ bool EventHandler::perform_cut_action(ClipboardActionTrigger trigger)
             if (!text.is_empty())
                 representations.empend("text/plain"_string, text.to_byte_string());
             if (!representations.is_empty())
-                document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv);
+                document->page().client().page_did_insert_clipboard_item({ move(representations) }, "unspecified"sv, document->id());
 
             // 2. Remove the contents of the selection from the document and collapse the selection.
             // 4. Queue tasks to fire any events that should fire due to the modification.

@@ -1,3 +1,4 @@
+Another application's data on the clipboard:
 readText() without activation: rejected with NotAllowedError
 readText() after a click: rejected with NotAllowedError
 read() after a click: rejected with NotAllowedError
@@ -5,3 +6,8 @@ read() in a paste event the browser did not fire: rejected with NotAllowedError
 read() in a handed-over paste: rejected with NotAllowedError
 read() in a task after a browser paste: rejected with NotAllowedError
 read() in a browser paste: resolved with types []
+The page's own data on the clipboard:
+readText() after a click: resolved with "own text"
+read() after a click: resolved with types [["text/plain"]]
+Another application's data replacing the page's:
+read() after a click: rejected with NotAllowedError

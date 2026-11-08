@@ -326,6 +326,7 @@ public:
 
     using ClipboardRequest = GC::Ref<GC::Function<void(Vector<Clipboard::SystemClipboardItem>)>>;
     void request_clipboard_entries_for_paste(ClipboardRequest);
+    void request_clipboard_entries(ClipboardRequest, HTML::CrossProcessId reading_document_id);
     void retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem>);
 
     using SpellCheckRequest = GC::Ref<GC::Function<void(Vector<SpellingError>)>>;
@@ -981,8 +982,9 @@ public:
     virtual void page_did_change_theme_color(Gfx::Color) { }
     virtual void page_did_change_background_color(Gfx::Color) { }
 
-    virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style) { }
+    virtual void page_did_insert_clipboard_item(Clipboard::SystemClipboardItem const&, [[maybe_unused]] StringView presentation_style, [[maybe_unused]] Optional<HTML::CrossProcessId> writing_document_id) { }
     virtual void page_did_request_clipboard_entries_for_paste([[maybe_unused]] u64 request_id) { }
+    virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId reading_document_id) { }
     virtual void page_did_request_paste_from_clipboard_for_testing() { }
     virtual void page_did_request_spell_check([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_request_translation([[maybe_unused]] TranslationUnit const&) { }

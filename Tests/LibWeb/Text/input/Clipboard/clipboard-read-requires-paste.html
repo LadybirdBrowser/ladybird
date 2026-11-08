@@ -18,6 +18,7 @@
 
         editor.focus();
 
+        println("Another application's data on the clipboard:");
         internals.setClipboardFile("other.txt", "text/plain", "other application");
         println(`readText() without activation: ${await describe(navigator.clipboard.readText())}`);
         println(`readText() after a click: ${await readAfterClick(readText)}`);
@@ -47,5 +48,15 @@
         println(`read() in a task after a browser paste: ${await describe(readLater)}`);
 
         println(`read() in a browser paste: ${await describe(readClipboardFromPaste(editor))}`);
+
+        println("The page's own data on the clipboard:");
+        activate();
+        await navigator.clipboard.writeText("own text");
+        println(`readText() after a click: ${await readAfterClick(readText)}`);
+        println(`read() after a click: ${await readAfterClick(read)}`);
+
+        println("Another application's data replacing the page's:");
+        internals.setClipboardFile("other.txt", "text/plain", "other application");
+        println(`read() after a click: ${await readAfterClick(read)}`);
     });
 </script>
