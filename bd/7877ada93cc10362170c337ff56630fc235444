@@ -1,0 +1,6 @@
+Ladybird resolves “color: initial” against the element’s used color
+scheme. Blink does the same: Color::ApplyInitial() sets the color from
+ComputedStyleBuilder::InitialColorForColorScheme(). So does WebKit,
+whose BuilderCustom::applyInitialColor() resolves canvastext against
+the element’s style. Gecko’s color longhand has a fixed initial value,
+AbsoluteColor::BLACK, which doesn’t follow the color scheme.
