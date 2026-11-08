@@ -1,0 +1,12 @@
+For an activation-triggering input event, Ladybird now activates the
+window of the event’s document, those of its ancestor navigables, and
+those of its same-origin descendant navigables — in other processes
+too, by way of the UI process. WebKit does the same: LocalDOMWindow::
+notifyActivated() activates the local ancestors and same-origin local
+descendants, then sends didNotifyUserActivation() to the UI process
+when the tree has a remote frame. Gecko follows the same steps, in its
+Document::NotifyUserGestureActivation(), and returns early rather than
+asserting when the document has no browsing context. Blink’s Frame::
+NotifyUserActivationInFrameTree() activates the ancestors and every
+same-origin frame of the tree, siblings included, which goes further
+than the spec (see whatwg/html#9831).
