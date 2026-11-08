@@ -1,0 +1,11 @@
+Ladybird measures a numeric tab-size in spaces of the first available
+font of the tab’s nearest block container. Blink and Gecko do the same:
+Blink’s InlineNode::FontForTab() takes the block’s font, and its
+PrimaryFontForTabSize() picks the font that has a space glyph, whose
+SpaceWidth() Font::TabWidthInternal() then counts. Gecko’s
+ComputeTabWidthAppUnits() reads the containing block’s font metrics,
+and counts the width of the first font valid for a space. WebKit
+differs: FontCascade::tabWidth() counts the spaces of the font its
+width iterator resolved for the tab’s own glyph. In a manual check,
+Chrome and Firefox both agree with Ladybird’s new results, including
+for a tab inside an inline box set in another font.
