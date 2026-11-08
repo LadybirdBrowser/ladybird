@@ -19,7 +19,10 @@ use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, Value, Vm,
 };
 
-use crate::bindings::conversions::{buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range};
+use crate::bindings::conversions::{
+    buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range,
+    to_unsigned_short_enforcing_range,
+};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto::web_crypto_fill_with_random;
@@ -357,10 +360,6 @@ pub(crate) enum AlgorithmId {
     RsaOaep,
     Ecdsa,
     Ecdh,
-    AesCtr,
-    AesCbc,
-    AesGcm,
-    AesKw,
     X25519,
     X448,
     ED25519,
@@ -368,7 +367,6 @@ pub(crate) enum AlgorithmId {
     MlDsa,
     MlKem,
     ChaCha20Poly1305,
-    AesOcb,
 }
 
 #[derive(Clone, Copy)]
@@ -387,11 +385,6 @@ pub(crate) enum ParameterId {
     EcKeyGenParams,
     EcKeyImportParams,
     EcdhKeyDeriveParams,
-    AesCtrParams,
-    AesKeyGenParams,
-    AesDerivedKeyParams,
-    AesCbcParams,
-    AesGcmParams,
     Ed448Params,
     ContextParams,
     AeadParams,
@@ -651,14 +644,14 @@ pub(crate) trait AlgorithmMethods: Trace {
         None
     }
 
-    fn encrypt(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+    fn encrypt(&self, _cx: &CallContext, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("encrypt is not supported"),
         ))
     }
 
-    fn decrypt(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decrypt(&self, _cx: &CallContext, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("decrypt is not supported"),
@@ -836,7 +829,8 @@ impl AlgorithmMethods for CppAlgorithm {
         usages
     }
 
-    fn encrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+        let realm = cx.realm();
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -853,7 +847,8 @@ impl AlgorithmMethods for CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    fn decrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+        let realm = cx.realm();
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -3444,6 +3439,2672 @@ impl AlgorithmMethods for Argon2Params {
         }
 
         Ok(result.expect("LibCrypto returns the derived bytes"))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AesCbcParams {
+    iv: Bytes,
+}
+
+impl AesCbcParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let iv_value = object.get(vm, &PropertyKey::from_utf8("iv"))?;
+        let Some(iv_source) = buffer_source_type_of(iv_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let iv = get_a_copy_of_the_bytes(vm, iv_source)?;
+
+        Ok(Self { iv })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AesCtrParams {
+    counter: Bytes,
+    length: u8,
+}
+
+impl AesCtrParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let iv_value = object.get(vm, &PropertyKey::from_utf8("counter"))?;
+        let Some(iv_source) = buffer_source_type_of(iv_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let iv = get_a_copy_of_the_bytes(vm, iv_source)?;
+
+        let length_value = object.get(vm, &PropertyKey::from_utf8("length"))?;
+        let length = to_octet_enforcing_range(vm, length_value)?;
+
+        Ok(Self { counter: iv, length })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AesGcmParams {
+    iv: Bytes,
+    additional_data: Option<Bytes>,
+    tag_length: Option<u8>,
+}
+
+impl AesGcmParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let iv_value = object.get(vm, &PropertyKey::from_utf8("iv"))?;
+        let Some(iv_source) = buffer_source_type_of(iv_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let iv = get_a_copy_of_the_bytes(vm, iv_source)?;
+
+        let mut additional_data = None;
+        let additional_data_property = PropertyKey::from_utf8("additionalData");
+        if object.has_property(vm, &additional_data_property)? {
+            let additional_data_value = object.get(vm, &additional_data_property)?;
+            let Some(additional_data_source) = buffer_source_type_of(additional_data_value) else {
+                return vm
+                    .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                    .map_err(Into::into);
+            };
+            additional_data = Some(get_a_copy_of_the_bytes(vm, additional_data_source)?);
+        }
+
+        let mut tag_length = None;
+        let tag_length_property = PropertyKey::from_utf8("tagLength");
+        if object.has_property(vm, &tag_length_property)? {
+            let tag_length_value = object.get(vm, &tag_length_property)?;
+            tag_length = Some(to_octet_enforcing_range(vm, tag_length_value)?);
+        }
+
+        Ok(Self {
+            iv,
+            additional_data,
+            tag_length,
+        })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AesKeyGenParams {
+    length: u16,
+}
+
+impl AesKeyGenParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let length_value = object.get(vm, &PropertyKey::from_utf8("length"))?;
+        let length = to_unsigned_short_enforcing_range(vm, length_value)?;
+
+        Ok(Self { length })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AesDerivedKeyParams {
+    length: u16,
+}
+
+impl AesDerivedKeyParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let length_value = object.get(vm, &PropertyKey::from_utf8("length"))?;
+        let length = to_unsigned_short_enforcing_range(vm, length_value)?;
+
+        Ok(Self { length })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct AeadParams {
+    iv: Bytes,
+    additional_data: Option<Bytes>,
+    tag_length: Option<u8>,
+}
+
+impl AeadParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let iv_value = object.get(vm, &PropertyKey::from_utf8("iv"))?;
+        let Some(iv_source) = buffer_source_type_of(iv_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let iv = get_a_copy_of_the_bytes(vm, iv_source)?;
+
+        let mut additional_data = None;
+        let additional_data_property = PropertyKey::from_utf8("additionalData");
+        if object.has_property(vm, &additional_data_property)? {
+            let additional_data_value = object.get(vm, &additional_data_property)?;
+            let Some(additional_data_source) = buffer_source_type_of(additional_data_value) else {
+                return vm
+                    .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                    .map_err(Into::into);
+            };
+            additional_data = Some(get_a_copy_of_the_bytes(vm, additional_data_source)?);
+        }
+
+        let mut tag_length = None;
+        let tag_length_property = PropertyKey::from_utf8("tagLength");
+        if object.has_property(vm, &tag_length_property)? {
+            let tag_length_value = object.get(vm, &tag_length_property)?;
+            tag_length = Some(to_octet_enforcing_range(vm, tag_length_value)?);
+        }
+
+        Ok(Self {
+            iv,
+            additional_data,
+            tag_length,
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum AesParameterType {
+    Base,
+    Cbc,
+    Ctr,
+    Gcm,
+    KeyGen,
+    DerivedKey,
+    Aead,
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+enum AesParameters {
+    Base,
+    Cbc(AesCbcParams),
+    Ctr(AesCtrParams),
+    Gcm(AesGcmParams),
+    KeyGen(AesKeyGenParams),
+    DerivedKey(AesDerivedKeyParams),
+    Aead(AeadParams),
+}
+
+impl AesParameters {
+    fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(match parameter_type {
+            AesParameterType::Base => Self::Base,
+            AesParameterType::Cbc => Self::Cbc(AesCbcParams::from_value(vm, object)?),
+            AesParameterType::Ctr => Self::Ctr(AesCtrParams::from_value(vm, object)?),
+            AesParameterType::Gcm => Self::Gcm(AesGcmParams::from_value(vm, object)?),
+            AesParameterType::KeyGen => Self::KeyGen(AesKeyGenParams::from_value(vm, object)?),
+            AesParameterType::DerivedKey => Self::DerivedKey(AesDerivedKeyParams::from_value(vm, object)?),
+            AesParameterType::Aead => Self::Aead(AeadParams::from_value(vm, object)?),
+        })
+    }
+}
+
+unsafe extern "C" {
+    fn web_crypto_aes_cbc_cipher(
+        encrypt: bool,
+        key: Span<'_, u8>,
+        input: Span<'_, u8>,
+        iv: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_aes_ctr_cipher(
+        encrypt: bool,
+        key: Span<'_, u8>,
+        input: Span<'_, u8>,
+        counter: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_aes_kw_cipher(
+        wrap: bool,
+        key: Span<'_, u8>,
+        input: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_aes_gcm_encrypt(
+        key: Span<'_, u8>,
+        plaintext: Span<'_, u8>,
+        iv: Span<'_, u8>,
+        additional_data: Span<'_, u8>,
+        tag_length: usize,
+        ciphertext: *mut c_void,
+        tag: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_aes_gcm_decrypt(
+        key: Span<'_, u8>,
+        ciphertext: Span<'_, u8>,
+        iv: Span<'_, u8>,
+        additional_data: Span<'_, u8>,
+        tag: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_aes_ocb_cipher(
+        encrypt: bool,
+        key: Span<'_, u8>,
+        input: Span<'_, u8>,
+        iv: Span<'_, u8>,
+        additional_data: Span<'_, u8>,
+        tag_length: usize,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+}
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AesCbc {
+    parameters: AesParameters,
+}
+
+impl AesCbc {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: AesParameters::from_value(vm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for AesCbc {
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
+    fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Cbc(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Cbc parameters")
+        };
+
+        // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() != 16 {
+            return Err(dom_error("OperationError", b"IV to AES-CBC must be exactly 16 bytes"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Cbc(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Cbc parameters")
+        };
+
+        // NB: Step 1 is performed by validate_encrypt_parameters().
+        self.validate_encrypt_parameters(cx.realm())?;
+
+        // 2. Let paddedPlaintext be the result of adding padding octets to the contents of plaintext according to the procedure defined in Section 10.3 of [RFC2315], step 2, with a value of k of 16.
+        // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and paddedPlaintext as the input plaintext.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_aes_cbc_cipher(
+                true,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(plaintext.as_slice()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_ciphertext {
+            return Err(dom_error("OperationError", b"Failed to encrypt"));
+        }
+
+        // 4. Return the result of creating an ArrayBuffer containing ciphertext.
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
+    fn validate_decrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Cbc(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Cbc parameters")
+        };
+
+        // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() != 16 {
+            return Err(dom_error("OperationError", b"IV to AES-CBC must be exactly 16 bytes"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Cbc(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Cbc parameters")
+        };
+
+        // NB: Step 1 is performed by validate_decrypt_parameters().
+        self.validate_decrypt_parameters(cx.realm())?;
+
+        // 2. If the length of ciphertext is zero or is not a multiple of 16 bytes, then throw an OperationError.
+        if ciphertext.as_slice().is_empty() || !ciphertext.as_slice().len().is_multiple_of(16) {
+            return Err(dom_error(
+                "OperationError",
+                b"Ciphertext length must be a multiple of 16 bytes",
+            ));
+        }
+
+        // 3. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the iv member of normalizedAlgorithm as the IV input parameter and ciphertext as the input ciphertext.
+        // 4. Let p be the value of the last octet of paddedPlaintext.
+        // 5. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
+        // 6. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_aes_cbc_cipher(
+                false,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(ciphertext.as_slice()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_plaintext {
+            return Err(dom_error("OperationError", b"Failed to decrypt"));
+        }
+
+        // 7. Return plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2.
+        let data;
+        if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // -> If format is "raw":
+            //    1. Let data be the octet string contained in keyData.
+            //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+            let length_in_bits = data.as_slice().len() * 8;
+            if length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256 {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted(
+                        "Invalid key length '{}' bits (must be either 128, 192, or 256 bits)",
+                        &[&length_in_bits],
+                    ),
+                ));
+            }
+        } else if format == KeyFormat::Jwk {
+            // -> If format is "jwk":
+            //    1. ->   If keyData is a JsonWebKey dictionary:
+            //                Let jwk equal keyData.
+            //       ->   Otherwise:
+            //                Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            //    2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            //    3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // Specifically, those requirements are:
+            // - ".k" is a valid bas64url encoded octet stream, which we do by just parsing it, in step 4.
+            // - ".alg" is checked only in step 5.
+
+            //    4. Let data be the octet string obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            //    5. -> If data has length 128 bits:
+            //              If the alg field of jwk is present, and is not "A128CBC", then throw a DataError.
+            //       -> If data has length 192 bits:
+            //              If the alg field of jwk is present, and is not "A192CBC", then throw a DataError.
+            //       -> If data has length 256 bits:
+            //              If the alg field of jwk is present, and is not "A256CBC", then throw a DataError.
+            //       -> Otherwise:
+            //              throw a DataError.
+            let data_bits = data.as_slice().len() * 8;
+            let alg = &jwk.alg;
+            if data_bits == 128 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A128CBC"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 192 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A192CBC"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 256 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A256CBC"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm",
+                    ));
+                }
+            } else {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted("Invalid key size: {} bits", &[&data_bits]),
+                ));
+            }
+
+            //    6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !key_usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            //    7. If the key_ops field of jwk is present, and is invalid according to the
+            //       requirements of JSON Web Key [JWK] or does not contain all of the specified usages
+            //       values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, key_usages)?;
+
+            //    8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        } else {
+            //    Otherwise:
+            //        throw a NotSupportedError
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw and jwk formats are supported",
+            ));
+        }
+
+        // 3. Let key be a new CryptoKey object representing an AES key with value data.
+        let data_bits = data.as_slice().len() * 8;
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 4. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 5. Let algorithm be a new AesKeyAlgorithm.
+        // 6. Set the name attribute of algorithm to "AES-CBC".
+        // 7. Set the length attribute of algorithm to the length, in bits, of data.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-CBC"),
+            length: u16::try_from(data_bits).expect("AES key length was validated"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+        let AesParameters::KeyGen(length) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = length.length;
+        if bits != 128 && bits != 192 && bits != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Cannot create AES-CBC key with unusual amount of {} bits", &[&bits]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let AesParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+
+        // NB: Step 2 is performed by validate_generate_key_parameters().
+        self.validate_generate_key_parameters(cx.realm())?;
+        let bits = normalized_algorithm.length;
+
+        // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+        let key_buffer = generate_random_key(cx.vm(), u32::from(bits))?;
+
+        // 4. If the key generation step fails, then throw an OperationError.
+        // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
+
+        // 5. Let key be a new CryptoKey object representing the generated AES key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 9. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new AesKeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "AES-CBC".
+        // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 10. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-CBC"),
+            length: bits,
+        });
+
+        // 11. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 13. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. -> If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        //    -> If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. -> If the length attribute of key is 128:
+            //        Set the alg attribute of jwk to the string "A128CBC".
+            //    -> If the length attribute of key is 192:
+            //        Set the alg attribute of jwk to the string "A192CBC".
+            //    -> If the length attribute of key is 256:
+            //        Set the alg attribute of jwk to the string "A256CBC".
+            let key_bits = key_bytes.len() * 8;
+            if key_bits == 128 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A128CBC"));
+            } else if key_bits == 192 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A192CBC"));
+            } else if key_bits == 256 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A256CBC"));
+            } else {
+                return Err(dom_error("OperationError", b"unclear key size"));
+            }
+
+            // 5. Set the key_ops attribute of jwk to equal the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        //    -> Otherwise:
+        else {
+            //        throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-cbc-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
+        let AesParameters::DerivedKey(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses DerivedKey parameters")
+        };
+        let length = normalized_algorithm.length;
+        if length != 128 && length != 192 && length != 256 {
+            return Err(dom_error("OperationError", b"Invalid key length"));
+        }
+
+        // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+        Ok(Some(u32::from(length)))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AesCtr {
+    parameters: AesParameters,
+}
+
+impl AesCtr {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: AesParameters::from_value(vm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for AesCtr {
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let data;
+
+        // 2. If format is "raw":
+        if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the octet string contained in keyData.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+
+            // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+            let length_in_bits = data.as_slice().len() * 8;
+            if length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256 {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted(
+                        "Invalid key length '{}' bits (must be either 128, 192, or 256 bits)",
+                        &[&length_in_bits],
+                    ),
+                ));
+            }
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // Specifically, those requirements are:
+            // * the member "k" is used to represent a symmetric key (or another key whose value is a single octet sequence).
+            // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
+            //   unless the application uses another means or convention to determine the algorithm used.
+            if jwk.k.is_none() {
+                return Err(dom_error("DataError", b"Missing 'k' field"));
+            }
+
+            if jwk.alg.is_none() {
+                return Err(dom_error("DataError", b"Missing 'alg' field"));
+            }
+
+            // 4. Let data be the octet string obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            //    5. -> If data has length 128 bits:
+            //              If the alg field of jwk is present, and is not "A128CTR", then throw a DataError.
+            //       -> If data has length 192 bits:
+            //              If the alg field of jwk is present, and is not "A192CTR", then throw a DataError.
+            //       -> If data has length 256 bits:
+            //              If the alg field of jwk is present, and is not "A256CTR", then throw a DataError.
+            //       -> Otherwise:
+            //              throw a DataError.
+            let data_bits = data.as_slice().len() * 8;
+            let alg = &jwk.alg;
+            if data_bits == 128 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A128CTR"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 192 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A192CTR"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 256 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A256CTR"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm",
+                    ));
+                }
+            } else {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted("Invalid key size: {} bits", &[&data_bits]),
+                ));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !key_usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, key_usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw and jwk formats are supported",
+            ));
+        }
+
+        let data_bits = data.as_slice().len() * 8;
+
+        // 3. Let key be a new CryptoKey object representing an AES key with value data.
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 4. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 5. Let algorithm be a new AesKeyAlgorithm.
+        // 6. Set the name attribute of algorithm to "AES-CTR".
+        // 7. Set the length attribute of algorithm to the length, in bits, of data.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-CTR"),
+            length: u16::try_from(data_bits).expect("AES key length was validated"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
+            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. -> If the length attribute of key is 128:
+            //        Set the alg attribute of jwk to the string "A128CTR".
+            //    -> If the length attribute of key is 192:
+            //        Set the alg attribute of jwk to the string "A192CTR".
+            //    -> If the length attribute of key is 256:
+            //        Set the alg attribute of jwk to the string "A256CTR".
+            let key_bits = key_bytes.len() * 8;
+            if key_bits == 128 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A128CTR"));
+            } else if key_bits == 192 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A192CTR"));
+            } else if key_bits == 256 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A256CTR"));
+            }
+
+            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
+        let AesParameters::DerivedKey(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses DerivedKey parameters")
+        };
+        let length = normalized_algorithm.length;
+        if length != 128 && length != 192 && length != 256 {
+            return Err(dom_error("OperationError", b"Invalid key length"));
+        }
+
+        // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+        Ok(Some(u32::from(length)))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+        let AesParameters::KeyGen(length) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = length.length;
+        if bits != 128 && bits != 192 && bits != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Cannot create AES-CTR key with unusual amount of {} bits", &[&bits]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // NB: Step 2 is performed by validate_generate_key_parameters().
+        self.validate_generate_key_parameters(cx.realm())?;
+        let AesParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = normalized_algorithm.length;
+
+        // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+        // 4. If the key generation step fails, then throw an OperationError.
+        let key_buffer = generate_random_key(cx.vm(), u32::from(bits))?;
+
+        // 5. Let key be a new CryptoKey object representing the generated AES key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 9. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new AesKeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "AES-CTR".
+        // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 10. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-CTR"),
+            length: bits,
+        });
+
+        // 11. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 13. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
+    fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Ctr(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Ctr parameters")
+        };
+
+        // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+        if normalized_algorithm.counter.as_slice().len() != 16 {
+            return Err(dom_error("OperationError", b"Invalid counter length"));
+        }
+
+        // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
+        if normalized_algorithm.length == 0 || normalized_algorithm.length > 128 {
+            return Err(dom_error("OperationError", b"Invalid length"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        // NB: Steps 1 and 2 are performed by validate_encrypt_parameters().
+        self.validate_encrypt_parameters(cx.realm())?;
+        let AesParameters::Ctr(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Ctr parameters")
+        };
+        let counter = &normalized_algorithm.counter;
+
+        // 3. Let ciphertext be the result of performing the CTR Encryption operation described in Section 6.5 of [NIST-SP800-38A] using
+        //    AES as the block cipher,
+        //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
+        //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
+        //    and the contents of plaintext as the input plaintext.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_aes_ctr_cipher(
+                true,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(plaintext.as_slice()),
+                Span::new(counter.as_slice()),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_ciphertext {
+            return Err(dom_error("OperationError", b"Encryption failed"));
+        }
+
+        // 4. Return the result of creating an ArrayBuffer containing plaintext.
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
+    fn validate_decrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Ctr(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Ctr parameters")
+        };
+
+        // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+        if normalized_algorithm.counter.as_slice().len() != 16 {
+            return Err(dom_error("OperationError", b"Invalid counter length"));
+        }
+
+        // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
+        if normalized_algorithm.length == 0 || normalized_algorithm.length > 128 {
+            return Err(dom_error("OperationError", b"Invalid length"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        // NB: Steps 1 and 2 are performed by validate_decrypt_parameters().
+        self.validate_decrypt_parameters(cx.realm())?;
+        let AesParameters::Ctr(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Ctr parameters")
+        };
+        let counter = &normalized_algorithm.counter;
+
+        // 3. Let plaintext be the result of performing the CTR Decryption operation described in Section 6.5 of [NIST-SP800-38A] using
+        //    AES as the block cipher,
+        //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
+        //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
+        //    and the contents of ciphertext as the input ciphertext.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_aes_ctr_cipher(
+                false,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(ciphertext.as_slice()),
+                Span::new(counter.as_slice()),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_plaintext {
+            return Err(dom_error("OperationError", b"Decryption failed"));
+        }
+
+        // 4. Return the result of creating an ArrayBuffer containing plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AesGcm {
+    parameters: AesParameters,
+}
+
+impl AesGcm {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: AesParameters::from_value(vm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for AesGcm {
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
+        let AesParameters::DerivedKey(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses DerivedKey parameters")
+        };
+        let length = normalized_algorithm.length;
+        if length != 128 && length != 192 && length != 256 {
+            return Err(dom_error("OperationError", b"Invalid key length"));
+        }
+
+        // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+        Ok(Some(u32::from(length)))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let data;
+
+        // 2. If format is "raw":
+        if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the octet string contained in keyData.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+
+            // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+            let length_in_bits = data.as_slice().len() * 8;
+            if length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256 {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted(
+                        "Invalid key length '{}' bits (must be either 128, 192, or 256 bits)",
+                        &[&length_in_bits],
+                    ),
+                ));
+            }
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // Specifically, those requirements are:
+            // * the member "k" is used to represent a symmetric key (or another key whose value is a single octet sequence).
+            // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
+            //   unless the application uses another means or convention to determine the algorithm used.
+            if jwk.k.is_none() {
+                return Err(dom_error("DataError", b"Missing 'k' field"));
+            }
+
+            if jwk.alg.is_none() {
+                return Err(dom_error("DataError", b"Missing 'alg' field"));
+            }
+
+            // 4. Let data be the octet string obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            //    5. -> If data has length 128 bits:
+            //              If the alg field of jwk is present, and is not "A128GCM", then throw a DataError.
+            //       -> If data has length 192 bits:
+            //              If the alg field of jwk is present, and is not "A192GCM", then throw a DataError.
+            //       -> If data has length 256 bits:
+            //              If the alg field of jwk is present, and is not "A256GCM", then throw a DataError.
+            //       -> Otherwise:
+            //              throw a DataError.
+            let data_bits = data.as_slice().len() * 8;
+            let alg = &jwk.alg;
+            if data_bits == 128 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A128GCM"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 192 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A192GCM"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 256 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A256GCM"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm",
+                    ));
+                }
+            } else {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted("Invalid key size: {} bits", &[&data_bits]),
+                ));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !key_usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, key_usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw and jwk formats are supported",
+            ));
+        }
+
+        let data_bits = data.as_slice().len() * 8;
+
+        // 3. Let key be a new CryptoKey object representing an AES key with value data.
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 4. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 5. Let algorithm be a new AesKeyAlgorithm.
+        // 6. Set the name attribute of algorithm to "AES-GCM".
+        // 7. Set the length attribute of algorithm to the length, in bits, of data.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-GCM"),
+            length: u16::try_from(data_bits).expect("AES key length was validated"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
+            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. -> If the length attribute of key is 128:
+            //        Set the alg attribute of jwk to the string "A128GCM".
+            //    -> If the length attribute of key is 192:
+            //        Set the alg attribute of jwk to the string "A192GCM".
+            //    -> If the length attribute of key is 256:
+            //        Set the alg attribute of jwk to the string "A256GCM".
+            let key_bits = key_bytes.len() * 8;
+            if key_bits == 128 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A128GCM"));
+            } else if key_bits == 192 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A192GCM"));
+            } else if key_bits == 256 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A256GCM"));
+            }
+
+            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
+    fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Gcm(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Gcm parameters")
+        };
+
+        // NB: Our AES-GCM rejects an empty IV.
+        if normalized_algorithm.iv.as_slice().is_empty() {
+            return Err(dom_error("OperationError", b"IV must not be empty"));
+        }
+
+        // 1. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+        // NOTE: This is not possible
+
+        // 2. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+        // NOTE: This is not possible
+
+        // 3. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+        //    If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+        //    Otherwise: throw an OperationError.
+        let valid_tag_lengths = [32, 64, 96, 104, 112, 120, 128];
+        if normalized_algorithm
+            .tag_length
+            .is_some_and(|length| !valid_tag_lengths.contains(&length))
+        {
+            return Err(dom_error("OperationError", b"Invalid tag length"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Gcm(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Gcm parameters")
+        };
+
+        // NB: Steps 1 to 3 are performed by validate_encrypt_parameters(), which leaves tagLength as the tagLength member
+        //     of normalizedAlgorithm if present, or 128 otherwise.
+        self.validate_encrypt_parameters(cx.realm())?;
+        let tag_length = usize::from(normalized_algorithm.tag_length.unwrap_or(128));
+
+        // 4. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
+        if (plaintext.as_slice().len() as u64) > (1u64 << 39) - 256 {
+            return Err(dom_error("OperationError", b"Invalid plaintext length"));
+        }
+
+        // 5. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 6. Let C and T be the outputs that result from performing the Authenticated Encryption Function described in Section 7.1 of [NIST-SP800-38D] using
+        //    AES as the block cipher,
+        //    the contents of the iv member of normalizedAlgorithm as the IV input parameter,
+        //    the contents of additionalData as the A input parameter,
+        //    tagLength as the t pre-requisite
+        //    and the contents of plaintext as the input plaintext.
+        let mut ciphertext: Option<Bytes> = None;
+        let mut tag: Option<Bytes> = None;
+        // SAFETY: The inputs and output slots live for the call.
+        let maybe_encrypted = unsafe {
+            web_crypto_aes_gcm_encrypt(
+                Span::new(key.byte_handle_bytes()),
+                Span::new(plaintext.as_slice()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(additional_data),
+                tag_length / 8,
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                core::ptr::from_mut(&mut tag).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_encrypted {
+            return Err(dom_error("OperationError", b"Encryption failed"));
+        }
+
+        let mut ciphertext = Rc::unwrap_or_clone(ciphertext.expect("LibCrypto returns ciphertext").0);
+        let tag = tag.expect("LibCrypto returns an authentication tag");
+
+        // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
+        if ciphertext.try_reserve_exact(tag.as_slice().len()).is_err() {
+            return cx
+                .vm()
+                .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                .map_err(Into::into);
+        }
+        ciphertext.extend_from_slice(tag.as_slice());
+
+        // 8. Return the result of creating an ArrayBuffer containing ciphertext.
+        Ok(Bytes::new(ciphertext))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
+    fn validate_decrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Gcm(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Gcm parameters")
+        };
+
+        // NB: Our AES-GCM rejects an empty IV.
+        if normalized_algorithm.iv.as_slice().is_empty() {
+            return Err(dom_error("OperationError", b"IV must not be empty"));
+        }
+
+        // 1. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+        //    If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+        //    Otherwise: throw an OperationError.
+        let valid_tag_lengths = [32, 64, 96, 104, 112, 120, 128];
+        if normalized_algorithm
+            .tag_length
+            .is_some_and(|length| !valid_tag_lengths.contains(&length))
+        {
+            return Err(dom_error("OperationError", b"Invalid tag length"));
+        }
+
+        // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+        // NOTE: This is not possible
+
+        // 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+        // NOTE: This is not possible
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Gcm(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Gcm parameters")
+        };
+
+        // NB: Steps 1 to 3 are performed by validate_decrypt_parameters(), which leaves tagLength as the tagLength member
+        //     of normalizedAlgorithm if present, or 128 otherwise.
+        self.validate_decrypt_parameters(cx.realm())?;
+        let tag_length = usize::from(normalized_algorithm.tag_length.unwrap_or(128));
+
+        // 4. If ciphertext has a length in bits less than tagLength, then throw an OperationError.
+        if ciphertext.as_slice().len() < tag_length / 8 {
+            return Err(dom_error("OperationError", b"Invalid ciphertext length"));
+        }
+
+        // 5. Let tag be the last tagLength bits of ciphertext.
+        let tag_bytes = tag_length / 8;
+        let split = ciphertext.as_slice().len() - tag_bytes;
+        let copy_bytes = |bytes: &[u8]| -> WebIdlResult<Vec<u8>> {
+            let mut copy = Vec::new();
+            if copy.try_reserve_exact(bytes.len()).is_err() {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            }
+            copy.extend_from_slice(bytes);
+            Ok(copy)
+        };
+        let tag = copy_bytes(&ciphertext.as_slice()[split..])?;
+        // 6. Let actualCiphertext be the result of removing the last tagLength bits from ciphertext.
+        let actual_ciphertext = copy_bytes(&ciphertext.as_slice()[..split])?;
+
+        // 7. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 8. Perform the Authenticated Decryption Function described in Section 7.2 of [NIST-SP800-38D] using
+        //    AES as the block cipher,
+        //    the contents of the iv member of normalizedAlgorithm as the IV input parameter,
+        //    the contents of additionalData as the A input parameter,
+        //    tagLength as the t pre-requisite,
+        //    the contents of actualCiphertext as the input ciphertext, C
+        //    and the contents of tag as the authentication tag, T.
+        // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The inputs and output slot live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_aes_gcm_decrypt(
+                Span::new(key.byte_handle_bytes()),
+                Span::new(&actual_ciphertext),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(additional_data),
+                Span::new(&tag),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+
+        if !maybe_plaintext {
+            return Err(dom_error("OperationError", b"Decryption failed"));
+        }
+
+        // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
+        // 9. Return the result of creating an ArrayBuffer containing plaintext.
+        Ok(plaintext.expect("LibCrypto returns plaintext"))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+        let AesParameters::KeyGen(length) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = length.length;
+        if bits != 128 && bits != 192 && bits != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Cannot create AES-GCM key with unusual amount of {} bits", &[&bits]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // NB: Step 2 is performed by validate_generate_key_parameters().
+        self.validate_generate_key_parameters(cx.realm())?;
+        let AesParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = normalized_algorithm.length;
+
+        // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+        // 4. If the key generation step fails, then throw an OperationError.
+        let key_buffer = generate_random_key(cx.vm(), u32::from(bits))?;
+
+        // 5. Let key be a new CryptoKey object representing the generated AES key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 9. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new AesKeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "AES-GCM".
+        // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 10. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-GCM"),
+            length: bits,
+        });
+
+        // 11. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 13. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AesKw {
+    parameters: AesParameters,
+}
+
+impl AesKw {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: AesParameters::from_value(vm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for AesKw {
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let data;
+
+        // 2. If format is "raw":
+        if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the octet string contained in keyData.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+
+            // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+            let length_in_bits = data.as_slice().len() * 8;
+            if length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256 {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted(
+                        "Invalid key length '{}' bits (must be either 128, 192, or 256 bits)",
+                        &[&length_in_bits],
+                    ),
+                ));
+            }
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // Specifically, those requirements are:
+            // * the member "k" is used to represent a symmetric key (or another key whose value is a single octet sequence).
+            // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
+            //   unless the application uses another means or convention to determine the algorithm used.
+            // NOTE: "k" is already checked in step 4.
+            if jwk.alg.is_none() {
+                return Err(dom_error("DataError", b"Missing 'alg' field"));
+            }
+
+            // 4. Let data be the octet string obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            // 5. -> If data has length 128 bits:
+            //           If the alg field of jwk is present, and is not "A128KW", then throw a DataError.
+            //    -> If data has length 192 bits:
+            //           If the alg field of jwk is present, and is not "A192KW", then throw a DataError.
+            //    -> If data has length 256 bits:
+            //           If the alg field of jwk is present, and is not "A256KW", then throw a DataError.
+            //    -> Otherwise:
+            //           throw a DataError.
+            let data_bits = data.as_slice().len() * 8;
+            let alg = &jwk.alg;
+            if data_bits == 128 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A128KW"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 192 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A192KW"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 256 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A256KW"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm",
+                    ));
+                }
+            } else {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted("Invalid key size: {} bits", &[&data_bits]),
+                ));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !key_usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, key_usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw and jwk formats are supported",
+            ));
+        }
+
+        let data_bits = data.as_slice().len() * 8;
+
+        // 3. Let key be a new CryptoKey object representing an AES key with value data.
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 4. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 5. Let algorithm be a new AesKeyAlgorithm.
+        // 6. Set the name attribute of algorithm to "AES-KW".
+        // 7. Set the length attribute of algorithm to the length, in bits, of data.
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-KW"),
+            length: u16::try_from(data_bits).expect("AES key length was validated"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
+            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. -> If the length attribute of key is 128:
+            //        Set the alg attribute of jwk to the string "A128KW".
+            //    -> If the length attribute of key is 192:
+            //        Set the alg attribute of jwk to the string "A192KW".
+            //    -> If the length attribute of key is 256:
+            //        Set the alg attribute of jwk to the string "A256KW".
+            let key_bits = key_bytes.len() * 8;
+            if key_bits == 128 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A128KW"));
+            } else if key_bits == 192 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A192KW"));
+            } else if key_bits == 256 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A256KW"));
+            }
+
+            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
+        let AesParameters::DerivedKey(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses DerivedKey parameters")
+        };
+        let length = normalized_algorithm.length;
+        if length != 128 && length != 192 && length != 256 {
+            return Err(dom_error("OperationError", b"Invalid key length"));
+        }
+
+        // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+        Ok(Some(u32::from(length)))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. If the length property of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+        let AesParameters::KeyGen(length) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = length.length;
+        if bits != 128 && bits != 192 && bits != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Cannot create AES-KW key with unusual amount of {} bits", &[&bits]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // NB: Step 2 is performed by validate_generate_key_parameters().
+        self.validate_generate_key_parameters(cx.realm())?;
+        let AesParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = normalized_algorithm.length;
+
+        // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+        // 4. If the key generation step fails, then throw an OperationError.
+        let key_buffer = generate_random_key(cx.vm(), u32::from(bits))?;
+
+        // 5. Let key be a new CryptoKey object representing the generated AES key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 9. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new AesKeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "AES-KW".
+        // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 10. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-KW"),
+            length: bits,
+        });
+
+        // 11. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 13. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-wrap-key
+    fn wrap_key(&self, _: Gc<Realm>, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        // 1. If plaintext is not a multiple of 64 bits in length, then throw an OperationError.
+        if !plaintext.as_slice().len().is_multiple_of(8) {
+            return Err(dom_error("OperationError", b"Invalid plaintext length"));
+        }
+
+        // 2. Let ciphertext be the result of performing the Key Wrap operation described in Section 2.2.1 of [RFC3394]
+        //    with plaintext as the plaintext to be wrapped and using the default Initial Value defined in Section 2.2.3.1 of the same document.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_aes_kw_cipher(
+                true,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(plaintext.as_slice()),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_ciphertext {
+            return Err(dom_error("OperationError", b"Key wrap failed"));
+        }
+
+        // 3. Return ciphertext.
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#aes-kw-operations-unwrap-key
+    fn unwrap_key(&self, _: Gc<Realm>, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        // NOTE: The spec does not mention this, but we need to check
+        if ciphertext.as_slice().len() < 8 {
+            return Err(dom_error("OperationError", b"Invalid ciphertext length"));
+        }
+
+        // 1. Let plaintext be the result of performing the Key Unwrap operation described in Section 2.2.2 of [RFC3394]
+        //     with ciphertext as the input ciphertext and using the default Initial Value defined in Section 2.2.3.1 of the same document
+        // 2. If the Key Unwrap operation returns an error, then throw an OperationError.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_aes_kw_cipher(
+                false,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(ciphertext.as_slice()),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_plaintext {
+            return Err(dom_error("OperationError", b"Key unwrap failed"));
+        }
+
+        // 3. Return plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AesOcb {
+    parameters: AesParameters,
+}
+
+impl AesOcb {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, parameter_type: AesParameterType) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: AesParameters::from_value(vm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for AesOcb {
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-encrypt
+    fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Aead(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Aead parameters")
+        };
+
+        // 1. If the iv member of normalizedAlgorithm has a length greater than 15 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() > 15 {
+            return Err(dom_error("OperationError", b"IV must have a length of 15 bytes"));
+        }
+
+        // NB: Our AES-OCB rejects an empty IV.
+        if normalized_algorithm.iv.as_slice().is_empty() {
+            return Err(dom_error("OperationError", b"IV must not be empty"));
+        }
+
+        // 2. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+        //    If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+        //    Otherwise: throw an OperationError.
+        let valid_tag_lengths = [64, 96, 128];
+        if normalized_algorithm
+            .tag_length
+            .is_some_and(|length| !valid_tag_lengths.contains(&length))
+        {
+            return Err(dom_error("OperationError", b"Invalid tag length"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-encrypt
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Aead(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Aead parameters")
+        };
+
+        // NB: Steps 1 and 2 are performed by validate_encrypt_parameters(), which leaves tagLength as the tagLength member
+        //     of normalizedAlgorithm if present, or 128 otherwise.
+        self.validate_encrypt_parameters(cx.realm())?;
+        let tag_length = usize::from(normalized_algorithm.tag_length.unwrap_or(128));
+
+        // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 4. Let C be the output that results from performing the OCB-ENCRYPT function described in Section 4.2
+        //    of [RFC7253] using AES as the block cipher,
+        //    using the key represented by [[handle]] internal slot of key as the K input parameter,
+        //    the iv member of normalizedAlgorithm as the N input parameter,
+        //    additionalData as the A input parameter,
+        //    plaintext as the P input parameter,
+        //    and tagLength as the TAGLEN global parameter.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The inputs and output slot live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_aes_ocb_cipher(
+                true,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(plaintext.as_slice()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(additional_data),
+                tag_length,
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+
+        if maybe_ciphertext != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_ciphertext) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Encryption failed: {}", &[&detail]),
+            ));
+        }
+
+        // 5. Return C
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-decrypt
+    fn validate_decrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let AesParameters::Aead(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Aead parameters")
+        };
+
+        // 1. If the iv member of normalizedAlgorithm has a length greater than 15 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() > 15 {
+            return Err(dom_error("OperationError", b"IV must have a length of 15 bytes"));
+        }
+
+        // NB: Our AES-OCB rejects an empty IV.
+        if normalized_algorithm.iv.as_slice().is_empty() {
+            return Err(dom_error("OperationError", b"IV must not be empty"));
+        }
+
+        // 2. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+        //    If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+        //    Otherwise: throw an OperationError.
+        let valid_tag_lengths = [64, 96, 128];
+        if normalized_algorithm
+            .tag_length
+            .is_some_and(|length| !valid_tag_lengths.contains(&length))
+        {
+            return Err(dom_error("OperationError", b"Invalid tag length"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-decrypt
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        let AesParameters::Aead(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses Aead parameters")
+        };
+
+        // NB: Steps 1 and 2 are performed by validate_decrypt_parameters(), which leaves tagLength as the tagLength member
+        //     of normalizedAlgorithm if present, or 128 otherwise.
+        self.validate_decrypt_parameters(cx.realm())?;
+        let tag_length = usize::from(normalized_algorithm.tag_length.unwrap_or(128));
+
+        // 3. If ciphertext has a length less than tagLength bits, then throw an OperationError.
+        if ciphertext.as_slice().len() < tag_length / 8 {
+            return Err(dom_error("OperationError", b"Ciphertext is less than tagLength bits"));
+        }
+
+        // 4. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 5. Perform the OCB-DECRYPT function described in Section 4.3 of [RFC7253]
+        //    using AES as the block cipher,
+        //    using the key represented by [[handle]] internal slot of key as the K input parameter,
+        //    the iv member of normalizedAlgorithm as the N input parameter,
+        //    additionalData as the A input parameter,
+        //    ciphertext as the C input parameter,
+        //    and tagLength as the TAGLEN global parameter.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The inputs and output slot live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_aes_ocb_cipher(
+                false,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(ciphertext.as_slice()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(additional_data),
+                tag_length,
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 5. If the result of the algorithm is the indication of authentication failure:
+        //       throw an OperationError
+        //    Otherwise:
+        //       Let plaintext be the resulting plaintext.
+        if maybe_plaintext != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_plaintext) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Decryption failed: {}", &[&detail]),
+            ));
+        }
+
+        // 6. Return plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+        let AesParameters::KeyGen(length) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = length.length;
+        if bits != 128 && bits != 192 && bits != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Cannot create AES-OCB key with unusual amount of {} bits", &[&bits]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // NB: Step 2 is performed by validate_generate_key_parameters().
+        self.validate_generate_key_parameters(cx.realm())?;
+        let AesParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses KeyGen parameters")
+        };
+        let bits = normalized_algorithm.length;
+
+        // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+        // 4. If the key generation step fails, then throw an OperationError.
+        let key_buffer = generate_random_key(cx.vm(), u32::from(bits))?;
+
+        // 5. Let key be a new CryptoKey object representing the generated AES key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 6. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 7. Let algorithm be a new AesKeyAlgorithm.
+        // 8. Set the name attribute of algorithm to "AES-OCB".
+        // 9. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 10. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-OCB"),
+            length: bits,
+        });
+
+        // 11. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 12. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 13. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let data;
+
+        // 3. If format is "raw-secret":
+        if format == KeyFormat::RawSecret {
+            // 1. Let data be keyData.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+
+            // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+            let length_in_bits = data.as_slice().len() * 8;
+            if length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256 {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted(
+                        "Invalid key length '{}' bits (must be either 128, 192, or 256 bits)",
+                        &[&length_in_bits],
+                    ),
+                ));
+            }
+        }
+        // 3. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary:
+            //        Let jwk equal keyData.
+            //    Otherwise:
+            //        Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"Invalid JWK key data"));
+            };
+
+            // 2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // NOTE: "k" is already checked in step 4.
+            if jwk.alg.is_none() {
+                return Err(dom_error("DataError", b"Missing 'alg' field"));
+            }
+
+            // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            // 5. -> If data has length 128 bits:
+            //           If the alg field of jwk is present, and is not "A128OCB", then throw a DataError.
+            //    -> If data has length 192 bits:
+            //           If the alg field of jwk is present, and is not "A192OCB", then throw a DataError.
+            //    -> If data has length 256 bits:
+            //           If the alg field of jwk is present, and is not "A256OCB", then throw a DataError.
+            //    -> Otherwise:
+            //           throw a DataError.
+            let data_bits = data.as_slice().len() * 8;
+            let alg = &jwk.alg;
+            if data_bits == 128 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A128OCB"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 192 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A192OCB"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm",
+                    ));
+                }
+            } else if data_bits == 256 {
+                if alg
+                    .as_ref()
+                    .is_some_and(|alg| *alg != Utf16String::from_ascii(b"A256OCB"))
+                {
+                    return Err(dom_error(
+                        "DataError",
+                        b"Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm",
+                    ));
+                }
+            } else {
+                return Err(Exception::Dom(
+                    "DataError",
+                    libjs_rust::api::utf16_formatted("Invalid key size: {} bits", &[&data_bits]),
+                ));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw-secret and jwk formats are supported",
+            ));
+        }
+
+        let data_bits = data.as_slice().len() * 8;
+
+        // 4. Let key be a new CryptoKey object representing an AES key with value data.
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 5. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new AesKeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "AES-OCB".
+        // 8. Set the length attribute of algorithm to the length, in bits, of data.
+        // 9. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Aes {
+            name: Utf16String::from_ascii(b"AES-OCB"),
+            length: u16::try_from(data_bits).expect("AES key length was validated"),
+        });
+
+        // 10. Return key.
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. If format is "raw-secret":
+        let result = if format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
+            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. -> If the length attribute of key is 128:
+            //        Set the alg attribute of jwk to the string "A128OCB".
+            //    -> If the length attribute of key is 192:
+            //        Set the alg attribute of jwk to the string "A192OCB".
+            //    -> If the length attribute of key is 256:
+            //        Set the alg attribute of jwk to the string "A256OCB".
+            let key_bits = key_bytes.len() * 8;
+            if key_bits == 128 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A128OCB"));
+            } else if key_bits == 192 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A192OCB"));
+            } else if key_bits == 256 {
+                jwk.alg = Some(Utf16String::from_ascii(b"A256OCB"));
+            }
+
+            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be jwk.
+            return Ok(ExportKeyResult::JsonWebKey(jwk));
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        let AesParameters::DerivedKey(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses DerivedKey parameters")
+        };
+
+        // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
+        let length = normalized_algorithm.length;
+        if length != 128 && length != 192 && length != 256 {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid key length: {}", &[&length]),
+            ));
+        }
+
+        // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+        Ok(Some(u32::from(length)))
     }
 }
 

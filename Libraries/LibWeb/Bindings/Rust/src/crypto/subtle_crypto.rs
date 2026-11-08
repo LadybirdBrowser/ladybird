@@ -31,10 +31,10 @@ use crate::bindings::promise::{
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
-    AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2, Argon2Params, Bytes, CShakeParams, CppAlgorithm,
-    EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
-    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, Sha,
-    normalized_key_usages, public_key_for_private_key,
+    AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
+    Argon2Params, Bytes, CShakeParams, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac,
+    HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams, KmacParams,
+    ParameterId, Pbkdf2, Pbkdf2Params, Sha, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -102,6 +102,11 @@ enum RegisteredAlgorithm {
     Pbkdf2Params,
     Argon2,
     Argon2Params,
+    AesCbc(AesParameterType),
+    AesCtr(AesParameterType),
+    AesGcm(AesParameterType),
+    AesKw(AesParameterType),
+    AesOcb(AesParameterType),
     CShake,
 }
 
@@ -126,6 +131,11 @@ enum AlgorithmImplementation {
     Pbkdf2Params(Pbkdf2Params),
     Argon2(Argon2),
     Argon2Params(Argon2Params),
+    AesCbc(AesCbc),
+    AesCtr(AesCtr),
+    AesGcm(AesGcm),
+    AesKw(AesKw),
+    AesOcb(AesOcb),
     CShake(CShakeParams),
 }
 
@@ -149,6 +159,11 @@ impl Deref for AlgorithmImplementation {
             Self::Pbkdf2Params(algorithm) => algorithm,
             Self::Argon2(algorithm) => algorithm,
             Self::Argon2Params(algorithm) => algorithm,
+            Self::AesCbc(algorithm) => algorithm,
+            Self::AesCtr(algorithm) => algorithm,
+            Self::AesGcm(algorithm) => algorithm,
+            Self::AesKw(algorithm) => algorithm,
+            Self::AesOcb(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -360,6 +375,21 @@ pub(crate) fn normalize_an_algorithm(
         RegisteredAlgorithm::Argon2Params => {
             AlgorithmImplementation::Argon2Params(Argon2Params::from_value(vm, *algorithm)?)
         }
+        RegisteredAlgorithm::AesCbc(parameter_type) => {
+            AlgorithmImplementation::AesCbc(AesCbc::from_value(vm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::AesCtr(parameter_type) => {
+            AlgorithmImplementation::AesCtr(AesCtr::from_value(vm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::AesGcm(parameter_type) => {
+            AlgorithmImplementation::AesGcm(AesGcm::from_value(vm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::AesKw(parameter_type) => {
+            AlgorithmImplementation::AesKw(AesKw::from_value(vm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::AesOcb(parameter_type) => {
+            AlgorithmImplementation::AesOcb(AesOcb::from_value(vm, *algorithm, parameter_type)?)
+        }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
 
@@ -447,7 +477,9 @@ impl SubtleCrypto {
                     }
 
                     // 11. Let ciphertext be the result of performing the encrypt operation specified by normalizedAlgorithm using algorithm and key and with data as plaintext.
-                    let cipher_text = normalized_algorithm.methods.encrypt(realm, key, &data);
+                    let cipher_text = normalized_algorithm
+                        .methods
+                        .encrypt(&CallContext::new(vm, realm), key, &data);
                     if let Err(error) = cipher_text {
                         throw_in_this_context(error);
                         return;
@@ -542,7 +574,9 @@ impl SubtleCrypto {
                     }
 
                     // 11. Let plaintext be the result of performing the decrypt operation specified by normalizedAlgorithm using key and algorithm and with data as ciphertext.
-                    let plain_text = normalized_algorithm.methods.decrypt(realm, key, &data);
+                    let plain_text = normalized_algorithm
+                        .methods
+                        .decrypt(&CallContext::new(vm, realm), key, &data);
                     if let Err(error) = plain_text {
                         throw_in_this_context(error);
                         return;
@@ -1570,7 +1604,10 @@ impl SubtleCrypto {
                     else if operation == "encrypt" {
                         // Let result be the result of performing the encrypt operation specified by normalizedAlgorithm
                         // using algorithm, wrappingKey as key and bytes as plaintext.
-                        let result_or_error = normalized_algorithm.methods.encrypt(realm, wrapping_key, &bytes);
+                        let result_or_error =
+                            normalized_algorithm
+                                .methods
+                                .encrypt(&CallContext::new(vm, realm), wrapping_key, &bytes);
                         if let Err(error) = result_or_error {
                             reject_promise_with_exception(vm, promise, error);
                             return;
@@ -1729,9 +1766,11 @@ impl SubtleCrypto {
                     else if operation == "decrypt" {
                         // Let bytes be the result of performing the decrypt operation specified by normalizedAlgorithm
                         // using algorithm, unwrappingKey as key and wrappedKey as ciphertext.
-                        normalized_algorithm
-                            .methods
-                            .decrypt(realm, unwrapping_key, &real_wrapped_key)
+                        normalized_algorithm.methods.decrypt(
+                            &CallContext::new(vm, realm),
+                            unwrapping_key,
+                            &real_wrapped_key,
+                        )
                     }
                     // Otherwise:
                     else {
@@ -2981,37 +3020,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesCtrParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::Ctr),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesCtrParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::Ctr),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesKeyGenParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-CTR",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesDerivedKeyParams),
+            RegisteredAlgorithm::AesCtr(AesParameterType::DerivedKey),
         );
 
         // https://w3c.github.io/webcrypto/#aes-cbc-registration
@@ -3019,37 +3058,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesCbcParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::Cbc),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesCbcParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::Cbc),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesKeyGenParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-CBC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesDerivedKeyParams),
+            RegisteredAlgorithm::AesCbc(AesParameterType::DerivedKey),
         );
 
         // https://w3c.github.io/webcrypto/#aes-gcm-registration
@@ -3057,37 +3096,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesGcmParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::Gcm),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesGcmParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::Gcm),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesKeyGenParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-GCM",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesDerivedKeyParams),
+            RegisteredAlgorithm::AesGcm(AesParameterType::DerivedKey),
         );
 
         // https://w3c.github.io/webcrypto/#aes-kw-registration
@@ -3095,37 +3134,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "wrapKey",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "unwrapKey",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AesKeyGenParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-KW",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AesDerivedKeyParams),
+            RegisteredAlgorithm::AesKw(AesParameterType::DerivedKey),
         );
 
         // https://w3c.github.io/webcrypto/#hmac-registration
@@ -3451,37 +3490,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AeadParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::Aead),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AeadParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::Aead),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AesKeyGenParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-OCB",
-            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AesDerivedKeyParams),
+            RegisteredAlgorithm::AesOcb(AesParameterType::DerivedKey),
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#kmac-registration

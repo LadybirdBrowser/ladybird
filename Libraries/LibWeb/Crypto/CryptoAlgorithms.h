@@ -50,51 +50,6 @@ struct AlgorithmParams {
     Utf16String name;
 };
 
-// https://w3c.github.io/webcrypto/#aes-cbc
-struct AesCbcParams : public AlgorithmParams {
-    virtual ~AesCbcParams() override;
-    AesCbcParams(ByteBuffer iv)
-        : iv(move(iv))
-    {
-    }
-
-    ByteBuffer iv;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#dfn-AesCtrParams
-struct AesCtrParams : public AlgorithmParams {
-    virtual ~AesCtrParams() override;
-    AesCtrParams(ByteBuffer counter, u8 length)
-        : counter(move(counter))
-        , length(length)
-    {
-    }
-
-    ByteBuffer counter;
-    u8 length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#dfn-AesGcmParams
-struct AesGcmParams : public AlgorithmParams {
-    virtual ~AesGcmParams() override;
-    AesGcmParams(ByteBuffer iv, Optional<ByteBuffer> additional_data, Optional<u8> tag_length)
-        : iv(move(iv))
-        , additional_data(move(additional_data))
-        , tag_length(tag_length)
-    {
-    }
-
-    ByteBuffer iv;
-    Optional<ByteBuffer> additional_data;
-    Optional<u8> tag_length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
 // https://w3c.github.io/webcrypto/#dfn-RsaKeyGenParams
 struct RsaKeyGenParams : public AlgorithmParams {
     virtual ~RsaKeyGenParams() override;
@@ -193,34 +148,6 @@ struct EcKeyGenParams : public AlgorithmParams {
     }
 
     NamedCurve named_curve;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#dfn-AesKeyGenParams
-struct AesKeyGenParams : public AlgorithmParams {
-    virtual ~AesKeyGenParams() override;
-
-    AesKeyGenParams(u16 length)
-        : length(length)
-    {
-    }
-
-    u16 length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#dfn-AesDerivedKeyParams
-struct AesDerivedKeyParams : public AlgorithmParams {
-    virtual ~AesDerivedKeyParams() override;
-
-    AesDerivedKeyParams(u16 length)
-        : length(length)
-    {
-    }
-
-    u16 length;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
@@ -372,80 +299,6 @@ public:
 
 private:
     RSASSAPKCS1() = default;
-};
-
-class AesCbc : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_encrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new AesCbc); }
-
-private:
-    AesCbc() = default;
-};
-
-class AesCtr : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_encrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new AesCtr); }
-
-private:
-    AesCtr() = default;
-};
-
-class AesGcm : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_encrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new AesGcm); }
-
-private:
-    AesGcm() = default;
-};
-
-class AesKw : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> wrap_key(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> unwrap_key(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new AesKw); }
-
-private:
-    AesKw() = default;
 };
 
 class ECDSA : public AlgorithmMethods {
@@ -665,25 +518,6 @@ public:
 
 private:
     ChaCha20Poly1305() = default;
-};
-
-class AesOcb : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_encrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new AesOcb); }
-
-private:
-    AesOcb() = default;
 };
 
 Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage>);

@@ -21,10 +21,6 @@ enum class AlgorithmId : u8 {
     RSAOAEP,
     ECDSA,
     ECDH,
-    AesCtr,
-    AesCbc,
-    AesGcm,
-    AesKw,
     X25519,
     X448,
     ED25519,
@@ -32,7 +28,6 @@ enum class AlgorithmId : u8 {
     MLDSA,
     MLKEM,
     ChaCha20Poly1305,
-    AesOcb,
 };
 
 enum class ParameterId : u8 {
@@ -45,11 +40,6 @@ enum class ParameterId : u8 {
     EcKeyGenParams,
     EcKeyImportParams,
     EcdhKeyDeriveParams,
-    AesCtrParams,
-    AesKeyGenParams,
-    AesDerivedKeyParams,
-    AesCbcParams,
-    AesGcmParams,
     Ed448Params,
     ContextParams,
     AeadParams,
@@ -231,14 +221,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return ECDSA::create();
         case AlgorithmId::ECDH:
             return ECDH::create();
-        case AlgorithmId::AesCtr:
-            return AesCtr::create();
-        case AlgorithmId::AesCbc:
-            return AesCbc::create();
-        case AlgorithmId::AesGcm:
-            return AesGcm::create();
-        case AlgorithmId::AesKw:
-            return AesKw::create();
         case AlgorithmId::X25519:
             return X25519::create();
         case AlgorithmId::X448:
@@ -253,8 +235,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return MLKEM::create();
         case AlgorithmId::ChaCha20Poly1305:
             return ChaCha20Poly1305::create();
-        case AlgorithmId::AesOcb:
-            return AesOcb::create();
         }
         VERIFY_NOT_REACHED();
     }();
@@ -279,16 +259,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return EcKeyImportParams::from_value(realm, object);
         case ParameterId::EcdhKeyDeriveParams:
             return EcdhKeyDeriveParams::from_value(realm, object);
-        case ParameterId::AesCtrParams:
-            return AesCtrParams::from_value(realm, object);
-        case ParameterId::AesKeyGenParams:
-            return AesKeyGenParams::from_value(realm, object);
-        case ParameterId::AesDerivedKeyParams:
-            return AesDerivedKeyParams::from_value(realm, object);
-        case ParameterId::AesCbcParams:
-            return AesCbcParams::from_value(realm, object);
-        case ParameterId::AesGcmParams:
-            return AesGcmParams::from_value(realm, object);
         case ParameterId::Ed448Params:
             return Ed448Params::from_value(realm, object);
         case ParameterId::ContextParams:

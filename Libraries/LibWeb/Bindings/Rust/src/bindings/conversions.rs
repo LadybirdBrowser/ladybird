@@ -288,6 +288,16 @@ pub(crate) fn to_octet_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletion
     Ok(to_integer_enforcing_range(vm, value, 0.0, f64::from(u8::MAX))? as u8)
 }
 
+/// A JS value converted to an unsigned short with [EnforceRange], https://webidl.spec.whatwg.org/#js-unsigned-short
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_unsigned_short_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<u16> {
+    Ok(to_integer_enforcing_range(vm, value, 0.0, f64::from(u16::MAX))? as u16)
+}
+
 /// A JS value converted to a long with [EnforceRange], https://webidl.spec.whatwg.org/#js-long
 #[allow(
     clippy::cast_possible_truncation,
