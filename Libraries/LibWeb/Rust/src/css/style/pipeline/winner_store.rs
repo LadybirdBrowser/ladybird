@@ -9,7 +9,6 @@
 //! input borrow.
 
 use super::super::*;
-use super::compute::ReadsNoResourceContexts;
 use crate::css::cascaded_properties::{CascadedValues, WinningDeclaration};
 use crate::css::style_compute::{ExternalValueDependencies, RootFontReads};
 use crate::css::style_value::ShorthandPayload;
@@ -136,17 +135,16 @@ impl WinnerStore {
         }
     }
 
-    /// The proof that no value the store holds resolves a `url()`, or `None` when one may.
-    pub(in crate::css::style) fn reads_no_resource_contexts(
-        &self,
-        engine: &RetainedState,
-    ) -> Option<ReadsNoResourceContexts> {
+    /// Whether no value the store holds resolves a `url()` against a style sheet's or the
+    /// document's base URL. The engine keeps only such records across transactions, so a move of
+    /// those base URLs, which every `history.pushState()` makes without a `<base>`, leaves nothing
+    /// it keeps to forget.
+    pub(in crate::css::style) fn reads_no_resource_contexts(&self, engine: &RetainedState) -> bool {
         let view = self.view(engine);
-        (!self
+        !self
             .declarations
             .iter()
-            .any(|declaration| view.dependencies(declaration).may_need_style_sheet_resource_context))
-        .then_some(ReadsNoResourceContexts(()))
+            .any(|declaration| view.dependencies(declaration).may_need_style_sheet_resource_context)
     }
 
     /// The container-relative units the values the store holds resolve, as a
@@ -226,7 +224,7 @@ impl WinnerStore {
         &self,
         engine: &RetainedState,
     ) -> Vec<crate::css::style_compute::FfiStyleSheetResourceContext> {
-        if self.reads_no_resource_contexts(engine).is_some() {
+        if self.reads_no_resource_contexts(engine) {
             return Vec::new();
         }
         let view = self.view(engine);
@@ -423,11 +421,7 @@ mod tests {
                 }))
             };
             let first = store(property_id::FILL, url_value());
-            assert_eq!(
-                first.reads_no_resource_contexts(&engine.retained).is_some(),
-                can_reuse,
-                "{url}"
-            );
+            assert_eq!(first.reads_no_resource_contexts(&engine.retained), can_reuse, "{url}");
         }
 
         let image_value = |base_url: &str, origin_clean| {
@@ -448,7 +442,7 @@ mod tests {
             property_id::BACKGROUND_IMAGE,
             image_value("https://example.com/first.css", true),
         );
-        assert!(first.reads_no_resource_contexts(&engine.retained).is_none());
+        assert!(!first.reads_no_resource_contexts(&engine.retained));
     }
 
     #[test]

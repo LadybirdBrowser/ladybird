@@ -439,7 +439,6 @@ pub(super) struct Statistics {
     pub(super) waiting_pseudo_elements: Vec<StyleNodeID>,
     /// What the pass suspended of those, where it suspends, for its next round to resume.
     pub(super) suspended: Vec<Suspended>,
-    pub(super) pseudo_elements_declined: u64,
     /// The elements the pass styled.
     pub(super) styled: Vec<StyleNodeID>,
     /// The elements that took the custom properties their parents hand down now without being
@@ -1257,12 +1256,13 @@ impl<'a> Scratch<'a> {
                     element_dependent |= dependent;
                     pseudo_element_records.push((target, record));
                 }
-                PseudoElementOutcome::Declined => self.statistics.pseudo_elements_declined += 1,
                 // A pseudo-element waiting on a font or a random base value is styled again with
                 // its element once those resolved. Until then its element shares its records with
                 // no other.
                 PseudoElementOutcome::Waiting => element_dependent = true,
-                PseudoElementOutcome::Unstyled | PseudoElementOutcome::GeneratesNoBox => {}
+                PseudoElementOutcome::Declined
+                | PseudoElementOutcome::Unstyled
+                | PseudoElementOutcome::GeneratesNoBox => {}
             }
         }
         Some((pseudo_element_records, element_dependent))
@@ -3002,9 +3002,6 @@ pub(super) enum DemandedPseudoElement {
     Declined,
 }
 
-/// Style the pseudo-element `target` of `node` for a read of its style, whether or not it
-/// generates a box, from the rules the element matches for it, over the record `context` holds for
-/// `node`, which it inherits from. Which pseudo-elements are styled is what `read` says.
 /// Whether the computed values of `computed` hold `display: none`.
 fn computed_display_is_none(computed: &super::compute::ComputedElement) -> bool {
     crate::css::style_compute::display_of(
@@ -3015,17 +3012,10 @@ fn computed_display_is_none(computed: &super::compute::ComputedElement) -> bool 
     .is_none()
 }
 
-pub(super) fn style_pseudo_element(
-    context: &PassContext<'_>,
-    node: StyleNodeID,
-    target: super::PseudoElementTarget,
-    read: PseudoElementRead,
-) -> DemandedPseudoElement {
-    style_pseudo_element_inheriting_from(context, node, target, read, None)
-}
-
-/// Style the pseudo-element `target` of `node` as [`style_pseudo_element`] does, inheriting from
-/// `inheritance_parent` rather than from `node` where it names an element.
+/// Style the pseudo-element `target` of `node` for a read of its style, whether or not it
+/// generates a box, from the rules the element matches for it, over the record `context` holds for
+/// `node`, which it inherits from, or for `inheritance_parent` where that names an element. Which
+/// pseudo-elements are styled is what `read` says.
 pub(super) fn style_pseudo_element_inheriting_from(
     context: &PassContext<'_>,
     node: StyleNodeID,
@@ -3120,7 +3110,6 @@ impl Statistics {
             .waiting_with_kept_matches
             .extend(round.waiting_with_kept_matches);
         statistics.waiting_pseudo_elements.extend(round.waiting_pseudo_elements);
-        statistics.pseudo_elements_declined += round.pseudo_elements_declined;
         statistics.styled.extend(round.styled);
         statistics.moved_custom_properties.extend(round.moved_custom_properties);
         statistics.changed_elements += round.changed_elements;

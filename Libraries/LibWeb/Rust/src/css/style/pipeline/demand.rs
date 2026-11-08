@@ -498,7 +498,13 @@ impl Live {
             for &ancestor in ancestors.iter().rev() {
                 let mut held: PseudoElementRecords = records.pseudo_element_records(ancestor).into();
                 held.retain(|(held_target, _)| *held_target != target);
-                match traversal::style_pseudo_element(&context, ancestor, target, PseudoElementRead::Styled) {
+                match traversal::style_pseudo_element_inheriting_from(
+                    &context,
+                    ancestor,
+                    target,
+                    PseudoElementRead::Styled,
+                    None,
+                ) {
                     DemandedPseudoElement::Styled(record) => held.push((target, record)),
                     DemandedPseudoElement::Unstyled => {}
                     demanded @ (DemandedPseudoElement::Waiting(..) | DemandedPseudoElement::Declined) => {

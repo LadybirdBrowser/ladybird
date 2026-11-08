@@ -38,17 +38,15 @@ pub(in crate::css::style) struct Winner {
     pub(super) index: usize,
 }
 
-/// What the cascade of the element could not decide yet.
+/// What the cascades of a pass decided.
 #[derive(Default)]
 pub(super) struct CascadeCounters {
     pub(super) winners: u64,
-    pub(super) pending_substitutions: u64,
 }
 
 impl CascadeCounters {
     pub(super) fn add(&mut self, other: &Self) {
         self.winners += other.winners;
-        self.pending_substitutions += other.pending_substitutions;
     }
 }
 
