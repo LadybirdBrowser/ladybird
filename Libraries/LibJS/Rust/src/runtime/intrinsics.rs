@@ -206,6 +206,7 @@ define_intrinsics! {
     normal_function_prototype_constructor_offset: Cell<u32>,
 
     normal_function_shape: Cell<Option<Gc<Shape>>>,
+    normal_constructor_function_shape: Cell<Option<Gc<Shape>>>,
     generator_function_length_offset: Cell<u32>,
     generator_function_name_offset: Cell<u32>,
 
@@ -489,6 +490,7 @@ created_intrinsics! {
         iterator_result_object_shape: Shape => "iterator result object shape",
         normal_function_prototype_shape: Shape => "normal function prototype shape",
         normal_function_shape: Shape => "normal function shape",
+        normal_constructor_function_shape: Shape => "normal constructor function shape",
         async_function_shape: Shape => "async function shape",
         generator_function_shape: Shape => "generator function shape",
         async_generator_function_shape: Shape => "async generator function shape",
@@ -1173,6 +1175,11 @@ impl Intrinsics {
         let normal_function_shape = Shape::create(vm, realm);
         normal_function_shape.set_prototype_without_transition(vm, function_prototype);
         self.normal_function_shape.set(Some(normal_function_shape));
+
+        let normal_constructor_function_shape = Shape::create(vm, realm);
+        normal_constructor_function_shape.set_prototype_without_transition(vm, function_prototype);
+        self.normal_constructor_function_shape
+            .set(Some(normal_constructor_function_shape));
 
         let native_function_shape = Shape::create(vm, realm);
         native_function_shape.set_prototype_without_transition(vm, function_prototype);

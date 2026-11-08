@@ -98,6 +98,7 @@ realm_intrinsic_accessors! {
         iterator_result_object_shape: Shape,
         normal_function_prototype_shape: Shape,
         normal_function_shape: Shape,
+        normal_constructor_function_shape: Shape,
         async_function_shape: Shape,
         generator_function_shape: Shape,
         async_generator_function_shape: Shape,

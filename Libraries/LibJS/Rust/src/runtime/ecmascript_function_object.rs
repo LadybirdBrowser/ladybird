@@ -51,6 +51,7 @@ use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::reflect_object::ReflectObject;
+use crate::runtime::shape::Shape;
 use crate::runtime::shared_function_instance_data::{
     ClassFieldInitializerName, ClosureCount, ConstructorKind, FunctionKind, SharedFunctionInstanceData, ThisMode,
 };
@@ -251,9 +252,18 @@ impl EcmascriptFunctionObject {
             shared_data.script_or_module.set(vm.get_active_script_or_module());
         }
         shared_data.note_closure_created();
-        let function = if private_environment.is_some() || home_object.is_some() || shared_data.is_class_constructor() {
+        let is_method = home_object.is_some();
+        let function = if private_environment.is_some() || is_method || shared_data.is_class_constructor() {
             let function = allocate_object(vm, |defer_gc| EcmascriptFunctionObjectWithRareData {
-                base: Self::new(defer_gc, vm, realm, shared_data, parent_environment, prototype),
+                base: Self::new(
+                    defer_gc,
+                    vm,
+                    realm,
+                    shared_data,
+                    parent_environment,
+                    prototype,
+                    is_method,
+                ),
                 private_environment: NullableMember::new(private_environment),
                 home_object: NullableMember::new(home_object),
                 storage: EcmascriptFunctionObjectStorage::default(),
@@ -262,11 +272,19 @@ impl EcmascriptFunctionObject {
             function.upcast()
         } else {
             allocate_object(vm, |defer_gc| {
-                Self::new(defer_gc, vm, realm, shared_data, parent_environment, prototype)
+                Self::new(
+                    defer_gc,
+                    vm,
+                    realm,
+                    shared_data,
+                    parent_environment,
+                    prototype,
+                    is_method,
+                )
             })
         };
         function.initialize(vm, realm);
-        if home_object.is_some() {
+        if is_method {
             function.make_method();
         }
         function
@@ -306,16 +324,11 @@ impl EcmascriptFunctionObject {
         shared_data: Gc<SharedFunctionInstanceData>,
         parent_environment: Option<Gc<Environment>>,
         prototype: Gc<Object>,
+        is_method: bool,
     ) -> Self {
         // OPTIMIZATION: Start from a premade shape: normal and async functions create their properties lazily, and
-        //               the other kinds already have theirs in spec order. Arrow functions use the same shape as other
-        //               functions of their kind, but never get a lazy prototype.
-        let mut shape = match shared_data.kind() {
-            FunctionKind::Normal => realm.normal_function_shape(),
-            FunctionKind::Generator => realm.generator_function_shape(),
-            FunctionKind::Async => realm.async_function_shape(),
-            FunctionKind::AsyncGenerator => realm.async_generator_function_shape(),
-        };
+        //               the other kinds already have theirs in spec order.
+        let mut shape = Self::premade_shape(realm, shared_data, is_method);
         // NB: The function's [[Realm]] is the realm of its shape, so the shape comes from the function's realm even when
         //     the prototype belongs to another one.
         if shape.prototype() != Some(prototype) {
@@ -329,6 +342,22 @@ impl EcmascriptFunctionObject {
         function.fields().shared_data.set(Some(shared_data));
         function.fields().environment.set(parent_environment);
         function
+    }
+
+    /// The premade shape that functions with `shared_data` start from. Normal functions that are constructors have a
+    /// "prototype" property, which most of them make lazily, so they start from a shape of their own: property lookup
+    /// caches must not apply what they saw on an arrow function or a method, which has no "prototype" property, to
+    /// them.
+    fn premade_shape(realm: Gc<Realm>, shared_data: Gc<SharedFunctionInstanceData>, is_method: bool) -> Gc<Shape> {
+        match shared_data.kind() {
+            FunctionKind::Normal if Self::has_constructor_for(shared_data, is_method) => {
+                realm.normal_constructor_function_shape()
+            }
+            FunctionKind::Normal => realm.normal_function_shape(),
+            FunctionKind::Generator => realm.generator_function_shape(),
+            FunctionKind::Async => realm.async_function_shape(),
+            FunctionKind::AsyncGenerator => realm.async_generator_function_shape(),
+        }
     }
 
     fn initialize(&self, vm: &Vm, realm: Gc<Realm>) {
@@ -498,11 +527,14 @@ impl EcmascriptFunctionObject {
         old_shape.mark_unstable(vm);
         let realm = old_shape.realm();
         let mut shape = match self.kind() {
-            FunctionKind::Normal => realm.normal_function_shape(),
-            FunctionKind::Async => realm.async_function_shape(),
             FunctionKind::Generator | FunctionKind::AsyncGenerator => {
                 unreachable!("generator functions have all of their properties from the start")
             }
+            FunctionKind::Normal | FunctionKind::Async => Self::premade_shape(
+                realm,
+                self.shared_data(),
+                self.has_flag(ecmascript_function_flags::IS_METHOD),
+            ),
         };
         if shape.prototype() != old_shape.prototype() {
             shape = shape.create_prototype_transition(vm, old_shape.prototype());
@@ -1169,9 +1201,12 @@ impl EcmascriptFunctionObject {
 
     // Equivalent to absence of [[Construct]]
     pub fn has_constructor(&self) -> bool {
-        self.kind() == FunctionKind::Normal
-            && !self.is_arrow_function()
-            && !self.has_flag(ecmascript_function_flags::IS_METHOD)
+        Self::has_constructor_for(self.shared_data(), self.has_flag(ecmascript_function_flags::IS_METHOD))
+    }
+
+    /// Whether a function with `shared_data` has a [[Construct]] internal method.
+    fn has_constructor_for(shared_data: Gc<SharedFunctionInstanceData>, is_method: bool) -> bool {
+        shared_data.kind() == FunctionKind::Normal && !shared_data.is_arrow_function() && !is_method
     }
 
     pub fn kind(&self) -> FunctionKind {
