@@ -391,7 +391,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         image_element = as<HTML::HTMLImageElement>(*img_element);
         // Auto margins center an image that fits and keep overflow reachable from the top-left corner.
         set_host_element_style(*document->body(), u"display: flex; min-height: 100vh; margin: 0;"sv);
-        set_host_element_style(img_element, u"flex: none; max-width: 100vw; max-height: 100vh; margin: auto; background-color: #fff;"sv);
+        set_host_element_style(img_element, u"flex: none; max-width: 100vw; max-height: 100vh; margin: auto; background-color: hsl(0, 0%, 90%);"sv);
         img_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));
