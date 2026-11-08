@@ -159,6 +159,11 @@ struct IsTracedCapture<Vector<T, inline_capacity>> {
     static constexpr bool value = IsCapturable<T>;
 };
 
+template<typename T, size_t size>
+struct IsTracedCapture<Array<T, size>> {
+    static constexpr bool value = IsCapturable<T>;
+};
+
 template<typename... Ts>
 struct IsTracedCapture<Variant<Ts...>> {
     static constexpr bool value = (IsCapturable<Ts> && ...);

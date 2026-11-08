@@ -11,6 +11,7 @@ set(SOURCES
     RootHashMap.cpp
     RootHashTable.cpp
     RootVector.cpp
+    Rootable.cpp
     Heap.cpp
     HeapGroup.cpp
     HeapBlock.cpp

@@ -186,6 +186,13 @@ public:
             visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
         }
 
+        template<typename T, size_t size>
+        void visit(Array<T, size> const& array)
+        requires(IsVisitable<T>::value)
+        {
+            visit(array.span());
+        }
+
         template<typename T>
         void visit(HashTable<T> const& table)
         requires(IsVisitable<T>::value)

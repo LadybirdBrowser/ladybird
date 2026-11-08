@@ -289,6 +289,98 @@ TEST_CASE(root_vector_native_member_survives_relocation)
     heap.collect_garbage();
 }
 
+struct TracedRecord {
+    GC::Ref<TestCell> cell;
+    GC::Ptr<TestCell> other_cell;
+    int payload { 0 };
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(cell);
+        visitor.visit(other_cell);
+    }
+};
+
+struct PlainRecord {
+    int payload { 0 };
+};
+
+static_assert(GC::Detail::IsRootableValue<GC::Ref<TestCell>>);
+static_assert(GC::Detail::IsRootableValue<TracedRecord>);
+static_assert(GC::Detail::IsRootableValue<Variant<GC::Ref<TestCell>, Empty>>);
+static_assert(GC::Detail::IsRootableValue<Optional<TracedRecord>>);
+static_assert(GC::Detail::IsRootableValue<Array<GC::Ref<TestCell>, 2>>);
+static_assert(!GC::Detail::IsRootableValue<int>);
+static_assert(!GC::Detail::IsRootableValue<PlainRecord>);
+
+TEST_CASE(root_vector_of_traced_values_reports_their_cells)
+{
+    auto& heap = test_heap();
+    GC::RootVector<TracedRecord> vector;
+
+    auto cell = heap.allocate<TestCell>();
+    auto other_cell = heap.allocate<TestCell>();
+    vector.append({ cell, other_cell, 1 });
+    vector.append({ cell, nullptr, 2 });
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    vector.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT(roots.contains(other_cell.ptr()));
+    EXPECT_EQ(roots.size(), 2u);
+    EXPECT_EQ(roots.get(cell.ptr())->type, GC::HeapRoot::Type::RootVector);
+}
+
+TEST_CASE(root_vector_of_variants_reports_their_cells)
+{
+    auto& heap = test_heap();
+    GC::RootVector<Variant<GC::Ref<TestCell>, Empty>> vector;
+
+    auto cell = heap.allocate<TestCell>();
+    vector.append(cell);
+    vector.append(Empty {});
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    vector.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
+}
+
+TEST_CASE(root_hash_map_traced_value_reports_its_cells)
+{
+    auto& heap = test_heap();
+    GC::RootHashMap<int, TracedRecord> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(1, { cell, nullptr, 1 });
+
+    HashMap<GC::Cell*, GC::HeapRoot> roots;
+    map.gather_roots(roots);
+
+    EXPECT(roots.contains(cell.ptr()));
+    EXPECT_EQ(roots.size(), 1u);
+    EXPECT_EQ(roots.get(cell.ptr())->type, GC::HeapRoot::Type::RootHashMap);
+}
+
+TEST_CASE(root_vector_of_traced_values_keeps_their_cells_alive)
+{
+    auto& heap = test_heap();
+    GC::Weak<TestCell> weak_cell;
+    GC::RootVector<TracedRecord> vector;
+
+    {
+        auto cell = heap.allocate<TestCell>();
+        weak_cell = cell.ptr();
+        vector.append({ cell, nullptr, 1 });
+    }
+
+    GC::scrub_stack_for_testing();
+    heap.collect_garbage();
+    EXPECT(weak_cell);
+}
+
 TEST_CASE(conservative_vector_adopts_moved_vector)
 {
     auto& heap = test_heap();

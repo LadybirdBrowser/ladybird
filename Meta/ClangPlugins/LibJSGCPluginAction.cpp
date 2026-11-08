@@ -1487,6 +1487,11 @@ static bool is_container_scanned_by_gc(std::string const& template_name)
     return template_names.contains(template_name);
 }
 
+static bool is_root_container(std::string const& template_name)
+{
+    return template_name == "GC::RootHashMap" || template_name == "GC::RootHashTable" || template_name == "GC::RootVector";
+}
+
 static bool is_value_wrapper(std::string const& template_name)
 {
     static std::unordered_set<std::string> const template_names {
@@ -1560,6 +1565,9 @@ static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(
         }
         if (is_value_wrapper(instance->name) || is_container_scanned_by_gc(instance->name)) {
             for (auto const& type_argument : instance->type_arguments) {
+                // NB: A root container traces a value with a visit_edges(), which visits what the value keeps on the heap.
+                if (is_root_container(instance->name) && type_has_visit_edges_method(type_argument->getAsCXXRecordDecl()))
+                    continue;
                 if (auto container = find_container_with_unscanned_gc_pointers(type_argument, visited, subclasses_of_owned_types))
                     return container;
             }
