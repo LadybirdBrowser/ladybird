@@ -15,7 +15,7 @@ use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, RootBackgroundSource};
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
@@ -568,6 +568,27 @@ fn resolve_layers<'a, O: Observer>(
         }
 
         let mut background_positioning_area = background_box_for(layer.origin, border_box, padding, border).rect;
+
+        // https://drafts.csswg.org/css-backgrounds-3/#valdef-background-attachment-local
+        // If the element has a scrolling mechanism, the background scrolls with the element's contents, and the
+        // background painting area and background positioning area are relative to the scrollable area of the element
+        // rather than to the border framing them.
+        // NB: The origin box keeps its insets from the padding box, which the scrollable area extends.
+        if layer.attachment == background_attachment::LOCAL
+            && recorder.source.node_kind_if_live(paintable) != Some(crate::layout::node_data::NodeKind::Viewport)
+            && crate::painting::style_queries::is_scroll_container(recorder.source, paintable)
+            && let Some(scrollable_area) =
+                crate::painting::paintable_geometry::scrollable_overflow_rect(recorder.source, paintable)
+        {
+            let padding_box =
+                background_box_for(css_enums::background_box::PADDING_BOX, border_box, padding, border).rect;
+            background_positioning_area = CssPixelRect::new(
+                scrollable_area.x + (background_positioning_area.x - padding_box.x),
+                scrollable_area.y + (background_positioning_area.y - padding_box.y),
+                scrollable_area.width + (background_positioning_area.width - padding_box.width),
+                scrollable_area.height + (background_positioning_area.height - padding_box.height),
+            );
+        }
 
         // https://drafts.csswg.org/css-backgrounds-3/#background-origin
         // If the background-attachment value for this layer is fixed, then this property has no effect: in this case

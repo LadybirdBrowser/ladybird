@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: hidden;
+    }
+    #content {
+        height: 600px;
+        background: linear-gradient(red, blue);
+    }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    document.getElementById("scroller").scrollTop = 150;
+</script>
