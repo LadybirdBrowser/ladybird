@@ -9282,12 +9282,22 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         GC::Ptr<Animations::KeyframeEffect> winner;
         bool all_effects_use_replace { true };
         u32 effect_count { 0 };
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(winner); }
     };
     struct CompetingEffects {
         CompetingPropertyEffects opacity;
         CompetingPropertyEffects background_color;
         CompetingPropertyEffects filter;
         CompetingPropertyEffects transform;
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            opacity.visit_edges(visitor);
+            background_color.visit_edges(visitor);
+            filter.visit_edges(visitor);
+            transform.visit_edges(visitor);
+        }
     };
 
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree = paint_state().visual_context_tree(*this);
@@ -9298,7 +9308,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_offscreen_throttled_effects;
-    GC::ConservativeHashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
+    GC::RootHashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     CompositorAnimationKeyframesByEffect keyframes_by_effect;
     GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
     GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;

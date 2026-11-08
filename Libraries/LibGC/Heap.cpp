@@ -752,10 +752,6 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
 String Heap::describe_root(HeapRoot const& root)
 {
     switch (root.type) {
-    case HeapRoot::Type::ConservativeHashMap:
-        return "ConservativeHashMap"_string;
-    case HeapRoot::Type::ConservativeHashTable:
-        return "ConservativeHashTable"_string;
     case HeapRoot::Type::ConservativeVector:
         return "ConservativeVector"_string;
     case HeapRoot::Type::CrossHeapMember:
@@ -1491,18 +1487,6 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
                 add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
             }
         }
-    }
-
-    for (auto& hash_map : m_conservative_hash_maps) {
-        hash_map.for_each_possible_value([&](FlatPtr possible_value) {
-            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashMap }, bounds);
-        });
-    }
-
-    for (auto& hash_table : m_conservative_hash_tables) {
-        hash_table.for_each_possible_value([&](FlatPtr possible_value) {
-            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashTable }, bounds);
-        });
     }
 
     {

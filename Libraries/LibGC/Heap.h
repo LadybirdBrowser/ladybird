@@ -21,8 +21,6 @@
 #include <LibCore/Forward.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/ConservativeHashMap.h>
-#include <LibGC/ConservativeHashTable.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/CrossHeapMember.h>
 #include <LibGC/Forward.h>
@@ -133,10 +131,6 @@ public:
     void did_create_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
     void did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
 
-    void did_create_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase&);
-    void did_destroy_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase&);
-    void did_create_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase&);
-    void did_destroy_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase&);
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
@@ -349,8 +343,6 @@ private:
     RootVectorBase::List m_root_vectors;
     RootHashMapBase::List m_root_hash_maps;
     RootHashTableBase::List m_root_hash_tables;
-    ConservativeHashMapBase::List m_conservative_hash_maps;
-    ConservativeHashTableBase::List m_conservative_hash_tables;
     ConservativeVectorBase::List m_conservative_vectors;
     HashTable<CrossHeapMemberBase*> m_incoming_cross_heap_members;
     HeapGroup* m_group { nullptr };
@@ -446,30 +438,6 @@ inline void Heap::did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHash
 {
     VERIFY(m_root_hash_tables.contains(hash_table));
     m_root_hash_tables.remove(hash_table);
-}
-
-inline void Heap::did_create_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase& hash_map)
-{
-    VERIFY(!m_conservative_hash_maps.contains(hash_map));
-    m_conservative_hash_maps.append(hash_map);
-}
-
-inline void Heap::did_destroy_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase& hash_map)
-{
-    VERIFY(m_conservative_hash_maps.contains(hash_map));
-    m_conservative_hash_maps.remove(hash_map);
-}
-
-inline void Heap::did_create_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase& hash_table)
-{
-    VERIFY(!m_conservative_hash_tables.contains(hash_table));
-    m_conservative_hash_tables.append(hash_table);
-}
-
-inline void Heap::did_destroy_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase& hash_table)
-{
-    VERIFY(m_conservative_hash_tables.contains(hash_table));
-    m_conservative_hash_tables.remove(hash_table);
 }
 
 inline void Heap::did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase& vector)
