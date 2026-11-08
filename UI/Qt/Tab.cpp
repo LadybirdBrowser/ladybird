@@ -348,6 +348,9 @@ void Tab::initialize(Optional<u64> hub_view_id)
     view().on_load_start = [this] {
         m_window->on_tab_load_start(*this);
     };
+    view().on_load_from_user_input = [this] {
+        m_window->on_tab_navigated_by_user(*this);
+    };
     set_loading(view().is_loading());
 
     view().on_load_finish = [this](auto const&) {
@@ -1092,6 +1095,7 @@ void Tab::location_edit_return_pressed(String input, Optional<URL::URL> fallback
 
     view().set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
     if (destination_kind == WebView::OmniboxDestinationKind::Search) {
+        m_window->on_tab_navigated_by_user(*this);
         if (fallback_url.has_value())
             view().load(*fallback_url);
         else

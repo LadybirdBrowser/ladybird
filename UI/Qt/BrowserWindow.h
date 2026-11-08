@@ -197,6 +197,7 @@ public:
     void report_activation_to_session_store();
     void cancel_window_close_preflight();
     void on_tab_load_start(Tab&);
+    void on_tab_navigated_by_user(Tab&);
     FullscreenMode& fullscreen_mode();
 
     LadybirdButton& ladybird_button() const { return m_tabs_container->ladybird_button(); }
@@ -327,6 +328,7 @@ private:
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
+    Vector<QPointer<Tab>> m_background_tabs_from_current_tab;
     DevToolsBanner* m_devtools_banner { nullptr };
 
     QWidget* m_menu_bar_window_controls { nullptr };
