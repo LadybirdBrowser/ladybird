@@ -1,0 +1,12 @@
+Ladybird exposes a cross-origin child on its parent’s window by name
+only when the child’s target name matches its container’s name
+attribute, which it replicates to every process representing the tab.
+Blink does the same: WindowProperties::AnonymousNamedGetter() exposes
+a cross-origin child only when the name equals its owner’s
+BrowsingContextContainerName(), which other processes get from
+FrameOwnerProperties::name, in Frame::ApplyFrameOwnerProperties().
+Gecko and WebKit don’t check the container’s name at all: Gecko’s
+RemoteOuterWindowProxy::getOwnPropertyDescriptor() and WebKit’s
+jsDOMWindowGetOwnPropertySlotRestrictedAccess() expose any child whose
+own name matches. Ladybird follows Blink and the spec, so a name that
+a cross-origin child gives itself through window.name stays hidden.
