@@ -15,6 +15,7 @@
 #include <LibURL/URL.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -499,35 +500,6 @@ HistoryStore::HistoryStore(NonnullOwnPtr<StorageImpl>&& storage, bool is_disable
 
 HistoryStore::~HistoryStore() = default;
 
-// History records web pages and local files only. The browser opens what its history lists, and a javascript: URL would
-// run in whatever document opened it, such as about:history. A store holds other URLs only if something other than the
-// browser wrote to it, so the queries listing and suggesting entries skip them too.
-static bool is_browsable_url(URL::URL const& url)
-{
-    return url.scheme().is_one_of("http"sv, "https"sv, "file"sv);
-}
-
-Optional<String> HistoryStore::normalize_url(URL::URL const& url)
-{
-    if (url.scheme().is_empty()) {
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping history entry without a scheme: {}", url);
-        return {};
-    }
-
-    if (!is_browsable_url(url)) {
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping non-browsable history URL: {}", url);
-        return {};
-    }
-
-    auto normalized_url = url.serialize(URL::ExcludeFragment::Yes);
-    if (normalized_url.is_empty()) {
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping history entry with an empty normalized URL: {}", url);
-        return {};
-    }
-
-    return normalized_url;
-}
-
 static bool transition_updates_general_score(HistoryVisitTransition transition)
 {
     return transition == HistoryVisitTransition::Omnibox
@@ -587,7 +559,7 @@ void HistoryStore::record_visit(URL::URL const& url, Optional<String> title, Uni
     if (m_is_disabled)
         return;
 
-    auto normalized_url = normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return;
 
@@ -610,7 +582,7 @@ void HistoryStore::update_title(URL::URL const& url, String const& title)
         return;
     }
 
-    auto normalized_url = normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return;
 
@@ -629,7 +601,7 @@ void HistoryStore::update_favicon(URL::URL const& url, String const& favicon_has
         return;
     }
 
-    auto normalized_url = normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return;
 
@@ -646,7 +618,7 @@ Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
     if (m_is_disabled)
         return {};
 
-    auto normalized_url = normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return {};
 
@@ -742,7 +714,7 @@ void HistoryStore::remove_entry_for_url(URL::URL const& url, RemoveHistoryEntryE
     if (m_is_disabled)
         return;
 
-    auto normalized_url = normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return;
 

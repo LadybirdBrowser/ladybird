@@ -25,7 +25,7 @@
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/FileDownloader.h>
-#include <LibWebView/HistoryStore.h>
+#include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/TabPerformanceStats.h>

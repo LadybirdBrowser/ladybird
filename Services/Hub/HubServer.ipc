@@ -22,7 +22,7 @@
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
-#include <LibWebView/HistoryStore.h>
+#include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/ProcessSnapshot.h>
 #include <LibWebView/SessionHistory.h>
