@@ -1,0 +1,7 @@
+Ladybird sizes the positioning area of a local background layer on a
+scroll container to its scrollable area. Gecko does the same, in
+nsCSSRendering::ComputeImageLayerPositioningArea(), which takes the
+scroll container’s scrolled rect for the layer’s background-origin.
+WebKit’s BackgroundPainter::paintFillLayerImpl() widens the paint rect
+to the scroller’s scrollWidth() and scrollHeight(), and Blink paints
+such a background in the scroller’s contents space.
