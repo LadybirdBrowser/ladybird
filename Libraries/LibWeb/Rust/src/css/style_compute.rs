@@ -2187,42 +2187,29 @@ pub fn map_physical_to_logical_alias(property_id: u16, writing_mode: u8, directi
     }
 }
 
-struct ComputedStoreEntry<'a> {
-    property_id: u16,
-    /// The selected specified value; also the stored value when
-    /// `computed_kind` is `COMPUTED_KIND_UNCHANGED`.
-    data: &'a RetainedStyleValueData,
-    inheritance_dependent: bool,
-    /// The replacement style value when `computed_kind` is
-    /// `COMPUTED_KIND_STYLE_VALUE`.
-    computed_data: Option<RetainedStyleValueData>,
-    /// How Rust constructs the table value: with COMPUTED_KIND_UNCHANGED the
-    /// stored value is `data` itself; the other kinds carry a replacement in
-    /// `value` while `data` remains the specified value for the
-    /// inheritance-dependence bookkeeping.
-    computed_kind: u8,
-    value: f64,
+/// A longhand's computed value, as the drive found it.
+enum NativeValue {
+    /// The specified value is the computed value.
+    Unchanged,
+    Px(f64),
+    Integer(i32),
+    Superellipse(f64),
+    Number(f64),
+    Percentage(f64),
+    /// A font-style value of a font-style keyword code.
+    FontStyle(u8),
+    Keyword(u16),
+    StyleValue(StyleValueArc),
 }
 
-const COMPUTED_KIND_UNCHANGED: u8 = 0;
-/// A pixel length of `value`.
-const COMPUTED_KIND_PX_LENGTH: u8 = 1;
-/// An integer of `value`.
-const COMPUTED_KIND_INTEGER: u8 = 2;
-/// A superellipse with parameter `value`.
-const COMPUTED_KIND_SUPERELLIPSE: u8 = 3;
-/// A number of `value`.
-const COMPUTED_KIND_NUMBER: u8 = 4;
-/// A percentage of `value`.
-const COMPUTED_KIND_PERCENTAGE: u8 = 5;
-/// A font-style value of the font-style keyword code in `value`.
-const COMPUTED_KIND_FONT_STYLE: u8 = 6;
-/// A keyword whose numeric code is carried in `value`.
-const COMPUTED_KIND_KEYWORD: u8 = 8;
-/// A display value encoded as tag | first << 8 | second << 16 | third << 24.
-const COMPUTED_KIND_DISPLAY: u8 = 9;
-/// A complete Rust-owned style value transferred through `computed_data`.
-const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
+struct ComputedStoreEntry<'a> {
+    property_id: u16,
+    /// The selected specified value; also the stored value when `computed` is `NativeValue::Unchanged`, and
+    /// otherwise what the inheritance-dependence bookkeeping reads.
+    data: &'a RetainedStyleValueData,
+    inheritance_dependent: bool,
+    computed: NativeValue,
+}
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -2883,56 +2870,45 @@ fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
 /// absolute (resolved against this element's font, as inheritance requires).
 fn store_driven_value(writer: &mut GroupValuesWriter<'_>, entry: ComputedStoreEntry) {
     use crate::css::property_metadata::property_id as prop;
-    let inheritance_dependent_value = entry.inheritance_dependent.then(|| {
-        let inherits_computed_value = entry.computed_kind == COMPUTED_KIND_STYLE_VALUE
-            && entry.property_id != prop::COLOR
-            && crate::css::style_value::retained_value_depends_on_current_color(entry.data)
-            && !value_depends_on_inherited_info_for_property(entry.data.data(), entry.property_id);
-        match &entry.computed_data {
-            Some(computed_data) if inherits_computed_value => computed_data.clone(),
-            _ => entry.data.clone(),
+    let inheritance_dependent_value = entry.inheritance_dependent.then(|| match &entry.computed {
+        NativeValue::StyleValue(computed)
+            if entry.property_id != prop::COLOR
+                && crate::css::style_value::retained_value_depends_on_current_color(entry.data)
+                && !value_depends_on_inherited_info_for_property(entry.data.data(), entry.property_id) =>
+        {
+            RetainedStyleValueData::from_arc(computed.clone())
         }
+        _ => entry.data.clone(),
     });
     writer.set_inheritance_dependent_value(entry.property_id, inheritance_dependent_value);
     store_computed_value(writer, entry);
 }
 
 fn store_computed_value(writer: &mut GroupValuesWriter<'_>, entry: ComputedStoreEntry) {
-    let computed = match entry.computed_kind {
-        COMPUTED_KIND_UNCHANGED => {
+    let computed = match entry.computed {
+        NativeValue::Unchanged => {
             writer.set_or_keep_equal(entry.property_id, entry.data);
             return;
         }
-        COMPUTED_KIND_STYLE_VALUE => {
-            let computed = entry
-                .computed_data
-                .expect("a replaced computed value carries its replacement");
-            writer.set_or_keep_equal(entry.property_id, &computed);
+        NativeValue::StyleValue(computed) => {
+            writer.set_or_keep_equal(entry.property_id, &RetainedStyleValueData::from_arc(computed));
             return;
         }
-        COMPUTED_KIND_PX_LENGTH => StyleValueData::Length {
-            value: entry.value,
+        NativeValue::Px(value) => StyleValueData::Length {
+            value,
             unit: px_length_unit(),
         },
-        COMPUTED_KIND_INTEGER => StyleValueData::Integer {
-            value: entry.value as i32,
+        NativeValue::Integer(value) => StyleValueData::Integer { value },
+        NativeValue::Superellipse(value) => StyleValueData::Superellipse {
+            parameter: retained_new(StyleValueData::Number { value }),
         },
-        COMPUTED_KIND_SUPERELLIPSE => StyleValueData::Superellipse {
-            parameter: retained_new(StyleValueData::Number { value: entry.value }),
-        },
-        COMPUTED_KIND_NUMBER => StyleValueData::Number { value: entry.value },
-        COMPUTED_KIND_PERCENTAGE => StyleValueData::Percentage { value: entry.value },
-        COMPUTED_KIND_FONT_STYLE => StyleValueData::FontStyle {
-            font_style: entry.value as u8,
+        NativeValue::Number(value) => StyleValueData::Number { value },
+        NativeValue::Percentage(value) => StyleValueData::Percentage { value },
+        NativeValue::FontStyle(font_style) => StyleValueData::FontStyle {
+            font_style,
             angle_value: RetainedStyleValueData::none(),
         },
-        COMPUTED_KIND_KEYWORD => StyleValueData::Keyword {
-            keyword: entry.value as u16,
-        },
-        COMPUTED_KIND_DISPLAY => StyleValueData::Display {
-            raw: entry.value as u32,
-        },
-        _ => unreachable!("unknown computed longhand store kind"),
+        NativeValue::Keyword(keyword) => StyleValueData::Keyword { keyword },
     };
     writer.set_computed(entry.property_id, computed);
 }
@@ -3620,16 +3596,6 @@ pub(crate) unsafe fn drive_property_computation(
             // The computed value: for properties without a dedicated rule the
             // absolutized value is the computed value; the dedicated rules that
             // have moved into the core run over the absolutized value here.
-            enum NativeValue {
-                Unchanged,
-                Px(f64),
-                Integer(i32),
-                Superellipse(f64),
-                Number(f64),
-                Percentage(f64),
-                FontStyle(u8),
-                StyleValue(StyleValueArc),
-            }
             use crate::css::absolutize::Absolutized;
             use crate::css::property_metadata::property_id as prop;
             let unsupported = || -> ! {
@@ -4154,38 +4120,18 @@ pub(crate) unsafe fn drive_property_computation(
                 (NativeValue::Unchanged, Some(value)) => NativeValue::StyleValue(value),
                 (native, _) => native,
             };
-            let (computed_kind, computed_value, computed_data) = match native {
-                NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, None),
-                NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, None),
-                NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, None),
-                NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, None),
-                NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, None),
-                NativeValue::FontStyle(font_style_keyword) => {
-                    (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, None)
-                }
-                NativeValue::StyleValue(value) => (
-                    COMPUTED_KIND_STYLE_VALUE,
-                    0.0,
-                    Some(RetainedStyleValueData::from_arc(value)),
-                ),
-                NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, None),
-            };
             ComputedStoreEntry {
                 property_id,
                 data: value,
                 inheritance_dependent,
-                computed_data,
-                computed_kind,
-                value: computed_value,
+                computed: native,
             }
         } else {
             ComputedStoreEntry {
                 property_id,
                 data: value,
                 inheritance_dependent,
-                computed_data: None,
-                computed_kind: COMPUTED_KIND_UNCHANGED,
-                value: 0.0,
+                computed: NativeValue::Unchanged,
             }
         };
 
@@ -4204,16 +4150,14 @@ pub(crate) unsafe fn drive_property_computation(
                     .as_mut()
                     .expect("overflow-x must precede overflow-y in computation order");
                 if effective_overflow.changed_x {
-                    debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                    overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                    overflow_x_entry.value = effective_overflow.x_keyword as f64;
+                    debug_assert!(matches!(overflow_x_entry.computed, NativeValue::Unchanged));
+                    overflow_x_entry.computed = NativeValue::Keyword(effective_overflow.x_keyword);
                     clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
                     clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
                 }
                 if effective_overflow.changed_y {
-                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                    entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                    entry.value = effective_overflow.y_keyword as f64;
+                    debug_assert!(matches!(entry.computed, NativeValue::Unchanged));
+                    entry.computed = NativeValue::Keyword(effective_overflow.y_keyword);
                     clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
                     clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
                 }
@@ -4247,9 +4191,8 @@ pub(crate) unsafe fn drive_property_computation(
                 parent_direction_is_ltr,
             );
             if adjustment.changed {
-                debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                entry.value = adjustment.keyword as f64;
+                debug_assert!(matches!(entry.computed, NativeValue::Unchanged));
+                entry.computed = NativeValue::Keyword(adjustment.keyword);
                 clear_longhand_bit(&mut important_words, property_id);
                 clear_longhand_bit(&mut inherited_words, property_id);
                 if adjustment.inherited {
