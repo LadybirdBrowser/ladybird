@@ -1858,7 +1858,7 @@ public:
     void for_each_registered_custom_property(Function<void(CSS::CustomPropertyRegistration const&)> const&) const;
     size_t custom_property_registration_generation() const { return m_custom_property_registration_generation; }
     void const* rust_custom_property_registry() const { return m_rust_custom_property_registry; }
-    void did_change_custom_property_registrations(Optional<Utf16FlyString> registered_property_set_change = {});
+    void did_change_custom_property_registrations();
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }

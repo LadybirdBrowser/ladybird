@@ -84,9 +84,8 @@ impl RetainedState {
     /// values in over `record`, the record the host holds for it: the font context, which
     /// reads the record its inheritance parent holds; the line-height context, the element's own
     /// font with the line height it inherits; and the one everything else resolves against, the
-    /// element's own font. A mirror of the host's `make_computation_context_for_property(FontFamily /
-    /// LineHeight / Color)` over the working set it reconstructs from that record, without the
-    /// container bases only the host resolves.
+    /// element's own font. A mirror of the host's `make_length_resolution_context` over the working
+    /// set it reconstructs from that record, without the container bases only the host resolves.
     pub(crate) fn animation_sample_length_contexts(
         &self,
         node: StyleNodeID,

@@ -354,7 +354,7 @@ style_boundary! {
             });
         set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         record_environment_change => RecordEnvironmentChange { changes: u8 };
-        record_custom_property_registration_change => RecordCustomPropertyRegistrationChange { name: StyleAtomID };
+        record_custom_property_registration_change => RecordCustomPropertyRegistrationChange => engine.record_custom_property_registration_change();
         flush => Flush => engine.flush_without_document_root();
         finish_sheet_rules_replacement => FinishSheetRulesReplacement { sheet: SheetID, declaration_block: u32 };
         attach_sheet => AttachSheet { sheet: SheetID, tree_scope: TreeScopeID, before_sheet: Option<SheetID> } =>

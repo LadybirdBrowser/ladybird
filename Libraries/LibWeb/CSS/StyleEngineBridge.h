@@ -57,7 +57,7 @@ void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node,
 void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
 void style_engine_record_environment_change(DocumentHost const*, u8 changes);
-void style_engine_record_custom_property_registration_change(DocumentHost const*, StyleAtomID name);
+void style_engine_record_custom_property_registration_change(DocumentHost const*);
 void style_engine_flush(DocumentHost const*);
 void style_engine_finish_sheet_rules_replacement(DocumentHost const*, SheetID sheet, u32 declaration_block);
 void style_engine_attach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope, SheetID before_sheet);
