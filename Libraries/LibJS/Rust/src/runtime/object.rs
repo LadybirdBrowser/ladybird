@@ -3067,6 +3067,9 @@ impl Object {
     pub fn get_without_side_effects(&self, vm: &Vm, property_key: &PropertyKey) -> Value {
         let mut object = Some(self.as_gc());
         while let Some(current) = object {
+            if current.is_ecmascript_function_object() {
+                cast_ref::<Object, EcmascriptFunctionObject>(&current).reify_lazy_property(vm, property_key);
+            }
             if let Some(value_and_attributes) = current.storage_get(vm, property_key) {
                 return value_and_attributes.value;
             }

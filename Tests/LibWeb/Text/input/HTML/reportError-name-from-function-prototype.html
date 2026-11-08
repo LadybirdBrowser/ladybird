@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        removeTestErrorHandler();
+
+        window.onerror = message => {
+            println(`message = ${message}`);
+            return true;
+        };
+
+        function CustomError() {}
+        const error = new Error("boom");
+        Object.setPrototypeOf(error, CustomError);
+        window.reportError(error);
+    });
+</script>
