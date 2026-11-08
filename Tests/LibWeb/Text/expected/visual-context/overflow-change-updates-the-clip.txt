@@ -1,0 +1,8 @@
+div content past the box after overflow becomes clip: BODY
+div content past the box after overflow becomes visible: child
+outer svg content past the viewport before overflow changes: BODY
+outer svg content past the viewport after overflow becomes visible: outer-rect
+outer svg content past the viewport after overflow becomes hidden: BODY
+nested svg content past the viewport after the overflow attribute becomes visible: nested-rect
+nested svg content past the viewport after overflow becomes hidden: svg
+full builds: 0
