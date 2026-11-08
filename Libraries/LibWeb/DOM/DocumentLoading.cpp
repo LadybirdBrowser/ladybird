@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLPreElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
@@ -306,8 +307,20 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
             auto parser = HTML::HTMLParser::create_with_open_input_stream(document);
             parser->tokenizer().update_insertion_point();
 
-            parser->tokenizer().insert_input_at_insertion_point(u"<pre>\n"sv);
+            // NB: The meta element goes to the head, which step 5 below allows, so the text follows the user's color
+            //     scheme.
+            parser->tokenizer().insert_input_at_insertion_point(u"<meta name=\"color-scheme\" content=\"light dark\"><pre>\n"sv);
             parser->run();
+
+            // AD-HOC: The spec acts as if the tokenizer had emitted a bare "pre" start tag. We give the pre element a
+            //         style that wraps long lines, so a line of text never runs off the side of the page. The
+            //         Content-Security-Policy of the response must not block that style, so set it directly rather than
+            //         through a style attribute.
+            if (auto* pre = document->body() ? document->body()->template first_child_of_type<HTML::HTMLPreElement>() : nullptr) {
+                auto style = CSS::CSSStyleProperties::create_element_inline_style({ *pre });
+                style->set_declarations_from_text(u"word-wrap: break-word; white-space: pre-wrap;"sv);
+                pre->set_inline_style(style);
+            }
 
             parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
             auto decoder = TextCodec::decoder_for(encoding);
@@ -322,7 +335,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 
             // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
             //    script, or giving the document a title.
-            // NB: Leave the head empty so the document text consists only of the response body.
+            // NB: The head holds only the color-scheme meta element added above, so the document text consists only of
+            //     the response body.
         });
         if (document->ready_to_run_scripts()) {
             run_text_parser->function()();

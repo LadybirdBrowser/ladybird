@@ -1,0 +1,6 @@
+color-scheme meta: light dark
+head text: ""
+pre white-space: preserve wrap
+pre overflow-wrap: break-word
+text kept: true
+fits the frame: true
