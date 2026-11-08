@@ -109,8 +109,6 @@ void StyleScope::add_sheet(StyleSheetState& sheet, StyleEngineUpdate style_engin
 {
     sheet.add_owning_document_or_shadow_root(node());
 
-    sheet.load_pending_image_resources(document());
-
     insert_sheet_in_tree_order(sheet);
     if (m_node->is_document())
         document().fonts()->synchronize_css_connected_font_order();

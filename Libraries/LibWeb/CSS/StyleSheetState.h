@@ -141,9 +141,6 @@ public:
     Optional<::URL::URL> base_url() const { return m_base_url; }
     void set_base_url(Optional<::URL::URL> base_url) { m_base_url = move(base_url); }
 
-    void register_pending_image_value(ImageStyleValue& value) { m_pending_image_values.append(value); }
-    void invalidate_image_resource_registration() { m_needs_image_resource_registration = true; }
-    void load_pending_image_resources(DOM::Document&);
     Optional<::URL::URL> style_resource_base_url() const;
 
     bool constructed() const { return m_native_sheet.flag(RustStyleSheet::Flag::Constructed); }
@@ -251,9 +248,6 @@ private:
     OwnPtr<StyleRuleCache> m_rule_cache;
 
     Vector<StyleSheetImport&> m_critical_subresources;
-
-    Vector<WeakPtr<ImageStyleValue>> m_pending_image_values;
-    bool m_needs_image_resource_registration { true };
 
     SheetID m_style_engine_sheet_id;
     RefPtr<SharedCompiledStyleSheet> m_shared_compiled_style_sheet;

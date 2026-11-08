@@ -3038,8 +3038,6 @@ static bool style_attribute_is_blocked_by_content_security_policy(Element& eleme
     return ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(element, ContentSecurityPolicy::Directives::Directive::InlineType::StyleAttribute, value) == ContentSecurityPolicy::Directives::Directive::Result::Blocked;
 }
 
-static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const&, Document&);
-
 void Element::clone_inline_style_from(Element const& source)
 {
     // NB: A source whose style attribute still awaits its check leaves the copy to make that check once connected. So
@@ -3066,8 +3064,6 @@ void Element::inserted()
                     m_inline_style->set_declarations_from_text({});
                 else
                     CSS::Parser::ValueParserFFI::rust_declaration_block_destroy(exchange(m_inline_declarations, nullptr));
-            } else if (CSS::Parser::ValueParserFFI::rust_declaration_block_has_abstract_image_values(inline_style_declarations())) {
-                prefetch_inline_style_image_resources(*inline_style(), document());
             }
         }
     }
@@ -6438,22 +6434,6 @@ Element::Directionality Element::parent_directionality() const
     return Directionality::Ltr;
 }
 
-static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const& inline_style, Document& document)
-{
-    auto load_image_if_needed = [&](CSS::StyleValue const& value) {
-        if (value.is_abstract_image())
-            const_cast<CSS::AbstractImageStyleValue&>(value.as_abstract_image()).load_any_resources(document);
-    };
-    for (auto const& property : inline_style.properties()) {
-        if (property.value->is_value_list()) {
-            for (auto const& item : property.value->as_value_list().values())
-                load_image_if_needed(*item);
-        } else {
-            load_image_if_needed(*property.value);
-        }
-    }
-}
-
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
 void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
@@ -6608,10 +6588,6 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             return;
         }
         set_inline_style_declarations_from_text(style_attribute_is_blocked_by_content_security_policy(*this, *value) ? Utf16View {} : *value);
-        // NB: Asked first, so a block without images does not make views of its values. The CSSOM object of a block
-        //     with images holds the values that load them.
-        if (CSS::Parser::ValueParserFFI::rust_declaration_block_has_abstract_image_values(inline_style_declarations()))
-            prefetch_inline_style_image_resources(*inline_style(), document());
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
         bool const is_dir = local_name == HTML::AttributeNames::dir;
         if (is_dir) {

@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<div class="使用中" style="width: 10px; height: 10px"></div>
 <script>
 const token = crypto.randomUUID();
 const paths = ["discarded", "initial", "inserted", "replaced"].map(name => `/echo/native-sheet-image-${token}-${name}.png`);
@@ -17,13 +18,13 @@ for (const path of paths) {
     }));
 }
 
-const source = path => `@media not all { .未使用 { background-image: url("${path}"); } }`;
+const source = path => `@media all { .使用中 { background-image: url("${path}"); } }`;
 const sheet = new CSSStyleSheet({ disabled: true });
 sheet.replaceSync(source(paths[0]));
 document.adoptedStyleSheets = [sheet];
 sheet.replaceSync(source(paths[1]));
 sheet.disabled = false;
-sheet.cssRules[0].insertRule(`.追加 { background-image: url("${paths[2]}"); }`, 1);
+sheet.cssRules[0].insertRule(`.使用中 { background-image: url("${paths[2]}"); }`, 1);
 sheet.disabled = true;
 sheet.disabled = false;
 sheet.replaceSync(source(paths[3]));
@@ -32,8 +33,7 @@ sheet.disabled = false;
 
 asyncTest(done => {
     window.addEventListener("load", async () => {
-        // Attachment requests delay load, even though these selectors never match. No timer or
-        // rendered image is needed to observe resource registration after each rule-list change.
+        // Only the image the element has when it's laid out is requested, whatever the rule list held before.
         for (const [index, path] of paths.entries()) {
             const response = await fetch(`/recorded-request-headers${path}`);
             println(`${["discarded", "initial", "inserted", "replaced"][index]} requested: ${response.ok}`);
