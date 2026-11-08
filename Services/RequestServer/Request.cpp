@@ -1503,7 +1503,9 @@ void Request::handle_fetch_state()
 
     curl_slist* curl_headers = nullptr;
 
-    if (m_method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
+    // Any method can carry a body (WebDAV's PROPFIND and REPORT, e.g.), and the request's headers already announce
+    // its length, so hand curl the body whatever the method.
+    if (m_method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv) || (!m_request_body.is_empty() && m_method != "HEAD"sv)) {
         set_option(CURLOPT_POSTFIELDSIZE, m_request_body.size());
         set_option(CURLOPT_POSTFIELDS, m_request_body.data());
 

@@ -37,6 +37,7 @@ Endpoints:
     - Echo responses accept request_body_read_size=<bytes> and request_body_read_delay_ms=<ms> query parameters,
       which read the request's body that many bytes at a time, waiting that long before each read.
       Each named token holds the response after the corresponding chunk until GET /unblock/<token>.
+    - An echo response's body may contain $BODY, which the server replaces with the request's body.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
       every text/binary frame back to the client verbatim. With a "send-binary=<size>" query parameter, the
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
@@ -477,6 +478,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_DELETE(self):
         self.do_other()
 
+    def do_PROPFIND(self):
+        self.do_other()
+
+    def do_REPORT(self):
+        self.do_other()
+
     def do_SAFE(self):
         self.do_other()
 
@@ -623,6 +630,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # The request's body is read before responding, so closing the connection does not reset it.
         content_length = int(self.headers.get("Content-Length", 0))
+        request_body = bytearray()
         if content_length:
             read_size = int(query.get("request_body_read_size", [content_length])[0])
             read_delay_ms = int(query.get("request_body_read_delay_ms", [0])[0])
@@ -630,11 +638,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             while remaining > 0:
                 if read_delay_ms:
                     time.sleep(read_delay_ms / 1000)
-                read = len(self.rfile.read(min(read_size, remaining)))
+                data = self.rfile.read(min(read_size, remaining))
                 # The client closed the connection before sending the whole body.
-                if read == 0:
+                if not data:
                     break
-                remaining -= read
+                request_body += data
+                remaining -= len(data)
 
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
@@ -703,6 +712,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
         else:
             response_body = echo.body or ""
+        response_body = response_body.replace("$BODY", request_body.decode("utf-8", "replace"))
 
         # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
         #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
