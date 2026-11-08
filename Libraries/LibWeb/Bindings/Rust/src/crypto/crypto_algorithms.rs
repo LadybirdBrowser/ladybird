@@ -16,11 +16,12 @@ use std::rc::Rc;
 
 use ak::{Span, SpanMut, Utf16String, Utf16StringUnits};
 use libjs_rust::api::{
-    ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, Value, Vm,
+    ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, TypedArrayBase,
+    TypedArrayKind, Value, Vm,
 };
 
 use crate::bindings::conversions::{
-    buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range,
+    BufferSource, buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range,
     to_unsigned_short_enforcing_range,
 };
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
@@ -355,9 +356,6 @@ pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum AlgorithmId {
-    RsassaPkcs1,
-    RsaPss,
-    RsaOaep,
     Ecdsa,
     Ecdh,
     X25519,
@@ -376,10 +374,6 @@ pub(crate) enum AlgorithmId {
 )]
 pub(crate) enum ParameterId {
     AlgorithmParams,
-    RsaHashedKeyGenParams,
-    RsaHashedImportParams,
-    RsaPssParams,
-    RsaOaepParams,
     EcdsaParams,
     EcKeyGenParams,
     EcKeyImportParams,
@@ -6507,6 +6501,2591 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
     fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
         // 1. Return 256.
         Ok(Some(256))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct RsaKeyGenParams {
+    modulus_length: u32,
+    public_exponent: Bytes,
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct RsaHashedKeyGenParams {
+    key_gen: RsaKeyGenParams,
+    #[gc(untraced)]
+    hash: HashAlgorithmIdentifier,
+}
+
+impl RsaHashedKeyGenParams {
+    fn from_value(vm: &Vm, realm: Gc<Realm>, object: Gc<Object>) -> WebIdlResult<Self> {
+        let modulus_length_value = object.get(vm, &PropertyKey::from_utf8("modulusLength"))?;
+        let modulus_length = to_unsigned_long_enforcing_range(vm, modulus_length_value)?;
+
+        let public_exponent_value = object.get(vm, &PropertyKey::from_utf8("publicExponent"))?;
+        let Some(BufferSource::TypedArray(public_exponent)) = buffer_source_type_of(public_exponent_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"Uint8Array"])
+                .map_err(Into::into);
+        };
+        if public_exponent.kind() != TypedArrayKind::Uint8Array {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"Uint8Array"])
+                .map_err(Into::into);
+        }
+
+        let hash_value = object.get(vm, &PropertyKey::from_utf8("hash"))?;
+        let hash = hash_algorithm_identifier_from_value(vm, realm, hash_value, None)?;
+        let public_exponent = big_integer_from_api_big_integer(vm, public_exponent)?;
+
+        Ok(Self {
+            key_gen: RsaKeyGenParams {
+                modulus_length,
+                public_exponent,
+            },
+            hash,
+        })
+    }
+}
+
+// https://w3c.github.io/webcrypto/#big-integer
+fn big_integer_from_api_big_integer(vm: &Vm, big_integer: Gc<TypedArrayBase>) -> WebIdlResult<Bytes> {
+    // The BigInteger typedef is a Uint8Array that holds an arbitrary magnitude unsigned integer
+    // **in big-endian order**. Values read from the API SHALL have minimal typed array length
+    // (that is, at most 7 leading zero bits, except the value 0 which shall have length 8 bits).
+    // The API SHALL accept values with any number of leading zero bits, including the empty array, which represents zero.
+    get_a_copy_of_the_bytes(vm, BufferSource::TypedArray(big_integer))
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct RsaHashedImportParams {
+    #[gc(untraced)]
+    hash: HashAlgorithmIdentifier,
+}
+
+impl RsaHashedImportParams {
+    fn from_value(vm: &Vm, realm: Gc<Realm>, object: Gc<Object>) -> WebIdlResult<Self> {
+        let hash_value = object.get(vm, &PropertyKey::from_utf8("hash"))?;
+        let hash = hash_algorithm_identifier_from_value(vm, realm, hash_value, None)?;
+        Ok(Self { hash })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct RsaOaepParams {
+    label: Bytes,
+}
+
+impl RsaOaepParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let label_value = object.get(vm, &PropertyKey::from_utf8("label"))?;
+
+        let mut label = Bytes::new(Vec::new());
+        if !label_value.is_nullish() {
+            let Some(label_source) = buffer_source_type_of(label_value) else {
+                return vm
+                    .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                    .map_err(Into::into);
+            };
+
+            label = get_a_copy_of_the_bytes(vm, label_source)?;
+        }
+        Ok(Self { label })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct RsaPssParams {
+    salt_length: u32,
+}
+
+impl RsaPssParams {
+    // https://w3c.github.io/webcrypto/#RsaPssParams-dictionary
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let salt_length_value = object.get(vm, &PropertyKey::from_utf8("saltLength"))?;
+        let salt_length = to_unsigned_long_enforcing_range(vm, salt_length_value)?;
+        Ok(Self { salt_length })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum RsaParameterType {
+    Base,
+    KeyGen,
+    Import,
+    Oaep,
+    Pss,
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+enum RsaParameters {
+    Base,
+    KeyGen(RsaHashedKeyGenParams),
+    Import(RsaHashedImportParams),
+    Oaep(RsaOaepParams),
+    Pss(RsaPssParams),
+}
+
+impl RsaParameters {
+    fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: RsaParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(match parameter_type {
+            RsaParameterType::Base => Self::Base,
+            RsaParameterType::KeyGen => Self::KeyGen(RsaHashedKeyGenParams::from_value(vm, realm, object)?),
+            RsaParameterType::Import => Self::Import(RsaHashedImportParams::from_value(vm, realm, object)?),
+            RsaParameterType::Oaep => Self::Oaep(RsaOaepParams::from_value(vm, object)?),
+            RsaParameterType::Pss => Self::Pss(RsaPssParams::from_value(vm, object)?),
+        })
+    }
+}
+
+#[repr(u8)]
+enum RsaJwkInteger {
+    Modulus,
+    PublicExponent,
+    PrivateExponent,
+    Prime1,
+    Prime2,
+    Exponent1,
+    Exponent2,
+    Coefficient,
+}
+
+unsafe extern "C" {
+    fn web_crypto_asn1_allocate_key_info(structure: Asn1Structure) -> *mut c_void;
+    fn web_crypto_asn1_delete_key_info(structure: Asn1Structure, key_info: *mut c_void);
+    fn web_crypto_rsa_key_info_has_encryption_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
+    fn web_crypto_rsa_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
+    fn web_crypto_rsa_delete_uninstalled_key(key: *mut c_void);
+    fn web_crypto_rsa_key_is_valid(key: *const c_void, valid: &mut bool) -> bool;
+    fn web_crypto_rsa_validate_public_exponent(exponent: Span<'_, u8>, modulus_length: u32) -> bool;
+    fn web_crypto_rsa_validate_modulus_length(modulus_length: u32) -> bool;
+    fn web_crypto_rsa_generate_key_pair(
+        modulus_length: u32,
+        exponent: Span<'_, u8>,
+        public_key: &mut *mut c_void,
+        private_key: &mut *mut c_void,
+    ) -> bool;
+    fn web_crypto_rsa_export_public_exponent(exponent: Span<'_, u8>, state: *mut c_void, receive: ReceiveBytes)
+    -> bool;
+    fn web_crypto_rsa_read_key_metadata(
+        key: *const c_void,
+        modulus_length: &mut u32,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_rsa_parse_jwk_key(
+        realm: *mut c_void,
+        is_private: bool,
+        components: Span<'_, usize>,
+        out: &mut *mut c_void,
+    ) -> RawNativeFunctionResult;
+    fn web_crypto_rsa_export_der(
+        key: *const c_void,
+        is_public: bool,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_rsa_export_jwk_integer(key: *const c_void, component: RsaJwkInteger) -> usize;
+    fn web_crypto_rsa_oaep_cipher(
+        encrypt: bool,
+        hash_kind: ShaHashKind,
+        key: *const c_void,
+        label: Span<'_, u8>,
+        input: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_rsa_pss_sign(
+        hash_kind: ShaHashKind,
+        key: *const c_void,
+        salt_length: u32,
+        message: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_rsa_pss_verify(
+        hash_kind: ShaHashKind,
+        key: *const c_void,
+        salt_length: u32,
+        message: Span<'_, u8>,
+        signature: Span<'_, u8>,
+        verified: &mut bool,
+    ) -> bool;
+    fn web_crypto_rsa_pkcs1_sign(
+        hash_kind: ShaHashKind,
+        key: *const c_void,
+        message: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_rsa_pkcs1_verify(
+        hash_kind: ShaHashKind,
+        key: *const c_void,
+        message: Span<'_, u8>,
+        signature: Span<'_, u8>,
+        verified: &mut bool,
+    ) -> bool;
+}
+
+struct Asn1KeyInfo {
+    structure: Asn1Structure,
+    key_info: NonNull<c_void>,
+}
+
+impl Asn1KeyInfo {
+    fn parse(data: &Bytes, structure: Asn1Structure) -> WebIdlResult<Self> {
+        // SAFETY: The structure is either SubjectPublicKeyInfo or PrivateKeyInfo.
+        let key_info = unsafe { web_crypto_asn1_allocate_key_info(structure) };
+        let key_info = Self {
+            structure,
+            key_info: NonNull::new(key_info).expect("LibCrypto returns the key info"),
+        };
+        // SAFETY: The data and the native structure live for the call.
+        unsafe {
+            match structure {
+                Asn1Structure::SubjectPublicKeyInfo => {
+                    parse_a_subject_public_key_info(Span::new(data.as_slice()), key_info.key_info.as_ptr())
+                }
+                Asn1Structure::PrivateKeyInfo => {
+                    parse_a_private_key_info(Span::new(data.as_slice()), key_info.key_info.as_ptr())
+                }
+                Asn1Structure::OctetString => unreachable!("octet strings are not key info"),
+            }
+        }
+        .map_err(|message| Exception::Dom("DataError", message))?;
+        Ok(key_info)
+    }
+
+    fn has_rsa_encryption_oid(&self) -> bool {
+        // SAFETY: This object owns the live structure.
+        unsafe { web_crypto_rsa_key_info_has_encryption_oid(self.structure, self.key_info.as_ptr()) }
+    }
+
+    fn rsa_key(&self) -> UninstalledRsaKey {
+        // SAFETY: This object owns the live structure.
+        let key = unsafe { web_crypto_rsa_key_info_read_key(self.structure, self.key_info.as_ptr()) };
+        UninstalledRsaKey(NonNull::new(key).expect("LibCrypto returns an RSA key"))
+    }
+}
+
+impl Drop for Asn1KeyInfo {
+    fn drop(&mut self) {
+        // SAFETY: This object owns the native structure.
+        unsafe { web_crypto_asn1_delete_key_info(self.structure, self.key_info.as_ptr()) };
+    }
+}
+
+struct UninstalledRsaKey(NonNull<c_void>);
+
+impl Drop for UninstalledRsaKey {
+    fn drop(&mut self) {
+        // SAFETY: This object owns the native RSA key.
+        unsafe { web_crypto_rsa_delete_uninstalled_key(self.0.as_ptr()) };
+    }
+}
+
+impl UninstalledRsaKey {
+    fn is_valid(&self) -> Result<bool, ()> {
+        let mut valid = false;
+        // SAFETY: This object owns the native key and the output is writable.
+        let success = unsafe { web_crypto_rsa_key_is_valid(self.0.as_ptr(), &mut valid) };
+        if !success {
+            return Err(());
+        }
+        Ok(valid)
+    }
+
+    fn install(self, vm: &Vm) -> Ref<CryptoKey> {
+        let key = core::mem::ManuallyDrop::new(self).0;
+        // SAFETY: Ownership of the live key is transferred.
+        unsafe { CryptoKey::create_with_handle(vm, key) }
+    }
+}
+
+struct RsaKeyPair {
+    public_key: UninstalledRsaKey,
+    private_key: UninstalledRsaKey,
+}
+
+fn rsa_generate_key_pair(modulus_length: u32, exponent: &Bytes) -> Result<RsaKeyPair, ()> {
+    let mut public_key = null_mut();
+    let mut private_key = null_mut();
+    // SAFETY: The exponent and the output slots are lent for the call.
+    let success = unsafe {
+        web_crypto_rsa_generate_key_pair(
+            modulus_length,
+            Span::new(exponent.as_slice()),
+            &mut public_key,
+            &mut private_key,
+        )
+    };
+    if !success {
+        return Err(());
+    }
+    Ok(RsaKeyPair {
+        public_key: UninstalledRsaKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
+        private_key: UninstalledRsaKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
+    })
+}
+
+// https://w3c.github.io/webcrypto/#dfn-validate-rsa-key-generation-parameters
+fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams) -> WebIdlResult<()> {
+    // 1. Let modulusLength be the modulusLength member of normalizedAlgorithm.
+    let modulus_length = normalized_algorithm.modulus_length;
+
+    // 2. Let publicExponent be the result of converting the publicExponent member of normalizedAlgorithm to a
+    //    non-negative integer.
+    let public_exponent = &normalized_algorithm.public_exponent;
+
+    // 3. If modulusLength is less than 4, or if publicExponent is less than 3, is even, or is greater than or equal to
+    //    2^modulusLength - 1, then throw an OperationError.
+    // NOTE: publicExponent + 1 has more than modulusLength bits exactly when publicExponent >= 2^modulusLength - 1.
+    // SAFETY: The exponent bytes live for the call.
+    if modulus_length < 4
+        || !unsafe { web_crypto_rsa_validate_public_exponent(Span::new(public_exponent.as_slice()), modulus_length) }
+    {
+        return Err(dom_error("OperationError", b"Invalid RSA key generation parameters"));
+    }
+
+    // NB: Generating the key pair fails for the moduli that our RSA does not support.
+    // SAFETY: This call takes no pointers.
+    if !unsafe { web_crypto_rsa_validate_modulus_length(modulus_length) } {
+        return Err(dom_error(
+            "OperationError",
+            b"RSA modulus length must be at least 512 bits",
+        ));
+    }
+    Ok(())
+}
+
+fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The exponent and the output slot are lent for the call.
+    let success = unsafe {
+        web_crypto_rsa_export_public_exponent(
+            Span::new(exponent.as_slice()),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    };
+    if !success {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    Ok(Rc::unwrap_or_clone(result.expect("LibCrypto returns the exponent").0))
+}
+
+fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)> {
+    let mut modulus_length = 0;
+    let mut exponent: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slots are lent for the call.
+    let success = unsafe {
+        web_crypto_rsa_read_key_metadata(
+            key.handle().as_ptr(),
+            &mut modulus_length,
+            core::ptr::from_mut(&mut exponent).cast(),
+            receive_bytes,
+        )
+    };
+    if !success {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    Ok((
+        modulus_length,
+        Rc::unwrap_or_clone(exponent.expect("LibCrypto returns the exponent").0),
+    ))
+}
+
+fn parse_jwk_rsa_key(realm: Gc<Realm>, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledRsaKey> {
+    let components = [&jwk.n, &jwk.e, &jwk.d, &jwk.p, &jwk.q, &jwk.dp, &jwk.dq, &jwk.qi]
+        .map(|field| field.as_ref().map_or(0, Utf16String::raw_identity));
+    let mut key = null_mut();
+    // SAFETY: The realm, strings and the output slot live for the call.
+    unsafe { web_crypto_rsa_parse_jwk_key(realm.as_ptr().cast(), is_private, Span::new(&components), &mut key) }
+        .into_completion()?;
+    Ok(UninstalledRsaKey(
+        NonNull::new(key).expect("LibCrypto returns an RSA key"),
+    ))
+}
+
+fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slot are lent for the call.
+    let success = unsafe {
+        web_crypto_rsa_export_der(
+            key.handle().as_ptr(),
+            is_public,
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    };
+    if !success {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    Ok(result.expect("LibCrypto returns the DER bytes"))
+}
+
+fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
+    // SAFETY: The key has the requested RSA component and lives for the call.
+    let raw = unsafe { web_crypto_rsa_export_jwk_integer(key.handle().as_ptr(), component) };
+    if raw == 0 {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    // SAFETY: LibCrypto transfers an owned string.
+    Ok(unsafe { Utf16String::from_raw_owned(raw) })
+}
+
+fn key_format_to_string(format: KeyFormat) -> &'static str {
+    match format {
+        KeyFormat::RawPublic => "raw-public",
+        KeyFormat::RawPrivate => "raw-private",
+        KeyFormat::RawSeed => "raw-seed",
+        KeyFormat::RawSecret => "raw-secret",
+        KeyFormat::Raw => "raw",
+        KeyFormat::Spki => "spki",
+        KeyFormat::Pkcs8 => "pkcs8",
+        KeyFormat::Jwk => "jwk",
+    }
+}
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct RsaOaep {
+    parameters: RsaParameters,
+}
+
+impl RsaOaep {
+    pub(crate) fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: RsaParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: RsaParameters::from_value(vm, realm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for RsaOaep {
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
+    fn encrypt(&self, _: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        let RsaParameters::Oaep(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA-OAEP parameters")
+        };
+
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
+        let label = &normalized_algorithm.label;
+
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
+        //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
+        //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 5. Let ciphertext be the value C that results from performing the operation.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_rsa_oaep_cipher(
+                true,
+                hash_kind,
+                key.handle().as_ptr(),
+                Span::new(label.as_slice()),
+                Span::new(plaintext.as_slice()),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_ciphertext {
+            return Err(dom_error("OperationError", b"Failed to encrypt"));
+        }
+
+        // 6. Return the result of creating an ArrayBuffer containing ciphertext.
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-decrypt
+    fn decrypt(&self, _: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        let RsaParameters::Oaep(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA-OAEP parameters")
+        };
+
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
+        let label = &normalized_algorithm.label;
+
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
+        //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
+        //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 5. Let plaintext the value M that results from performing the operation.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_rsa_oaep_cipher(
+                false,
+                hash_kind,
+                key.handle().as_ptr(),
+                Span::new(label.as_slice()),
+                Span::new(ciphertext.as_slice()),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_plaintext {
+            return Err(dom_error("OperationError", b"Failed to encrypt"));
+        }
+
+        // 6. Return the result of creating an ArrayBuffer containing plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)?;
+
+        // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+        //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let maybe_key_pair = rsa_generate_key_pair(
+            normalized_algorithm.key_gen.modulus_length,
+            &normalized_algorithm.key_gen.public_exponent,
+        );
+        let Ok(key_pair) = maybe_key_pair else {
+            return Err(dom_error("OperationError", b"Failed generating RSA key pair"));
+        };
+
+        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 11. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+        // 6. Set the name attribute of algorithm to "RSA-OAEP".
+        // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+        // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+        // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+        // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-OAEP"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent: {
+                let mut exponent_copy = Vec::new();
+                if exponent_copy.try_reserve_exact(public_exponent.len()).is_err() {
+                    return cx
+                        .vm()
+                        .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                        .map_err(Into::into);
+                }
+                exponent_copy.extend_from_slice(&public_exponent);
+                exponent_copy
+            },
+            hash: hash_name.clone(),
+        });
+
+        // 13. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encrypt", "wrapKey" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Encrypt, KeyUsage::WrapKey]));
+
+        // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 16. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-OAEP"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 18. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decrypt", "unwrapKey" ].
+        private_key.set_usages(usage_intersection(
+            key_usages,
+            &[KeyUsage::Decrypt, KeyUsage::UnwrapKey],
+        ));
+
+        // 20. Let result be a new CryptoKeyPair dictionary.
+        // 21. Set the publicKey attribute of result to be publicKey.
+        // 22. Set the privateKey attribute of result to be privateKey.
+        // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        let key;
+        let RsaParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA import parameters")
+        };
+
+        // 2. -> If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "encrypt" or "wrapKey", then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Encrypt && usage != KeyUsage::WrapKey {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !spki.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
+            //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_subject_public_key_info
+            let public_key = spki.rsa_key();
+
+            // 6. If an error occurred while parsing, or it can be determined that publicKey is not
+            //    a valid public key according to [RFC3447], then throw a DataError.
+            let maybe_valid = public_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
+            key = public_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+        }
+        // -> If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Decrypt && usage != KeyUsage::UnwrapKey {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !private_key_info.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
+            //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_private_key_info
+            let rsa_private_key = private_key_info.rsa_key();
+
+            // 6. If an error occurred while parsing, or if rsaPrivateKey is not
+            //    a valid RSA private key according to [RFC3447], then throw a DataError.
+            let maybe_valid = rsa_private_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
+            key = rsa_private_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+        }
+        // -> If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field of jwk is present and usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Decrypt && usage != KeyUsage::UnwrapKey {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the d field of jwk is not present and usages contains an entry which is not "encrypt" or "wrapKey", then throw a SyntaxError.
+            if jwk.d.is_none() {
+                for &usage in usages {
+                    if usage != KeyUsage::Encrypt && usage != KeyUsage::WrapKey {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 4. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"RSA")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 5. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "enc", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+
+            let mut hash = None;
+            // 8. -> If the alg field of jwk is not present:
+            if jwk.alg.is_none() {
+                //     Let hash be undefined.
+            }
+            //    ->  If the alg field of jwk is equal to "RSA-OAEP":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RSA-OAEP")) {
+                //     Let hash be the string "SHA-1".
+                hash = Some(Utf16String::from_ascii(b"SHA-1"));
+            }
+            //    -> If the alg field of jwk is equal to "RSA-OAEP-256":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RSA-OAEP-256")) {
+                //     Let hash be the string "SHA-256".
+                hash = Some(Utf16String::from_ascii(b"SHA-256"));
+            }
+            //    -> If the alg field of jwk is equal to "RSA-OAEP-384":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RSA-OAEP-384")) {
+                //     Let hash be the string "SHA-384".
+                hash = Some(Utf16String::from_ascii(b"SHA-384"));
+            }
+            //    -> If the alg field of jwk is equal to "RSA-OAEP-512":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RSA-OAEP-512")) {
+                //     Let hash be the string "SHA-512".
+                hash = Some(Utf16String::from_ascii(b"SHA-512"));
+            }
+            //    -> Otherwise:
+            else {
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 9.  If hash is not undefined:
+            if let Some(hash) = hash {
+                // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
+                let normalized_hash =
+                    hash_algorithm_identifier_from_value(cx.vm(), cx.realm(), Value::UNDEFINED, Some(hash))?;
+
+                // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
+                if normalized_hash.name != normalized_algorithm.hash.name {
+                    return Err(dom_error("DataError", b"Invalid hash"));
+                }
+            }
+
+            // 10. -> If the d field of jwk is present:
+            if jwk.d.is_some() {
+                // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                let mut meets_requirements = jwk.e.is_some() && jwk.n.is_some() && jwk.d.is_some();
+                if jwk.p.is_some() || jwk.q.is_some() || jwk.dp.is_some() || jwk.dq.is_some() || jwk.qi.is_some() {
+                    meets_requirements &=
+                        jwk.p.is_some() && jwk.q.is_some() && jwk.dp.is_some() && jwk.dq.is_some() && jwk.qi.is_some();
+                }
+
+                if jwk.oth.is_some() {
+                    // FIXME: We don't support > 2 primes in RSA keys
+                    meets_requirements = false;
+                }
+
+                if !meets_requirements {
+                    return Err(dom_error("DataError", b"Invalid JWK private key"));
+                }
+
+                // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
+                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+
+                // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
+                let maybe_valid = private_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing privateKey.
+                key = private_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "private"
+                key.set_type(KeyType::Private);
+            }
+            //     -> Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                if jwk.e.is_none() || jwk.n.is_none() {
+                    return Err(dom_error("DataError", b"Invalid JWK public key"));
+                }
+
+                // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+
+                // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+                let maybe_valid = public_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing publicKey.
+                key = public_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "public"
+                key.set_type(KeyType::Public);
+            }
+        }
+        // -> Otherwise: throw a NotSupportedError.
+        else {
+            return Err(dom_error("NotSupportedError", b"Unsupported key format"));
+        }
+
+        // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
+        // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
+        let (modulus_length, public_exponent) = rsa_key_metadata(cx.vm(), key)?;
+
+        // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
+        // 4. Set the name attribute of algorithm to "RSA-OAEP"
+        // 8. Set the [[algorithm]] internal slot of key to algorithm
+        key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-OAEP"),
+            modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        let vm = cx.vm();
+
+        // 1. Let key be the key to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki"
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not public"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //   - Set the params field to the ASN.1 type NULL.
+            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
+            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, true)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "pkcs8"
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not private"));
+            }
+
+            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
+            // - Set the version field to 0.
+            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            // - - Set the params field to the ASN.1 type NULL.
+            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
+            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, false)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "jwk"
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "RSA".
+            jwk.kty = Some(Utf16String::from_ascii(b"RSA"));
+
+            // 4. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+                unreachable!("the key has an RSA algorithm")
+            };
+
+            // 4. If hash is "SHA-1":
+            //      - Set the alg attribute of jwk to the string "RSA-OAEP".
+            if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP"));
+            }
+            //    If hash is "SHA-256":
+            //      - Set the alg attribute of jwk to the string "RSA-OAEP-256".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP-256"));
+            }
+            //    If hash is "SHA-384":
+            //      - Set the alg attribute of jwk to the string "RSA-OAEP-384".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP-384"));
+            }
+            //    If hash is "SHA-512":
+            //      - Set the alg attribute of jwk to the string "RSA-OAEP-512".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP-512"));
+            } else {
+                // - Perform any key export steps defined by other applicable specifications,
+                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+                // - Set the alg attribute of jwk to alg.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 10. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
+            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+
+            // 11. If the [[type]] internal slot of key is "private":
+            //    1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.2.
+            if key.key_type() == KeyType::Private {
+                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+
+                // 12. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
+                //     set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
+                // FIXME: We don't support more than 2 primes on RSA keys
+            }
+
+            // 13. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 14. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 15. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // Otherwise throw a NotSupportedError.
+        else {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted(
+                    "Exporting to format {} is not supported",
+                    &[&key_format_to_string(format)],
+                ),
+            ));
+        };
+
+        // 8. Return result
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Encrypt, KeyUsage::WrapKey])
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct RsaPss {
+    parameters: RsaParameters,
+}
+
+impl RsaPss {
+    pub(crate) fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: RsaParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: RsaParameters::from_value(vm, realm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for RsaPss {
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)?;
+
+        // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+        //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let maybe_key_pair = rsa_generate_key_pair(
+            normalized_algorithm.key_gen.modulus_length,
+            &normalized_algorithm.key_gen.public_exponent,
+        );
+        let Ok(key_pair) = maybe_key_pair else {
+            return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
+        };
+
+        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 11. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+        // 6. Set the name attribute of algorithm to "RSA-PSS".
+        // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+        // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+        // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+        // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-PSS"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent: {
+                let mut exponent_copy = Vec::new();
+                if exponent_copy.try_reserve_exact(public_exponent.len()).is_err() {
+                    return cx
+                        .vm()
+                        .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                        .map_err(Into::into);
+                }
+                exponent_copy.extend_from_slice(&public_exponent);
+                exponent_copy
+            },
+            hash: hash_name.clone(),
+        });
+
+        // 13. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
+
+        // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 16. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-PSS"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 18. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Sign]));
+
+        // 20. Let result be a new CryptoKeyPair dictionary.
+        // 21. Set the publicKey attribute of result to be publicKey.
+        // 22. Set the privateKey attribute of result to be privateKey.
+        // 23. Return result.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-sign
+    fn sign(&self, _: Gc<Realm>, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        let RsaParameters::Pss(pss_params) = &self.parameters else {
+            unreachable!("the operation uses RSA-PSS parameters")
+        };
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 3. Perform the signature generation operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
+        //    of key as the signer's private key, K, and the contents of message as the message to be signed, M, and using the hash function specified
+        //    by the hash attribute of the [[algorithm]] internal slot of key as the Hash option, MGF1 (defined in Section B.2.1 of [RFC3447])
+        //    as the MGF option and the saltLength member of normalizedAlgorithm as the salt length option for the EMSA-PSS-ENCODE operation.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 5. Let signature be the signature, S, that results from performing the operation.
+        let mut signature: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_signature = unsafe {
+            web_crypto_rsa_pss_sign(
+                hash_kind,
+                key.handle().as_ptr(),
+                pss_params.salt_length,
+                Span::new(message.as_slice()),
+                core::ptr::from_mut(&mut signature).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_signature {
+            return Err(dom_error("OperationError", b"Failed to sign message"));
+        }
+
+        // 6. Return signature.
+        Ok(signature.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-verify
+    fn verify(
+        &self,
+        _: Gc<Realm>,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        let RsaParameters::Pss(pss_params) = &self.parameters else {
+            unreachable!("the operation uses RSA-PSS parameters")
+        };
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 2. Perform the signature verification operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
+        //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
+        //    by the hash attribute of the [[algorithm]] internal slot of key as the Hash option, MGF1 (defined in Section B.2.1 of [RFC3447])
+        //    as the MGF option and the saltLength member of normalizedAlgorithm as the salt length option for the EMSA-PSS-VERIFY operation.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
+        let mut verified = false;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_verification = unsafe {
+            web_crypto_rsa_pss_verify(
+                hash_kind,
+                key.handle().as_ptr(),
+                pss_params.salt_length,
+                Span::new(message.as_slice()),
+                Span::new(signature.as_slice()),
+                &mut verified,
+            )
+        };
+        if !maybe_verification {
+            return Err(dom_error("OperationError", b"Failed to verify message"));
+        }
+
+        Ok(verified)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        let key;
+        let RsaParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA import parameters")
+        };
+
+        // 2. -> If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !spki.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
+            //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_subject_public_key_info
+            let public_key = spki.rsa_key();
+
+            // 6. If an error occurred while parsing, or it can be determined that publicKey is not
+            //    a valid public key according to [RFC3447], then throw a DataError.
+            let maybe_valid = public_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
+            key = public_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+        }
+        // -> If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !private_key_info.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
+            //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_private_key_info
+            let rsa_private_key = private_key_info.rsa_key();
+
+            // 6. If an error occurred while parsing, or if rsaPrivateKey is not
+            //    a valid RSA private key according to [RFC3447], then throw a DataError.
+            let maybe_valid = rsa_private_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
+            key = rsa_private_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+        }
+        // -> If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
+            //    if the d field of jwk is not present and usages contains an entry which is not "verify"
+            //    then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Sign {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            } else {
+                for &usage in usages {
+                    if usage != KeyUsage::Verify {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"RSA")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+
+            let mut hash = None;
+            // 7. -> If the alg field of jwk is not present:
+            if jwk.alg.is_none() {
+                //     Let hash be undefined.
+            }
+            //    ->  If the alg field of jwk is equal to "PS1":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS1")) {
+                //     Let hash be the string "SHA-1".
+                hash = Some(Utf16String::from_ascii(b"SHA-1"));
+            }
+            //    -> If the alg field of jwk is equal to "PS256":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS256")) {
+                //     Let hash be the string "SHA-256".
+                hash = Some(Utf16String::from_ascii(b"SHA-256"));
+            }
+            //    -> If the alg field of jwk is equal to "PS384":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS384")) {
+                //     Let hash be the string "SHA-384".
+                hash = Some(Utf16String::from_ascii(b"SHA-384"));
+            }
+            //    -> If the alg field of jwk is equal to "PS512":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS512")) {
+                //     Let hash be the string "SHA-512".
+                hash = Some(Utf16String::from_ascii(b"SHA-512"));
+            }
+            //    -> Otherwise:
+            else {
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 8. If hash is not undefined:
+            if let Some(hash) = hash {
+                // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
+                let normalized_hash =
+                    hash_algorithm_identifier_from_value(cx.vm(), cx.realm(), Value::UNDEFINED, Some(hash))?;
+
+                // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
+                if normalized_hash.name != normalized_algorithm.hash.name {
+                    return Err(dom_error("DataError", b"Invalid hash"));
+                }
+            }
+
+            // 9. -> If the d field of jwk is present:
+            if jwk.d.is_some() {
+                // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                let mut meets_requirements = jwk.e.is_some() && jwk.n.is_some() && jwk.d.is_some();
+                if jwk.p.is_some() || jwk.q.is_some() || jwk.dp.is_some() || jwk.dq.is_some() || jwk.qi.is_some() {
+                    meets_requirements &=
+                        jwk.p.is_some() && jwk.q.is_some() && jwk.dp.is_some() && jwk.dq.is_some() && jwk.qi.is_some();
+                }
+
+                if jwk.oth.is_some() {
+                    // FIXME: We don't support > 2 primes in RSA keys
+                    meets_requirements = false;
+                }
+
+                if !meets_requirements {
+                    return Err(dom_error("DataError", b"Invalid JWK private key"));
+                }
+
+                // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
+                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+
+                // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
+                let maybe_valid = private_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing privateKey.
+                key = private_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "private"
+                key.set_type(KeyType::Private);
+            }
+            //     -> Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                if jwk.e.is_none() || jwk.n.is_none() {
+                    return Err(dom_error("DataError", b"Invalid JWK public key"));
+                }
+
+                // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+
+                // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+                let maybe_valid = public_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing publicKey.
+                key = public_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "public"
+                key.set_type(KeyType::Public);
+            }
+        }
+        // -> Otherwise: throw a NotSupportedError.
+        else {
+            return Err(dom_error("NotSupportedError", b"Unsupported key format"));
+        }
+
+        // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
+        // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
+        let (modulus_length, public_exponent) = rsa_key_metadata(cx.vm(), key)?;
+
+        // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
+        // 4. Set the name attribute of algorithm to "RSA-PSS"
+        // 8. Set the [[algorithm]] internal slot of key to algorithm
+        key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSA-PSS"),
+            modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        let vm = cx.vm();
+
+        // 1. Let key be the key to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki"
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not public"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //   - Set the params field to the ASN.1 type NULL.
+            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
+            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, true)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "pkcs8"
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not private"));
+            }
+
+            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
+            // - Set the version field to 0.
+            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            // - - Set the params field to the ASN.1 type NULL.
+            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
+            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, false)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "jwk"
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "RSA".
+            jwk.kty = Some(Utf16String::from_ascii(b"RSA"));
+
+            // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+                unreachable!("the key has an RSA algorithm")
+            };
+
+            // 4. If hash is "SHA-1":
+            //      - Set the alg attribute of jwk to the string "PS1".
+            if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"PS1"));
+            }
+            //    If hash is "SHA-256":
+            //      - Set the alg attribute of jwk to the string "PS256".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"PS256"));
+            }
+            //    If hash is "SHA-384":
+            //      - Set the alg attribute of jwk to the string "PS384".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"PS384"));
+            }
+            //    If hash is "SHA-512":
+            //      - Set the alg attribute of jwk to the string "PS512".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"PS512"));
+            } else {
+                // - Perform any key export steps defined by other applicable specifications,
+                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+                // - Set the alg attribute of jwk to alg.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
+            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+
+            // 6. If the [[type]] internal slot of key is "private":
+            if key.key_type() == KeyType::Private {
+                // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
+                //    in JSON Web Algorithms [JWA], Section 6.3.2.
+                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+
+                // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
+                //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
+                // FIXME: We don't support more than 2 primes on RSA keys
+            }
+
+            // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // Otherwise throw a NotSupportedError.
+        else {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted(
+                    "Exporting to format {} is not supported",
+                    &[&key_format_to_string(format)],
+                ),
+            ));
+        };
+
+        // 8. Return result
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct RsassaPkcs1 {
+    parameters: RsaParameters,
+}
+
+impl RsassaPkcs1 {
+    pub(crate) fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: RsaParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: RsaParameters::from_value(vm, realm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for RsassaPkcs1 {
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let RsaParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA key generation parameters")
+        };
+
+        // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+        validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)?;
+
+        // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+        //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let maybe_key_pair = rsa_generate_key_pair(
+            normalized_algorithm.key_gen.modulus_length,
+            &normalized_algorithm.key_gen.public_exponent,
+        );
+        let Ok(key_pair) = maybe_key_pair else {
+            return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
+        };
+
+        let public_exponent = export_public_exponent(cx.vm(), &normalized_algorithm.key_gen.public_exponent)?;
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 11. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 5. Let algorithm be a new RsaHashedKeyAlgorithm object.
+        // 6. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
+        // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+        // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+        // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+        // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSASSA-PKCS1-v1_5"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent: {
+                let mut exponent_copy = Vec::new();
+                if exponent_copy.try_reserve_exact(public_exponent.len()).is_err() {
+                    return cx
+                        .vm()
+                        .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                        .map_err(Into::into);
+                }
+                exponent_copy.extend_from_slice(&public_exponent);
+                exponent_copy
+            },
+            hash: hash_name.clone(),
+        });
+
+        // 13. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
+
+        // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 16. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSASSA-PKCS1-v1_5"),
+            modulus_length: normalized_algorithm.key_gen.modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 18. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Sign]));
+
+        // 20. Let result be a new CryptoKeyPair dictionary.
+        // 21. Set the publicKey attribute of result to be publicKey.
+        // 22. Set the privateKey attribute of result to be privateKey.
+        // 23. Return result.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-sign
+    fn sign(&self, _: Gc<Realm>, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 3. Perform the signature generation operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
+        //    of key as the signer's private key and the contents of message as M and using the hash function specified in the hash attribute
+        //    of the [[algorithm]] internal slot of key as the Hash option for the EMSA-PKCS1-v1_5 encoding method.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        // 4. If performing the operation results in an error, then throw an OperationError.
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 5. Let signature be the signature, S, that results from performing the operation.
+        let mut signature: Option<Bytes> = None;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_signature = unsafe {
+            web_crypto_rsa_pkcs1_sign(
+                hash_kind,
+                key.handle().as_ptr(),
+                Span::new(message.as_slice()),
+                core::ptr::from_mut(&mut signature).cast(),
+                receive_bytes,
+            )
+        };
+        if !maybe_signature {
+            return Err(dom_error("OperationError", b"Failed to sign message"));
+        }
+
+        // 6. Return signature.
+        Ok(signature.expect("LibCrypto returns the result"))
+    }
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-verify
+    fn verify(
+        &self,
+        _: Gc<Realm>,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        let algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+            unreachable!("the key has an RSA algorithm")
+        };
+
+        // 2. Perform the signature verification operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
+        //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
+        //    in the hash attribute of the [[algorithm]] internal slot of key as the Hash option for the EMSA-PKCS1-v1_5 encoding method.
+        let mut hash_kind = None;
+        if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            hash_kind = Some(ShaHashKind::Sha1);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            hash_kind = Some(ShaHashKind::Sha256);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            hash_kind = Some(ShaHashKind::Sha384);
+        } else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            hash_kind = Some(ShaHashKind::Sha512);
+        }
+
+        let Some(hash_kind) = hash_kind else {
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[hash]),
+            ));
+        };
+
+        // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
+        let mut verified = false;
+        // SAFETY: The input and output slots live for the call.
+        let maybe_verification = unsafe {
+            web_crypto_rsa_pkcs1_verify(
+                hash_kind,
+                key.handle().as_ptr(),
+                Span::new(message.as_slice()),
+                Span::new(signature.as_slice()),
+                &mut verified,
+            )
+        };
+        if !maybe_verification {
+            return Err(dom_error("OperationError", b"Failed to verify message"));
+        }
+
+        Ok(verified)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        let key;
+        let RsaParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses RSA import parameters")
+        };
+
+        // 2. -> If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !spki.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
+            //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_subject_public_key_info
+            let public_key = spki.rsa_key();
+
+            // 6. If an error occurred while parsing, or it can be determined that publicKey is not
+            //    a valid public key according to [RFC3447], then throw a DataError.
+            let maybe_valid = public_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
+            key = public_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+        }
+        // -> If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+            if !private_key_info.has_rsa_encryption_oid() {
+                return Err(dom_error(
+                    "DataError",
+                    b"Algorithm object identifier is not the rsaEncryption object identifier",
+                ));
+            }
+
+            // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
+            //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
+            // NOTE: We already did this in parse_a_private_key_info
+            let rsa_private_key = private_key_info.rsa_key();
+
+            // 6. If an error occurred while parsing, or if rsaPrivateKey is not
+            //    a valid RSA private key according to [RFC3447], then throw a DataError.
+            let maybe_valid = rsa_private_key.is_valid();
+            let Ok(maybe_valid) = maybe_valid else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
+            key = rsa_private_key.install(cx.vm());
+
+            // 8. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+        }
+        // -> If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. -> If keyData is a JsonWebKey dictionary:
+            //         Let jwk equal keyData.
+            //    -> Otherwise:
+            //         Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
+            //    if the d field of jwk is not present and usages contains an entry which is not "verify"
+            //    then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Sign {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            } else {
+                for &usage in usages {
+                    if usage != KeyUsage::Verify {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"RSA")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+
+            let mut hash = None;
+            // 7. -> If the alg field of jwk is not present:
+            if jwk.alg.is_none() {
+                //     Let hash be undefined.
+            }
+            //    ->  If the alg field of jwk is equal to "RS1":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS1")) {
+                //     Let hash be the string "SHA-1".
+                hash = Some(Utf16String::from_ascii(b"SHA-1"));
+            }
+            //    -> If the alg field of jwk is equal to "RS256":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS256")) {
+                //     Let hash be the string "SHA-256".
+                hash = Some(Utf16String::from_ascii(b"SHA-256"));
+            }
+            //    -> If the alg field of jwk is equal to "RS384":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS384")) {
+                //     Let hash be the string "SHA-384".
+                hash = Some(Utf16String::from_ascii(b"SHA-384"));
+            }
+            //    -> If the alg field of jwk is equal to "RS512":
+            else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS512")) {
+                //     Let hash be the string "SHA-512".
+                hash = Some(Utf16String::from_ascii(b"SHA-512"));
+            }
+            //    -> Otherwise:
+            else {
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 8. If hash is not undefined:
+            if let Some(hash) = hash {
+                // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
+                let normalized_hash =
+                    hash_algorithm_identifier_from_value(cx.vm(), cx.realm(), Value::UNDEFINED, Some(hash))?;
+
+                // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
+                if normalized_hash.name != normalized_algorithm.hash.name {
+                    return Err(dom_error("DataError", b"Invalid hash"));
+                }
+            }
+
+            // 9. -> If the d field of jwk is present:
+            if jwk.d.is_some() {
+                // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                let mut meets_requirements = jwk.e.is_some() && jwk.n.is_some() && jwk.d.is_some();
+                if jwk.p.is_some() || jwk.q.is_some() || jwk.dp.is_some() || jwk.dq.is_some() || jwk.qi.is_some() {
+                    meets_requirements &=
+                        jwk.p.is_some() && jwk.q.is_some() && jwk.dp.is_some() && jwk.dq.is_some() && jwk.qi.is_some();
+                }
+
+                if jwk.oth.is_some() {
+                    // FIXME: We don't support > 2 primes in RSA keys
+                    meets_requirements = false;
+                }
+
+                if !meets_requirements {
+                    return Err(dom_error("DataError", b"Invalid JWK private key"));
+                }
+
+                // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
+                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+
+                // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
+                let maybe_valid = private_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing privateKey.
+                key = private_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "private"
+                key.set_type(KeyType::Private);
+            }
+            //     -> Otherwise:
+            else {
+                // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                if jwk.e.is_none() || jwk.n.is_none() {
+                    return Err(dom_error("DataError", b"Invalid JWK public key"));
+                }
+
+                // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+
+                // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+                let maybe_valid = public_key.is_valid();
+                let Ok(maybe_valid) = maybe_valid else {
+                    return Err(dom_error("DataError", b"Failed to verify key"));
+                };
+                if !maybe_valid {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                // 4. Let key be a new CryptoKey representing publicKey.
+                key = public_key.install(cx.vm());
+
+                // 5. Set the [[type]] internal slot of key to "public"
+                key.set_type(KeyType::Public);
+            }
+        }
+        // -> Otherwise: throw a NotSupportedError.
+        else {
+            return Err(dom_error("NotSupportedError", b"Unsupported key format"));
+        }
+
+        // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
+        // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
+        let (modulus_length, public_exponent) = rsa_key_metadata(cx.vm(), key)?;
+
+        // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
+        let hash_name = normalized_algorithm.hash.name.clone();
+
+        // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
+        // 4. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5"
+        // 8. Set the [[algorithm]] internal slot of key to algorithm
+        key.set_algorithm(InternalAlgorithmData::RsaHashed {
+            name: Utf16String::from_ascii(b"RSASSA-PKCS1-v1_5"),
+            modulus_length,
+            public_exponent,
+            hash: hash_name,
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        let vm = cx.vm();
+
+        // 1. Let key be the key to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki"
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not public"));
+            }
+
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //   - Set the params field to the ASN.1 type NULL.
+            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
+            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, true)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "pkcs8"
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not private"));
+            }
+
+            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
+            // - Set the version field to 0.
+            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            // - - Set the params field to the ASN.1 type NULL.
+            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
+            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            let data = rsa_export_der(vm, key, false)?;
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // If format is "jwk"
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "RSA".
+            jwk.kty = Some(Utf16String::from_ascii(b"RSA"));
+
+            // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::RsaHashed { hash, .. } = &*algorithm else {
+                unreachable!("the key has an RSA algorithm")
+            };
+
+            // 4. If hash is "SHA-1":
+            //      - Set the alg attribute of jwk to the string "RS1".
+            if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RS1"));
+            }
+            //    If hash is "SHA-256":
+            //      - Set the alg attribute of jwk to the string "RS256".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RS256"));
+            }
+            //    If hash is "SHA-384":
+            //      - Set the alg attribute of jwk to the string "RS384".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RS384"));
+            }
+            //    If hash is "SHA-512":
+            //      - Set the alg attribute of jwk to the string "RS512".
+            else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+                jwk.alg = Some(Utf16String::from_ascii(b"RS512"));
+            } else {
+                // - Perform any key export steps defined by other applicable specifications,
+                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+                // - Set the alg attribute of jwk to alg.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
+            jwk.n = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Modulus)?);
+            jwk.e = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PublicExponent)?);
+
+            // 6. If the [[type]] internal slot of key is "private":
+            if key.key_type() == KeyType::Private {
+                // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
+                //    in JSON Web Algorithms [JWA], Section 6.3.2.
+                jwk.d = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::PrivateExponent)?);
+                jwk.p = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime1)?);
+                jwk.q = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Prime2)?);
+                jwk.dp = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent1)?);
+                jwk.dq = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Exponent2)?);
+                jwk.qi = Some(rsa_export_jwk_integer(vm, key, RsaJwkInteger::Coefficient)?);
+
+                // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
+                //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
+                // FIXME: We don't support more than 2 primes on RSA keys
+            }
+
+            // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // Otherwise throw a NotSupportedError.
+        else {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted(
+                    "Exporting to format {} is not supported",
+                    &[&key_format_to_string(format)],
+                ),
+            ));
+        };
+
+        // 8. Return result
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
     }
 }
 

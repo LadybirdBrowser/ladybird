@@ -279,6 +279,13 @@ impl CryptoKey {
         })
     }
 
+    /// # Safety
+    ///
+    /// The caller transfers ownership of a live native key handle.
+    pub(crate) unsafe fn create_with_handle(vm: &Vm, handle: NonNull<c_void>) -> Ref<Self> {
+        Self::create(vm, CryptoKeyHandle(handle))
+    }
+
     pub(crate) fn from_byte_handle(vm: &Vm, bytes: &[u8]) -> Ref<Self> {
         // SAFETY: The bytes are lent to the service for the copy.
         let handle = unsafe { web_crypto_key_create_byte_handle(Span::new(bytes)) };
@@ -295,7 +302,7 @@ impl CryptoKey {
         bytes.as_slice()
     }
 
-    fn handle(&self) -> NonNull<c_void> {
+    pub(crate) fn handle(&self) -> NonNull<c_void> {
         self.handle.borrow().as_ref().expect("a live key has its handle").0
     }
 

@@ -34,7 +34,8 @@ use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
     Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, Hkdf,
     HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams,
-    KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, Sha, normalized_key_usages, public_key_for_private_key,
+    KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType, RsaPss, RsassaPkcs1, Sha,
+    normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -109,6 +110,9 @@ enum RegisteredAlgorithm {
     AesOcb(AesParameterType),
     ChaCha20Poly1305,
     ChaCha20Poly1305Aead,
+    RsaOaep(RsaParameterType),
+    RsaPss(RsaParameterType),
+    RsassaPkcs1(RsaParameterType),
     CShake,
 }
 
@@ -139,6 +143,9 @@ enum AlgorithmImplementation {
     AesKw(AesKw),
     AesOcb(AesOcb),
     ChaCha20Poly1305(ChaCha20Poly1305),
+    RsaOaep(RsaOaep),
+    RsaPss(RsaPss),
+    RsassaPkcs1(RsassaPkcs1),
     CShake(CShakeParams),
 }
 
@@ -168,6 +175,9 @@ impl Deref for AlgorithmImplementation {
             Self::AesKw(algorithm) => algorithm,
             Self::AesOcb(algorithm) => algorithm,
             Self::ChaCha20Poly1305(algorithm) => algorithm,
+            Self::RsaOaep(algorithm) => algorithm,
+            Self::RsaPss(algorithm) => algorithm,
+            Self::RsassaPkcs1(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -399,6 +409,15 @@ pub(crate) fn normalize_an_algorithm(
         }
         RegisteredAlgorithm::ChaCha20Poly1305Aead => {
             AlgorithmImplementation::ChaCha20Poly1305(ChaCha20Poly1305::from_value(vm, *algorithm, true)?)
+        }
+        RegisteredAlgorithm::RsaOaep(parameter_type) => {
+            AlgorithmImplementation::RsaOaep(RsaOaep::from_value(vm, realm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::RsaPss(parameter_type) => {
+            AlgorithmImplementation::RsaPss(RsaPss::from_value(vm, realm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::RsassaPkcs1(parameter_type) => {
+            AlgorithmImplementation::RsassaPkcs1(RsassaPkcs1::from_value(vm, realm, *algorithm, parameter_type)?)
         }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
@@ -2876,31 +2895,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::RsaHashedKeyGenParams),
+            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::RsaHashedImportParams),
+            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Import),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
         );
 
         // https://w3c.github.io/webcrypto/#rsa-pss-registration
@@ -2908,31 +2927,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "RSA-PSS",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaPssParams),
+            RegisteredAlgorithm::RsaPss(RsaParameterType::Pss),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "RSA-PSS",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaPssParams),
+            RegisteredAlgorithm::RsaPss(RsaParameterType::Pss),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSA-PSS",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaHashedKeyGenParams),
+            RegisteredAlgorithm::RsaPss(RsaParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSA-PSS",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaHashedImportParams),
+            RegisteredAlgorithm::RsaPss(RsaParameterType::Import),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSA-PSS",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::RsaPss(RsaParameterType::Base),
         );
 
         // https://w3c.github.io/webcrypto/#rsa-oaep-registration
@@ -2940,31 +2959,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "RSA-OAEP",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaOaepParams),
+            RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "RSA-OAEP",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaOaepParams),
+            RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSA-OAEP",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaHashedKeyGenParams),
+            RegisteredAlgorithm::RsaOaep(RsaParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSA-OAEP",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaHashedImportParams),
+            RegisteredAlgorithm::RsaOaep(RsaParameterType::Import),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSA-OAEP",
-            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::RsaOaep(RsaParameterType::Base),
         );
 
         // https://w3c.github.io/webcrypto/#ecdsa-registration
