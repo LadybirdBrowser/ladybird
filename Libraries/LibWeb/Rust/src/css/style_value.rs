@@ -3367,7 +3367,41 @@ impl StyleValueData {
                 values(&[&rect.top_left, &rect.top_right, &rect.bottom_right, &rect.bottom_left]);
             }
             Self::BorderRadius(radius) => values(&[&radius.horizontal_radius, &radius.vertical_radius]),
-            _ => {}
+            // These have no children to visit. They are listed so that adding a variant forces a decision here. A
+            // leaf counts as computationally independent unless value_is_computationally_independent() has an arm
+            // for it.
+            Self::Keyword { .. }
+            | Self::Number { .. }
+            | Self::Integer { .. }
+            | Self::Angle { .. }
+            | Self::Flex { .. }
+            | Self::Frequency { .. }
+            | Self::Length { .. }
+            | Self::Percentage { .. }
+            | Self::Resolution { .. }
+            | Self::Time { .. }
+            | Self::Calculated { .. }
+            | Self::UnicodeRange { .. }
+            | Self::GuaranteedInvalid
+            | Self::EmptyOptional
+            | Self::GridAutoFlow { .. }
+            | Self::TextUnderlinePosition { .. }
+            | Self::PendingSubstitution { .. }
+            | Self::String { .. }
+            | Self::TreeCountingFunction { .. }
+            | Self::RepeatStyle { .. }
+            | Self::CounterStyleSystem { .. }
+            | Self::CounterStyle { .. }
+            | Self::Image { .. }
+            | Self::GridTemplateArea { .. }
+            | Self::ScrollbarGutter { .. }
+            | Self::ColorInterpolationMethod { .. }
+            | Self::Display { .. }
+            | Self::ColorScheme { .. }
+            | Self::Unresolved { .. }
+            | Self::Url { .. }
+            | Self::FontSource { .. }
+            | Self::CustomIdent { .. } => {}
         }
     }
 
