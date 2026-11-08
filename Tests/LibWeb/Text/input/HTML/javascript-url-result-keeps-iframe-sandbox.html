@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const result = `<script>
+            try {
+                top.location.href = ${JSON.stringify(location.href + "#escaped")};
+                parent.postMessage("top navigated", "*");
+            } catch (e) {
+                parent.postMessage(e.name, "*");
+            }
+        <\/script>`;
+        const url = "javascript:" + encodeURIComponent(JSON.stringify(result));
+        for (const sandbox of ["allow-scripts allow-same-origin", "allow-scripts"]) {
+            const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+            const iframe = document.createElement("iframe");
+            iframe.sandbox = sandbox;
+            iframe.srcdoc = `<script>location.replace(${JSON.stringify(url)});<\/script>`;
+            document.body.appendChild(iframe);
+            println(`${sandbox}: ${(await message).data}`);
+            iframe.remove();
+        }
+    });
+</script>

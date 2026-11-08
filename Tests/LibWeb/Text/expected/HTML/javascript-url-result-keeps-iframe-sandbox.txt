@@ -1,0 +1,2 @@
+allow-scripts allow-same-origin: SecurityError
+allow-scripts: SecurityError
