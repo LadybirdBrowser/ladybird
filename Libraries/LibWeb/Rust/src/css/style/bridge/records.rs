@@ -358,7 +358,7 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
             if !engine.has_live_style() {
                 return None;
             }
-            engine.declared_only_record(subject, declared).ok()
+            engine.declared_only_record(subject, declared)
         })
     });
     record.map_or(std::ptr::null(), |record| std::sync::Arc::into_raw(record).cast())

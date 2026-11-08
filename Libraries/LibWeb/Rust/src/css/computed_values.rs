@@ -4949,13 +4949,11 @@ pub(crate) fn with_default_seed<R>(defaults: &DefaultGroups, compute: impl FnOnc
 }
 
 /// The groups an element's values start from, one of each index: its parent's or the initial
-/// style's, or those a writer holds a reference to, as one waiting on a font does. Written values
-/// stay beside these until the group's allocation takes them, as a style struct stays borrowed until
-/// it is first mutated.
+/// style's. Written values stay beside these until the group's allocation takes them, as a style
+/// struct stays borrowed until it is first mutated.
+#[derive(Clone)]
 struct SeedGroups<'a> {
     pointers: [*const c_void; group_index::COUNT],
-    /// Whether these hold a reference to each group.
-    holds_references: bool,
     styles: std::marker::PhantomData<&'a StyleGroups>,
 }
 
@@ -5029,27 +5027,6 @@ impl Drop for HeldGroup {
     }
 }
 
-impl Clone for SeedGroups<'_> {
-    fn clone(&self) -> Self {
-        if self.holds_references {
-            for (group, &pointer) in self.pointers.iter().enumerate() {
-                retain_group_payload(group, pointer);
-            }
-        }
-        Self { ..*self }
-    }
-}
-
-impl Drop for SeedGroups<'_> {
-    fn drop(&mut self) {
-        if self.holds_references {
-            for (group, &pointer) in self.pointers.iter().enumerate() {
-                release_group_payload(group, pointer);
-            }
-        }
-    }
-}
-
 impl<'a> SeedGroups<'a> {
     /// The value at `place`.
     fn value(&self, place: LonghandPlace) -> &RetainedStyleValueData {
@@ -5066,10 +5043,6 @@ impl<'a> SeedGroups<'a> {
 
     /// These groups, but with `seed` as the group at `group`.
     fn replace(&mut self, group: usize, seed: GroupPayloadRef<'a>) {
-        if self.holds_references {
-            retain_group_payload(group, seed.as_ptr());
-            release_group_payload(group, self.pointers[group]);
-        }
         self.pointers[group] = seed.as_ptr();
     }
 
@@ -5466,7 +5439,6 @@ impl<'a> GroupValuesWriter<'a> {
         }
         let seeded = SeedGroups {
             pointers,
-            holds_references: false,
             styles: std::marker::PhantomData,
         };
         Self {
@@ -5518,49 +5490,6 @@ impl<'a> GroupValuesWriter<'a> {
             {
                 self.set_inheritance_dependent_value(held.property, None);
             }
-        }
-    }
-
-    /// This writer, holding a reference to each group it borrowed, so that it outlives the
-    /// groups it was seeded with, as a drive waiting on a font does.
-    pub(crate) fn detached(self) -> GroupValuesWriter<'static> {
-        let Self {
-            seeded,
-            writes,
-            written_groups,
-            written_longhands,
-            bits,
-            seeded_inheritance_dependent_values,
-            inheritance_dependent_values,
-            effective_zoom,
-            display_before_box_type_transformation,
-            effective_color_scheme,
-            flags,
-            dependency_flags,
-        } = self;
-        let seeded = std::mem::ManuallyDrop::new(seeded);
-        if !seeded.holds_references {
-            for (group, &pointer) in seeded.pointers.iter().enumerate() {
-                retain_group_payload(group, pointer);
-            }
-        }
-        GroupValuesWriter {
-            seeded: SeedGroups {
-                pointers: seeded.pointers,
-                holds_references: true,
-                styles: std::marker::PhantomData,
-            },
-            writes,
-            written_groups,
-            written_longhands,
-            bits,
-            seeded_inheritance_dependent_values,
-            inheritance_dependent_values,
-            effective_zoom,
-            display_before_box_type_transformation,
-            effective_color_scheme,
-            flags,
-            dependency_flags,
         }
     }
 

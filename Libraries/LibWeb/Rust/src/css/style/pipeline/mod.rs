@@ -237,12 +237,11 @@ impl StyleEngine {
                 }
                 // NB: An engine no host published its fonts to yet, such as a test's bare engine, has no resolver
                 //     to ask, and its initial style waits on fonts it cannot resolve yet.
-                Err(Some(_)) if engine.host.font_resolver.is_none() => Ok(None),
-                Err(Some(request)) => Err(Waits {
+                Err(_) if engine.host.font_resolver.is_none() => Ok(None),
+                Err(request) => Err(Waits {
                     fonts: vec![*request],
                     random_bases: Vec::new(),
                 }),
-                Err(None) => Ok(None),
             }
         })
         .flatten()

@@ -1403,7 +1403,7 @@ impl<'a> Scratch<'a> {
             if let Some(request) = suspended_font {
                 self.statistics.font_requests.push(request);
             }
-            let Ok(mut computed) = driven else {
+            let Some(mut computed) = driven else {
                 return Err(match self.pseudo_element_waits(node, requested) {
                     true => PseudoElementOutcome::Waiting,
                     false => PseudoElementOutcome::Declined,
@@ -1438,7 +1438,7 @@ impl<'a> Scratch<'a> {
                     group_seeds,
                 );
                 computed.reads.display_none_is_animated = ignoring_animations
-                    .is_ok_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
+                    .is_some_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
             }
             let registered = state.registered_custom_property_store(
                 node,
@@ -1824,7 +1824,7 @@ impl<'a> Scratch<'a> {
                 self.statistics.font_requests.push(request);
             }
             self.waits(node, requested);
-            let Ok(mut computed) = driven else {
+            let Some(mut computed) = driven else {
                 return Err(Outcome::ComputeDeclined);
             };
             computed.element_dependent |= custom_properties_read_subject;
@@ -1861,7 +1861,7 @@ impl<'a> Scratch<'a> {
                     group_seeds,
                 );
                 computed.reads.display_none_is_animated = ignoring_animations
-                    .is_ok_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
+                    .is_some_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
             }
             let registered = state.registered_custom_property_store(
                 node,

@@ -3612,7 +3612,6 @@ fn keyframe_parent_snapshot_of_record(
 }
 
 /// Results of one longhand drive that remain outside the Rust longhand table.
-#[derive(Clone)]
 pub struct LonghandDriverResults {
     /// Longhands whose specified-to-computed evaluation ran in this drive.
     pub longhand_evaluations: u32,

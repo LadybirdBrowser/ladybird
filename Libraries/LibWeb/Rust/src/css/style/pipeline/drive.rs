@@ -45,31 +45,8 @@ impl DriveRecords for RetainedState {
     }
 }
 
-/// Why a row has no record yet. A suspended row waits on a request the host
-/// services between passes, and the same row resumes once that request is answered.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::css::style) enum Unanswered {
-    Suspended(Suspension),
-    /// The row inherits from a parent that holds no record yet: one the host styles in the same
-    /// update. The style pass settles the row in its next wave, once the host installed the rows
-    /// before it.
-    AwaitsParent,
-}
-
-/// What a suspended row waits on. The request itself stays where the host's service reads it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::css::style) enum Suspension {
-    /// The drive's font is not resolved yet; `FontDriveScratch::request` names it.
-    Font,
-    /// A random function's base value is not drawn yet; the drive named its random caching key.
-    RandomBaseValues,
-}
-
-/// A row's answer from the engine, or why there is none.
-pub(in crate::css::style) type Drive<T> = Result<T, Unanswered>;
-
 /// What the monospace font-size recascade answers for a drive target.
-pub(in crate::css::style) enum MonospaceRecascade {
+enum MonospaceRecascade {
     /// The font size the recascade reaches, and whether reaching it read the viewport.
     Size(i32, bool),
     /// A length in the ancestor chain resolves against the monospace font at the size reached so
@@ -77,68 +54,10 @@ pub(in crate::css::style) enum MonospaceRecascade {
     AwaitsFont(bridge::FfiFontResolutionRequest),
 }
 
-/// Driven values, with the length context they were driven against and the font a full drive
-/// resolved.
+/// Driven values, with the length context they were driven against and the font the drive resolved.
 pub(in crate::css::style) struct DrivenValues {
     pub(in crate::css::style) length: crate::css::style_compute::FfiLengthResolutionContext,
-    pub(in crate::css::style) font: Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
-}
-
-#[derive(Clone, Default)]
-pub(in crate::css::style) struct FontDriveScratch {
-    request: Option<font_resolution::FontRequest>,
-    pending: Option<PendingFontDrive>,
-}
-
-impl FontDriveScratch {
-    /// Suspend the drive for `target` on a font: the request and the drive it suspends are set
-    /// together, so a retry always knows it resumes a drive whose entry gates passed.
-    fn suspend(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        request: bridge::FfiFontResolutionRequest,
-        progress: Option<DriveProgress>,
-    ) -> Unanswered {
-        self.request = Some(font_resolution::FontRequest::new(request));
-        self.pending = Some(PendingFontDrive { target, progress });
-        Unanswered::Suspended(Suspension::Font)
-    }
-
-    /// The font request a drive suspended on.
-    pub(in crate::css::style) fn take_suspended_request(&mut self) -> font_resolution::FontRequest {
-        self.request
-            .take()
-            .expect("a drive suspended on a font names its request")
-    }
-}
-
-/// A drive left for its target's retry. No parent/context borrow survives refill; the caller
-/// resumes the same subject before evaluating any later canonical element.
-#[derive(Clone)]
-struct PendingFontDrive {
-    /// What the suspended drive belongs to. The record loop can settle that element another way
-    /// before the retry comes, which leaves the drive behind; whoever is driven next must not
-    /// take up someone else's table.
-    target: computed::ComputedStyleTarget,
-    /// What the drive completed, or nothing when the monospace recascade waited on a font before
-    /// the drive began: the retry then starts the drive afresh.
-    progress: Option<DriveProgress>,
-}
-
-/// The completed font phase owns its values, holding a reference to each group they were seeded
-/// from.
-#[derive(Clone)]
-struct DriveProgress {
-    root_font_complete: bool,
-    /// Whether the color-scheme phase ran too, as it has for a drive awaiting its registered
-    /// context.
-    color_scheme_complete: bool,
-    /// The monospace recascade's size the values already hold, which the remaining phases read.
-    recascaded_font_size: Option<i32>,
-    writer: GroupValuesWriter<'static>,
-    results: crate::css::style_compute::LonghandDriverResults,
-    effective_color_scheme: i16,
-    resolved_viewport_relative_length: bool,
+    pub(in crate::css::style) font: crate::css::table_group_builder::FfiFontGroupBuildInputs,
 }
 
 impl RetainedState {
@@ -147,7 +66,7 @@ impl RetainedState {
         records: &impl DriveRecords,
         target: computed::ComputedStyleTarget,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-    ) -> Option<MonospaceRecascade> {
+    ) -> MonospaceRecascade {
         use crate::css::css_pixels::CssPixels;
         use crate::css::style_compute::{
             FfiFontMetrics, FfiLengthResolutionContext, FontSizeRecascadeDocumentInputs, FontSizeRecascadeStatus,
@@ -254,7 +173,7 @@ impl RetainedState {
                 font_environment_generation: inputs.font_environment_generation,
             };
             let Some(resolved) = self.resolved_font(request) else {
-                return Some(MonospaceRecascade::AwaitsFont(request));
+                return MonospaceRecascade::AwaitsFont(request);
             };
             // NB: The ancestor's own font is the one being recascaded; its line height is the one it
             //     inherits, or the initial font's normal line height when there is no parent.
@@ -321,16 +240,12 @@ impl RetainedState {
                 document_inputs,
                 Some(&context),
             );
-            // The context resolves every length a cascaded font-size holds.
-            if batch.status == FontSizeRecascadeStatus::NeedsCppLengthResolution {
-                debug_assert!(false, "the recascade left a font-size length unresolved");
-                return None;
-            }
+            assert!(
+                batch.status != FontSizeRecascadeStatus::NeedsCppLengthResolution,
+                "the context resolves every length a cascaded font-size holds"
+            );
         }
-        Some(MonospaceRecascade::Size(
-            batch.current_size_raw,
-            batch.depends_on_viewport_metrics,
-        ))
+        MonospaceRecascade::Size(batch.current_size_raw, batch.depends_on_viewport_metrics)
     }
 
     /// The tree scope whose `@font-feature-values` an element's `font-variant-alternates` names
@@ -419,27 +334,13 @@ impl RetainedState {
         }
     }
 
-    /// Drive a record through every phase: the font phase against the parent's metrics, the
-    /// element's font resolved through the document's resolver, line-height and color-scheme
-    /// against that font, and the remaining phase with the element facts the box-type
-    /// transformation reads. Root-input preparation finishes only the font and line-height
-    /// phases and preserves them for completion.
-    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-    pub(in crate::css::style) fn engine_full_drive(
-        &self,
-        subject: DriveSubject,
-        writer: &mut GroupValuesWriter<'_>,
-        store: &WinnerStore,
-        inputs: &bridge::FfiDocumentStyleComputationInputs,
-        font_scratch: &mut FontDriveScratch,
-    ) -> Drive<DrivenValues> {
-        self.engine_drive_with(self, subject, writer, None, store, inputs, font_scratch)
-    }
-
-    /// Drive a record as [`Self::engine_full_drive`] does, into `writer`, reading the records it
-    /// computes against from `records`. With a `selected` set of longhands, the drive evaluates
-    /// only those, beside the inputs every drive evaluates, and keeps the writer's values for the
-    /// rest.
+    /// Drive a record through every phase, into `writer`, reading the records it computes against
+    /// from `records`: the font phase against the parent's metrics, the element's font resolved
+    /// through the document's resolver, line-height and color-scheme against that font, and the
+    /// remaining phase with the element facts the box-type transformation reads. With a `selected`
+    /// set of longhands, the drive evaluates only those, beside the inputs every drive evaluates,
+    /// and keeps the writer's values for the rest. Answers nothing where the parent holds no record
+    /// yet or where the drive waits on a font, which `suspended_font` then names.
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(in crate::css::style) fn engine_drive_with(
         &self,
@@ -449,8 +350,8 @@ impl RetainedState {
         selected: Option<&[u64]>,
         store: &WinnerStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        font_scratch: &mut FontDriveScratch,
-    ) -> Drive<DrivenValues> {
+        suspended_font: &mut Option<font_resolution::FontRequest>,
+    ) -> Option<DrivenValues> {
         let random_base_values = store
             .drive_random_base_values(self, subject.target.node())
             .expect("a random function's base values are drawn before the row is driven");
@@ -478,39 +379,25 @@ impl RetainedState {
         //       the whole ancestor chain against a 13px default instead of the 16px one, which
         //       changes what a keyword size an ancestor declared means.
         let mut recascaded_font_size_reads_viewport = false;
-        let recascaded_font_size = if let Some(progress) = font_scratch
-            .pending
-            .as_ref()
-            .filter(|pending| pending.target == target)
-            .and_then(|pending| pending.progress.as_ref())
-        {
-            progress.recascaded_font_size
-        } else if store
+        let recascaded_font_size = if store
             .winning_declaration(prop::FONT_FAMILY)
             .is_some_and(|(value, ..)| font_family_is_monospace(value.data()))
         {
             match self.monospace_recascaded_font_size_with(records, target, inputs) {
-                Some(MonospaceRecascade::Size(recascaded, reads_viewport)) => {
+                MonospaceRecascade::Size(recascaded, reads_viewport) => {
                     recascaded_font_size_reads_viewport = reads_viewport;
                     Some(recascaded)
                 }
-                Some(MonospaceRecascade::AwaitsFont(request)) => {
-                    return Err(font_scratch.suspend(target, request, None));
-                }
-                None => {
-                    unreachable!("the style engine answers every row");
+                MonospaceRecascade::AwaitsFont(request) => {
+                    *suspended_font = Some(font_resolution::FontRequest::new(request));
+                    return None;
                 }
             }
         } else {
             None
         };
         let parent_view = match parent {
-            Some(parent) => {
-                let Some(parent_view) = records.assigned_record_view(parent) else {
-                    return Err(Unanswered::AwaitsParent);
-                };
-                Some(parent_view)
-            }
+            Some(parent) => Some(records.assigned_record_view(parent)?),
             None => None,
         };
         // The document element inherits from the initial values and resolves its font against
@@ -630,8 +517,6 @@ impl RetainedState {
             default_font_size_raw: inputs.default_font_size_raw,
             root_effective_zoom: inputs.root_effective_zoom,
         };
-        let mut resolved_viewport_relative_length = false;
-        let resolved_viewport_relative_length_pointer = &raw mut resolved_viewport_relative_length;
         // The root metrics a phase resolves against: the document's, except for the document
         // element itself, whose font phase reads the initial font and whose line-height phase
         // reads its own font; its remaining phase reads the document's metrics as they stand,
@@ -654,7 +539,7 @@ impl RetainedState {
                 container_width_basis_depends_on_viewport_metrics: false,
                 container_height_basis_depends_on_viewport_metrics: false,
                 subject_inline_axis_is_horizontal,
-                resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
+                resolved_viewport_relative_length: std::ptr::null_mut(),
                 zoom: 1.0,
             };
             if let Some(bases) = &container_unit_bases {
@@ -662,33 +547,9 @@ impl RetainedState {
             }
             length
         };
-        // A drive another row left behind is dropped rather than taken up.
-        let resumed = font_scratch
-            .pending
-            .take()
-            .filter(|pending| pending.target == target)
-            .and_then(|pending| pending.progress);
-        let resuming = resumed.is_some();
-        let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
-        let color_scheme_complete = resumed.as_ref().is_some_and(|pending| pending.color_scheme_complete);
-        if !resuming {
-            self.counters.bump(Counter::EngineFullDrivesStarted);
-        }
-        let (mut results, mut effective_color_scheme) = match resumed {
-            Some(pending) => {
-                resolved_viewport_relative_length = pending.resolved_viewport_relative_length;
-                if !pending.root_font_complete {
-                    self.counters.bump(Counter::FontRefillResumedDrives);
-                    self.counters.add(
-                        Counter::FontRefillPreservedLonghands,
-                        u64::from(pending.results.longhand_evaluations),
-                    );
-                }
-                *writer = pending.writer;
-                (pending.results, pending.effective_color_scheme)
-            }
-            None => (empty_longhand_driver_results(), -1),
-        };
+        self.counters.bump(Counter::EngineFullDrivesStarted);
+        let mut results = empty_longhand_driver_results();
+        let mut effective_color_scheme = -1;
         let drive = |counters: &Counters,
                      writer: &mut GroupValuesWriter<'_>,
                      results: &mut crate::css::style_compute::LonghandDriverResults,
@@ -726,35 +587,33 @@ impl RetainedState {
                 inputs.root_font_metrics_depend_on_viewport_metrics,
             )
         };
-        if !resuming {
-            // The recascaded size stands in for the element's cascaded `font-size`, which the drive
-            // then leaves alone, exactly as C++ writes it into the working set before driving. An
-            // element that declares its own `font-size` still has that declaration win, because the
-            // drive reads a winning declaration before it consults this.
-            if let Some(recascaded) = recascaded_font_size {
-                writer.set_computed(
-                    prop::FONT_SIZE,
-                    StyleValueData::Length {
-                        value: CssPixels::from_raw(recascaded).to_double(),
-                        unit: crate::css::style_compute::px_length_unit(),
-                    },
-                );
-            }
-            drive(
-                &self.counters,
-                writer,
-                &mut results,
-                &mut effective_color_scheme,
-                LONGHAND_DRIVE_PHASE_FONT,
-                Some(&font_length),
-                None,
+        // The recascaded size stands in for the element's cascaded `font-size`, which the drive
+        // then leaves alone, exactly as C++ writes it into the working set before driving. An
+        // element that declares its own `font-size` still has that declaration win, because the
+        // drive reads a winning declaration before it consults this.
+        if let Some(recascaded) = recascaded_font_size {
+            writer.set_computed(
+                prop::FONT_SIZE,
+                StyleValueData::Length {
+                    value: CssPixels::from_raw(recascaded).to_double(),
+                    unit: crate::css::style_compute::px_length_unit(),
+                },
             );
-            // A recascaded size that read the viewport makes the element's style and font metrics
-            // read it, as C++ marks them beside the size it writes.
-            if recascaded_font_size_reads_viewport {
-                results.depends_on_viewport_metrics = true;
-                results.font_metrics_depend_on_viewport_metrics = true;
-            }
+        }
+        drive(
+            &self.counters,
+            writer,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_FONT,
+            Some(&font_length),
+            None,
+        );
+        // A recascaded size that read the viewport makes the element's style and font metrics
+        // read it, as C++ marks them beside the size it writes.
+        if recascaded_font_size_reads_viewport {
+            results.depends_on_viewport_metrics = true;
+            results.font_metrics_depend_on_viewport_metrics = true;
         }
 
         // The element's own font, resolved as the C++ font computer would for these values.
@@ -765,16 +624,8 @@ impl RetainedState {
         );
         let font_size = request.font_size();
         let Some(resolved) = self.resolved_font(request) else {
-            let progress = DriveProgress {
-                root_font_complete: false,
-                color_scheme_complete: false,
-                recascaded_font_size,
-                writer: writer.clone().detached(),
-                results,
-                effective_color_scheme,
-                resolved_viewport_relative_length,
-            };
-            return Err(font_scratch.suspend(target, request, Some(progress)));
+            *suspended_font = Some(font_resolution::FontRequest::new(request));
+            return None;
         };
         if request.font_size_adjust == bridge::FontSizeAdjustKind::FromFont {
             writer.set_computed(
@@ -805,31 +656,27 @@ impl RetainedState {
                 inputs.root_font_metrics_depend_on_viewport_metrics,
             )
         };
-        if !root_font_complete {
-            drive(
-                &self.counters,
-                writer,
-                &mut results,
-                &mut effective_color_scheme,
-                LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
-                Some(&line_height_length),
-                None,
-            );
-        }
+        drive(
+            &self.counters,
+            writer,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+            Some(&line_height_length),
+            None,
+        );
 
         let line_height_before_adjustments =
             engine_sample::used_line_height(|property| Some(writer.effective_value(property)), &request, &resolved);
-        if !color_scheme_complete {
-            drive(
-                &self.counters,
-                writer,
-                &mut results,
-                &mut effective_color_scheme,
-                LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-                None,
-                None,
-            );
-        }
+        drive(
+            &self.counters,
+            writer,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            None,
+            None,
+        );
         effective_color_scheme = writer.effective_color_scheme();
 
         let remaining_length = length_context(
@@ -873,13 +720,9 @@ impl RetainedState {
         let values = |property| Some(writer.effective_value(property));
         let line_height_used_after = engine_sample::used_line_height(values, &request, &resolved);
         let font = engine_sample::font_group_build_inputs(values, &request, line_height_used_after, &resolved);
-        let length = FfiLengthResolutionContext {
-            resolved_viewport_relative_length: std::ptr::null_mut(),
-            ..remaining_length
-        };
-        Ok(DrivenValues {
-            length,
-            font: Some(font),
+        Some(DrivenValues {
+            length: remaining_length,
+            font,
         })
     }
 }
