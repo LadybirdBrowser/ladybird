@@ -46,7 +46,7 @@ ALLOWED_REALM_MENTIONS = {
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (
         5,
-        307,
+        283,
         "WebCrypto algorithms still use realms for buffer/key/promise materialization and for normalizing algorithm "
         "dictionaries. The native CryptoKey wrapper "
         "uses the caller's realm and wrapper world",

@@ -25,15 +25,12 @@ enum class AlgorithmId : u8 {
     AesCbc,
     AesGcm,
     AesKw,
-    HKDF,
-    PBKDF2,
     X25519,
     X448,
     ED25519,
     ED448,
     MLDSA,
     MLKEM,
-    Argon2,
     ChaCha20Poly1305,
     AesOcb,
 };
@@ -53,11 +50,8 @@ enum class ParameterId : u8 {
     AesDerivedKeyParams,
     AesCbcParams,
     AesGcmParams,
-    HKDFParams,
-    PBKDF2Params,
     Ed448Params,
     ContextParams,
-    Argon2Params,
     AeadParams,
 };
 
@@ -245,10 +239,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return AesGcm::create();
         case AlgorithmId::AesKw:
             return AesKw::create();
-        case AlgorithmId::HKDF:
-            return HKDF::create();
-        case AlgorithmId::PBKDF2:
-            return PBKDF2::create();
         case AlgorithmId::X25519:
             return X25519::create();
         case AlgorithmId::X448:
@@ -261,8 +251,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return MLDSA::create();
         case AlgorithmId::MLKEM:
             return MLKEM::create();
-        case AlgorithmId::Argon2:
-            return Argon2::create();
         case AlgorithmId::ChaCha20Poly1305:
             return ChaCha20Poly1305::create();
         case AlgorithmId::AesOcb:
@@ -301,16 +289,10 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return AesCbcParams::from_value(realm, object);
         case ParameterId::AesGcmParams:
             return AesGcmParams::from_value(realm, object);
-        case ParameterId::HKDFParams:
-            return HKDFParams::from_value(realm, object);
-        case ParameterId::PBKDF2Params:
-            return PBKDF2Params::from_value(realm, object);
         case ParameterId::Ed448Params:
             return Ed448Params::from_value(realm, object);
         case ParameterId::ContextParams:
             return ContextParams::from_value(realm, object);
-        case ParameterId::Argon2Params:
-            return Argon2Params::from_value(realm, object);
         case ParameterId::AeadParams:
             return AeadParams::from_value(realm, object);
         }

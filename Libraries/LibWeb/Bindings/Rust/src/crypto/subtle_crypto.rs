@@ -31,9 +31,10 @@ use crate::bindings::promise::{
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
-    AlgorithmId, AlgorithmMethods, AlgorithmParams, Bytes, CShakeParams, CppAlgorithm, EncapsulatedKeyData,
-    ExportKeyResult, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams,
-    KmacParams, ParameterId, Sha, normalized_key_usages, public_key_for_private_key,
+    AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2, Argon2Params, Bytes, CShakeParams, CppAlgorithm,
+    EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
+    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, Sha,
+    normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -95,6 +96,12 @@ enum RegisteredAlgorithm {
     KmacSignOrVerify,
     KmacKeyGen,
     KmacImport,
+    Hkdf,
+    HkdfParams,
+    Pbkdf2,
+    Pbkdf2Params,
+    Argon2,
+    Argon2Params,
     CShake,
 }
 
@@ -113,6 +120,12 @@ enum AlgorithmImplementation {
     KmacSignOrVerify(KmacParams),
     KmacKeyGen(KmacKeyGenParams),
     KmacImport(KmacImportParams),
+    Hkdf(Hkdf),
+    HkdfParams(HkdfParams),
+    Pbkdf2(Pbkdf2),
+    Pbkdf2Params(Pbkdf2Params),
+    Argon2(Argon2),
+    Argon2Params(Argon2Params),
     CShake(CShakeParams),
 }
 
@@ -130,6 +143,12 @@ impl Deref for AlgorithmImplementation {
             Self::KmacSignOrVerify(algorithm) => algorithm,
             Self::KmacKeyGen(algorithm) => algorithm,
             Self::KmacImport(algorithm) => algorithm,
+            Self::Hkdf(algorithm) => algorithm,
+            Self::HkdfParams(algorithm) => algorithm,
+            Self::Pbkdf2(algorithm) => algorithm,
+            Self::Pbkdf2Params(algorithm) => algorithm,
+            Self::Argon2(algorithm) => algorithm,
+            Self::Argon2Params(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -328,6 +347,18 @@ pub(crate) fn normalize_an_algorithm(
         }
         RegisteredAlgorithm::KmacImport => {
             AlgorithmImplementation::KmacImport(KmacImportParams::from_value(vm, *algorithm)?)
+        }
+        RegisteredAlgorithm::Hkdf => AlgorithmImplementation::Hkdf(Hkdf),
+        RegisteredAlgorithm::HkdfParams => {
+            AlgorithmImplementation::HkdfParams(HkdfParams::from_value(vm, realm, *algorithm)?)
+        }
+        RegisteredAlgorithm::Pbkdf2 => AlgorithmImplementation::Pbkdf2(Pbkdf2),
+        RegisteredAlgorithm::Pbkdf2Params => {
+            AlgorithmImplementation::Pbkdf2Params(Pbkdf2Params::from_value(vm, realm, *algorithm)?)
+        }
+        RegisteredAlgorithm::Argon2 => AlgorithmImplementation::Argon2(Argon2),
+        RegisteredAlgorithm::Argon2Params => {
+            AlgorithmImplementation::Argon2Params(Argon2Params::from_value(vm, *algorithm)?)
         }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
@@ -1208,9 +1239,12 @@ impl SubtleCrypto {
                     }
 
                     // 9. Let result be the result of creating an ArrayBuffer containing the result of performing the derive bits operation specified by normalizedAlgorithm using baseKey, algorithm and length.
-                    let result = normalized_algorithm
-                        .methods
-                        .derive_bits(realm, base_key, length_optional);
+                    let result = normalized_algorithm.methods.derive_bits(
+                        realm,
+                        &normalized_algorithm.parameter,
+                        base_key,
+                        length_optional,
+                    );
                     if let Err(error) = result {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -1329,7 +1363,12 @@ impl SubtleCrypto {
                     let length = length_result.must();
 
                     // 14. Let secret be the result of performing the derive bits operation specified by normalizedAlgorithm using key, algorithm and length.
-                    let secret = normalized_algorithm.methods.derive_bits(realm, base_key, length);
+                    let secret = normalized_algorithm.methods.derive_bits(
+                        realm,
+                        &normalized_algorithm.parameter,
+                        base_key,
+                        length,
+                    );
                     if let Err(error) = secret {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -3132,19 +3171,14 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "HKDF",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::HkdfParams),
+            RegisteredAlgorithm::HkdfParams,
         );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "HKDF",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::AlgorithmParams),
-        );
+        define_an_algorithm(&mut internal_object, "importKey", "HKDF", RegisteredAlgorithm::Hkdf);
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "HKDF",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Hkdf,
         );
 
         // https://w3c.github.io/webcrypto/#pbkdf2-registration
@@ -3152,19 +3186,14 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "PBKDF2",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::Pbkdf2Params),
+            RegisteredAlgorithm::Pbkdf2Params,
         );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "PBKDF2",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::AlgorithmParams),
-        );
+        define_an_algorithm(&mut internal_object, "importKey", "PBKDF2", RegisteredAlgorithm::Pbkdf2);
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "PBKDF2",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Pbkdf2,
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
@@ -3363,19 +3392,19 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "importKey",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::Argon2,
             );
             define_an_algorithm(
                 &mut internal_object,
                 "deriveBits",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::Argon2Params),
+                RegisteredAlgorithm::Argon2Params,
             );
             define_an_algorithm(
                 &mut internal_object,
                 "get key length",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::Argon2,
             );
         }
 

@@ -81,17 +81,15 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
     return HashAlgorithmIdentifier { Utf16String::adopt_raw(name) };
 }
 
+extern "C" FlatPtr web_rust_crypto_sha_hash_kind(FlatPtr, i32*);
+
 static WebIDL::ExceptionOr<::Crypto::Hash::HashKind> sha_hash_kind(Utf16String const& hash_algorithm)
 {
-    if (hash_algorithm == "SHA-1"sv)
-        return ::Crypto::Hash::HashKind::SHA1;
-    if (hash_algorithm == "SHA-256"sv)
-        return ::Crypto::Hash::HashKind::SHA256;
-    if (hash_algorithm == "SHA-384"sv)
-        return ::Crypto::Hash::HashKind::SHA384;
-    if (hash_algorithm == "SHA-512"sv)
-        return ::Crypto::Hash::HashKind::SHA512;
-    return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+    i32 kind = 0;
+    auto error = web_rust_crypto_sha_hash_kind(hash_algorithm.raw_identity(), &kind);
+    if (error != 0)
+        return WebIDL::NotSupportedError::create(Utf16String::adopt_raw(error));
+    return static_cast<::Crypto::Hash::HashKind>(kind);
 }
 
 static WebIDL::ExceptionOr<ByteBuffer> export_public_exponent(JS::VM& vm, ::Crypto::UnsignedBigInteger const& exponent)
@@ -517,52 +515,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
     return adopt_own<AlgorithmParams>(*new AesGcmParams { iv, maybe_additional_data, maybe_tag_length });
 }
 
-HKDFParams::~HKDFParams() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::Realm& realm, JS::Value value)
-{
-    auto& vm = realm.vm();
-    auto& object = value.as_object();
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
-
-    auto salt_value = TRY(object.get("salt"_utf16_fly_string));
-    if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
-
-    auto info_value = TRY(object.get("info"_utf16_fly_string));
-    if (!info_value.is_object() || !(is<JS::TypedArrayBase>(info_value.as_object()) || is<JS::ArrayBuffer>(info_value.as_object()) || is<JS::DataView>(info_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto info = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(info_value.as_object()));
-
-    return adopt_own<AlgorithmParams>(*new HKDFParams { hash, salt, info });
-}
-
-PBKDF2Params::~PBKDF2Params() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(JS::Realm& realm, JS::Value value)
-{
-    auto& vm = realm.vm();
-    auto& object = value.as_object();
-
-    auto salt_value = TRY(object.get("salt"_utf16_fly_string));
-
-    if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-    auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
-
-    auto iterations_value = TRY(object.get("iterations"_utf16_fly_string));
-    auto iterations = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, iterations_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-
-    auto hash_value = TRY(object.get("hash"_utf16_fly_string));
-    auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
-
-    return adopt_own<AlgorithmParams>(*new PBKDF2Params { salt, iterations, hash });
-}
-
 RsaKeyGenParams::~RsaKeyGenParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_value(JS::Realm& realm, JS::Value value)
@@ -746,59 +698,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS
     }
 
     return adopt_own<AlgorithmParams>(*new Ed448Params { maybe_context });
-}
-
-static inline JS::ThrowCompletionOr<Optional<ByteBuffer>> get_optional_buffer_source(JS::VM& vm, JS::Object const& object, JS::PropertyKey const& name)
-{
-    if (!TRY(object.has_property(name)))
-        return OptionalNone {};
-
-    auto value = TRY(object.get(name));
-
-    if (!WebIDL::is_buffer_source_type(value))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-
-    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(value.as_object()));
-}
-
-Argon2Params::~Argon2Params() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(JS::Realm& realm, JS::Value value)
-{
-    auto& vm = realm.vm();
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
-
-    if (!TRY(object.has_property("nonce"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "nonce");
-    }
-    auto nonce_value = TRY(object.get("nonce"_utf16_fly_string));
-    if (!nonce_value.is_object() || !(is<JS::TypedArrayBase>(nonce_value.as_object()) || is<JS::ArrayBuffer>(nonce_value.as_object()) || is<JS::DataView>(nonce_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto const nonce = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(nonce_value.as_object()));
-
-    auto const extract_u32_value = [&](auto const& name) -> JS::ThrowCompletionOr<WebIDL::UnsignedLong> {
-        if (!TRY(object.has_property(name))) {
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, name);
-        }
-        auto key_value = TRY(object.get(name));
-        return WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, key_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No);
-    };
-
-    auto const parallelism = TRY(extract_u32_value("parallelism"_utf16_fly_string));
-    auto const memory = TRY(extract_u32_value("memory"_utf16_fly_string));
-    auto const passes = TRY(extract_u32_value("passes"_utf16_fly_string));
-
-    auto maybe_version = Optional<u8> {};
-    if (TRY(object.has_property("version"_utf16_fly_string))) {
-        auto version_value = TRY(object.get("version"_utf16_fly_string));
-        maybe_version = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, version_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-    }
-
-    auto const secret_value = TRY(get_optional_buffer_source(vm, object, "secretValue"_utf16_fly_string));
-    auto const associated_data = TRY(get_optional_buffer_source(vm, object, "associatedData"_utf16_fly_string));
-
-    return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, parallelism, memory, passes, maybe_version, secret_value, associated_data });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
@@ -3892,47 +3791,6 @@ WebIDL::ExceptionOr<ByteBuffer> AesKw::unwrap_key(JS::Realm&, AlgorithmParams co
     return maybe_plaintext.release_value();
 }
 
-// https://w3c.github.io/webcrypto/#hkdf-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm&, AlgorithmParams const&, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
-{
-    // 1. Let keyData be the key data to be imported.
-
-    // 2. If format is "raw":
-    //        (… see below …)
-    //    Otherwise:
-    //        throw a NotSupportedError.
-    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
-    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format != KeyFormat::Raw && format != KeyFormat::RawSecret) {
-        return WebIDL::NotSupportedError::create("Only raw format is supported"_utf16);
-    }
-
-    //        1. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
-    for (auto& usage : key_usages) {
-        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits) {
-            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-    }
-
-    //        2. If extractable is not false, then throw a SyntaxError.
-    if (extractable)
-        return WebIDL::SyntaxError::create("extractable must be false"_utf16);
-
-    //        3. Let key be a new CryptoKey representing the key data provided in keyData.
-    auto key = CryptoKey::create(move(key_data.get<ByteBuffer>()));
-
-    //        4. Set the [[type]] internal slot of key to "secret".
-    key->set_type(KeyType::Secret);
-
-    //        5. Let algorithm be a new KeyAlgorithm object.
-    //        6. Set the name attribute of algorithm to "HKDF".
-    //        7. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(CryptoKey::KeyAlgorithmData { "HKDF"_utf16 });
-
-    //        8. Return key.
-    return key;
-}
-
 static_assert(to_underlying(::Crypto::Hash::HashKind::SHA1) == 4);
 static_assert(to_underlying(::Crypto::Hash::HashKind::SHA256) == 5);
 static_assert(to_underlying(::Crypto::Hash::HashKind::SHA384) == 6);
@@ -7003,168 +6861,6 @@ WebIDL::ExceptionOr<bool> ED448::verify(JS::Realm&, AlgorithmParams const& param
     return maybe_verified.release_value();
 }
 
-// https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-WebIDL::ExceptionOr<void> HKDF::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
-{
-    auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
-
-    // 1. If length is null or is not a multiple of 8, then throw an OperationError.
-    if (!length_optional.has_value() || *length_optional % 8 != 0)
-        return WebIDL::OperationError::create("Length must be specified and divisible by 8"_utf16);
-
-    // 2. Let hashLength be the length in bits of the output of the hash function identified by the hash member of
-    //    normalizedAlgorithm.
-    auto hash_kind = TRY(sha_hash_kind(normalized_algorithm.hash.name));
-    auto hash_length = ::Crypto::Hash::Manager { hash_kind }.digest_size() * 8;
-
-    // 3. If length is greater than 255 * hashLength, then throw an OperationError.
-    if (*length_optional > 255 * hash_length)
-        return WebIDL::OperationError::create("Length is too large for the hash function"_utf16);
-
-    return {};
-}
-
-// https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
-{
-    auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
-
-    // NB: Steps 1 to 3 are performed by validate_derive_bits_parameters().
-    TRY(validate_derive_bits_parameters(params, length_optional));
-    auto hash_kind = TRY(sha_hash_kind(normalized_algorithm.hash.name));
-
-    // 4. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
-    auto key_derivation_key = key->handle().get<ByteBuffer>();
-
-    // 5. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
-    //    * the hash member of normalizedAlgorithm as Hash,
-    //    * keyDerivationKey as the input keying material, IKM,
-    //    * the contents of the salt member of normalizedAlgorithm as salt,
-    //    * the contents of the info member of normalizedAlgorithm as info,
-    //    * length divided by 8 as the value of L,
-    // Note: Although HKDF technically supports absent salt (treating it as hashLen many NUL bytes),
-    // all major browsers instead raise a TypeError, for example:
-    //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
-    // Because we are forced by neither peer pressure nor the spec, we don't support it either.
-
-    // Note: Check for zero length early because our implementation doesn't support it.
-    if (*length_optional == 0) {
-        return ByteBuffer {};
-    }
-
-    ::Crypto::Hash::HKDF hkdf(hash_kind);
-    auto maybe_result = hkdf.derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-
-    // 6. If the key derivation operation fails, then throw an OperationError.
-    if (maybe_result.is_error())
-        return WebIDL::OperationError::create("Failed to derive key"_utf16);
-
-    // 7. Return result
-    return maybe_result.release_value();
-}
-
-// https://w3c.github.io/webcrypto/#hkdf-operations-get-key-length
-WebIDL::ExceptionOr<Optional<u32>> HKDF::get_key_length(JS::Realm&, AlgorithmParams const&)
-{
-    // 1. Return null.
-    return Optional<u32> {};
-}
-
-// https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-WebIDL::ExceptionOr<void> PBKDF2::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
-{
-    auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
-
-    // 1. If length is null or is not a multiple of 8, then throw an OperationError.
-    if (!length_optional.has_value() || *length_optional % 8 != 0)
-        return WebIDL::OperationError::create("Length must be greater than 0 and divisible by 8"_utf16);
-
-    // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
-    if (normalized_algorithm.iterations == 0)
-        return WebIDL::OperationError::create("Iterations must be greater than 0"_utf16);
-
-    // NB: Step 4 fails for the hash functions that our PBKDF2 does not support.
-    TRY(sha_hash_kind(normalized_algorithm.hash.name));
-
-    return {};
-}
-
-// https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
-{
-    auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
-
-    // NB: Steps 1 and 2 are performed by validate_derive_bits_parameters().
-    TRY(validate_derive_bits_parameters(params, length_optional));
-
-    // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
-    auto const& hash_algorithm = normalized_algorithm.hash.name;
-
-    // 4. Let result be the result of performing the PBKDF2 operation defined in Section 5.2 of [RFC8018]
-    // using prf as the pseudo-random function, PRF,
-    // the password represented by [[handle]] internal slot of key as the password, P,
-    // the contents of the salt attribute of normalizedAlgorithm as the salt, S,
-    // the value of the iterations attribute of normalizedAlgorithm as the iteration count, c,
-    // and length divided by 8 as the intended key length, dkLen.
-    auto password = key->handle().get<ByteBuffer>();
-    auto salt = normalized_algorithm.salt;
-    auto iterations = normalized_algorithm.iterations;
-    auto derived_key_length_bytes = *length_optional / 8;
-
-    auto hash_kind = TRY(sha_hash_kind(hash_algorithm));
-
-    ::Crypto::Hash::PBKDF2 pbkdf2(hash_kind);
-    auto maybe_result = pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes);
-
-    // 5. If the key derivation operation fails, then throw an OperationError.
-    if (maybe_result.is_error())
-        return WebIDL::OperationError::create("Failed to derive key"_utf16);
-
-    // 6. Return result
-    return maybe_result.release_value();
-}
-
-// https://w3c.github.io/webcrypto/#pbkdf2-operations-get-key-length
-WebIDL::ExceptionOr<Optional<u32>> PBKDF2::get_key_length(JS::Realm&, AlgorithmParams const&)
-{
-    // 1. Return null.
-    return Optional<u32> {};
-}
-
-// https://w3c.github.io/webcrypto/#pbkdf2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(JS::Realm&, AlgorithmParams const&, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& key_usages)
-{
-    // 1. If format is not "raw", throw a NotSupportedError
-    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
-    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
-    if (format != KeyFormat::Raw && format != KeyFormat::RawSecret)
-        return WebIDL::NotSupportedError::create("Only raw format is supported"_utf16);
-
-    // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
-    for (auto& usage : key_usages) {
-        if (usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits)
-            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-    }
-
-    // 3. If extractable is not false, then throw a SyntaxError.
-    if (extractable)
-        return WebIDL::SyntaxError::create("extractable must be false"_utf16);
-
-    // 4. Let key be a new CryptoKey representing keyData.
-    auto key = CryptoKey::create(move(key_data.get<ByteBuffer>()));
-
-    // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(KeyType::Secret);
-
-    // 6. Let algorithm be a new KeyAlgorithm object.
-    // 7. Set the name attribute of algorithm to "PBKDF2".
-    // 8. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(CryptoKey::KeyAlgorithmData { "PBKDF2"_utf16 });
-
-    // 9. Return key.
-    return key;
-}
-
 // https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
 WebIDL::ExceptionOr<void> X25519::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
 {
@@ -9352,141 +9048,81 @@ WebIDL::ExceptionOr<u32> MLKEM::get_shared_key_length(AlgorithmParams const&) co
     return 256;
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, AlgorithmParams const& params, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
-{
-    // 1. Let keyData be the key data to be imported.
-    // 2. If format is not "raw-secret", throw a NotSupportedError
-    if (format != KeyFormat::RawSecret)
-        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
-
-    // 3. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
-    for (auto const usage : usages) {
-        if (!(usage == KeyUsage::DeriveKey || usage == KeyUsage::DeriveBits))
-            return WebIDL::SyntaxError::create("Invalid key usage"_utf16);
-    }
-
-    // 4. If extractable is not false, then throw a SyntaxError.
-    if (extractable) {
-        return WebIDL::SyntaxError::create("Key cannot be extractable"_utf16);
-    }
-
-    // 5. Let key be a new CryptoKey representing keyData.
-    auto key = CryptoKey::create(move(key_data.get<ByteBuffer>()));
-
-    // 6. Set the [[type]] internal slot of key to "secret".
-    key->set_type(KeyType::Secret);
-
-    // 7. Let algorithm be a new KeyAlgorithm object.
-    // 8. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
-    // 9. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-    // 10. Return key.
-    return key;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
-WebIDL::ExceptionOr<void> Argon2::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length) const
-{
-    auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
-
-    // 1. If length is null, or is less than 32 (4*8), or is not a multiple of 8, then throw an OperationError.
-    if (!length.has_value() || length.value() < 32u || length.value() % 8 != 0)
-        return WebIDL::OperationError::create("Length must be equal or greater than 32"_utf16);
-
-    // 2. If the version member of normalizedAlgorithm is present and is not 19 (0x13), then throw an OperationError.
-    if (normalized_algorithm.version.has_value() && normalized_algorithm.version != 19)
-        return WebIDL::OperationError::create("Invalid algorithm version"_utf16);
-
-    // 3. If the parallelism member of normalizedAlgorithm is zero, or greater than 16777215 (2^24-1), then throw an OperationError.
-    if (normalized_algorithm.parallelism == 0 || normalized_algorithm.parallelism > (1 << 24) - 1)
-        return WebIDL::OperationError::create("Invalid parallelism"_utf16);
-
-    // 4. If the memory member of normalizedAlgorithm is less than 8 times the parallelism member of normalizedAlgorithm, then throw an OperationError.
-    if (normalized_algorithm.memory < 8 * normalized_algorithm.parallelism)
-        return WebIDL::OperationError::create("Memory is too low for the parallelism level"_utf16);
-
-    // 5. If the passes member of normalizedAlgorithm is zero, then throw an OperationError.
-    if (normalized_algorithm.passes == 0)
-        return WebIDL::OperationError::create("Invalid passes"_utf16);
-
-    // NB: Our Argon2 rejects short nonces.
-    if (auto result = ::Crypto::Hash::Argon2::validate_parameters(normalized_algorithm.nonce); result.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Hashing function failed: {}", result.error()));
-
-    return {};
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
-{
-    auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
-    // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
-    TRY(validate_derive_bits_parameters(params, length));
-
-    auto const algorithm = [&]() {
-        // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
-        //      Let type be 0.
-        if (normalized_algorithm.name == "Argon2d"sv)
-            return ::Crypto::Hash::Argon2(::Crypto::Hash::Argon2Type::Argon2d);
-        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2i":
-        //      Let type be 1.
-        if (normalized_algorithm.name == "Argon2i"sv)
-            return ::Crypto::Hash::Argon2(::Crypto::Hash::Argon2Type::Argon2i);
-        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2id":
-        //      Let type be 2.
-        if (normalized_algorithm.name == "Argon2id"sv)
-            return ::Crypto::Hash::Argon2(::Crypto::Hash::Argon2Type::Argon2id);
-
-        VERIFY_NOT_REACHED();
-    }();
-
-    // 7. Let secretValue be the secretValue member of normalizedAlgorithm, if present.
-    auto const& secret_value = normalized_algorithm.secret_value;
-
-    // 8. Let associatedData be the associatedData member of normalizedAlgorithm, if present.
-    auto const& associated_data = normalized_algorithm.associated_data;
-
-    // 9. Let result be the result of performing the Argon2 function defined in Section 3 of [RFC9106] using the
-    //    password represented by [[handle]] internal slot of key as the message, P, the nonce attribute of
-    //    normalizedAlgorithm as the nonce, S, the value of the parallelism attribute of normalizedAlgorithm as the
-    //    degree of parallelism, p, the value of the memory attribute of normalizedAlgorithm as the memory size, m, the
-    //    value of the passes attribute of normalizedAlgorithm as the number of passes, t, 0x13 as the version number,
-    //    v, secretValue (if present) as the secret value, K, associatedData (if present) as the associated data, X, type
-    //    as the type, y, and length divided by 8 as the tag length, T.
-    VERIFY(key->handle().has<ByteBuffer>());
-    auto const maybe_result = algorithm.derive_key(
-        key->handle().get<ByteBuffer>(),
-        normalized_algorithm.nonce,
-        normalized_algorithm.parallelism,
-        normalized_algorithm.memory,
-        normalized_algorithm.passes,
-        0x13,
-        secret_value.map([](auto const& value) { return value.span(); }),
-        associated_data.map([](auto const& value) { return value.span(); }),
-        length.value() / 8);
-
-    // 10. If the key derivation operation fails, then throw an OperationError.
-    if (maybe_result.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Hashing function failed: {}", maybe_result.error()));
-
-    return maybe_result.value();
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
-WebIDL::ExceptionOr<Optional<u32>> Argon2::get_key_length(JS::Realm&, AlgorithmParams const&)
-{
-    // 1. Return null.
-    return Optional<u32> {};
-}
-
 struct OptionalBytes {
     bool has_value;
     ReadonlyBytes bytes;
 
     Optional<ReadonlyBytes> to_optional() const { return has_value ? Optional<ReadonlyBytes> { bytes } : Optional<ReadonlyBytes> {}; }
 };
+
+struct Argon2Inputs {
+    ReadonlyBytes message;
+    ReadonlyBytes nonce;
+    u32 parallelism;
+    u32 memory;
+    u32 passes;
+    u32 version;
+    OptionalBytes secret_value;
+    OptionalBytes associated_data;
+    u32 tag_length;
+};
+
+extern "C" {
+size_t web_crypto_hash_digest_size(::Crypto::Hash::HashKind);
+bool web_crypto_hkdf_derive_key(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, ReadonlyBytes, u32, void*, ReceiveEncodedBytes);
+bool web_crypto_pbkdf2_derive_key(::Crypto::Hash::HashKind, ReadonlyBytes, ReadonlyBytes, u32, u32, void*, ReceiveEncodedBytes);
+FlatPtr web_crypto_argon2_validate_parameters(ReadonlyBytes);
+FlatPtr web_crypto_argon2_derive_key(::Crypto::Hash::Argon2Type, Argon2Inputs const*, void*, ReceiveEncodedBytes);
+}
+
+size_t web_crypto_hash_digest_size(::Crypto::Hash::HashKind hash_kind)
+{
+    return ::Crypto::Hash::Manager { hash_kind }.digest_size();
+}
+
+bool web_crypto_hkdf_derive_key(::Crypto::Hash::HashKind kind, ReadonlyBytes salt, ReadonlyBytes key_derivation_key, ReadonlyBytes info, u32 length, void* state, ReceiveEncodedBytes receive)
+{
+    ::Crypto::Hash::HKDF hkdf(kind);
+    auto result = hkdf.derive_key(salt, key_derivation_key, info, length);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    return true;
+}
+
+bool web_crypto_pbkdf2_derive_key(::Crypto::Hash::HashKind kind, ReadonlyBytes password, ReadonlyBytes salt, u32 iterations, u32 length, void* state, ReceiveEncodedBytes receive)
+{
+    ::Crypto::Hash::PBKDF2 pbkdf2(kind);
+    auto result = pbkdf2.derive_key(password, salt, iterations, length);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    return true;
+}
+
+static_assert(to_underlying(::Crypto::Hash::Argon2Type::Argon2d) == 0);
+static_assert(to_underlying(::Crypto::Hash::Argon2Type::Argon2i) == 1);
+static_assert(to_underlying(::Crypto::Hash::Argon2Type::Argon2id) == 2);
+
+FlatPtr web_crypto_argon2_validate_parameters(ReadonlyBytes nonce)
+{
+    auto result = ::Crypto::Hash::Argon2::validate_parameters(nonce);
+    if (result.is_error())
+        return Utf16String::formatted("{}", result.error()).into_raw();
+    return 0;
+}
+
+FlatPtr web_crypto_argon2_derive_key(::Crypto::Hash::Argon2Type kind, Argon2Inputs const* inputs, void* state, ReceiveEncodedBytes receive)
+{
+    ::Crypto::Hash::Argon2 algorithm(kind);
+    auto result = algorithm.derive_key(inputs->message, inputs->nonce, inputs->parallelism, inputs->memory,
+        inputs->passes, inputs->version, inputs->secret_value.to_optional(), inputs->associated_data.to_optional(),
+        inputs->tag_length);
+    if (result.is_error())
+        return Utf16String::formatted("{}", result.error()).into_raw();
+    receive(state, result.value());
+    return 0;
+}
 
 static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE128) == 0);
 static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE256) == 1);

@@ -19,7 +19,7 @@ use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, Value, Vm,
 };
 
-use crate::bindings::conversions::{buffer_source_type_of, to_unsigned_long_enforcing_range};
+use crate::bindings::conversions::{buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto::web_crypto_fill_with_random;
@@ -361,15 +361,12 @@ pub(crate) enum AlgorithmId {
     AesCbc,
     AesGcm,
     AesKw,
-    Hkdf,
-    Pbkdf2,
     X25519,
     X448,
     ED25519,
     ED448,
     MlDsa,
     MlKem,
-    Argon2,
     ChaCha20Poly1305,
     AesOcb,
 }
@@ -395,11 +392,8 @@ pub(crate) enum ParameterId {
     AesDerivedKeyParams,
     AesCbcParams,
     AesGcmParams,
-    HkdfParams,
-    Pbkdf2Params,
     Ed448Params,
     ContextParams,
-    Argon2Params,
     AeadParams,
 }
 
@@ -705,7 +699,13 @@ pub(crate) trait AlgorithmMethods: Trace {
         ))
     }
 
-    fn derive_bits(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _length: Option<u32>) -> WebIdlResult<Bytes> {
+    fn derive_bits(
+        &self,
+        _realm: Gc<Realm>,
+        _algorithm: &AlgorithmParams,
+        _key: Ref<CryptoKey>,
+        _length: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("deriveBits is not supported"),
@@ -917,7 +917,13 @@ impl AlgorithmMethods for CppAlgorithm {
         Ok(out)
     }
 
-    fn derive_bits(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, length: Option<u32>) -> WebIdlResult<Bytes> {
+    fn derive_bits(
+        &self,
+        realm: Gc<Realm>,
+        _algorithm: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -2739,6 +2745,705 @@ impl AlgorithmMethods for Kmac {
 
         // 3. Return result.
         Ok(result)
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct HkdfParams {
+    #[gc(untraced)]
+    hash: HashAlgorithmIdentifier,
+    salt: Bytes,
+    info: Bytes,
+}
+
+impl HkdfParams {
+    pub(crate) fn from_value(vm: &Vm, realm: Gc<Realm>, object: Gc<Object>) -> WebIdlResult<Self> {
+        let hash_value = object.get(vm, &PropertyKey::from_utf8("hash"))?;
+        let hash = hash_algorithm_identifier_from_value(vm, realm, hash_value, None)?;
+
+        let salt_value = object.get(vm, &PropertyKey::from_utf8("salt"))?;
+        let Some(salt_source) = buffer_source_type_of(salt_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let salt = get_a_copy_of_the_bytes(vm, salt_source)?;
+
+        let info_value = object.get(vm, &PropertyKey::from_utf8("info"))?;
+        let Some(info_source) = buffer_source_type_of(info_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let info = get_a_copy_of_the_bytes(vm, info_source)?;
+
+        Ok(Self { hash, salt, info })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Pbkdf2Params {
+    salt: Bytes,
+    iterations: u32,
+    #[gc(untraced)]
+    hash: HashAlgorithmIdentifier,
+}
+
+impl Pbkdf2Params {
+    pub(crate) fn from_value(vm: &Vm, realm: Gc<Realm>, object: Gc<Object>) -> WebIdlResult<Self> {
+        let salt_value = object.get(vm, &PropertyKey::from_utf8("salt"))?;
+
+        let Some(salt_source) = buffer_source_type_of(salt_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+
+        let salt = get_a_copy_of_the_bytes(vm, salt_source)?;
+
+        let iterations_value = object.get(vm, &PropertyKey::from_utf8("iterations"))?;
+        let iterations = to_unsigned_long_enforcing_range(vm, iterations_value)?;
+
+        let hash_value = object.get(vm, &PropertyKey::from_utf8("hash"))?;
+        let hash = hash_algorithm_identifier_from_value(vm, realm, hash_value, None)?;
+
+        Ok(Self { salt, iterations, hash })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Argon2Params {
+    nonce: Bytes,
+    parallelism: u32,
+    memory: u32,
+    passes: u32,
+    version: Option<u8>,
+    secret_value: Option<Bytes>,
+    associated_data: Option<Bytes>,
+}
+
+impl Argon2Params {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let nonce_property = PropertyKey::from_utf8("nonce");
+        if !object.has_property(vm, &nonce_property)? {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::MissingRequiredProperty, &[&"nonce"])
+                .map_err(Into::into);
+        }
+        let nonce_value = object.get(vm, &nonce_property)?;
+        let Some(nonce_source) = buffer_source_type_of(nonce_value) else {
+            return vm
+                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+                .map_err(Into::into);
+        };
+        let nonce = get_a_copy_of_the_bytes(vm, nonce_source)?;
+
+        let extract_u32_value = |name: &str| -> WebIdlResult<u32> {
+            let property = PropertyKey::from_utf8(name);
+            if !object.has_property(vm, &property)? {
+                return vm
+                    .throw_completion(ErrorKind::TypeError, ErrorType::MissingRequiredProperty, &[&name])
+                    .map_err(Into::into);
+            }
+            let key_value = object.get(vm, &property)?;
+            Ok(to_unsigned_long_enforcing_range(vm, key_value)?)
+        };
+
+        let parallelism = extract_u32_value("parallelism")?;
+        let memory = extract_u32_value("memory")?;
+        let passes = extract_u32_value("passes")?;
+
+        let mut version = None;
+        let version_property = PropertyKey::from_utf8("version");
+        if object.has_property(vm, &version_property)? {
+            let version_value = object.get(vm, &version_property)?;
+            version = Some(to_octet_enforcing_range(vm, version_value)?);
+        }
+
+        let secret_value = get_optional_buffer_source(vm, object, &PropertyKey::from_utf8("secretValue"))?;
+        let associated_data = get_optional_buffer_source(vm, object, &PropertyKey::from_utf8("associatedData"))?;
+
+        Ok(Self {
+            nonce,
+            parallelism,
+            memory,
+            passes,
+            version,
+            secret_value,
+            associated_data,
+        })
+    }
+}
+
+#[repr(i32)]
+enum Argon2Type {
+    Argon2d,
+    Argon2i,
+    Argon2id,
+}
+
+#[repr(C)]
+struct Argon2Inputs<'a> {
+    message: Span<'a, u8>,
+    nonce: Span<'a, u8>,
+    parallelism: u32,
+    memory: u32,
+    passes: u32,
+    version: u32,
+    secret_value: OptionalBytes<'a>,
+    associated_data: OptionalBytes<'a>,
+    tag_length: u32,
+}
+
+unsafe extern "C" {
+    fn web_crypto_hash_digest_size(kind: ShaHashKind) -> usize;
+    fn web_crypto_hkdf_derive_key(
+        kind: ShaHashKind,
+        salt: Span<'_, u8>,
+        key: Span<'_, u8>,
+        info: Span<'_, u8>,
+        length: u32,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_pbkdf2_derive_key(
+        kind: ShaHashKind,
+        password: Span<'_, u8>,
+        salt: Span<'_, u8>,
+        iterations: u32,
+        length: u32,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_argon2_validate_parameters(nonce: Span<'_, u8>) -> usize;
+    fn web_crypto_argon2_derive_key(
+        kind: Argon2Type,
+        inputs: &Argon2Inputs<'_>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+}
+
+fn sha_hash_kind(hash_algorithm: &Utf16String) -> Result<ShaHashKind, Utf16String> {
+    if matches!(hash_algorithm.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+        return Ok(ShaHashKind::Sha1);
+    }
+    if matches!(hash_algorithm.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+        return Ok(ShaHashKind::Sha256);
+    }
+    if matches!(hash_algorithm.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+        return Ok(ShaHashKind::Sha384);
+    }
+    if matches!(hash_algorithm.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+        return Ok(ShaHashKind::Sha512);
+    }
+    Err(libjs_rust::api::utf16_formatted(
+        "Invalid hash function '{}'",
+        &[hash_algorithm],
+    ))
+}
+
+/// # Safety
+///
+/// The string is live and the output is writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_sha_hash_kind(raw: usize, out: &mut i32) -> usize {
+    // SAFETY: The caller lends a live string and we take our own reference.
+    let hash_algorithm = unsafe {
+        ak::reference_utf16_string(raw);
+        Utf16String::from_raw_owned(raw)
+    };
+    match sha_hash_kind(&hash_algorithm) {
+        Ok(kind) => {
+            *out = kind as i32;
+            0
+        }
+        Err(message) => message.into_raw(),
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Hkdf;
+
+impl AlgorithmMethods for Hkdf {
+    // https://w3c.github.io/webcrypto/#hkdf-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If format is "raw":
+        //        (… see below …)
+        //    Otherwise:
+        //        throw a NotSupportedError.
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        if format != KeyFormat::Raw && format != KeyFormat::RawSecret {
+            return Err(dom_error("NotSupportedError", b"Only raw format is supported"));
+        }
+
+        //        1. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        //        2. If extractable is not false, then throw a SyntaxError.
+        if extractable {
+            return Err(dom_error("SyntaxError", b"extractable must be false"));
+        }
+
+        //        3. Let key be a new CryptoKey representing the key data provided in keyData.
+        let ImportKeyData::Bytes(data) = key_data else {
+            unreachable!("raw key data contains bytes")
+        };
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        //        4. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        //        5. Let algorithm be a new KeyAlgorithm object.
+        //        6. Set the name attribute of algorithm to "HKDF".
+        //        7. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"HKDF"),
+        });
+
+        //        8. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#hkdf-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. Return null.
+        Ok(None)
+    }
+}
+
+impl AlgorithmMethods for HkdfParams {
+    // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
+    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length_optional: Option<u32>) -> WebIdlResult<()> {
+        let normalized_algorithm = self;
+
+        // 1. If length is null or is not a multiple of 8, then throw an OperationError.
+        let Some(length) = length_optional.filter(|length| length.is_multiple_of(8)) else {
+            return Err(dom_error(
+                "OperationError",
+                b"Length must be specified and divisible by 8",
+            ));
+        };
+
+        // 2. Let hashLength be the length in bits of the output of the hash function identified by the hash member of
+        //    normalizedAlgorithm.
+        let hash_kind = sha_hash_kind(&normalized_algorithm.hash.name)
+            .map_err(|message| Exception::Dom("NotSupportedError", message))?;
+        // SAFETY: The hash kind is one of the native SHA algorithms.
+        let hash_length = unsafe { web_crypto_hash_digest_size(hash_kind) } * 8;
+
+        // 3. If length is greater than 255 * hashLength, then throw an OperationError.
+        if length as usize > 255 * hash_length {
+            return Err(dom_error(
+                "OperationError",
+                b"Length is too large for the hash function",
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
+    fn derive_bits(
+        &self,
+        realm: Gc<Realm>,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self;
+
+        // NB: Steps 1 to 3 are performed by validate_derive_bits_parameters().
+        self.validate_derive_bits_parameters(realm, length_optional)?;
+        let hash_kind = sha_hash_kind(&normalized_algorithm.hash.name)
+            .map_err(|message| Exception::Dom("NotSupportedError", message))?;
+
+        // 4. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
+        let key_derivation_key = key.byte_handle_bytes();
+
+        // 5. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
+        //    * the hash member of normalizedAlgorithm as Hash,
+        //    * keyDerivationKey as the input keying material, IKM,
+        //    * the contents of the salt member of normalizedAlgorithm as salt,
+        //    * the contents of the info member of normalizedAlgorithm as info,
+        //    * length divided by 8 as the value of L,
+        // Note: Although HKDF technically supports absent salt (treating it as hashLen many NUL bytes),
+        // all major browsers instead raise a TypeError, for example:
+        //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
+        // Because we are forced by neither peer pressure nor the spec, we don't support it either.
+
+        // Note: Check for zero length early because our implementation doesn't support it.
+        let length = length_optional.expect("validation requires a length");
+        if length == 0 {
+            return Ok(Bytes::new(Vec::new()));
+        }
+
+        let mut result: Option<Bytes> = None;
+        // SAFETY: The inputs and output are lent for this call.
+        let success = unsafe {
+            web_crypto_hkdf_derive_key(
+                hash_kind,
+                Span::new(normalized_algorithm.salt.as_slice()),
+                Span::new(key_derivation_key),
+                Span::new(normalized_algorithm.info.as_slice()),
+                length / 8,
+                core::ptr::from_mut(&mut result).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 6. If the key derivation operation fails, then throw an OperationError.
+        if !success {
+            return Err(dom_error("OperationError", b"Failed to derive key"));
+        }
+
+        // 7. Return result
+        Ok(result.expect("LibCrypto returns the derived bytes"))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Pbkdf2;
+
+impl AlgorithmMethods for Pbkdf2Params {
+    // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
+    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length_optional: Option<u32>) -> WebIdlResult<()> {
+        let normalized_algorithm = self;
+
+        // 1. If length is null or is not a multiple of 8, then throw an OperationError.
+        if length_optional.is_none_or(|length| !length.is_multiple_of(8)) {
+            return Err(dom_error(
+                "OperationError",
+                b"Length must be greater than 0 and divisible by 8",
+            ));
+        }
+
+        // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
+        if normalized_algorithm.iterations == 0 {
+            return Err(dom_error("OperationError", b"Iterations must be greater than 0"));
+        }
+
+        // NB: Step 4 fails for the hash functions that our PBKDF2 does not support.
+        sha_hash_kind(&normalized_algorithm.hash.name)
+            .map_err(|message| Exception::Dom("NotSupportedError", message))?;
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
+    fn derive_bits(
+        &self,
+        realm: Gc<Realm>,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self;
+
+        // NB: Steps 1 and 2 are performed by validate_derive_bits_parameters().
+        self.validate_derive_bits_parameters(realm, length_optional)?;
+
+        // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
+        let hash_algorithm = &normalized_algorithm.hash.name;
+
+        // 4. Let result be the result of performing the PBKDF2 operation defined in Section 5.2 of [RFC8018]
+        // using prf as the pseudo-random function, PRF,
+        // the password represented by [[handle]] internal slot of key as the password, P,
+        // the contents of the salt attribute of normalizedAlgorithm as the salt, S,
+        // the value of the iterations attribute of normalizedAlgorithm as the iteration count, c,
+        // and length divided by 8 as the intended key length, dkLen.
+        let password = key.byte_handle_bytes();
+        let salt = &normalized_algorithm.salt;
+        let iterations = normalized_algorithm.iterations;
+        let derived_key_length_bytes = length_optional.expect("validation requires a length") / 8;
+
+        let hash_kind =
+            sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
+
+        let mut result: Option<Bytes> = None;
+        // SAFETY: The inputs and output are lent for this call.
+        let success = unsafe {
+            web_crypto_pbkdf2_derive_key(
+                hash_kind,
+                Span::new(password),
+                Span::new(salt.as_slice()),
+                iterations,
+                derived_key_length_bytes,
+                core::ptr::from_mut(&mut result).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 5. If the key derivation operation fails, then throw an OperationError.
+        if !success {
+            return Err(dom_error("OperationError", b"Failed to derive key"));
+        }
+
+        // 6. Return result
+        Ok(result.expect("LibCrypto returns the derived bytes"))
+    }
+}
+
+impl AlgorithmMethods for Pbkdf2 {
+    // https://w3c.github.io/webcrypto/#pbkdf2-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. Return null.
+        Ok(None)
+    }
+
+    // https://w3c.github.io/webcrypto/#pbkdf2-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. If format is not "raw", throw a NotSupportedError
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+        if format != KeyFormat::Raw && format != KeyFormat::RawSecret {
+            return Err(dom_error("NotSupportedError", b"Only raw format is supported"));
+        }
+
+        // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 3. If extractable is not false, then throw a SyntaxError.
+        if extractable {
+            return Err(dom_error("SyntaxError", b"extractable must be false"));
+        }
+
+        // 4. Let key be a new CryptoKey representing keyData.
+        let ImportKeyData::Bytes(data) = key_data else {
+            unreachable!("raw key data contains bytes")
+        };
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 5. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new KeyAlgorithm object.
+        // 7. Set the name attribute of algorithm to "PBKDF2".
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"PBKDF2"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Argon2;
+
+impl AlgorithmMethods for Argon2 {
+    // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        algorithm: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+        // 2. If format is not "raw-secret", throw a NotSupportedError
+        if format != KeyFormat::RawSecret {
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 3. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+        for &usage in usages {
+            if !(usage == KeyUsage::DeriveKey || usage == KeyUsage::DeriveBits) {
+                return Err(dom_error("SyntaxError", b"Invalid key usage"));
+            }
+        }
+
+        // 4. If extractable is not false, then throw a SyntaxError.
+        if extractable {
+            return Err(dom_error("SyntaxError", b"Key cannot be extractable"));
+        }
+
+        // 5. Let key be a new CryptoKey representing keyData.
+        let ImportKeyData::Bytes(data) = key_data else {
+            unreachable!("raw key data contains bytes")
+        };
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 6. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 7. Let algorithm be a new KeyAlgorithm object.
+        // 8. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+        // 9. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Key {
+            name: algorithm.name.clone(),
+        });
+
+        // 10. Return key.
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. Return null.
+        Ok(None)
+    }
+}
+
+impl AlgorithmMethods for Argon2Params {
+    // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
+    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length: Option<u32>) -> WebIdlResult<()> {
+        let normalized_algorithm = self;
+
+        // 1. If length is null, or is less than 32 (4*8), or is not a multiple of 8, then throw an OperationError.
+        if length.is_none_or(|length| length < 32 || !length.is_multiple_of(8)) {
+            return Err(dom_error("OperationError", b"Length must be equal or greater than 32"));
+        }
+
+        // 2. If the version member of normalizedAlgorithm is present and is not 19 (0x13), then throw an OperationError.
+        if normalized_algorithm.version.is_some_and(|version| version != 19) {
+            return Err(dom_error("OperationError", b"Invalid algorithm version"));
+        }
+
+        // 3. If the parallelism member of normalizedAlgorithm is zero, or greater than 16777215 (2^24-1), then throw an OperationError.
+        if normalized_algorithm.parallelism == 0 || normalized_algorithm.parallelism > (1 << 24) - 1 {
+            return Err(dom_error("OperationError", b"Invalid parallelism"));
+        }
+
+        // 4. If the memory member of normalizedAlgorithm is less than 8 times the parallelism member of normalizedAlgorithm, then throw an OperationError.
+        if normalized_algorithm.memory < 8 * normalized_algorithm.parallelism {
+            return Err(dom_error(
+                "OperationError",
+                b"Memory is too low for the parallelism level",
+            ));
+        }
+
+        // 5. If the passes member of normalizedAlgorithm is zero, then throw an OperationError.
+        if normalized_algorithm.passes == 0 {
+            return Err(dom_error("OperationError", b"Invalid passes"));
+        }
+
+        // NB: Our Argon2 rejects short nonces.
+        // SAFETY: The nonce is lent to the validation service.
+        let result = unsafe { web_crypto_argon2_validate_parameters(Span::new(normalized_algorithm.nonce.as_slice())) };
+        if result != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(result) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Hashing function failed: {}", &[&detail]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
+    fn derive_bits(
+        &self,
+        realm: Gc<Realm>,
+        algorithm: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self;
+        // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
+        self.validate_derive_bits_parameters(realm, length)?;
+
+        // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
+        //      Let type be 0.
+        let kind = if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2d")) {
+            Argon2Type::Argon2d
+        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2i":
+        //      Let type be 1.
+        } else if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2i")) {
+            Argon2Type::Argon2i
+        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2id":
+        //      Let type be 2.
+        } else if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2id")) {
+            Argon2Type::Argon2id
+        } else {
+            unreachable!("the name identifies an Argon2 variant");
+        };
+
+        // 7. Let secretValue be the secretValue member of normalizedAlgorithm, if present.
+        let secret_value = normalized_algorithm.secret_value.as_ref();
+
+        // 8. Let associatedData be the associatedData member of normalizedAlgorithm, if present.
+        let associated_data = normalized_algorithm.associated_data.as_ref();
+
+        // 9. Let result be the result of performing the Argon2 function defined in Section 3 of [RFC9106] using the
+        //    password represented by [[handle]] internal slot of key as the message, P, the nonce attribute of
+        //    normalizedAlgorithm as the nonce, S, the value of the parallelism attribute of normalizedAlgorithm as the
+        //    degree of parallelism, p, the value of the memory attribute of normalizedAlgorithm as the memory size, m, the
+        //    value of the passes attribute of normalizedAlgorithm as the number of passes, t, 0x13 as the version number,
+        //    v, secretValue (if present) as the secret value, K, associatedData (if present) as the associated data, X, type
+        //    as the type, y, and length divided by 8 as the tag length, T.
+        let inputs = Argon2Inputs {
+            message: Span::new(key.byte_handle_bytes()),
+            nonce: Span::new(normalized_algorithm.nonce.as_slice()),
+            parallelism: normalized_algorithm.parallelism,
+            memory: normalized_algorithm.memory,
+            passes: normalized_algorithm.passes,
+            version: 0x13,
+            secret_value: secret_value.into(),
+            associated_data: associated_data.into(),
+            tag_length: length.expect("validation requires a length") / 8,
+        };
+        let mut result: Option<Bytes> = None;
+        // SAFETY: The inputs and output are lent for this call.
+        let maybe_result = unsafe {
+            web_crypto_argon2_derive_key(kind, &inputs, core::ptr::from_mut(&mut result).cast(), receive_bytes)
+        };
+
+        // 10. If the key derivation operation fails, then throw an OperationError.
+        if maybe_result != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_result) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Hashing function failed: {}", &[&detail]),
+            ));
+        }
+
+        Ok(result.expect("LibCrypto returns the derived bytes"))
     }
 }
 
