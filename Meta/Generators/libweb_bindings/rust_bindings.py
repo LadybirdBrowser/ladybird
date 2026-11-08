@@ -1383,13 +1383,13 @@ def write_rust_interface(
         is_secure_context_only = "SecureContext" in attribute.attribute.extended_attributes
         if attribute.is_cached:
             definition = f'define_cached_attribute(vm, realm, prototype, "{name}", {getter});'
-            out.write(secure_context_only_definition(definition, is_secure_context_only))
+            out.write(member_exposure_definition(definition, secure_context_only=is_secure_context_only))
             defined_property_names.append(name)
             continue
         has_setter = not attribute.attribute.readonly or attribute.put_forwards is not None
         setter = f"raw_native!({attribute.setter_function})" if has_setter else "None"
         definition = f'define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});'
-        out.write(secure_context_only_definition(definition, is_secure_context_only))
+        out.write(member_exposure_definition(definition, secure_context_only=is_secure_context_only))
         defined_property_names.append(name)
     if interface.name == "CSSStyleProperties":
         out.write(
@@ -1400,7 +1400,13 @@ def write_rust_interface(
         function = operation_set.function
         length = operation_set.length
         definition = f'define_operation(vm, realm, prototype, "{name}", raw_native!({function}), {length});'
-        out.write(window_only_definition(definition, operation_set.is_window_only))
+        out.write(
+            member_exposure_definition(
+                definition,
+                secure_context_only=operation_set.is_secure_context_only,
+                window_only=operation_set.is_window_only,
+            )
+        )
         defined_property_names.append(name)
     for name in members.unimplemented_operation_names:
         out.write(f'        define_unimplemented_property(vm, prototype, "{name}");\n')
@@ -1408,7 +1414,7 @@ def write_rust_interface(
     if members.stringifier is not None:
         function = members.stringifier.function
         definition = f'define_operation(vm, realm, prototype, "toString", raw_native!({function}), 0);'
-        out.write(window_only_definition(definition, members.stringifier.is_window_only))
+        out.write(member_exposure_definition(definition, window_only=members.stringifier.is_window_only))
         defined_property_names.append("toString")
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
@@ -1486,7 +1492,13 @@ def write_rust_interface(
             f'define_operation(vm, realm, constructor, "{name}", raw_native!({operation_set.function}), '
             f"{operation_set.length});"
         )
-        out.write(window_only_definition(definition, operation_set.is_window_only))
+        out.write(
+            member_exposure_definition(
+                definition,
+                secure_context_only=operation_set.is_secure_context_only,
+                window_only=operation_set.is_window_only,
+            )
+        )
     out.write("    }\n")
 
     for constructor in members.constructors:
@@ -1625,29 +1637,28 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
             f'define_operation(vm, realm, object, "{operation_set.name}", raw_native!({operation_set.function}), '
             f"{operation_set.length});"
         )
-        out.write(window_only_definition(definition, operation_set.is_window_only))
+        out.write(
+            member_exposure_definition(
+                definition,
+                secure_context_only=operation_set.is_secure_context_only,
+                window_only=operation_set.is_window_only,
+            )
+        )
     if "WithInitializer" in interface.extended_attributes:
         out.write("        Implementation::initialize(&mut CallContext::new(vm, realm), object);\n")
     out.write("    }\n}\n")
 
 
-def secure_context_only_definition(definition: str, is_secure_context_only: bool) -> str:
-    """A statement of the steps that initialize an interface prototype object, which defines a [SecureContext] member
-    only if the realm is a secure context."""
-    if not is_secure_context_only:
+def member_exposure_definition(definition: str, *, secure_context_only: bool = False, window_only: bool = False) -> str:
+    """Defines a member on the interface or prototype object when it is exposed in the realm."""
+    conditions = []
+    if secure_context_only:
+        conditions.append("realm_is_secure_context(realm)")
+    if window_only:
+        conditions.append("realm_is_window(realm)")
+    if not conditions:
         return f"        {definition}\n"
-    return f"""        if realm_is_secure_context(realm) {{
-            {definition}
-        }}
-"""
-
-
-def window_only_definition(definition: str, is_window_only: bool) -> str:
-    """A statement of the steps that initialize an interface object or an interface prototype object, which defines a
-    member that only a Window has only if the global object of the realm is a Window."""
-    if not is_window_only:
-        return f"        {definition}\n"
-    return f"""        if realm_is_window(realm) {{
+    return f"""        if {" && ".join(conditions)} {{
             {definition}
         }}
 """

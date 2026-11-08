@@ -59,6 +59,7 @@ SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
     "NeedsCallerRealm",
     "NewObject",
     "SameObject",
+    "SecureContext",
 }
 SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES = {"Exposed"}
 
@@ -162,6 +163,10 @@ class RustOperationSet:
     @property
     def length(self) -> int:
         return min(overload.length for overload in self.overloads)
+
+    @property
+    def is_secure_context_only(self) -> bool:
+        return "SecureContext" in self.overloads[0].operation.extended_attributes
 
     @property
     def is_window_only(self) -> bool:
@@ -582,7 +587,11 @@ def rust_members(interface: Interface) -> RustMembers:
                     )
                 if len({operation.return_type_is_promise() for operation in operations}) > 1:
                     fail(f"some overloads of its operation {name} return a promise type and others do not")
-                if len({operation.extended_attributes.get("Exposed") for operation in operations}) > 1:
+                exposure = {
+                    (operation.extended_attributes.get("Exposed"), "SecureContext" in operation.extended_attributes)
+                    for operation in operations
+                }
+                if len(exposure) > 1:
                     fail(f"the overloads of its operation {name} are exposed differently")
             overloads = [
                 RustOperation(operation, method_of(name, operation.extended_attributes)) for operation in operations
