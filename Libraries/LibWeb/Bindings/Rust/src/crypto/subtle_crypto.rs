@@ -32,9 +32,9 @@ use crate::bindings::promise::{
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
-    Argon2Params, Bytes, CShakeParams, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac,
-    HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams, KmacParams,
-    ParameterId, Pbkdf2, Pbkdf2Params, Sha, normalized_key_usages, public_key_for_private_key,
+    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, Hkdf,
+    HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams,
+    KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, Sha, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -107,6 +107,8 @@ enum RegisteredAlgorithm {
     AesGcm(AesParameterType),
     AesKw(AesParameterType),
     AesOcb(AesParameterType),
+    ChaCha20Poly1305,
+    ChaCha20Poly1305Aead,
     CShake,
 }
 
@@ -136,6 +138,7 @@ enum AlgorithmImplementation {
     AesGcm(AesGcm),
     AesKw(AesKw),
     AesOcb(AesOcb),
+    ChaCha20Poly1305(ChaCha20Poly1305),
     CShake(CShakeParams),
 }
 
@@ -164,6 +167,7 @@ impl Deref for AlgorithmImplementation {
             Self::AesGcm(algorithm) => algorithm,
             Self::AesKw(algorithm) => algorithm,
             Self::AesOcb(algorithm) => algorithm,
+            Self::ChaCha20Poly1305(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -389,6 +393,12 @@ pub(crate) fn normalize_an_algorithm(
         }
         RegisteredAlgorithm::AesOcb(parameter_type) => {
             AlgorithmImplementation::AesOcb(AesOcb::from_value(vm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::ChaCha20Poly1305 => {
+            AlgorithmImplementation::ChaCha20Poly1305(ChaCha20Poly1305::from_value(vm, *algorithm, false)?)
+        }
+        RegisteredAlgorithm::ChaCha20Poly1305Aead => {
+            AlgorithmImplementation::ChaCha20Poly1305(ChaCha20Poly1305::from_value(vm, *algorithm, true)?)
         }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
@@ -3452,37 +3462,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AeadParams),
+            RegisteredAlgorithm::ChaCha20Poly1305Aead,
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AeadParams),
+            RegisteredAlgorithm::ChaCha20Poly1305Aead,
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::ChaCha20Poly1305,
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::ChaCha20Poly1305,
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::ChaCha20Poly1305,
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "ChaCha20-Poly1305",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::ChaCha20Poly1305,
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-registration

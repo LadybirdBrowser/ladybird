@@ -486,40 +486,6 @@ using ContextParams = Ed448Params;
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-AeadParams
 // NOTE: The AeadParams dictionary is identical to the AesGcmParams
-struct AeadParams : public AlgorithmParams {
-    virtual ~AeadParams() override;
-    AeadParams(ByteBuffer iv, Optional<ByteBuffer> additional_data, Optional<u8> tag_length)
-        : iv(move(iv))
-        , additional_data(move(additional_data))
-        , tag_length(tag_length)
-    {
-    }
-
-    ByteBuffer iv;
-    Optional<ByteBuffer> additional_data;
-    Optional<u8> tag_length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-class ChaCha20Poly1305 : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decrypt(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_encrypt_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new ChaCha20Poly1305); }
-
-private:
-    ChaCha20Poly1305() = default;
-};
-
 Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage>);
 
 ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);

@@ -366,7 +366,6 @@ pub(crate) enum AlgorithmId {
     ED448,
     MlDsa,
     MlKem,
-    ChaCha20Poly1305,
 }
 
 #[derive(Clone, Copy)]
@@ -387,7 +386,6 @@ pub(crate) enum ParameterId {
     EcdhKeyDeriveParams,
     Ed448Params,
     ContextParams,
-    AeadParams,
 }
 
 #[derive(Clone, Trace)]
@@ -6105,6 +6103,410 @@ impl AlgorithmMethods for AesOcb {
 
         // 2. Return the length member of normalizedDerivedKeyAlgorithm.
         Ok(Some(u32::from(length)))
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct ChaCha20Poly1305 {
+    parameters: Option<AeadParams>,
+}
+
+impl ChaCha20Poly1305 {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, has_aead_parameters: bool) -> WebIdlResult<Self> {
+        let parameters = if has_aead_parameters {
+            Some(AeadParams::from_value(vm, object)?)
+        } else {
+            None
+        };
+        Ok(Self { parameters })
+    }
+}
+
+unsafe extern "C" {
+    fn web_crypto_chacha20_poly1305_cipher(
+        encrypt: bool,
+        key: Span<'_, u8>,
+        iv: Span<'_, u8>,
+        input: Span<'_, u8>,
+        additional_data: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+}
+
+impl AlgorithmMethods for ChaCha20Poly1305 {
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
+    fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses AEAD parameters");
+
+        // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() != 12 {
+            return Err(dom_error("OperationError", b"IV must have a length of 12 bytes"));
+        }
+
+        // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
+        if normalized_algorithm.tag_length.is_some_and(|length| length != 128) {
+            return Err(dom_error("OperationError", b"tagLength must be 128"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
+    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, plaintext: &Bytes) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses AEAD parameters");
+
+        // NB: Steps 1 and 2 are performed by validate_encrypt_parameters().
+        self.validate_encrypt_parameters(cx.realm())?;
+
+        // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 4. Let ciphertext be the output that results from performing the AEAD_CHACHA20_POLY1305 encryption algorithm
+        //    described in Section 2.8 of [RFC8439], using the key represented by [[handle]] internal slot of key as the
+        //    key input parameter, the iv member of normalizedAlgorithm as the nonce input parameter, plaintext as the
+        //    plaintext input parameter, and additionalData as the additional authenticated data (AAD) input parameter.
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The inputs and output slot live for the call.
+        let maybe_ciphertext = unsafe {
+            web_crypto_chacha20_poly1305_cipher(
+                true,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(plaintext.as_slice()),
+                Span::new(additional_data),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+
+        if maybe_ciphertext != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_ciphertext) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Encryption failed: {}", &[&detail]),
+            ));
+        }
+
+        // 5. Return ciphertext.
+        Ok(ciphertext.expect("LibCrypto returns the result"))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
+    fn validate_decrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses AEAD parameters");
+
+        // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
+        if normalized_algorithm.iv.as_slice().len() != 12 {
+            return Err(dom_error("OperationError", b"IV must have a length of 12 bytes"));
+        }
+
+        // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
+        if normalized_algorithm.tag_length.is_some_and(|length| length != 128) {
+            return Err(dom_error("OperationError", b"tagLength must be 128"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
+    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, ciphertext: &Bytes) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses AEAD parameters");
+
+        // NB: Steps 1 and 2 are performed by validate_decrypt_parameters().
+        self.validate_decrypt_parameters(cx.realm())?;
+
+        // 3. If ciphertext has a length less than 128 bits, then throw an OperationError.
+        if ciphertext.as_slice().len() < 16 {
+            return Err(dom_error("OperationError", b"Ciphertext must be at least 128 bits"));
+        }
+
+        // 4. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let additional_data = normalized_algorithm
+            .additional_data
+            .as_ref()
+            .map_or(&[][..], Bytes::as_slice);
+
+        // 5. Perform the AEAD_CHACHA20_POLY1305 decryption algorithm described in Section 2.8 of [RFC8439], using the key
+        //    represented by [[handle]] internal slot of key as the key input parameter, the iv member of normalizedAlgorithm
+        //    as the nonce input parameter, ciphertext as the ciphertext input parameter, and additionalData as the additional
+        //    authenticated data (AAD) input parameter.
+        let mut plaintext: Option<Bytes> = None;
+        // SAFETY: The inputs and output slot live for the call.
+        let maybe_plaintext = unsafe {
+            web_crypto_chacha20_poly1305_cipher(
+                false,
+                Span::new(key.byte_handle_bytes()),
+                Span::new(normalized_algorithm.iv.as_slice()),
+                Span::new(ciphertext.as_slice()),
+                Span::new(additional_data),
+                core::ptr::from_mut(&mut plaintext).cast(),
+                receive_bytes,
+            )
+        };
+
+        // If the result of the algorithm is the indication of authentication failure:
+        //       throw an OperationError
+        //    Otherwise:
+        //       Let plaintext be the resulting plaintext.
+        if maybe_plaintext != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_plaintext) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Decryption failed: {}", &[&detail]),
+            ));
+        }
+
+        // 6. Return plaintext.
+        Ok(plaintext.expect("LibCrypto returns the result"))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate a 256-bit key.
+        let key_buffer = generate_random_key(cx.vm(), 256)?;
+
+        // 3. If the key generation step fails, then throw an OperationError.
+        // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
+
+        // 4. Let key be a new CryptoKey object representing the generated key.
+        let key = CryptoKey::from_byte_handle(cx.vm(), &key_buffer);
+
+        // 5. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new KeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"ChaCha20-Poly1305"),
+        });
+
+        // 9. Set the [[extractable]] internal slot of key to be extractable.
+        key.set_extractable(extractable);
+
+        // 10. Set the [[usages]] internal slot of key to be the normalized value of usages.
+        key.set_usages(normalized_key_usages(key_usages));
+
+        // 11. Return key.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(key))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the spec checks the JWK algorithm after matching the key length"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        // 1. Let keyData be the key data to be imported.
+
+        // 2. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+        for &usage in usages {
+            if usage != KeyUsage::Encrypt
+                && usage != KeyUsage::Decrypt
+                && usage != KeyUsage::WrapKey
+                && usage != KeyUsage::UnwrapKey
+            {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let data;
+
+        // 3. If format is "raw-secret":
+        if format == KeyFormat::RawSecret {
+            // 1. Let data be keyData.
+            let ImportKeyData::Bytes(bytes) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            data = bytes;
+
+            // 2. If the length in bits of data is not 256 then throw a DataError.
+            if data.as_slice().len() != 32 {
+                return Err(dom_error("DataError", b"Key data must be 256 bits"));
+            }
+        }
+        // 3. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary:
+            //        Let jwk equal keyData.
+            //    Otherwise:
+            //        Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"Invalid JWK key data"));
+            };
+
+            // 2. If the kty field of jwk is not "oct", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"oct")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+            // NB: Specifically, those requirements are:
+            // - ".k" is a valid bas64url encoded octet stream, which we do by just parsing it, in step 4.
+            // - ".alg" is checked only in step 5.
+
+            // 4. Let data be the octet string obtained by decoding the k field of jwk.
+            data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
+
+            // 5. If the alg field of jwk is present, and is not "C20P", then throw a DataError.
+            if jwk
+                .alg
+                .as_ref()
+                .is_some_and(|alg| *alg != Utf16String::from_ascii(b"C20P"))
+            {
+                return Err(dom_error("DataError", b"Invalid alg field"));
+            }
+
+            // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid use field"));
+            }
+
+            // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+            //    or does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only raw-secret and jwk formats are supported",
+            ));
+        }
+
+        // 4. Let key be a new CryptoKey object representing a key with value data.
+        let key = CryptoKey::from_byte_handle(cx.vm(), data.as_slice());
+
+        // 5. Set the [[type]] internal slot of key to "secret".
+        key.set_type(KeyType::Secret);
+
+        // 6. Let algorithm be a new KeyAlgorithm.
+        // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key.set_algorithm(InternalAlgorithmData::Key {
+            name: Utf16String::from_ascii(b"ChaCha20-Poly1305"),
+        });
+
+        // 9. Return key.
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 2. If format is "raw-secret":
+        let result = if format == KeyFormat::RawSecret {
+            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            let data = key.byte_handle_bytes();
+
+            // 2. Let result be data.
+            ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
+        }
+        // 2. If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to the string "oct".
+            jwk.kty = Some(Utf16String::from_ascii(b"oct"));
+
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
+            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            let key_bytes = key.byte_handle_bytes();
+            let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            };
+            jwk.k = Some(encoded);
+
+            // 4. Set the alg attribute of jwk to the string "C20P".
+            jwk.alg = Some(Utf16String::from_ascii(b"C20P"));
+
+            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 7. Let result be jwk.
+            return Ok(ExportKeyResult::JsonWebKey(jwk));
+        }
+        // 2. Otherwise:
+        else {
+            // 1. throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
+        };
+
+        // 3. Return result.
+        Ok(result)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-get-key-length
+    fn get_key_length(&self, _: Gc<Realm>, _: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
+        // 1. Return 256.
+        Ok(Some(256))
     }
 }
 
