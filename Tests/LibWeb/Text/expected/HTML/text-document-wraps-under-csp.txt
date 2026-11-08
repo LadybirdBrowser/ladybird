@@ -1,0 +1,4 @@
+pre white-space: preserve wrap
+pre overflow-wrap: break-word
+pre style attribute: null
+fits the frame: true

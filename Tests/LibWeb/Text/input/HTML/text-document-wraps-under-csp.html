@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" src="../../data/text-document-csp.txt"></iframe>
+<script>
+    asyncTest(done => {
+        frame.onload = () => {
+            const doc = frame.contentDocument;
+            const pre = doc.body.firstChild;
+            const style = doc.defaultView.getComputedStyle(pre);
+            println(`pre white-space: ${style.whiteSpaceCollapse} ${style.textWrapMode}`);
+            println(`pre overflow-wrap: ${style.overflowWrap}`);
+            println(`pre style attribute: ${pre.getAttribute("style")}`);
+            println(`fits the frame: ${pre.scrollWidth <= doc.documentElement.clientWidth}`);
+            done();
+        };
+    });
+</script>

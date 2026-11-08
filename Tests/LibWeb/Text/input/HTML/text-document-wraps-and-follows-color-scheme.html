@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    asyncTest(done => {
+        const text = "x".repeat(400) + "\nsecond line\n";
+        frame.onload = () => {
+            const doc = frame.contentDocument;
+            const meta = doc.head.querySelector('meta[name="color-scheme"]');
+            println(`color-scheme meta: ${meta ? meta.content : "none"}`);
+            println(`head text: ${JSON.stringify(doc.head.textContent)}`);
+            const pre = doc.body.firstChild;
+            const style = doc.defaultView.getComputedStyle(pre);
+            println(`pre white-space: ${style.whiteSpaceCollapse} ${style.textWrapMode}`);
+            println(`pre overflow-wrap: ${style.overflowWrap}`);
+            println(`text kept: ${pre.textContent === text}`);
+            println(`fits the frame: ${pre.scrollWidth <= doc.documentElement.clientWidth}`);
+            done();
+        };
+        frame.src = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    });
+</script>
