@@ -93,7 +93,8 @@ fn test_of(func: &Func, loop_: &Loop, block: BlockId, counters: [Value; 2]) -> O
 /// By how much `next` changes `phi`, if that is one up or down.
 fn step_of(func: &Func, phi: Value, next: Value) -> Option<i32> {
     let node = func.node(next);
-    if node.ty != Type::I32 {
+    // NB: Only an addition or a subtraction has two values as its arguments; a constant's first argument is its value.
+    if node.ty != Type::I32 || !matches!(node.op, Op::Add | Op::Sub) {
         return None;
     }
     let (left, right) = (func.resolve(node.args[0]), func.resolve(node.args[1]));
