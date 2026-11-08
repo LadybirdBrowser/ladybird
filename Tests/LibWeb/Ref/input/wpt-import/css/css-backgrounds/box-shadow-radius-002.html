@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Box Shadow Border Radius (Inset)</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#shadow-shape">
+<link rel="help" href="https://github.com/servo/servo/issues/45614">
+<link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/box-shadow-radius-002-ref.html">
+<meta name="fuzzy" content="maxDifference=0-120; totalPixels=0-1500">
+
+<style>
+body {
+  margin: 0;
+}
+#target {
+  width: 200px;
+  height: 200px;
+  border: 50px solid transparent;
+  box-shadow: inset 0 0 0 50px;
+  border-radius: 125px;
+}
+</style>
+<div id="target"></div>
