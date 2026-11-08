@@ -6,25 +6,10 @@
 
 use std::ops::{Deref, DerefMut};
 
-/// A directly indexed column whose missing rows all have the same value.
-///
-/// NB: The default vacant value stays a type rather than a stored pointer. A column grows to the
-///     highest identity written, so a column that a single high identity widens fills far more
-///     rows than it will ever hold, and filling those through a pointer costs one indirect call
-///     per row where the compiler can otherwise emit a block store.
-#[derive(Clone)]
+/// A directly indexed column whose missing rows all hold the default value.
+#[derive(Clone, Default)]
 pub(super) struct Column<T> {
     entries: Vec<T>,
-    vacant: Option<fn() -> T>,
-}
-
-impl<T: Default> Default for Column<T> {
-    fn default() -> Self {
-        Self {
-            entries: Vec::new(),
-            vacant: None,
-        }
-    }
 }
 
 impl<T: Default> Column<T> {
@@ -35,10 +20,7 @@ impl<T: Default> Column<T> {
         }
         let capacity_before = self.entries.capacity();
         let length = index.checked_add(1).expect("column identity space exhausted");
-        match self.vacant {
-            Some(vacant) => self.entries.resize_with(length, vacant),
-            None => self.entries.resize_with(length, T::default),
-        }
+        self.entries.resize_with(length, T::default);
         ((self.entries.capacity() - capacity_before) * size_of::<T>()) as u64
     }
 
@@ -75,15 +57,6 @@ impl<T> Deref for Column<T> {
 impl<T> DerefMut for Column<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.entries
-    }
-}
-
-impl<T> IntoIterator for Column<T> {
-    type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.entries.into_iter()
     }
 }
 
