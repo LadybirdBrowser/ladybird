@@ -81,13 +81,13 @@ TEST_CASE(renderer_cookie_access)
 
     auto view = create_view();
     auto& cookie_jar = *view->page().client().session().cookie_jar;
-    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "secret"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http, {});
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "secret"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site());
     VERIFY(victim_cookie_value(cookie_jar) == "secret"sv);
 
     // Script reaches cookies through a document the process hosts, and only those of such a document's origin. Any
     // other access sees and changes nothing, but is not misbehavior: a document can outlive the UI process's record
     // of it.
-    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http, {});
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site());
     auto& stub = static_cast<WebContentClientStub&>(view->page().client());
     auto page_id = view->page().id();
     auto page_environment_id = view->traversable().active_document().relevant_global_object().relevant_settings_object().id();

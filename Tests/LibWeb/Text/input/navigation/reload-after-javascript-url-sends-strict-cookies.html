@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A javascript: URL document keeps the URL of the entry it replaces, so reloading it from the browser fetches that
+    // URL again. The reload is same-site if the replaced document was navigated to same-site, and sends its
+    // SameSite=Strict cookies.
+    async function pageScript() {
+        if (!sessionStorage.getItem("reloaded")) {
+            sessionStorage.setItem("reloaded", "1");
+            document.cookie = "strict=1; SameSite=Strict; Path=/";
+            const reloadDocument = `<body onload="internals.reloadThroughUIProcess()">`;
+            location.href = `javascript:${encodeURIComponent(JSON.stringify(reloadDocument))}`;
+            return;
+        }
+
+        const response = await fetch(`/recorded-request-headers${location.pathname}`, { cache: "no-store" });
+        const headers = Object.fromEntries(
+            Object.entries(await response.json()).map(([name, values]) => [name.toLowerCase(), values])
+        );
+        const sent = (headers["cookie"]?.[0] ?? "").split("; ").includes("strict=1");
+        document.cookie = "strict=; Max-Age=0; Path=/";
+        internals.signalTestIsDone(`Reload sends the SameSite=Strict cookie: ${sent}\n`);
+    }
+
+    asyncTest(async () => {
+        const server = httpTestServer();
+        const pageURL = new URL(
+            await server.createEcho("GET", "/reload-after-javascript-url-sends-strict-cookies", {
+                status: 200,
+                headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>(${pageScript})();<\/script>`,
+            })
+        );
+        pageURL.hostname = uniqueLocalhostHostname("reload-after-javascript-url");
+        internals.loadURL(pageURL.href);
+    });
+</script>

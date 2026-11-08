@@ -62,6 +62,7 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
+        HTTP::Cookie::SameSiteContext,
         Optional<Requests::RequestTransferLeaseKey>,
         Optional<u32> address_selection_hint,
         bool notify_on_cache_miss);
@@ -85,7 +86,8 @@ public:
         ByteString method,
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
-        HTTP::Cookie::IncludeCredentials include_credentials);
+        HTTP::Cookie::IncludeCredentials include_credentials,
+        HTTP::Cookie::SameSiteContext);
 
     static NonnullOwnPtr<Request> import(
         u64 request_id,
@@ -209,6 +211,7 @@ private:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
+        HTTP::Cookie::SameSiteContext,
         Optional<Requests::RequestTransferLeaseKey> = {});
 
     Request(
@@ -357,6 +360,7 @@ private:
     Optional<MonotonicTime> m_last_request_body_report_time;
 
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
+    HTTP::Cookie::SameSiteContext m_same_site_context;
 
     Optional<AlternativeService> m_alternative_service;
     bool m_alternative_services_disabled { false };

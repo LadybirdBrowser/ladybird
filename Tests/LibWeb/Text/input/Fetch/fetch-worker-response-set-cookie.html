@@ -8,25 +8,15 @@
 
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const headers = {
-            "Access-Control-Allow-Origin": location.origin,
-            "Access-Control-Allow-Credentials": "true",
-        };
-        const hostname = uniqueLocalhostHostname("worker-response-set-cookie");
-        const withHostname = url => {
-            const result = new URL(url);
-            result.hostname = hostname;
-            return result.href;
-        };
-        const setURL = withHostname(await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-set", {
+        const setURL = await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-set", {
             status: 200,
-            headers: { ...headers, "Set-Cookie": `${COOKIE_NAME}=stored` },
-        }));
-        const reflectURL = withHostname(await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-reflect", {
+            headers: { "Set-Cookie": `${COOKIE_NAME}=stored; SameSite=Strict` },
+        });
+        const reflectURL = await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-reflect", {
             status: 200,
-            headers,
+            headers: { "Content-Type": "application/json" },
             reflect_headers_in_body: true,
-        }));
+        });
 
         const workerScript = `
             self.onmessage = async (e) => {
@@ -43,14 +33,15 @@
             worker.onmessage = e => resolve(e.data);
             worker.postMessage(setURL);
         });
-        worker.terminate();
         if (workerResult !== "fetched") {
+            worker.terminate();
             println(workerResult);
             return;
         }
 
         const response = await fetch(reflectURL, { credentials: "include" });
         const body = await response.json();
+        worker.terminate();
         const cookie = body["Cookie"]?.find(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));
         println(cookie ? `Cookie sent: ${cookie.trim()}` : "Cookie not sent");
     });

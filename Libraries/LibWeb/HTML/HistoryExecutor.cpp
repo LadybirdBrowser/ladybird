@@ -335,6 +335,7 @@ GC::Ref<GC::Function<void(HistoryNavigationPopulation)>> HistoryExecutor::popula
         output->redirect_replaced_fragment = result.redirect_replaced_fragment;
         output->classic_history_api_state = move(result.classic_history_api_state);
         output->resource_cleared = result.resource_cleared;
+        output->navigation_same_site_status = result.navigation_same_site_status;
         output->inline_content_origin = move(result.inline_content_origin);
         output->document_id = result.document_id;
         if (result.replacement_document_state.has_value()) {

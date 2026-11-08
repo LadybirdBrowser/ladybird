@@ -16,9 +16,9 @@
                     });
                     const { finished } = navigation.navigate("#intercepted");
                     finished
-                        .catch(error => { document.cookie = "aborted=" + error.name + "; path=/"; })
-                        .finally(() => { document.cookie = "settled=1; path=/"; });
-                    document.cookie = "loaded=1; path=/";
+                        .catch(error => { document.cookie = "aborted=" + error.name + "; path=/; SameSite=None; Secure"; })
+                        .finally(() => { document.cookie = "settled=1; path=/; SameSite=None; Secure"; });
+                    document.cookie = "loaded=1; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );

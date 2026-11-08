@@ -144,6 +144,7 @@ public:
 
     virtual Optional<URL::URL> active_document_url() const override;
     virtual Optional<URL::Origin> active_document_origin() const override;
+    virtual SandboxingFlagSet active_document_sandboxing_flag_set() const override;
     virtual bool active_document_is_fully_active() const override;
     virtual bool active_document_is_completely_loaded() const override;
     virtual bool active_document_is(DOM::Document const&) const override;
@@ -807,6 +808,7 @@ public:
     Optional<StorageSerializationRecord> classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
+    Optional<HTTP::Cookie::SameSiteStatus> navigation_same_site_status;
     Optional<URL::Origin> inline_content_origin;
     Optional<CrossProcessId> document_id;
 

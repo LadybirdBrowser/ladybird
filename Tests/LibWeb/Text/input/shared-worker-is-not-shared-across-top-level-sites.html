@@ -36,7 +36,7 @@
         );
 
         // Sets a cookie, then reports the cookies that the shared worker's requests carry.
-        const pageScript = cookie => `document.cookie = "${cookie}; path=/";
+        const pageScript = cookie => `document.cookie = "${cookie}; path=/; SameSite=None; Secure";
             const worker = new SharedWorker(${JSON.stringify(workerURL)}, "partitioned-worker");
             worker.port.onmessage = event => (window.opener ?? window.parent).postMessage({ cookies: event.data }, "*");
             worker.port.postMessage("report");`;

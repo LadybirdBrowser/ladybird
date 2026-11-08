@@ -63,6 +63,9 @@ public:
     [[nodiscard]] DocumentResource resource() const { return m_resource; }
     void set_resource(DocumentResource resource) { m_resource = move(resource); }
 
+    [[nodiscard]] HTTP::Cookie::SameSiteStatus navigation_same_site_status() const { return m_navigation_same_site_status; }
+    void set_navigation_same_site_status(HTTP::Cookie::SameSiteStatus status) { m_navigation_same_site_status = status; }
+
     [[nodiscard]] bool reload_pending() const { return m_reload_pending; }
     void set_reload_pending(bool reload_pending) { m_reload_pending = reload_pending; }
 
@@ -109,6 +112,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-resource
     DocumentResource m_resource {};
+
+    HTTP::Cookie::SameSiteStatus m_navigation_same_site_status { HTTP::Cookie::SameSiteStatus::CrossSite };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-reload-pending
     bool m_reload_pending { false };

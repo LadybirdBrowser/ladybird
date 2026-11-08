@@ -11,8 +11,8 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
-                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
-                    document.cookie = "loaded=1; path=/";
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/; SameSite=None; Secure"; });
+                    document.cookie = "loaded=1; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );
@@ -23,7 +23,7 @@
             await httpServer.createEcho("GET", "/oop-nav-parent-next", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
-                body: `<!DOCTYPE html><script>document.cookie = "committed=1; path=/";<\/script>`,
+                body: `<!DOCTYPE html><script>document.cookie = "committed=1; path=/; SameSite=None; Secure";<\/script>`,
             })
         );
         nextParentUrl.hostname = parentHostname;
@@ -38,7 +38,7 @@
                 body: `<!DOCTYPE html><script>
                     addEventListener("message", () => { location.href = "${nextParentUrl}"; });
                     addEventListener("load", () => {
-                        document.cookie = "shown=1; path=/";
+                        document.cookie = "shown=1; path=/; SameSite=None; Secure";
                         const frame = document.createElement("iframe");
                         frame.src = "${childUrl}";
                         document.body.appendChild(frame);

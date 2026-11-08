@@ -22,7 +22,7 @@ static URL::URL parse_url(StringView url)
 static bool stores_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
     auto jar = WebView::CookieJar::create();
-    jar->set_cookie(url, cookie, source, {});
+    jar->set_cookie(url, cookie, source, {}, HTTP::Cookie::SameSiteContext::same_site());
     return !jar->get_all_cookies().is_empty();
 }
 
@@ -39,7 +39,7 @@ TEST_CASE(cookies_round_trip_on_fresh_database)
             .value = "bar"_string,
             .expiry_time_from_expires_attribute = UnixDateTime::now() + AK::Duration::from_seconds(3600),
         };
-        jar->set_cookie(parse_url("https://example.com/"sv), cookie, HTTP::Cookie::Source::Http, {});
+        jar->set_cookie(parse_url("https://example.com/"sv), cookie, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site());
 
         // The jar flushes dirty cookies to the database on destruction.
     }
@@ -50,6 +50,44 @@ TEST_CASE(cookies_round_trip_on_fresh_database)
     EXPECT_EQ(cookies.size(), 1uz);
     EXPECT_EQ(cookies[0].name, "foo"_string);
     EXPECT_EQ(cookies[0].value, "bar"_string);
+}
+
+TEST_CASE(same_site_cookie_storage_and_retrieval)
+{
+    using namespace HTTP::Cookie;
+
+    auto url = parse_url("https://example.com/"sv);
+    auto jar = WebView::CookieJar::create();
+    auto strict_cookie = parse_cookie(url, "strict=1; SameSite=Strict; HttpOnly"sv).release_value();
+    auto lax_cookie = parse_cookie(url, "lax=1; SameSite=Lax"sv).release_value();
+    auto default_cookie = parse_cookie(url, "default=1"sv).release_value();
+    auto none_cookie = parse_cookie(url, "none=1; SameSite=None; Secure"sv).release_value();
+
+    SameSiteContext cross_site_fetch { .status = SameSiteStatus::CrossSite, .is_safe_method = true };
+    SameSiteContext cross_site_post { .status = SameSiteStatus::CrossSite, .is_top_level_navigation = true };
+    SameSiteContext cross_site_get { .status = SameSiteStatus::CrossSite, .is_top_level_navigation = true, .is_safe_method = true };
+    SameSiteContext same_site_fetch { .status = SameSiteStatus::SameSite };
+
+    jar->set_cookie(url, strict_cookie, Source::Http, {}, cross_site_fetch);
+    jar->set_cookie(url, lax_cookie, Source::Http, {}, cross_site_fetch);
+    jar->set_cookie(url, default_cookie, Source::NonHttp, {}, cross_site_fetch);
+    jar->set_cookie(url, none_cookie, Source::Http, {}, cross_site_fetch);
+    EXPECT_EQ(jar->get_cookie(url, Source::Http, {}, same_site_fetch), "none=1"_string);
+
+    jar->set_cookie(url, strict_cookie, Source::Http, {}, cross_site_post);
+    jar->set_cookie(url, lax_cookie, Source::Http, {}, cross_site_post);
+    jar->set_cookie(url, default_cookie, Source::Http, {}, cross_site_post);
+    EXPECT_EQ(jar->get_all_cookies().size(), 4uz);
+
+    EXPECT_EQ(jar->get_cookie(url, Source::Http, {}, cross_site_fetch), "none=1"_string);
+    EXPECT_EQ(jar->get_cookie(url, Source::Http, {}, cross_site_post), "none=1"_string);
+    auto navigation_cookies = jar->get_cookie(url, Source::Http, {}, cross_site_get);
+    EXPECT(navigation_cookies.contains("none=1"sv));
+    EXPECT(navigation_cookies.contains("lax=1"sv));
+    EXPECT(navigation_cookies.contains("default=1"sv));
+    EXPECT(!navigation_cookies.contains("strict=1"sv));
+    EXPECT_EQ(jar->get_cookie(url, Source::NonHttp, {}, cross_site_get), "none=1"_string);
+    EXPECT(jar->get_cookie(url, Source::Http, {}, same_site_fetch).contains("strict=1"sv));
 }
 
 TEST_CASE(http_cookie_prefixes_require_secure_http_provenance)
@@ -191,25 +229,25 @@ TEST_CASE(third_party_cookies_are_partitioned_by_top_level_site)
             .value = "1"_string,
             .path = "/"_string,
         };
-        jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, partition_context);
+        jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, partition_context, HTTP::Cookie::SameSiteContext::same_site());
     };
 
     set_cookie("embedded"sv, first_top_level_site);
     set_cookie("first-party"sv, widget_site);
     set_cookie("nested"sv, widget_site_with_cross_site_ancestor);
 
-    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, first_top_level_site), "embedded=1"_string);
-    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, second_top_level_site), String {});
-    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, widget_site), "first-party=1"_string);
+    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, first_top_level_site, HTTP::Cookie::SameSiteContext::same_site()), "embedded=1"_string);
+    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, second_top_level_site, HTTP::Cookie::SameSiteContext::same_site()), String {});
+    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, widget_site, HTTP::Cookie::SameSiteContext::same_site()), "first-party=1"_string);
 
     // A context with a cross-site ancestor is third-party even under a top-level document of its own site.
-    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, widget_site_with_cross_site_ancestor), "nested=1"_string);
+    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, widget_site_with_cross_site_ancestor, HTTP::Cookie::SameSiteContext::same_site()), "nested=1"_string);
 
     // A context of nothing is a first-party context, as for the UI process's own requests.
-    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, {}), "first-party=1"_string);
+    EXPECT_EQ(jar->get_cookie(url, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site()), "first-party=1"_string);
 
     // A WebSocket handshake to the widget's site is a first-party request under the widget's top-level documents.
-    EXPECT_EQ(jar->get_cookie(parse_url("wss://widget.example/"sv), HTTP::Cookie::Source::Http, widget_site), "first-party=1"_string);
+    EXPECT_EQ(jar->get_cookie(parse_url("wss://widget.example/"sv), HTTP::Cookie::Source::Http, widget_site, HTTP::Cookie::SameSiteContext::same_site()), "first-party=1"_string);
 
     auto cookies = jar->get_all_cookies();
     EXPECT_EQ(cookies.size(), 3uz);
@@ -237,7 +275,7 @@ TEST_CASE(host_only_cookie_is_stored_apart_from_domain_cookie_for_same_host)
             .domain = move(domain),
             .path = "/"_string,
         };
-        jar.set_cookie(url, cookie, HTTP::Cookie::Source::NonHttp, {});
+        jar.set_cookie(url, cookie, HTTP::Cookie::Source::NonHttp, {}, HTTP::Cookie::SameSiteContext::same_site());
     };
     auto values = [](WebView::CookieJar& jar) {
         Vector<String> values;
@@ -264,6 +302,6 @@ TEST_CASE(host_only_cookie_is_stored_apart_from_domain_cookie_for_same_host)
         .domain = "www.example.com"_string,
         .path = "/"_string,
     };
-    jar->set_cookie(url, expired_cookie, HTTP::Cookie::Source::NonHttp, {});
+    jar->set_cookie(url, expired_cookie, HTTP::Cookie::Source::NonHttp, {}, HTTP::Cookie::SameSiteContext::same_site());
     EXPECT_EQ(values(*jar), Vector { "host-only"_string });
 }

@@ -1,5 +1,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibHTTP/Cache/CacheMode.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Header.h>
 #include <LibHTTP/NetworkIsolationKey.h>
@@ -16,7 +17,7 @@ endpoint RequestServer
     is_supported_protocol(ByteString protocol) => (bool supported)
     get_client_id() => (int client_id)
 
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) =|
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context) =|
     adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) =|
     release_request_transfer_lease(int source_client_id, u64 source_request_id) =|
     stop_request(u64 request_id) => (bool success)
@@ -33,7 +34,7 @@ endpoint RequestServer
     resolve_host(u64 lookup_id, ByteString host) =|
 
     // Websocket Connection API
-    websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers) =|
+    websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, HTTP::Cookie::SameSiteContext same_site_context) =|
     websocket_send(u64 websocket_id, bool is_text, ByteBuffer data) =|
     websocket_send_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data) =|
     websocket_close(u64 websocket_id, u16 code, ByteString reason) =|

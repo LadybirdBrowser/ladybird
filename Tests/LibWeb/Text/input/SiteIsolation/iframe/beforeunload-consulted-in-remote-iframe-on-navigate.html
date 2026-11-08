@@ -13,8 +13,8 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
-                    addEventListener("beforeunload", () => { document.cookie = "grandchildBeforeUnload=1; path=/"; });
-                    document.cookie = "grandchildLoaded=1; path=/";
+                    addEventListener("beforeunload", () => { document.cookie = "grandchildBeforeUnload=1; path=/; SameSite=None; Secure"; });
+                    document.cookie = "grandchildLoaded=1; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );
@@ -23,14 +23,14 @@
         const secondUrl = await httpServer.createEcho("GET", "/oop-beforeunload-navigate-second", {
             status: 200,
             headers: { "Content-Type": "text/html" },
-            body: `<!DOCTYPE html><script>document.cookie = "secondLoaded=1; path=/";<\/script>`,
+            body: `<!DOCTYPE html><script>document.cookie = "secondLoaded=1; path=/; SameSite=None; Secure";<\/script>`,
         });
 
         const firstUrl = await httpServer.createEcho("GET", "/oop-beforeunload-navigate-first", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>
-                addEventListener("beforeunload", () => { document.cookie = "childBeforeUnload=1; path=/"; });
+                addEventListener("beforeunload", () => { document.cookie = "childBeforeUnload=1; path=/; SameSite=None; Secure"; });
                 addEventListener("message", () => { location.href = "${secondUrl}"; });
             <\/script>`,
         });

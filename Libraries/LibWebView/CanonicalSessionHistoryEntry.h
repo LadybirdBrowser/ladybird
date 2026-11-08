@@ -67,6 +67,7 @@ public:
     Optional<URL::Origin> origin;
     Optional<URL::URL> about_base_url;
     Web::HTML::DocumentResource resource;
+    HTTP::Cookie::SameSiteStatus navigation_same_site_status { HTTP::Cookie::SameSiteStatus::CrossSite };
     bool reload_pending { false };
     bool reload_bypasses_cache { false };
     bool ever_populated { false };

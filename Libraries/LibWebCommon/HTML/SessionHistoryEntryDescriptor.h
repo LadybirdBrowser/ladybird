@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Export.h>
@@ -55,6 +56,7 @@ struct SessionHistoryDocumentStateDescriptor {
     Optional<URL::Origin> origin;
     Optional<URL::URL> about_base_url;
     DocumentResource resource;
+    HTTP::Cookie::SameSiteStatus navigation_same_site_status { HTTP::Cookie::SameSiteStatus::CrossSite };
     bool reload_pending { false };
     // AD-HOC: Whether the pending reload bypasses the HTTP cache.
     bool reload_bypasses_cache { false };

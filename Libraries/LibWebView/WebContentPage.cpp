@@ -2806,7 +2806,7 @@ Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentPag
     return { download_id };
 }
 
-Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data, JsonValue network_response)
+Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, HTTP::Cookie::SameSiteContext same_site_context, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data, JsonValue network_response)
 {
     // A download taking over an in-flight population's response body ends that navigation without a document;
     // the reporting process ends its side when its population output says the download was handled. The body
@@ -2858,7 +2858,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
     }
 
     auto& file_downloader = Application::the().file_downloader();
-    auto download_id = file_downloader.adopt_download(client().is_private(), url, destination.release_value(), total_size, request_server_client_id, request_server_request_id, initial_data.bytes(),
+    auto download_id = file_downloader.adopt_download(client().is_private(), url, destination.release_value(), total_size, same_site_context, request_server_client_id, request_server_request_id, initial_data.bytes(),
         move(on_response_finished));
     if (!is_download_in_progress(file_downloader, download_id))
         return { Optional<u64> {} };
@@ -3653,7 +3653,7 @@ void WebContentPage::did_set_cookie(Optional<Web::HTML::EnvironmentId> environme
             client().did_misbehave("did_set_cookie"sv, "HTTP cookie source"sv);
             return;
         }
-        client().session().cookie_jar->set_cookie(url, cookie, source, {});
+        client().session().cookie_jar->set_cookie(url, cookie, source, {}, HTTP::Cookie::SameSiteContext::same_site());
         return;
     }
 
@@ -3661,7 +3661,7 @@ void WebContentPage::did_set_cookie(Optional<Web::HTML::EnvironmentId> environme
     if (!partition_context.has_value())
         return;
 
-    client().session().cookie_jar->set_cookie(url, cookie, source, partition_context);
+    client().session().cookie_jar->set_cookie(url, cookie, source, partition_context, HTTP::Cookie::non_http_same_site_context(*partition_context));
 }
 
 Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentPage::did_request_all_cookies_cookiestore(Web::HTML::EnvironmentId const& environment_id, URL::URL url)
@@ -3670,21 +3670,23 @@ Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentPa
     if (!partition_context.has_value())
         return Vector<HTTP::Cookie::Cookie> {};
 
-    return client().session().cookie_jar->get_all_cookies_cookiestore(url, partition_context);
+    return client().session().cookie_jar->get_all_cookies_cookiestore(url, partition_context, HTTP::Cookie::non_http_same_site_context(*partition_context));
 }
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentPage::did_request_cookie(Optional<Web::HTML::EnvironmentId> const& environment_id, URL::URL url, HTTP::Cookie::Source source)
 {
     // NB: Only WebDriver reads cookies like HTTP does, for the top-level documents it drives.
     Optional<HTTP::Cookie::PartitionContext> partition_context;
+    auto same_site_context = HTTP::Cookie::SameSiteContext::same_site();
     if (source == HTTP::Cookie::Source::NonHttp) {
         partition_context = cookie_partition_context_for(*this, environment_id, url);
         if (!partition_context.has_value())
             return HTTP::Cookie::VersionedCookie {};
+        same_site_context = HTTP::Cookie::non_http_same_site_context(*partition_context);
     }
 
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = client().session().cookie_jar->get_cookie(url, source, partition_context);
+    cookie.cookie = client().session().cookie_jar->get_cookie(url, source, partition_context, same_site_context);
     if (source == HTTP::Cookie::Source::NonHttp)
         cookie.cookie_version = view().document_cookie_version(url);
     return cookie;

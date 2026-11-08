@@ -21,6 +21,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Cache/CacheMode.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -236,6 +237,10 @@ public:
     [[nodiscard]] OriginType const& origin() const { return m_origin; }
     void set_origin(OriginType origin) { m_origin = move(origin); }
 
+    [[nodiscard]] HTTP::Cookie::SameSiteStatus same_site_status() const;
+    [[nodiscard]] HTTP::Cookie::SameSiteContext same_site_context() const;
+    void set_reloaded_document_same_site_status(HTTP::Cookie::SameSiteStatus status) { m_reloaded_document_same_site_status = status; }
+
     [[nodiscard]] Optional<URL::Origin> const& top_level_navigation_initiator_origin() const { return m_top_level_navigation_initiator_origin; }
     void set_top_level_navigation_initiator_origin(Optional<URL::Origin> top_level_navigation_initiator_origin) { m_top_level_navigation_initiator_origin = move(top_level_navigation_initiator_origin); }
 
@@ -446,6 +451,8 @@ private:
     // https://fetch.spec.whatwg.org/#concept-request-origin
     // A request has an associated origin, which is "client" or an origin. Unless stated otherwise it is "client".
     OriginType m_origin { Origin::Client };
+
+    Optional<HTTP::Cookie::SameSiteStatus> m_reloaded_document_same_site_status;
 
     // https://fetch.spec.whatwg.org/#request-top-level-navigation-initiator-origin
     // A request has an associated top-level navigation initiator origin, which is an origin or null. Unless stated otherwise it is null.

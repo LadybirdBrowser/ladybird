@@ -129,6 +129,8 @@ void apply_navigation_population_result(NavigationPopulationRequest& request, Na
 {
     if (result.replacement_document_state.has_value())
         request.history_entry.document_state = *result.replacement_document_state;
+    if (result.navigation_same_site_status.has_value())
+        request.history_entry.document_state.navigation_same_site_status = *result.navigation_same_site_status;
     if (result.redirected_url.has_value()) {
         auto redirected_url = *result.redirected_url;
         auto fragment_directive = remove_the_fragment_directive(redirected_url);
@@ -245,6 +247,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationPopulationResult con
     TRY(encoder.encode(result.classic_history_api_state));
     TRY(encoder.encode(result.replacement_document_state));
     TRY(encoder.encode(result.resource_cleared));
+    TRY(encoder.encode(result.navigation_same_site_status));
     TRY(encoder.encode(result.inline_content_origin));
     TRY(encoder.encode(result.document_id));
     return {};
@@ -260,6 +263,7 @@ ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder& decoder)
         .classic_history_api_state = TRY(decoder.decode<Optional<Web::HTML::StorageSerializationRecord>>()),
         .replacement_document_state = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryDocumentStateDescriptor>>()),
         .resource_cleared = TRY(decoder.decode<bool>()),
+        .navigation_same_site_status = TRY(decoder.decode<Optional<HTTP::Cookie::SameSiteStatus>>()),
         .inline_content_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
         .document_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
     };

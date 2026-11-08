@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/cookies/resources/cookie-helper.sub.js"></script>
+<script>
+  window.addEventListener('load', function() {
+    window.opener.postMessage({ type: 'LOADED' }, '*');
+  });
+
+  window.addEventListener('message', function(e) {
+    if (SECURE_ORIGIN !== window.location.origin)
+      return;
+
+    if (e.data.type === "initialize-iframe")
+      window.frames[0].location = e.data.url;
+    if (e.data.type === "navigate-iframe")
+      window.frames[0].postMessage({ type: 'navigate', url: e.data.url }, '*');
+
+    // Relay messages sent by the subframe to the opener.
+    if (e.data.type === 'FRAME_READY')
+      window.opener.postMessage({ type: 'FRAME_READY' }, '*');
+
+    if (e.data.type === 'FRAME_COOKIES_SET')
+      window.opener.postMessage({ type: 'FRAME_COOKIES_SET', cookies: e.data.cookies }, '*');
+  });
+</script>
+<iframe></iframe>

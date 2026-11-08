@@ -30,6 +30,28 @@
 
 namespace Web::HTML {
 
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#dedicated-and-shared-requests
+URL::Origin WorkerGlobalScope::site_for_cookies() const
+{
+    // 1. Let site be worker's origin.
+    auto site = relevant_settings_object(*this).origin();
+
+    // 2. For each document in worker's Documents:
+    // NB: A worker owner represents the sites for cookies of its own Documents.
+    for (auto const& owner : owner_set()) {
+        // 1. Let document-site be document's "site for cookies" (as defined in Section 5.2.1).
+        auto const* document = owner.get_pointer<SerializedDocument>();
+        auto const& document_site = document ? document->site_for_cookies : owner.get<SerializedWorkerGlobalScope>().site_for_cookies;
+
+        // 2. If document-site is not same-site with site, return an origin set to an opaque origin.
+        if (!document_site.is_same_site(site))
+            return URL::Origin::create_opaque();
+    }
+
+    // 3. Return site.
+    return site;
+}
+
 GC_DEFINE_ALLOCATOR(WorkerGlobalScope);
 
 WorkerGlobalScope::WorkerGlobalScope(GC::Ref<Web::Page> page)

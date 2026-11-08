@@ -7,19 +7,16 @@
     const COOKIE_NAME = "decodingretrycookie";
 
     promiseTest(async () => {
-        const url = new URL(await httpTestServer().createEcho("GET", "/unsupported-content-encoding-retry-stores-cookies", {
+        const url = await httpTestServer().createEcho("GET", "/unsupported-content-encoding-retry-stores-cookies", {
             status: 200,
             headers: {
-                "Access-Control-Allow-Origin": location.origin,
-                "Access-Control-Allow-Credentials": "true",
                 "Content-Encoding": "base64",
                 "Content-Type": "application/json",
                 "Set-Cookie": `${COOKIE_NAME}=stored; Path=/`,
             },
             body: "$HEADERS",
             reflect_headers_in_body: true,
-        }));
-        url.hostname = uniqueLocalhostHostname("unsupported-content-encoding-retry");
+        });
 
         const requestHeaders = await (await fetch(url, { credentials: "include" })).json();
         const cookie = requestHeaders["Cookie"]?.find(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));

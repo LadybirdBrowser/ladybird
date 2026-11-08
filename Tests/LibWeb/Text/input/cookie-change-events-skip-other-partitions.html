@@ -36,7 +36,7 @@
         );
         const frameURL = await htmlEcho(
             "frame",
-            `document.cookie = "partitioned=1; path=/";
+            `document.cookie = "partitioned=1; path=/; SameSite=None; Secure";
             parent.postMessage("frame-set-cookie", "*");`
         );
 

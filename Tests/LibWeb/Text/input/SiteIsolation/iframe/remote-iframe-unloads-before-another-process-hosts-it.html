@@ -11,8 +11,8 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
-                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
-                    document.cookie = "loaded=1; path=/";
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/; SameSite=None; Secure"; });
+                    document.cookie = "loaded=1; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );
@@ -24,7 +24,7 @@
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
                     const firstUnloaded = internals.hasCookieForURL(${JSON.stringify(firstUrl.href)}, "unloadPing", "1");
-                    document.cookie = "order=" + (firstUnloaded ? "unload-first" : "activate-first") + "; path=/";
+                    document.cookie = "order=" + (firstUnloaded ? "unload-first" : "activate-first") + "; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );

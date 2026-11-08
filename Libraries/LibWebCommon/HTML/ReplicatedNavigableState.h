@@ -81,6 +81,7 @@ struct ReplicatedNavigableState {
     Utf16String target_name;
     URL::URL active_document_url;
     URL::Origin active_document_origin;
+    SandboxingFlagSet active_document_sandboxing_flag_set {};
     bool active_document_is_fully_active { false };
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="/cookies/resources/cookie-helper.sub.js"></script>
+<script>
+  // Helper to either set or clear some cookies on its own origin, or
+  // (potentially) cross-site on SECURE_ORIGIN.
+  window.onmessage = e => {
+    var originToUse = SECURE_ORIGIN;
+    if (e.data.useOwnOrigin)
+      originToUse = self.origin;
+
+    if (e.data.type === "set") {
+      credFetch(originToUse + "/cookies/resources/setSameSite.py?" + e.data.value)
+        .then(_ => {
+          e.source.postMessage({
+            type: "set-complete",
+            value: e.data.value
+          }, "*");
+        });
+    }
+
+    if (e.data.type === "drop") {
+      credFetch(originToUse + "/cookies/resources/dropSameSite.py")
+        .then(_ => {
+          e.source.postMessage({type: "drop-complete"}, "*");
+        });
+    }
+  };
+
+  window.opener.postMessage({
+    type: "READY"
+  }, "*");
+</script>

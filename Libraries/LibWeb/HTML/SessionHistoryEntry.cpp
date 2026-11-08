@@ -92,6 +92,7 @@ SessionHistoryDocumentStateDescriptor create_session_history_document_state_desc
         .origin = document_state.origin(),
         .about_base_url = document_state.about_base_url(),
         .resource = document_state.resource(),
+        .navigation_same_site_status = document_state.navigation_same_site_status(),
         .reload_pending = document_state.reload_pending(),
         .reload_bypasses_cache = document_state.reload_bypasses_cache(),
         .ever_populated = document_state.ever_populated(),
@@ -211,6 +212,7 @@ void apply_session_history_document_state_descriptor_from_ui_process(DocumentSta
     document_state.set_origin(document_state_descriptor.origin);
     document_state.set_about_base_url(document_state_descriptor.about_base_url);
     document_state.set_resource(document_state_descriptor.resource);
+    document_state.set_navigation_same_site_status(document_state_descriptor.navigation_same_site_status);
     document_state.set_reload_pending(document_state_descriptor.reload_pending);
     document_state.set_reload_bypasses_cache(document_state_descriptor.reload_bypasses_cache);
     document_state.set_ever_populated(document_state_descriptor.ever_populated);
