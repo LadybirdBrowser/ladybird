@@ -398,7 +398,7 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
 
     // 3. Fetch request with useParallelQueue set to true and processResponseConsumeBody set to the following steps
     //    given a response response and null, failure, or a byte sequence bytes:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = GC::create_function(heap(), GC::captures(*this, process_resource), [](auto& self, auto& process_resource, GC::Ref<Fetch::Infrastructure::ResponseView>, Fetch::Infrastructure::FetchAlgorithms::BodyBytes bytes) {
         self.m_icon_fetch_controller = nullptr;
         // The bytes are here, so the wait is no longer on the network: Decoding them finishes on its own, however
