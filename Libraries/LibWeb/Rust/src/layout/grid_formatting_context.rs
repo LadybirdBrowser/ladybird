@@ -2928,6 +2928,10 @@ impl<'pass> GridFormattingContext<'pass> {
         if behaves_as_auto || (!self.item_facts(item).is_replaced_box() && preferred_size.contains_percentage()) {
             return true;
         }
+        // NB: A fit-content preferred size depends on the size of the item's containing block, its grid area.
+        if preferred_size.is_fit_content() {
+            return true;
+        }
         // NB: A percentage block size that is treated as auto is reported as not auto when the item's inline size
         //     transfers through its aspect ratio, but it must not be resolved as a percentage here.
         !axis.is_column()
