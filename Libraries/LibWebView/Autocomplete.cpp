@@ -12,7 +12,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 #include <LibWebView/Autocomplete.h>
@@ -360,16 +359,13 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine
 {
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Fetching remote autocomplete suggestions from {} for '{}'", engine.name, query);
 
-    auto url_string = MUST(engine.suggestions->query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All));
-    auto url = URL::Parser::basic_parse(url_string);
-
-    if (!url.has_value()) {
+    if (!engine.suggestions_url_for_query(query).has_value()) {
         m_remote_query_complete = true;
         deliver_current_result();
         return;
     }
 
-    m_cancel_remote_query = m_host.fetch_remote_suggestions(*url, m_is_private, [this, query_id, engine, query = move(query)](AutocompleteHost::RemoteResponse response) {
+    m_cancel_remote_query = m_host.fetch_remote_suggestions(engine, query, m_is_private, [this, query_id, engine, query](AutocompleteHost::RemoteResponse response) {
         // NB: The request is over. Canceling the query from inside the callbacks below must not cancel it again.
         m_cancel_remote_query = nullptr;
 

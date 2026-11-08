@@ -122,7 +122,8 @@ endpoint HubServer
     add_web_ui_page(String host, String title) =|
     send_web_ui_message(u64 web_ui_id, String name, JsonValue data) =|
     web_ui_consume_user_activation(u64 web_ui_id) => (bool consumed)
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private) =|
+    fetch_search_suggestions(u64 request_id, String engine_name, String query, WebView::IsPrivate is_private) =|
+    post_report(u64 request_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) =|
     stop_request(u64 request_id) =|
 
     toggle_devtools_enabled() =|

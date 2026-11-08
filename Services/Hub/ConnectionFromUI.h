@@ -63,7 +63,9 @@ private:
     virtual void add_web_ui_page(String host, String title) override;
     virtual void send_web_ui_message(u64 web_ui_id, String name, JsonValue data) override;
     virtual Messages::HubServer::WebUiConsumeUserActivationResponse web_ui_consume_user_activation(u64 web_ui_id) override;
-    virtual void start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private) override;
+    virtual void fetch_search_suggestions(u64 request_id, String engine_name, String query, WebView::IsPrivate is_private) override;
+    virtual void post_report(u64 request_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body) override;
+    void start_request(u64 request_id, ByteString const& method, URL::URL const&, HTTP::HeaderList const& headers, ByteString const& body, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, WebView::IsPrivate, ReadonlySpan<StringView> response_header_names);
     virtual void stop_request(u64 request_id) override;
     virtual void toggle_devtools_enabled() override;
     virtual void set_preferred_contrast(Web::CSS::PreferredContrast) override;

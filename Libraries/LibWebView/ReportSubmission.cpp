@@ -371,13 +371,30 @@ void ReportSubmission::send_report(ProofOfWork proof)
 }
 
 // A response outside the 2xx range fails this attempt, and the activity names what was going on in that message.
-void ReportSubmission::post(StringView path, StringView activity, StringView content_type, ByteString body,
-    Optional<ProofOfWork> proof, Function<void(ByteString)> on_success)
+static Optional<URL::URL> report_server_url(StringView path)
 {
     auto endpoint = Core::Environment::get("LADYBIRD_REPORTS_ENDPOINT"sv).value_or(default_endpoint);
     auto url = URL::Parser::basic_parse(MUST(String::formatted("{}{}{}", endpoint,
         endpoint.ends_with('/') ? ""sv : "/"sv, path.substring_view(1))));
-    if (!url.has_value() || (url->scheme() != "https"sv && url->scheme() != "http"sv)) {
+    if (!url.has_value() || (url->scheme() != "https"sv && url->scheme() != "http"sv))
+        return {};
+    return url;
+}
+
+bool ReportSubmission::is_report_server_url(URL::URL const& url)
+{
+    for (auto path : { challenge_path, report_path }) {
+        if (auto report_url = report_server_url(path); report_url.has_value() && *report_url == url)
+            return true;
+    }
+    return false;
+}
+
+void ReportSubmission::post(StringView path, StringView activity, StringView content_type, ByteString body,
+    Optional<ProofOfWork> proof, Function<void(ByteString)> on_success)
+{
+    auto url = report_server_url(path);
+    if (!url.has_value()) {
         fail("Invalid report server configuration."_string, ShouldRetry::No);
         return;
     }
@@ -390,8 +407,12 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
     }
 
     if (s_post_function) {
-        m_cancel_post = s_post_function(*url, headers->headers(), move(body),
-            [weak_this = make_weak_ptr<ReportSubmission>(), serial = ++m_post_serial, activity = ByteString { activity },
+        // NB: The hook may answer before it returns, and that answer can end this submission or start a retry.
+        NonnullRefPtr protector = *this;
+        auto serial = ++m_post_serial;
+        arm_request_timeout();
+        auto cancel_post = s_post_function(*url, headers->headers(), move(body),
+            [weak_this = make_weak_ptr<ReportSubmission>(), serial, activity = ByteString { activity },
                 on_success = move(on_success)](PostResponse response) {
                 auto self = weak_this.strong_ref();
                 if (!self || self->m_post_serial != serial)
@@ -400,7 +421,8 @@ void ReportSubmission::post(StringView path, StringView activity, StringView con
                 self->did_receive_response(activity, response.had_network_error, response.response_code,
                     *HTTP::HeaderList::create(move(response.headers)), response.body.bytes(), on_success);
             });
-        arm_request_timeout();
+        if (m_post_serial == serial && m_request_timeout)
+            m_cancel_post = move(cancel_post);
         return;
     }
 

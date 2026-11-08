@@ -64,14 +64,15 @@ public:
 
     virtual WebView::Settings& autocomplete_settings() override { return WebView::Application::settings(); }
 
-    virtual Function<void()> fetch_remote_suggestions(URL::URL const& url, WebView::IsPrivate is_private, Function<void(RemoteResponse)> on_response) override
+    virtual Function<void()> fetch_remote_suggestions(WebView::SearchEngine const& engine, String const& query, WebView::IsPrivate is_private, Function<void(RemoteResponse)> on_response) override
     {
+        auto url = engine.suggestions_url_for_query(query);
         auto client = WebView::Application::request_server_client(is_private);
-        if (client.is_error()) {
+        if (!url.has_value() || client.is_error()) {
             on_response({ .had_network_error = true, .response_code = {}, .content_type = {}, .body = {} });
             return [] { };
         }
-        auto request = client.value()->start_request("GET"sv, url);
+        auto request = client.value()->start_request("GET"sv, *url, HTTP::Cookie::SameSiteContext::same_site());
         auto request_id = m_next_request_id++;
         request->set_buffered_request_finished_callback(
             [this, request_id, on_response = move(on_response)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,

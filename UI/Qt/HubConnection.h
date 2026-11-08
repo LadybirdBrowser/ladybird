@@ -32,14 +32,16 @@ public:
     // The Hub has answered initialize(), so from now on the UI cannot go on without it.
     void did_initialize();
 
-    // The UI has no network of its own, so the Hub makes its requests. Returns an ID for stop_request().
+    // The UI has no network of its own. The Hub makes the few requests it needs, each of a kind the Hub knows and checks.
+    // These return an ID for stop_request().
     struct RequestResponse {
         bool had_network_error { false };
         Optional<u32> response_code;
         Vector<HTTP::Header> headers;
         ByteString body;
     };
-    u64 start_request(ByteString method, URL::URL const&, Vector<HTTP::Header>, ByteString body, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, WebView::IsPrivate, Function<void(RequestResponse)>);
+    u64 fetch_search_suggestions(String engine_name, String query, WebView::IsPrivate, Function<void(RequestResponse)>);
+    u64 post_report(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(RequestResponse)>);
     void stop_request(u64 request_id);
 
     void set_settings_from_hub(JsonValue const&);
