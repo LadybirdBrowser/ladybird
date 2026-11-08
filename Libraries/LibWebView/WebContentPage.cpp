@@ -28,7 +28,6 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/GamepadManager.h>
-#include <LibWebView/HistoryStore.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/NotificationManager.h>
@@ -433,7 +432,7 @@ void WebContentPage::did_open_dialog(Web::PendingDialog dialog, Utf16String cons
 
 void WebContentPage::maybe_record_history_visit_for_current_load(URL::URL const& url, Optional<String> title, StringView reason)
 {
-    auto normalized_url = HistoryStore::normalize_url(url);
+    auto normalized_url = normalize_url_for_history(url);
     if (!normalized_url.has_value())
         return;
 

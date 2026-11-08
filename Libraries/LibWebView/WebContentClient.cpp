@@ -36,7 +36,6 @@
 #include <LibWebView/GamepadManager.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/HistoryStore.h>
 #include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/NotificationManager.h>

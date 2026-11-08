@@ -53,7 +53,6 @@ public:
     static ErrorOr<NonnullOwnPtr<HistoryStore>> create(Database::Database&);
     static NonnullOwnPtr<HistoryStore> create(Optional<FaviconStore&> favicon_store = {});
     static NonnullOwnPtr<HistoryStore> create_disabled();
-    static Optional<String> normalize_url(URL::URL const&);
 
     ~HistoryStore();
 

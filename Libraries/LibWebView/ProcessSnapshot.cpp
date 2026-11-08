@@ -9,7 +9,6 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
-#include <LibWebView/FaviconStore.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/ProcessSnapshot.h>
 #include <LibWebView/ViewImplementation.h>
