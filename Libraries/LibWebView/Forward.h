@@ -13,7 +13,6 @@
 
 namespace WebView {
 
-class Action;
 class Application;
 class ApplyHistoryStep;
 class AudioServerControlClient;
@@ -45,7 +44,6 @@ class HistoryStore;
 class HSTSStore;
 class ImageDecoderControlClient;
 class ImageDecoderManager;
-class Menu;
 class MicrophoneAuthorizer;
 class NavigationLoader;
 class OutOfProcessWebView;

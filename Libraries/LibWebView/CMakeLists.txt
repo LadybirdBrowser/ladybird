@@ -45,7 +45,6 @@ set(SOURCES
     ImageDecoderControlClient.cpp
     ImageDecoderManager.cpp
     LingeringIndicator.cpp
-    Menu.cpp
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp

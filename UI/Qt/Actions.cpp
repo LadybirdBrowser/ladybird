@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/Menu.h>
+#include <UI/Qt/Actions.h>
 
-namespace WebView {
+namespace Ladybird {
 
 NonnullRefPtr<Action> Action::create(ActionText text, ActionID id, Function<void()> action)
 {

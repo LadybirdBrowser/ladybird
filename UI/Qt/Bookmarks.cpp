@@ -62,13 +62,13 @@ void Bookmarks::appearance_changed()
 
 void Bookmarks::create_menus()
 {
-    m_menu = WebView::Menu::create("Bookmarks"sv);
-    m_menu->add_action(WebView::Action::create("Manage Bookmarks"sv, WebView::ActionID::ManageBookmarks, [] {
+    m_menu = Menu::create("Bookmarks"sv);
+    m_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [] {
         Application::the().activate_or_open_tab_with_url(URL::about_bookmarks());
     }));
 
     auto add_show_bookmarks_bar_option = [&](auto name, auto value) {
-        auto action = WebView::Action::create_checkable(name, WebView::ActionID::ShowBookmarksBar, [value] {
+        auto action = Action::create_checkable(name, ActionID::ShowBookmarksBar, [value] {
             auto appearance = Application::settings().appearance();
             appearance.show_bookmarks_bar = value;
             Application::settings().set_appearance(appearance);
@@ -78,20 +78,20 @@ void Bookmarks::create_menus()
         return action;
     };
 
-    m_show_bookmarks_bar_menu = WebView::Menu::create_group("Show Bookmarks Bar"sv);
+    m_show_bookmarks_bar_menu = Menu::create_group("Show Bookmarks Bar"sv);
     m_show_bookmarks_bar_always_action = add_show_bookmarks_bar_option("Always"sv, WebView::ShowBookmarksBar::Always);
     m_show_bookmarks_bar_never_action = add_show_bookmarks_bar_option("Never"sv, WebView::ShowBookmarksBar::Never);
     m_show_bookmarks_bar_on_hover_action = add_show_bookmarks_bar_option("Only When Hovering the Navigation Toolbar"sv, WebView::ShowBookmarksBar::OnHover);
     m_menu->add_submenu(*m_show_bookmarks_bar_menu);
     m_menu->add_separator();
 
-    m_toggle_bookmark_action = WebView::Action::create("Toggle Bookmark"sv, WebView::ActionID::ToggleBookmark, [] {
+    m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmark, [] {
         Application::the().show_bookmark_popover();
     });
     m_menu->add_action(*m_toggle_bookmark_action);
     update_toggle_bookmark_action();
 
-    m_menu->add_action(WebView::Action::create("Bookmark All Tabs…"sv, WebView::ActionID::AddBookmarkAllTabs, [this] {
+    m_menu->add_action(Action::create("Bookmark All Tabs…"sv, ActionID::AddBookmarkAllTabs, [this] {
         auto bookmarks = Application::the().bookmarks_for_all_tabs_in_active_window();
         if (bookmarks.is_empty())
             return;
@@ -106,7 +106,7 @@ void Bookmarks::create_menus()
         });
     }));
 
-    m_toggle_bookmark_bar_action = WebView::Action::create("Show Bookmarks Bar"sv, WebView::ActionID::ToggleBookmarksBar, [] {
+    m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [] {
         auto appearance = Application::settings().appearance();
         appearance.show_bookmarks_bar = appearance.show_bookmarks_bar == WebView::ShowBookmarksBar::Always
             ? WebView::ShowBookmarksBar::Never
@@ -121,7 +121,7 @@ void Bookmarks::create_menus()
 
 void Bookmarks::create_context_menus()
 {
-    auto add_bookmark_action = WebView::Action::create("Add Bookmark…"sv, WebView::ActionID::AddBookmark, [this] {
+    auto add_bookmark_action = Action::create("Add Bookmark…"sv, ActionID::AddBookmark, [this] {
         if (!m_context_menu_item.has_value())
             return;
 
@@ -130,7 +130,7 @@ void Bookmarks::create_context_menus()
             m_store.add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), result.target_folder_id);
         });
     });
-    auto add_bookmark_folder_action = WebView::Action::create("New Folder…"sv, WebView::ActionID::AddBookmarkFolder, [this] {
+    auto add_bookmark_folder_action = Action::create("New Folder…"sv, ActionID::AddBookmarkFolder, [this] {
         if (!m_context_menu_item.has_value())
             return;
 
@@ -140,28 +140,28 @@ void Bookmarks::create_context_menus()
         });
     });
 
-    m_bookmarks_bar_context_menu = WebView::Menu::create("Bookmarks Bar Context Menu"sv);
+    m_bookmarks_bar_context_menu = Menu::create("Bookmarks Bar Context Menu"sv);
     m_bookmarks_bar_context_menu->add_action(add_bookmark_action);
     m_bookmarks_bar_context_menu->add_action(add_bookmark_folder_action);
     m_bookmarks_bar_context_menu->add_separator();
     m_bookmarks_bar_context_menu->add_submenu(*m_show_bookmarks_bar_menu);
 
-    m_bookmark_context_menu = WebView::Menu::create("Bookmark Context Menu"sv);
-    m_bookmark_context_menu->add_action(WebView::Action::create("Open in New Tab"sv, WebView::ActionID::OpenInNewTab, [this] {
+    m_bookmark_context_menu = Menu::create("Bookmark Context Menu"sv);
+    m_bookmark_context_menu->add_action(Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this] {
         if (m_context_menu_item.has_value())
             open_in_new_tab(m_context_menu_item->id, Web::HTML::ActivateTab::Yes);
     }));
-    m_open_in_new_window_action = WebView::Action::create("Open in New Window"sv, WebView::ActionID::OpenInNewWindow, [this] {
+    m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this] {
         if (m_context_menu_item.has_value())
             open_url_in_new_window(m_context_menu_item->id, WebView::IsPrivate::No);
     });
     m_bookmark_context_menu->add_action(*m_open_in_new_window_action);
-    m_bookmark_context_menu->add_action(WebView::Action::create("Open in Private Window"sv, WebView::ActionID::OpenInNewPrivateWindow, [this] {
+    m_bookmark_context_menu->add_action(Action::create("Open in Private Window"sv, ActionID::OpenInNewPrivateWindow, [this] {
         if (m_context_menu_item.has_value())
             open_url_in_new_window(m_context_menu_item->id, WebView::IsPrivate::Yes);
     }));
     m_bookmark_context_menu->add_separator();
-    m_bookmark_context_menu->add_action(WebView::Action::create("Edit…"sv, WebView::ActionID::EditBookmark, [this] {
+    m_bookmark_context_menu->add_action(Action::create("Edit…"sv, ActionID::EditBookmark, [this] {
         if (!m_context_menu_item.has_value())
             return;
 
@@ -176,7 +176,7 @@ void Bookmarks::create_context_menus()
                 m_store.move_item(item.id, result.target_folder_id, NumericLimits<size_t>::max());
         });
     }));
-    m_bookmark_context_menu->add_action(WebView::Action::create("Copy Link"sv, WebView::ActionID::CopyURL, [this] {
+    m_bookmark_context_menu->add_action(Action::create("Copy Link"sv, ActionID::CopyURL, [this] {
         if (!m_context_menu_item.has_value())
             return;
 
@@ -186,7 +186,7 @@ void Bookmarks::create_context_menus()
 
         Application::the().set_clipboard_text(MUST(String::from_byte_string(WebView::url_text_to_copy(bookmark->bookmark().url))));
     }));
-    m_bookmark_context_menu->add_action(WebView::Action::create("Delete"sv, WebView::ActionID::DeleteBookmark, [this] {
+    m_bookmark_context_menu->add_action(Action::create("Delete"sv, ActionID::DeleteBookmark, [this] {
         if (m_context_menu_item.has_value())
             m_store.remove_item(m_context_menu_item->id);
     }));
@@ -195,13 +195,13 @@ void Bookmarks::create_context_menus()
     m_bookmark_context_menu->add_separator();
     m_bookmark_context_menu->add_submenu(*m_show_bookmarks_bar_menu);
 
-    m_bookmark_folder_context_menu = WebView::Menu::create("Bookmark Folder Context Menu"sv);
-    m_bookmark_folder_context_menu->add_action(WebView::Action::create("Open All in Tabs"sv, WebView::ActionID::OpenAllBookmarksInTabs, [this] {
+    m_bookmark_folder_context_menu = Menu::create("Bookmark Folder Context Menu"sv);
+    m_bookmark_folder_context_menu->add_action(Action::create("Open All in Tabs"sv, ActionID::OpenAllBookmarksInTabs, [this] {
         if (m_context_menu_item.has_value())
             open_folder_in_new_tabs(m_context_menu_item->id);
     }));
     m_bookmark_folder_context_menu->add_separator();
-    m_bookmark_folder_context_menu->add_action(WebView::Action::create("Edit Folder…"sv, WebView::ActionID::EditBookmarkFolder, [this] {
+    m_bookmark_folder_context_menu->add_action(Action::create("Edit Folder…"sv, ActionID::EditBookmarkFolder, [this] {
         if (!m_context_menu_item.has_value())
             return;
 
@@ -216,7 +216,7 @@ void Bookmarks::create_context_menus()
                 m_store.move_item(item.id, result.target_folder_id, NumericLimits<size_t>::max());
         });
     }));
-    m_bookmark_folder_context_menu->add_action(WebView::Action::create("Delete Folder"sv, WebView::ActionID::DeleteBookmarkFolder, [this] {
+    m_bookmark_folder_context_menu->add_action(Action::create("Delete Folder"sv, ActionID::DeleteBookmarkFolder, [this] {
         if (m_context_menu_item.has_value())
             m_store.remove_item(m_context_menu_item->id);
     }));
@@ -240,7 +240,7 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
     for (auto const& item : items) {
         item.data.visit(
             [&](BookmarkItem::Bookmark const& bookmark) {
-                auto action = WebView::Action::create(bookmark.title.value_or({}), WebView::ActionID::BookmarkItem, [this, url = bookmark.url] {
+                auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url] {
                     open_url(url);
                 });
 
@@ -258,8 +258,8 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
             },
             [&](BookmarkItem::Folder const& folder) {
                 auto submenu = folder.title.has_value()
-                    ? WebView::Menu::create_group(*folder.title)
-                    : WebView::Menu::create_group("(no title)"sv);
+                    ? Menu::create_group(*folder.title)
+                    : Menu::create_group("(no title)"sv);
 
                 create_menu_items(MenuData {
                     .menu = submenu,
@@ -273,7 +273,7 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
                     bookmark_count += child.is_bookmark() ? 1 : 0;
                 if (bookmark_count > 0) {
                     submenu->add_separator();
-                    submenu->add_action(WebView::Action::create(MUST(String::formatted("Open All in Tabs ({})", bookmark_count)), WebView::ActionID::OpenAllBookmarksInTabs, [this, folder_id = item.id] {
+                    submenu->add_action(Action::create(MUST(String::formatted("Open All in Tabs ({})", bookmark_count)), ActionID::OpenAllBookmarksInTabs, [this, folder_id = item.id] {
                         open_folder_in_new_tabs(folder_id);
                     }));
                 }

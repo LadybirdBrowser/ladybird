@@ -219,7 +219,7 @@ signals:
 
 private:
     // ^RemoteView
-    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint widget_position) override;
+    virtual void show_context_menu(Menu&, Gfx::IntPoint widget_position) override;
     virtual Optional<ScreenRects> screen_rects() const override;
     virtual void update_zoom() override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;

@@ -21,7 +21,10 @@
 #include <AK/Weakable.h>
 #include <LibWebView/Forward.h>
 
-namespace WebView {
+namespace Ladybird {
+
+class Action;
+class Menu;
 
 enum class ActionID {
     NavigateBack,
@@ -151,7 +154,7 @@ inline StringView action_text_to_string_view(ActionText const& text)
     return text.visit([](auto const& text) -> StringView { return text; });
 }
 
-class WEBVIEW_API Action
+class Action
     : public RefCounted<Action>
     , public Weakable<Action> {
 public:
@@ -234,9 +237,9 @@ private:
     WeakPtr<Menu> m_group;
 };
 
-struct WEBVIEW_API Separator { };
+struct Separator { };
 
-class WEBVIEW_API Menu
+class Menu
     : public RefCounted<Menu>
     , public Weakable<Menu> {
 public:

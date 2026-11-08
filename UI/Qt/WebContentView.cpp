@@ -2296,7 +2296,7 @@ QPoint WebContentView::map_point_to_global_position(Gfx::IntPoint position) cons
     return mapToGlobal(QPoint { position.x(), position.y() } / device_pixel_ratio());
 }
 
-void WebContentView::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget_position)
+void WebContentView::show_context_menu(Menu& menu, Gfx::IntPoint widget_position)
 {
     execute_context_menu_later(m_context_menu, *this, menu, map_point_to_global_position(widget_position));
 }

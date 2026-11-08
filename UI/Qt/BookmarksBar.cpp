@@ -336,8 +336,8 @@ void BookmarksBar::rebuild()
 
     for (auto const& item : Application::bookmarks().menu().items()) {
         item.visit(
-            [&](NonnullRefPtr<WebView::Action> const& bookmark) {
-                if (bookmark->id() != WebView::ActionID::BookmarkItem)
+            [&](NonnullRefPtr<Action> const& bookmark) {
+                if (bookmark->id() != ActionID::BookmarkItem)
                     return;
 
                 auto* action = create_application_action(*this, *bookmark);
@@ -346,7 +346,7 @@ void BookmarksBar::rebuild()
                 if (auto* button = as_if<QToolButton>(widgetForAction(action)))
                     set_button_properties(button, qstring_from_ak_string(bookmark->text()));
             },
-            [&](NonnullRefPtr<WebView::Menu> const& folder) {
+            [&](NonnullRefPtr<Menu> const& folder) {
                 if (folder->properties().get("type"sv) != "folder"sv)
                     return;
 
@@ -377,7 +377,7 @@ void BookmarksBar::rebuild()
                     QObject::connect(submenu, &QMenu::aboutToHide, button, [set_menu_open] { set_menu_open(false); });
                 }
             },
-            [](WebView::Separator) {
+            [](Separator) {
             });
     }
 
@@ -500,7 +500,7 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         return true;
 
     auto position = event->globalPosition().toPoint();
-    auto context_menu_for_selected_item = [&]() -> WebView::Menu* {
+    auto context_menu_for_selected_item = [&]() -> Menu* {
         if (m_selected_bookmark_menu_item_type == "bookmark")
             return &Application::bookmarks().bookmark_context_menu();
         if (m_selected_bookmark_menu_item_type == "folder")

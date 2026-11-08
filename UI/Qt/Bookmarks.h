@@ -13,8 +13,8 @@
 #include <AK/Vector.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebView/Autocomplete.h>
-#include <LibWebView/Menu.h>
 #include <LibWebView/Settings.h>
+#include <UI/Qt/Actions.h>
 #include <UI/Qt/BookmarkStore.h>
 
 namespace Ladybird {
@@ -32,12 +32,12 @@ public:
     Vector<WebView::AutocompleteSuggestion> suggestions_for(StringView query, size_t max_suggestions) const;
     Optional<ByteBuffer> favicon_png(String const& favicon_hash) const;
 
-    WebView::Menu& menu() { return *m_menu; }
-    WebView::Menu& show_bookmarks_bar_menu() { return *m_show_bookmarks_bar_menu; }
-    WebView::Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
-    WebView::Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
-    WebView::Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
-    WebView::Action& toggle_bookmark_bar_action() { return *m_toggle_bookmark_bar_action; }
+    Menu& menu() { return *m_menu; }
+    Menu& show_bookmarks_bar_menu() { return *m_show_bookmarks_bar_menu; }
+    Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
+    Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
+    Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
+    Action& toggle_bookmark_bar_action() { return *m_toggle_bookmark_bar_action; }
 
     void update_toggle_bookmark_action();
     void set_context_menu_item(Optional<String> item_id, Optional<String> target_folder_id, Optional<String> parent_folder_id);
@@ -55,7 +55,7 @@ private:
     };
 
     struct MenuData {
-        WebView::Menu& menu;
+        Menu& menu;
         ReadonlySpan<BookmarkItem> items;
         Optional<String const&> target_folder_id;
     };
@@ -75,17 +75,17 @@ private:
 
     BookmarkStore& m_store;
 
-    RefPtr<WebView::Menu> m_menu;
-    RefPtr<WebView::Menu> m_show_bookmarks_bar_menu;
-    RefPtr<WebView::Menu> m_bookmarks_bar_context_menu;
-    RefPtr<WebView::Menu> m_bookmark_context_menu;
-    RefPtr<WebView::Menu> m_bookmark_folder_context_menu;
-    RefPtr<WebView::Action> m_open_in_new_window_action;
-    RefPtr<WebView::Action> m_toggle_bookmark_action;
-    RefPtr<WebView::Action> m_toggle_bookmark_bar_action;
-    RefPtr<WebView::Action> m_show_bookmarks_bar_always_action;
-    RefPtr<WebView::Action> m_show_bookmarks_bar_never_action;
-    RefPtr<WebView::Action> m_show_bookmarks_bar_on_hover_action;
+    RefPtr<Menu> m_menu;
+    RefPtr<Menu> m_show_bookmarks_bar_menu;
+    RefPtr<Menu> m_bookmarks_bar_context_menu;
+    RefPtr<Menu> m_bookmark_context_menu;
+    RefPtr<Menu> m_bookmark_folder_context_menu;
+    RefPtr<Action> m_open_in_new_window_action;
+    RefPtr<Action> m_toggle_bookmark_action;
+    RefPtr<Action> m_toggle_bookmark_bar_action;
+    RefPtr<Action> m_show_bookmarks_bar_always_action;
+    RefPtr<Action> m_show_bookmarks_bar_never_action;
+    RefPtr<Action> m_show_bookmarks_bar_on_hover_action;
     size_t m_menu_static_size { 0 };
     Optional<ContextMenuItem> m_context_menu_item;
 

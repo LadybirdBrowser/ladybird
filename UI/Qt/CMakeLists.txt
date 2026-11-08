@@ -14,6 +14,7 @@ endif()
 
 add_library(ladybird_impl STATIC
     AllTabsPopover.cpp
+    Actions.cpp
     Application.cpp
     ApplicationActions.cpp
     Autocomplete.cpp

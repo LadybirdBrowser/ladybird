@@ -1068,7 +1068,7 @@ void Application::create_platform_actions()
         return make<VersionPage>(web_ui_id);
     });
 
-    m_open_task_manager_action = WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+    m_open_task_manager_action = Action::create("Open Task Manager"sv, ActionID::OpenTaskManager, [this]() {
         show_process_manager();
     });
     m_application_actions->inspect_menu().add_action(*m_open_task_manager_action);
