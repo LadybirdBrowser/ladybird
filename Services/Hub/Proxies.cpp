@@ -176,6 +176,50 @@ void GeolocationProviderInUI::did_change_authorization(Core::GeolocationAuthoriz
         on_authorization_change();
 }
 
+static MicrophoneAuthorizerInUI* s_microphone_authorizer = nullptr;
+
+MicrophoneAuthorizerInUI::MicrophoneAuthorizerInUI(WebView::MicrophoneAuthorization authorization)
+    : m_authorization(authorization)
+{
+    s_microphone_authorizer = this;
+}
+
+MicrophoneAuthorizerInUI::~MicrophoneAuthorizerInUI()
+{
+    s_microphone_authorizer = nullptr;
+}
+
+MicrophoneAuthorizerInUI* MicrophoneAuthorizerInUI::the()
+{
+    return s_microphone_authorizer;
+}
+
+void MicrophoneAuthorizerInUI::request_authorization(Function<void(WebView::MicrophoneAuthorization)> on_complete)
+{
+    // NB: With no UI to ask, nothing would ever answer, and every later request would wait behind this one.
+    auto* ui = ConnectionFromUI::the();
+    if (!ui) {
+        on_complete(m_authorization);
+        return;
+    }
+
+    // Requests made while the system is asking share its answer.
+    m_pending_requests.append(move(on_complete));
+    if (m_pending_requests.size() > 1)
+        return;
+    ui->async_microphone_request_authorization();
+}
+
+void MicrophoneAuthorizerInUI::did_change_authorization(WebView::MicrophoneAuthorization authorization)
+{
+    m_authorization = authorization;
+    if (authorization == WebView::MicrophoneAuthorization::NotDetermined)
+        return;
+    auto pending_requests = move(m_pending_requests);
+    for (auto& on_complete : pending_requests)
+        on_complete(authorization);
+}
+
 static TranslatorInUI* s_translator = nullptr;
 
 TranslatorInUI::TranslatorInUI()

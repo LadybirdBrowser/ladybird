@@ -95,6 +95,7 @@ private:
     virtual void translator_close_session(u64 session_id) override;
     virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
     virtual void translator_open_language_download_settings() override;
+    virtual void microphone_request_authorization() override;
     virtual void spell_checker_close_document(i64 document_tag) override;
     virtual void spell_checker_check(u64 request_id, i64 document_tag, Utf16String text) override;
     virtual void spell_checker_guesses(u64 request_id, i64 document_tag, Utf16String word) override;

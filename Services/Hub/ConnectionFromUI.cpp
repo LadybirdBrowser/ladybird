@@ -288,6 +288,12 @@ void ConnectionFromUI::geolocation_authorization_changed(Core::GeolocationAuthor
         provider->did_change_authorization(authorization);
 }
 
+void ConnectionFromUI::microphone_authorization_changed(WebView::MicrophoneAuthorization authorization)
+{
+    if (auto* authorizer = MicrophoneAuthorizerInUI::the())
+        authorizer->did_change_authorization(authorization);
+}
+
 void ConnectionFromUI::translator_language_detected(u64 request_id, Optional<String> language)
 {
     if (auto* translator = TranslatorInUI::the())
@@ -492,11 +498,6 @@ void ConnectionFromUI::finish_prepared_close(u64 close_id)
 {
     if (auto close = m_prepared_closes.take(close_id); close.has_value())
         (*close)();
-}
-
-void ConnectionFromUI::open_microphone_system_settings()
-{
-    static_cast<WebView::Application&>(Application::the()).microphone_authorizer().open_system_settings();
 }
 
 void ConnectionFromUI::add_web_ui_page(String host, String title)

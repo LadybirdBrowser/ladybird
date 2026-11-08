@@ -15,10 +15,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibWebView/WebContentPage.h>
 
-#if defined(AK_OS_MACOS)
-#    include <LibWebView/MicrophoneAuthorizerMacOS.h>
-#endif
-
 namespace Hub {
 
 Application::Application(ApplicationHost* host)
@@ -351,10 +347,9 @@ Core::EventLoop& Application::create_platform_event_loop()
 
 NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
 {
-#if defined(AK_OS_MACOS)
-    if (!browser_options().headless_mode.has_value())
-        return make<WebView::MicrophoneAuthorizerMacOS>();
-#endif
+    // NB: The UI tells of no authorization where the system has no say over the microphone.
+    if (auto const* info = ui_info(); info && info->microphone_authorization.has_value())
+        return make<MicrophoneAuthorizerInUI>(*info->microphone_authorization);
     return WebView::Application::create_microphone_authorizer();
 }
 

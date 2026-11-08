@@ -22,6 +22,7 @@
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/ProcessSnapshot.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/Translator.h>
@@ -174,7 +175,6 @@ endpoint HubServer
     view_prepare_for_immediate_close(u64 view_id) =|
     view_prepare_for_close_without_prompting(u64 view_id, u64 close_id) =|
     finish_prepared_close(u64 close_id) =|
-    open_microphone_system_settings() =|
     pip_did_resize(u64 view_id, Gfx::IntSize size) =|
     pip_did_close(u64 view_id, bool video_keeps_playing) =|
     notification_shown(u64 id) =|
@@ -184,6 +184,7 @@ endpoint HubServer
     geolocation_position(u64 id, Core::GeolocationCoordinates coordinates) =|
     geolocation_error(u64 id, Core::GeolocationError error) =|
     geolocation_authorization_changed(Core::GeolocationAuthorization authorization) =|
+    microphone_authorization_changed(WebView::MicrophoneAuthorization authorization) =|
     system_time_zone_changed() =|
     translator_language_detected(u64 request_id, Optional<String> language) =|
     translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) =|

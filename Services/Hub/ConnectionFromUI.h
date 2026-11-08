@@ -104,7 +104,6 @@ private:
     virtual void view_prepare_for_immediate_close(u64 view_id) override;
     virtual void view_prepare_for_close_without_prompting(u64 view_id, u64 close_id) override;
     virtual void finish_prepared_close(u64 close_id) override;
-    virtual void open_microphone_system_settings() override;
     virtual void pip_did_resize(u64 view_id, Gfx::IntSize size) override;
     virtual void pip_did_close(u64 view_id, bool video_keeps_playing) override;
     virtual void notification_shown(u64 id) override;
@@ -114,6 +113,7 @@ private:
     virtual void geolocation_position(u64 id, Core::GeolocationCoordinates coordinates) override;
     virtual void geolocation_error(u64 id, Core::GeolocationError error) override;
     virtual void geolocation_authorization_changed(Core::GeolocationAuthorization authorization) override;
+    virtual void microphone_authorization_changed(WebView::MicrophoneAuthorization authorization) override;
     virtual void system_time_zone_changed() override;
     virtual void translator_language_detected(u64 request_id, Optional<String> language) override;
     virtual void translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) override;

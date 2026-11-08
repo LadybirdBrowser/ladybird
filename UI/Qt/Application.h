@@ -81,6 +81,7 @@ public:
     static WebView::BrowserOptions const& browser_options() { return WebView::Application::browser_options(); }
 #endif
     bool has_translator() const;
+    WebView::MicrophoneAuthorizer* microphone_authorizer() { return m_microphone_authorizer.ptr(); }
     // The status to exit with right away, if the browser has nothing for this process to do.
     Optional<int> exit_status_if_done() const;
     ErrorOr<int> execute();
@@ -315,6 +316,7 @@ private:
 
     OwnPtr<WebView::Translator> m_translator;
     OwnPtr<WebView::SpellChecker> m_spell_checker;
+    OwnPtr<WebView::MicrophoneAuthorizer> m_microphone_authorizer;
     OwnPtr<WebView::Settings> m_settings;
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<SessionStore> m_session_store;
