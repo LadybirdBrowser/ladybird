@@ -1,0 +1,58 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const hmacKey = await crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+        const hkdfKey = await crypto.subtle.importKey("raw", new Uint8Array(16), "HKDF", false, ["deriveBits"]);
+        const pbkdf2Key = await crypto.subtle.importKey("raw", new Uint8Array(16), "PBKDF2", false, ["deriveBits"]);
+        const ecdsaKeys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+
+        const operations = {
+            "HMAC generateKey": hash => crypto.subtle.generateKey({ name: "HMAC", hash }, false, ["sign"]),
+            "HMAC importKey": hash =>
+                crypto.subtle.importKey("raw", new Uint8Array(16), { name: "HMAC", hash }, false, ["sign"]),
+            "HKDF deriveBits": hash =>
+                crypto.subtle.deriveBits(
+                    { name: "HKDF", hash, salt: new Uint8Array(), info: new Uint8Array() },
+                    hkdfKey,
+                    256
+                ),
+            "PBKDF2 deriveBits": hash =>
+                crypto.subtle.deriveBits(
+                    { name: "PBKDF2", hash, salt: new Uint8Array(), iterations: 1 },
+                    pbkdf2Key,
+                    256
+                ),
+            "RSA-PSS generateKey": hash =>
+                crypto.subtle.generateKey(
+                    {
+                        name: "RSA-PSS",
+                        modulusLength: 1024,
+                        publicExponent: new Uint8Array([1, 0, 1]),
+                        hash,
+                    },
+                    false,
+                    ["sign"]
+                ),
+            "ECDSA sign": hash =>
+                crypto.subtle.sign({ name: "ECDSA", hash }, ecdsaKeys.privateKey, new Uint8Array()),
+        };
+
+        for (const [name, operation] of Object.entries(operations)) {
+            for (const [description, hash] of [
+                ["missing", undefined],
+                ["number", 1],
+                ["null", null],
+            ]) {
+                try {
+                    await operation(hash);
+                    println(`${name}, ${description} hash: resolved`);
+                } catch (error) {
+                    println(`${name}, ${description} hash: ${error.name}`);
+                }
+            }
+        }
+
+        println(`supports with a missing hash: ${SubtleCrypto.supports("importKey", { name: "HMAC" })}`);
+    });
+</script>

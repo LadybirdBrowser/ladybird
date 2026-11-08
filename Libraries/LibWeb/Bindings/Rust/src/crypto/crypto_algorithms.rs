@@ -54,12 +54,14 @@ fn hash_algorithm_identifier_from_value(
 ) -> WebIdlResult<HashAlgorithmIdentifier> {
     let algorithm = if let Some(hash_string) = hash_string {
         AlgorithmIdentifier::DOMString(hash_string)
-    } else if hash_value.is_string() {
-        AlgorithmIdentifier::DOMString(hash_value.to_utf16_string(vm)?)
     } else if hash_value.is_object() {
         AlgorithmIdentifier::Object(hash_value.to_object(vm)?)
+    } else if hash_value.is_undefined() {
+        return vm
+            .throw_completion(ErrorKind::TypeError, ErrorType::MissingRequiredProperty, &[&"hash"])
+            .map_err(Into::into);
     } else {
-        unreachable!("the hash is a string or an object")
+        AlgorithmIdentifier::DOMString(hash_value.to_utf16_string(vm)?)
     };
 
     let normalized_algorithm = normalize_an_algorithm(vm, realm, &algorithm, "digest")?;

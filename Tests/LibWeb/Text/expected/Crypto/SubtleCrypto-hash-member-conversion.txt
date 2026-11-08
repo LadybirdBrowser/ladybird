@@ -1,0 +1,19 @@
+HMAC generateKey, missing hash: TypeError
+HMAC generateKey, number hash: NotSupportedError
+HMAC generateKey, null hash: NotSupportedError
+HMAC importKey, missing hash: TypeError
+HMAC importKey, number hash: NotSupportedError
+HMAC importKey, null hash: NotSupportedError
+HKDF deriveBits, missing hash: TypeError
+HKDF deriveBits, number hash: NotSupportedError
+HKDF deriveBits, null hash: NotSupportedError
+PBKDF2 deriveBits, missing hash: TypeError
+PBKDF2 deriveBits, number hash: NotSupportedError
+PBKDF2 deriveBits, null hash: NotSupportedError
+RSA-PSS generateKey, missing hash: TypeError
+RSA-PSS generateKey, number hash: NotSupportedError
+RSA-PSS generateKey, null hash: NotSupportedError
+ECDSA sign, missing hash: TypeError
+ECDSA sign, number hash: NotSupportedError
+ECDSA sign, null hash: NotSupportedError
+supports with a missing hash: false
