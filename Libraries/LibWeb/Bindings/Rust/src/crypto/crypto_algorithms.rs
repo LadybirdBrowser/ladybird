@@ -10213,7 +10213,7 @@ impl AlgorithmMethods for Ecdh {
         // NOTE: This is a parameter to the function
         // 2. Let keyData be the key data to be imported.
 
-        let mut key = None;
+        let key;
 
         // 3. If format is "spki":
         if key_format == KeyFormat::Spki {
@@ -10275,7 +10275,7 @@ impl AlgorithmMethods for Ecdh {
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
                 // 4. Let key be a new CryptoKey that represents publicKey.
                 // NOTE: We already did this in parse_a_subject_public_key_info
-                key = Some(public_key.install(cx.vm()));
+                key = public_key.install(cx.vm());
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
@@ -10291,7 +10291,7 @@ impl AlgorithmMethods for Ecdh {
             // 12. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
             let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
-            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
             if !maybe_valid {
@@ -10299,17 +10299,16 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 13. Set the [[type]] internal slot of key to "public"
-            key.expect("the operation has a key").set_type(KeyType::Public);
+            key.set_type(KeyType::Public);
 
             // 14. Let algorithm be a new EcKeyAlgorithm.
             // 15. Set the name attribute of algorithm to "ECDH".
             // 16. Set the namedCurve attribute of algorithm to namedCurve.
             // 17. Set the [[algorithm]] internal slot of key to algorithm.
-            key.expect("the operation has a key")
-                .set_algorithm(InternalAlgorithmData::Ec {
-                    name: Utf16String::from_ascii(b"ECDH"),
-                    named_curve,
-                });
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDH"),
+                named_curve,
+            });
         }
         // 3. If format is "pkcs8":
         else if key_format == KeyFormat::Pkcs8 {
@@ -10387,7 +10386,7 @@ impl AlgorithmMethods for Ecdh {
 
                 // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
                 //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
-                key = Some(ec_private_key.install(cx.vm()));
+                key = ec_private_key.install(cx.vm());
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
@@ -10403,7 +10402,7 @@ impl AlgorithmMethods for Ecdh {
             // 12. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
             let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
-            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
             if !maybe_valid {
@@ -10411,17 +10410,16 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 13. Set the [[type]] internal slot of key to "private".
-            key.expect("the operation has a key").set_type(KeyType::Private);
+            key.set_type(KeyType::Private);
 
             // 14. Let algorithm be a new EcKeyAlgorithm.
             // 15. Set the name attribute of algorithm to "ECDH".
             // 16. Set the namedCurve attribute of algorithm to namedCurve.
             // 17. Set the [[algorithm]] internal slot of key to algorithm.
-            key.expect("the operation has a key")
-                .set_algorithm(InternalAlgorithmData::Ec {
-                    name: Utf16String::from_ascii(b"ECDH"),
-                    named_curve,
-                });
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDH"),
+                named_curve,
+            });
         }
         // 3. If format is "jwk":
         else if key_format == KeyFormat::Jwk {
@@ -10528,25 +10526,19 @@ impl AlgorithmMethods for Ecdh {
 
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
                     //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
-                    key = Some(ec_key_from_coordinates(
-                        cx.vm(),
-                        &x_bytes,
-                        &y_bytes,
-                        coord_size,
-                        Some(&d_bytes),
-                    ));
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, Some(&d_bytes));
 
                     // 13. Set the [[type]] internal slot of key to "private".
-                    key.expect("the operation has a key").set_type(KeyType::Private);
+                    key.set_type(KeyType::Private);
                 } else {
                     // Otherwise:
                     // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
                     // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
                     //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
-                    key = Some(ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None));
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None);
 
                     // 3. Set the [[type]] internal slot of Key to "public".
-                    key.expect("the operation has a key").set_type(KeyType::Public);
+                    key.set_type(KeyType::Public);
                 }
             } else {
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
@@ -10557,7 +10549,7 @@ impl AlgorithmMethods for Ecdh {
             // 11. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
             let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
-            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
             if !maybe_valid {
@@ -10568,11 +10560,10 @@ impl AlgorithmMethods for Ecdh {
             // 13. Set the name attribute of algorithm to "ECDH".
             // 14. Set the namedCurve attribute of algorithm to namedCurve.
             // 15. Set the [[algorithm]] internal slot of key to algorithm.
-            key.expect("the operation has a key")
-                .set_algorithm(InternalAlgorithmData::Ec {
-                    name: Utf16String::from_ascii(b"ECDH"),
-                    named_curve,
-                });
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDH"),
+                named_curve,
+            });
         }
         // 3. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
@@ -10600,7 +10591,7 @@ impl AlgorithmMethods for Ecdh {
                 let ImportKeyData::Bytes(key_bytes) = key_data else {
                     unreachable!("raw key data contains bytes")
                 };
-                key = Some(ec_parse_raw_public_key(cx.vm(), &key_bytes)?);
+                key = ec_parse_raw_public_key(cx.vm(), &key_bytes)?;
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
@@ -10612,18 +10603,21 @@ impl AlgorithmMethods for Ecdh {
             // 5. Set the name attribute of algorithm to "ECDH".
             // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
             // 7. Set the [[type]] internal slot of key to "public"
-            key.expect("the operation has a key").set_type(KeyType::Public);
+            key.set_type(KeyType::Public);
 
             // 8. Set the [[algorithm]] internal slot of key to algorithm.
-            key.expect("the operation has a key")
-                .set_algorithm(InternalAlgorithmData::Ec {
-                    name: Utf16String::from_ascii(b"ECDH"),
-                    named_curve: normalized_algorithm.named_curve.clone(),
-                });
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDH"),
+                named_curve: normalized_algorithm.named_curve.clone(),
+            });
+        }
+        // AD-HOC: The specification leaves key unset for unsupported formats.
+        else {
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
         }
 
         // 4. Return key.
-        Ok(key.expect("the operation has a key"))
+        Ok(key)
     }
 
     // https://w3c.github.io/webcrypto/#ecdh-operations-export-key

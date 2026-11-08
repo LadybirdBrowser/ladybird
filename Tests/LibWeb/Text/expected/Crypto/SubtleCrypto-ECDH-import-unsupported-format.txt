@@ -1,0 +1,3 @@
+raw-private: NotSupportedError
+raw-seed: NotSupportedError
+raw-secret: NotSupportedError
