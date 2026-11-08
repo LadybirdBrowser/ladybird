@@ -21,6 +21,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -394,6 +395,7 @@ public:
     TestAgent()
     {
         Web::Bindings::initialize_agent(Web::HTML::AgentType::DedicatedWorker);
+        Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
         Web::HTML::current_event_loop().set_on_destroyed([] {
             Core::EventLoop::current().quit(0);
         });

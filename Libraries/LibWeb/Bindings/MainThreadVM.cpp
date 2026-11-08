@@ -789,7 +789,8 @@ void shut_down_agent()
     // NB: A window agent lives as long as its process does.
     VERIFY(&vm != main_thread_vm_ptr().ptr());
 
-    static_cast<HTML::Agent*>(vm.agent())->detach_script_abort_handle();
+    auto& agent = static_cast<HTML::Agent&>(*vm.agent());
+    agent.detach_script_abort_handle();
 
     // What the agent keeps outside its heap refers to cells in it, so that goes while the heap is alive.
     Platform::discard_thread_pool_completions();
@@ -804,8 +805,10 @@ void shut_down_agent()
     ServiceWorker::Registration::forget_registrations_of_this_agent();
 
     // An event that is still queued can hold roots as well, and a stopped request only lets go of its roots in one. As
-    // the task queues discard everything by now, no script runs from these. What a deferred invocation of LibWeb is for
-    // has to go undone, as the worker that it was for has run its closing steps.
+    // the task queues discard everything by now, no script runs from these. What a deferred invocation of LibWeb or a
+    // command to the agent's fetch executor is for has to go undone, as the worker that it was for has run its closing
+    // steps.
+    agent.fetch_executor->shutdown();
     Platform::EventLoopPlugin::set_discard_deferred_invocations_on_this_thread(true);
     auto& event_queue = Core::ThreadEventQueue::current();
     for (;;) {

@@ -30,8 +30,10 @@
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Internals/Internals.h>
@@ -281,6 +283,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Bindings::set_collect_garbage_on_every_allocation_in_new_agents(collect_garbage_on_every_allocation);
     Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
     if (stats_log)
         Web::Bindings::main_thread_vm().heap().enable_stats();
 
