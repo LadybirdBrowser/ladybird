@@ -205,6 +205,10 @@ public:
     template<typename Callback>
     void for_each_tab(Callback&& callback)
     {
+        // NB: A widget that makes a native window while the tab container is being made has Qt make this window's
+        //     native window too, and send it a move event, before m_tabs_container is set.
+        if (!m_tabs_container)
+            return;
         for (int i = 0; i < m_tabs_container->count(); ++i) {
             // A tab that hasn't loaded has no view or toolbar to update, and it picks up the window's toolbar and
             // tab-bar state when it loads.

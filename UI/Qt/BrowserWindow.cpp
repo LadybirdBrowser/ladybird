@@ -339,9 +339,12 @@ static QIcon const& app_icon(WebView::IsPrivate is_private)
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, Optional<WebView::SessionWindowId> restored_session_window_id)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
-    , m_tabs_container(new TabWidget(is_private, this))
     , m_is_popup_window(is_popup_window)
 {
+    // NB: Made here rather than in the initializer list, so that m_tabs_container is null, not uninitialized, while the
+    //     tab container is being made (see for_each_tab()).
+    m_tabs_container = new TabWidget(is_private, this);
+
     // NB: The toolbar is made before the rest of the window, so it learns of the session's downloads once it is all here.
     toolbar().update_downloads_button();
 
