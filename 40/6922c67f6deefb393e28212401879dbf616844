@@ -1,0 +1,6 @@
+Ladybird draws a synthesized font with Skia’s embolden and skew, and
+synthetic bold leaves glyph advances unchanged. Blink does the same: Its
+FontPlatformData sets SkFont::setEmbolden() and a skew of -1/4, and adds
+nothing to advances. WebKit’s Font::widthForGlyph() doesn’t add its
+synthetic bold offset to advances either, though Gecko’s FreeType
+backend does, in GetFTGlyphExtents().
