@@ -1,0 +1,4 @@
+External image: 0,0,0,0
+data: image: 18,52,86,255
+blob: image: 0,0,0,0
+Requests for the external image: 0

@@ -658,6 +658,9 @@ void HTMLLinkElement::fetch_and_process_linked_dns_prefetch_resource()
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#resolve-an-origin
     if (!ResourceLoader::is_initialized())
         return;
+    // AD-HOC: Until then, keep an SVG image off the network as Fetch would.
+    if (document().is_decoded_svg())
+        return;
     ResourceLoader::the().prefetch_dns(document(), url.value(), document().fallback_base_url());
 }
 
@@ -958,6 +961,9 @@ void HTMLLinkElement::preconnect(LinkProcessingOptions const& options)
     // 8. The user agent should obtain a connection given partitionKey, url's origin, and useCredentials.
     // FIXME: This should go through Fetch: https://fetch.spec.whatwg.org/#concept-connection-obtain
     if (!ResourceLoader::is_initialized())
+        return;
+    // AD-HOC: Until then, keep an SVG image off the network as Fetch would.
+    if (options.document && options.document->is_decoded_svg())
         return;
 
     auto source_url = options.document ? options.document->fallback_base_url() : options.environment->api_base_url();

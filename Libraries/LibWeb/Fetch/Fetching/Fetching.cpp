@@ -561,6 +561,13 @@ void populate_request_from_client(Infrastructure::Request& request, Optional<HTM
         request.set_client_snapshot(client->visit([](auto const& client) { return snapshot_client_context(*client); }));
 }
 
+static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
+{
+    auto client = HTML::settings_object_of_fetch_client(resolve_fetch_client(request));
+    auto* window = client ? HTML::window_from_global_object(client->global_object()) : nullptr;
+    return window && window->associated_document().is_decoded_svg();
+}
+
 // https://fetch.spec.whatwg.org/#concept-main-fetch
 GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Recursive recursive)
 {
@@ -579,6 +586,11 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     //    network error.
     if (request->local_urls_only() && !Infrastructure::is_local_url(request->current_url()))
         response = Infrastructure::Response::network_error("Request with 'local-URLs-only' flag must have a local URL"_string);
+
+    // AD-HOC: An SVG image is processed in a secure mode, where any URL but a data: URL is a network error.
+    //         https://svgwg.org/svg2-draft/linking.html#processingURL-fetch
+    if (request->current_url().scheme() != "data"sv && is_request_from_an_svg_image(*request))
+        response = Infrastructure::Response::network_error("An SVG image may only fetch data: URLs"_string);
 
     // 4. Run report Content Security Policy violations for request.
     auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(realm, request);
