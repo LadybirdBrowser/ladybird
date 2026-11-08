@@ -1,0 +1,6 @@
+On the way into and out of a page’s full screen, Ladybird changes only
+the window’s full-screen state, so a maximized window stays maximized
+underneath. Chromium does the same on X11, where SetFullscreen() of
+its X11Window toggles only _NET_WM_STATE_FULLSCREEN (apart from a
+workaround for Metacity). And on GTK, Gecko’s nsWindow calls only
+gtk_window_fullscreen() and gtk_window_unfullscreen().
