@@ -349,9 +349,14 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         server = self.server
         assert isinstance(server, ReloadServer)
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
         with server.interception_lock:
             server.preflight_requests.append(
-                {"path": self.path, "method": self.headers.get("Access-Control-Request-Method")}
+                {
+                    "path": self.path,
+                    "method": self.headers.get("Access-Control-Request-Method"),
+                    "body": body.decode(),
+                }
             )
         server.preflight_received.set()
         if not server.release_preflight.wait(30):
@@ -1210,6 +1215,39 @@ def check_network_continue_after_gc(bidi, context, server):
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
 
 
+def check_network_preflight_body(bidi, context, server):
+    url = f"http://localhost:{server.server_port}/network-interception/cors/preflight-body"
+    path = urllib.parse.urlsplit(url).path
+    subscription = bidi.command("session.subscribe", {"events": ["network.beforeRequestSent"]})["subscription"]
+    intercept = bidi.command(
+        "network.addIntercept",
+        {"phases": ["beforeRequestSent"], "urlPatterns": [{"type": "string", "pattern": url}]},
+    )["intercept"]
+    server.release_preflight.set()
+    try:
+        with server.interception_lock:
+            server.interception_requests.clear()
+            server.preflight_requests.clear()
+        pending = send_fetch(bidi, context, url, {"headers": {"X-BiDi": "1"}})
+        event = intercepted_event(bidi, "network.beforeRequestSent", url)
+        assert event["request"]["method"] == "OPTIONS", event
+        body = {"type": "string", "value": "preflight-body"}
+        bidi.command("network.continueRequest", {"request": event["request"]["request"], "body": body})
+        event = intercepted_event(bidi, "network.beforeRequestSent", url)
+        assert event["request"]["method"] == "GET", event
+        bidi.command("network.continueRequest", {"request": event["request"]["request"]})
+        records = fetch_records(bidi, pending)
+        received = [(record["path"], record["method"], record["body"]) for record in records]
+        assert received == [(path, "GET", "")], records
+        with server.interception_lock:
+            preflights = list(server.preflight_requests)
+        assert preflights == [{"path": path, "method": "GET", "body": "preflight-body"}], preflights
+    finally:
+        if sys.exc_info()[0] is None:
+            bidi.command("network.removeIntercept", {"intercept": intercept})
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
 def check_network_intercepted_adopted_navigation(bidi, context, server, action):
     # A cross-site navigation blocked at responseStarted commits its document in another process once continued.
     terminal_methods = {"network.responseCompleted", "network.fetchError"}
@@ -1492,6 +1530,8 @@ def check_network_interception(bidi, context, server, case="all"):
         check_network_stopped_fetch_reports_error(bidi, context, server)
     if case in ["all", "continue-after-gc"]:
         check_network_continue_after_gc(bidi, context, server)
+    if case in ["all", "preflight-body"]:
+        check_network_preflight_body(bidi, context, server)
     for action in ["continue", "fail", "provide"]:
         if case in ["all", f"adopted-navigation-{action}"]:
             check_network_intercepted_adopted_navigation(bidi, context, server, action)
@@ -1841,7 +1881,8 @@ def check_network_subresource_events(bidi, context, server):
                     # A preflight for this PUT reached the server.
                     with server.interception_lock:
                         preflights = list(server.preflight_requests)
-                    assert {"path": urllib.parse.urlsplit(url).path, "method": "PUT"} in preflights, (host, preflights)
+                    preflight = {"path": urllib.parse.urlsplit(url).path, "method": "PUT", "body": ""}
+                    assert preflight in preflights, (host, preflights)
     finally:
         if sys.exc_info()[0] is None:
             bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
@@ -2734,6 +2775,7 @@ if __name__ == "__main__":
             "events-off-stop",
             "events-on-stop",
             "continue-after-gc",
+            "preflight-body",
             "adopted-navigation-continue",
             "adopted-navigation-fail",
             "adopted-navigation-provide",

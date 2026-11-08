@@ -71,6 +71,22 @@ struct RequestTransmissionEnded {
     RequestEnd request_end;
 };
 
+// The length of one more chunk of a request's body.
+struct RequestBodyProgress {
+    u64 length { 0 };
+};
+
+// The end of a request's body after its last chunk, or the end of a null body.
+struct RequestBodyEndOfBody {
+    bool body_is_null { false };
+};
+
+// Asks the fetch's agent to read a request's body from its stream, the only place its bytes are.
+struct ReadRequestBodyStream { };
+
+// A request's body is sent from its source.
+struct RequestBodySentFromSource { };
+
 }
 
 namespace Web::Fetch::Engine {
@@ -82,6 +98,10 @@ using EngineEvent = Variant<
     Event::BodyChannelReadable,
     Event::DeliveryEnd,
     Event::RequestTransmissionStarted,
-    Event::RequestTransmissionEnded>;
+    Event::RequestTransmissionEnded,
+    Event::RequestBodyProgress,
+    Event::RequestBodyEndOfBody,
+    Event::ReadRequestBodyStream,
+    Event::RequestBodySentFromSource>;
 
 }

@@ -15,6 +15,7 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerToken.h>
 #include <LibWeb/Forward.h>
@@ -27,6 +28,8 @@ class WEB_API FetchControllerRegistry : public Weakable<FetchControllerRegistry>
     AK_MAKE_NONMOVABLE(FetchControllerRegistry);
 
 public:
+    using DeferredMainFetchSteps = GC::Function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>;
+
     FetchControllerRegistry();
 
     [[nodiscard]] FetchControllerToken add(Badge<FetchController>, FetchController&);
@@ -37,13 +40,13 @@ public:
     [[nodiscard]] Vector<GC::Root<FetchController>> controllers() const;
 
     // Keeps main fetch's in-parallel steps alive while they wait to be taken.
-    [[nodiscard]] Engine::FetchId defer_main_fetch_steps(GC::Ref<GC::Function<void()>> steps);
-    [[nodiscard]] GC::Root<GC::Function<void()>> take_deferred_main_fetch_steps(Engine::FetchId);
+    [[nodiscard]] Engine::FetchId defer_main_fetch_steps(GC::Ref<DeferredMainFetchSteps> steps);
+    [[nodiscard]] GC::Root<DeferredMainFetchSteps> take_deferred_main_fetch_steps(Engine::FetchId);
 
 private:
     u64 m_id { 0 };
     HashMap<u64, GC::RawPtr<FetchController>> m_controllers;
-    HashMap<Engine::FetchId, GC::Root<GC::Function<void()>>> m_deferred_main_fetch_steps;
+    HashMap<Engine::FetchId, GC::Root<DeferredMainFetchSteps>> m_deferred_main_fetch_steps;
 };
 
 }

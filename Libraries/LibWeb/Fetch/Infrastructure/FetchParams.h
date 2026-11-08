@@ -12,6 +12,7 @@
 #include <AK/Weakable.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/StartFetchInput.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -63,7 +64,11 @@ public:
     [[nodiscard]] Optional<FileAPI::SerializedBlobURLEntry> const& blob_url_entry() const { return m_blob_url_entry; }
     void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
-    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId) const;
+    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId, NonnullOwnPtr<Engine::EngineEventSink>) const;
+
+    // Set by the fetch engine when it runs main fetch's in-parallel steps, and shared with copies made after that.
+    [[nodiscard]] Engine::FetchEngineRecord* engine_record() const { return m_engine_record; }
+    void set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord> engine_record) const { m_engine_record = move(engine_record); }
 
 private:
     FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, FetchController&, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
@@ -107,6 +112,8 @@ private:
 
     // The loader configuration as it was when the fetch started.
     NonnullRefPtr<LoaderConfigSnapshot const> m_loader_config;
+
+    mutable RefPtr<Engine::FetchEngineRecord> m_engine_record;
 };
 
 }

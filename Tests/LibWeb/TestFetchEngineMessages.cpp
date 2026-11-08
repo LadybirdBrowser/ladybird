@@ -21,7 +21,7 @@ static_assert(!IsConstructible<Command::CompletedPreloadResponse::Completed, Nul
 static_assert(!IsConstructible<Delivered<NonNullLocalBodyHandle>, NullBody>);
 
 // Only fetch params build the input that starts a fetch.
-static_assert(!IsConstructible<StartFetchInput, FetchId, BodyIntent, Optional<Web::FileAPI::SerializedBlobURLEntry>>);
+static_assert(!IsConstructible<StartFetchInput, FetchId, BodyIntent, Optional<Web::FileAPI::SerializedBlobURLEntry>, NonnullOwnPtr<EngineEventSink>>);
 
 TEST_CASE(commands_round_trip_their_payloads)
 {
@@ -136,8 +136,13 @@ TEST_CASE(events_round_trip_their_payloads)
             .outcome = RequestEnd::CommittedAttemptFailed { .attempt_id = AttemptId(4), .error = Requests::NetworkError::IncompleteContent, .encoded_body_size = 512 },
         },
     });
+    events.append(Event::RequestBodyProgress { .length = 8 });
+    events.append(Event::RequestBodyEndOfBody { .body_is_null = true });
+    events.append(Event::ReadRequestBodyStream {});
+    events.append(Event::RequestBodySentFromSource {});
 
     Vector<u64> seen_ids;
+    Vector<StringView> seen_request_body_events;
     for (auto const& event : events) {
         event.visit(
             [&](Event::ResponseDelivery const& delivery) {
@@ -169,7 +174,18 @@ TEST_CASE(events_round_trip_their_payloads)
                 EXPECT_EQ(failed.error, Requests::NetworkError::IncompleteContent);
                 EXPECT_EQ(failed.encoded_body_size, 512u);
                 seen_ids.append(ended.transmission_id.value());
-            });
+            },
+            [&](Event::RequestBodyProgress const& progress) {
+                EXPECT_EQ(progress.length, 8u);
+                seen_request_body_events.append("progress"sv);
+            },
+            [&](Event::RequestBodyEndOfBody const& end_of_body) {
+                EXPECT(end_of_body.body_is_null);
+                seen_request_body_events.append("end of body"sv);
+            },
+            [&](Event::ReadRequestBodyStream const&) { seen_request_body_events.append("read stream"sv); },
+            [&](Event::RequestBodySentFromSource const&) { seen_request_body_events.append("sent from source"sv); });
     }
     EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6, 7 }));
+    EXPECT_EQ(seen_request_body_events, (Vector<StringView> { "progress"sv, "end of body"sv, "read stream"sv, "sent from source"sv }));
 }

@@ -33,6 +33,7 @@ FetchParams::FetchParams(FetchParams const& params)
     , m_has_response_body_transfer_lease(params.m_has_response_body_transfer_lease)
     , m_blob_url_entry(params.m_blob_url_entry)
     , m_loader_config(params.m_loader_config)
+    , m_engine_record(params.m_engine_record)
 {
 }
 
@@ -46,9 +47,9 @@ NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
     return adopt_ref(*new FetchParams(params));
 }
 
-Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id) const
+Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id, NonnullOwnPtr<Engine::EngineEventSink> event_sink) const
 {
-    return Engine::StartFetchInput { {}, fetch_id, m_control_block->body_intent(), m_blob_url_entry };
+    return Engine::StartFetchInput { {}, fetch_id, m_control_block->body_intent(), m_blob_url_entry, move(event_sink) };
 }
 
 GC::Ref<FetchController> FetchParams::controller() const

@@ -19,7 +19,7 @@ namespace Web::Fetch::Infrastructure {
 class WEB_API KeepaliveQuotaAccountant final : public AtomicRefCounted<KeepaliveQuotaAccountant> {
 public:
     // Keeps its byte count in the accountant's sum until it is destroyed.
-    class Reservation {
+    class WEB_API Reservation {
         AK_MAKE_NONCOPYABLE(Reservation);
 
     public:

@@ -47,14 +47,14 @@ Vector<GC::Root<FetchController>> FetchControllerRegistry::controllers() const
     return controllers;
 }
 
-Engine::FetchId FetchControllerRegistry::defer_main_fetch_steps(GC::Ref<GC::Function<void()>> steps)
+Engine::FetchId FetchControllerRegistry::defer_main_fetch_steps(GC::Ref<DeferredMainFetchSteps> steps)
 {
     Engine::FetchId fetch_id { s_next_fetch_id.fetch_add(1) };
     m_deferred_main_fetch_steps.set(fetch_id, GC::make_root(steps));
     return fetch_id;
 }
 
-GC::Root<GC::Function<void()>> FetchControllerRegistry::take_deferred_main_fetch_steps(Engine::FetchId fetch_id)
+GC::Root<FetchControllerRegistry::DeferredMainFetchSteps> FetchControllerRegistry::take_deferred_main_fetch_steps(Engine::FetchId fetch_id)
 {
     return m_deferred_main_fetch_steps.take(fetch_id).release_value();
 }
