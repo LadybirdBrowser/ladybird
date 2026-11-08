@@ -5,7 +5,6 @@ set(SOURCES
     CellAllocator.cpp
     ConservativeHashMap.cpp
     ConservativeHashTable.cpp
-    ConservativeRangeProvider.cpp
     ConservativeVector.cpp
     CrossHeapMember.cpp
     Root.cpp

@@ -345,11 +345,6 @@ Heap::~Heap()
     while (auto* allocator = m_all_cell_allocators.first())
         m_all_cell_allocators.remove(*allocator);
 
-    while (auto* provider = m_conservative_range_providers.first()) {
-        m_conservative_range_providers.remove(*provider);
-        provider->detach_from_heap({});
-    }
-
     for (auto* member : m_incoming_cross_heap_members)
         member->detach_from_heap({});
     m_incoming_cross_heap_members.clear();
@@ -1495,13 +1490,6 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(ConservativeScanOrigin 
             for (auto possible_value : vector.possible_values()) {
                 add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
             }
-        }
-
-        for (auto& provider : m_conservative_range_providers) {
-            provider.for_each_conservative_range([&](ReadonlySpan<FlatPtr> range) {
-                for (auto possible_value : range)
-                    add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, bounds);
-            });
         }
     }
 

@@ -23,7 +23,6 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeHashMap.h>
 #include <LibGC/ConservativeHashTable.h>
-#include <LibGC/ConservativeRangeProvider.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/CrossHeapMember.h>
 #include <LibGC/Forward.h>
@@ -140,8 +139,6 @@ public:
     void did_destroy_conservative_hash_table(Badge<ConservativeHashTableBase>, ConservativeHashTableBase&);
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
-    void did_create_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider&);
-    void did_destroy_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider&);
     void did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
     void did_destroy_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase&);
 
@@ -355,7 +352,6 @@ private:
     ConservativeHashMapBase::List m_conservative_hash_maps;
     ConservativeHashTableBase::List m_conservative_hash_tables;
     ConservativeVectorBase::List m_conservative_vectors;
-    ConservativeRangeProvider::List m_conservative_range_providers;
     HashTable<CrossHeapMemberBase*> m_incoming_cross_heap_members;
     HeapGroup* m_group { nullptr };
     bool m_incremental_sweep_enabled { true };
@@ -486,18 +482,6 @@ inline void Heap::did_destroy_conservative_vector(Badge<ConservativeVectorBase>,
 {
     VERIFY(m_conservative_vectors.contains(vector));
     m_conservative_vectors.remove(vector);
-}
-
-inline void Heap::did_create_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider& provider)
-{
-    VERIFY(!m_conservative_range_providers.contains(provider));
-    m_conservative_range_providers.append(provider);
-}
-
-inline void Heap::did_destroy_conservative_range_provider(Badge<ConservativeRangeProvider>, ConservativeRangeProvider& provider)
-{
-    VERIFY(m_conservative_range_providers.contains(provider));
-    m_conservative_range_providers.remove(provider);
 }
 
 inline void Heap::did_create_cross_heap_member(Badge<CrossHeapMemberBase>, CrossHeapMemberBase& member)
