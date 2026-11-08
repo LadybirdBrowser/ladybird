@@ -529,6 +529,67 @@ void HubConnection::translator_open_language_download_settings()
         translator->open_language_download_settings();
 }
 
+// The Hub picks its own tag for each document, and the platform gets a tag of its own the first time one is used.
+WebView::SpellChecker::DocumentTag HubConnection::spell_document_tag(WebView::SpellChecker& spell_checker, i64 document_tag)
+{
+    return m_spell_document_tags.ensure(document_tag, [&] { return spell_checker.create_document_tag(); });
+}
+
+void HubConnection::spell_checker_close_document(i64 document_tag)
+{
+    auto native_tag = m_spell_document_tags.take(document_tag);
+    if (auto* spell_checker = Application::the().spell_checker(); spell_checker && native_tag.has_value())
+        spell_checker->close_document_tag(*native_tag);
+}
+
+void HubConnection::spell_checker_check(u64 request_id, i64 document_tag, Utf16String text)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        async_spell_checker_checked(request_id, {});
+        return;
+    }
+    spell_checker->check(spell_document_tag(*spell_checker, document_tag), text, [this, request_id](Vector<Web::SpellingError> errors) {
+        async_spell_checker_checked(request_id, errors);
+    });
+}
+
+void HubConnection::spell_checker_guesses(u64 request_id, i64 document_tag, Utf16String word)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        async_spell_checker_guessed(request_id, {});
+        return;
+    }
+    spell_checker->guesses(spell_document_tag(*spell_checker, document_tag), word, [this, request_id](Vector<Utf16String> guesses) {
+        async_spell_checker_guessed(request_id, guesses);
+    });
+}
+
+void HubConnection::spell_checker_ignore(i64 document_tag, Utf16String word)
+{
+    if (auto* spell_checker = Application::the().spell_checker())
+        spell_checker->ignore(spell_document_tag(*spell_checker, document_tag), word);
+}
+
+void HubConnection::spell_checker_learn(i64 document_tag, Utf16String word)
+{
+    if (auto* spell_checker = Application::the().spell_checker())
+        spell_checker->learn(spell_document_tag(*spell_checker, document_tag), word);
+}
+
+void HubConnection::spell_checker_suggest(u64 request_id, i64 document_tag, Utf16String text, u32 caret_offset)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        async_spell_checker_suggested(request_id, {});
+        return;
+    }
+    spell_checker->suggest(spell_document_tag(*spell_checker, document_tag), text, caret_offset, [this, request_id](Optional<Web::WritingSuggestion> suggestion) {
+        async_spell_checker_suggested(request_id, suggestion);
+    });
+}
+
 void HubConnection::app_focus_view_from_notification(u64 view_id)
 {
     Application::the().focus_view_from_notification(view_id);

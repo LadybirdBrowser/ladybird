@@ -60,6 +60,7 @@ public:
     void ui_did_start();
     virtual void notify_webdriver_window_created(String const& handle) override;
     void set_ui_info(Hub::UIInfo);
+    Hub::UIInfo const* ui_info() const;
     StringView ui_mach_server_name() const { return m_ui_mach_server_name; }
     bool ui_has_location_source() const;
     bool ui_has_translator() const;
@@ -72,8 +73,6 @@ public:
 
 private:
     explicit Application(ApplicationHost*);
-
-    Hub::UIInfo const* ui_info() const;
 
     // ^WebView::Application
     virtual Core::EventLoop& create_platform_event_loop() override;

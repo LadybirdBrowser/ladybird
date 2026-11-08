@@ -126,9 +126,9 @@ void TestSpellChecker::suggest(DocumentTag, Utf16String const& text, u32 caret_o
     });
 }
 
-Vector<Utf16String> TestSpellChecker::guesses(DocumentTag, Utf16String const& word)
+void TestSpellChecker::guesses(DocumentTag, Utf16String const& word, Function<void(Vector<Utf16String>)> on_complete)
 {
-    return guesses_for(word.utf16_view());
+    on_complete(guesses_for(word.utf16_view()));
 }
 
 void TestSpellChecker::ignore(DocumentTag tag, Utf16String const& word)

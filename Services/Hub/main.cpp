@@ -11,10 +11,6 @@
 #include <LibIPC/StartupTransport.h>
 #include <LibMain/Main.h>
 
-#if defined(AK_OS_MACOS)
-#    include <Hub/SpellCheckerMac.h>
-#endif
-
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -25,10 +21,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return 0;
     }
 
-#if defined(AK_OS_MACOS)
-    application->set_spell_checker(Hub::create_platform_spell_checker());
-#endif
-
     // Headless mode runs on its own, with no UI to serve.
     RefPtr<Hub::ConnectionFromUI> connection;
     if (!Hub::Application::browser_options().headless_mode.has_value()) {
@@ -38,6 +30,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         // NB: Translating and finding the location need a run loop on macOS, and the UI is the process that has one.
         if (application->ui_has_translator())
             application->set_translator(make<Hub::TranslatorInUI>());
+        if (auto const* info = application->ui_info(); info && info->has_spell_checker)
+            application->set_spell_checker(make<Hub::SpellCheckerInUI>(info->spell_checker_learns_for_every_tag, info->spell_checker_can_suggest));
         Core::GeolocationProvider::set_provider_functions(
             []() -> ErrorOr<NonnullOwnPtr<Core::GeolocationProvider>> { return make<Hub::GeolocationProviderInUI>(); },
             [] { return Hub::Application::the().ui_has_location_source(); });

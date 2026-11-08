@@ -18,6 +18,8 @@
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/ProcessSnapshot.h>
@@ -186,6 +188,9 @@ endpoint HubServer
     translator_language_detected(u64 request_id, Optional<String> language) =|
     translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) =|
     translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) =|
+    spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) =|
+    spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) =|
+    spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) =|
     external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) =|
     external_url_launched(u64 request_id, bool launched) =|
     cancel_download(u64 id) =|

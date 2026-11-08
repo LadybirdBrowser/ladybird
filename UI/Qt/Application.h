@@ -311,8 +311,10 @@ private:
     RefPtr<Hub::ConnectionFromUI> m_connection_from_ui;
 #endif
     WebView::Translator* translator() { return m_translator.ptr(); }
+    WebView::SpellChecker* spell_checker() { return m_spell_checker.ptr(); }
 
     OwnPtr<WebView::Translator> m_translator;
+    OwnPtr<WebView::SpellChecker> m_spell_checker;
     OwnPtr<WebView::Settings> m_settings;
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<SessionStore> m_session_store;

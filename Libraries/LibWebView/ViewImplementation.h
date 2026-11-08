@@ -1127,7 +1127,7 @@ protected:
     RefPtr<WebContentPage> m_select_dropdown_page;
 
     static constexpr size_t MAX_SPELLING_GUESSES = 5;
-    void update_context_menu_misspelling(Optional<Utf16String> misspelled_word);
+    void update_context_menu_misspelling(Optional<Utf16String> misspelled_word, Function<void()> on_complete);
 
     Optional<Utf16String> m_context_menu_misspelled_word;
     Vector<Utf16String> m_spelling_guesses;

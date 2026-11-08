@@ -306,6 +306,24 @@ void ConnectionFromUI::translator_translation_finished(u64 request_id, Optional<
         translator->did_translate(request_id, move(runs));
 }
 
+void ConnectionFromUI::spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors)
+{
+    if (auto* spell_checker = SpellCheckerInUI::the())
+        spell_checker->did_check(request_id, move(errors));
+}
+
+void ConnectionFromUI::spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses)
+{
+    if (auto* spell_checker = SpellCheckerInUI::the())
+        spell_checker->did_guess(request_id, move(guesses));
+}
+
+void ConnectionFromUI::spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion)
+{
+    if (auto* spell_checker = SpellCheckerInUI::the())
+        spell_checker->did_suggest(request_id, move(suggestion));
+}
+
 void ConnectionFromUI::system_time_zone_changed()
 {
     WebView::WebContentClient::for_each_client([](WebView::WebContentClient& client) {

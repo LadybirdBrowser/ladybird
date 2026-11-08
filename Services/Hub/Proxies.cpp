@@ -259,6 +259,91 @@ void TranslatorInUI::open_language_download_settings()
         ui->async_translator_open_language_download_settings();
 }
 
+static SpellCheckerInUI* s_spell_checker = nullptr;
+
+SpellCheckerInUI::SpellCheckerInUI(bool learns_for_every_tag, bool can_suggest)
+    : m_learns_for_every_tag(learns_for_every_tag)
+    , m_can_suggest(can_suggest)
+{
+    s_spell_checker = this;
+}
+
+SpellCheckerInUI::~SpellCheckerInUI()
+{
+    s_spell_checker = nullptr;
+}
+
+SpellCheckerInUI* SpellCheckerInUI::the()
+{
+    return s_spell_checker;
+}
+
+// NB: The Hub never waits for the UI, so it picks the document's tag itself. The UI makes its own tag on first use.
+WebView::SpellChecker::DocumentTag SpellCheckerInUI::create_document_tag()
+{
+    return m_next_document_tag++;
+}
+
+void SpellCheckerInUI::close_document_tag(DocumentTag tag)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_close_document(tag);
+}
+
+void SpellCheckerInUI::check(DocumentTag tag, Utf16String const& text, Function<void(Vector<Web::SpellingError>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_checks.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_check(request_id, tag, text);
+}
+
+void SpellCheckerInUI::did_check(u64 request_id, Vector<Web::SpellingError> errors)
+{
+    if (auto on_complete = m_pending_checks.take(request_id); on_complete.has_value())
+        (*on_complete)(move(errors));
+}
+
+void SpellCheckerInUI::guesses(DocumentTag tag, Utf16String const& word, Function<void(Vector<Utf16String>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_guesses.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_guesses(request_id, tag, word);
+}
+
+void SpellCheckerInUI::did_guess(u64 request_id, Vector<Utf16String> guesses)
+{
+    if (auto on_complete = m_pending_guesses.take(request_id); on_complete.has_value())
+        (*on_complete)(move(guesses));
+}
+
+void SpellCheckerInUI::ignore(DocumentTag tag, Utf16String const& word)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_ignore(tag, word);
+}
+
+void SpellCheckerInUI::learn(DocumentTag tag, Utf16String const& word)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_learn(tag, word);
+}
+
+void SpellCheckerInUI::suggest(DocumentTag tag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_suggestions.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_suggest(request_id, tag, text, caret_offset);
+}
+
+void SpellCheckerInUI::did_suggest(u64 request_id, Optional<Web::WritingSuggestion> suggestion)
+{
+    if (auto on_complete = m_pending_suggestions.take(request_id); on_complete.has_value())
+        (*on_complete)(move(suggestion));
+}
+
 ExternalURLHandlerInUI::ExternalURLHandlerInUI(u64 handler_id, String application_name, bool is_ladybird)
     : ExternalURLHandler(move(application_name), is_ladybird)
     , m_handler_id(handler_id)

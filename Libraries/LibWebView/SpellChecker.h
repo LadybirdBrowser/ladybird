@@ -31,7 +31,9 @@ public:
     // Asynchronous; on_complete runs on the main thread.
     virtual void check(DocumentTag, Utf16String const& text, Function<void(Vector<Web::SpellingError>)> on_complete) = 0;
 
-    virtual Vector<Utf16String> guesses(DocumentTag, Utf16String const& word) = 0;
+    // Asynchronous; on_complete runs on the main thread.
+    virtual void guesses(DocumentTag, Utf16String const& word, Function<void(Vector<Utf16String>)> on_complete) = 0;
+
     virtual void ignore(DocumentTag, Utf16String const& word) = 0;
     virtual void learn(DocumentTag, Utf16String const& word) = 0;
 

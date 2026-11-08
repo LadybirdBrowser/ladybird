@@ -18,7 +18,7 @@ public:
     virtual DocumentTag create_document_tag() override;
     virtual void close_document_tag(DocumentTag) override;
     virtual void check(DocumentTag, Utf16String const& text, Function<void(Vector<Web::SpellingError>)> on_complete) override;
-    virtual Vector<Utf16String> guesses(DocumentTag, Utf16String const& word) override;
+    virtual void guesses(DocumentTag, Utf16String const& word, Function<void(Vector<Utf16String>)> on_complete) override;
     virtual void ignore(DocumentTag, Utf16String const& word) override;
     virtual void learn(DocumentTag, Utf16String const& word) override;
     virtual bool learns_for_every_tag() const override { return false; }
