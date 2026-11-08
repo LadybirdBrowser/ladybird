@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ECDH", namedCurve: "P-256" };
+        for (const format of ["raw-private", "raw-seed", "raw-secret"]) {
+            try {
+                await crypto.subtle.importKey(format, new Uint8Array(32), algorithm, true, ["deriveBits"]);
+                println(`${format}: imported`);
+            } catch (error) {
+                println(`${format}: ${error.name}`);
+            }
+        }
+    });
+</script>
