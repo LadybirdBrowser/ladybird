@@ -98,7 +98,10 @@ fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<Stati
             let content = super::nested_records::span_bytes(payload, declaration.content);
             let nested = collect_nested_command_references(content, run.context);
             // Mask groups use their declaration's visual context. Only compare drawing commands whose
-            // complete appearance is encoded in the payload, without canvas, video, or nested scenes.
+            // complete appearance is encoded in the payload, without canvas or video. The id of a nested
+            // display list, such as that of an SVG mask image, names one recording whose commands never
+            // change. The video and animated image frames drawn only inside it can, and for those
+            // ContextPresenter damages the whole viewport.
             if nested.iter().all(|nested| match nested.header.command_type {
                 DisplayListCommandType::FillRect => read_command::<FillRect>(nested.payload)
                     .background_color_animation_effect
@@ -116,6 +119,7 @@ fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<Stati
                 DisplayListCommandType::PaintLinearGradient
                 | DisplayListCommandType::PaintRadialGradient
                 | DisplayListCommandType::PaintConicGradient
+                | DisplayListCommandType::PaintNestedDisplayList
                 | DisplayListCommandType::DrawEllipse
                 | DisplayListCommandType::DrawLine
                 | DisplayListCommandType::DrawRect => true,
@@ -1684,7 +1688,8 @@ mod tests {
     use crate::display_list::builder::{HEADER_SIZE, note_command};
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, InlineClipKind, TextShadowLayer,
+        DisplayListResourceId, DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, InlineClipKind,
+        PaintNestedDisplayList, TextShadowLayer,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -1698,7 +1703,7 @@ mod tests {
     use libgfx_rust::path::Path;
     use libgfx_rust::{
         Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint,
-        MaskKind, Orientation, ScalingMode, WindingRule, translation_matrix,
+        IntSize, MaskKind, Orientation, ScalingMode, WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -3328,7 +3333,12 @@ mod tests {
     #[test]
     fn unchanged_static_mask_content_does_not_damage() {
         let rect = IntRect::new(10, 10, 20, 20);
-        let make_scene = |color, insert_effect, dynamic| {
+        enum MaskContent {
+            Fill,
+            Canvas,
+            NestedDisplayList(u64),
+        }
+        let make_scene = |color, insert_effect, mask_content| {
             let mut tree = identity_tree();
             if insert_effect {
                 effect_context(&mut tree, mask(rect));
@@ -3340,8 +3350,9 @@ mod tests {
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
                 background_color_animation_effect: EffectNodeIndex::NONE,
             };
-            let content = if dynamic {
-                command_bytes(
+            let content = match mask_content {
+                MaskContent::Fill => command_bytes(&fill, Some(rect), context),
+                MaskContent::Canvas => command_bytes(
                     &DrawCanvas {
                         dst_rect: rect,
                         canvas_id: CanvasId(1),
@@ -3350,9 +3361,16 @@ mod tests {
                     },
                     Some(rect),
                     context,
-                )
-            } else {
-                command_bytes(&fill, Some(rect), context)
+                ),
+                MaskContent::NestedDisplayList(id) => command_bytes(
+                    &PaintNestedDisplayList {
+                        display_list_id: DisplayListResourceId(id),
+                        rect: rect.to_float(),
+                        list_size: IntSize { width: 20, height: 20 },
+                    },
+                    Some(rect),
+                    context,
+                ),
             };
             let mut bytes = TestDisplayList::default();
             append_record(
@@ -3373,8 +3391,8 @@ mod tests {
             bytes.extend_from_slice(&command_bytes(&FillRect { color: BLUE, ..fill }, Some(rect), context));
             (bytes, tree)
         };
-        let (old_bytes, old_tree) = make_scene(RED, false, false);
-        let (new_bytes, new_tree) = make_scene(RED, true, false);
+        let (old_bytes, old_tree) = make_scene(RED, false, MaskContent::Fill);
+        let (new_bytes, new_tree) = make_scene(RED, true, MaskContent::Fill);
         assert_eq!(
             damage(&old_bytes, &old_tree, &old_bytes, &old_tree),
             Some(IntRect::default())
@@ -3384,15 +3402,27 @@ mod tests {
             damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
             Some(IntRect::default())
         );
-        let (new_bytes, new_tree) = make_scene(GREEN, true, false);
+        let (new_bytes, new_tree) = make_scene(GREEN, true, MaskContent::Fill);
         assert_eq!(
             damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
             Some(rect.inflated_edges(1, 1, 1, 1))
         );
         // External content retains conservative damage.
-        let (bytes, tree) = make_scene(RED, false, true);
+        let (bytes, tree) = make_scene(RED, false, MaskContent::Canvas);
         assert_eq!(
             damage(&bytes, &tree, &bytes, &tree),
+            Some(rect.inflated_edges(1, 1, 1, 1))
+        );
+        // A nested display list is the same content for as long as its id is.
+        let (old_bytes, old_tree) = make_scene(RED, false, MaskContent::NestedDisplayList(1));
+        let (new_bytes, new_tree) = make_scene(RED, false, MaskContent::NestedDisplayList(1));
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
+            Some(IntRect::default())
+        );
+        let (new_bytes, new_tree) = make_scene(RED, false, MaskContent::NestedDisplayList(2));
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
             Some(rect.inflated_edges(1, 1, 1, 1))
         );
     }
