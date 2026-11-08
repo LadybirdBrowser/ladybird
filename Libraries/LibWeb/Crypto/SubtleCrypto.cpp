@@ -16,9 +16,6 @@
 namespace Web::Crypto {
 
 enum class AlgorithmId : u8 {
-    RSASSAPKCS1,
-    RSAPSS,
-    RSAOAEP,
     ECDSA,
     ECDH,
     X25519,
@@ -31,10 +28,6 @@ enum class AlgorithmId : u8 {
 
 enum class ParameterId : u8 {
     AlgorithmParams,
-    RsaHashedKeyGenParams,
-    RsaHashedImportParams,
-    RsaPssParams,
-    RsaOaepParams,
     EcdsaParams,
     EcKeyGenParams,
     EcKeyImportParams,
@@ -209,12 +202,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
     auto& realm = *realm_pointer;
     auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
         switch (method_id) {
-        case AlgorithmId::RSASSAPKCS1:
-            return RSASSAPKCS1::create();
-        case AlgorithmId::RSAPSS:
-            return RSAPSS::create();
-        case AlgorithmId::RSAOAEP:
-            return RSAOAEP::create();
         case AlgorithmId::ECDSA:
             return ECDSA::create();
         case AlgorithmId::ECDH:
@@ -239,14 +226,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
         switch (parameter_id) {
         case ParameterId::AlgorithmParams:
             return adopt_own(*new AlgorithmParams {});
-        case ParameterId::RsaHashedKeyGenParams:
-            return RsaHashedKeyGenParams::from_value(realm, object);
-        case ParameterId::RsaHashedImportParams:
-            return RsaHashedImportParams::from_value(realm, object);
-        case ParameterId::RsaPssParams:
-            return RsaPssParams::from_value(realm, object);
-        case ParameterId::RsaOaepParams:
-            return RsaOaepParams::from_value(realm, object);
         case ParameterId::EcdsaParams:
             return EcdsaParams::from_value(realm, object);
         case ParameterId::EcKeyGenParams:
