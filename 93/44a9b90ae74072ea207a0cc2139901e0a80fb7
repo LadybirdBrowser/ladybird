@@ -1,0 +1,6 @@
+Ladybird gives an image document’s image a light gray backdrop,
+hsl(0, 0%, 90%). Blink does the same: ImageDocument::UpdateImageStyle()
+gives a loaded image that background color. Gecko’s
+TopLevelImageDocument.css gives a transparent image the same gray, with
+a light noise texture over it. WebKit’s ImageDocument::
+createDocumentStructure() makes the body white instead.
