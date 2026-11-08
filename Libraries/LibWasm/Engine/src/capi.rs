@@ -13,7 +13,7 @@
 
 use crate::module::{ImportDescription, Module};
 use crate::runtime::entity::{Entity, Handle};
-use crate::runtime::heap::{GcInterface, Visitor};
+use crate::runtime::heap::{GcInterface, TRACE_NONE, Visitor};
 use crate::runtime::{ExternValue, HostFunction, InstantiationError, Store, Trap, Value};
 use crate::types::{AddressType, FuncType, GlobalType, HeapType, Limits, MemoryType, RefType, TableType, ValType};
 use core::ffi::c_void;
@@ -112,7 +112,8 @@ pub enum WasmHeapKind {
     None,
     Exception,
     NoException,
-    /// A type the module defines; `type_index` is its index in the module.
+    /// A type the module defines; `type_index` is its index in the module, or its identity in the store for the types
+    /// of the store's functions and globals.
     Concrete,
 }
 
@@ -196,17 +197,19 @@ impl WasmValueType {
 }
 
 /// A value: i32 and f32 bits in the low 32 bits of `low`, v128 in `low` and `high`, references as their bits (zero
-/// for null).
+/// for null). `trace` says how the collector follows the value, as one of the TRACE_* kinds, which only a reference
+/// needs: a function reference points into its function's cell, while other references are the addresses of cells.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct WasmValue {
     pub kind: WasmValueKind,
+    pub trace: u8,
     pub low: u64,
     pub high: u64,
 }
 
 impl WasmValue {
-    fn of(value: Value) -> Self {
+    fn of(value: Value, trace: u8) -> Self {
         let (kind, low, high) = match value {
             Value::I32(value) => (WasmValueKind::I32, u64::from(value as u32), 0),
             Value::I64(value) => (WasmValueKind::I64, value as u64, 0),
@@ -215,7 +218,7 @@ impl WasmValue {
             Value::V128(bits) => (WasmValueKind::V128, bits as u64, (bits >> 64) as u64),
             Value::Ref(bits) => (WasmValueKind::Reference, bits, 0),
         };
-        Self { kind, low, high }
+        Self { kind, trace, low, high }
     }
 
     fn to_value(self) -> Value {
@@ -596,6 +599,8 @@ struct HostFunctionData {
     user_data: *mut std::ffi::c_void,
     /// The store the function belongs to, which its calls get.
     store: *mut WasmStore,
+    /// The types of the arguments, which say how the collector follows them.
+    parameter_types: Vec<ValType>,
     result_count: usize,
 }
 
@@ -606,11 +611,20 @@ impl Drop for HostFunctionData {
 }
 
 impl HostFunction for HostFunctionData {
-    fn call(&self, _: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
-        let arguments: Vec<WasmValue> = arguments.iter().map(|&value| WasmValue::of(value)).collect();
+    fn call(&self, store: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
+        // NB: A host function's concrete types are identities of the store, which the store knows by the time the
+        //     function is called, even its own. An embedder may still pass types of a module that the store does not
+        //     have. Arguments of those types are not traced, which is safe while the call lasts, as the caller keeps
+        //     them alive.
+        let arguments: Vec<WasmValue> = arguments
+            .iter()
+            .zip(&self.parameter_types)
+            .map(|(&value, &ty)| WasmValue::of(value, store.trace_of_known(ty).unwrap_or(TRACE_NONE)))
+            .collect();
         let mut results = vec![
             WasmValue {
                 kind: WasmValueKind::I32,
+                trace: TRACE_NONE,
                 low: 0,
                 high: 0,
             };
@@ -691,6 +705,7 @@ pub unsafe extern "C" fn wasm_store_allocate_host_function(
         release,
         user_data,
         store,
+        parameter_types: ty.params.clone(),
         result_count: ty.results.len(),
     });
     store_of(store).allocate_host_function(ty, data).cell().cast()
@@ -920,14 +935,29 @@ pub unsafe extern "C" fn wasm_store_invoke(
         .iter()
         .map(|value| value.to_value())
         .collect();
-    match store_of(store).invoke(entity(function), &arguments) {
+    let store = store_of(store);
+    match store.invoke(entity(function), &arguments) {
         Ok(values) => {
-            for (index, value) in values.into_iter().take(result_count).enumerate() {
-                unsafe { *results.add(index) = WasmValue::of(value) };
+            let types = &store.function(entity(function)).ty.results;
+            for (index, (value, &ty)) in values.into_iter().zip(types).take(result_count).enumerate() {
+                let trace = store.trace_of_known(ty).unwrap_or(TRACE_NONE);
+                unsafe { *results.add(index) = WasmValue::of(value, trace) };
             }
             WasmStatus::Ok
         }
         Err(trap) => WasmStatus::of_trap(&trap, error, exception),
+    }
+}
+
+/// Visits a value of a store with a LibGC visitor, which keeps the cell a reference refers to alive.
+///
+/// # Safety
+///
+/// `visitor` must be the LibGC visitor a cell's visit_edges was given, and `value` a value of a store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_visitor_visit_value(visitor: *mut c_void, value: WasmValue) {
+    if value.kind == WasmValueKind::Reference {
+        Visitor::new(visitor).visit_value(value.low, value.trace);
     }
 }
 
@@ -980,7 +1010,8 @@ pub unsafe extern "C" fn wasm_store_global_type(
 /// `store` must be a live store with a global at `global`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_global_get(store: *mut WasmStore, global: *mut c_void) -> WasmValue {
-    WasmValue::of(store_of(store).global(entity(global)).get())
+    let global = store_of(store).global(entity(global));
+    WasmValue::of(global.get(), global.trace)
 }
 
 // WASI.

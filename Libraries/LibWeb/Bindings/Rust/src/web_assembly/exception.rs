@@ -76,6 +76,7 @@ impl Exception {
         // NB: The converted values may refer to new cells, which the cell of the values keeps alive until they are in
         //     the exception.
         let wasm_payload = WasmValues::allocate(vm);
+        let payload_traces = WasmValues::traces_of(vm, &types);
 
         // 7. For each value and resultType of payload and types, paired linearly,
         for (index, &result_type) in types.iter().enumerate() {
@@ -88,14 +89,14 @@ impl Exception {
                 payload.get(index).expect("the payload has a value per type"),
                 result_type,
             )?;
-            wasm_payload.0.borrow_mut().push(value);
+            wasm_payload.push(value, payload_traces[index]);
         }
 
         // 8. Let (store, exceptionAddr) be exn_alloc(store, exceptionTag.[[Address]], wasmPayload).
         // 9. Set the surrounding agent's associated store to store.
         let exception = agent
             .store()
-            .allocate_exception_with_values(exception_tag.address(), &wasm_payload.0.borrow());
+            .allocate_exception_with_values(exception_tag.address(), &wasm_payload.values());
         // NB: Using the Gc after the allocation keeps the payload where the conservative scan finds it until it is in
         //     the exception.
         core::hint::black_box(wasm_payload);
