@@ -3211,7 +3211,8 @@ impl<'pass> GridFormattingContext<'pass> {
             fixed_track_limit += track.max_sizing.resolve(available);
         }
         if all_fixed {
-            result = result.min(fixed_track_limit);
+            // NB: The stretch fit into that size leaves room for the item's margins, borders and padding.
+            result = result.min(CssPixels::default().max(fixed_track_limit - self.outer_edges(item, axis)));
         }
 
         // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
