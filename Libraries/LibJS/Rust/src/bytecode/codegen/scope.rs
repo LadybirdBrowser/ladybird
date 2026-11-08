@@ -47,6 +47,7 @@ use super::bindings::*;
 use super::context::Generator;
 use super::nodes::Identifier;
 use super::registers::ScopedOperand;
+use super::stream::Control;
 use super::stream::HeldRegisters;
 use super::stream::ScopeEnvironment;
 
@@ -1826,11 +1827,18 @@ impl Generator<'_> {
                 is_parameter: false,
             });
         }
-        ScopeEnvironment { register, parent, held }
+        let environment = ScopeEnvironment { register, parent, held };
+        self.push_control(Control::Block {
+            environment: Some(environment),
+        });
+        environment
     }
 
     /// The scope of a class ends, whose environment lives on in what the class is made of.
     pub(super) fn end_class_scope(&mut self, environment: ScopeEnvironment) {
+        let Some(Control::Block { environment: Some(_) }) = self.pop_control() else {
+            unreachable!("the scope of a class is what is going on");
+        };
         self.pop_tracked_lexical_environment();
         let scope = &mut self.context.scope;
         scope.scope_environment_depth -= 1;
