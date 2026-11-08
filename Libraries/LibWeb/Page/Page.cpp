@@ -1502,12 +1502,12 @@ void Page::select_dropdown_closed(Optional<u32> const& selected_item_id)
     }
 }
 
-void Page::request_clipboard_entries(ClipboardRequest request)
+void Page::request_clipboard_entries_for_paste(ClipboardRequest request)
 {
     auto request_id = m_next_clipboard_request_id++;
     m_pending_clipboard_requests.set(request_id, request);
 
-    client().page_did_request_clipboard_entries(request_id);
+    client().page_did_request_clipboard_entries_for_paste(request_id);
 }
 
 void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemClipboardItem> items)

@@ -2845,68 +2845,76 @@ EventResult EventHandler::perform_paste_action()
 
     // NB: The system clipboard lives in the UI process. So, retrieve its contents first — and run the rest of the paste
     //     action once the contents arrive.
-    document->page().request_clipboard_entries(GC::create_function(document->heap(), GC::captures(GC::Ref { *document }), [](auto& document, Vector<Clipboard::SystemClipboardItem> items) {
-        auto data_store = HTML::DragDataStore::create();
-
-        auto add_text_item = [&](Utf16FlyString type, Utf16String data) {
-            data_store->add_item({
-                .kind = HTML::DragDataStoreItem::Kind::Text,
-                .type_string = move(type),
-                .data = move(data),
-                .file_data = {},
-                .file_name = {},
-            });
-        };
-
-        auto add_file_item = [&](Utf16FlyString type, Utf16String name, ByteBuffer data) {
-            data_store->add_item({
-                .kind = HTML::DragDataStoreItem::Kind::File,
-                .type_string = move(type),
-                .data = {},
-                .file_data = move(data),
-                .file_name = move(name),
-            });
-        };
-
-        if (!items.is_empty()) {
-            for (auto& representation : items.first().system_clipboard_representations) {
-                auto mime_type = MimeSniff::MimeType::parse(representation.name);
-                if (!mime_type.has_value())
-                    continue;
-
-                auto essence = Utf16FlyString::from_utf8(mime_type->essence());
-
-                representation.data.visit(
-                    [&](ByteString const& text) {
-                        auto data = String::from_utf8_with_replacement_character(text);
-
-                        if (essence.is_one_of("text/plain"sv, "text/html"sv)) {
-                            add_text_item(move(essence), Utf16String::from_utf8_with_replacement_character(text));
-                        } else if (essence == "image/png"sv) {
-                            // AD-HOC: The spec doesn't say what to do here, but other engines add a file named
-                            //         image.png for any PNG inserted via navigator.clipboard. Note that only PNG
-                            //         images are supported via that API.
-                            add_file_item(move(essence), "image.png"_utf16, text.to_byte_buffer());
-                        }
-                    },
-                    [&](HTML::SelectedFile& file) {
-                        add_file_item(move(essence), file.name(), file.take_contents());
-                    });
-            }
-        }
-
+    document->page().request_clipboard_entries_for_paste(GC::create_function(document->heap(), GC::captures(GC::Ref { *document }), [](auto& document, Vector<Clipboard::SystemClipboardItem> system_clipboard_data) {
         if (auto navigable = document->navigable())
-            navigable->event_handler().perform_paste_action(data_store);
+            navigable->event_handler().perform_paste_action(system_clipboard_data);
     }));
 
     return EventResult::Handled;
 }
 
 // https://w3c.github.io/clipboard-apis/#paste-action
-// This is the paste action from the point where the content to paste is already in hand, either because async retrieval
-// of the system clipboard's contents above finished, or because the paste arrived through LocalNavigable::paste() —
-// which the UI process hands the content to paste directly.
-EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const& data_store)
+// This is the paste action from the point where the system clipboard's contents are in hand, either because async
+// retrieval of them above finished, or because the UI process handed them over with its own Paste command.
+EventResult EventHandler::perform_paste_action(Vector<Clipboard::SystemClipboardItem> const& system_clipboard_data)
+{
+    auto data_store = HTML::DragDataStore::create();
+
+    auto add_text_item = [&](Utf16FlyString type, Utf16String data) {
+        data_store->add_item({
+            .kind = HTML::DragDataStoreItem::Kind::Text,
+            .type_string = move(type),
+            .data = move(data),
+            .file_data = {},
+            .file_name = {},
+        });
+    };
+
+    auto add_file_item = [&](Utf16FlyString type, Utf16String name, ByteBuffer data) {
+        data_store->add_item({
+            .kind = HTML::DragDataStoreItem::Kind::File,
+            .type_string = move(type),
+            .data = {},
+            .file_data = move(data),
+            .file_name = move(name),
+        });
+    };
+
+    if (!system_clipboard_data.is_empty()) {
+        for (auto const& representation : system_clipboard_data.first().system_clipboard_representations) {
+            auto mime_type = MimeSniff::MimeType::parse(representation.name);
+            if (!mime_type.has_value())
+                continue;
+
+            auto essence = Utf16FlyString::from_utf8(mime_type->essence());
+
+            representation.data.visit(
+                [&](ByteString const& text) {
+                    auto data = String::from_utf8_with_replacement_character(text);
+
+                    if (essence.is_one_of("text/plain"sv, "text/html"sv)) {
+                        add_text_item(move(essence), Utf16String::from_utf8_with_replacement_character(text));
+                    } else if (essence == "image/png"sv) {
+                        // AD-HOC: The spec doesn't say what to do here, but other engines add a file named
+                        //         image.png for any PNG inserted via navigator.clipboard. Note that only PNG
+                        //         images are supported via that API.
+                        add_file_item(move(essence), "image.png"_utf16, text.to_byte_buffer());
+                    }
+                },
+                [&](HTML::SelectedFile const& file) {
+                    auto contents = file;
+                    add_file_item(move(essence), file.name(), contents.take_contents());
+                });
+        }
+    }
+
+    return perform_paste_action(data_store, &system_clipboard_data);
+}
+
+// https://w3c.github.io/clipboard-apis/#paste-action
+// This is the paste action from the point where the content to paste is in a data store: the system clipboard's contents,
+// or content that the UI process hands over in their place through LocalNavigable::paste().
+EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const& data_store, Vector<Clipboard::SystemClipboardItem> const* system_clipboard_data)
 {
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -2915,8 +2923,16 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
     auto data_transfer = HTML::DataTransfer::create(data_store);
 
+    // NB: Pasting the system clipboard is the user's interaction with the user agent's "Paste" control, so script
+    //     running as a result of the paste event may read the data being pasted. A paste of handed-over content lets
+    //     the page see only that content.
+    GC::Ref window = *document->window();
+    auto const* data_being_pasted = window->system_clipboard_data_being_pasted();
+    window->set_system_clipboard_data_being_pasted(system_clipboard_data);
+
     // 2. Fire a clipboard event named paste.
     bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, data_transfer);
+    window->set_system_clipboard_data_being_pasted(data_being_pasted);
     data_store->set_mode(HTML::DragDataStore::Mode::Protected);
 
     // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 17 tests
 
-14 Pass
-3 Fail
+13 Pass
+4 Fail
 Pass	navigator.clipboard exists
 Pass	navigator.clipboard.write([text/plain ClipboardItem]) succeeds
 Fail	navigator.clipboard.write([>1 ClipboardItems]) fails (not implemented)
@@ -17,7 +17,7 @@ Pass	navigator.clipboard.write({string : DOMString}) succeeds
 Pass	navigator.clipboard.write({string : image/png Blob}) succeeds
 Pass	navigator.clipboard.write([text + png] succeeds
 Fail	navigator.clipboard.write(image/png DOMString) fails
-Pass	navigator.clipboard.read() succeeds
+Fail	navigator.clipboard.read() succeeds
 Fail	navigator.clipboard.readText() succeeds
 Pass	navigator.clipboard.write(Promise<Blob>) succeeds
 Pass	navigator.clipboard.write(Promise<Blob>s) succeeds

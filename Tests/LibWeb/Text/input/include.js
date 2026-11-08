@@ -60,6 +60,26 @@ async function waitForCondition(condition, attempts = 600, interval = 25) {
     return true;
 }
 
+// A page may read the clipboard only while the browser pastes it. So this pastes the clipboard into the focused navigable,
+// which must be target's, and calls read() from the paste event, which it cancels and hides from the page's listeners.
+// The read goes through the UI process, so it also waits for earlier clipboard writes to land.
+async function readClipboardFromPaste(target, read = clipboard => clipboard.read()) {
+    const targetWindow = target.ownerDocument.defaultView;
+    const { promise, resolve, reject } = Promise.withResolvers();
+    targetWindow.addEventListener(
+        "paste",
+        event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            read(targetWindow.navigator.clipboard).then(resolve, reject);
+        },
+        { capture: true, once: true }
+    );
+    internals.dispatchUserActivatedEvent(target, new Event("mousedown"));
+    internals.pasteFromClipboard();
+    return promise;
+}
+
 // Each round runs in a task of its own, so that pending tasks can drop their references and the objects that WeakRefs
 // kept alive for an earlier job are released.
 async function collectGarbageUntilCleared(weakRefs, rounds = 100) {

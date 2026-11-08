@@ -67,8 +67,7 @@
                 }, { once: true });
             }
             internals.sendKey(host, "C", platformControl);
-            internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-            const clipboardItems = await navigator.clipboard.read();
+            const clipboardItems = await readClipboardFromPaste(host);
             expect(clipboardItems.some(item => item.types.includes("text/html")), true, `copy ${label} includes text/html`);
 
             selection.collapse(host.querySelector("#last").firstChild, 5);
@@ -104,8 +103,7 @@
         const blueText = host.querySelector("#blue").firstChild;
         selection.setBaseAndExtent(blueText, 0, blueText, 9);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        const [scriptedClipboardItem] = await navigator.clipboard.read();
+        const [scriptedClipboardItem] = await readClipboardFromPaste(host);
         expect(scriptedClipboardItem.types.includes("text/html"), true, "scripted copy includes text/html");
 
         const scriptedPasteEvent = new Promise(resolve => host.addEventListener("paste", event => {

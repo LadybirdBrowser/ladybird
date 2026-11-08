@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"></div>
+<script>
+    promiseTest(async () => {
+        const describe = promise =>
+            promise.then(
+                value => (Array.isArray(value) ? `resolved with types ${JSON.stringify(value.map(item => item.types))}` : `resolved with ${JSON.stringify(value)}`),
+                error => `rejected with ${error.name}`
+            );
+        const activate = () => internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
+        const readAfterClick = read => {
+            activate();
+            return describe(read(navigator.clipboard));
+        };
+        const readText = clipboard => clipboard.readText();
+        const read = clipboard => clipboard.read();
+
+        editor.focus();
+
+        internals.setClipboardFile("other.txt", "text/plain", "other application");
+        println(`readText() without activation: ${await describe(navigator.clipboard.readText())}`);
+        println(`readText() after a click: ${await readAfterClick(readText)}`);
+        println(`read() after a click: ${await readAfterClick(read)}`);
+
+        activate();
+        let readInEvent;
+        editor.addEventListener("paste", () => { readInEvent = navigator.clipboard.read(); }, { once: true });
+        internals.dispatchUserActivatedEvent(editor, new ClipboardEvent("paste", { bubbles: true, cancelable: true }));
+        println(`read() in a paste event the browser did not fire: ${await describe(readInEvent)}`);
+
+        // A middle-click paste hands over the primary selection, so it lets the page see only that.
+        readInEvent = undefined;
+        editor.addEventListener("paste", event => {
+            event.preventDefault();
+            readInEvent = navigator.clipboard.read();
+        }, { once: true });
+        activate();
+        internals.paste(editor, "primary selection");
+        println(`read() in a handed-over paste: ${await describe(readInEvent)}`);
+
+        let readLater;
+        await readClipboardFromPaste(editor, () => new Promise(resolve => setTimeout(() => {
+            readLater = navigator.clipboard.read();
+            resolve();
+        })));
+        println(`read() in a task after a browser paste: ${await describe(readLater)}`);
+
+        println(`read() in a browser paste: ${await describe(readClipboardFromPaste(editor))}`);
+    });
+</script>

@@ -11,10 +11,7 @@
                 events.push(`${type}(cancelable=${e.cancelable} composed=${e.composed} data=${JSON.stringify(e.clipboardData?.getData("text/plain") ?? null)})`);
             });
         }
-        const readClipboard = async () => {
-            internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
-            return navigator.clipboard.readText().catch(() => null);
-        };
+        const readClipboard = () => readClipboardFromPaste(editor, clipboard => clipboard.readText().catch(() => null));
 
         // Select "hello" and copy it.
         editor.focus();
@@ -39,8 +36,7 @@
         getSelection().setBaseAndExtent(editor.firstChild, 0, editor.firstChild, 5);
         internals.sendKey(editor, "C", modCtrl);
         println(`clipboard after canceled copy: ${JSON.stringify(await readClipboard())}`);
-        internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
-        const [clipboardItem] = await navigator.clipboard.read();
+        const [clipboardItem] = await readClipboardFromPaste(editor);
         println(`formats after canceled copy: ${JSON.stringify(clipboardItem.types)}`);
 
         for (const line of events) println(line);

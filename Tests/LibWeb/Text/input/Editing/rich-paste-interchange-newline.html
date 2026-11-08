@@ -156,8 +156,7 @@
         const blueText = host.querySelector('font[color="#3399ff"]').firstChild;
         selection.setBaseAndExtent(host.childNodes[1], 0, blueText, 0);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const redText = host.querySelector('font[color="#ff00"]').firstChild;
         selection.collapse(redText, 2);
@@ -182,8 +181,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[7], 1, host.childNodes[10], 0);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const firstListItemText = host.querySelector("li").firstChild;
         selection.collapse(firstListItemText, 6);
@@ -208,8 +206,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[6], 1, host.childNodes[10], 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const listItemMiddle = host.querySelector("li").firstChild;
         selection.collapse(listItemMiddle, 9);
@@ -235,8 +232,7 @@
         const firstParagraphText = host.firstElementChild.firstChild;
         selection.setBaseAndExtent(firstParagraphText, 3, host, 4);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const listItemStart = host.querySelector("li").firstChild;
         selection.collapse(listItemStart, 0);
@@ -261,8 +257,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[3], 1, host.childNodes[2], 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const firstListItem = host.querySelector("li");
         selection.collapse(firstListItem, firstListItem.childNodes.length);
@@ -288,8 +283,7 @@
         const nestedBoundaryTrailingText = host.lastElementChild.lastChild;
         selection.setBaseAndExtent(host, 2, nestedBoundaryTrailingText, 12);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const nestedBoundaryTarget = host.lastElementChild.childNodes[2];
         selection.collapse(nestedBoundaryTarget, 12);
@@ -314,8 +308,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[8].childNodes[0], 1, host, 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const fragmentEdgeBoundaryTarget = host.lastElementChild.childNodes[2];
         selection.collapse(fragmentEdgeBoundaryTarget, 23);
@@ -340,8 +333,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[4], 2, host.childNodes[8].childNodes[1], 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const emptyParagraphBeforeListTarget = host.lastElementChild.firstChild;
         selection.collapse(emptyParagraphBeforeListTarget, 8);
@@ -368,8 +360,7 @@
         const trailingListItemBoundaryEnd = host.childNodes[4].childNodes[1].firstChild;
         selection.setBaseAndExtent(trailingListItemBoundaryStart, 0, trailingListItemBoundaryEnd, 6);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const trailingListItemBoundaryTarget = host.lastElementChild.childNodes[2];
         selection.collapse(trailingListItemBoundaryTarget, 8);
@@ -395,8 +386,7 @@
         const partialListItemPrefixEnd = host.querySelector("li").firstChild;
         selection.setBaseAndExtent(host.childNodes[7], 0, partialListItemPrefixEnd, 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const partialListItemPrefixTarget = host.querySelectorAll("li")[1];
         selection.collapse(partialListItemPrefixTarget, 0);
@@ -422,8 +412,7 @@
         const boundaryListItemPrefixEnd = host.querySelector("li").firstChild;
         selection.setBaseAndExtent(boundaryListItemPrefixEnd, 3, host.childNodes[5], 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const boundaryListItemPrefixTarget = host.querySelectorAll("li")[1].firstChild;
         selection.collapse(boundaryListItemPrefixTarget, 5);
@@ -448,8 +437,7 @@
         host.focus();
         selection.setBaseAndExtent(host.childNodes[10], 0, host.childNodes[11].firstChild, 8);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const localTextSeamTarget = host.firstElementChild.firstChild;
         selection.collapse(localTextSeamTarget, 9);
@@ -478,8 +466,7 @@
         const movedParagraphWhitespaceEnd = host.querySelector("li").firstChild;
         selection.setBaseAndExtent(host.firstElementChild.firstChild, 6, movedParagraphWhitespaceEnd, 8);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const movedParagraphWhitespaceTarget = host.querySelectorAll("li")[1].firstChild;
         selection.collapse(movedParagraphWhitespaceTarget, 14);
@@ -508,8 +495,7 @@
         const afterStyledRunSource = host.lastElementChild;
         selection.setBaseAndExtent(afterStyledRunSource, 5, afterStyledRunSource.childNodes[2], 31);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         const afterStyledRunTarget = host.querySelector('font[color="#3399ff"]');
         selection.collapse(afterStyledRunTarget, 1);
@@ -535,8 +521,7 @@
         const completeEndTextSeamSource = host.lastElementChild;
         selection.setBaseAndExtent(completeEndTextSeamSource.childNodes[4], 2, completeEndTextSeamSource.childNodes[1], 1);
         internals.sendKey(host, "C", platformControl);
-        internals.dispatchUserActivatedEvent(host, new Event("mousedown"));
-        await frame.contentWindow.navigator.clipboard.read();
+        await readClipboardFromPaste(host);
 
         selection.collapse(host.firstElementChild.firstChild, 8);
         const completeEndTextSeamPasteInput = new Promise(resolve => host.addEventListener("input", event => {

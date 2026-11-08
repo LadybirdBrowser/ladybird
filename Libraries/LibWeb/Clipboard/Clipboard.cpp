@@ -152,7 +152,7 @@ static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<G
 }
 
 // https://w3c.github.io/clipboard-apis/#h-clipboard-read-permission
-static bool check_clipboard_read_permission(JS::Realm& realm)
+static bool check_clipboard_read_permission(JS::Realm& realm, bool is_running_from_paste)
 {
     // NOTE: The clipboard permission is undergoing a refactor because the clipboard-read permission was removed from
     //       the Permissions spec. So this partially implements the proposed update:
@@ -163,9 +163,10 @@ static bool check_clipboard_read_permission(JS::Realm& realm)
 
     // 2. If hasGesture then,
     if (has_gesture) {
-        // FIXME: 1. Return true if the current script is running as a result of user interaction with a "Paste" element
-        //           created by the user agent or operating system.
-        return true;
+        // 1. Return true if the current script is running as a result of user interaction with a "Paste" element
+        //    created by the user agent or operating system.
+        if (is_running_from_paste)
+            return true;
     }
 
     // 3. Otherwise, return false.
@@ -206,10 +207,16 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
         }
     }
 
+    // NB: The steps below run in parallel, after the script that called this has returned. So take now the data that a
+    //     paste of the system clipboard is pasting, which a script running as a result of that paste reads.
+    Optional<Vector<SystemClipboardItem>> pasted_data;
+    if (auto const* data = HTML::relevant_window(realm.global_object()).system_clipboard_data_being_pasted())
+        pasted_data = *data;
+
     // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(formats)), [](auto& realm, auto& promise, auto& formats) {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(formats), move(pasted_data)), [](auto& realm, auto& promise, auto& formats, auto& pasted_data) {
         // 1. Let r be the result of running check clipboard read permission.
-        auto result = check_clipboard_read_permission(realm);
+        auto result = check_clipboard_read_permission(realm, pasted_data.has_value());
 
         // 2. If r is false, then:
         if (!result) {
@@ -217,15 +224,15 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed while the user pastes"_utf16));
             }));
 
             // 2. Abort these steps.
             return;
         }
 
-        // 3. Let data be the system clipboard data.
-        HTML::relevant_window(realm.global_object()).page().request_clipboard_entries(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(formats)), [](auto& realm, auto& promise, auto& formats, Vector<SystemClipboardItem> data) {
+        // NB: The steps after step 3 run once the system clipboard data is in hand.
+        auto steps_with_data = GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(formats)), [](auto& realm, auto& promise, auto& formats, Vector<SystemClipboardItem> data) {
             HTML::TemporaryExecutionContext execution_context { realm };
 
             // 4. Let snapshotChangeCount be the current clipboard change count.
@@ -325,17 +332,28 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
                 // 3. Resolve p with clipboardItems.
                 resolve_clipboard_items_promise(realm, promise, clipboard_items->elements());
             }));
-        }));
+        });
+
+        // 3. Let data be the system clipboard data.
+        // NB: Only a read running as a result of a paste of the system clipboard gets here, and it reads the data being
+        //     pasted.
+        steps_with_data->function()(pasted_data.release_value());
     }));
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-readtext
 void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
 {
+    // NB: The steps below run in parallel, after the script that called this has returned. So take now the data that a
+    //     paste of the system clipboard is pasting, which a script running as a result of that paste reads.
+    Optional<Vector<SystemClipboardItem>> pasted_data;
+    if (auto const* data = HTML::relevant_window(realm.global_object()).system_clipboard_data_being_pasted())
+        pasted_data = *data;
+
     // 3. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(pasted_data)), [](auto& realm, auto& promise, auto& pasted_data) {
         // 1. Let r be the result of running check clipboard read permission.
-        auto result = check_clipboard_read_permission(realm);
+        auto result = check_clipboard_read_permission(realm, pasted_data.has_value());
 
         // 2. If r is false, then:
         if (!result) {
@@ -343,15 +361,15 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
                 HTML::TemporaryExecutionContext execution_context { realm };
-                WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed through user activation"_utf16));
+                WebIDL::reject_promise(promise, WebIDL::NotAllowedError::create("Clipboard reading is only allowed while the user pastes"_utf16));
             }));
 
             // 2. Abort these steps.
             return;
         }
 
-        // 3. Let data be a copy of the system clipboard data.
-        HTML::relevant_window(realm.global_object()).page().request_clipboard_entries(GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise, Vector<SystemClipboardItem> data) {
+        // NB: The steps after step 3 run once the system clipboard data is in hand.
+        auto steps_with_data = GC::create_function(GC::Heap::the(), GC::captures(realm, promise), [](auto& realm, auto& promise, Vector<SystemClipboardItem> data) {
             // 4. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
             queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(GC::Heap::the(), GC::captures(realm, promise, move(data)), [](auto& realm, auto& promise, auto& data) {
                 HTML::TemporaryExecutionContext execution_context { realm };
@@ -409,7 +427,12 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
                 // 2. Reject p with "NotFoundError" DOMException in realm.
                 WebIDL::reject_promise(promise, WebIDL::NotFoundError::create("Did not find a text item in the system clipboard"_utf16));
             }));
-        }));
+        });
+
+        // 3. Let data be a copy of the system clipboard data.
+        // NB: Only a read running as a result of a paste of the system clipboard gets here, and it reads the data being
+        //     pasted.
+        steps_with_data->function()(pasted_data.release_value());
     }));
 }
 

@@ -907,8 +907,7 @@ void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
 
 void Internals::paste_from_clipboard()
 {
-    if (auto navigable = page().hosted_focused_navigable())
-        navigable->paste_from_clipboard();
+    page().client().page_did_request_paste_from_clipboard_for_testing();
 }
 
 void Internals::commit_text()

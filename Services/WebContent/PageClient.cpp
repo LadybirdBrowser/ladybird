@@ -2148,9 +2148,14 @@ void PageClient::page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardI
     client().async_did_insert_clipboard_item(m_id, item, presentation_style);
 }
 
-void PageClient::page_did_request_clipboard_entries(u64 request_id)
+void PageClient::page_did_request_clipboard_entries_for_paste(u64 request_id)
 {
-    client().async_did_request_clipboard_entries(m_id, request_id);
+    client().async_did_request_clipboard_entries_for_paste(m_id, request_id);
+}
+
+void PageClient::page_did_request_paste_from_clipboard_for_testing()
+{
+    client().async_did_request_paste_from_clipboard_for_testing(m_id);
 }
 
 void PageClient::page_did_request_spell_check(u64 request_id, Utf16String const& text)

@@ -281,7 +281,7 @@ public:
     Utf16String cut_selected_text() const;
     void select_all();
     void paste(Utf16View);
-    void paste_from_clipboard();
+    void paste_from_clipboard(Vector<Clipboard::SystemClipboardItem> const&);
     void undo();
     void redo();
     void set_marked_text_from_input_method(Utf16View text);

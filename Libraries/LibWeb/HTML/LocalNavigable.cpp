@@ -6319,14 +6319,14 @@ void LocalNavigable::paste(Utf16View text)
         .file_data = {},
         .file_name = {},
     });
-    m_event_handler.perform_paste_action(data_store);
+    m_event_handler.perform_paste_action(data_store, nullptr);
 }
 
-void LocalNavigable::paste_from_clipboard()
+void LocalNavigable::paste_from_clipboard(Vector<Clipboard::SystemClipboardItem> const& system_clipboard_data)
 {
-    // Run the whole paste action: It retrieves the system clipboard's contents from the UI process itself, which
-    // preserves every supported clipboard representation — where a bare-text handover would keep only the text.
-    (void)m_event_handler.perform_paste_action();
+    // The UI process hands over the system clipboard's contents with its Paste command, keeping every supported
+    // clipboard representation — where a bare-text handover would keep only the text.
+    (void)m_event_handler.perform_paste_action(system_clipboard_data);
 }
 
 void LocalNavigable::undo()

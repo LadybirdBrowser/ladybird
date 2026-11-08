@@ -336,7 +336,8 @@ private:
     virtual void did_complete_js_console_input(u64 request_id, Optional<Vector<String>> matches, String match_prop) override;
     virtual void did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CacheState cache_state) override;
     virtual void did_update_indexed_database(String update) override;
-    virtual void did_request_clipboard_entries(u64 request_id) override;
+    virtual void did_request_clipboard_entries_for_paste(u64 request_id) override;
+    virtual void did_request_paste_from_clipboard_for_testing() override;
     virtual void did_request_spell_check(u64 request_id, Utf16String text) override;
     virtual void did_request_writing_suggestion(u64 request_id, Utf16String text, u32 caret_offset) override;
     virtual void did_get_translation_language_sample(u64 request_id, Web::TranslationLanguageSample sample) override;

@@ -23,8 +23,7 @@
         };
 
         const readClipboard = async () => {
-            internals.dispatchUserActivatedEvent(editor, new Event("mousedown"));
-            const items = await navigator.clipboard.read();
+            const items = await readClipboardFromPaste(editor);
 
             for (const item of items) {
                 const type = item.types.find(type => type.startsWith("image/"));

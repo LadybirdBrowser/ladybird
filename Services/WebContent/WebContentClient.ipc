@@ -261,7 +261,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_change_background_color(Web::PageId page_id, Gfx::Color color) =|
 
     did_insert_clipboard_item(Web::PageId page_id, Web::Clipboard::SystemClipboardItem item, String presentation_style) =|
-    did_request_clipboard_entries(Web::PageId page_id, u64 request_id) =|
+    did_request_clipboard_entries_for_paste(Web::PageId page_id, u64 request_id) =|
+    did_request_paste_from_clipboard_for_testing(Web::PageId page_id) =|
     did_request_spell_check(Web::PageId page_id, u64 request_id, Utf16String text) =|
     did_request_writing_suggestion(Web::PageId page_id, u64 request_id, Utf16String text, u32 caret_offset) =|
     did_get_translation_language_sample(Web::PageId page_id, u64 request_id, Web::TranslationLanguageSample sample) =|

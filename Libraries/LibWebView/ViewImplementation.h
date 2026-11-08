@@ -304,6 +304,7 @@ public:
     void did_forward_pinch_event(Badge<WebContentPage>, WebContentPage const& reporting_page, Web::PinchEvent const&, WebContentPage& endpoint);
     // Whether the page has yet to finish handling input that gives it user activation.
     bool is_delivering_user_activation_to(WebContentPage const&) const;
+    bool take_paste_shortcut_handled_by(Badge<WebContentPage>, WebContentPage const&);
     // Consumes the activation of the earliest input giving the page activation that the page has yet to finish
     // handling, which leaves the input queued behind it the activation it gives.
     void consume_user_activation_of_input_in_flight_to(Badge<WebContentPage>, WebContentPage const&);
@@ -962,6 +963,9 @@ protected:
 
         // When the view delivered an event that gives user activation, until something consumes that activation.
         Optional<MonotonicTime> user_activation_time {};
+
+        // When the view delivered a paste shortcut, until the page reads the clipboard for it.
+        Optional<MonotonicTime> paste_shortcut_time {};
     };
     Vector<PendingInputEvent> m_pending_input_events;
     void send_queued_input_events();

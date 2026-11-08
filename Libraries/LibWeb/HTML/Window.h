@@ -295,6 +295,10 @@ public:
 
     void consume_history_action_user_activation();
 
+    // The system clipboard data that the paste event this window is dispatching pastes, if it pastes the clipboard.
+    Vector<Clipboard::SystemClipboardItem> const* system_clipboard_data_being_pasted() const { return m_system_clipboard_data_being_pasted; }
+    void set_system_clipboard_data_being_pasted(Vector<Clipboard::SystemClipboardItem> const* data) { m_system_clipboard_data_being_pasted = data; }
+
     // Steps 4 and 5 of both consumptions for the windows a page hosts. The UI process runs this in every page of the
     // tab, since the navigables of top's active document span its pages.
     static void consume_user_activation_of_windows_hosted_by(Page&, UserActivationConsumption);
@@ -390,6 +394,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#last-history-action-activation-timestamp
     HighResolutionTime::DOMHighResTimeStamp m_last_history_action_activation_timestamp { AK::Infinity<double> };
+
+    Vector<Clipboard::SystemClipboardItem> const* m_system_clipboard_data_being_pasted { nullptr };
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.

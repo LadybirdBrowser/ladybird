@@ -2441,10 +2441,12 @@ void WebContentPage::did_update_indexed_database(String update)
         view().notify_indexed_database_changed(parse_json(update, "IndexedDB update"sv));
 }
 
-void WebContentPage::did_request_clipboard_entries(u64 request_id)
+// NB: The page gets the system clipboard data for its paste action once, while it handles the paste shortcut the view
+//     delivered to it. The browser's Paste command hands the data over itself.
+void WebContentPage::did_request_clipboard_entries_for_paste(u64 request_id)
 {
     Vector<Web::Clipboard::SystemClipboardItem> items;
-    if (!has_transient_user_activation()) {
+    if (!WebContentClient::renderers_may_synthesize_input() && !view().take_paste_shortcut_handled_by({}, *this)) {
         async_retrieved_clipboard_entries(request_id, items);
         return;
     }
@@ -2456,6 +2458,16 @@ void WebContentPage::did_request_clipboard_entries(u64 request_id)
             items.append(move(item));
         page->async_retrieved_clipboard_entries(request_id, items);
     });
+}
+
+void WebContentPage::did_request_paste_from_clipboard_for_testing()
+{
+    // NB: This stands in for the browser's Paste command, which hands the page the system clipboard data.
+    if (!WebContentClient::renderers_may_synthesize_input()) {
+        client().did_misbehave("did_request_paste_from_clipboard_for_testing"sv, "not driven by WebDriver or a test"sv);
+        return;
+    }
+    view().paste_from_clipboard();
 }
 
 void WebContentPage::did_request_spell_check(u64 request_id, Utf16String text)

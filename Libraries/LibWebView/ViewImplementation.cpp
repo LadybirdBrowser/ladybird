@@ -885,6 +885,15 @@ static bool is_activation_triggering_input_event(Web::InputEvent const& event)
     return false;
 }
 
+// NB: The shortcut matches the one EventHandler pastes on.
+static bool is_paste_shortcut(Web::InputEvent const& event)
+{
+    auto const* key_event = event.get_pointer<Web::KeyEvent>();
+    return key_event && key_event->type == Web::KeyEvent::Type::KeyDown && key_event->key == Web::UIEvents::KeyCode::Key_V
+        && (key_event->modifiers & Web::UIEvents::Mod_PlatformCtrl) != 0
+        && (key_event->modifiers & (Web::UIEvents::Mod_Shift | Web::UIEvents::Mod_Alt)) == 0;
+}
+
 // A page busy for a while handles input late, and its activation counts from then. A page that never finishes handling
 // the input keeps the activation no longer than this.
 static constexpr auto longest_user_activation_delivery = AK::Duration::from_seconds(30);
@@ -951,6 +960,8 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         });
         m_inputs_to_open_links_in_new_tabs.append({ Web::input_event_id(pending.event), now });
     }
+    if (is_paste_shortcut(pending.event))
+        pending.paste_shortcut_time = MonotonicTime::now();
     // A focused navigable another page hosts takes key events directly.
     if (pending.event.has<Web::KeyEvent>())
         pending.endpoint = focused_navigable_host();
@@ -1314,6 +1325,17 @@ Optional<size_t> ViewImplementation::index_of_input_in_flight_giving_user_activa
 bool ViewImplementation::is_delivering_user_activation_to(WebContentPage const& page) const
 {
     return index_of_input_in_flight_giving_user_activation_to(page).has_value();
+}
+
+// NB: A page handles its input in the order the view delivered it, so the earliest input to the page that the page has
+//     yet to finish is the input it is handling, if any. Each paste shortcut lets the page read the clipboard once.
+bool ViewImplementation::take_paste_shortcut_handled_by(Badge<WebContentPage>, WebContentPage const& page)
+{
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return pending.endpoint.ptr() == &page; });
+    if (!index.has_value())
+        return false;
+    auto paste_shortcut_time = exchange(m_pending_input_events[*index].paste_shortcut_time, {});
+    return paste_shortcut_time.has_value() && MonotonicTime::now() - *paste_shortcut_time < longest_user_activation_delivery;
 }
 
 void ViewImplementation::consume_user_activation_of_input_in_flight_to(Badge<WebContentPage>, WebContentPage const& page)
@@ -2780,10 +2802,17 @@ WebContentPage& ViewImplementation::focused_navigable_host() const
 
 void ViewImplementation::paste_from_clipboard()
 {
-    // The user asked the browser to paste, which lets the page read the clipboard.
-    auto& host = focused_navigable_host();
-    host.give_user_activation();
-    host.async_paste_from_clipboard();
+    // The user asked the browser to paste, which hands the page the system clipboard data.
+    read_clipboard_item([host = NonnullRefPtr { focused_navigable_host() }](Web::Clipboard::SystemClipboardItem item) {
+        if (!host->is_open())
+            return;
+        Vector<Web::Clipboard::SystemClipboardItem> system_clipboard_data;
+        if (!item.system_clipboard_representations.is_empty())
+            system_clipboard_data.append(move(item));
+
+        host->give_user_activation();
+        host->async_paste_from_clipboard(move(system_clipboard_data));
+    });
 }
 
 void ViewImplementation::set_marked_text_from_input_method(Utf16String const& text)
