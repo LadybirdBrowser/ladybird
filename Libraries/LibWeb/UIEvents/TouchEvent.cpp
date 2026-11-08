@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/ConservativeHashMap.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
 
@@ -52,7 +52,7 @@ void TouchEvent::retarget_touch_lists()
     if (targets == m_last_touch_targets)
         return;
     m_last_touch_targets = targets;
-    GC::ConservativeHashMap<Touch*, GC::Ref<Touch>> clones;
+    GC::RootHashMap<Touch*, GC::Ref<Touch>> clones;
     GC::RootVector<GC::Ref<Touch>> cloned_touches;
     size_t offset = 0;
     auto retarget = [&](GC::Ref<TouchList> original) {

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
@@ -25,6 +26,8 @@ struct BlobURLEntry {
 
     // The token the user agent's blob URL store gave this entry.
     URL::BlobURLEntry::Token token { 0 };
+
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 Utf16String generate_new_blob_url();

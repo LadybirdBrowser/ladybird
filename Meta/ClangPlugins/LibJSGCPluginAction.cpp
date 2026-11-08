@@ -145,10 +145,8 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
         "GC::Heap",
         "GC::MarkedVector",
         "GC::ConservativeVector",
-        "GC::ConservativeHashMap",
-        "GC::ConservativeHashMapBase",
-        "GC::ConservativeHashTable",
-        "GC::ConservativeHashTableBase",
+        "GC::RootHashMap",
+        "GC::RootHashMapBase",
     };
     if (gc_infrastructure_types.contains(qualified_name)) {
         s_contains_gc_ptr_cache[record] = ContainsGCPtrResult::No;
@@ -215,7 +213,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
             return ContainsGCPtrResult::No;
 
         // Root types handle their own visiting
-        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::ConservativeHashMap" || template_name == "GC::ConservativeHashTable" || template_name == "GC::RootHashTable")
+        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::RootHashMap" || template_name == "GC::RootHashTable")
             return ContainsGCPtrResult::No;
 
         // Check template arguments recursively for containers
@@ -255,8 +253,7 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "GC::RawPtr",
             "GC::RawRef",
             "GC::RootVector",
-            "GC::ConservativeHashMap",
-            "GC::ConservativeHashTable",
+            "GC::RootHashMap",
             "GC::RootHashTable",
             "GC::Root",
         };
@@ -1110,8 +1107,6 @@ static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& 
         "AK::RefPtr",
         "AK::Span",
         "AK::WeakPtr",
-        "GC::ConservativeHashMap",
-        "GC::ConservativeHashTable",
         "GC::ConservativeVector",
         "GC::RawPtr",
         "GC::RawRef",
@@ -1477,8 +1472,6 @@ static bool is_container_with_heap_storage(std::string const& template_name)
 static bool is_container_scanned_by_gc(std::string const& template_name)
 {
     static std::unordered_set<std::string> const template_names {
-        "GC::ConservativeHashMap",
-        "GC::ConservativeHashTable",
         "GC::ConservativeVector",
         "GC::RootHashMap",
         "GC::RootHashTable",

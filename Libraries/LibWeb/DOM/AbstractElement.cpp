@@ -35,6 +35,11 @@ void AbstractElement::visit(GC::Cell::Visitor& visitor) const
     visitor.visit(m_element);
 }
 
+void AbstractElement::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(m_element);
+}
+
 Document& AbstractElement::document() const
 {
     return m_element->document();

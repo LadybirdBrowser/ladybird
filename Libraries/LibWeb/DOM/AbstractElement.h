@@ -89,6 +89,8 @@ public:
 
     CSS::StyleScope const& style_scope() const;
 
+    void visit_edges(GC::Cell::Visitor&) const;
+
 private:
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;

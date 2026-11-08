@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
-#include <LibGC/ConservativeHashMap.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
@@ -63,7 +63,7 @@ struct AnimationUpdateContext {
     void publish();
 
     // NOTE: This is lazily populated by KeyframeEffects as their respective animations are applied to an element.
-    GC::ConservativeHashMap<DOM::AbstractElement, ElementData> elements;
+    GC::RootHashMap<DOM::AbstractElement, ElementData> elements;
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-animationeffect-interface

@@ -10,8 +10,8 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeHashMap.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
@@ -66,7 +66,7 @@ struct LargestContentfulPaintCandidate {
 
 // NB: The elements that get a text node in their set of owned text nodes for the first time as a frame is painted,
 //     with those text nodes.
-using PaintedTextNodes = GC::OrderedConservativeHashMap<GC::Ref<DOM::Element>, GC::RootVector<GC::Ref<DOM::Text>>>;
+using PaintedTextNodes = GC::OrderedRootHashMap<GC::Ref<DOM::Element>, GC::RootVector<GC::Ref<DOM::Text>>>;
 
 struct DocumentPaintTimingState {
     // https://w3c.github.io/paint-timing/#set-of-previously-reported-paints

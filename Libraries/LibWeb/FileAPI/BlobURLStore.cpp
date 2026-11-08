@@ -7,7 +7,7 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
-#include <LibGC/ConservativeHashMap.h>
+#include <LibGC/RootHashMap.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -17,20 +17,27 @@
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::FileAPI {
 
+void BlobURLEntry::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(object);
+    visitor.visit(environment);
+}
+
 // https://w3c.github.io/FileAPI/#BlobURLStore
 // NB: Only the entries this agent created, in its own heap. The browser process keeps every agent's entries, and is
 //     asked for them by blob_url_entry_in_the_user_agent_store().
-static thread_local GC::ConservativeHashMap<Utf16String, BlobURLEntry>* s_blob_url_store;
+static thread_local GC::RootHashMap<Utf16String, BlobURLEntry>* s_blob_url_store;
 
-static GC::ConservativeHashMap<Utf16String, BlobURLEntry>& blob_url_store()
+static GC::RootHashMap<Utf16String, BlobURLEntry>& blob_url_store()
 {
     if (!s_blob_url_store)
-        s_blob_url_store = new GC::ConservativeHashMap<Utf16String, BlobURLEntry>;
+        s_blob_url_store = new GC::RootHashMap<Utf16String, BlobURLEntry>;
     return *s_blob_url_store;
 }
 

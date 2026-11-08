@@ -12,7 +12,6 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibGC/ConservativeHashTable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
@@ -4861,7 +4860,7 @@ void EventHandler::update_pointer_hover(Layout::BegunRead const& read, PointerSt
     pointer.hovered_node = target;
 
     // INTEROP: Traverse the flat tree like Blink and Gecko do for mouse boundary events.
-    GC::ConservativeHashTable<DOM::Node*> previous_ancestors;
+    GC::RootHashTable<DOM::Node*> previous_ancestors;
     for (auto* node = previous.ptr(); node; node = node->flat_tree_parent())
         previous_ancestors.set(node);
     DOM::Node* common_ancestor = nullptr;
