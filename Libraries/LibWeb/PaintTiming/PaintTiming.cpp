@@ -506,13 +506,11 @@ void mark_paint_timing(DOM::Document& document)
         if (!text->is_connected() || &text->document() != &document)
             return true;
         auto const* text_box = text->layout_node(checker.read());
-        if (!text_box) {
-            // OPTIMIZATION: Text that is all white space paints nothing, and is not looked at again until its data
-            //               changes to something else.
+        if (!text_box || !checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes)) {
+            // OPTIMIZATION: Text that is all white space and paints nothing, often in a box without fragments, is not
+            //               looked at again until its data changes to something else.
             return !is_non_empty(text->data().utf16_view());
         }
-        if (!checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes))
-            return false;
 
         // https://w3c.github.io/paint-timing/#sec-modifications-dom
         // When the user agent paints a Text node text for the first time, it should execute the following steps:
