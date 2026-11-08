@@ -87,10 +87,17 @@ impl BoxFacts {
         })
     }
 
+    /// Whether the box's effects layer sits under its transform, clip and mask nodes, rather than above them: for a
+    /// backdrop filter, and for a filter the box's clip-path, clip or mask has to apply to.
     pub(crate) fn effects_layer_is_inside_transform_and_clips(&self) -> bool {
-        self.effects
-            .as_ref()
-            .is_some_and(|effects| effects.backdrop_filter.is_some())
+        self.effects.as_ref().is_some_and(|effects| {
+            // https://drafts.csswg.org/filter-effects-1/#placement
+            // "The compositing model follows the SVG compositing model: first any filter effect is applied, then any
+            // clipping, masking and opacity."
+            effects.backdrop_filter.is_some()
+                || (effects.filter.is_some()
+                    && (self.clip_path.is_some() || self.css_clip.is_some() || !self.mask_layers.is_empty()))
+        })
     }
 
     /// Gathers a box's facts for the visual context update, with the bounds of the SVG filter the box references,

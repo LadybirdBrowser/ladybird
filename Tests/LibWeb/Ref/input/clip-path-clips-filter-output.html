@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-clips-filter-output-ref.html">
+<style>
+    body { margin: 0; }
+    div {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: green;
+        filter: blur(16px);
+    }
+    #clip-path { left: 50px; top: 50px; clip-path: inset(0px); }
+    #clip { left: 200px; top: 50px; clip: rect(0px, 100px, 100px, 0px); }
+    /* Cover the blurred inside of each box, so only what's left outside them shows. */
+    .cover { filter: none; background: white; }
+</style>
+<div id="clip-path"></div>
+<div id="clip"></div>
+<div class="cover" style="left: 50px; top: 50px"></div>
+<div class="cover" style="left: 200px; top: 50px"></div>
