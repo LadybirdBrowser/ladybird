@@ -159,6 +159,40 @@ describe("the prototype property of normal functions that never had it looked at
         }
     });
 
+    test("caches of lookups on arrow functions and methods do not apply to it", () => {
+        Function.prototype.prototype = 7;
+        try {
+            const get = f => f.prototype;
+            for (let i = 0; i < 10; ++i) {
+                expect(get(() => {})).toBe(7);
+                expect(get({ m() {} }.m)).toBe(7);
+            }
+            function f() {}
+            expect(get(f).constructor).toBe(f);
+        } finally {
+            delete Function.prototype.prototype;
+        }
+
+        const set = (f, key, value) => {
+            f[key] = value;
+        };
+        for (let i = 0; i < 10; ++i) {
+            const arrow = () => {};
+            arrow.x = 1;
+            set(arrow, "prototype", 1);
+        }
+        function h() {}
+        h.x = 1;
+        set(h, "prototype", 1);
+        expect(Object.getOwnPropertyNames(h)).toEqual(["length", "name", "prototype", "x"]);
+        expect(Object.getOwnPropertyDescriptor(h, "prototype")).toEqual({
+            value: 1,
+            writable: true,
+            enumerable: false,
+            configurable: false,
+        });
+    });
+
     test("functions made in a loop", () => {
         const make = () => {
             function F(x) {}
