@@ -9754,10 +9754,8 @@ impl AlgorithmMethods for Ecdh {
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
         // NB: The key handle is always accessible.
 
-        let mut result = None;
-
         // 3. If format is "spki":
-        if format == KeyFormat::Spki {
+        let result = if format == KeyFormat::Spki {
             // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Public {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
@@ -9808,7 +9806,7 @@ impl AlgorithmMethods for Ecdh {
 
             // * Set the subjectPublicKey field to keyData
             // AD-HOC: The draft omits the result assignment for this DER format.
-            result = Some(ExportKeyResult::Bytes(data));
+            ExportKeyResult::Bytes(data)
         }
         // 3. If format is "pkcs8":
         else if format == KeyFormat::Pkcs8 {
@@ -9869,7 +9867,7 @@ impl AlgorithmMethods for Ecdh {
 
             // * Set the privateKey field to keyData.
             // AD-HOC: The draft omits the result assignment for this DER format.
-            result = Some(ExportKeyResult::Bytes(data));
+            ExportKeyResult::Bytes(data)
         }
         // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
@@ -9946,7 +9944,7 @@ impl AlgorithmMethods for Ecdh {
             jwk.ext = Some(key.is_extractable());
 
             // 6. Let result be jwk.
-            result = Some(ExportKeyResult::JsonWebKey(jwk));
+            ExportKeyResult::JsonWebKey(jwk)
         }
         // 3. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
@@ -9982,11 +9980,15 @@ impl AlgorithmMethods for Ecdh {
             };
 
             // 3. Let result be data.
-            result = Some(ExportKeyResult::Bytes(data));
+            ExportKeyResult::Bytes(data)
         }
+        // AD-HOC: The specification leaves result unset for unsupported formats.
+        else {
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        };
 
         // 4. Return result.
-        Ok(result.expect("the operation has a result"))
+        Ok(result)
     }
 
     fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {

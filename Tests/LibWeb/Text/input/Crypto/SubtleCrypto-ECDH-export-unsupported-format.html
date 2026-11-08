@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const { publicKey, privateKey } = await crypto.subtle.generateKey(
+            { name: "ECDH", namedCurve: "P-256" },
+            true,
+            ["deriveBits"]
+        );
+        for (const [description, key] of [
+            ["public", publicKey],
+            ["private", privateKey],
+        ]) {
+            for (const format of ["raw-private", "raw-seed", "raw-secret"]) {
+                try {
+                    await crypto.subtle.exportKey(format, key);
+                    println(`${description} key, ${format}: exported`);
+                } catch (error) {
+                    println(`${description} key, ${format}: ${error.name}`);
+                }
+            }
+        }
+    });
+</script>
