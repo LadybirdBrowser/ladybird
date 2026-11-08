@@ -275,6 +275,102 @@ test("unknown private name gives SyntaxError", () => {
     expect(`1?.n.#n`).not.toEval();
 });
 
+describe("private names refer to the outer class after an inner class definition ends abruptly", () => {
+    const thrower = () => {
+        throw new Error();
+    };
+
+    test("exception from a computed key", () => {
+        class Outer {
+            #x = 1;
+            static read(object) {
+                try {
+                    class Inner {
+                        #x = 2;
+                        [thrower()] = 1;
+                    }
+                } catch {}
+                return object.#x;
+            }
+        }
+        expect(Outer.read(new Outer())).toBe(1);
+    });
+
+    test("exception from a static initialization block", () => {
+        class Outer {
+            #x = 1;
+            static read(object) {
+                try {
+                    class Inner {
+                        #x = 2;
+                        static {
+                            thrower();
+                        }
+                    }
+                } catch {}
+                return object.#x;
+            }
+        }
+        expect(Outer.read(new Outer())).toBe(1);
+    });
+
+    test("exception from the heritage", () => {
+        class Outer {
+            #x = 1;
+            static read(object) {
+                try {
+                    class Inner extends thrower() {
+                        #x = 2;
+                    }
+                } catch {}
+                return object.#x;
+            }
+        }
+        expect(Outer.read(new Outer())).toBe(1);
+    });
+
+    test("exception from a computed key of a class in a computed key", () => {
+        class Outer {
+            #x = 1;
+            static read(object) {
+                try {
+                    class Middle {
+                        #x = 2;
+                        [(class {
+                            #x = 3;
+                            [thrower()] = 1;
+                        },
+                        "key")] = 1;
+                    }
+                } catch {}
+                return object.#x;
+            }
+        }
+        expect(Outer.read(new Outer())).toBe(1);
+    });
+
+    test("generator return from a computed key", () => {
+        const seen = [];
+        class Outer {
+            #x = 1;
+            static *read(object) {
+                try {
+                    class Inner {
+                        #x = 2;
+                        [yield] = 1;
+                    }
+                } finally {
+                    seen.push(object.#x);
+                }
+            }
+        }
+        const generator = Outer.read(new Outer());
+        generator.next();
+        expect(generator.return("r")).toEqual({ value: "r", done: true });
+        expect(seen).toEqual([1]);
+    });
+});
+
 // OSS-FUZZ Issue 53363: top level unknown private names seg faults
 expect(() => eval(`#n`)).toThrowWithMessage(SyntaxError, "Private identifier must be followed by 'in'");
 expect(() => eval(`obj.#n`)).toThrowWithMessage(SyntaxError, "Reference to undeclared private field or method '#n'");
