@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/FormData.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
@@ -24,7 +24,7 @@ class WEB_API FormData final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(FormData, form_data)
 
 public:
-    static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> const& entry_list);
+    static GC::Ref<FormData> create(GC::RootVector<FormDataEntry> const& entry_list);
     static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> const& entry_list);
     static WebIDL::ExceptionOr<GC::Ref<FormData>> create_from_form(GC::Ref<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
 
@@ -33,7 +33,7 @@ public:
     // https://xhr.spec.whatwg.org/#dom-formdata-has
     bool has(Utf16String const& name) const;
 
-    GC::ConservativeVector<FormDataEntry> entry_list() const;
+    GC::RootVector<FormDataEntry> entry_list() const;
 };
 
 }

@@ -22,6 +22,11 @@
 
 namespace Web::Editing {
 
+void SpellCheckController::ParagraphPiece::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(text);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#spelling-and-grammar-checking
 static bool is_checkable_text_control(HTML::HTMLElement& element)
 {

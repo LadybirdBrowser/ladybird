@@ -9,8 +9,8 @@
 
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Slot.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -43,7 +43,7 @@ public:
     Vector<GC::Root<DOM::Element>> assigned_elements(Bindings::AssignedNodesOptions const&) const;
 
     using SlottableHandle = Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Text>>;
-    void assign(GC::ConservativeVector<SlottableHandle> nodes);
+    void assign(GC::RootVector<SlottableHandle> nodes);
 
     ReadonlySpan<DOM::Slottable> manually_assigned_nodes() const { return m_manually_assigned_nodes; }
 

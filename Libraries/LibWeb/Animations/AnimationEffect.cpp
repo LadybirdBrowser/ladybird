@@ -5,7 +5,6 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/Animation.h>
@@ -871,9 +870,15 @@ void AnimationUpdateContext::publish()
     struct Sample {
         DOM::AbstractElement element;
         ElementData const& data;
-        GC::RootVector<GC::Ref<KeyframeEffect>> effects;
+        Vector<GC::Ref<KeyframeEffect>> effects;
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            element.visit_edges(visitor);
+            visitor.visit(effects);
+        }
     };
-    GC::ConservativeVector<Sample> samples;
+    GC::RootVector<Sample> samples;
     for (auto& it : elements) {
         if (!it.value.target_style)
             continue;
@@ -915,7 +920,7 @@ void AnimationUpdateContext::publish()
         bool may_record_baseline { false };
     };
     Vector<Publication> publications;
-    GC::ConservativeVector<CSS::StyleComputer::SampledAnimationOverlay> overlays;
+    GC::RootVector<CSS::StyleComputer::SampledAnimationOverlay> overlays;
     Vector<CSS::StyleEngineFFI::FfiAnimationOverlayPublication> published;
 
     // The render owner samples every element of a document in one call, and publishes what it sampled in another,
@@ -924,7 +929,7 @@ void AnimationUpdateContext::publish()
         auto& document = samples[first].element.document();
         auto& style_computer = document.style_computer();
         Layout::ForcedReadScope read { document };
-        GC::ConservativeVector<CSS::StyleComputer::AnimationRefreshRequest> requests;
+        GC::RootVector<CSS::StyleComputer::AnimationRefreshRequest> requests;
         size_t end = first;
         for (; end < samples.size() && &samples[end].element.document() == &document; ++end) {
             auto& sample = samples[end];

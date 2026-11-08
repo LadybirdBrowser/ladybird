@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS {

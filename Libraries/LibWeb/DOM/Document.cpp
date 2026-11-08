@@ -27,7 +27,6 @@
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCore/Timer.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGC/RootHashMap.h>
@@ -302,6 +301,23 @@
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
+
+void PendingFullscreenEvent::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(element);
+}
+
+void Document::PendingScrollEvent::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(event_target);
+}
+
+void Document::PendingAnimationEvent::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(event);
+    visitor.visit(animation);
+    visitor.visit(target);
+}
 
 struct Document::AccessibilityRecordCache {
     AK_ALLOC_WITH_KMALLOC;
@@ -3560,6 +3576,8 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
     struct HoverEventTarget {
         GC::Ref<Node> node;
         CSSPixelPoint offset;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
     };
 
     auto make_hover_event_target = [&](Node& target) {
@@ -3576,11 +3594,11 @@ void Document::dispatch_boundary_events(GC::Ptr<Node> old_hovered_node, GC::Ptr<
     if (node)
         hovered_node_offset = hover_event_offset_for_target(read, hover_event_data, *node);
 
-    GC::ConservativeVector<HoverEventTarget> left_ancestors;
+    GC::RootVector<HoverEventTarget> left_ancestors;
     for (auto* target = old_hovered_node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
         left_ancestors.append(make_hover_event_target(*target));
 
-    GC::ConservativeVector<HoverEventTarget> entered_ancestors;
+    GC::RootVector<HoverEventTarget> entered_ancestors;
     for (auto* target = node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
         entered_ancestors.append(make_hover_event_target(*target));
 
@@ -5918,7 +5936,7 @@ void Document::run_the_scroll_steps()
     // 2. For each item (target, type) in doc’s pending scroll events, in the order they were added to the list, run
     //    these substeps:
     // NB: Firing an event allocates, and a target removed from its document may be referenced only by this list.
-    GC::ConservativeVector<PendingScrollEvent> pending_scroll_events { exchange(m_pending_scroll_events, {}) };
+    GC::RootVector<PendingScrollEvent> pending_scroll_events { exchange(m_pending_scroll_events, {}) };
     for (auto const& [target, type] : pending_scroll_events) {
         // 1. If target is a Document, and type is "scroll" or "scrollend", fire an event named type that bubbles at target.
         if (is<Document>(*target) && (type == HTML::EventNames::scroll || type == HTML::EventNames::scrollend)) {
@@ -10114,7 +10132,7 @@ void Document::update_animations_and_send_events(double timestamp)
     }
 
     // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
-    GC::ConservativeVector<PendingAnimationEvent> events_to_dispatch;
+    GC::RootVector<PendingAnimationEvent> events_to_dispatch;
     events_to_dispatch.extend(m_pending_animation_event_queue);
 
     // 5. Clear doc’s pending animation event queue.
@@ -10152,7 +10170,7 @@ void Document::update_animations_and_send_events(double timestamp)
             return order < 0;
         return a < b;
     });
-    GC::ConservativeVector<PendingAnimationEvent> sorted_events;
+    GC::RootVector<PendingAnimationEvent> sorted_events;
     sorted_events.ensure_capacity(events_to_dispatch.size());
     for (auto index : event_order)
         sorted_events.unchecked_append(events_to_dispatch[index]);
@@ -10540,8 +10558,10 @@ void Document::set_design_mode_enabled_state(bool design_mode_enabled)
     struct PreviousReadWriteState {
         GC::Ptr<Element> element;
         bool value;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
-    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    GC::RootVector<PreviousReadWriteState> previous_read_write_states;
     for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
         previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
         return TraversalDecision::Continue;
@@ -11403,7 +11423,7 @@ void Document::remove_render_blocking_element(GC::Ref<Element> element)
 void Document::run_fullscreen_steps()
 {
     // 1. Let pendingEvents be document’s list of pending fullscreen events.
-    GC::ConservativeVector<PendingFullscreenEvent> pending_events;
+    GC::RootVector<PendingFullscreenEvent> pending_events;
     pending_events.extend(m_pending_fullscreen_events);
 
     // 2. Empty document’s list of pending fullscreen events.

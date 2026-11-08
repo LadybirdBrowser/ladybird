@@ -4873,6 +4873,8 @@ void EventHandler::update_pointer_hover(Layout::BegunRead const& read, PointerSt
     struct BoundaryTarget {
         GC::Ref<DOM::Node> node;
         MouseEventCoordinates coordinates;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
     };
     auto make_target = [&](DOM::Node& node) {
         auto target_coordinates = coordinates;
@@ -4880,8 +4882,8 @@ void EventHandler::update_pointer_hover(Layout::BegunRead const& read, PointerSt
             target_coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *layout_node);
         return BoundaryTarget { node, target_coordinates };
     };
-    GC::ConservativeVector<BoundaryTarget> left;
-    GC::ConservativeVector<BoundaryTarget> entered;
+    GC::RootVector<BoundaryTarget> left;
+    GC::RootVector<BoundaryTarget> entered;
     for (auto* node = previous.ptr(); node && node != common_ancestor; node = node->flat_tree_parent())
         left.append(make_target(*node));
     for (auto* node = target.ptr(); node && node != common_ancestor; node = node->flat_tree_parent())

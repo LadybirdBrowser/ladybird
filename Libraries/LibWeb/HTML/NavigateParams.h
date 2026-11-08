@@ -10,8 +10,8 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Navigation.h>
@@ -36,7 +36,7 @@ struct NavigateParams {
     bool exceptions_enabled = false;
     Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
     Optional<StorageSerializationRecord> navigation_api_state = {};
-    Optional<GC::ConservativeVector<XHR::FormDataEntry>> form_data_entry_list = {};
+    Optional<GC::RootVector<XHR::FormDataEntry>> form_data_entry_list = {};
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
     UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
     GC::Ptr<DOM::Element> source_element = nullptr;
@@ -52,7 +52,7 @@ struct PreparedNavigation {
     GC::Ptr<Fetch::Infrastructure::ResponseView> response;
     Bindings::NavigationHistoryBehavior history_handling;
     Optional<StorageSerializationRecord> navigation_api_state;
-    Optional<GC::ConservativeVector<XHR::FormDataEntry>> form_data_entry_list;
+    Optional<GC::RootVector<XHR::FormDataEntry>> form_data_entry_list;
     ReferrerPolicy::ReferrerPolicy referrer_policy;
     UserNavigationInvolvement user_involvement;
     Utf16String navigation_id;

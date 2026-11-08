@@ -103,11 +103,17 @@ static void collect_highlight_observing_elements(Vector<CSS::StyleNodeID>& style
 struct HighlightStyleInput {
     GC::Ref<Node> root;
     GC::Ptr<AbstractRange> range;
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(root);
+        visitor.visit(range);
+    }
 };
 
-static GC::ConservativeVector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
+static GC::RootVector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
 {
-    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
+    GC::RootVector<HighlightStyleInput, 2> inputs;
     if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
         auto range = selection->range();
         inputs.append({ range->common_ancestor_container(), range });
@@ -117,9 +123,9 @@ static GC::ConservativeVector<HighlightStyleInput, 2> selection_style_inputs(Doc
     return inputs;
 }
 
-static GC::ConservativeVector<HighlightStyleInput, 2> search_text_style_inputs(Document& document)
+static GC::RootVector<HighlightStyleInput, 2> search_text_style_inputs(Document& document)
 {
-    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
+    GC::RootVector<HighlightStyleInput, 2> inputs;
     if (auto active_match = document.find_in_page_active_match(); active_match && !active_match->collapsed())
         inputs.append({ active_match->common_ancestor_container(), active_match });
     GC::RootHashTable<Node*> highlighted_roots;
@@ -133,9 +139,9 @@ static GC::ConservativeVector<HighlightStyleInput, 2> search_text_style_inputs(D
     return inputs;
 }
 
-static GC::ConservativeVector<HighlightStyleInput, 2> spelling_error_style_inputs(Document& document)
+static GC::RootVector<HighlightStyleInput, 2> spelling_error_style_inputs(Document& document)
 {
-    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
+    GC::RootVector<HighlightStyleInput, 2> inputs;
     if (!document.has_spelling_markers())
         return inputs;
     GC::RootHashTable<Node*> roots;
@@ -173,7 +179,7 @@ static bool collect_custom_highlight_observing_elements(Document& document, Vect
     bool read_static_ranges = false;
     auto& style_engine = document.style_computer().style_engine();
     registry->for_each_highlight_in_stacking_order([&](Utf16String const& name, ReadonlySpan<GC::Ref<AbstractRange>> ranges) {
-        GC::ConservativeVector<HighlightStyleInput, 2> inputs;
+        GC::RootVector<HighlightStyleInput, 2> inputs;
         GC::RootHashMap<Node const*, size_t> input_index_by_root;
         for (auto const& range : ranges) {
             read_static_ranges |= is<StaticRange>(*range);

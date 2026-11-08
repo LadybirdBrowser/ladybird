@@ -845,7 +845,7 @@ ErrorOr<Utf16String> HTMLFormElement::pick_an_encoding() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#convert-to-a-list-of-name-value-pairs
-static ErrorOr<Vector<DOMURL::QueryParam>> convert_to_list_of_name_value_pairs(GC::ConservativeVector<XHR::FormDataEntry> const& entry_list)
+static ErrorOr<Vector<DOMURL::QueryParam>> convert_to_list_of_name_value_pairs(GC::RootVector<XHR::FormDataEntry> const& entry_list)
 {
     // 1. Let list be an empty list of name-value pairs.
     Vector<DOMURL::QueryParam> list;
@@ -906,7 +906,7 @@ static ErrorOr<Utf16String> plain_text_encode(Vector<DOMURL::QueryParam> const& 
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mutate-action
-ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::RootVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -923,7 +923,7 @@ ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::Con
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-body
-ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::RootVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Assert: method is POST.
 
@@ -986,7 +986,7 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC:
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-get-action
-void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::RootVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Plan to navigate to parsed action.
     // Spec Note: entry list is discarded.
@@ -994,7 +994,7 @@ void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::ConservativeVec
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mailto-headers
-ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::RootVector<XHR::FormDataEntry> entry_list, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -1013,7 +1013,7 @@ ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::Con
     return {};
 }
 
-ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::RootVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -1066,7 +1066,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::Conserva
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#plan-to-navigate
-void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
+void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::RootVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<HTMLElement> submitter)
 {
     // 1. Let referrerPolicy be the empty string.
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -1090,7 +1090,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
         // 2. Navigate targetNavigable to url using the form element's node document, with historyHandling set to historyHandling,
         //    userInvolvement set to userInvolvement, sourceElement set to submitter, referrerPolicy set to referrerPolicy,
         //    documentResource set to postResource, and formDataEntryList set to entry list.
-        MUST(target_navigable->navigate({ .url = url, .source_document = self.document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = GC::ConservativeVector<XHR::FormDataEntry> { move(entry_list) }, .referrer_policy = referrer_policy, .user_involvement = user_involvement, .source_element = submitter }));
+        MUST(target_navigable->navigate({ .url = url, .source_document = self.document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = GC::RootVector<XHR::FormDataEntry> { move(entry_list) }, .referrer_policy = referrer_policy, .user_involvement = user_involvement, .source_element = submitter }));
     }));
 
     // 5. Set the form's planned navigation to the just-queued task.

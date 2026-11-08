@@ -242,7 +242,7 @@ void Clipboard::read(JS::Realm& realm, ClipboardReadOptions formats, GC::Ref<Web
 
                 void visit_edges(GC::Cell::Visitor& visitor) const { visitor.visit(item); }
             };
-            GC::ConservativeVector<ReadItem> items;
+            GC::RootVector<ReadItem> items;
 
             // 6. For each systemClipboardItem in data:
             for (auto const& system_clipboard_item : data) {

@@ -31,6 +31,11 @@ bool web_form_data_value_named(void* form_data, FlatPtr name, FormDataEntryValue
 JSCompletion web_form_data_create_from_form(void* realm, JSObject* form, JSObject* submitter, void** out_form_data);
 }
 
+void FormDataEntry::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(value);
+}
+
 FormDataEntryABI form_data_entry_to_abi(FormDataEntry const& entry)
 {
     FormDataEntryABI abi { .name = Utf16String { entry.name }.into_raw(), .value = { .file = nullptr, .string = 0 } };
@@ -52,7 +57,7 @@ FormDataEntry form_data_entry_from_abi(FormDataEntryABI entry)
     return { .name = Utf16String::adopt_raw(entry.name), .value = form_data_entry_value_from_abi(entry.value) };
 }
 
-GC::Ref<FormData> FormData::create(GC::ConservativeVector<FormDataEntry> const& entry_list)
+GC::Ref<FormData> FormData::create(GC::RootVector<FormDataEntry> const& entry_list)
 {
     Vector<FormDataEntryABI> entries;
     entries.ensure_capacity(entry_list.size());
@@ -63,7 +68,7 @@ GC::Ref<FormData> FormData::create(GC::ConservativeVector<FormDataEntry> const& 
 
 GC::Ref<FormData> FormData::create(Vector<DOMURL::QueryParam> const& entry_list)
 {
-    GC::ConservativeVector<FormDataEntry> list;
+    GC::RootVector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
     for (auto const& entry : entry_list)
         list.unchecked_append({ .name = entry.name, .value = entry.value });
@@ -71,7 +76,7 @@ GC::Ref<FormData> FormData::create(Vector<DOMURL::QueryParam> const& entry_list)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata
-static WebIDL::ExceptionOr<GC::ConservativeVector<FormDataEntry>> entry_list_for_form(GC::Ref<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
+static WebIDL::ExceptionOr<GC::RootVector<FormDataEntry>> entry_list_for_form(GC::Ref<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
     // 1. If form is given, then:
     // 1. If submitter is non-null, then:
@@ -134,10 +139,10 @@ bool FormData::has(Utf16String const& name) const
     return !get(name).has<Empty>();
 }
 
-GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
+GC::RootVector<FormDataEntry> FormData::entry_list() const
 {
     auto count = web_form_data_entry_count(const_cast<FormData*>(this));
-    GC::ConservativeVector<FormDataEntry> entry_list;
+    GC::RootVector<FormDataEntry> entry_list;
     entry_list.ensure_capacity(count);
     for (size_t index = 0; index < count; ++index)
         entry_list.unchecked_append(form_data_entry_from_abi(web_form_data_entry(const_cast<FormData*>(this), index)));

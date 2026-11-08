@@ -106,6 +106,17 @@
 
 namespace Web::CSS {
 
+void StyleComputer::AnimationRefreshRequest::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    abstract_element.visit_edges(visitor);
+    visitor.visit(effects);
+}
+
+void StyleComputer::SampledAnimationOverlay::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    element.visit_edges(visitor);
+}
+
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
 StyleComputer::StyleComputer(DOM::Document& document)
@@ -1627,8 +1638,10 @@ void StyleComputer::publish_sampled_animation_overlays(Layout::BegunRead const& 
         ComputedStyleWorkingSet const& style;
         GC::Ref<DOM::Document const> document;
         TreeScopeID tree_scope;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(document); }
     };
-    GC::ConservativeVector<OverlayFont, 1> fonts;
+    GC::RootVector<OverlayFont, 1> fonts;
     Vector<StyleEngineFFI::FfiAnimationOverlayPublicationInput, 1> inputs;
     fonts.ensure_capacity(overlays.size());
     inputs.ensure_capacity(overlays.size());

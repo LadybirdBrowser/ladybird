@@ -158,10 +158,10 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
-GC::ConservativeVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
+GC::RootVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be an empty list.
-    GC::ConservativeVector<Slottable> result;
+    GC::RootVector<Slottable> result;
 
     // 2. Let root be slot’s root.
     auto& root = slot->root();
@@ -209,10 +209,10 @@ GC::ConservativeVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement>
 }
 
 // https://dom.spec.whatwg.org/#find-flattened-slotables
-GC::ConservativeVector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
+GC::RootVector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be « ».
-    GC::ConservativeVector<Slottable> result;
+    GC::RootVector<Slottable> result;
 
     // 2. If slot’s root is not a shadow root, then return result.
     if (!slot->root().is_shadow_root())

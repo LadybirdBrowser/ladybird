@@ -1030,7 +1030,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     GC::Ref<NavigationDestination> destination,
     UserNavigationInvolvement user_involvement,
     GC::Ptr<DOM::Element> source_element,
-    Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
+    Optional<GC::RootVector<XHR::FormDataEntry>&> form_data_entry_list,
     Optional<Utf16String> download_request_filename,
     Optional<StorageSerializationRecord> classic_history_api_state,
     GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
@@ -1483,7 +1483,7 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     bool is_same_document,
     UserNavigationInvolvement user_involvement,
     GC::Ptr<DOM::Element> source_element,
-    Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
+    Optional<GC::RootVector<XHR::FormDataEntry>&> form_data_entry_list,
     Optional<StorageSerializationRecord> navigation_api_state,
     Optional<StorageSerializationRecord> classic_history_api_state,
     GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)

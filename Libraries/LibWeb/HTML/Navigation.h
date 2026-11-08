@@ -138,7 +138,7 @@ public:
         bool is_same_document,
         UserNavigationInvolvement = UserNavigationInvolvement::None,
         GC::Ptr<DOM::Element> source_element = {},
-        Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list = {},
+        Optional<GC::RootVector<XHR::FormDataEntry>&> form_data_entry_list = {},
         Optional<StorageSerializationRecord> navigation_api_state = {},
         Optional<StorageSerializationRecord> classic_history_api_state = {},
         GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = {});
@@ -195,7 +195,7 @@ private:
         GC::Ref<NavigationDestination>,
         UserNavigationInvolvement,
         GC::Ptr<DOM::Element> source_element,
-        Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
+        Optional<GC::RootVector<XHR::FormDataEntry>&> form_data_entry_list,
         Optional<Utf16String> download_request_filename,
         Optional<StorageSerializationRecord> classic_history_api_state,
         GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = {});

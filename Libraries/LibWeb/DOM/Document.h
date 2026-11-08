@@ -302,6 +302,8 @@ struct PendingFullscreenEvent {
     } type;
     GC::Ref<Element> element;
     Fullscreen::RequestType request_type;
+
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 class WEB_API Document
@@ -1169,6 +1171,8 @@ public:
         GC::Ref<EventTarget> event_target;
         Utf16FlyString event_type;
         bool operator==(PendingScrollEvent const&) const = default;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
     bool append_pending_scroll_event(PendingScrollEvent);
     Vector<PendingScrollEvent>& pending_scroll_events() { return m_pending_scroll_events; }
@@ -1413,6 +1417,8 @@ public:
         GC::Ref<Animations::Animation> animation;
         GC::Ref<DOM::EventTarget> target;
         Optional<double> scheduled_event_time;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
     void append_pending_animation_event(PendingAnimationEvent const&);
     void update_animations_and_send_events(double timestamp);

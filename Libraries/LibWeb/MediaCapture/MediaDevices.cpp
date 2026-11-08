@@ -8,6 +8,7 @@
 #include <LibAudio/AudioDevices.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -33,6 +34,16 @@
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
+
+void MediaDevices::PendingEnumerateDevicesRequest::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(promise);
+}
+
+void MediaDevices::PendingGetUserMediaRequest::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(promise);
+}
 
 static Utf16FlyString const& AUDIO_INPUT_KIND = *new Utf16FlyString("audioinput"_utf16_fly_string);
 static Utf16FlyString const& AUDIO_OUTPUT_KIND = *new Utf16FlyString("audiooutput"_utf16_fly_string);
@@ -644,7 +655,7 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 
     run_device_change_notification_steps(current_audio_device_snapshot());
 
-    GC::ConservativeVector pending_requests { move(m_pending_enumerate_devices_requests) };
+    GC::RootVector pending_requests { move(m_pending_enumerate_devices_requests) };
     for (auto& request : pending_requests)
         queue_enumerate_devices_task(request.promise);
 }
@@ -656,7 +667,7 @@ void MediaDevices::process_pending_get_user_media_requests()
     if (!Audio::AudioDevices::the().has_device_list())
         return;
 
-    GC::ConservativeVector pending_requests { move(m_pending_get_user_media_requests) };
+    GC::RootVector pending_requests { move(m_pending_get_user_media_requests) };
     for (auto& request : pending_requests)
         queue_get_user_media_task(request.promise, move(request.device_id_constraint));
 }

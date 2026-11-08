@@ -5,7 +5,6 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -1500,8 +1499,10 @@ static Utf16String plain_text_of_fragment(DOM::DocumentFragment& fragment)
         GC::Ref<DOM::Node> node;
         bool preserves_white_space;
         bool is_block_end;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
     };
-    GC::ConservativeVector<PendingNode> pending_nodes;
+    GC::RootVector<PendingNode> pending_nodes;
     pending_nodes.append({ fragment, false, false });
     while (!pending_nodes.is_empty()) {
         auto [node, preserves_white_space, is_block_end] = pending_nodes.take_last();

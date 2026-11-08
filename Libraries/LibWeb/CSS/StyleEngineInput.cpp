@@ -7,8 +7,8 @@
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/SetUnion.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootHashTable.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -820,6 +820,8 @@ private:
     struct AncestorRow {
         GC::Ptr<DOM::Element const> element;
         Inherited inherited;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
 
     StyleEngine& m_style_engine;
@@ -829,7 +831,7 @@ private:
     StyleAtomID m_rtl_atom;
     TableByName<ElementKind, 64> m_kinds;
     TableByName<PublishedAttributeName, 32> m_attribute_names;
-    GC::ConservativeVector<AncestorRow, 32> m_elements_to_parent;
+    GC::RootVector<AncestorRow, 32> m_elements_to_parent;
     GC::RootVector<GC::Ref<DOM::Element>> m_elements_asked_their_language;
     Vector<StyleEngineFFI::FfiElementArrivalRow> m_rows;
     Vector<u32, 512> m_atoms;
@@ -847,6 +849,8 @@ static void learn_what_the_engine_reads(StyleEngine& style_engine, Layout::Begun
 struct PendingArrivalRoot {
     GC::Ref<DOM::Node> node;
     bool children_wait { false };
+
+    void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
 };
 
 // Every node in the subtrees waiting to arrive, in tree order, takes its identity, and every element records its
@@ -862,8 +866,10 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
     struct Arrival {
         GC::Ref<DOM::Node> node;
         TreeScopeID tree_scope;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
     };
-    GC::ConservativeVector<Arrival, 64> arrivals;
+    GC::RootVector<Arrival, 64> arrivals;
     GC::RootVector<GC::Ref<DOM::Text>, 64> text_arrivals;
     // Elements and text nodes in tree order, which is the order their places in the DOM child sequence can be taken
     // in: each node's previous sibling has taken its place first.
@@ -1154,7 +1160,7 @@ static bool collect_pending_style_arrival_roots(DOM::Node& node, Vector<PendingA
 // OPTIMIZATION: The subtrees waiting to arrive, found among the nodes marked since the last take-in rather than along the
 //               marks, which reach every child of each node on the path to one. Answers false, having found nothing,
 //               where the marks have to be walked: a node is in a shadow tree, whose tree order the walk follows.
-static bool take_listed_arrival_roots(DOM::Document& document, GC::RootVector<GC::Ref<DOM::Node>> const& listed, GC::ConservativeVector<PendingArrivalRoot, 16>& roots, HiddenChildArrivalDecision& decision)
+static bool take_listed_arrival_roots(DOM::Document& document, GC::RootVector<GC::Ref<DOM::Node>> const& listed, GC::RootVector<PendingArrivalRoot, 16>& roots, HiddenChildArrivalDecision& decision)
 {
     GC::RootVector<GC::Ref<DOM::Node>> found;
     GC::RootHashTable<GC::Ref<DOM::Node>> seen;
@@ -1219,7 +1225,7 @@ static void take_in_pending_style_arrivals(DOM::Document& document, HiddenChildA
     // NB: Publication can bring another document up to date, as an SVG image's for its natural size, whose own take-in
     //     this says nothing about.
     auto taking_in = style_engine.begin_taking_in_pending_arrivals();
-    GC::ConservativeVector<PendingArrivalRoot, 16> roots;
+    GC::RootVector<PendingArrivalRoot, 16> roots;
     {
         HiddenChildArrivalDecision decision { document, hidden_child_arrivals };
         auto listed = style_engine.take_listed_arrivals();

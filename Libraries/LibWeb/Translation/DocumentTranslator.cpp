@@ -9,7 +9,6 @@
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
@@ -36,6 +35,12 @@
 #include <LibWeb/Translation/DocumentTranslator.h>
 
 namespace Web::Translation {
+
+void DocumentTranslator::AnchoredNode::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(node);
+    visitor.visit(owner);
+}
 
 // Lower is more urgent: The title first, then the text the user can see, then the rest of the rendered text, and the
 // text that isn't rendered last, so a menu shown later is still translated.
@@ -957,8 +962,10 @@ void DocumentTranslator::apply_paragraph(Unit& unit, Vector<Web::TranslationRun>
     struct OpenElement {
         size_t index { 0 };
         GC::Ref<DOM::Node> output;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(output); }
     };
-    GC::ConservativeVector<OpenElement> open_elements;
+    GC::RootVector<OpenElement> open_elements;
     Vector<bool> is_opened;
     is_opened.resize(unit.inline_elements.size());
     Vector<bool> is_placed;
@@ -1018,7 +1025,7 @@ void DocumentTranslator::apply_paragraph(Unit& unit, Vector<Web::TranslationRun>
 
     // Put back the nodes that aren't translated: the anchored ones, the kept text the translation left out, and the
     // inline elements it put no text into.
-    GC::ConservativeVector<AnchoredNode> nodes_to_place;
+    GC::RootVector<AnchoredNode> nodes_to_place;
     for (auto const& anchored_node : unit.anchored_nodes)
         nodes_to_place.append(anchored_node);
     for (size_t index = 0; index < unit.pieces.size(); ++index) {

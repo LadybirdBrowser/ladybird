@@ -5,7 +5,6 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -33,6 +32,11 @@
 #include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::PaintTiming {
+
+void PendingImageRecord::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(element);
+}
 
 static Utf16String const& first_paint_name()
 {
@@ -475,7 +479,7 @@ void mark_paint_timing(DOM::Document& document)
     };
 
     // 3. Let paintedImages be a new ordered set
-    GC::ConservativeVector<PendingImageRecord> painted_images;
+    GC::RootVector<PendingImageRecord> painted_images;
 
     // 4. Let paintedTextNodes be a new ordered set
     PaintedTextNodes painted_text_nodes;

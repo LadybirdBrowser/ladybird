@@ -113,7 +113,7 @@ void HTMLSlotElement::assign_slottables_if_needed() const
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assign
-void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
+void HTMLSlotElement::assign(GC::RootVector<SlottableHandle> nodes)
 {
     // AD-HOC: Assigned nodes are recomputed lazily.
     assign_slottables_if_needed();
