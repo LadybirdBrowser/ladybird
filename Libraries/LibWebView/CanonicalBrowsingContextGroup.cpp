@@ -174,18 +174,18 @@ RefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::similar
     return agent_cluster->similar_origin_window_agent;
 }
 
-RefPtr<WebContentClient> CanonicalBrowsingContextGroup::process_hosting_sandboxed_documents_of_site(URL::Site const& site) const
+RefPtr<WebContentClient> CanonicalBrowsingContextGroup::process_hosting_sandboxed_documents_of_origin(String const& origin) const
 {
-    auto process = m_processes_hosting_sandboxed_documents.get(site.serialize());
+    auto process = m_processes_hosting_sandboxed_documents.get(origin);
     if (!process.has_value())
         return nullptr;
     return process_able_to_host(*process);
 }
 
-void CanonicalBrowsingContextGroup::set_process_hosting_sandboxed_documents_of_site(URL::Site const& site, WebContentClient& process)
+void CanonicalBrowsingContextGroup::set_process_hosting_sandboxed_documents_of_origin(String const& origin, WebContentClient& process)
 {
     m_processes_hosting_sandboxed_documents.remove_all_matching([](auto const&, auto const& hosting_process) { return hosting_process.is_null(); });
-    m_processes_hosting_sandboxed_documents.set(site.serialize(), process.make_weak_ptr<WebContentClient>());
+    m_processes_hosting_sandboxed_documents.set(origin, process.make_weak_ptr<WebContentClient>());
 }
 
 }
