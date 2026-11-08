@@ -2679,8 +2679,6 @@ bool record_element_presentational_hint_properties(DOM::Element& element, Readon
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)
 {
-    if (element.style_node_id() != no_style_node)
-        StyleEngineFFI::style_engine_note_element_declarations_changed(element.document().style_computer().style_engine().host(), element.style_node_id().value());
     element.document().flush_deferred_style_change_event();
     auto* style_engine = style_engine_for_published(element);
     if (!style_engine)

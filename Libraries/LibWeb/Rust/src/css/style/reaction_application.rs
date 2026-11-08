@@ -164,11 +164,8 @@ impl Application<'_> {
     /// Takes the next style update of the host's update_style(), the one computed beside the event loop first where it
     /// drains it, and answers the style installation the render side made of it for the host to swap in.
     fn take_transaction(self, flown: bool) -> StyleInstallation {
-        {
-            let _taking = self.host.engine_memo().take_transactions_to_apply();
-            // SAFETY: The host lends its application for the call that updates the style.
-            unsafe { web_css_run_style_update(self.host_application, flown) };
-        }
+        // SAFETY: The host lends its application for the call that updates the style.
+        unsafe { web_css_run_style_update(self.host_application, flown) };
         self.host.take_transaction_installation().unwrap_or_default()
     }
 
