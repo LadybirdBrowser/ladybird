@@ -75,7 +75,6 @@ private:
     // ^HubClientEndpoint
     virtual void crash_reports_changed() override;
     virtual void request_finished(u64 request_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) override;
-    virtual void app_open_urls(Vector<URL::URL> urls) override;
     virtual void app_open_new_tab(Vector<URL::URL> urls) override;
     virtual void app_open_new_window(Vector<URL::URL> urls) override;
     virtual void view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) override;

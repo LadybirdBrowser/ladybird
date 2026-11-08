@@ -43,7 +43,6 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
     (void)WebView::TabPerformanceMonitor::the();
 
     auto& browser_process = Application::the().browser_process();
-    browser_process.on_open_urls = [this](auto const& urls) { async_app_open_urls(urls); };
     browser_process.on_new_tab = [this](auto const& urls) { async_app_open_new_tab(urls); };
     browser_process.on_new_window = [this](auto const& urls) { async_app_open_new_window(urls); };
 }

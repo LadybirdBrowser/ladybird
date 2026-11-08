@@ -9,10 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/Vector.h>
 
-namespace WebView {
+namespace Ladybird {
 
 // Takes the URLs and files from the Apple events that macOS queued when it launched this process to open them. Those
-// never appear in argv — LaunchServices delivers them in kAEGetURL and kAEOpenDocuments events after launch.
+// never appear in argv. LaunchServices delivers them in kAEGetURL and kAEOpenDocuments events after launch.
 Vector<ByteString> take_urls_from_launch_apple_events();
 
 }

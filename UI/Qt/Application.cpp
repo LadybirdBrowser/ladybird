@@ -70,6 +70,7 @@
 
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/ApplicationIcon.h>
+#    include <UI/Qt/LaunchURLsMacOS.h>
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/MicrophoneAuthorizerMacOS.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
@@ -741,6 +742,12 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     Vector<ByteString> hub_arguments;
     for (auto argument : arguments.strings.slice(1))
         hub_arguments.append(argument);
+#    if defined(AK_OS_MACOS)
+    // NB: When macOS launches the browser to open a URL or a file, such as a link clicked in another app, the URL is in a
+    //     launch Apple event to this process, never in argv. The Hub opens it like a URL from the command line, and
+    //     hands it to the browser already running for the profile, if there is one.
+    hub_arguments.extend(take_urls_from_launch_apple_events());
+#    endif
     hub_arguments.append(ByteString::formatted("--ui-info={}", encode_hex(ui_info_buffer.data().span())));
 
     Core::ProcessSpawnOptions spawn_options {
