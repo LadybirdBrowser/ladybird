@@ -19,12 +19,8 @@ use crate::css::computed_values::GroupValuesWriter;
 use crate::css::css_string::CssString;
 use crate::css::ffi_support::OwnedBox;
 use crate::css::style_value::{
-    BackgroundSizePayload, BorderImageSlicePayload, BorderRadiusPayload, BorderRadiusRectPayload, CalculatedPayload,
-    ColorFunctionPayload, ColorMixPayload, ColorSchemePayload, ConicGradientPayload, ContentPayload,
-    CounterDefinitionsPayload, CounterPayload, CounterStylePayload, CursorPayload, EasingPayload, FunctionPayload,
-    GridTrackPlacementPayload, GridTrackSizeListPayload, ImagePayload, ImageSetPayload, LinearGradientPayload,
-    OpenTypeTaggedPayload, PositionPayload, RadialGradientPayload, RadialSizePayload, RandomValueSharingPayload,
-    RatioPayload, RayPayload, RectPayload, ScrollbarColorPayload, ShadowPayload, ShorthandPayload, UrlPayload,
+    CalculatedPayload, ColorSchemePayload, ContentPayload, CounterPayload, CounterStylePayload, FunctionPayload,
+    ImagePayload, OpenTypeTaggedPayload, RandomValueSharingPayload, ShorthandPayload, UrlPayload,
 };
 use crate::css::style_value_arc::StyleValueArc;
 use ak::math;
@@ -44,9 +40,7 @@ use crate::css::property_metadata::property_id;
 use crate::css::property_metadata::property_is_inherited;
 use crate::css::property_metadata::property_is_shorthand;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-use crate::css::style_value::{
-    BasicShapeData, GridTrackEntryKind, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
-};
+use crate::css::style_value::{RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
 
 pub use crate::css::css_enums::*;
 
@@ -1097,96 +1091,23 @@ pub extern "C" fn rust_style_reads_counter_style_environment(
 /// changed by CSS.
 ///
 /// Returns None for value types that must not reach computational-independence checks. A
-/// container is likewise undecided when any nested value is unsupported.
+/// container is likewise undecided when a nested value is unsupported, unless another nested value
+/// already makes it dependent.
 pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Option<bool> {
-    fn grid_entries_are_computationally_independent(
-        entries: &[crate::css::style_value::RetainedGridTrackEntry],
-    ) -> Option<bool> {
-        for entry in entries {
-            let independent = match entry.kind {
-                // A line-name entry carries no style value.
-                GridTrackEntryKind::LineNames => true,
-                // A single track size.
-                GridTrackEntryKind::Size => value_is_computationally_independent(entry.size_value.data())?,
-                // A minmax() track size.
-                GridTrackEntryKind::MinMax => {
-                    value_is_computationally_independent(entry.min_value.data())?
-                        && value_is_computationally_independent(entry.max_value.data())?
-                }
-                // A repeat() track and its optional fixed repeat count.
-                GridTrackEntryKind::Repeat => {
-                    grid_entries_are_computationally_independent(entry.repeat_entries())?
-                        && match entry.repeat_count.optional_data() {
-                            Some(count) => value_is_computationally_independent(count)?,
-                            None => true,
-                        }
-                }
-            };
-            if !independent {
-                return Some(false);
-            }
-        }
-        Some(true)
-    }
-
-    let all_data_in_list = |list: &crate::css::style_value::RetainedStyleValueDataList| -> Option<bool> {
-        let mut independent = true;
-        for retained in list.as_slice() {
-            if let Some(data) = retained.optional_data() {
-                independent = independent && value_is_computationally_independent(data)?;
-            }
-        }
-        Some(independent)
-    };
-    let all_data = |children: &[&crate::css::style_value::RetainedStyleValueData]| -> Option<bool> {
-        let mut independent = true;
-        for retained in children {
-            independent = independent && value_is_computationally_independent(retained.data())?;
-        }
-        Some(independent)
-    };
     match value {
         StyleValueData::Keyword { .. } => {
             if value_is_css_wide_keyword(value) {
                 return Some(false);
             }
             // NB: System colors are computationally independent, although the color scheme decides what they compute
-            //     to, and so is light-dark() below:
+            //     to, and so is light-dark():
             //     https://github.com/w3c/csswg-drafts/issues/12735
             // FIXME: Are there any other keywords which aren't computationally independent?
             Some(true)
         }
         StyleValueData::Length { unit, .. } => Some(!length_unit_is_font_or_container_relative(*unit)),
-        StyleValueData::Number { .. }
-        | StyleValueData::Integer { .. }
-        | StyleValueData::Percentage { .. }
-        | StyleValueData::Angle { .. }
-        | StyleValueData::Flex { .. }
-        | StyleValueData::Frequency { .. }
-        | StyleValueData::Resolution { .. }
-        | StyleValueData::Time { .. }
-        | StyleValueData::String { .. } => Some(true),
-        // NB: anchor() and anchor-size() count as independent even though they carry a
-        //     fallback value, matching their C++ rules.
-        StyleValueData::Anchor { .. }
-        | StyleValueData::AnchorSize { .. }
-        | StyleValueData::ColorScheme { .. }
-        | StyleValueData::CounterStyle { .. }
-        | StyleValueData::CustomIdent { .. }
-        | StyleValueData::Display { .. }
-        | StyleValueData::EmptyOptional
-        | StyleValueData::GridAutoFlow { .. }
-        | StyleValueData::GridTemplateArea { .. }
-        | StyleValueData::Image { .. }
-        | StyleValueData::RepeatStyle { .. }
-        | StyleValueData::TextUnderlinePosition { .. }
-        | StyleValueData::Url { .. }
-        | StyleValueData::FontSource { .. }
-        | StyleValueData::ScrollbarGutter { .. } => Some(true),
-        StyleValueData::LightDark(light_dark) => Some(
-            value_is_computationally_independent(light_dark.light.data())?
-                && value_is_computationally_independent(light_dark.dark.data())?,
-        ),
+        // NB: anchor() and anchor-size() count as independent even though they carry a fallback value.
+        StyleValueData::Anchor { .. } | StyleValueData::AnchorSize { .. } => Some(true),
         StyleValueData::TreeCountingFunction { .. } => Some(false),
         // The calculation tree decides natively; its style value leaves resolve through the
         // same decision, falling back for the types the core cannot decide.
@@ -1197,357 +1118,27 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
                 &|retained| value_is_computationally_independent(retained.data()).unwrap_or_default(),
             ))
         }
-        StyleValueData::Ratio(ratio_payload) => {
-            let RatioPayload {
-                numerator, denominator, ..
-            } = &**ratio_payload;
-            all_data(&[numerator, denominator])
-        }
-        StyleValueData::Edge { offset, .. } => match offset.optional_data() {
-            Some(offset) => value_is_computationally_independent(offset),
-            None => Some(true),
-        },
-        StyleValueData::Function(function_payload) => {
-            let FunctionPayload { value, .. } = &**function_payload;
-            all_data(&[value])
-        }
-        StyleValueData::OpacityValue { value } => all_data(&[value]),
-        // Auto placements carry no value; spans and lines recurse into theirs.
-        StyleValueData::GridTrackPlacement(grid_track_placement_payload) => {
-            let GridTrackPlacementPayload { value, .. } = &**grid_track_placement_payload;
-            match value.optional_data() {
-                Some(value) => value_is_computationally_independent(value),
-                None => Some(true),
-            }
-        }
-        StyleValueData::GridTrackSizeList(grid_track_size_list_payload) => {
-            let GridTrackSizeListPayload { entries, .. } = &**grid_track_size_list_payload;
-            grid_entries_are_computationally_independent(entries.as_slice())
-        }
         // FIXME: Consider sub-values once we support <custom-color-space> values
         StyleValueData::ColorInterpolationMethod { .. } => Some(true),
-        StyleValueData::ColorFunction(color_function_payload) => {
-            let ColorFunctionPayload {
-                channel_0,
-                channel_1,
-                channel_2,
-                alpha,
-                origin_color,
-                ..
-            } = &**color_function_payload;
-            let mut independent = true;
-            for value in [channel_0, channel_1, channel_2, alpha, origin_color] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::BorderImageSlice(border_image_slice_payload) => {
-            let BorderImageSlicePayload {
-                top,
-                right,
-                bottom,
-                left,
-                ..
-            } = &**border_image_slice_payload;
-            all_data(&[top, right, bottom, left])
-        }
-        StyleValueData::Content(content_payload) => {
-            let ContentPayload { content, alt_text } = &**content_payload;
-            let mut independent = value_is_computationally_independent(content.data())?;
-            if let Some(alt_text) = alt_text.optional_data() {
-                independent = independent && value_is_computationally_independent(alt_text)?;
-            }
-            Some(independent)
-        }
-        // Extent components carry no value; explicit sizes recurse into theirs.
-        StyleValueData::RadialSize(radial_size_payload) => {
-            let RadialSizePayload {
-                component_count,
-                is_extent_0,
-                value_0,
-                is_extent_1,
-                value_1,
-                ..
-            } = &**radial_size_payload;
-            let mut independent = true;
-            if !is_extent_0 {
-                independent = value_is_computationally_independent(value_0.data())?;
-            }
-            if *component_count == 2 && !is_extent_1 {
-                independent = independent && value_is_computationally_independent(value_1.data())?;
-            }
-            Some(independent)
-        }
-        // Every shape kind's rule is a conjunction over the values it uses; the
-        // unused generic fields and point list of the other kinds are absent, so
-        // one null-tolerant conjunction covers inset, xywh, rect, circle,
-        // ellipse, polygon and path exactly.
-        StyleValueData::BasicShape { shape } => {
-            let BasicShapeData {
-                v0,
-                v1,
-                v2,
-                v3,
-                v4,
-                points,
-                ..
-            } = shape.as_ref();
-            let mut independent = true;
-            for value in [v0, v1, v2, v3, v4] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            for point in points.as_slice() {
-                for value in point.values() {
-                    independent = independent && value_is_computationally_independent(value.data())?;
-                }
-            }
-            Some(independent)
-        }
-        // Every filter kind's rule recurses into its single value.
-        StyleValueData::Filter { value, .. } => all_data(&[value]),
-        StyleValueData::Ray(ray_payload) => {
-            let RayPayload { angle, position, .. } = &**ray_payload;
-            let mut independent = value_is_computationally_independent(angle.data())?;
-            if let Some(position) = position.optional_data() {
-                independent = independent && value_is_computationally_independent(position)?;
-            }
-            Some(independent)
-        }
-        StyleValueData::Counter(counter_payload) => {
-            let CounterPayload { counter_style, .. } = &**counter_payload;
-            all_data(&[counter_style])
-        }
-        StyleValueData::OpenTypeTagged(open_type_tagged_payload) => {
-            let OpenTypeTaggedPayload { value, .. } = &**open_type_tagged_payload;
-            all_data(&[value])
-        }
-        StyleValueData::RandomValueSharing(random_value_sharing_payload) => {
-            let RandomValueSharingPayload { fixed_value, .. } = &**random_value_sharing_payload;
-            match fixed_value.optional_data() {
-                Some(fixed_value) => value_is_computationally_independent(fixed_value),
-                None => Some(true),
-            }
-        }
-        StyleValueData::Cursor(cursor_payload) => {
-            let CursorPayload { image, x, y } = &**cursor_payload;
-            let mut independent = value_is_computationally_independent(image.data())?;
-            for coordinate in [x, y] {
-                if let Some(coordinate) = coordinate.optional_data() {
-                    independent = independent && value_is_computationally_independent(coordinate)?;
-                }
-            }
-            Some(independent)
-        }
-        // The unused fields of the non-matching easing kinds are absent, so one
-        // null-tolerant conjunction covers every kind's rule.
-        StyleValueData::Easing(easing_payload) => {
-            let EasingPayload {
-                linear_stops,
-                x1,
-                y1,
-                x2,
-                y2,
-                number_of_intervals,
-                ..
-            } = &**easing_payload;
-            let mut independent = true;
-            for value in [x1, y1, x2, y2, number_of_intervals] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            for stop in linear_stops.as_slice() {
-                for value in stop.values() {
-                    if let Some(value) = value.optional_data() {
-                        independent = independent && value_is_computationally_independent(value)?;
+        StyleValueData::UnicodeRange { .. }
+        | StyleValueData::GuaranteedInvalid
+        | StyleValueData::PendingSubstitution { .. }
+        | StyleValueData::CounterStyleSystem { .. }
+        | StyleValueData::Unresolved { .. } => None,
+        // Any other value is independent when all the values it holds are. A dependent child
+        // decides the answer wherever it is, so the order of the children does not matter.
+        _ => {
+            let mut independent = Some(true);
+            value.for_each_child(&mut |child| {
+                if independent != Some(false) {
+                    let answer = value_is_computationally_independent(child);
+                    if answer != Some(true) {
+                        independent = answer;
                     }
                 }
-            }
-            Some(independent)
+            });
+            independent
         }
-        StyleValueData::ImageSet(image_set_payload) => {
-            let ImageSetPayload { options } = &**image_set_payload;
-            let mut independent = true;
-            for option in options.as_slice() {
-                independent = independent && all_data(&option.values())?;
-            }
-            Some(independent)
-        }
-        StyleValueData::CounterDefinitions(counter_definitions_payload) => {
-            let CounterDefinitionsPayload { counter_definitions } = &**counter_definitions_payload;
-            let mut independent = true;
-            for definition in counter_definitions.as_slice() {
-                if let Some(value) = definition.value().optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::LinearGradient(linear_gradient_payload) => {
-            let LinearGradientPayload {
-                direction_value,
-                color_stop_list,
-                color_interpolation_method,
-                ..
-            } = &**linear_gradient_payload;
-            let mut independent = true;
-            for value in [direction_value, color_interpolation_method] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            for stop in color_stop_list.as_slice() {
-                for value in stop.values() {
-                    if let Some(value) = value.optional_data() {
-                        independent = independent && value_is_computationally_independent(value)?;
-                    }
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::ConicGradient(conic_gradient_payload) => {
-            let ConicGradientPayload {
-                from_angle,
-                position,
-                color_stop_list,
-                color_interpolation_method,
-                ..
-            } = &**conic_gradient_payload;
-            let mut independent = true;
-            for value in [from_angle, position, color_interpolation_method] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            for stop in color_stop_list.as_slice() {
-                for value in stop.values() {
-                    if let Some(value) = value.optional_data() {
-                        independent = independent && value_is_computationally_independent(value)?;
-                    }
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::RadialGradient(radial_gradient_payload) => {
-            let RadialGradientPayload {
-                size,
-                position,
-                color_stop_list,
-                color_interpolation_method,
-                ..
-            } = &**radial_gradient_payload;
-            let mut independent = true;
-            for value in [size, position, color_interpolation_method] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            for stop in color_stop_list.as_slice() {
-                for value in stop.values() {
-                    if let Some(value) = value.optional_data() {
-                        independent = independent && value_is_computationally_independent(value)?;
-                    }
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::ContrastColor { color, .. } => all_data(&[color]),
-        StyleValueData::Superellipse { parameter } => all_data(&[parameter]),
-        StyleValueData::ScrollbarColor(scrollbar_color_payload) => {
-            let ScrollbarColorPayload {
-                thumb_color,
-                track_color,
-                ..
-            } = &**scrollbar_color_payload;
-            all_data(&[thumb_color, track_color])
-        }
-        StyleValueData::Rect(rect_payload) => {
-            let RectPayload {
-                top,
-                right,
-                bottom,
-                left,
-                ..
-            } = &**rect_payload;
-            all_data(&[top, right, bottom, left])
-        }
-        StyleValueData::FontStyle { angle_value, .. } => match angle_value.optional_data() {
-            Some(angle_value) => value_is_computationally_independent(angle_value),
-            None => Some(true),
-        },
-        StyleValueData::TextIndent { length_percentage, .. } => all_data(&[length_percentage]),
-        StyleValueData::OverflowClipMargin { offset, .. } => all_data(&[offset]),
-        StyleValueData::BackgroundSize(background_size_payload) => {
-            let BackgroundSizePayload { size_x, size_y, .. } = &**background_size_payload;
-            all_data(&[size_x, size_y])
-        }
-        StyleValueData::Position(position_payload) => {
-            let PositionPayload { edge_x, edge_y, .. } = &**position_payload;
-            all_data(&[edge_x, edge_y])
-        }
-        StyleValueData::Shadow(shadow_payload) => {
-            let ShadowPayload {
-                color,
-                offset_x,
-                offset_y,
-                blur_radius,
-                spread_distance,
-                ..
-            } = &**shadow_payload;
-            let mut independent = value_is_computationally_independent(offset_x.data())?
-                && value_is_computationally_independent(offset_y.data())?;
-            for value in [color, blur_radius, spread_distance] {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::ColorMix(color_mix_payload) => {
-            let ColorMixPayload {
-                color_interpolation_method,
-                colors,
-                percentages,
-                ..
-            } = &**color_mix_payload;
-            let mut independent = true;
-            for value in std::iter::once(color_interpolation_method)
-                .chain(colors.as_slice())
-                .chain(percentages.as_slice())
-            {
-                if let Some(value) = value.optional_data() {
-                    independent = independent && value_is_computationally_independent(value)?;
-                }
-            }
-            Some(independent)
-        }
-        StyleValueData::Shorthand(_)
-        | StyleValueData::ValueList { .. }
-        | StyleValueData::Tuple { .. }
-        | StyleValueData::Transformation(_) => all_data_in_list(value.child_values().unwrap()),
-        StyleValueData::BorderRadiusRect(border_radius_rect_payload) => {
-            let BorderRadiusRectPayload {
-                top_left,
-                top_right,
-                bottom_right,
-                bottom_left,
-                ..
-            } = &**border_radius_rect_payload;
-            all_data(&[top_left, top_right, bottom_right, bottom_left])
-        }
-        StyleValueData::BorderRadius(border_radius_payload) => {
-            let BorderRadiusPayload {
-                horizontal_radius,
-                vertical_radius,
-                ..
-            } = &**border_radius_payload;
-            all_data(&[horizontal_radius, vertical_radius])
-        }
-        _ => None,
     }
 }
 
