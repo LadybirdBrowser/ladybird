@@ -1,0 +1,2 @@
+Namespaced type attributes: same sheet true, loads 0, rules 2
+New href: load, color rgb(0, 0, 128)
