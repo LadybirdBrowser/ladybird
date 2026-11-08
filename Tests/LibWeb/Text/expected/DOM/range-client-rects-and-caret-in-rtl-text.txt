@@ -1,0 +1,7 @@
+first word ends the line on the right: true
+first word is in the line's right half: true
+last word starts the line on the left: true
+last word is in the line's left half: true
+offset at the line's right end: 0
+offset at the line's left end: true
+offset just inside the first word's left edge: 5
