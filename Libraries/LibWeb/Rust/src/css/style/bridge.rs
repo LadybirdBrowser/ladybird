@@ -632,7 +632,7 @@ pub(in crate::css::style) fn element_arrival_facts<'a>(
 }
 
 pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 11;
-pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 16;
+pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 18;
 
 /// The element facts the style computation's box-type transformation and element style
 /// adjustments read. Mirrors C++ `ElementStyleAdjustmentFact`.

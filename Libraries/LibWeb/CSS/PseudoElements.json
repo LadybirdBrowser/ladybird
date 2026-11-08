@@ -1,4 +1,7 @@
 {
+  "-moz-color-swatch": {
+    "alias-for": "color-swatch"
+  },
   "-moz-meter-bar": {
     "alias-for": "slider-fill"
   },
@@ -16,6 +19,13 @@
   },
   "-moz-range-thumb": {
     "alias-for": "slider-thumb"
+  },
+  "-webkit-color-swatch": {
+    "alias-for": "color-swatch"
+  },
+  "-webkit-color-swatch-wrapper": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#vendor-pseudo-element-compatibility",
+    "implementation": "element-reference"
   },
   "-webkit-input-placeholder": {
     "alias-for": "placeholder"
@@ -48,6 +58,10 @@
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before",
     "is-tree-abiding": true,
     "implementation": "synthetic"
+  },
+  "color-swatch": {
+    "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-color-swatch",
+    "implementation": "element-reference"
   },
   "details-content": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content",
