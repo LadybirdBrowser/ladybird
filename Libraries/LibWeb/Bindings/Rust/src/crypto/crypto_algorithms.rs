@@ -14,13 +14,18 @@ use core::ptr::{NonNull, null, null_mut};
 use std::rc::Rc;
 
 use ak::{Span, Utf16String, Utf16StringUnits};
-use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, Trace, Value, Vm};
+use libjs_rust::api::{
+    ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, Value, Vm,
+};
 
+use crate::bindings::conversions::{buffer_source_type_of, to_unsigned_long_enforcing_range};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
-use crate::bindings::{CallContext, WebIdlResult};
+use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, RawJsonWebKey};
 use crate::crypto::crypto_key::{CryptoKey, KeyUsage};
-use crate::crypto::subtle_crypto::{AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, normalize_an_algorithm};
+use crate::crypto::subtle_crypto::{
+    AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, get_a_copy_of_the_bytes, normalize_an_algorithm,
+};
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
 #[derive(Clone, Trace)]
@@ -344,8 +349,6 @@ pub(crate) enum AlgorithmId {
     AesGcm,
     AesKw,
     Hmac,
-    Sha,
-    CShake,
     Hkdf,
     Pbkdf2,
     X25519,
@@ -383,7 +386,6 @@ pub(crate) enum ParameterId {
     AesGcmParams,
     HmacKeyGenParams,
     HmacImportParams,
-    CShakeParams,
     HkdfParams,
     Pbkdf2Params,
     Ed448Params,
@@ -499,13 +501,6 @@ unsafe extern "C" {
         data: Span<'_, u8>,
         out: &mut bool,
     ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_digest(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
     fn web_crypto_algorithm_derive_bits(
         realm: *mut c_void,
         algorithm: *mut c_void,
@@ -600,10 +595,6 @@ unsafe extern "C" {
         realm: *mut c_void,
         algorithm: *mut c_void,
     ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_digest_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
     fn web_crypto_algorithm_validate_generate_key_parameters(
         realm: *mut c_void,
         algorithm: *mut c_void,
@@ -619,7 +610,9 @@ unsafe extern "C" {
     ) -> RawNativeFunctionResult;
 }
 
-pub(crate) struct CppAlgorithm(NonNull<c_void>);
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct CppAlgorithm(#[gc(untraced)] NonNull<c_void>);
 
 impl Drop for CppAlgorithm {
     fn drop(&mut self) {
@@ -651,8 +644,165 @@ impl CppAlgorithm {
         .into_completion()?;
         Ok(Self(NonNull::new(out).expect("LibWeb returns an algorithm")))
     }
+}
 
-    pub(crate) fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+pub(crate) trait AlgorithmMethods: Trace {
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        None
+    }
+
+    fn encrypt(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("encrypt is not supported"),
+        ))
+    }
+
+    fn decrypt(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("decrypt is not supported"),
+        ))
+    }
+
+    fn sign(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("sign is not supported"),
+        ))
+    }
+
+    fn verify(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _signature: &Bytes, _data: &Bytes) -> WebIdlResult<bool> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("verify is not supported"),
+        ))
+    }
+
+    fn digest(&self, _realm: Gc<Realm>, _algorithm: &AlgorithmParams, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("digest is not supported"),
+        ))
+    }
+
+    fn derive_bits(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _length: Option<u32>) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("deriveBits is not supported"),
+        ))
+    }
+
+    fn import_key(
+        &self,
+        _realm: Gc<Realm>,
+        _format: KeyFormat,
+        _key_data: ImportKeyData,
+        _extractable: bool,
+        _usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("importKey is not supported"),
+        ))
+    }
+
+    fn generate_key(
+        &self,
+        _realm: Gc<Realm>,
+        _extractable: bool,
+        _usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("generateKey is not supported"),
+        ))
+    }
+
+    fn export_key(&self, _realm: Gc<Realm>, _format: KeyFormat, _key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("exportKey is not supported"),
+        ))
+    }
+
+    fn get_key_length(&self, _realm: Gc<Realm>) -> WebIdlResult<Option<u32>> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("getKeyLength is not supported"),
+        ))
+    }
+
+    fn get_shared_key_length(&self, _realm: Gc<Realm>) -> WebIdlResult<u32> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("getSharedKeyLength is not supported"),
+        ))
+    }
+
+    fn wrap_key(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("wrapKey is not supported"),
+        ))
+    }
+
+    fn unwrap_key(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("unwwrapKey is not supported"),
+        ))
+    }
+
+    fn encapsulate(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>) -> WebIdlResult<EncapsulatedBitsData> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("encapsulate is not supported"),
+        ))
+    }
+
+    fn decapsulate(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+        Err(Exception::Dom(
+            "NotSupportedError",
+            Utf16String::from_utf8("decalpsulate is not supported"),
+        ))
+    }
+
+    fn validate_encrypt_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_decrypt_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_sign_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_verify_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_digest_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_generate_key_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_import_key_parameters(&self, _realm: Gc<Realm>) -> WebIdlResult<()> {
+        Ok(())
+    }
+
+    fn validate_derive_bits_parameters(&self, _realm: Gc<Realm>, _length: Option<u32>) -> WebIdlResult<()> {
+        Ok(())
+    }
+}
+
+impl AlgorithmMethods for CppAlgorithm {
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
         let mut usages = None;
         // SAFETY: This object owns the algorithm and the state is writable for the call.
         unsafe {
@@ -665,7 +815,7 @@ impl CppAlgorithm {
         usages
     }
 
-    pub(crate) fn encrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn encrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -682,7 +832,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn decrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decrypt(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -699,7 +849,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn sign(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -716,13 +866,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn verify(
-        &self,
-        realm: Gc<Realm>,
-        key: Ref<CryptoKey>,
-        signature: &Bytes,
-        data: &Bytes,
-    ) -> WebIdlResult<bool> {
+    fn verify(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, signature: &Bytes, data: &Bytes) -> WebIdlResult<bool> {
         let mut out = false;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -739,28 +883,7 @@ impl CppAlgorithm {
         Ok(out)
     }
 
-    pub(crate) fn digest(&self, realm: Gc<Realm>, data: &Bytes) -> WebIdlResult<Bytes> {
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_digest(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    pub(crate) fn derive_bits(
-        &self,
-        realm: Gc<Realm>,
-        key: Ref<CryptoKey>,
-        length: Option<u32>,
-    ) -> WebIdlResult<Bytes> {
+    fn derive_bits(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, length: Option<u32>) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -777,7 +900,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn import_key(
+    fn import_key(
         &self,
         realm: Gc<Realm>,
         format: KeyFormat,
@@ -812,7 +935,7 @@ impl CppAlgorithm {
         Ok(unsafe { cell_from_abi(out) })
     }
 
-    pub(crate) fn generate_key(
+    fn generate_key(
         &self,
         realm: Gc<Realm>,
         extractable: bool,
@@ -845,12 +968,7 @@ impl CppAlgorithm {
         }
     }
 
-    pub(crate) fn export_key(
-        &self,
-        realm: Gc<Realm>,
-        format: KeyFormat,
-        key: Ref<CryptoKey>,
-    ) -> WebIdlResult<ExportKeyResult> {
+    fn export_key(&self, realm: Gc<Realm>, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         let mut out: Option<ExportKeyResult> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -868,7 +986,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns an export result"))
     }
 
-    pub(crate) fn get_key_length(&self, realm: Gc<Realm>) -> WebIdlResult<Option<u32>> {
+    fn get_key_length(&self, realm: Gc<Realm>) -> WebIdlResult<Option<u32>> {
         let mut out = OptionalLength::default();
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_get_key_length(realm.as_ptr().cast(), self.0.as_ptr(), &mut out) }
@@ -876,7 +994,7 @@ impl CppAlgorithm {
         Ok(out.has_value.then_some(out.value))
     }
 
-    pub(crate) fn get_shared_key_length(&self, realm: Gc<Realm>) -> WebIdlResult<u32> {
+    fn get_shared_key_length(&self, realm: Gc<Realm>) -> WebIdlResult<u32> {
         let mut out = 0;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_get_shared_key_length(realm.as_ptr().cast(), self.0.as_ptr(), &mut out) }
@@ -884,7 +1002,7 @@ impl CppAlgorithm {
         Ok(out)
     }
 
-    pub(crate) fn wrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn wrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -901,7 +1019,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn unwrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn unwrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -918,7 +1036,7 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn encapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>) -> WebIdlResult<EncapsulatedBitsData> {
+    fn encapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>) -> WebIdlResult<EncapsulatedBitsData> {
         let (mut shared_key, mut ciphertext): (Option<Bytes>, Option<Bytes>) = (None, None);
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -935,7 +1053,7 @@ impl CppAlgorithm {
         Ok(EncapsulatedBitsData { shared_key, ciphertext })
     }
 
-    pub(crate) fn decapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -952,62 +1070,290 @@ impl CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    pub(crate) fn validate_encrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_encrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_encrypt_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_decrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_decrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_decrypt_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_sign_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_sign_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_sign_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_verify_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_verify_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_verify_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_digest_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_digest_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    pub(crate) fn validate_generate_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_generate_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_generate_key_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_import_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
+    fn validate_import_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe { web_crypto_algorithm_validate_import_key_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
             .into_completion()?;
         Ok(())
     }
 
-    pub(crate) fn validate_derive_bits_parameters(&self, realm: Gc<Realm>, length: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(&self, realm: Gc<Realm>, length: Option<u32>) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
             web_crypto_algorithm_validate_derive_bits_parameters(realm.as_ptr().cast(), self.0.as_ptr(), length.into())
         }
         .into_completion()?;
         Ok(())
+    }
+}
+
+#[repr(i32)]
+enum ShaHashKind {
+    Sha1 = 4,
+    Sha256,
+    Sha384,
+    Sha512,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+}
+
+#[repr(i32)]
+enum CShakeKind {
+    CShake128,
+    CShake256,
+}
+
+#[repr(C)]
+struct OptionalBytes<'a> {
+    has_value: bool,
+    bytes: Span<'a, u8>,
+}
+
+impl<'a> From<Option<&'a Bytes>> for OptionalBytes<'a> {
+    fn from(value: Option<&'a Bytes>) -> Self {
+        Self {
+            has_value: value.is_some(),
+            bytes: Span::new(value.map_or(&[], Bytes::as_slice)),
+        }
+    }
+}
+
+unsafe extern "C" {
+    fn web_crypto_sha_digest(kind: ShaHashKind, data: Span<'_, u8>, state: *mut c_void, receive: ReceiveBytes) -> bool;
+    fn web_crypto_cshake_validate_parameters(
+        output_length: u32,
+        customization: OptionalBytes<'_>,
+        function_name: OptionalBytes<'_>,
+    ) -> usize;
+    fn web_crypto_cshake_digest(
+        kind: CShakeKind,
+        data: Span<'_, u8>,
+        output_length: u32,
+        customization: OptionalBytes<'_>,
+        function_name: OptionalBytes<'_>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+}
+
+fn get_optional_buffer_source(vm: &Vm, object: Gc<Object>, name: &PropertyKey) -> WebIdlResult<Option<Bytes>> {
+    if !object.has_property(vm, name)? {
+        return Ok(None);
+    }
+
+    let value = object.get(vm, name)?;
+    let Some(buffer_source) = buffer_source_type_of(value) else {
+        return vm
+            .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
+            .map_err(Into::into);
+    };
+
+    Ok(Some(get_a_copy_of_the_bytes(vm, buffer_source)?))
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct CShakeParams {
+    output_length: u32,
+    function_name: Option<Bytes>,
+    customization: Option<Bytes>,
+}
+
+impl CShakeParams {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let output_length_property = PropertyKey::from_utf8("outputLength");
+        if !object.has_property(vm, &output_length_property)? {
+            return vm
+                .throw_completion(
+                    ErrorKind::TypeError,
+                    ErrorType::MissingRequiredProperty,
+                    &[&"outputLength"],
+                )
+                .map_err(Into::into);
+        }
+
+        let output_length = object.get(vm, &output_length_property)?;
+
+        let length = to_unsigned_long_enforcing_range(vm, output_length)?;
+
+        let function_name = get_optional_buffer_source(vm, object, &PropertyKey::from_utf8("functionName"))?;
+
+        let customization = get_optional_buffer_source(vm, object, &PropertyKey::from_utf8("customization"))?;
+
+        Ok(Self {
+            output_length: length,
+            function_name,
+            customization,
+        })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Sha;
+
+impl AlgorithmMethods for Sha {
+    // https://w3c.github.io/webcrypto/#sha-operations-digest
+    fn digest(&self, _: Gc<Realm>, algorithm: &AlgorithmParams, data: &Bytes) -> WebIdlResult<Bytes> {
+        let algorithm_name = &algorithm.name;
+
+        let hash_kind = if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            ShaHashKind::Sha1
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            ShaHashKind::Sha256
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            ShaHashKind::Sha384
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            ShaHashKind::Sha512
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-256")) {
+            ShaHashKind::Sha3_256
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-384")) {
+            ShaHashKind::Sha3_384
+        } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-512")) {
+            ShaHashKind::Sha3_512
+        } else {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted("Invalid hash function '{}'", &[algorithm_name]),
+            ));
+        };
+
+        let mut result_buffer: Option<Bytes> = None;
+        // SAFETY: The input and the output slot live for the call.
+        let success = unsafe {
+            web_crypto_sha_digest(
+                hash_kind,
+                Span::new(data.as_slice()),
+                core::ptr::from_mut(&mut result_buffer).cast(),
+                receive_bytes,
+            )
+        };
+        if !success {
+            return Err(Exception::Dom(
+                "OperationError",
+                Utf16String::from_utf8("Failed to create result buffer"),
+            ));
+        }
+
+        Ok(result_buffer.expect("LibCrypto returns the digest"))
+    }
+}
+
+impl AlgorithmMethods for CShakeParams {
+    // https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
+    fn validate_digest_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // NB: Step 5 throws an OperationError for the parameters that our cSHAKE does not support.
+        let normalized_algorithm = self;
+        // SAFETY: The parameters live for the call.
+        let result = unsafe {
+            web_crypto_cshake_validate_parameters(
+                normalized_algorithm.output_length,
+                normalized_algorithm.customization.as_ref().into(),
+                normalized_algorithm.function_name.as_ref().into(),
+            )
+        };
+        if result != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(result) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Hash function failed: {}", &[&detail]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
+    fn digest(&self, _: Gc<Realm>, algorithm: &AlgorithmParams, data: &Bytes) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self;
+
+        // 1. Let outputLength be the outputLength member of normalizedAlgorithm.
+        let output_length = normalized_algorithm.output_length;
+
+        // 2. Let functionName be the functionName member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let function_name = normalized_algorithm.function_name.as_ref();
+
+        // 3. Let customization be the customization member of normalizedAlgorithm if present or the empty octet string otherwise.
+        let customization = normalized_algorithm.customization.as_ref();
+
+        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE128":
+        let kind = if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"cSHAKE128")) {
+            CShakeKind::CShake128
+        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE256":
+        } else if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"cSHAKE256")) {
+            CShakeKind::CShake256
+        } else {
+            unreachable!("the algorithm is cSHAKE128 or cSHAKE256");
+        };
+
+        // 4. Let result be the result of performing the cSHAKE128/cSHAKE256 function defined in Section 3 of [NIST-SP800-185]
+        // using message as the X input parameter,
+        // outputLength as the L input parameter,
+        // functionName as the N input parameter,
+        // and customization as the S input parameter.
+        let mut result: Option<Bytes> = None;
+        // SAFETY: The input and the output slot live for the call.
+        let maybe_result = unsafe {
+            web_crypto_cshake_digest(
+                kind,
+                Span::new(data.as_slice()),
+                output_length,
+                customization.into(),
+                function_name.into(),
+                core::ptr::from_mut(&mut result).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 5. If performing the operation results in an error, then throw an OperationError.
+        if maybe_result != 0 {
+            // SAFETY: LibCrypto transfers an ownership reference.
+            let detail = unsafe { Utf16String::from_raw_owned(maybe_result) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Hash function failed: {}", &[&detail]),
+            ));
+        }
+
+        // 6. Return result.
+        Ok(result.expect("LibCrypto returns the digest"))
     }
 }
 

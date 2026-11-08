@@ -317,11 +317,6 @@ public:
         return WebIDL::NotSupportedError::create("verify is not supported"_utf16);
     }
 
-    virtual WebIDL::ExceptionOr<ByteBuffer> digest(JS::Realm&, AlgorithmParams const&, ByteBuffer const&)
-    {
-        return WebIDL::NotSupportedError::create("digest is not supported"_utf16);
-    }
-
     virtual WebIDL::ExceptionOr<ByteBuffer> derive_bits(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>)
     {
         return WebIDL::NotSupportedError::create("deriveBits is not supported"_utf16);
@@ -376,7 +371,6 @@ public:
     virtual WebIDL::ExceptionOr<void> validate_decrypt_parameters(AlgorithmParams const&) const { return {}; }
     virtual WebIDL::ExceptionOr<void> validate_sign_parameters(AlgorithmParams const&) const { return {}; }
     virtual WebIDL::ExceptionOr<void> validate_verify_parameters(AlgorithmParams const&) const { return {}; }
-    virtual WebIDL::ExceptionOr<void> validate_digest_parameters(AlgorithmParams const&) const { return {}; }
     virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const { return {}; }
     virtual WebIDL::ExceptionOr<void> validate_import_key_parameters(AlgorithmParams const&) const { return {}; }
     virtual WebIDL::ExceptionOr<void> validate_derive_bits_parameters(AlgorithmParams const&, Optional<u32>) const { return {}; }
@@ -546,16 +540,6 @@ public:
 
 private:
     PBKDF2() = default;
-};
-
-class SHA : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> digest(JS::Realm& realm, AlgorithmParams const&, ByteBuffer const&) override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new SHA); }
-
-private:
-    SHA() = default;
 };
 
 class ECDSA : public AlgorithmMethods {
@@ -729,18 +713,6 @@ private:
     Argon2() = default;
 };
 
-class CShake : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> digest(JS::Realm& realm, AlgorithmParams const&, ByteBuffer const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_digest_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new CShake); }
-
-private:
-    CShake() = default;
-};
-
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
@@ -811,24 +783,6 @@ struct Argon2Params : public AlgorithmParams {
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params
-struct CShakeParams : public AlgorithmParams {
-    virtual ~CShakeParams() override;
-
-    CShakeParams(u32 output_length, Optional<ByteBuffer> function_name, Optional<ByteBuffer> customization)
-        : output_length(output_length)
-        , function_name(move(function_name))
-        , customization(move(customization))
-
-    {
-    }
-
-    u32 output_length;
-    Optional<ByteBuffer> function_name;
-    Optional<ByteBuffer> customization;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-params
 struct KmacParams : public AlgorithmParams {
     virtual ~KmacParams() override;

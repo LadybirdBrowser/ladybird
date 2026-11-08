@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::ops::Deref;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::LazyLock;
@@ -30,8 +31,8 @@ use crate::bindings::promise::{
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
-    AlgorithmId, AlgorithmParams, Bytes, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, ImportKeyData,
-    ParameterId, normalized_key_usages, public_key_for_private_key,
+    AlgorithmId, AlgorithmMethods, AlgorithmParams, Bytes, CShakeParams, CppAlgorithm, EncapsulatedKeyData,
+    ExportKeyResult, ImportKeyData, ParameterId, Sha, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -83,9 +84,10 @@ pub(crate) enum KeyFormat {
 }
 
 #[derive(Clone, Copy)]
-struct RegisteredAlgorithm {
-    method_id: AlgorithmId,
-    parameter_id: ParameterId,
+enum RegisteredAlgorithm {
+    Cpp(AlgorithmId, ParameterId),
+    Sha,
+    CShake,
 }
 
 type RegisteredAlgorithms = HashMap<&'static str, RegisteredAlgorithm>;
@@ -93,14 +95,33 @@ type SupportedAlgorithmsMap = HashMap<&'static str, RegisteredAlgorithms>;
 
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
+enum AlgorithmImplementation {
+    Cpp(#[gc(untraced)] Rc<CppAlgorithm>),
+    Sha(Sha),
+    CShake(CShakeParams),
+}
+
+impl Deref for AlgorithmImplementation {
+    type Target = dyn AlgorithmMethods;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Cpp(algorithm) => algorithm.as_ref(),
+            Self::Sha(algorithm) => algorithm,
+            Self::CShake(algorithm) => algorithm,
+        }
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
 pub(crate) struct NormalizedAlgorithmAndParameter {
     pub(crate) parameter: AlgorithmParams,
-    #[gc(untraced)]
-    pub(crate) methods: Rc<CppAlgorithm>,
+    methods: AlgorithmImplementation,
 }
 
 // NB: Getting a copy of the bytes held by a buffer source can only fail when allocating the copy fails.
-fn get_a_copy_of_the_bytes(vm: &Vm, buffer_source: BufferSource) -> WebIdlResult<Bytes> {
+pub(super) fn get_a_copy_of_the_bytes(vm: &Vm, buffer_source: BufferSource) -> WebIdlResult<Bytes> {
     // SAFETY: Copying the bytes neither runs script nor allocates a cell.
     let data = unsafe {
         buffer_source.with_bytes(|bytes| {
@@ -258,13 +279,19 @@ pub(crate) fn normalize_an_algorithm(
     // and all of desiredType's inherited dictionaries, in order from least to most derived.
     // 12. For each dictionary dictionary in dictionaries:
     //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
-    let methods = Rc::new(CppAlgorithm::from_value(
-        realm,
-        desired_type.method_id,
-        desired_type.parameter_id,
-        Value::from_object(*algorithm),
-        &algorithm_name,
-    )?);
+    let methods = match desired_type {
+        RegisteredAlgorithm::Cpp(method_id, parameter_id) => {
+            AlgorithmImplementation::Cpp(Rc::new(CppAlgorithm::from_value(
+                realm,
+                method_id,
+                parameter_id,
+                Value::from_object(*algorithm),
+                &algorithm_name,
+            )?))
+        }
+        RegisteredAlgorithm::Sha => AlgorithmImplementation::Sha(Sha),
+        RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
+    };
 
     // 9. Set the name attribute of normalizedAlgorithm to algName.
     let normalized_algorithm = NormalizedAlgorithmAndParameter {
@@ -528,7 +555,9 @@ impl SubtleCrypto {
                     };
 
                     // 9. Let digest be the result of performing the digest operation specified by normalizedAlgorithm using algorithm, with data as message.
-                    let digest = algorithm_object.methods.digest(realm, &data_buffer);
+                    let digest = algorithm_object
+                        .methods
+                        .digest(realm, &algorithm_object.parameter, &data_buffer);
 
                     if let Err(error) = digest {
                         throw_in_this_context(error);
@@ -2679,36 +2708,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "RSASSA-PKCS1-v1_5",
-            AlgorithmId::RsassaPkcs1,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "RSASSA-PKCS1-v1_5",
-            AlgorithmId::RsassaPkcs1,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSASSA-PKCS1-v1_5",
-            AlgorithmId::RsassaPkcs1,
-            ParameterId::RsaHashedKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::RsaHashedKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSASSA-PKCS1-v1_5",
-            AlgorithmId::RsassaPkcs1,
-            ParameterId::RsaHashedImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::RsaHashedImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSASSA-PKCS1-v1_5",
-            AlgorithmId::RsassaPkcs1,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsassaPkcs1, ParameterId::AlgorithmParams),
         );
 
         // https://w3c.github.io/webcrypto/#rsa-pss-registration
@@ -2716,36 +2740,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "RSA-PSS",
-            AlgorithmId::RsaPss,
-            ParameterId::RsaPssParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaPssParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "RSA-PSS",
-            AlgorithmId::RsaPss,
-            ParameterId::RsaPssParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaPssParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSA-PSS",
-            AlgorithmId::RsaPss,
-            ParameterId::RsaHashedKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaHashedKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSA-PSS",
-            AlgorithmId::RsaPss,
-            ParameterId::RsaHashedImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::RsaHashedImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSA-PSS",
-            AlgorithmId::RsaPss,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaPss, ParameterId::AlgorithmParams),
         );
 
         // https://w3c.github.io/webcrypto/#rsa-oaep-registration
@@ -2753,36 +2772,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "RSA-OAEP",
-            AlgorithmId::RsaOaep,
-            ParameterId::RsaOaepParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaOaepParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "RSA-OAEP",
-            AlgorithmId::RsaOaep,
-            ParameterId::RsaOaepParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaOaepParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "RSA-OAEP",
-            AlgorithmId::RsaOaep,
-            ParameterId::RsaHashedKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaHashedKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "RSA-OAEP",
-            AlgorithmId::RsaOaep,
-            ParameterId::RsaHashedImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::RsaHashedImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "RSA-OAEP",
-            AlgorithmId::RsaOaep,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::RsaOaep, ParameterId::AlgorithmParams),
         );
 
         // https://w3c.github.io/webcrypto/#ecdsa-registration
@@ -2790,36 +2804,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "ECDSA",
-            AlgorithmId::Ecdsa,
-            ParameterId::EcdsaParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcdsaParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "ECDSA",
-            AlgorithmId::Ecdsa,
-            ParameterId::EcdsaParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcdsaParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ECDSA",
-            AlgorithmId::Ecdsa,
-            ParameterId::EcKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "ECDSA",
-            AlgorithmId::Ecdsa,
-            ParameterId::EcKeyImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcKeyImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ECDSA",
-            AlgorithmId::Ecdsa,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::AlgorithmParams),
         );
 
         // https://w3c.github.io/webcrypto/#ecdh-registration
@@ -2827,29 +2836,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "importKey",
             "ECDH",
-            AlgorithmId::Ecdh,
-            ParameterId::EcKeyImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcKeyImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ECDH",
-            AlgorithmId::Ecdh,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "deriveBits",
             "ECDH",
-            AlgorithmId::Ecdh,
-            ParameterId::EcdhKeyDeriveParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcdhKeyDeriveParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ECDH",
-            AlgorithmId::Ecdh,
-            ParameterId::EcKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcKeyGenParams),
         );
 
         // https://w3c.github.io/webcrypto/#aes-ctr-registration
@@ -2857,43 +2862,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AesCtrParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesCtrParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AesCtrParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesCtrParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AesKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-CTR",
-            AlgorithmId::AesCtr,
-            ParameterId::AesDerivedKeyParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCtr, ParameterId::AesDerivedKeyParams),
         );
 
         // https://w3c.github.io/webcrypto/#aes-cbc-registration
@@ -2901,43 +2900,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AesCbcParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesCbcParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AesCbcParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesCbcParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AesKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-CBC",
-            AlgorithmId::AesCbc,
-            ParameterId::AesDerivedKeyParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesCbc, ParameterId::AesDerivedKeyParams),
         );
 
         // https://w3c.github.io/webcrypto/#aes-gcm-registration
@@ -2945,43 +2938,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AesGcmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesGcmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AesGcmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesGcmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AesKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-GCM",
-            AlgorithmId::AesGcm,
-            ParameterId::AesDerivedKeyParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesGcm, ParameterId::AesDerivedKeyParams),
         );
 
         // https://w3c.github.io/webcrypto/#aes-kw-registration
@@ -2989,43 +2976,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "wrapKey",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "unwrapKey",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AesKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AesKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-KW",
-            AlgorithmId::AesKw,
-            ParameterId::AesDerivedKeyParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesKw, ParameterId::AesDerivedKeyParams),
         );
 
         // https://w3c.github.io/webcrypto/#hmac-registration
@@ -3033,135 +3014,72 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::HmacKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::HmacImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacImportParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "HMAC",
-            AlgorithmId::Hmac,
-            ParameterId::HmacImportParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacImportParams),
         );
 
         // https://w3c.github.io/webcrypto/#sha-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA-1",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA-256",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA-384",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA-512",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
+        define_an_algorithm(&mut internal_object, "digest", "SHA-1", RegisteredAlgorithm::Sha);
+        define_an_algorithm(&mut internal_object, "digest", "SHA-256", RegisteredAlgorithm::Sha);
+        define_an_algorithm(&mut internal_object, "digest", "SHA-384", RegisteredAlgorithm::Sha);
+        define_an_algorithm(&mut internal_object, "digest", "SHA-512", RegisteredAlgorithm::Sha);
 
         // https://wicg.github.io/webcrypto-modern-algos/#sha3-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA3-256",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA3-384",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "SHA3-512",
-            AlgorithmId::Sha,
-            ParameterId::AlgorithmParams,
-        );
+        define_an_algorithm(&mut internal_object, "digest", "SHA3-256", RegisteredAlgorithm::Sha);
+        define_an_algorithm(&mut internal_object, "digest", "SHA3-384", RegisteredAlgorithm::Sha);
+        define_an_algorithm(&mut internal_object, "digest", "SHA3-512", RegisteredAlgorithm::Sha);
 
         // https://wicg.github.io/webcrypto-modern-algos/#cshake-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "cSHAKE128",
-            AlgorithmId::CShake,
-            ParameterId::CShakeParams,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "digest",
-            "cSHAKE256",
-            AlgorithmId::CShake,
-            ParameterId::CShakeParams,
-        );
+        define_an_algorithm(&mut internal_object, "digest", "cSHAKE128", RegisteredAlgorithm::CShake);
+        define_an_algorithm(&mut internal_object, "digest", "cSHAKE256", RegisteredAlgorithm::CShake);
 
         // https://w3c.github.io/webcrypto/#hkdf-registration
         define_an_algorithm(
             &mut internal_object,
             "deriveBits",
             "HKDF",
-            AlgorithmId::Hkdf,
-            ParameterId::HkdfParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::HkdfParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "HKDF",
-            AlgorithmId::Hkdf,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "HKDF",
-            AlgorithmId::Hkdf,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Hkdf, ParameterId::AlgorithmParams),
         );
 
         // https://w3c.github.io/webcrypto/#pbkdf2-registration
@@ -3169,22 +3087,19 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "PBKDF2",
-            AlgorithmId::Pbkdf2,
-            ParameterId::Pbkdf2Params,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::Pbkdf2Params),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "PBKDF2",
-            AlgorithmId::Pbkdf2,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "PBKDF2",
-            AlgorithmId::Pbkdf2,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::Pbkdf2, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
@@ -3192,29 +3107,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "X25519",
-            AlgorithmId::X25519,
-            ParameterId::EcdhKeyDeriveParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::EcdhKeyDeriveParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "X25519",
-            AlgorithmId::X25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "X25519",
-            AlgorithmId::X25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "X25519",
-            AlgorithmId::X25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
@@ -3222,29 +3133,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "X448",
-            AlgorithmId::X448,
-            ParameterId::EcdhKeyDeriveParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::EcdhKeyDeriveParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "X448",
-            AlgorithmId::X448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "X448",
-            AlgorithmId::X448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "X448",
-            AlgorithmId::X448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed25519-registration
@@ -3252,36 +3159,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "Ed25519",
-            AlgorithmId::ED25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "Ed25519",
-            AlgorithmId::ED25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "Ed25519",
-            AlgorithmId::ED25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "Ed25519",
-            AlgorithmId::ED25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "Ed25519",
-            AlgorithmId::ED25519,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
@@ -3289,36 +3191,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "Ed448",
-            AlgorithmId::ED448,
-            ParameterId::Ed448Params,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::Ed448Params),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "Ed448",
-            AlgorithmId::ED448,
-            ParameterId::Ed448Params,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::Ed448Params),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "Ed448",
-            AlgorithmId::ED448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "Ed448",
-            AlgorithmId::ED448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "Ed448",
-            AlgorithmId::ED448,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
@@ -3327,36 +3224,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "sign",
                 name,
-                AlgorithmId::MlDsa,
-                ParameterId::ContextParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::ContextParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "verify",
                 name,
-                AlgorithmId::MlDsa,
-                ParameterId::ContextParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::ContextParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "generateKey",
                 name,
-                AlgorithmId::MlDsa,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "importKey",
                 name,
-                AlgorithmId::MlDsa,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "exportKey",
                 name,
-                AlgorithmId::MlDsa,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
             );
         }
 
@@ -3366,43 +3258,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "generateKey",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "importKey",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "exportKey",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "encapsulate",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "decapsulate",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "get shared key length",
                 name,
-                AlgorithmId::MlKem,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
             );
         }
 
@@ -3412,22 +3298,19 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "importKey",
                 algorithm,
-                AlgorithmId::Argon2,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "deriveBits",
                 algorithm,
-                AlgorithmId::Argon2,
-                ParameterId::Argon2Params,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::Argon2Params),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "get key length",
                 algorithm,
-                AlgorithmId::Argon2,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Argon2, ParameterId::AlgorithmParams),
             );
         }
 
@@ -3436,43 +3319,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AeadParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AeadParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AeadParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AeadParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "ChaCha20-Poly1305",
-            AlgorithmId::ChaCha20Poly1305,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::ChaCha20Poly1305, ParameterId::AlgorithmParams),
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-registration
@@ -3480,43 +3357,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "encrypt",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AeadParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AeadParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "decrypt",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AeadParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AeadParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AesKeyGenParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AesKeyGenParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AlgorithmParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AlgorithmParams),
         );
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "AES-OCB",
-            AlgorithmId::AesOcb,
-            ParameterId::AesDerivedKeyParams,
+            RegisteredAlgorithm::Cpp(AlgorithmId::AesOcb, ParameterId::AesDerivedKeyParams),
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#kmac-registration
@@ -3525,43 +3396,37 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "sign",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::KmacParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "verify",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::KmacParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "generateKey",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::KmacKeyGenParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacKeyGenParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "importKey",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::KmacImportParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacImportParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "exportKey",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::AlgorithmParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::AlgorithmParams),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "get key length",
                 algorithm,
-                AlgorithmId::Kmac,
-                ParameterId::KmacImportParams,
+                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacImportParams),
             );
         }
 
@@ -3575,21 +3440,14 @@ fn define_an_algorithm(
     internal_object: &mut SupportedAlgorithmsMap,
     op: &'static str,
     algorithm: &'static str,
-    method_id: AlgorithmId,
-    parameter_id: ParameterId,
+    registered_algorithm: RegisteredAlgorithm,
 ) {
     // 1. Let registeredAlgorithms be the associative container stored at the op key of supportedAlgorithms.
     // NOTE: There should always be a container at the op key.
     let registered_algorithms = internal_object.get_mut(op).expect("the operation has a container");
 
     // 2. Set the alg key of registeredAlgorithms to the IDL dictionary type type.
-    registered_algorithms.insert(
-        algorithm,
-        RegisteredAlgorithm {
-            method_id,
-            parameter_id,
-        },
-    );
+    registered_algorithms.insert(algorithm, registered_algorithm);
 }
 
 fn create_algorithm_dictionary(vm: &Vm, realm: Gc<Realm>, name: &Utf16String) -> WebIdlResult<Gc<Object>> {
