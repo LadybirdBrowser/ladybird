@@ -169,7 +169,13 @@ void crypto_asn1_delete_key_info(Asn1Structure structure, void* key_info)
         return;
     }
     VERIFY(structure == Asn1Structure::PrivateKeyInfo);
-    delete static_cast<PrivateKeyStorage*>(key_info);
+    auto* storage = static_cast<PrivateKeyStorage*>(key_info);
+    storage->value.rsa.clear_sensitive_data();
+    storage->value.ec.clear_sensitive_data();
+    storage->value.mldsa.clear_sensitive_data();
+    storage->value.mlkem.clear_sensitive_data();
+    secure_zero(storage->value.raw_key.data(), storage->value.raw_key.size());
+    delete storage;
 }
 
 bool crypto_rsa_key_info_has_encryption_oid(Asn1Structure structure, void const* key_info)
