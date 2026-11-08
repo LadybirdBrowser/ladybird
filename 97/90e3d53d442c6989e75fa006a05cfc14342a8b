@@ -1,0 +1,8 @@
+When a page asks for full screen in a window that’s already full
+screen, Ladybird gives it full screen at once and hides its own UI.
+And when the page leaves, the window goes back to the full screen the
+user chose. Chromium does the same: FullscreenController::
+EnterFullscreenModeForTab() records state_prior_to_tab_fullscreen_ as
+STATE_BROWSER_FULLSCREEN, and enters tab full screen without changing
+the window. And ExitFullscreenModeForTab() then returns to browser full
+screen rather than to a normal window.
