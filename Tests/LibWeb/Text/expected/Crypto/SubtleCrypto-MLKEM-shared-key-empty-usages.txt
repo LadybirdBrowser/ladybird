@@ -1,0 +1,4 @@
+encapsulateKey with []: SyntaxError
+decapsulateKey with []: SyntaxError
+encapsulateKey with [encrypt]: encrypt
+decapsulateKey with [encrypt]: encrypt

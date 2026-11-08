@@ -2093,8 +2093,18 @@ impl SubtleCrypto {
                         queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
-                    // FIXME: 14. If usages is empty, then throw a SyntaxError.
                     let shared_key = maybe_shared_key.must();
+
+                    // 14. If usages is empty, then throw a SyntaxError.
+                    if usages.is_empty() {
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("SyntaxError", b"usages must not be empty"),
+                        );
+                        return;
+                    }
 
                     // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
                     shared_key.set_extractable(extractable);
@@ -2368,8 +2378,18 @@ impl SubtleCrypto {
                         queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
-                    // FIXME: 15. If usages is empty, then throw a SyntaxError.
                     let shared_key = maybe_shared_key.must();
+
+                    // 15. If usages is empty, then throw a SyntaxError.
+                    if usages.is_empty() {
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("SyntaxError", b"usages must not be empty"),
+                        );
+                        return;
+                    }
 
                     // 16. Set the [[extractable]] internal slot of sharedKey to extractable.
                     shared_key.set_extractable(extractable);
