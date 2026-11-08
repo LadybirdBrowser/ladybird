@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .line { display: inline-block; width: 150px; height: 20px; }
+    #container { width: 200px; line-clamp: 2 no-ellipsis; font-size: 0; }
+    #float { float: left; width: 50px; height: 100px; }
+    #host { position: absolute; left: 300px; top: 0; width: 200px; }
+    #clamping-float { float: left; width: 150px; padding-bottom: 20px; line-clamp: 1 no-ellipsis; font-size: 0; }
+    #nested-container { position: absolute; left: 0; top: 200px; width: 200px; line-clamp: 2 no-ellipsis; font-size: 0; }
+    .nested { height: 10px; }
+    #flow-root { display: flow-root; }
+    #block-float { float: right; width: 40px; height: 100px; }
+    #flow-root-float { float: left; width: 40px; height: 100px; }
+    #vertical { position: absolute; left: 300px; top: 100px; height: 200px; writing-mode: vertical-rl; line-clamp: 2 no-ellipsis; font-size: 0; }
+    #vertical-float { float: left; width: 100px; height: 30px; }
+    .vertical-line { display: inline-block; width: 20px; height: 150px; }
+</style>
+<div id="container"><div id="float"></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div>
+<div id="host"><div id="clamping-float"><div class="line"></div><div class="line"></div></div></div>
+<div id="nested-container"><div class="nested"><div id="block-float"></div></div><div id="flow-root" class="nested"><div id="flow-root-float"></div></div><div class="line"></div><div class="line"></div><div class="line"></div><div class="line"></div></div>
+<div id="vertical"><div id="vertical-float"></div><div class="vertical-line"></div><div class="vertical-line"></div><div class="vertical-line"></div><div class="vertical-line"></div></div>
+<script>
+    test(() => {
+        __outputElement.style.display = "none";
+        const lines = [];
+        const println = line => lines.push(line);
+        const hit = (x, y) => {
+            const element = document.elementFromPoint(x, y);
+            return element?.id || element?.tagName;
+        };
+        println(`float above the clamp edge: ${hit(25, 30)}`);
+        println(`float below the clamp edge: ${hit(25, 50)}`);
+
+        // The edge moves with the container, while the float keeps its place and size.
+        document.getElementById("container").style.setProperty("line-clamp", "3 no-ellipsis");
+        println(`float above the moved clamp edge: ${hit(25, 50)}`);
+        println(`float below the moved clamp edge: ${hit(25, 70)}`);
+
+        println(`padding of a float that clamps its own lines: ${hit(325, 30)}`);
+
+        // A float inside a nested block is in the container's formatting context, and a float inside a nested
+        // formatting context is not.
+        println(`float in a nested block above the clamp edge: ${hit(180, 250)}`);
+        println(`float in a nested block below the clamp edge: ${hit(180, 270)}`);
+        println(`float in a nested formatting context below the clamp edge: ${hit(20, 280)}`);
+        document.getElementById("nested-container").style.setProperty("line-clamp", "3 no-ellipsis");
+        println(`float in a nested block above the moved clamp edge: ${hit(180, 270)}`);
+        println(`float in a nested block below the moved clamp edge: ${hit(180, 290)}`);
+
+        // In vertical-rl, the block-end edge is the container's left edge.
+        println(`vertical float before the clamp edge: ${hit(330, 115)}`);
+        println(`vertical float past the clamp edge: ${hit(270, 115)}`);
+
+        __outputElement.style.display = "";
+        for (const line of lines)
+            window.println(line);
+    });
+</script>

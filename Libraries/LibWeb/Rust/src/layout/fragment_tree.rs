@@ -61,6 +61,7 @@ pub(crate) struct FragmentLink {
     pub(crate) table_column_span: u32,
     pub(crate) hidden_by_collapsed_columns: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
+    pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
     pub(crate) containing_line_box_index: Option<u32>,
     /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
     /// layout run cache entries keep copies of links.
@@ -112,6 +113,14 @@ impl Fragment {
         &self,
         scrollable_overflow: fragment_overflow::FragmentScrollableOverflow,
     ) -> Self {
+        self.with_scrollable_overflow_and_children(scrollable_overflow, self.children.clone())
+    }
+
+    fn with_scrollable_overflow_and_children(
+        &self,
+        scrollable_overflow: fragment_overflow::FragmentScrollableOverflow,
+        children: Vec<FragmentLink>,
+    ) -> Self {
         Self {
             identity: self.identity,
             node: self.node,
@@ -143,7 +152,7 @@ impl Fragment {
             continues_in_next_fragment: self.continues_in_next_fragment,
             scrollable_overflow,
             holds_links_of_outer_containing_blocks: self.holds_links_of_outer_containing_blocks,
-            children: self.children.clone(),
+            children,
         }
     }
 
@@ -274,6 +283,7 @@ impl FragmentLink {
             table_column_span: 0,
             hidden_by_collapsed_columns: false,
             is_invisible_for_line_clamp: false,
+            clip_decided_by_parent: None,
             containing_line_box_index: None,
             abspos_layout_inputs: None,
             default_scroll_shift: None,
@@ -297,6 +307,7 @@ impl FragmentLink {
             && self.table_column_span == previous.table_column_span
             && self.hidden_by_collapsed_columns == previous.hidden_by_collapsed_columns
             && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
+            && self.clip_decided_by_parent == previous.clip_decided_by_parent
     }
 
     pub(crate) fn has_same_placement(&self, previous: &FragmentLink) -> bool {
@@ -698,7 +709,7 @@ impl FragmentGeometry {
 fn snapshot_fragment(
     pass: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
-    children: Vec<FragmentLink>,
+    mut children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
     fragment_facts: run_state::FragmentFactsDecidedByParent,
     payloads: Option<Box<FragmentPayloads>>,
@@ -717,6 +728,16 @@ fn snapshot_fragment(
         has_line_clamp_point,
         clamped_content_is_scrollable_overflow,
     } = payloads.map(|payloads| *payloads).unwrap_or_default();
+    if has_line_clamp_point && !fragment_facts.continues_in_next_fragment {
+        line_clamp_edge::clip_floats_at_block_end_content_edge(
+            pass,
+            node,
+            formatting_context::frame_established_by(pass, node),
+            pass.frame
+                .size_to_physical(cells.content_inline_size, cells.content_block_size),
+            &mut children,
+        );
+    }
     let mut fragment = Fragment {
         identity: 0,
         node,
@@ -766,6 +787,21 @@ fn snapshot_fragment(
     }
     fragment.identity = next_unique_identity(pass.worker_scratch());
     std::sync::Arc::new(fragment)
+}
+
+/// A fragment like `fragment` that holds `children` in place of its own: the committed fragment of the box where that
+/// holds them the same way, or else a new one. It never takes the identity of `fragment`, which caches may hold.
+pub(crate) fn fragment_with_children(
+    pass: &LayoutPass<'_>,
+    fragment: &Fragment,
+    children: Vec<FragmentLink>,
+) -> std::sync::Arc<Fragment> {
+    let mut rebuilt = fragment.with_scrollable_overflow_and_children(fragment.scrollable_overflow, children);
+    if let Some(previous) = previously_committed_fragment_matching(pass, &rebuilt) {
+        return previous;
+    }
+    rebuilt.identity = next_unique_identity(pass.worker_scratch());
+    std::sync::Arc::new(rebuilt)
 }
 
 /// The fragment of a placed box: `arrived`, the fragment its own run built or the committed one, where that shows the
@@ -831,6 +867,7 @@ pub(crate) struct PlacementData {
     pub(crate) table_column_span: u32,
     pub(crate) hidden_by_collapsed_columns: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
+    pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
     pub(crate) containing_line_box_index: Option<u32>,
     pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
@@ -862,6 +899,7 @@ impl PlacementData {
             table_column_span: facts.fragment_facts.table_column_span,
             hidden_by_collapsed_columns: facts.fragment_facts.hidden_by_collapsed_columns,
             is_invisible_for_line_clamp: facts.fragment_facts.is_invisible_for_line_clamp,
+            clip_decided_by_parent: facts.fragment_facts.clip_decided_by_parent,
             containing_line_box_index,
             abspos_layout_inputs,
             default_scroll_shift: facts.default_scroll_shift,
@@ -905,6 +943,7 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         table_column_span: placement.table_column_span,
         hidden_by_collapsed_columns: placement.hidden_by_collapsed_columns,
         is_invisible_for_line_clamp: placement.is_invisible_for_line_clamp,
+        clip_decided_by_parent: placement.clip_decided_by_parent,
         containing_line_box_index: placement.containing_line_box_index,
         abspos_layout_inputs: placement.abspos_layout_inputs,
         default_scroll_shift: placement.default_scroll_shift,

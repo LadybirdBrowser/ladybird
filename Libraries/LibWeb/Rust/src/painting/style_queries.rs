@@ -10,7 +10,7 @@ use crate::css::css_enums::{
     backface_visibility, content_visibility, isolation, line_style, mix_blend_mode, outline_style, overflow,
     positioning, transform_style,
 };
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::css_pixels::CssPixels;
 use crate::css::css_string::CssString;
 use crate::css::property_metadata::property_name;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
@@ -624,42 +624,6 @@ pub(crate) fn is_sticky_position(style: ComputedValuesView<'_>) -> bool {
 
 pub(crate) fn is_floating(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     arena.node(node).is_some_and(PaintRow::is_floating)
-}
-
-pub(crate) fn is_invisible_for_line_clamp(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.with_committed_fragment_link(node, |link| link.is_some_and(|link| link.is_invisible_for_line_clamp))
-}
-
-pub(crate) fn has_line_clamp_point(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.with_committed_fragment_link(node, |link| link.is_some_and(|link| link.fragment.has_line_clamp_point))
-}
-
-fn line_clamp_container(arena: &impl PaintRead, start: Option<NodeSlotId>) -> Option<NodeSlotId> {
-    std::iter::successors(start, |node| arena.node_parent_if_live(*node))
-        .find(|node| has_line_clamp_point(arena, *node))
-}
-
-pub(crate) fn line_clamp_clip_rect(arena: &impl PaintRead, container: NodeSlotId) -> CssPixelRect {
-    let style = arena
-        .node_style_if_live(container)
-        .expect("line clamp container must be live");
-    let content_rect = crate::painting::paintable_geometry::absolute_rect(arena, container);
-    let extent = CssPixels::from_integer((crate::css::css_pixels::MAX_INTEGER_VALUE / 4) as i64);
-    if style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
-        CssPixelRect::new(-extent, -extent, extent * 2, content_rect.bottom() + extent)
-    } else if style.block_axis_is_reverse() {
-        CssPixelRect::new(content_rect.x, -extent, extent - content_rect.x, extent * 2)
-    } else {
-        CssPixelRect::new(-extent, -extent, content_rect.right() + extent, extent * 2)
-    }
-}
-
-pub(crate) fn line_clamp_float_clip_rect(arena: &impl PaintRead, node: NodeSlotId) -> Option<CssPixelRect> {
-    if is_invisible_for_line_clamp(arena, node) {
-        return Some(CssPixelRect::default());
-    }
-    let container = line_clamp_container(arena, Some(node))?;
-    Some(line_clamp_clip_rect(arena, container))
 }
 
 pub(crate) fn is_inline(arena: &impl PaintRead, node: NodeSlotId) -> bool {

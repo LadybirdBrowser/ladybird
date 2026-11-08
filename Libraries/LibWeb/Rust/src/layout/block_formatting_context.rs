@@ -3267,7 +3267,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .track_percentage_block_size_dependency_while_laying_out(node);
         let mut fragment_facts = run_state::FragmentFactsDecidedByParent::default();
         if self.laying_out_invisible_line_clamp_content.get() {
-            fragment_facts.is_invisible_for_line_clamp = true;
+            fragment_facts.hide_after_clamp_point();
         }
         if facts.is_anonymous_button_content_wrapper() {
             let only_for_button_content_alignment = block_container

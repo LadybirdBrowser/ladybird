@@ -37,6 +37,7 @@ mod layout_pass;
 pub(crate) mod line_box;
 pub(crate) mod line_box_fragment;
 pub(crate) mod line_builder;
+pub(crate) mod line_clamp_edge;
 pub(crate) mod math_formatting_context;
 mod memo_invalidations;
 pub mod node_data;

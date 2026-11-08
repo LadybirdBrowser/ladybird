@@ -311,6 +311,12 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         }};
     }
 
+    // NB: Layout decides the clip in the parent's space, so the box's own sticky offset, effects and transform go
+    //     under it.
+    if let Some(clip_decided_by_parent) = facts.clip_decided_by_parent {
+        append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Rect(clip_decided_by_parent));
+    }
+
     macro_rules! append_shared_effect {
         ($make:expr) => {{
             let effect = sink.append_effect_node($make, own_state.effect, own_state.spatial, own_state.clip);
@@ -455,10 +461,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
 
     if let Some(css_clip) = facts.css_clip {
         append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Rect(css_clip));
-    }
-
-    if let Some(line_clamp_float_clip) = facts.line_clamp_float_clip {
-        append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Rect(line_clamp_float_clip));
     }
 
     if facts.clip_path.is_some() {

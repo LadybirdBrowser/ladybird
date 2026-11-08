@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Overflow: line-clamp float clipping repaint test</title>
+<link rel="author" title="Andreu Botella" href="mailto:abotella@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-overflow/line-clamp/reference/line-clamp-with-floats-005-ref.html">
+<meta name="assert" content="With a float inside a line-clamp container, when the container's content edge moves, the float clip will be updated to match it.">
+<script src="../../../common/reftest-wait.js"></script>
+
+<style>
+#clamp {
+  line-clamp: 4;
+  font: 16px / 32px serif;
+  padding: 4px;
+  white-space: pre;
+  background-color: yellow;
+  height: 200px; /* more than enough to fit the float */
+}
+.float {
+  float: left;
+  width: 50px;
+  height: 50px;
+  margin: 4px;
+  background-color: skyblue;
+}
+</style>
+
+<div id="clamp">Line 1
+Line 2
+Line 3
+Line 4<div class="float"></div>
+Line 5</div>
+
+<script>
+  window.onload = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("clamp").style.height = "auto";
+        takeScreenshot();
+      });
+    });
+  };
+</script>

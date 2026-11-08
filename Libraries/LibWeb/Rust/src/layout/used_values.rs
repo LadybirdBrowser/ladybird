@@ -691,6 +691,8 @@ pub(crate) fn committed_box_from_fragment_link(pass: &LayoutPass<'_>, node: Node
                 table_column_index: link.table_column_index,
                 table_column_span: link.table_column_span,
                 hidden_by_collapsed_columns: link.hidden_by_collapsed_columns,
+                is_invisible_for_line_clamp: link.is_invisible_for_line_clamp,
+                clip_decided_by_parent: link.clip_decided_by_parent,
                 ..super::run_state::FragmentFactsDecidedByParent::default()
             },
         },

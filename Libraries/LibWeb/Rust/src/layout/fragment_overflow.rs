@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{overflow, positioning, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
@@ -73,6 +72,15 @@ fn physical_border_box_edges(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
 
 fn inflated_by(rect: CssPixelRect, sides: FfiPixelBox) -> CssPixelRect {
     rect.inflated(sides.top, sides.right, sides.bottom, sides.left)
+}
+
+/// The physical border box of `fragment` around its physical content box `content_box`, where the fragment holds its
+/// geometry in `frame`.
+pub(crate) fn physical_border_box_around(content_box: CssPixelRect, fragment: &Fragment, frame: Frame) -> CssPixelRect {
+    inflated_by(
+        inflated_by(content_box, physical_padding(fragment, frame)),
+        physical_border_box_edges(fragment, frame),
+    )
 }
 
 struct BoxesRelativeToOwnPaddingBox {
@@ -215,18 +223,6 @@ pub(crate) fn holds_links_of_outer_containing_blocks(node: NodeSlotId, children:
         .any(|link| !link.containing_block.is_invalid() && link.containing_block != node)
 }
 
-fn line_clamp_clip_rect(style: Option<ComputedValuesView<'_>>, content_box: CssPixelRect) -> CssPixelRect {
-    let extent = CssPixels::from_integer((crate::css::css_pixels::MAX_INTEGER_VALUE / 4) as i64);
-    let writing_mode = style.map_or(writing_mode::HORIZONTAL_TB, |style| style.writing_mode());
-    if writing_mode == writing_mode::HORIZONTAL_TB {
-        CssPixelRect::new(-extent, -extent, extent * 2, content_box.bottom() + extent)
-    } else if style.is_some_and(|style| style.block_axis_is_reverse()) {
-        CssPixelRect::new(content_box.x, -extent, extent - content_box.x, extent * 2)
-    } else {
-        CssPixelRect::new(-extent, -extent, content_box.right() + extent, extent * 2)
-    }
-}
-
 // NB: The nearest line-clamp container among a hidden box's ancestors is the one whose formatting context hid it.
 fn hidden_content_is_scrollable_overflow(
     arena: &LayoutNodeArena,
@@ -334,8 +330,12 @@ pub(crate) fn scrollable_overflow_of<'link>(
     }
 
     let box_is_scroll_container = node_facts::kind_and_style_make_scroll_container(kind, style);
-    let line_clamp_clip = (fragment.has_line_clamp_point && !fragment.clamped_content_is_scrollable_overflow)
-        .then(|| line_clamp_clip_rect(style, own.content_box));
+    let line_clamp_clip =
+        (fragment.has_line_clamp_point && !fragment.clamped_content_is_scrollable_overflow).then(|| {
+            Frame::of(style.map_or(writing_mode::HORIZONTAL_TB, |style| style.writing_mode()))
+                .half_plane_before_block_end(own.content_size)
+                .translated_by(own.content_box.location())
+        });
     let clip_in_flow = |rect: CssPixelRect| line_clamp_clip.map_or(rect, |clip| rect.intersected(clip));
     let overflow_directions = style.map_or_else(Default::default, physical_overflow_directions_of_style);
 
