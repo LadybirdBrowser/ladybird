@@ -1,0 +1,12 @@
+In Ladybird, the default selection keeps the selected text’s own color
+unless its contrast with the selection, composited over the backdrop, is
+below 4.5:1; then the text is drawn in black or white. No other engine
+checks the text’s own color this way. Chromium on macOS keeps the text’s
+color, since LayoutThemeMac::SupportsSelectionForegroundColors() returns
+false, but on Linux always draws it in the theme’s selection foreground
+color, through HighlightStyleUtils::DefaultForegroundColor(). WebKit on
+macOS keeps the text’s color in a light appearance and uses AppKit’s
+selectedTextColor in a dark one; WebKitGTK keeps it. And Gecko’s
+nsTextPaintStyle::EnsureSufficientContrast() swaps the selection’s
+foreground and background colors where the background is too close to
+the page’s, by a measure of brightness difference, not contrast ratio.
