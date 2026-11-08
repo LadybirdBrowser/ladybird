@@ -43,6 +43,8 @@ public:
     UnsignedBigInteger();
     ~UnsignedBigInteger();
 
+    void clear_sensitive_data();
+
     [[nodiscard]] static UnsignedBigInteger import_data(ReadonlyBytes data) { return UnsignedBigInteger(data); }
 
     // Exports in big-endian (msb stored first), trimmed (no leading zeros) format

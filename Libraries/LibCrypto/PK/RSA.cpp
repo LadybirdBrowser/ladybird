@@ -20,6 +20,16 @@
 
 namespace Crypto::PK {
 
+void RSAPrivateKey::clear_sensitive_data()
+{
+    m_private_exponent.clear_sensitive_data();
+    m_prime_1.clear_sensitive_data();
+    m_prime_2.clear_sensitive_data();
+    m_exponent_1.clear_sensitive_data();
+    m_exponent_2.clear_sensitive_data();
+    m_coefficient.clear_sensitive_data();
+}
+
 ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
 {
     KeyPairType keypair;

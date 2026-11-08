@@ -14,6 +14,11 @@
 
 namespace Crypto::PK {
 
+void ECPrivateKey::clear_sensitive_data()
+{
+    m_d.clear_sensitive_data();
+}
+
 ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
 {
     ASN1::Encoder encoder;

@@ -11,6 +11,7 @@
 
 #include <AK/BuiltinWrappers.h>
 #include <AK/FloatingPoint.h>
+#include <AK/Memory.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigInt/Tommath.h>
@@ -103,6 +104,15 @@ UnsignedBigInteger::UnsignedBigInteger()
 UnsignedBigInteger::~UnsignedBigInteger()
 {
     mp_clear(&m_mp);
+}
+
+void UnsignedBigInteger::clear_sensitive_data()
+{
+    if (m_mp.dp)
+        secure_zero(m_mp.dp, static_cast<size_t>(m_mp.alloc) * sizeof(mp_digit));
+    m_mp.used = 0;
+    m_mp.sign = MP_ZPOS;
+    m_hash.clear();
 }
 
 Bytes UnsignedBigInteger::export_data(Bytes data) const

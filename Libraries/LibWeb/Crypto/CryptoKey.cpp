@@ -81,7 +81,11 @@ void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData* handle)
         [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
         [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
-        [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
+        [](::Crypto::PK::RSAPrivateKey& data) { data.clear_sensitive_data(); },
+        [](::Crypto::PK::ECPrivateKey& data) { data.clear_sensitive_data(); },
+        [](::Crypto::PK::MLDSAPrivateKey& data) { data.clear_sensitive_data(); },
+        [](::Crypto::PK::MLKEMPrivateKey& data) { data.clear_sensitive_data(); },
+        [](auto&) { });
     delete handle;
 }
 
