@@ -81,6 +81,7 @@ set(TEST_SOURCES
     TestTabPerformanceStats.cpp
     TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp
+    TestWebWorkerClient.cpp
 )
 
 if (APPLE OR LINUX)
