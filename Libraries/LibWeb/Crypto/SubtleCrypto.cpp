@@ -16,13 +16,11 @@
 namespace Web::Crypto {
 
 enum class AlgorithmId : u8 {
-    MLDSA,
-    MLKEM,
+    MLKEM = 1,
 };
 
 enum class ParameterId : u8 {
     AlgorithmParams,
-    ContextParams,
 };
 
 struct RawRsaOtherPrimesInfo {
@@ -186,25 +184,19 @@ static void with_raw_json_web_key(JsonWebKey const& key, void* state, ReceiveJso
     receive(state, raw);
 }
 
-JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, AlgorithmId method_id, ParameterId parameter_id, JSValue value, FlatPtr name, NormalizedAlgorithmAndParameter** out)
+JSCompletion web_crypto_algorithm_from_value(JS::Realm*, AlgorithmId method_id, ParameterId parameter_id, JSValue, FlatPtr name, NormalizedAlgorithmAndParameter** out)
 {
-    auto& realm = *realm_pointer;
     auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
         switch (method_id) {
-        case AlgorithmId::MLDSA:
-            return MLDSA::create();
         case AlgorithmId::MLKEM:
             return MLKEM::create();
         }
         VERIFY_NOT_REACHED();
     }();
     auto parameter_or_error = [&]() -> JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> {
-        auto object = JS::HostABI::value_from_abi(value);
         switch (parameter_id) {
         case ParameterId::AlgorithmParams:
             return adopt_own(*new AlgorithmParams {});
-        case ParameterId::ContextParams:
-            return ContextParams::from_value(realm, object);
         }
         VERIFY_NOT_REACHED();
     }();

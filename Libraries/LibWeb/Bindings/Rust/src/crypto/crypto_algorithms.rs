@@ -326,19 +326,13 @@ pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum AlgorithmId {
-    MlDsa,
-    MlKem,
+    MlKem = 1,
 }
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
-#[allow(
-    clippy::enum_variant_names,
-    reason = "each variant names an algorithm parameter dictionary"
-)]
 pub(crate) enum ParameterId {
     AlgorithmParams,
-    ContextParams,
 }
 
 #[derive(Clone, Trace)]
@@ -11618,7 +11612,7 @@ fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebI
     Ok(result.expect("LibCrypto returns the DER bytes"))
 }
 
-fn okp_encode_jwk_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Utf16String> {
+fn encode_jwk_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Utf16String> {
     let Ok(encoded) = base64_url_bytes_encode(bytes) else {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -12096,7 +12090,7 @@ impl AlgorithmMethods for Ed25519 {
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -12104,13 +12098,13 @@ impl AlgorithmMethods for Ed25519 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::Ed25519, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
             }
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -12713,7 +12707,7 @@ impl AlgorithmMethods for Ed448 {
 
             // 5. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -12721,13 +12715,13 @@ impl AlgorithmMethods for Ed448 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::Ed448, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
             }
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -13437,7 +13431,7 @@ impl AlgorithmMethods for X25519 {
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
                 let public_key = key.okp_handle_bytes();
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key)?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key)?);
             } else {
                 // The "x" parameter of the "epk" field is set as follows:
                 // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -13445,14 +13439,14 @@ impl AlgorithmMethods for X25519 {
                 // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
                 let public_key = okp_generate_public_key(OkpCurve::X25519, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
             }
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 let private_key = key.okp_handle_bytes();
-                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), private_key)?);
+                jwk.d = Some(encode_jwk_bytes(cx.vm(), private_key)?);
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -13739,17 +13733,17 @@ impl AlgorithmMethods for X448 {
 
             // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
             if key.key_type() == KeyType::Public {
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             } else {
                 let public_key = okp_generate_public_key(OkpCurve::X448, key.okp_handle_bytes())
                     .map_err(|()| out_of_memory(cx.vm()))?;
-                jwk.x = Some(okp_encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
+                jwk.x = Some(encode_jwk_bytes(cx.vm(), public_key.as_slice())?);
             }
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
                 // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-                jwk.d = Some(okp_encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
+                jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
             // 6. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -14086,6 +14080,913 @@ impl AlgorithmMethods for X448 {
         // 3. Otherwise:
         //    throw a NotSupportedError.
         Err(dom_error("NotSupportedError", b"Invalid key format"))
+    }
+}
+
+type ContextParams = Ed448Params;
+
+#[derive(Clone, Copy)]
+#[repr(i32)]
+enum MlDsaSize {
+    MlDsa44,
+    MlDsa65,
+    MlDsa87,
+}
+
+const ML_DSA_44_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 17];
+const ML_DSA_65_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 18];
+const ML_DSA_87_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 19];
+
+unsafe extern "C" {
+    fn web_crypto_mldsa_sign(
+        size: MlDsaSize,
+        key: *const c_void,
+        message: Span<'_, u8>,
+        context: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_mldsa_verify(
+        size: MlDsaSize,
+        key: *const c_void,
+        message: Span<'_, u8>,
+        signature: Span<'_, u8>,
+        context: Span<'_, u8>,
+        verified: &mut bool,
+    ) -> bool;
+    fn web_crypto_mldsa_generate_key_pair(
+        size: MlDsaSize,
+        seed: Span<'_, u8>,
+        public_key: &mut *mut c_void,
+        private_key: &mut *mut c_void,
+    ) -> usize;
+    fn web_crypto_asn1_key_info_identifier(structure: Asn1Structure, key_info: *const c_void, oid: &mut Span<'_, u32>);
+    fn web_crypto_mldsa_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
+    fn web_crypto_mldsa_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_mldsa_public_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
+    fn web_crypto_mldsa_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
+    fn web_crypto_mldsa_export_der(
+        key: *const c_void,
+        is_public: bool,
+        oid: Span<'_, u32>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+}
+
+impl Asn1KeyInfo {
+    fn identifier(&self) -> &[u32] {
+        let mut oid = Span::new(&[]);
+        // SAFETY: This object owns the structure that the identifier borrows from.
+        unsafe { web_crypto_asn1_key_info_identifier(self.structure, self.key_info.as_ptr(), &mut oid) };
+        oid.as_slice()
+    }
+
+    fn mldsa_private_key(&self) -> UninstalledKey {
+        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
+        // SAFETY: This object owns a live PrivateKeyInfo.
+        let key = unsafe { web_crypto_mldsa_key_info_read_private_key(self.key_info.as_ptr()) };
+        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an ML-DSA private key"))
+    }
+}
+
+fn mldsa_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
+    // SAFETY: The input bytes are lent for the call.
+    let key = unsafe { web_crypto_mldsa_read_public_key(Span::new(bytes)) };
+    // SAFETY: The service transfers ownership of the live key.
+    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an ML-DSA public key")) }
+}
+
+fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<NativeKeyPair, Utf16String> {
+    let mut public_key = null_mut();
+    let mut private_key = null_mut();
+    // SAFETY: The seed and output slots are lent for the call.
+    let error = unsafe { web_crypto_mldsa_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
+    if error != 0 {
+        // SAFETY: LibCrypto transfers ownership of the error message.
+        return Err(unsafe { Utf16String::from_raw_owned(error) });
+    }
+    Ok(NativeKeyPair {
+        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
+        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
+    })
+}
+
+fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result<NativeKeyPair, Utf16String> {
+    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+        return mldsa_generate_key_pair(MlDsaSize::MlDsa44, seed.as_slice());
+    }
+    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+        return mldsa_generate_key_pair(MlDsaSize::MlDsa65, seed.as_slice());
+    }
+    if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+        return mldsa_generate_key_pair(MlDsaSize::MlDsa87, seed.as_slice());
+    }
+    unreachable!("the name identifies an ML-DSA parameter set")
+}
+
+fn mldsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle, OID and output slot are lent for the call.
+    if !unsafe {
+        web_crypto_mldsa_export_der(
+            key.handle().as_ptr(),
+            is_public,
+            Span::new(oid),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(out_of_memory(vm));
+    }
+    Ok(result.expect("LibCrypto returns the DER bytes"))
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct MlDsa {
+    parameters: Option<ContextParams>,
+}
+
+impl MlDsa {
+    pub(crate) fn from_value(vm: &Vm, object: Gc<Object>, has_parameters: bool) -> WebIdlResult<Self> {
+        let parameters = if has_parameters {
+            Some(ContextParams::from_value(vm, object)?)
+        } else {
+            None
+        };
+        Ok(Self { parameters })
+    }
+}
+
+impl AlgorithmMethods for MlDsa {
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
+    fn validate_sign_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses ContextParams");
+
+        // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
+        //    an OperationError.
+        if normalized_algorithm
+            .context
+            .as_ref()
+            .is_some_and(|context| context.as_slice().len() > 255)
+        {
+            return Err(dom_error("OperationError", b"Context is too long"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
+    fn sign(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        message: &Bytes,
+    ) -> WebIdlResult<Bytes> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses ContextParams");
+
+        // NB: Step 1 is performed by validate_sign_parameters().
+        self.validate_sign_parameters(cx.realm())?;
+
+        // 2. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
+        //    context member of normalizedAlgorithm is not present.
+        let context = normalized_algorithm.context.as_ref().map_or(&[][..], Bytes::as_slice);
+
+        // 4. Let result be the result of performing the ML-DSA.Sign signing algorithm, as specified in
+        //    Section 5.2 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
+        //    using the ML-DSA private key associated with key as sk, message as M and context as ctx.
+        let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+            MlDsaSize::MlDsa44
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+            MlDsaSize::MlDsa65
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+            MlDsaSize::MlDsa87
+        } else {
+            unreachable!("the name identifies an ML-DSA parameter set")
+        };
+        let mut signature: Option<Bytes> = None;
+        // SAFETY: The key, input bytes and output slot are lent for the call.
+        let maybe_result = unsafe {
+            web_crypto_mldsa_sign(
+                size,
+                key.handle().as_ptr(),
+                Span::new(message.as_slice()),
+                Span::new(context),
+                core::ptr::from_mut(&mut signature).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 5. If the ML-DSA.Sign algorithm returned an error, return an OperationError.
+        if !maybe_result {
+            return Err(dom_error("OperationError", b"Failed to sign message"));
+        }
+
+        // 6. Return result.
+        Ok(signature.expect("LibCrypto returns a signature"))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
+    fn validate_verify_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses ContextParams");
+
+        // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
+        //    an OperationError.
+        if normalized_algorithm
+            .context
+            .as_ref()
+            .is_some_and(|context| context.as_slice().len() > 255)
+        {
+            return Err(dom_error("OperationError", b"Context is too long"));
+        }
+
+        Ok(())
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
+    fn verify(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        let normalized_algorithm = self.parameters.as_ref().expect("the operation uses ContextParams");
+
+        // NB: Step 1 is performed by validate_verify_parameters().
+        self.validate_verify_parameters(cx.realm())?;
+
+        // 2. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
+        //    context member of normalizedAlgorithm is not present.
+        let context = normalized_algorithm.context.as_ref().map_or(&[][..], Bytes::as_slice);
+
+        // 4. Let result be the result of performing the ML-DSA.Verify verification algorithm, as specified in
+        //    Section 5.3 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
+        //    using the ML-DSA public key associated with key as pk, message as M, signature as σ and context as ctx.
+        let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+            MlDsaSize::MlDsa44
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+            MlDsaSize::MlDsa65
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+            MlDsaSize::MlDsa87
+        } else {
+            unreachable!("the name identifies an ML-DSA parameter set")
+        };
+        let mut verified = false;
+        // SAFETY: The key, input bytes and output slot are lent for the call.
+        let maybe_result = unsafe {
+            web_crypto_mldsa_verify(
+                size,
+                key.handle().as_ptr(),
+                Span::new(message.as_slice()),
+                Span::new(signature.as_slice()),
+                Span::new(context),
+                &mut verified,
+            )
+        };
+
+        // 5. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
+        if !maybe_result {
+            return Err(dom_error("OperationError", b"Failed to verify message"));
+        }
+
+        // 6. Return result.
+        Ok(verified)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        // 2. Generate an ML-DSA key pair, as described in Section 5.1 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm.
+        let maybe_key_pair = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+            mldsa_generate_key_pair(MlDsaSize::MlDsa44, &[])
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+            mldsa_generate_key_pair(MlDsaSize::MlDsa65, &[])
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+            mldsa_generate_key_pair(MlDsaSize::MlDsa87, &[])
+        } else {
+            unreachable!("the name identifies an ML-DSA parameter set")
+        };
+
+        // 3. If the key generation step fails, then throw an OperationError.
+        let Ok(key_pair) = maybe_key_pair else {
+            return Err(dom_error("OperationError", b"Key generation failed"));
+        };
+
+        // 6. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 7. Set the [[type]] internal slot of publicKey to "public".
+        public_key.set_type(KeyType::Public);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
+        // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        // 8. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: params.name.clone(),
+        });
+
+        // 9. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(usages, &[KeyUsage::Verify]));
+
+        // 11. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 12. Set the [[type]] internal slot of privateKey to "private".
+        private_key.set_type(KeyType::Private);
+
+        // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: params.name.clone(),
+        });
+
+        // 14. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(usages, &[KeyUsage::Sign]));
+
+        // 16. Let result be a new CryptoKeyPair dictionary.
+        // 17. Set the publicKey attribute of result to be publicKey.
+        // 18. Set the privateKey attribute of result to be privateKey.
+        let result = CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        };
+
+        // 19. Return result.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let key;
+
+        // 1. Let keyData be the key data to be imported.
+        // 2. -> If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
+            let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+                // Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
+                ML_DSA_44_OID
+            }
+            // If the name member of normalizedAlgorithm is "ML-DSA-65":
+            else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+                // Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
+                ML_DSA_65_OID
+            }
+            // If the name member of normalizedAlgorithm is "ML-DSA-87":
+            else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+                // Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
+                ML_DSA_87_OID
+            }
+            // Otherwise:
+            else {
+                // throw a NotSupportedError.
+                return Err(dom_error("NotSupportedError", b"Invalid key format"));
+            };
+
+            // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
+            //    to expectedOid, then throw a DataError.
+            if spki.identifier() != expected_oid {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 7. Let publicKey be the ML-DSA public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 8. Let key be a new CryptoKey that represents publicKey.
+            key = mldsa_read_public_key(cx.vm(), public_key);
+
+            // 9. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        // -> If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. => If the name member of normalizedAlgorithm is "ML-DSA-44":
+            //       Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
+            //       Let asn1Structure be the ASN.1 ML-DSA-44-PrivateKey structure.
+            //    => If the name member of normalizedAlgorithm is "ML-DSA-65":
+            //       Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
+            //       Let asn1Structure be the ASN.1 ML-DSA-65-PrivateKey structure.
+            //    => If the name member of normalizedAlgorithm is "ML-DSA-87":
+            //       Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
+            //       Let asn1Structure be the ASN.1 ML-DSA-67-PrivateKey structure.
+            //    => Otherwise:
+            //       throw a NotSupportedError.
+            let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+                ML_DSA_44_OID
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+                ML_DSA_65_OID
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+                ML_DSA_87_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
+            //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
+            if private_key_info.identifier() != expected_oid {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
+            //    privateKeyInfo is present, then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 7. Let mlDsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
+            //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
+            //    true.
+            // NOTE: We already did this in parse_a_private_key_info
+            // 8. If an error occurred while parsing, then throw a DataError.
+            let ml_dsa_private_key = private_key_info.mldsa_private_key();
+
+            // 9. Let key be a new CryptoKey that represents the ML-DSA private key identified by
+            //    mlDsaPrivateKey.
+            key = ml_dsa_private_key.install(cx.vm());
+
+            // 10. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 11. Let algorithm be a new KeyAlgorithm.
+            // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 13. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //    -> If format is "raw-public":
+        else if key_format == KeyFormat::RawPublic {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 4. Let key be a new CryptoKey representing the key data provided in keyData.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+            key = mldsa_read_public_key(cx.vm(), key_data.as_slice());
+
+            // 5. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 2. Let algorithm be a new KeyAlgorithm object.
+            // 3. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 6. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //  -> If format is "raw-seed":
+        else if key_format == KeyFormat::RawSeed {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let data be keyData.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+
+            // 3. If the length in bits of data is not 256 then throw a DataError.
+            if data.as_slice().len() * 8 != 256 {
+                return Err(dom_error("DataError", b"Seed must be 256 bits long"));
+            }
+
+            // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
+            //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
+            let maybe_key_pair = generate_mldsa_key_pair_from_seed(&params.name, &data);
+            let key_pair = maybe_key_pair.map_err(|error| {
+                Exception::Dom(
+                    "OperationError",
+                    libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error]),
+                )
+            })?;
+            let private_key = key_pair.private_key;
+
+            // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
+            key = private_key.install(cx.vm());
+
+            // 6. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 7. Let algorithm be a new KeyAlgorithm.
+            // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //  -> If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1.  => If keyData is a JsonWebKey dictionary:
+            //        Let jwk equal keyData.
+            //     => Otherwise:
+            //        Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"Data is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the priv field is present and usages contains an entry which is not "sign", or, if the priv field is
+            //    not present and usages contains an entry which is not "verify" then throw a SyntaxError.
+            if (jwk.r#priv.is_some() && usages.iter().any(|&usage| usage != KeyUsage::Sign))
+                || (jwk.r#priv.is_none() && usages.iter().any(|&usage| usage != KeyUsage::Verify))
+            {
+                return Err(dom_error("SyntaxError", b"Invalid usage"));
+            }
+
+            // 3. If the kty field of jwk is not "AKP", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"AKP")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If the alg field of jwk is not equal to the name member of normalizedAlgorithm, then throw a DataError.
+            if jwk.alg.as_ref() != Some(&params.name) {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If usages is non-empty and the use field of jwk is present and is not equal to "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|usage| usage != &Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid usage type"));
+            }
+
+            // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
+            //    Key [JWK], or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid ext field"));
+            }
+
+            // 8. => If the priv field of jwk is present:
+            if let Some(private_seed) = &jwk.r#priv {
+                // 1. If the priv attribute of jwk does not contain a valid base64url encoded seed
+                //    representing an ML-DSA private key, then throw a DataError.
+                let seed = base64_url_bytes_decode(cx.vm(), private_seed)?;
+                if seed.as_slice().len() * 8 != 256 {
+                    return Err(dom_error("DataError", b"Seed must be 256 bits long"));
+                }
+
+                // 2. Let key be a new CryptoKey object that represents the ML-DSA private key
+                //    identified by interpreting the priv attribute of jwk as a base64url encoded seed.
+                let maybe_key_pair = generate_mldsa_key_pair_from_seed(&params.name, &seed);
+                let key_pair = maybe_key_pair.map_err(|error| {
+                    Exception::Dom(
+                        "DataError",
+                        libjs_rust::api::utf16_formatted("Invalid seed: {}", &[&error]),
+                    )
+                })?;
+                let NativeKeyPair {
+                    public_key,
+                    private_key,
+                } = key_pair;
+                key = private_key.install(cx.vm());
+
+                // 3. Set the [[type]] internal slot of key to "private".
+                key.set_type(KeyType::Private);
+
+                // 4. If the pub attribute of jwk does not contain the base64url encoded public key
+                //    representing the ML-DSA public key corresponding to key, then throw a DataError.
+                let Some(public_bytes) = &jwk.r#pub else {
+                    return Err(dom_error("DataError", b"JsonWebKey does not contain public key"));
+                };
+
+                let pub_decoded = base64_url_bytes_decode(cx.vm(), public_bytes);
+                let mut expected = Span::new(&[]);
+                // SAFETY: The native candidate owns the bytes through the comparison.
+                unsafe { web_crypto_mldsa_public_bytes(public_key.0.as_ptr(), &mut expected) };
+                if !pub_decoded.is_ok_and(|bytes| bytes.as_slice() == expected.as_slice()) {
+                    return Err(dom_error("DataError", b"JsonWebKey public key does not match"));
+                }
+            }
+            //    => Otherwise:
+            else {
+                // 1. If the pub attribute of jwk does not contain a valid base64url encoded public key
+                //    representing an ML-DSA public key, then throw a DataError.
+                let Some(public_bytes) = &jwk.r#pub else {
+                    return Err(dom_error("DataError", b"JsonWebKey does not contain public key"));
+                };
+
+                let public_key = base64_url_bytes_decode(cx.vm(), public_bytes)?;
+
+                // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
+                //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
+                key = mldsa_read_public_key(cx.vm(), public_key.as_slice());
+
+                // 3. Set the [[type]] internal slot of key to "public".
+                key.set_type(KeyType::Public);
+            }
+
+            // 9. Let algorithm be a new instance of a KeyAlgorithm object.
+            // 10. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+            // 11. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //    -> Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 3. Return key.
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "keep the dictionary assignments in specification order"
+    )]
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        let vm = cx.vm();
+
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+        let handle = key.handle();
+
+        // 3. -> If format is "spki":
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //      * -> If the name member of keyAlgorithm is "ML-DSA-44":
+            //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
+            //        -> If the name member of keyAlgorithm is "ML-DSA-65":
+            //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
+            //        -> If the name member of keyAlgorithm is "ML-DSA-87":
+            //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
+            //        -> Otherwise:
+            //           throw a NotSupportedError.
+            //    * Set the subjectPublicKey field to keyData.
+            let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+                ML_DSA_44_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+                ML_DSA_65_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+                ML_DSA_87_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            let data = mldsa_export_der(vm, key, true, &algorithm_oid)?;
+
+            // 4. Let result be the result of DER-encoding data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      * => If the name member of keyAlgorithm is "ML-DSA-44":
+            //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
+            //      * => If the name member of keyAlgorithm is "ML-DSA-65":
+            //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
+            //      * => If the name member of keyAlgorithm is "ML-DSA-87":
+            //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
+            //      * => Otherwise:
+            //           throw a NotSupportedError.
+            //    * Set the privateKey field as follows:
+            //      * => If the name member of keyAlgorithm is "ML-DSA-44":
+            //           Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey
+            //           ASN.1 type that represents the ML-DSA private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => If the name member of keyAlgorithm is "ML-DSA-65":
+            //           Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey
+            //           ASN.1 type that represents the ML-DSA private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => If the name member of keyAlgorithm is "ML-DSA-87":
+            //           Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey
+            //           ASN.1 type that represents the ML-DSA private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => Otherwise:
+            //           throw a NotSupportedError.
+            let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
+                ML_DSA_44_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
+                ML_DSA_65_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
+                ML_DSA_87_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            let data = mldsa_export_der(vm, key, false, &algorithm_oid)?;
+
+            // 4. Let result be the result of DER-encoding data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "raw-public":
+        else if format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be a byte sequence containing the ML-DSA public key represented by the [[handle]] internal slot of key.
+            let mut bytes = Span::new(&[]);
+            // SAFETY: The key owns the bytes through the copy.
+            unsafe { web_crypto_mldsa_public_bytes(handle.as_ptr(), &mut bytes) };
+            let data = Bytes::new(copy_bytes(vm, bytes.as_slice())?);
+
+            // 3. Let result be data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "raw-seed":
+        else if format == KeyFormat::RawSeed {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
+            let mut bytes = Span::new(&[]);
+            // SAFETY: The key owns the bytes through the copy.
+            unsafe { web_crypto_mldsa_seed_bytes(handle.as_ptr(), &mut bytes) };
+            let data = Bytes::new(copy_bytes(vm, bytes.as_slice())?);
+
+            // 3. Let result be data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "jwk":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+            // 3. Set the kty attribute of jwk to "AKP".
+            jwk.kty = Some(Utf16String::from_ascii(b"AKP"));
+
+            // 4. Set the alg attribute of jwk to the name member of keyAlgorithm.
+            jwk.alg = Some(key.algorithm_name());
+
+            // 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
+            let mut public_bytes = Span::new(&[]);
+            // SAFETY: The key owns the bytes through the encoding.
+            unsafe { web_crypto_mldsa_public_bytes(handle.as_ptr(), &mut public_bytes) };
+            jwk.r#pub = Some(encode_jwk_bytes(vm, public_bytes.as_slice())?);
+
+            // 6. -> If the [[type]] internal slot of key is "private":
+            //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
+            if key.key_type() == KeyType::Private {
+                let mut seed = Span::new(&[]);
+                // SAFETY: The key owns the seed through the encoding.
+                unsafe { web_crypto_mldsa_seed_bytes(handle.as_ptr(), &mut seed) };
+                jwk.r#priv = Some(encode_jwk_bytes(vm, seed.as_slice())?);
+            }
+
+            // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|&usage| Utf16String::from_ascii(key_usage_to_string(usage).as_bytes()))
+                    .collect(),
+            );
+
+            // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 9. Let result be jwk.
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        //   -> Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        };
+
+        // 4. Return result.
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
     }
 }
 

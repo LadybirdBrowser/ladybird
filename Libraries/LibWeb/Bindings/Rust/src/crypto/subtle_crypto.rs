@@ -34,8 +34,8 @@ use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
     Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519,
     EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
-    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType,
-    RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
+    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, MlDsa, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep,
+    RsaParameterType, RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -117,6 +117,7 @@ enum RegisteredAlgorithm {
     Ecdh(EcParameterType),
     Ed25519,
     Ed448(bool),
+    MlDsa(bool),
     X25519(bool),
     X448(bool),
     CShake,
@@ -156,6 +157,7 @@ enum AlgorithmImplementation {
     Ecdh(Ecdh),
     Ed25519(Ed25519),
     Ed448(Ed448),
+    MlDsa(MlDsa),
     X25519(X25519),
     X448(X448),
     CShake(CShakeParams),
@@ -194,6 +196,7 @@ impl Deref for AlgorithmImplementation {
             Self::Ecdh(algorithm) => algorithm,
             Self::Ed25519(algorithm) => algorithm,
             Self::Ed448(algorithm) => algorithm,
+            Self::MlDsa(algorithm) => algorithm,
             Self::X25519(algorithm) => algorithm,
             Self::X448(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
@@ -446,6 +449,9 @@ pub(crate) fn normalize_an_algorithm(
         RegisteredAlgorithm::Ed25519 => AlgorithmImplementation::Ed25519(Ed25519),
         RegisteredAlgorithm::Ed448(has_parameters) => {
             AlgorithmImplementation::Ed448(Ed448::from_value(vm, *algorithm, has_parameters)?)
+        }
+        RegisteredAlgorithm::MlDsa(has_parameters) => {
+            AlgorithmImplementation::MlDsa(MlDsa::from_value(vm, *algorithm, has_parameters)?)
         }
         RegisteredAlgorithm::X25519(has_parameters) => {
             AlgorithmImplementation::X25519(X25519::from_value(vm, *algorithm, has_parameters)?)
@@ -3403,35 +3409,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
         for name in ["ML-DSA-44", "ML-DSA-65", "ML-DSA-87"] {
-            define_an_algorithm(
-                &mut internal_object,
-                "sign",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::ContextParams),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "verify",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::ContextParams),
-            );
+            define_an_algorithm(&mut internal_object, "sign", name, RegisteredAlgorithm::MlDsa(true));
+            define_an_algorithm(&mut internal_object, "verify", name, RegisteredAlgorithm::MlDsa(true));
             define_an_algorithm(
                 &mut internal_object,
                 "generateKey",
                 name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::MlDsa(false),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "importKey",
                 name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::MlDsa(false),
             );
             define_an_algorithm(
                 &mut internal_object,
                 "exportKey",
                 name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlDsa, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::MlDsa(false),
             );
         }
 
