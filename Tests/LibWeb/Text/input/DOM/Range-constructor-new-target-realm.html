@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const sameOrigin = document.createElement("iframe");
+        document.body.append(sameOrigin);
+        const crossOrigin = document.createElement("iframe");
+        crossOrigin.src = "data:text/html,<!DOCTYPE html>";
+        await new Promise(resolve => {
+            crossOrigin.onload = resolve;
+            document.body.append(crossOrigin);
+        });
+        println(`same-process cross-origin frame: ${remoteFrameCount() === 0}`);
+
+        const commonAncestorContainer = Object.getOwnPropertyDescriptor(Range.prototype, "commonAncestorContainer").get;
+        for (const [label, prototype] of [["same-origin", sameOrigin.contentWindow], ["cross-origin", crossOrigin.contentWindow]]) {
+            function NewTarget() {}
+            NewTarget.prototype = prototype;
+            const range = Reflect.construct(Range, [], NewTarget);
+            println(`${label} window prototype: prototype from NewTarget: ${Object.getPrototypeOf(range) === prototype}, container is caller's document: ${commonAncestorContainer.call(range) === document}`);
+        }
+
+        const foreignNewTarget = new sameOrigin.contentWindow.Function();
+        foreignNewTarget.prototype = 1;
+        const range = Reflect.construct(Range, [], foreignNewTarget);
+        println(`foreign NewTarget without prototype: prototype from NewTarget's realm: ${Object.getPrototypeOf(range) === sameOrigin.contentWindow.Range.prototype}, container is caller's document: ${range.commonAncestorContainer === document}`);
+        done();
+    });
+</script>

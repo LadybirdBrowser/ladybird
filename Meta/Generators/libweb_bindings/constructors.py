@@ -112,21 +112,14 @@ def write_constructor_steps(
     // 3.2. Let prototype be ? Get(newTarget, "prototype").
     auto prototype = TRY(new_target.get(vm.names.prototype));
 
-    JS::Realm* target_realm = nullptr;
-
     // 3.3. If Type(prototype) is not Object, then:
     if (!prototype.is_object()) {{
         // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
-        target_realm = TRY(JS::get_function_realm(vm, new_target));
+        auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
         VERIFY(target_realm);
 
         // 2. Set prototype to the interface prototype object for interface in targetRealm.
         prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*target_realm, interface_name);
-    }} else {{
-        // This path does not need targetRealm, but the shared helper takes a
-        // realm for default-prototype recovery. Use the explicit prototype's
-        // realm without observing newTarget again.
-        target_realm = &prototype.as_object().shape().realm();
     }}
 
 """
@@ -172,8 +165,8 @@ def write_constructor_steps(
             f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::construct_impl(realm{arguments_with_leading_comma})) {{ return StaticImplementation::construct_impl(realm{arguments_with_leading_comma}); }}",
             f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::construct_impl({arguments_with_vm})) {{ return StaticImplementation::construct_impl({arguments_with_vm}); }}",
             f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::construct_impl({arguments})) {{ return StaticImplementation::construct_impl({arguments}); }}",
-            f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor(target_realm->global_object(){arguments_with_leading_comma})) {{ return StaticImplementation::create_for_constructor(target_realm->global_object(){arguments_with_leading_comma}); }}",
-            f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor(*target_realm{arguments_with_leading_comma})) {{ return StaticImplementation::create_for_constructor(*target_realm{arguments_with_leading_comma}); }}",
+            f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor(realm.global_object(){arguments_with_leading_comma})) {{ return StaticImplementation::create_for_constructor(realm.global_object(){arguments_with_leading_comma}); }}",
+            f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor(realm{arguments_with_leading_comma})) {{ return StaticImplementation::create_for_constructor(realm{arguments_with_leading_comma}); }}",
             f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor({arguments_with_vm})) {{ return StaticImplementation::create_for_constructor({arguments_with_vm}); }}",
             f"[&]<typename StaticImplementation>() -> decltype(StaticImplementation::create_for_constructor({arguments})) {{ return StaticImplementation::create_for_constructor({arguments}); }}",
         ]
@@ -220,7 +213,7 @@ def write_constructor_steps(
         f"""    auto wrapper = wrap(host_defined_wrapper_world(realm), realm, impl);
 
     // 7. Set instance.[[Prototype]] to prototype.
-    TRY(set_prototype_from_new_target<{interface.prototype_class}>(*target_realm, prototype, interface_name, *wrapper));
+    TRY(set_prototype_from_new_target<{interface.prototype_class}>(realm, prototype, interface_name, *wrapper));
 
     // FIXME: Steps 8...11. of the "internally create a new object implementing the interface {interface.name}" algorithm
     // (https://webidl.spec.whatwg.org/#js-platform-objects) are currently not handled, or are handled within {fully_qualified_name_for_interface(interface)}::construct_impl().

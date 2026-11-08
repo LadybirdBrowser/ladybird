@@ -1,0 +1,4 @@
+same-process cross-origin frame: true
+same-origin window prototype: prototype from NewTarget: true, container is caller's document: true
+cross-origin window prototype: prototype from NewTarget: true, container is caller's document: true
+foreign NewTarget without prototype: prototype from NewTarget's realm: true, container is caller's document: true
