@@ -317,6 +317,7 @@ private:
 public:
     decltype(Hub::View::on_load_start) on_load_start;
     decltype(Hub::View::on_load_finish) on_load_finish;
+    Function<void()> on_load_from_user_input;
     decltype(Hub::View::on_ready_to_paint) on_ready_to_paint;
     decltype(Hub::View::on_performance_stats) on_performance_stats;
     Function<void(Web::HTML::ActivateTab, Web::HTML::WebViewHints, u64 view_id)> on_open_new_view;

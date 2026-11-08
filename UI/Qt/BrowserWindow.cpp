@@ -897,7 +897,12 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocat
     case TabLocation::Kind::End:
         break;
     case TabLocation::Kind::AfterCurrentTab:
-        insertion_index = m_tabs_container->current_index() + 1;
+        insertion_index = constrain_insertion_index(m_tabs_container->current_index() + 1, false);
+        // Tabs opened in the background line up after the current tab in the order they were opened.
+        if (activate_tab == Web::HTML::ActivateTab::No) {
+            while (insertion_index < m_tabs_container->count() && m_background_tabs_from_current_tab.contains([&](auto const& background_tab) { return background_tab == m_tabs_container->tab(insertion_index); }))
+                ++insertion_index;
+        }
         break;
     case TabLocation::Kind::AfterTab:
         if (auto* source_tab = location.tab(); source_tab) {
@@ -914,6 +919,8 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocat
 
     if (activate_tab == Web::HTML::ActivateTab::Yes)
         m_tabs_container->set_current_tab(tab);
+    else if (location.kind() == TabLocation::Kind::AfterCurrentTab)
+        m_background_tabs_from_current_tab.append(tab);
 
     initialize_tab(tab);
 
@@ -1124,6 +1131,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
     }
 
     m_current_tab = tab;
+    m_background_tabs_from_current_tab.clear();
 
     if (m_current_tab) {
         m_current_tab->clear_attention();
@@ -2273,6 +2281,13 @@ void BrowserWindow::cancel_window_close_preflight()
     for_each_tab([](auto& tab) {
         tab.cancel_window_close_preflight();
     });
+}
+
+void BrowserWindow::on_tab_navigated_by_user(Tab& tab)
+{
+    // The user is moving on from the page that the background tabs were opened from.
+    if (&tab == m_current_tab)
+        m_background_tabs_from_current_tab.clear();
 }
 
 void BrowserWindow::on_tab_load_start(Tab& tab)

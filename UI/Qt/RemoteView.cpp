@@ -562,6 +562,9 @@ void RemoteView::did_make_link_to_highlight(Optional<URL::URL> url)
 
 void RemoteView::load_from_user_input(URL::URL const& url)
 {
+    if (on_load_from_user_input)
+        on_load_from_user_input();
+
     if (!WebView::is_url_handled_internally(url)) {
         open_external_url_from_user_input(url);
         return;
@@ -576,6 +579,9 @@ void RemoteView::load_from_user_input(StringView input)
 
 void RemoteView::load_from_user_input(StringView input, Optional<URL::URL> fallback_url)
 {
+    if (on_load_from_user_input)
+        on_load_from_user_input();
+
     auto classified_input = WebView::classify_user_input(input);
 
     if (classified_input.classification != WebView::UserInputClassification::ExternalURL) {
