@@ -1,0 +1,3 @@
+before the iframe navigates: live
+once it has navigated: ended
+a clone made after: ended

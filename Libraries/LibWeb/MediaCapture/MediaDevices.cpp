@@ -890,6 +890,21 @@ void MediaDevices::end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_t
         }));
 }
 
+// https://w3c.github.io/mediacapture-main/#dfn-stop-all-sources
+void MediaDevices::stop_all_sources()
+{
+    // 1. For each MediaStreamTrack object track whose relevant global object is globalObject, set track's
+    //    [[ReadyState]] to "ended".
+    // 2. If globalObject is a Window, then for each source in globalObject's associated
+    //    MediaDevices.[[mediaStreamTrackSources]], stop source.
+    // NB: The tracks stand in for their sources, and stopping a track also ends it.
+    // FIXME: End this global object's tracks that no MediaDevices made too.
+    for (auto const& weak_track : exchange(m_media_stream_track_sources, {})) {
+        if (auto track = weak_track.ptr())
+            track->stop();
+    }
+}
+
 static Optional<Vector<Utf16String>> dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> const& value)
 {
     Vector<Utf16String> values;

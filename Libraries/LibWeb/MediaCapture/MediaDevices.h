@@ -50,6 +50,7 @@ public:
     void system_focus_changed();
 
     [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
+    void stop_all_sources();
 
     MediaTrackSupportedConstraints get_supported_constraints();
     void enumerate_devices(GC::Ref<WebIDL::Promise>);

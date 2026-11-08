@@ -6744,6 +6744,15 @@ void Document::run_unloading_cleanup_steps()
     fully_exit_fullscreen();
     PictureInPicture::run_unloading_cleanup_steps(*this);
 
+    // https://w3c.github.io/mediacapture-main/#dfn-stop-all-sources
+    // The User Agent MUST stop all sources of a globalObject in the following conditions:
+    // 1. If globalObject is a Window object and the unloading document cleanup steps are executed for its associated
+    //    document.
+    if (auto navigator = m_window ? m_window->navigator_if_created() : nullptr) {
+        if (auto media_devices = navigator->media_devices_if_created())
+            media_devices->stop_all_sources();
+    }
+
     // https://w3c.github.io/webdriver-bidi/#event-script-realmDestroyed
     if (WebDriver::BiDi::is_active())
         WebDriver::BiDi::unloading_document_cleanup_steps(*this);
