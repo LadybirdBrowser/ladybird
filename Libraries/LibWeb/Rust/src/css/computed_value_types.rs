@@ -46,6 +46,7 @@ pub struct ComputedSize {
 
 /// Layout of the six computed sizing properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct SizingValues {
     pub width: ComputedSize,
     pub min_width: ComputedSize,
@@ -58,6 +59,7 @@ pub struct SizingValues {
 /// A computed flex-basis value. Content uses the flag; every other form
 /// uses the same computed-size representation as width and height.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedFlexBasis {
     pub is_content: bool,
     pub size: ComputedSize,
@@ -66,6 +68,7 @@ pub struct ComputedFlexBasis {
 /// A computed row-gap or column-gap value. Normal uses the flag; every
 /// other form retains its immutable length-percentage identity.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedGap {
     pub is_normal: bool,
     pub value: ComputedStyleValueHandle,
@@ -73,6 +76,7 @@ pub struct ComputedGap {
 
 /// Layout of the computed flexbox and box-alignment properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct AlignmentValues {
     pub webkit_box_orient: u8,
     pub flex_direction: u8,
@@ -119,6 +123,7 @@ pub struct ComputedLengthPercentageOrAuto {
 
 /// Four physical computed length-percentage-or-auto sides.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedLengthBox {
     pub top: ComputedLengthPercentageOrAuto,
     pub right: ComputedLengthPercentageOrAuto,
@@ -150,6 +155,7 @@ pub struct SurroundValues {
 /// A computed vertical-align value: an alignment keyword or a retained
 /// length-percentage offset.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedVerticalAlign {
     pub is_keyword: bool,
     pub keyword: u8,
@@ -194,6 +200,7 @@ impl ComputedContainIntrinsicSize {
 
 /// Layout of the computed box-level properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct BoxValues {
     pub display: crate::css::display::FfiDisplay,
     pub display_before_box_type_transformation: crate::css::display::FfiDisplay,
@@ -404,6 +411,7 @@ pub struct BorderValues {
 /// Canonical generated-content and counter values. C++ materializes its
 /// presentation structures only when a consumer requests them.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ContentValues {
     pub content: ComputedStyleValueHandle,
     pub counter_increment: ComputedStyleValueHandle,
@@ -415,6 +423,7 @@ pub struct ContentValues {
 /// resolved lazily by consumers with their current style scope. The table enum fields follow the
 /// opaque-byte convention; the border spacings are raw CSSPixels fixed-point values.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct InheritedListTableValues {
     pub list_style_type: ComputedStyleValueHandle,
     pub list_style_image: ComputedStyleValueHandle,
@@ -425,6 +434,7 @@ pub struct InheritedListTableValues {
 
 /// One physical overflow-clip-margin side.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedOverflowClipMarginSide {
     pub has_visual_box: bool,
     pub visual_box: u8,
@@ -433,6 +443,7 @@ pub struct ComputedOverflowClipMarginSide {
 
 /// Four physical overflow-clip-margin sides.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedOverflowClipMargin {
     pub left: ComputedOverflowClipMarginSide,
     pub top: ComputedOverflowClipMarginSide,
@@ -507,6 +518,7 @@ pub struct MiscInteractionValues {
 /// A computed text-indent value, mirroring the C++ TextIndentData layout:
 /// a retained length-percentage plus the each-line and hanging flags.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedTextIndent {
     pub length_percentage: ComputedStyleValueHandle,
     pub each_line: bool,
@@ -539,6 +551,7 @@ pub struct ComputedTextUnderlinePosition {
 
 /// A computed text-underline-offset and the pixel value used by layout.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedTextUnderlineOffset {
     pub used_value: crate::css::css_pixels::CssPixels,
     pub is_auto: bool,
@@ -579,6 +592,7 @@ pub struct InheritedTextValues {
 /// canonical Rust longhand value; typed C++ views decode coordinated list
 /// items only when a consumer asks for them.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct AnimationValues {
     pub animation_name: ComputedStyleValueHandle,
     pub animation_composition: ComputedStyleValueHandle,
@@ -609,6 +623,7 @@ pub struct AnimationValues {
 /// The mask computed values. Each handle retains a canonical Rust longhand;
 /// typed C++ views coordinate repeatable lists only when consumed.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct MaskValues {
     pub mask_image: ComputedStyleValueHandle,
     pub mask_type: ComputedStyleValueHandle,
@@ -625,6 +640,7 @@ pub struct MaskValues {
 /// The background computed values. Rust keeps every canonical longhand while
 /// C++ coordinates the repeatable lists only when painting consumes them.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct BackgroundValues {
     pub background_color: StyleColor,
     pub background_color_style_value: ComputedStyleValueHandle,
@@ -752,6 +768,7 @@ impl FontValues {
 pub const GRID_NO_INDEX: u32 = u32::MAX;
 
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedGridTrackBreadth {
     pub is_flex: bool,
     pub flex_factor: f64,
@@ -759,6 +776,7 @@ pub struct ComputedGridTrackBreadth {
 }
 
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedGridTrackEntry {
     pub kind: u8,
     pub next_sibling: u32,
@@ -840,6 +858,7 @@ pub struct RetainedGridAreaList {
 }
 
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct GridValues {
     pub names: crate::css::retained_fly_string::RetainedUtf16FlyStringList,
     pub name_indices: RetainedGridNameIndexList,
@@ -867,6 +886,7 @@ pub struct GridValues {
 
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct SVGResetValues {
     pub cx: ComputedStyleValueHandle,
     pub cy: ComputedStyleValueHandle,
@@ -892,6 +912,7 @@ pub struct RetainedTextDecorationLineList {
 
 /// Layout of the computed text-decoration and white-space-trim values.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct TextResetValues {
     pub text_decoration_lines: RetainedTextDecorationLineList,
     /// 0 = auto, 1 = from-font, 2 = length-percentage.
@@ -907,7 +928,7 @@ pub struct TextResetValues {
 /// One transform function lowered for paint. Percentage-bearing translate
 /// axes retain their computed values; every other transform stores a matrix.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ComputedResolvedTransform {
     pub is_translate: bool,
     pub matrix: [f32; 16],
@@ -932,6 +953,7 @@ unsafe impl Sync for RetainedComputedResolvedTransformList where ComputedResolve
 
 /// Layout of the computed transform properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct TransformValues {
     pub transformations: ComputedStyleValueHandle,
     pub resolved_transforms: RetainedComputedResolvedTransformList,
@@ -959,6 +981,7 @@ pub struct TransformValues {
 
 /// One paint-ready CSS filter operation.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedFilterOperation {
     pub kind: u8,
     pub color_operation: u8,
@@ -977,6 +1000,7 @@ pub struct RetainedComputedFilterOperationList {
 }
 
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedFilter {
     pub filter_list: ComputedStyleValueHandle,
     pub operations: RetainedComputedFilterOperationList,
@@ -1044,6 +1068,7 @@ pub struct RetainedPositionAreaList {
 }
 
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedPositionTryFallback {
     pub name: crate::css::retained_fly_string::RetainedUtf16FlyString,
     pub tactics: [u8; 5],
@@ -1060,6 +1085,7 @@ pub struct RetainedPositionTryFallbackList {
 
 /// Layout of the computed anchor-positioning properties.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct AnchorValues {
     pub anchor_names: crate::css::retained_fly_string::RetainedUtf16FlyStringList,
     pub anchor_scope_all: bool,
@@ -1089,6 +1115,7 @@ pub struct ComputedColorOrAuto {
 /// One cursor list item: either a retained cursor() value or a predefined
 /// cursor enum code.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedCursor {
     pub is_cursor_value: bool,
     pub cursor: ComputedStyleValueHandle,
@@ -1131,6 +1158,7 @@ pub const SVG_PAINT_URL: u8 = 2;
 /// One computed SVG paint. A color paint uses `color`; a URL paint retains
 /// the URL style value and may also carry a fallback color.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedSvgPaint {
     /// One of `SVG_PAINT_NONE`, `SVG_PAINT_COLOR`, `SVG_PAINT_URL`.
     pub kind: u8,
@@ -1142,6 +1170,7 @@ pub struct ComputedSvgPaint {
 /// One computed stroke-dasharray item: either a plain SVG number or a
 /// retained length-percentage value.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct ComputedSvgDash {
     pub is_number: bool,
     pub number: f64,
@@ -1156,6 +1185,7 @@ pub struct RetainedComputedSvgDashList {
 
 /// Layout of the inherited SVG computed values.
 #[repr(C)]
+#[derive(Clone, PartialEq)]
 pub struct InheritedSVGValues {
     pub fill: ComputedSvgPaint,
     pub stroke: ComputedSvgPaint,
