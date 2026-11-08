@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ML-KEM-768" };
+        const { publicKey, privateKey } = await crypto.subtle.generateKey(algorithm, false, [
+            "encapsulateKey",
+            "encapsulateBits",
+            "decapsulateKey",
+        ]);
+        const { ciphertext } = await crypto.subtle.encapsulateBits(algorithm, publicKey);
+
+        for (const usages of [[], ["encrypt"]]) {
+            try {
+                const { sharedKey } = await crypto.subtle.encapsulateKey(algorithm, publicKey, "AES-GCM", false, usages);
+                println(`encapsulateKey with [${usages}]: ${sharedKey.usages}`);
+            } catch (error) {
+                println(`encapsulateKey with [${usages}]: ${error.name}`);
+            }
+
+            try {
+                const sharedKey = await crypto.subtle.decapsulateKey(
+                    algorithm,
+                    privateKey,
+                    ciphertext,
+                    "AES-GCM",
+                    false,
+                    usages
+                );
+                println(`decapsulateKey with [${usages}]: ${sharedKey.usages}`);
+            } catch (error) {
+                println(`decapsulateKey with [${usages}]: ${error.name}`);
+            }
+        }
+    });
+</script>
