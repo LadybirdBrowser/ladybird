@@ -46,10 +46,11 @@
         println(`animation event listener uses iteration wake-ups: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
         println(`animation event listener skips past events: ${animationIterationEvents}`);
         hidden.removeEventListener("animationiteration", animationIterationListener);
+        // The lines printed above left layout dirty, and a hidden animation can't skip its tick until layout is
+        // redone. So redo it before counting, as the listener phase above does.
+        internals.updateLayoutForTesting();
         internals.resetStyleInvalidationCounters();
         await animationOverlayBuildsOverFrames(4);
-        // FIXME: Removing the listener should stop the frame pump (0 requests), but where the style engine owns
-        //        the document, the frames after it still request one.
         println(`removing animation event listener stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
 
         const beforeComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
