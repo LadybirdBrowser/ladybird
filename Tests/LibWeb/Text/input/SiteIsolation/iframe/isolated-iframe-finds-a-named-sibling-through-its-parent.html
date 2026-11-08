@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Two cross-site iframes share a process that doesn't host their parent. One reads the other through the parent
+    // by the name of its <iframe>, which exposes the sibling although the parent can't reach into it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const hostname = uniqueLocalhostHostname("named-sibling");
+        const frameUrl = async path => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body: `<!DOCTYPE html><script>
+                        addEventListener("message", event => {
+                            let result;
+                            try {
+                                const sibling = parent[event.data];
+                                result = sibling === undefined ? "undefined" : sibling === parent.frames[0] ? "the sibling" : "another window";
+                            } catch (e) {
+                                result = e.name;
+                            }
+                            parent.postMessage(result, "*");
+                        });
+                        parent.postMessage("ready", "*");
+                    <\/script>`,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const messages = [];
+        const waiters = [];
+        addEventListener("message", event => {
+            const waiter = waiters.shift();
+            if (waiter) waiter(event.data);
+            else messages.push(event.data);
+        });
+        const nextMessage = () => (messages.length ? Promise.resolve(messages.shift()) : new Promise(resolve => waiters.push(resolve)));
+        const addFrame = async (path, name) => {
+            const iframe = document.createElement("iframe");
+            iframe.name = name;
+            iframe.src = await frameUrl(path);
+            document.body.appendChild(iframe);
+            await nextMessage();
+            return iframe;
+        };
+
+        await addFrame("/launcher", "launcher");
+        const renderer = await addFrame("/renderer", "renderer");
+
+        renderer.contentWindow.postMessage("launcher", "*");
+        println(`parent.launcher from the sibling: ${await nextMessage()}`);
+    });
+</script>

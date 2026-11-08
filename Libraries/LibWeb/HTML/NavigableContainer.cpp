@@ -641,6 +641,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     state.document_insecure_requests_policy = document_policy_container->insecure_requests_policy();
     state.document_upgrade_insecure_navigations_set = document_policy_container->upgrade_insecure_navigations_set();
     state.used_color_scheme = m_used_color_scheme;
+    state.name = name();
     return state;
 }
 

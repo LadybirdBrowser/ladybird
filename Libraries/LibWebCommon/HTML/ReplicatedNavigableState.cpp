@@ -25,6 +25,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const
     TRY(encoder.encode(state.document_insecure_requests_policy));
     TRY(encoder.encode(state.document_upgrade_insecure_navigations_set));
     TRY(encoder.encode(to_underlying(state.used_color_scheme)));
+    TRY(encoder.encode(state.name));
     return {};
 }
 
@@ -52,6 +53,7 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
         .document_insecure_requests_policy = TRY(decoder.decode<Web::UpgradeInsecureRequests::InsecureRequestsPolicy>()),
         .document_upgrade_insecure_navigations_set = TRY(decoder.decode<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet>()),
         .used_color_scheme = TRY(decode_used_color_scheme(decoder)),
+        .name = TRY(decoder.decode<Optional<Utf16FlyString>>()),
     };
 }
 

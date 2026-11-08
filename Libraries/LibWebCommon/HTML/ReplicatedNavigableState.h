@@ -65,6 +65,9 @@ struct ReplicatedContainerState {
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // The container's used color scheme, which decides whether the canvas of the navigable's document is opaque.
     CSS::PreferredColorScheme used_color_scheme { CSS::PreferredColorScheme::Light };
+    // The container's name content attribute, by which a cross-origin content navigable is still exposed on its
+    // parent's Window.
+    Optional<Utf16FlyString> name {};
 };
 
 // What the process hosting a navigable's active document reports of it to the UI process, which composes the
