@@ -1,0 +1,10 @@
+animation with no box builds overlays: false
+animation with no box requests frames: false
+computed style samples animation: 50px
+referenceable geometry builds overlays: true
+SVG resource builds overlays: true
+custom property animation requests frames: true
+reverse playback finishes
+zero duration infinite iterations finishes
+revealed animation builds overlays: true
+revealed computed style: advanced
