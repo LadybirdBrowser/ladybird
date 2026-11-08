@@ -14,6 +14,7 @@
         println(`Image size: ${image.naturalWidth}x${image.naturalHeight}`);
         println(`Root background: ${getComputedStyle(imageDocument.documentElement).backgroundColor}`);
         println(`Image position: ${getComputedStyle(image).position}`);
+        println(`Image background: ${getComputedStyle(image).backgroundColor}`);
 
         const loadImage = url => new Promise(resolve => {
             imageDocument.addEventListener("securitypolicyviolation", event => resolve(`blocked by ${event.effectiveDirective}`), { once: true });
