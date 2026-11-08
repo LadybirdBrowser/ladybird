@@ -27,6 +27,7 @@ public:
     ~NamedNodeMap() = default;
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
+    virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
     size_t length() const;
     bool is_empty() const { return length() == 0; }

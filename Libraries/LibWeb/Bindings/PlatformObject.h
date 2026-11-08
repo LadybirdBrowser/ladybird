@@ -125,8 +125,13 @@ void finalize_platform_object(JS::HostObject& wrapper);
 }
 
 // https://webidl.spec.whatwg.org/#dfn-named-property-visibility
-// The wrapper must be a legacy platform object or the wrapper of a [Global] interface.
-WEB_API JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject const& wrapper, JS::PropertyKey const&);
+// The wrapper must be a legacy platform object or the wrapper of a [Global] interface. A caller that took the name from
+// the object's supported property names passes NameIsSupported::Yes, which skips checking that again.
+enum class NameIsSupported {
+    No,
+    Yes,
+};
+WEB_API JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject const& wrapper, JS::PropertyKey const&, NameIsSupported = NameIsSupported::No);
 
 // Defines the property via OrdinaryDefineOwnProperty and, if that created a new own property,
 // preserves the object's wrapper so the expando stays alive as long as the wrappable does.

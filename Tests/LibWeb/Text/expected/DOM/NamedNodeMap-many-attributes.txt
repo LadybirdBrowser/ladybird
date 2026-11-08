@@ -1,0 +1,7 @@
+Indices: 3003
+Named properties: 3001
+First: data-attribute-0, last: duplicate
+Uppercase exposed: false
+Duplicate listed once: true
+"data-attribute-1234" in attributes: true
+"missing" in attributes: false

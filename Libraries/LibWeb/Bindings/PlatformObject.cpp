@@ -141,7 +141,7 @@ static bool is_supported_property_index(JS::HostObject const& wrapper, u32 index
 }
 
 // https://webidl.spec.whatwg.org/#dfn-named-property-visibility
-JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject const& wrapper, JS::PropertyKey const& property_key)
+JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject const& wrapper, JS::PropertyKey const& property_key, NameIsSupported name_is_supported)
 {
     // The spec doesn't say anything about the type of the property name here.
     // Numbers can be converted to a string, which is fine and what other engines do.
@@ -166,8 +166,7 @@ JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject c
     }
 
     // 1. If P is not a supported property name of O, then return false.
-    auto property_name = property_key_to_utf16_fly_string(property_key);
-    if (!is_supported_property_name(wrapper, property_name))
+    if (name_is_supported == NameIsSupported::No && !is_supported_property_name(wrapper, property_key_to_utf16_fly_string(property_key)))
         return false;
 
     // 2. If O has an own property named P, then return false.
@@ -657,7 +656,7 @@ JS::ThrowCompletionOr<void> legacy_platform_object_internal_own_property_keys(JS
     // 3. If O supports named properties, then for each P of O’s supported property names that is visible according to the named property visibility algorithm, append P to keys.
     if (legacy_info->supports_named_properties) {
         for (auto& named_property : supported_property_names(wrapper)) {
-            if (TRY(is_named_property_exposed_on_object(wrapper, named_property)))
+            if (TRY(is_named_property_exposed_on_object(wrapper, named_property, NameIsSupported::Yes)))
                 append_to_keys(JS::PrimitiveString::create(vm, named_property));
         }
     }

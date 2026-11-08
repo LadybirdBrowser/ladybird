@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Attr.h>
@@ -75,10 +76,11 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     // 1. Let names be the qualified names of the attributes in this NamedNodeMap object’s attribute list, with duplicates omitted, in order.
     Vector<Utf16FlyString> names;
     names.ensure_capacity(length());
+    HashTable<Utf16FlyString> seen_names;
 
     for (size_t index = 0; index < length(); ++index) {
         auto name = associated_element().m_attributes->at(index).name.as_string();
-        if (!names.contains_slow(name))
+        if (seen_names.set(name) == HashSetResult::InsertedNewEntry)
             names.append(move(name));
     }
 
@@ -91,6 +93,21 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
 
     // 3. Return names.
     return names;
+}
+
+// OPTIMIZATION: A name is one of supported_property_names() if an attribute in the list has it as its qualified name,
+//               and it has no ASCII uppercase when the element is in the HTML namespace and its node document is an HTML
+//               document. Checking that directly avoids building the whole list for each name.
+bool NamedNodeMap::is_supported_property_name(Utf16FlyString const& name) const
+{
+    if (associated_element().namespace_uri() == Namespace::HTML && associated_element().document().is_html_document() && contains_ascii_uppercase(name.view()))
+        return false;
+
+    for (size_t index = 0; index < length(); ++index) {
+        if (associated_element().m_attributes->at(index).name.as_string() == name)
+            return true;
+    }
+    return false;
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-item

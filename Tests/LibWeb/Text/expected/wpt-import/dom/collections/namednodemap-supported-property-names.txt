@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Object.getOwnPropertyNames on NamedNodeMap
+Pass	Object.getOwnPropertyNames on NamedNodeMap of input
+Pass	Object.getOwnPropertyNames on NamedNodeMap after attribute removal

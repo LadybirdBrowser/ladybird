@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Enumerating an element's attribute names takes time linear in their number.
+        const element = document.createElement("div");
+        const count = 3000;
+        for (let i = 0; i < count; ++i)
+            element.setAttribute(`data-attribute-${i}`, "");
+        element.setAttributeNS(null, "Uppercase", "");
+        element.setAttributeNS("urn:a", "duplicate", "");
+        element.setAttributeNS("urn:b", "duplicate", "");
+
+        const names = Object.getOwnPropertyNames(element.attributes);
+        const namedProperties = names.filter(name => !/^\d+$/.test(name));
+        println(`Indices: ${names.length - namedProperties.length}`);
+        println(`Named properties: ${namedProperties.length}`);
+        println(`First: ${namedProperties[0]}, last: ${namedProperties[namedProperties.length - 1]}`);
+        println(`Uppercase exposed: ${"Uppercase" in element.attributes}`);
+        println(`Duplicate listed once: ${namedProperties.filter(name => name === "duplicate").length === 1}`);
+        println(`"data-attribute-1234" in attributes: ${"data-attribute-1234" in element.attributes}`);
+        println(`"missing" in attributes: ${"missing" in element.attributes}`);
+    });
+</script>
