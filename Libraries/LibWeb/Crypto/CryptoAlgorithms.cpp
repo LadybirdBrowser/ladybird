@@ -11,7 +11,6 @@
 #include <AK/Base64.h>
 #include <AK/HashTable.h>
 #include <AK/Memory.h>
-#include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
@@ -374,14 +373,6 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(
     return ::Crypto::PK::RSAPublicKey(move(n), move(e));
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm, JsonWebKey const& jwk)
-{
-    if (!jwk.k.has_value()) {
-        return WebIDL::DataError::create("JWK has no 'k' field"_utf16);
-    }
-    return base64_url_bytes_decode(realm, *jwk.k);
-}
-
 // https://www.rfc-editor.org/rfc/rfc7517#section-4.3
 static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey const& jwk, Vector<KeyUsage> const& usages)
 {
@@ -429,26 +420,6 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey con
     }
 
     return {};
-}
-
-// NB: Keeps only the bytes that hold the first length_in_bits bits of data, and zeroes the unused low-order bits of
-//     the last byte when the length is not a whole number of bytes.
-static void keep_first_bits(ByteBuffer& data, size_t length_in_bits)
-{
-    auto length_in_bytes = ceil_div(length_in_bits, static_cast<size_t>(8));
-    VERIFY(length_in_bytes <= data.size());
-    data.resize(length_in_bytes);
-
-    if (auto remainder_bits = length_in_bits % 8; remainder_bits != 0)
-        data[length_in_bytes - 1] &= ~(0xff >> remainder_bits);
-}
-
-static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u32 const size_in_bits)
-{
-    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(ceil_div(size_in_bits, 8u)));
-    fill_with_random(key_buffer);
-    keep_first_bits(key_buffer, size_in_bits);
-    return key_buffer;
 }
 
 AlgorithmParams::~AlgorithmParams() = default;
@@ -7826,313 +7797,17 @@ FlatPtr web_crypto_cshake_digest(::Crypto::Hash::SHAKEKind kind, ReadonlyBytes d
     return 0;
 }
 
-AeadParams::~AeadParams() = default;
+extern "C" FlatPtr web_crypto_chacha20_poly1305_cipher(bool, ReadonlyBytes, ReadonlyBytes, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
 
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS::Realm& realm, JS::Value value)
+FlatPtr web_crypto_chacha20_poly1305_cipher(bool encrypt, ReadonlyBytes key, ReadonlyBytes iv, ReadonlyBytes input, ReadonlyBytes additional_data, void* state, ReceiveEncodedBytes receive)
 {
-    auto& vm = realm.vm();
-    auto& object = value.as_object();
-
-    auto iv_value = TRY(object.get("iv"_utf16_fly_string));
-    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
-
-    auto maybe_additional_data = Optional<ByteBuffer> {};
-    if (TRY(object.has_property("additionalData"_utf16_fly_string))) {
-        auto additional_data_value = TRY(object.get("additionalData"_utf16_fly_string));
-        if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-        maybe_additional_data = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(additional_data_value.as_object()));
-    }
-
-    auto maybe_tag_length = Optional<u8> {};
-    if (TRY(object.has_property("tagLength"_utf16_fly_string))) {
-        auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
-        maybe_tag_length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, tag_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-    }
-
-    return adopt_own<AlgorithmParams>(*new AeadParams { iv, maybe_additional_data, maybe_tag_length });
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
-WebIDL::ExceptionOr<void> ChaCha20Poly1305::validate_encrypt_parameters(AlgorithmParams const& params) const
-{
-    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
-
-    // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
-    if (normalized_algorithm.iv.size() != 12)
-        return WebIDL::OperationError::create("IV must have a length of 12 bytes"_utf16);
-
-    // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
-    if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
-        return WebIDL::OperationError::create("tagLength must be 128"_utf16);
-
-    return {};
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
-{
-    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
-
-    // NB: Steps 1 and 2 are performed by validate_encrypt_parameters().
-    TRY(validate_encrypt_parameters(params));
-
-    // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
-    auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
-
-    // 4. Let ciphertext be the output that results from performing the AEAD_CHACHA20_POLY1305 encryption algorithm
-    //    described in Section 2.8 of [RFC8439], using the key represented by [[handle]] internal slot of key as the
-    //    key input parameter, the iv member of normalizedAlgorithm as the nonce input parameter, plaintext as the
-    //    plaintext input parameter, and additionalData as the additional authenticated data (AAD) input parameter.
-    VERIFY(key->handle().has<ByteBuffer>());
-    auto const maybe_ciphertext = ::Crypto::Cipher::ChaCha20Poly1305::encrypt(
-        key->handle().get<ByteBuffer>(),
-        normalized_algorithm.iv,
-        plaintext,
-        additional_data);
-
-    if (maybe_ciphertext.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Encryption failed: {}", maybe_ciphertext.error()));
-
-    // 5. Return ciphertext.
-    return maybe_ciphertext.value();
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
-WebIDL::ExceptionOr<void> ChaCha20Poly1305::validate_decrypt_parameters(AlgorithmParams const& params) const
-{
-    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
-
-    // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
-    if (normalized_algorithm.iv.size() != 12)
-        return WebIDL::OperationError::create("IV must have a length of 12 bytes"_utf16);
-
-    // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
-    if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
-        return WebIDL::OperationError::create("tagLength must be 128"_utf16);
-
-    return {};
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
-{
-    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
-
-    // NB: Steps 1 and 2 are performed by validate_decrypt_parameters().
-    TRY(validate_decrypt_parameters(params));
-
-    // 3. If ciphertext has a length less than 128 bits, then throw an OperationError.
-    if (ciphertext.size() < 16)
-        return WebIDL::OperationError::create("Ciphertext must be at least 128 bits"_utf16);
-
-    // 4. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
-    auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
-
-    // 5. Perform the AEAD_CHACHA20_POLY1305 decryption algorithm described in Section 2.8 of [RFC8439], using the key
-    //    represented by [[handle]] internal slot of key as the key input parameter, the iv member of normalizedAlgorithm
-    //    as the nonce input parameter, ciphertext as the ciphertext input parameter, and additionalData as the additional
-    //    authenticated data (AAD) input parameter.
-    VERIFY(key->handle().has<ByteBuffer>());
-    auto const maybe_plaintext = ::Crypto::Cipher::ChaCha20Poly1305::decrypt(
-        key->handle().get<ByteBuffer>(),
-        normalized_algorithm.iv,
-        ciphertext,
-        additional_data);
-
-    // If the result of the algorithm is the indication of authentication failure:
-    //       throw an OperationError
-    //    Otherwise:
-    //       Let plaintext be the resulting plaintext.
-    if (maybe_plaintext.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Decryption failed: {}", maybe_plaintext.error()));
-
-    // 6. Return plaintext.
-    return maybe_plaintext.value();
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ChaCha20Poly1305::generate_key(JS::Realm& realm, AlgorithmParams const&, bool extractable, Vector<KeyUsage> const& key_usages)
-{
-    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
-    for (auto const& usage : key_usages) {
-        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
-            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-    }
-
-    // 2. Generate a 256-bit key.
-    auto key_buffer = TRY(generate_random_key(realm.vm(), 256));
-
-    // 3. If the key generation step fails, then throw an OperationError.
-    // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
-
-    // 4. Let key be a new CryptoKey object representing the generated key.
-    auto key = CryptoKey::create(CryptoKey::InternalKeyData { key_buffer });
-
-    // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(KeyType::Secret);
-
-    // 6. Let algorithm be a new KeyAlgorithm.
-    // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
-    // 8. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(CryptoKey::KeyAlgorithmData { "ChaCha20-Poly1305"_utf16 });
-
-    // 9. Set the [[extractable]] internal slot of key to be extractable.
-    key->set_extractable(extractable);
-
-    // 10. Set the [[usages]] internal slot of key to be the normalized value of usages.
-    key->set_usages(normalized_key_usages(key_usages));
-
-    // 11. Return key.
-    return { key };
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
-{
-    // 1. Let keyData be the key data to be imported.
-
-    // 2. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
-    for (auto const& usage : usages) {
-        if (usage != KeyUsage::Encrypt && usage != KeyUsage::Decrypt && usage != KeyUsage::WrapKey && usage != KeyUsage::UnwrapKey) {
-            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-    }
-
-    ByteBuffer data;
-
-    // 3. If format is "raw-secret":
-    if (format == KeyFormat::RawSecret) {
-        // 1. Let data be keyData.
-        data = move(key_data.get<ByteBuffer>());
-
-        // 2. If the length in bits of data is not 256 then throw a DataError.
-        if (data.size() != 32)
-            return WebIDL::DataError::create("Key data must be 256 bits"_utf16);
-    }
-    // 3. If format is "jwk":
-    else if (format == KeyFormat::Jwk) {
-        // 1. If keyData is a JsonWebKey dictionary:
-        //        Let jwk equal keyData.
-        //    Otherwise:
-        //        Throw a DataError.
-        if (!key_data.has<JsonWebKey>())
-            return WebIDL::DataError::create("Invalid JWK key data"_utf16);
-
-        auto const& jwk = key_data.get<JsonWebKey>();
-
-        // 2. If the kty field of jwk is not "oct", then throw a DataError.
-        if (jwk.kty != "oct"_utf16)
-            return WebIDL::DataError::create("Invalid key type"_utf16);
-
-        // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
-        // NB: Specifically, those requirements are:
-        // - ".k" is a valid bas64url encoded octet stream, which we do by just parsing it, in step 4.
-        // - ".alg" is checked only in step 5.
-
-        // 4. Let data be the octet string obtained by decoding the k field of jwk.
-        data = TRY(parse_jwk_symmetric_key(realm, jwk));
-
-        // 5. If the alg field of jwk is present, and is not "C20P", then throw a DataError.
-        if (jwk.alg.has_value() && jwk.alg.value() != "C20P"_utf16)
-            return WebIDL::DataError::create("Invalid alg field"_utf16);
-
-        // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
-        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_utf16)
-            return WebIDL::DataError::create("Invalid use field"_utf16);
-
-        // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
-        //    or does not contain all of the specified usages values, then throw a DataError.
-        TRY(validate_jwk_key_ops(realm, jwk, usages));
-
-        // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
-        if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create("Invalid ext field"_utf16);
-    }
-    // 2. Otherwise:
-    else {
-        // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create("Only raw-secret and jwk formats are supported"_utf16);
-    }
-
-    // 4. Let key be a new CryptoKey object representing a key with value data.
-    auto key = CryptoKey::create(move(data));
-
-    // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(KeyType::Secret);
-
-    // 6. Let algorithm be a new KeyAlgorithm.
-    // 7. Set the name attribute of algorithm to "ChaCha20-Poly1305".
-    // 8. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(CryptoKey::KeyAlgorithmData { "ChaCha20-Poly1305"_utf16 });
-
-    // 9. Return key.
-    return key;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-export-key
-WebIDL::ExceptionOr<ExportKeyResult> ChaCha20Poly1305::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
-{
-    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-    // Note: In our impl this is always accessible
-
-    Optional<ExportKeyResult> result;
-
-    // 2. If format is "raw-secret":
-    if (format == KeyFormat::RawSecret) {
-        // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
-        auto data = key->handle().get<ByteBuffer>();
-
-        // 2. Let result be data.
-        result = ExportKeyResult { data };
-    }
-    // 2. If format is "jwk":
-    else if (format == KeyFormat::Jwk) {
-        // 1. Let jwk be a new JsonWebKey dictionary.
-        JsonWebKey jwk = {};
-
-        // 2. Set the kty attribute of jwk to the string "oct".
-        jwk.kty = "oct"_utf16;
-
-        // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
-        //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
-        auto const& key_bytes = key->handle().get<ByteBuffer>();
-        jwk.k = Utf16String::from_utf8(TRY_OR_THROW_OOM(realm.vm(), encode_base64url(key_bytes, AK::OmitPadding::Yes)));
-
-        // 4. Set the alg attribute of jwk to the string "C20P".
-        jwk.alg = "C20P"_utf16;
-
-        // 5. Set the key_ops attribute of jwk to the usages attribute of key.
-        jwk.key_ops = Vector<Utf16String> {};
-        jwk.key_ops->ensure_capacity(key->internal_usages().size());
-        for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Utf16String::from_utf8(key_usage_to_string(usage)));
-        }
-
-        // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
-        jwk.ext = key->extractable();
-
-        // 7. Let result be jwk.
-        return ExportKeyResult { move(jwk) };
-    }
-    // 2. Otherwise:
-    else {
-        // 1. throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create("Cannot export to unsupported format"_utf16);
-    }
-
-    // 3. Return result.
-    return result.release_value();
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-get-key-length
-WebIDL::ExceptionOr<Optional<u32>> ChaCha20Poly1305::get_key_length(JS::Realm&, AlgorithmParams const&)
-{
-    // 1. Return 256.
-    return 256;
+    auto result = encrypt
+        ? ::Crypto::Cipher::ChaCha20Poly1305::encrypt(key, iv, input, additional_data)
+        : ::Crypto::Cipher::ChaCha20Poly1305::decrypt(key, iv, input, additional_data);
+    if (result.is_error())
+        return Utf16String::formatted("{}", result.error()).into_raw();
+    receive(state, result.value());
+    return 0;
 }
 
 extern "C" {

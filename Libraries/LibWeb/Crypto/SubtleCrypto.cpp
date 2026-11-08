@@ -27,7 +27,6 @@ enum class AlgorithmId : u8 {
     ED448,
     MLDSA,
     MLKEM,
-    ChaCha20Poly1305,
 };
 
 enum class ParameterId : u8 {
@@ -42,7 +41,6 @@ enum class ParameterId : u8 {
     EcdhKeyDeriveParams,
     Ed448Params,
     ContextParams,
-    AeadParams,
 };
 
 struct RawRsaOtherPrimesInfo {
@@ -233,8 +231,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return MLDSA::create();
         case AlgorithmId::MLKEM:
             return MLKEM::create();
-        case AlgorithmId::ChaCha20Poly1305:
-            return ChaCha20Poly1305::create();
         }
         VERIFY_NOT_REACHED();
     }();
@@ -263,8 +259,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return Ed448Params::from_value(realm, object);
         case ParameterId::ContextParams:
             return ContextParams::from_value(realm, object);
-        case ParameterId::AeadParams:
-            return AeadParams::from_value(realm, object);
         }
         VERIFY_NOT_REACHED();
     }();
