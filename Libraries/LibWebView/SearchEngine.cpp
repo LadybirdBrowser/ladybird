@@ -43,14 +43,14 @@ String SearchEngine::format_search_query_for_display(StringView query) const
 
 String SearchEngine::format_search_query_for_navigation(StringView query) const
 {
-    return MUST(query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All));
+    return MUST(query_url.replace("%s"sv, URL::percent_encode(query, URL::PercentEncodeSet::Component), ReplaceMode::All));
 }
 
 Optional<URL::URL> SearchEngine::suggestions_url_for_query(StringView query) const
 {
     if (!suggestions.has_value())
         return {};
-    return URL::Parser::basic_parse(MUST(suggestions->query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All)));
+    return URL::Parser::basic_parse(MUST(suggestions->query_url.replace("%s"sv, URL::percent_encode(query, URL::PercentEncodeSet::Component), ReplaceMode::All)));
 }
 
 }
