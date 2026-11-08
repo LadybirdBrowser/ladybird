@@ -1,0 +1,6 @@
+Ladybird fits an SVG image element’s image to the element’s rectangle as
+its preserveAspectRatio says, taking the image’s natural size as its
+view box. All three other engines do the same: Gecko’s SVGImageFrame
+with SVGContentUtils::GetViewBoxTransform(), WebKit’s RenderSVGImage
+with calculateSVGImagePlacement(), and Blink’s SVGImagePainter with
+SVGPreserveAspectRatio::TransformRect().
