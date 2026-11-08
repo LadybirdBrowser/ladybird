@@ -2848,7 +2848,8 @@ bool Element::is_void_element() const
 // https://html.spec.whatwg.org/multipage/parsing.html#serializes-as-void
 bool Element::serializes_as_void() const
 {
-    return is_void_element() || local_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::frame, HTML::TagNames::keygen);
+    return is_html_element()
+        && (is_void_element() || local_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::frame, HTML::TagNames::keygen));
 }
 
 template<typename QueryResult>

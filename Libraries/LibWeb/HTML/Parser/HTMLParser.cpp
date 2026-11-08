@@ -2313,8 +2313,8 @@ Utf16String HTMLParser::serialize_html_fragment(DOM::Node const& node, Serializa
             auto& text_node = as<DOM::Text>(current_node);
             auto* parent = current_node.parent();
 
-            if (is<DOM::Element>(parent)) {
-                auto& parent_element = as<DOM::Element>(*parent);
+            if (is<HTML::HTMLElement>(parent)) {
+                auto& parent_element = as<HTML::HTMLElement>(*parent);
 
                 // If the parent of current node is a style, script, xmp, iframe, noembed, noframes, or plaintext element,
                 // or if the parent of current node is a noscript element and scripting is enabled for the node, then append the value of current node's data IDL attribute literally.

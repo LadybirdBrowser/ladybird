@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rawTextNames = ["style", "script", "xmp", "iframe", "noembed", "noframes", "plaintext", "noscript"];
+        const namespaces = [
+            ["html", "http://www.w3.org/1999/xhtml"],
+            ["svg", "http://www.w3.org/2000/svg"],
+            ["math", "http://www.w3.org/1998/Math/MathML"],
+        ];
+        for (const [prefix, namespace] of namespaces) {
+            for (const name of rawTextNames) {
+                const div = document.createElement("div");
+                const element = document.createElementNS(namespace, name);
+                element.textContent = "</svg><img>";
+                div.append(element);
+                println(`${prefix} ${name}: ${div.innerHTML}`);
+            }
+        }
+
+        for (const name of ["noscript", "xmp", "noembed", "noframes", "plaintext", "style"]) {
+            const div = document.createElement("div");
+            div.innerHTML = `<svg><${name}>&lt;/svg&gt;&lt;img&gt;</${name}></svg>`;
+            const reparsed = document.createElement("div");
+            reparsed.innerHTML = div.innerHTML;
+            println(`svg ${name} round trip: ${reparsed.innerHTML}, img count ${reparsed.querySelectorAll("img").length}`);
+        }
+
+        for (const name of ["link", "input", "basefont"]) {
+            const div = document.createElement("div");
+            const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+            element.textContent = "text";
+            div.append(element);
+            println(`svg ${name}: ${div.innerHTML}`);
+        }
+    });
+</script>
