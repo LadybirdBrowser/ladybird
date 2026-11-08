@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <LibGC/CaptureTraits.h>
 #include <LibGC/Cell.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/Ptr.h>
@@ -57,11 +59,51 @@ struct RootableValueTraits<Ptr<T>> {
     }
 };
 
+// Records every cell that a traced value visits as a root.
+class GC_API RootGatheringVisitor final : public Cell::Visitor {
+public:
+    RootGatheringVisitor(HashMap<Cell*, HeapRoot>& roots, HeapRoot::Type root_type)
+        : m_roots(roots)
+        , m_root_type(root_type)
+    {
+    }
+
+    virtual void visit_possible_values(ReadonlyBytes) override;
+
+private:
+    virtual void visit_impl(Cell&) override;
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue>) override;
+
+    HashMap<Cell*, HeapRoot>& m_roots;
+    HeapRoot::Type m_root_type;
+};
+
+// A root container holds cells, values that may be cells, or values whose cells their visit_edges() names. Such a
+// value follows the rules of what a GC::Function captures: everything in it is traced or holds no cell edges, and it
+// holds no root of its own.
+template<typename T>
+inline constexpr bool IsRootableValue = RootableValueTraits<T>::is_rootable || (IsCapturable<T> && !IsUntracedCapture<T>::value);
+
 template<typename T>
 static void gather_root(HashMap<Cell*, GC::HeapRoot>& roots, T const& value, HeapRoot::Type root_type)
 {
-    if (auto* cell = RootableValueTraits<T>::cell(value))
-        roots.set(cell, HeapRoot { .type = root_type });
+    if constexpr (RootableValueTraits<T>::is_rootable) {
+        if (auto* cell = RootableValueTraits<T>::cell(value))
+            roots.set(cell, HeapRoot { .type = root_type });
+    } else if constexpr (IsSpecializationOf<T, Variant>) {
+        // NB: The alternatives are rooted as they are rather than visited, which needs no type of a cell among them to
+        //     be complete wherever a vector of them is.
+        value.visit([&](auto const& alternative) {
+            if constexpr (IsRootableValue<RemoveCVReference<decltype(alternative)>>)
+                gather_root(roots, alternative, root_type);
+        });
+    } else if constexpr (IsSpecializationOf<T, Optional>) {
+        if (value.has_value())
+            gather_root(roots, value.value(), root_type);
+    } else {
+        RootGatheringVisitor visitor { roots, root_type };
+        visit_capture_member(visitor, value);
+    }
 }
 
 }

@@ -35,6 +35,12 @@ struct State {
 
 struct DerivedState : State { };
 
+struct TracedState {
+    Vector<GC::Ref<GC::Cell>> cells;
+
+    void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(cells); }
+};
+
 struct DerivedEntry : Entry { };
 
 struct EntryWithArray {
@@ -166,6 +172,8 @@ void rooted_or_not_holding_gc_pointers(State& state)
     GC::RootVector<GC::Ref<GC::Cell>> root_groups[2];
     Vector<GC::Root<GC::Cell>> roots;
     GC::ConservativeVector<Entry> conservative_entries;
+    GC::RootVector<TracedState> traced_states;
+    GC::RootHashMap<int, TracedState> traced_state_map;
     GC::RootHashMap<int, GC::Ref<GC::Cell>> root_map;
     GC::RootHashTable<GC::Ptr<GC::Cell>> root_table;
     Vector<GC::RawPtr<GC::Cell>> raw_ptrs;

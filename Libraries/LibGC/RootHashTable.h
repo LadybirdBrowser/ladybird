@@ -88,8 +88,8 @@ public:
 
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
-        static_assert(Detail::RootableValueTraits<T>::is_rootable,
-            "RootHashTable element type must be convertible to Cell const* or derive from NanBoxedValue");
+        static_assert(Detail::IsRootableValue<T>,
+            "RootHashTable element type must be a cell, derive from NanBoxedValue, or be a traced value");
         for (auto& value : *this)
             Detail::gather_root(roots, value, HeapRoot::Type::RootHashTable);
     }
