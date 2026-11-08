@@ -794,7 +794,11 @@ def implementation_method_signatures(
                 signatures.append(f"fn {attribute.setter_method}(&self, cx: &mut CallContext, value: Value)")
             continue
         if not attribute.attribute.inherit:
-            result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
+            result_type = (
+                "Value"
+                if attribute.returns_js_value
+                else rust_type(attribute.attribute.type, context, what, is_result=True)
+            )
             signatures.append(
                 f"fn {attribute.getter_method}(&self, cx: &mut CallContext) -> WebIdlResult<{result_type}>"
             )
@@ -1273,7 +1277,11 @@ def write_rust_interface(
         if attribute.event_type is not None:
             write_rust_event_handler_attribute(out, attribute)
             continue
-        conversion = rust_to_js_value(attribute.attribute.type, "result", "&cx", context, f"{interface.name}.{name}")
+        conversion = (
+            "Ok(result)"
+            if attribute.returns_js_value
+            else rust_to_js_value(attribute.attribute.type, "result", "&cx", context, f"{interface.name}.{name}")
+        )
         call = f"Implementation::{attribute.getter_method}(&implementation, &mut cx)"
         if attribute.attribute.inherit:
             call = inherited_attribute_getter_call(context, interface, attribute)
@@ -1514,7 +1522,11 @@ def namespace_function_signatures(context: GenerationContext, interface: Interfa
     signatures = []
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
-        result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
+        result_type = (
+            "Value"
+            if attribute.returns_js_value
+            else rust_type(attribute.attribute.type, context, what, is_result=True)
+        )
         signatures.append(f"fn {attribute.getter_method}(cx: &mut CallContext) -> WebIdlResult<{result_type}>")
     for operation_set in members.operation_sets:
         for overload in operation_set.overloads:
@@ -1566,7 +1578,11 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
     )
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
-        conversion = rust_to_js_value(attribute.attribute.type, "result", "&cx", context, what)
+        conversion = (
+            "Ok(result)"
+            if attribute.returns_js_value
+            else rust_to_js_value(attribute.attribute.type, "result", "&cx", context, what)
+        )
         out.write(
             f"""
     fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
