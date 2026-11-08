@@ -16,9 +16,10 @@
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
+#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibWasm/Export.h>
 
 namespace Wasm::FFI {
@@ -70,22 +71,32 @@ struct ValueType {
     static constexpr ValueType reference(HeapKind heap, bool nullable = true) { return { ValueKind::Reference, heap, nullable, 0 }; }
 };
 
+// How the garbage collector follows a value. A function reference points into its function's cell, while any other
+// reference is null, an i31, the address of a cell, or the address of a host value's cell with bit 1 set.
+enum class ValueTrace : u8 {
+    None,
+    Reference,
+    FunctionReference,
+};
+
 // A value. i32 and f32 bits are zero-extended in `low`, a v128 is `low` and `high`, and a reference is its bits, which
 // are zero for null.
-struct Value {
+struct WASM_API Value {
     ValueKind kind { ValueKind::I32 };
+    ValueTrace trace { ValueTrace::None };
     u64 low { 0 };
     u64 high { 0 };
 
-    static Value from_i32(i32 value) { return { ValueKind::I32, static_cast<u32>(value), 0 }; }
-    static Value from_i64(i64 value) { return { ValueKind::I64, static_cast<u64>(value), 0 }; }
-    static Value from_f32_bits(u32 bits) { return { ValueKind::F32, bits, 0 }; }
-    static Value from_f64_bits(u64 bits) { return { ValueKind::F64, bits, 0 }; }
+    static Value from_i32(i32 value) { return { ValueKind::I32, ValueTrace::None, static_cast<u32>(value), 0 }; }
+    static Value from_i64(i64 value) { return { ValueKind::I64, ValueTrace::None, static_cast<u64>(value), 0 }; }
+    static Value from_f32_bits(u32 bits) { return { ValueKind::F32, ValueTrace::None, bits, 0 }; }
+    static Value from_f64_bits(u64 bits) { return { ValueKind::F64, ValueTrace::None, bits, 0 }; }
     static Value from_f32(float value) { return from_f32_bits(bit_cast<u32>(value)); }
     static Value from_f64(double value) { return from_f64_bits(bit_cast<u64>(value)); }
-    static Value from_v128(u64 low, u64 high) { return { ValueKind::V128, low, high }; }
-    static Value from_reference(u64 bits) { return { ValueKind::Reference, bits, 0 }; }
-    static Value default_for(ValueType type) { return { type.kind, 0, 0 }; }
+    static Value from_v128(u64 low, u64 high) { return { ValueKind::V128, ValueTrace::None, low, high }; }
+    // A reference that is not a function reference, which only the store makes (see Store::function_reference()).
+    static Value from_reference(u64 bits) { return { ValueKind::Reference, ValueTrace::Reference, bits, 0 }; }
+    static Value default_for(ValueType type) { return { type.kind, ValueTrace::None, 0, 0 }; }
 
     i32 to_i32() const { return static_cast<i32>(static_cast<u32>(low)); }
     i64 to_i64() const { return static_cast<i64>(low); }
@@ -95,6 +106,8 @@ struct Value {
     double to_f64() const { return bit_cast<double>(f64_bits()); }
     u64 reference_bits() const { return low; }
     bool is_null_reference() const { return low == 0; }
+
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 enum class ExternKind : u8 {
@@ -135,6 +148,8 @@ struct ExternType {
 };
 
 struct FunctionType {
+    GC_HOLDS_NO_CELL_EDGES;
+
     Vector<ValueType> parameters;
     Vector<ValueType> results;
 };
@@ -150,8 +165,8 @@ struct InstanceExport {
     Extern value;
 };
 
-// Values that may be references to cells, which the garbage collector finds while the vector lives.
-using Values = GC::ConservativeVector<Value, 8>;
+// Values that may be references to cells, which the garbage collector keeps alive while the vector lives.
+using Values = GC::RootVector<Value, 8>;
 
 // A compiled module, which can be shared across threads and instantiated in any store.
 class WASM_API Module : public AtomicRefCounted<Module> {
@@ -210,11 +225,11 @@ public:
     explicit Store(GC::Heap&);
     ~Store();
 
-    // A host function writes one result for each result of its type, or returns an error to trap or throw. Its
-    // function visits the cells it captures, so it must not capture roots.
-    using HostFunction = Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
+    // A host function writes one result for each result of its type, or returns an error to trap or throw. The
+    // function it is made of lives as long as the function is in the store.
+    using HostFunction = GC::Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
 
-    Entity allocate_host_function(FunctionType const&, HostFunction);
+    Entity allocate_host_function(FunctionType const&, GC::Ref<HostFunction>);
     Optional<Entity> allocate_memory(Limits);
     Optional<Entity> allocate_table(ValueType element, Limits, u64 initial);
     Entity allocate_global(ValueType, bool is_mutable, Value);
@@ -226,7 +241,8 @@ public:
 
     FunctionType function_type(Entity function);
     ErrorOr<Values, Failure> invoke(Entity function, ReadonlySpan<Value> arguments);
-    u64 function_reference(Entity function);
+    // A reference to the function, which the garbage collector follows into the function's cell.
+    Value function_reference(Entity function);
     // The function a non-null function reference refers to.
     Entity function_from_reference(u64 reference);
 

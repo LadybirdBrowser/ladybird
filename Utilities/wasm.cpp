@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/GenericLexer.h>
 #include <AK/Hex.h>
 #include <AK/JsonArray.h>
@@ -402,7 +403,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             if (result_kind.has_value())
                 function_type.results.append(ValueType::scalar(*result_kind));
 
-            auto host_function = store.allocate_host_function(function_type, [&vm, &realm, function, &store, &main_instance, function_type, name](Wasm::Runtime::Store&, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results) mutable -> ErrorOr<void, HostError> {
+            auto host_function = store.allocate_host_function(function_type, GC::create_function(vm->heap(), GC::captures(realm, function, make_ref_counted<ReentryTarget>(store, main_instance), function_type, name), [](auto& realm, auto& function, auto& target, auto& function_type, auto& name, Wasm::Runtime::Store&, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results) -> ErrorOr<void, HostError> {
+                auto& vm = realm.vm();
                 GC::RootVector<JS::Value> js_arguments;
                 for (size_t index = 0; index < arguments.size(); ++index) {
                     auto argument = arguments[index];
@@ -421,7 +423,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         break;
                     case ValueKind::V128: {
                         u64 halves[2] = { argument.low, argument.high };
-                        js_arguments.append(JS::BigInt::create(*vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }) }));
+                        js_arguments.append(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }) }));
                         break;
                     }
                     case ValueKind::Reference:
@@ -431,9 +433,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
                 // The function's `this` can call back into the main instance's exports.
                 auto reentry_this = JS::Object::create(realm, realm.intrinsics().object_prototype());
-                auto reentry = make_ref_counted<ReentryTarget>(store, main_instance);
                 auto invoke = JS::NativeFunction::create(
-                    realm, GC::create_function(vm->heap(), GC::captures(reentry), [](NonnullRefPtr<ReentryTarget>& reentry, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                    realm, GC::create_function(vm.heap(), GC::captures(target), [](NonnullRefPtr<ReentryTarget>& reentry, JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
                         auto& store = reentry->store;
                         auto& main_instance = reentry->main_instance;
                         if (!main_instance)
@@ -487,9 +488,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     1, "invoke"_utf16);
                 reentry_this->define_direct_property("invoke"_utf16, invoke, JS::default_attributes);
 
-                auto result = JS::call(*vm, function, reentry_this, js_arguments.span());
+                auto result = JS::call(vm, function, reentry_this, js_arguments.span());
                 if (result.is_error()) {
-                    warnln("JS exception: {}", MUST(result.error_value().to_utf16_string(*vm)));
+                    warnln("JS exception: {}", MUST(result.error_value().to_utf16_string(vm)));
                     return HostError { "JS exception" };
                 }
                 if (function_type.results.is_empty())
@@ -499,15 +500,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 auto converted = [&]() -> JS::ThrowCompletionOr<WasmValue> {
                     switch (function_type.results.first().kind) {
                     case ValueKind::I32:
-                        return WasmValue::from_i32(static_cast<i32>(TRY(value.to_u32(*vm))));
+                        return WasmValue::from_i32(static_cast<i32>(TRY(value.to_u32(vm))));
                     case ValueKind::I64:
-                        return WasmValue::from_i64(static_cast<i64>(TRY(value.to_bigint_uint64(*vm))));
+                        return WasmValue::from_i64(static_cast<i64>(TRY(value.to_bigint_uint64(vm))));
                     case ValueKind::F32:
-                        return WasmValue::from_f32(static_cast<float>(TRY(value.to_double(*vm))));
+                        return WasmValue::from_f32(static_cast<float>(TRY(value.to_double(vm))));
                     case ValueKind::F64:
-                        return WasmValue::from_f64(TRY(value.to_double(*vm)));
+                        return WasmValue::from_f64(TRY(value.to_double(vm)));
                     case ValueKind::V128: {
-                        auto bigint = TRY(value.to_bigint(*vm));
+                        auto bigint = TRY(value.to_bigint(vm));
                         u64 halves[2] = {};
                         (void)bigint->big_integer().unsigned_value().export_data({ reinterpret_cast<u8*>(halves), sizeof(halves) });
                         return WasmValue::from_v128(halves[0], halves[1]);
@@ -523,7 +524,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 }
                 results[0] = converted.release_value();
                 return {};
-            });
+            }));
             js_exports.set({ module, function_name }, { ExternKind::Function, keep(host_function) });
             return true;
         },
@@ -647,7 +648,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     auto type = module_to_link.function_type(import.type.type_index);
                     if (!type.has_value())
                         break;
-                    stub = store.allocate_host_function(*type, [name = ByteString(import.name), type = *type](auto&, ReadonlySpan<WasmValue> stub_arguments, Span<WasmValue>) -> ErrorOr<void, HostError> {
+                    // NB: A host function's concrete types are identities of the store, which the types of a module
+                    //     that is not instantiated yet have none of.
+                    auto names_a_concrete_type = [](ValueType value_type) { return value_type.kind == ValueKind::Reference && value_type.heap == Wasm::Runtime::HeapKind::Concrete; };
+                    if (any_of(type->parameters, names_a_concrete_type) || any_of(type->results, names_a_concrete_type)) {
+                        warnln("Cannot stub import {} of a type that names a type of its module", import.name);
+                        break;
+                    }
+                    stub = store.allocate_host_function(*type, GC::create_function(vm->heap(), GC::captures(ByteString(import.name), *type), [](auto& name, auto& type, Wasm::Runtime::Store&, ReadonlySpan<WasmValue> stub_arguments, Span<WasmValue>) -> ErrorOr<void, HostError> {
                         StringBuilder builder;
                         for (size_t argument = 0; argument < stub_arguments.size(); ++argument) {
                             if (argument != 0)
@@ -656,7 +664,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         }
                         dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, builder.string_view());
                         return {};
-                    });
+                    }));
                     break;
                 }
                 case ExternKind::Table:

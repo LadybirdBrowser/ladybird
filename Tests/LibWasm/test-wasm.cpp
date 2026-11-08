@@ -218,10 +218,10 @@ private:
             return s_spec_test_namespace;
 
         auto add_print = [](StringView name, Vector<ValueType> parameters) {
-            auto address = keep(store().allocate_host_function({ move(parameters), {} }, [](auto&, auto, auto) -> ErrorOr<void, Wasm::Runtime::HostError> {
+            auto address = keep(store().allocate_host_function({ move(parameters), {} }, GC::create_function(GC::Heap::the(), [](Store&, ReadonlySpan<Value>, Span<Value>) -> ErrorOr<void, Wasm::Runtime::HostError> {
                 // Noop, this just needs to exist.
                 return {};
-            }));
+            })));
             s_spec_test_namespace.set({ "spectest", name }, { ExternKind::Function, address });
         };
         auto i32 = ValueType::scalar(ValueKind::I32);
@@ -547,7 +547,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     auto address = function_entity(TRY(vm.argument(0).to_double(vm)));
     auto type = store().function_type(address);
 
-    Vector<Value> arguments;
+    Values arguments;
     if (type.parameters.size() + 1 > vm.argument_count())
         return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Expected {} arguments for call, but found {}", type.parameters.size() + 1, vm.argument_count()));
     size_t index = 1;
@@ -595,7 +595,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             switch (parameter.heap) {
             case HeapKind::Function:
-                arguments.append(Value::from_reference(store().function_reference(function_entity(double_value))));
+                arguments.append(store().function_reference(function_entity(double_value)));
                 break;
             case HeapKind::Extern:
             case HeapKind::Any:

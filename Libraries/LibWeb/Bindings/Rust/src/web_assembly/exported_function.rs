@@ -166,6 +166,7 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
     // 5. Let args be « ».
     // NB: The converted arguments may refer to new cells, which the cell of the arguments keeps alive during the call.
     let args = WasmValues::allocate(vm);
+    let arg_traces = WasmValues::traces_of(vm, parameters);
 
     // 6. Let i be 0.
     // 7. For each t of parameters,
@@ -176,7 +177,7 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
 
         // 3. Append ? ToWebAssemblyValue(arg, t) to args.
         let arg = to_webassembly_value(vm, arg, t)?;
-        args.0.borrow_mut().push(arg);
+        args.push(arg, arg_traces[i]);
 
         // 4. Set i to i + 1.
     }
@@ -186,7 +187,7 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
 
     // 8. Let (store, ret) be the result of func_invoke(store, funcaddr, args).
     // 9. Set the surrounding agent's associated store to store.
-    let result = Agent::the(vm).store().invoke(function.function.0, &args.0.borrow());
+    let result = Agent::the(vm).store().invoke(function.function.0, &args.values());
     // NB: Using the Gc after the call keeps the arguments where the conservative scan finds them until it has returned.
     core::hint::black_box(args);
 
@@ -195,7 +196,7 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
     // 11. If ret is of the form exception exnaddr, then
     // NB: throw_of_trap() throws what an error or an exception throws.
     match result {
-        Ok(values) => *ret.0.borrow_mut() = values,
+        Ok(values) => ret.set(vm, values, results),
         Err(trap) => return Err(throw_of_trap(vm, trap)),
     }
 
@@ -207,7 +208,7 @@ fn call_an_exported_function(vm: &Vm, function: &ExportedFunction) -> ThrowCompl
     //     2. For each r of ret,
     //         1. Append ToJSValue(r) to values.
     //     3. Return CreateArrayFromList(values).
-    let result = results_to_js_value(vm, &ret.0.borrow(), results);
+    let result = results_to_js_value(vm, &ret.values(), results);
     // NB: Using the Gc after the conversion keeps the results where the conservative scan finds them until it is done.
     core::hint::black_box(ret);
     result
@@ -328,6 +329,7 @@ fn run_a_host_function(
 
     // NB: Converting subsequent results can collect garbage, so keep earlier reference results in a traced cell.
     let converted = WasmValues::allocate(vm);
+    let result_traces = WasmValues::traces_of(vm, results);
 
     // 9. Otherwise,
     {
@@ -367,12 +369,12 @@ fn run_a_host_function(
                 values.get(index).expect("the list has a value per result"),
                 result_type,
             )?;
-            converted.0.borrow_mut().push(value);
+            converted.push(value, result_traces[index]);
         }
 
         // 7. Return wasmValues.
     }
-    Ok(converted.0.take())
+    Ok(converted.take())
 }
 
 /// https://webassembly.github.io/spec/js-api/#create-a-host-function

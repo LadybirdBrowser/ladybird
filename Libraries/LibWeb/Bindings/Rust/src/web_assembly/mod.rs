@@ -51,7 +51,7 @@ use libwasm_engine::Module as CoreModule;
 use libwasm_engine::runtime::entity::{Entity, Handle};
 use libwasm_engine::runtime::heap::{CellTypeInfo, GcInterface, GcLayout, PrimitiveStorageLayout};
 use libwasm_engine::runtime::{InstantiationError, Store, TagAddress, Trap, Value as WasmValue};
-use libwasm_engine::types::FuncType;
+use libwasm_engine::types::{FuncType, ValType};
 
 use crate::bindings::conversions::BufferSource;
 use crate::bindings::interface::{Interface, Ref, Wrapped, implementation_if_wrapper};
@@ -152,10 +152,15 @@ unsafe impl Trace for CellReference {
     }
 }
 
-/// Values of the store, which may be references that keep cells alive where they are traced, as a conservative scan
-/// of the values would. They live in a cell of their own, which a Gc in a local keeps alive. As allocating the cell can
-/// collect garbage, it is allocated empty, before there are values for it to keep alive.
-pub(crate) struct WasmValues(pub(crate) RefCell<Vec<WasmValue>>);
+/// Values of the store, which may be references that keep cells alive where they are traced. Each is traced as the type
+/// it was made for says, which a function reference needs, as it points into its function's cell. They live in a cell of
+/// their own, which a Gc in a local keeps alive. As allocating the cell can collect garbage, it is allocated empty,
+/// before there are values for it to keep alive.
+pub(crate) struct WasmValues {
+    values: RefCell<Vec<WasmValue>>,
+    /// How the collector follows each value, as the store's trace_of() says.
+    traces: RefCell<Vec<u8>>,
+}
 
 static WASM_VALUES_CLASS: EmbedderClass<WasmValues> = EmbedderClass::new("WasmValues");
 
@@ -165,24 +170,50 @@ impl EmbedderValue for WasmValues {
 
 impl WasmValues {
     pub(crate) fn allocate(vm: &Vm) -> Gc<EmbedderCell<WasmValues>> {
-        WASM_VALUES_CLASS.allocate(vm, |_| WasmValues(RefCell::default()))
+        WASM_VALUES_CLASS.allocate(vm, |_| WasmValues {
+            values: RefCell::default(),
+            traces: RefCell::default(),
+        })
+    }
+
+    /// How the collector follows values of `types`, for push().
+    pub(crate) fn traces_of(vm: &Vm, types: &[ValType]) -> Vec<u8> {
+        let store = Agent::the(vm).store();
+        types.iter().map(|&ty| store.trace_of(ty)).collect()
+    }
+
+    /// Appends a value, which the collector follows as `trace` says.
+    pub(crate) fn push(&self, value: WasmValue, trace: u8) {
+        self.values.borrow_mut().push(value);
+        self.traces.borrow_mut().push(trace);
+    }
+
+    /// Replaces the values with ones of the types `types`.
+    pub(crate) fn set(&self, vm: &Vm, values: Vec<WasmValue>, types: &[ValType]) {
+        *self.traces.borrow_mut() = Self::traces_of(vm, types);
+        *self.values.borrow_mut() = values;
+    }
+
+    pub(crate) fn values(&self) -> core::cell::Ref<'_, Vec<WasmValue>> {
+        self.values.borrow()
+    }
+
+    pub(crate) fn take(&self) -> Vec<WasmValue> {
+        self.traces.take();
+        self.values.take()
     }
 }
 
-// SAFETY: Every cell the values refer to is at an address in their bits, which this visits as a possible value. Only
-//         the edges of a cell may be visited so, which is why the values live in one.
+// SAFETY: Every reference among the values is traced as the type it was made for says.
 unsafe impl Trace for WasmValues {
     fn trace(&self, visitor: &mut Visitor) {
-        for value in self.0.borrow().iter() {
-            let (slots, count) = value.to_slots();
-            // SAFETY: The visitor is live while it traces, and the slots are plain data.
-            unsafe {
-                gc_visitor_visit_possible_values(
-                    visitor.as_raw().cast(),
-                    slots.as_ptr().cast(),
-                    count * size_of::<u64>(),
-                );
-            };
+        let wasm_visitor = libwasm_engine::runtime::heap::Visitor::new(visitor.as_raw().cast());
+        let (values, traces) = (self.values.borrow(), self.traces.borrow());
+        debug_assert_eq!(values.len(), traces.len());
+        for (value, &trace) in values.iter().zip(traces.iter()) {
+            if let WasmValue::Ref(bits) = *value {
+                wasm_visitor.visit_value(bits, trace);
+            }
         }
     }
 }

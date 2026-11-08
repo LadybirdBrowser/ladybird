@@ -43,6 +43,7 @@ static_assert(offsetof(ValueType, nullable) == offsetof(FFI::WasmValueType, null
 static_assert(offsetof(ValueType, type_index) == offsetof(FFI::WasmValueType, type_index));
 static_assert(sizeof(Value) == sizeof(FFI::WasmValue));
 static_assert(offsetof(Value, kind) == offsetof(FFI::WasmValue, kind));
+static_assert(offsetof(Value, trace) == offsetof(FFI::WasmValue, trace));
 static_assert(offsetof(Value, low) == offsetof(FFI::WasmValue, low));
 static_assert(offsetof(Value, high) == offsetof(FFI::WasmValue, high));
 static_assert(sizeof(Limits) == sizeof(FFI::WasmLimits));
@@ -57,6 +58,12 @@ static_assert(offsetof(ExternType, type_index) == offsetof(FFI::WasmExternType, 
 static_assert(offsetof(ExternType, limits) == offsetof(FFI::WasmExternType, limits));
 static_assert(offsetof(ExternType, value_type) == offsetof(FFI::WasmExternType, value_type));
 static_assert(offsetof(ExternType, is_mutable) == offsetof(FFI::WasmExternType, mutable_));
+
+void Value::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    // NB: LibGC's C interface passes its Cell::Visitor as the visitor.
+    FFI::wasm_visitor_visit_value(&visitor, bit_cast<FFI::WasmValue>(*this));
+}
 
 static FFI::WasmValueType to_ffi(ValueType type) { return bit_cast<FFI::WasmValueType>(type); }
 static FFI::WasmValue to_ffi(Value value) { return bit_cast<FFI::WasmValue>(value); }
@@ -189,7 +196,7 @@ struct HostFunctionData {
     AK_ALLOC_WITH_KMALLOC;
 
     Store& store;
-    Store::HostFunction function;
+    GC::Ref<Store::HostFunction> function;
 };
 
 }
@@ -199,7 +206,7 @@ static FFI::WasmStatus call_host_function(void* user_data, FFI::WasmStore*, FFI:
     auto& data = *static_cast<HostFunctionData*>(user_data);
     ReadonlySpan<Value> argument_span { reinterpret_cast<Value const*>(arguments), argument_count };
     Span<Value> result_span { reinterpret_cast<Value*>(results), result_count };
-    auto result = data.function(data.store, argument_span, result_span);
+    auto result = (*data.function)(data.store, argument_span, result_span);
     if (!result.is_error())
         return FFI::WasmStatus::Ok;
     *error = make_string(result.error().message);
@@ -210,7 +217,7 @@ static void visit_host_function(void* user_data, void* visitor)
 {
     // NB: LibGC's C interface passes its Cell::Visitor as the visitor.
     auto& data = *static_cast<HostFunctionData*>(user_data);
-    static_cast<GC::Cell::Visitor*>(visitor)->visit_possible_values(data.function.raw_capture_range());
+    static_cast<GC::Cell::Visitor*>(visitor)->visit(data.function);
 }
 
 static void release_host_function(void* user_data)
@@ -218,7 +225,7 @@ static void release_host_function(void* user_data)
     delete static_cast<HostFunctionData*>(user_data);
 }
 
-Entity Store::allocate_host_function(FunctionType const& type, HostFunction function)
+Entity Store::allocate_host_function(FunctionType const& type, GC::Ref<HostFunction> function)
 {
     Vector<FFI::WasmValueType> parameters;
     Vector<FFI::WasmValueType> results;
@@ -226,7 +233,9 @@ Entity Store::allocate_host_function(FunctionType const& type, HostFunction func
         parameters.append(to_ffi(parameter));
     for (auto result : type.results)
         results.append(to_ffi(result));
-    auto* data = new HostFunctionData { *this, move(function) };
+    auto* data = new HostFunctionData { *this, function };
+    // NB: Allocating the function's cell can collect garbage, and only the cell visits the GC::Function once it exists.
+    auto function_root = GC::make_root(function);
     return entity_from_ffi(FFI::wasm_store_allocate_host_function(m_store, parameters.data(), parameters.size(), results.data(), results.size(), call_host_function, visit_host_function, release_host_function, data));
 }
 
@@ -328,9 +337,9 @@ ErrorOr<Values, Failure> Store::invoke(Entity function, ReadonlySpan<Value> argu
     return results;
 }
 
-u64 Store::function_reference(Entity function)
+Value Store::function_reference(Entity function)
 {
-    return FFI::wasm_store_function_reference(m_store, to_ffi(function));
+    return { ValueKind::Reference, ValueTrace::FunctionReference, FFI::wasm_store_function_reference(m_store, to_ffi(function)), 0 };
 }
 
 Entity Store::function_from_reference(u64 reference)
