@@ -81,6 +81,7 @@ void* web_bindings_wrapper_world(void* realm, bool* is_main_world);
 JSObject* web_bindings_rust_wrapper_for(void* realm, void* cell);
 void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
 void web_bindings_queue_a_microtask(void* realm, JSObject* function);
+void web_bindings_deferred_invoke(void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
@@ -301,6 +302,13 @@ void web_bindings_queue_a_microtask(void* realm, JSObject* function)
     }));
 }
 
+void web_bindings_deferred_invoke(void* cell, void (*steps)(JSVM*, void*))
+{
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& cell, auto& steps) {
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr());
+    }));
+}
+
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*))
 {
     GC::Ref<JS::Realm> js_realm = *static_cast<JS::Realm*>(realm);
@@ -315,6 +323,7 @@ void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, 
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
 static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
 static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
+static_assert(to_underlying(HTML::Task::Source::Crypto) == 27);
 static_assert(to_underlying(HTML::Task::Source::Storage) == 29);
 
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*))
