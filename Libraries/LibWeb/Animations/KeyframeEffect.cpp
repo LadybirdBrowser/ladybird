@@ -33,6 +33,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SVGAnimationElement.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
@@ -1094,6 +1095,30 @@ void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_keyframe_objects_cache);
 }
 
+// Whether nothing shows the target's style, as a display: none ancestor leaves the target without a box.
+// NB: SVG resources keep their style under display: none, where boxes elsewhere in the document can reference them.
+static bool target_is_unseen_in_display_none_subtree(DOM::Element const& target)
+{
+    if (target.has_layout_box() || !target.has_inclusive_ancestor_with_display_none_ignoring_animations())
+        return false;
+    bool has_referenceable_svg_element = false;
+    target.for_each_in_inclusive_subtree_of_type<SVG::SVGElement>([&](SVG::SVGElement const& element) {
+        if (!element.is_referenceable_in_display_none_subtree())
+            return TraversalDecision::Continue;
+        has_referenceable_svg_element = true;
+        return TraversalDecision::Break;
+    });
+    return !has_referenceable_svg_element;
+}
+
+// NB: A custom property can feed the display of the target through var().
+bool KeyframeEffect::may_animate_display() const
+{
+    return any_of(target_properties(), [](auto const& property) {
+        return property.id() == CSS::PropertyID::Display || property.is_custom_property();
+    });
+}
+
 bool KeyframeEffect::can_skip_per_frame_style_update() const
 {
     if (m_is_compositor_driven || m_is_compositor_replaced)
@@ -1154,6 +1179,8 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return cache_result(false);
 
     if (!target->is_connected())
+        return cache_result(true);
+    if (target->document().layout_is_up_to_date() && !may_animate_display() && target_is_unseen_in_display_none_subtree(*target))
         return cache_result(true);
     bool has_animated_property = false;
     auto const* key_frame_set = m_key_frame_set.ptr();
@@ -1223,6 +1250,11 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
         return true;
 
     if (!m_is_compositor_driven && !m_is_compositor_replaced && !can_skip_per_frame_style_update())
+        return false;
+
+    // NB: Playing backward, an effect with an infinite iteration count finishes at time zero, and with a zero iteration
+    //     duration it finishes at its end time. No timer wakes the main thread for either.
+    if (auto animation = associated_animation(); animation && isinf(iteration_count()) && (animation->playback_rate() < 0 || !isinf(end_time().value)))
         return false;
 
     // A compositor-handled one-iteration effect has a document timer that wakes the main thread at its active end.

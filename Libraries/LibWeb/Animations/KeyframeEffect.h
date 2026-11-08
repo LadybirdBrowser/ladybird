@@ -212,6 +212,7 @@ public:
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
 private:
+    bool may_animate_display() const;
     bool css_animation_events_are_heard(bool only_iteration_events) const;
 
     friend class Animation;

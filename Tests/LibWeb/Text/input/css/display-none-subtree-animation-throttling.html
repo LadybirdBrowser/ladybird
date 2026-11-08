@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="custom-display" style="--display: none; display: var(--display)"></div>
+<div id="hidden" style="display: none">
+    <svg id="plain"><circle></circle></svg>
+    <svg><linearGradient><stop id="stop"></stop></linearGradient></svg>
+    <svg><circle id="named-circle"></circle></svg>
+</div>
+<script>
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function animationOverlayBuildsOverFrames(frameCount) {
+        for (let i = 0; i < 2; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < frameCount; ++i)
+            await nextFrame();
+        return internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+    }
+
+    function animate(element, keyframes) {
+        return element.animate(keyframes, { duration: 100000, iterations: Infinity });
+    }
+
+    asyncTest(async done => {
+        const plainCircle = document.querySelector("#plain circle");
+        const dashes = { strokeDashoffset: ["0px", "100px"] };
+        const animation = animate(plainCircle, dashes);
+        println(`animation with no box builds overlays: ${(await animationOverlayBuildsOverFrames(2)) > 0}`);
+        println(`animation with no box requests frames: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+
+        animation.currentTime = 50000;
+        println(`computed style samples animation: ${getComputedStyle(plainCircle).strokeDashoffset}`);
+
+        document.getElementById("named-circle").id = "referenced-circle";
+        const referenceable = animate(document.getElementById("referenced-circle"), dashes);
+        println(`referenceable geometry builds overlays: ${(await animationOverlayBuildsOverFrames(2)) > 0}`);
+        referenceable.cancel();
+
+        const resource = animate(document.getElementById("stop"), { stopOpacity: [0, 1] });
+        println(`SVG resource builds overlays: ${(await animationOverlayBuildsOverFrames(2)) > 0}`);
+        resource.cancel();
+
+        const customDisplay = animate(document.getElementById("custom-display"), { "--display": ["none", "block"] });
+        await animationOverlayBuildsOverFrames(2);
+        println(`custom property animation requests frames: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        customDisplay.cancel();
+
+        const reversed = animate(plainCircle, dashes);
+        reversed.currentTime = 5;
+        reversed.playbackRate = -1;
+        await reversed.finished;
+        println("reverse playback finishes");
+        reversed.cancel();
+
+        const finiteEnd = plainCircle.animate(dashes, { duration: 0, iterations: Infinity, endDelay: 5 });
+        await finiteEnd.finished;
+        println("zero duration infinite iterations finishes");
+        finiteEnd.cancel();
+
+        document.getElementById("hidden").style.display = "block";
+        println(`revealed animation builds overlays: ${(await animationOverlayBuildsOverFrames(2)) > 0}`);
+        println(`revealed computed style: ${getComputedStyle(plainCircle).strokeDashoffset === "50px" ? "stale" : "advanced"}`);
+        done();
+    });
+</script>
