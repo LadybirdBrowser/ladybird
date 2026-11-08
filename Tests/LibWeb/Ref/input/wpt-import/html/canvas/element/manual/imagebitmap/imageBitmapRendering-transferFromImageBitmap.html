@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../../../expected/wpt-import/html/canvas/element/manual/imagebitmap/imageBitmapRendering-transferFromImageBitmap-expected.html" />
+<body>
+  <p>Test whether the imageOrientation "from-image" works when creating an ImageBitmap from the ImageData of a canvas, and then transfered to an ImageBitmapRenderingContext.</p>
+  <canvas id="canvas" width="300" height="300"></canvas>
+</body>
+<script>
+
+function drawSquares(ctx) {
+  ctx.fillStyle = 'red';
+  ctx.fillRect(0,0,150,150);
+  ctx.fillStyle = 'green';
+  ctx.fillRect(150,0,300,150);
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(0,150,150,300);
+}
+
+async function runTest() {
+  const canvas_temp = document.createElement('canvas');
+  canvas_temp.width = 300;
+  canvas_temp.height = 300;
+  const ctx_temp = canvas_temp.getContext('2d');
+  drawSquares(ctx_temp);
+  const imageSource = ctx_temp.getImageData(0, 0, 300, 300);
+  const imageOrientation = 'from-image';
+  imageIDFlipped =  await createImageBitmap(imageSource, 0, 0, 300, 300, { imageOrientation });
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('bitmaprenderer');
+  ctx.transferFromImageBitmap(imageIDFlipped);
+}
+
+runTest();
+
+</script>

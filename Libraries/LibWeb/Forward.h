@@ -757,6 +757,7 @@ class HTMLUListElement;
 class HTMLUnknownElement;
 class HTMLVideoElement;
 class ImageBitmap;
+class ImageBitmapRenderingContext;
 class ImageData;
 class ImageRequest;
 class ListOfAvailableImages;

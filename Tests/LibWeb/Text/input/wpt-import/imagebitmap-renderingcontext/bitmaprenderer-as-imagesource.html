@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Canvas's ImageBitmapRenderingContext test</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/scripting.html#the-imagebitmap-rendering-context">
+<script>
+var width = 10;
+var height = 10;
+
+function testCanvas(ctx, x, y, r, g, b, a)
+{
+    var color = ctx.getImageData(x, y, 1, 1).data;
+    assert_array_equals(color, [r, g, b, a]);
+}
+
+function consumeImageBitmap(image, t)
+{
+    var myCanvas = document.createElement('canvas');
+    myCanvas.width = myCanvas.height = 20;
+    var myCtx = myCanvas.getContext('bitmaprenderer');
+    myCtx.transferFromImageBitmap(image);
+
+    createImageBitmap(myCanvas).then(t.step_func_done(function(imageBitmap) {
+        // Per spec, when transferFromImageBitmap happens, the transferred
+        // ImageBitmap (|image| here) must determine the intrinsic size of
+        // myCanvas, and hence myCanvas.width/height is ignored. Therefore,
+        // |imageBitmap| should have the same size as the |image|.
+        assert_equals(imageBitmap.width, width);
+        assert_equals(imageBitmap.height, height);
+
+        var dstCanvas = document.createElement('canvas');
+        dstCanvas.width = dstCanvas.height = 20;
+        var dstCtx = dstCanvas.getContext('2d');
+        dstCtx.drawImage(myCanvas, 0, 0);
+        testCanvas(dstCtx, 5, 5, 0, 255, 0, 255);
+        testCanvas(dstCtx, 15, 15, 0, 0, 0, 0);
+    }));
+}
+
+async_test(function(t) {
+    var canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(0, 0, width, height);
+    createImageBitmap(canvas).then(t.step_func(function(image) {
+        consumeImageBitmap(image, t);
+    }));
+}, 'Test that createImageBitmap from a bitmaprenderer canvas produces correct result');
+
+async_test(function(t) {
+    var canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext('bitmaprenderer');
+    createImageBitmap(canvas).then(t.step_func_done(function(image) {
+        assert_equals(image.width, width);
+        assert_equals(image.height, height);
+
+        var dstCanvas = document.createElement('canvas');
+        dstCanvas.width = width;
+        dstCanvas.height = height;
+        var dstCtx = dstCanvas.getContext('2d');
+        dstCtx.drawImage(canvas, 0, 0);
+        testCanvas(dstCtx, 5, 5, 0, 0, 0, 0);
+    }));
+}, 'Test that createImageBitmap on a bitmaprenderer canvas that never consumes any source produces correct result');
+
+
+async_test(function(t) {
+    var canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext('bitmaprenderer');
+    ctx.transferFromImageBitmap(null);
+    createImageBitmap(canvas).then(t.step_func_done(function(image) {
+        assert_equals(image.width, width);
+        assert_equals(image.height, height);
+
+        var dstCanvas = document.createElement('canvas');
+        dstCanvas.width = width;
+        dstCanvas.height = height;
+        var dstCtx = dstCanvas.getContext('2d');
+        dstCtx.drawImage(canvas, 0, 0);
+        testCanvas(dstCtx, 5, 5, 0, 0, 0, 0);
+    }));
+}, 'Test that createImageBitmap on a bitmaprenderer canvas that consumes null produces correct result');
+</script>

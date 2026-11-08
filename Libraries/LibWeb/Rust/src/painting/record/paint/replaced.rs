@@ -381,15 +381,38 @@ fn paint_custom_highlight_washes<O: Observer>(
 }
 
 pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let facts = recorder
-        .source
-        .replaced_paint_facts(paintable)
-        .and_then(|facts| facts.canvas())
-        .unwrap_or_default();
+    let replaced_facts = recorder.source.replaced_paint_facts(paintable);
     let (_, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
         .converter
         .rounded_device_rect(absolute_rect(recorder.source, paintable));
+
+    // NB: A canvas whose context is an ImageBitmapRenderingContext paints the output bitmap of the context as its image.
+    // AD-HOC: The spec has the canvas take the natural dimensions of its output bitmap. Instead, the canvas keeps the
+    //         natural dimensions its width and height attributes give it, and the output bitmap is stretched to fill
+    //         its content box — so a transfer never changes the layout of the page.
+    //         https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-element
+    // FIXME: Composite the output bitmap onto opaque black when the alpha flag of the context is false.
+    if let Some(image_facts) = replaced_facts.clone().and_then(|facts| facts.image()) {
+        if image_facts.content == crate::painting::image_content::ImageContent::None {
+            return;
+        }
+        let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
+        let corner_clip =
+            corner_radii.map(|corner_radii| PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
+        recorder.record_with_inline_clips(corner_clip.as_slice(), |recorder| {
+            paint_replaced_image_content(
+                recorder,
+                paintable,
+                &image_facts.content,
+                canvas_rect.to_float(),
+                image_rendering,
+            );
+        });
+        return;
+    }
+
+    let facts = replaced_facts.and_then(|facts| facts.canvas()).unwrap_or_default();
     if !facts.has_content {
         return;
     }

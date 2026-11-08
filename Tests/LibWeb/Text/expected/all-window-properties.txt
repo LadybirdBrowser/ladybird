@@ -293,6 +293,7 @@ IIRFilterNode
 IdleDeadline
 Image
 ImageBitmap
+ImageBitmapRenderingContext
 ImageData
 InputEvent
 Int16Array

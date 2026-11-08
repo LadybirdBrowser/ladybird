@@ -11,6 +11,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
+#include <LibWeb/Bindings/ImageBitmapRenderingContextSettings.h>
 #include <LibWeb/Bindings/WebGLRenderingContextBase.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -27,6 +28,7 @@
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/ImageBitmapRenderingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
@@ -167,6 +169,9 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->reset_to_default_state();
         },
+        [](GC::Ref<ImageBitmapRenderingContext>&) {
+            // NB: An ImageBitmapRenderingContext has no state to reset.
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -175,6 +180,13 @@ void HTMLCanvasElement::reset_context_to_default_state()
 Canvas2DContextBase* HTMLCanvasElement::canvas_2d_context() const
 {
     return canvas_rendering_context_2d().ptr();
+}
+
+ImageBitmapRenderingContext* HTMLCanvasElement::canvas_bitmap_renderer_context() const
+{
+    if (auto const* context = m_context.get_pointer<GC::Ref<ImageBitmapRenderingContext>>())
+        return context->ptr();
+    return nullptr;
 }
 
 WebGL::WebGLRenderingContextBase* HTMLCanvasElement::canvas_webgl_context() const
@@ -203,6 +215,14 @@ GC::Ptr<Bindings::Wrappable> HTMLCanvasElement::canvas_relevant_global_impl() co
 void HTMLCanvasElement::did_change_canvas_content()
 {
     set_canvas_content_dirty();
+
+    // NB: The output bitmap of an ImageBitmapRenderingContext reaches the Compositor in the paint facts of the canvas,
+    //     so the display list has to record the canvas again.
+    if (canvas_bitmap_renderer_context()) {
+        Painting::push_canvas_paint_facts(*this);
+        set_needs_repaint(InvalidateDisplayList::PaintCommands);
+        return;
+    }
 
     // NB: Don't request a display list recording here: the new content reaches the compositor through the canvas
     // surface registry when the canvas is presented, and the cached DrawCanvas command is invalidated when the
@@ -281,6 +301,10 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
         [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->set_size(bitmap_size_for_canvas());
         },
+        [](GC::Ref<ImageBitmapRenderingContext>&) {
+            // NB: A blank output bitmap takes the size of the canvas when something reads it, and a valid one keeps
+            //     the size of its bitmap data.
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -340,6 +364,16 @@ HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context(Canv
     return HasOrCreatedContext::Yes;
 }
 
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_bitmap_renderer_context(bool alpha)
+{
+    if (!m_context.has<Empty>())
+        return m_context.has<GC::Ref<ImageBitmapRenderingContext>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+
+    m_context = ImageBitmapRenderingContext::create(*this, alpha);
+    Painting::push_canvas_paint_facts(*this);
+    return HasOrCreatedContext::Yes;
+}
+
 template<typename ContextType>
 JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_webgl_context(JS::Value options)
 {
@@ -389,11 +423,25 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
         return Empty {};
     }
 
+    if (type == u"bitmaprenderer"sv) {
+        auto settings = TRY(Bindings::convert_to_idl_value_for_image_bitmap_rendering_context_settings(vm(), options));
+        if (create_bitmap_renderer_context(settings.alpha) == HasOrCreatedContext::Yes)
+            return m_context.get<GC::Ref<ImageBitmapRenderingContext>>();
+
+        return Empty {};
+    }
+
     return Empty {};
 }
 
 Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas() const
 {
+    // NB: A valid output bitmap of an ImageBitmapRenderingContext keeps the size of its bitmap data.
+    if (auto* context = canvas_bitmap_renderer_context(); context && !context->is_blank()) {
+        if (auto const* frame = context->frame())
+            return { frame->width(), frame->height() };
+        return {};
+    }
     return bitmap_size_for_dimensions(width(), height());
 }
 
@@ -525,6 +573,9 @@ void HTMLCanvasElement::prepare_for_compositing()
             },
             [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
                 context->prepare_for_compositing();
+            },
+            [](GC::Ref<ImageBitmapRenderingContext>&) {
+                // NB: The output bitmap reaches the Compositor with the display list, as the paint facts of the canvas.
             },
             [](Empty) {
                 // Do nothing.

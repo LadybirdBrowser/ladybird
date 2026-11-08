@@ -1,0 +1,4 @@
+// https://html.spec.whatwg.org/multipage/canvas.html#imagebitmaprenderingcontextsettings
+dictionary ImageBitmapRenderingContextSettings {
+    boolean alpha = true;
+};

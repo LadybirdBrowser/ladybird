@@ -514,6 +514,7 @@ set(SOURCES
     HTML/HTMLVideoElement.cpp
     HTML/HyperlinkElementUtils.cpp
     HTML/ImageBitmap.cpp
+    HTML/ImageBitmapRenderingContext.cpp
     HTML/ImageData.cpp
     HTML/ImageRequest.cpp
     HTML/ListOfAvailableImages.cpp

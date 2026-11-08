@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/canvas-display-list-cache-update-ref.html">
+<canvas id="canvas" height="100" width="100"></canvas>
+<script>
+    async function bitmapOfColor(color) {
+        const source = new OffscreenCanvas(100, 100);
+        const context = source.getContext("2d");
+        context.fillStyle = color;
+        context.fillRect(0, 0, 100, 100);
+        return createImageBitmap(source);
+    }
+
+    (async () => {
+        const context = canvas.getContext("bitmaprenderer");
+        context.transferFromImageBitmap(await bitmapOfColor("rgb(255, 0, 0)"));
+        const green = await bitmapOfColor("rgb(0, 255, 0)");
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                context.transferFromImageBitmap(green);
+
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    })();
+</script>
+</html>

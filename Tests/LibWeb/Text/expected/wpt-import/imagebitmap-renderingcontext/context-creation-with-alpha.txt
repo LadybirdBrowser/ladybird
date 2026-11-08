@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test that an ImageBitmapRenderingContext with alpha disabled makes the canvas opaque
+Pass	Test that an ImageBitmapRenderingContext with alpha enabled preserves the alpha
+Pass	Test that the 'alpha' context creation attribute is true by default

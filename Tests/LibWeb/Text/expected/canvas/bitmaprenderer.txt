@@ -1,0 +1,18 @@
+context: [object ImageBitmapRenderingContext]
+canvas identity: true
+same context again: true
+2d after bitmaprenderer: null
+bitmaprenderer after 2d: null
+bad settings: TypeError
+blank toDataURL matches empty canvas: true
+bitmap detached: 0x0
+canvas attributes after transfer: 4x3
+drawImage of canvas: 0,255,0,255
+createImageBitmap of canvas: 2x5 0,255,0,255
+transfer detached: InvalidStateError
+output kept after failed transfer: 0,255,0,255
+transfer non-bitmap: TypeError
+null transfer: 0,0,0,0
+resized blank toDataURL matches empty canvas: true
+valid output survives resize: 255,0,0,255
+alpha false: [object ImageBitmapRenderingContext]

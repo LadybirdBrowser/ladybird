@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function outcome(f) {
+        try {
+            return `${f()}`;
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    async function makeBitmap(width, height, color) {
+        const source = document.createElement("canvas");
+        source.width = width;
+        source.height = height;
+        const context = source.getContext("2d");
+        context.fillStyle = color;
+        context.fillRect(0, 0, width, height);
+        return createImageBitmap(source);
+    }
+
+    function pixelsOf(source, width, height) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(source, 0, 0);
+        return Array.from(context.getImageData(0, 0, width, height).data.slice(0, 4)).join(",");
+    }
+
+    promiseTest(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 4;
+        canvas.height = 3;
+        const context = canvas.getContext("bitmaprenderer");
+        println(`context: ${context}`);
+        println(`canvas identity: ${context.canvas === canvas}`);
+        println(`same context again: ${canvas.getContext("bitmaprenderer") === context}`);
+        println(`2d after bitmaprenderer: ${canvas.getContext("2d")}`);
+        const canvas2d = document.createElement("canvas");
+        canvas2d.getContext("2d");
+        println(`bitmaprenderer after 2d: ${canvas2d.getContext("bitmaprenderer")}`);
+        println(`bad settings: ${outcome(() => document.createElement("canvas").getContext("bitmaprenderer", { get alpha() { throw new TypeError(); } }))}`);
+
+        println(`blank toDataURL matches empty canvas: ${canvas.toDataURL() === (() => { const c = document.createElement("canvas"); c.width = 4; c.height = 3; return c.toDataURL(); })()}`);
+
+        const bitmap = await makeBitmap(2, 5, "rgb(0, 255, 0)");
+        context.transferFromImageBitmap(bitmap);
+        println(`bitmap detached: ${bitmap.width}x${bitmap.height}`);
+        println(`canvas attributes after transfer: ${canvas.width}x${canvas.height}`);
+        println(`drawImage of canvas: ${pixelsOf(canvas, 2, 5)}`);
+        const copy = await createImageBitmap(canvas);
+        println(`createImageBitmap of canvas: ${copy.width}x${copy.height} ${pixelsOf(copy, 2, 5)}`);
+
+        println(`transfer detached: ${outcome(() => context.transferFromImageBitmap(bitmap))}`);
+        println(`output kept after failed transfer: ${pixelsOf(canvas, 2, 5)}`);
+
+        println(`transfer non-bitmap: ${outcome(() => context.transferFromImageBitmap({}))}`);
+
+        context.transferFromImageBitmap(null);
+        println(`null transfer: ${pixelsOf(canvas, 4, 3)}`);
+
+        canvas.width = 7;
+        println(`resized blank toDataURL matches empty canvas: ${canvas.toDataURL() === (() => { const c = document.createElement("canvas"); c.width = 7; c.height = 3; return c.toDataURL(); })()}`);
+
+        const second = await makeBitmap(3, 3, "rgb(255, 0, 0)");
+        context.transferFromImageBitmap(second);
+        canvas.height = 10;
+        println(`valid output survives resize: ${pixelsOf(canvas, 3, 3)}`);
+
+        const opaque = document.createElement("canvas").getContext("bitmaprenderer", { alpha: false });
+        println(`alpha false: ${opaque}`);
+    });
+</script>
