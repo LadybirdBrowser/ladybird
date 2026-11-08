@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransformer>> RTCRtpScriptTransformer::c
     // 2. Set up transformer.[[readable]]. The readEncodedData algorithm provides
     //    encoded frames to it. In our model, frames are pushed in via
     //    enqueue_encoded_frame from the upstream [[frameSource]] (the depacketizer
-    //    on the parent side, plumbed through IPC), so the pull is a no-op.
+    //    on the parent side), so the pull is a no-op.
     // NB: Streams only lets C++ set up a ReadableStream of arbitrary chunks as the readable side of a TransformStream,
     //     so frames are enqueued into one whose writable side nothing writes to.
     auto readable_transform = GC::create_function(realm.heap(), [transformer](JS::Value) -> GC::Ref<WebIDL::Promise> {

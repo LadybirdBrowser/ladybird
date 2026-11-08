@@ -658,6 +658,7 @@ class DataTransfer;
 class DataTransferItem;
 class DataTransferItemList;
 class DecodedImageData;
+class DedicatedWorkerThreadLink;
 class DocumentState;
 class DOMParser;
 class DOMStringList;

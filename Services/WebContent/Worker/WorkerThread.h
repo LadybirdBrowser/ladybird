@@ -7,7 +7,10 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/RefPtr.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerTypes.h>
 
 namespace WebWorker {
@@ -16,6 +19,7 @@ namespace WebWorker {
 // for the thread: it ends once its worker has closed, and otherwise with the process. A process that exits takes running
 // workers with it, so it has to leave by Core::Process::terminate_immediately().
 ErrorOr<void> start_worker_thread(IPC::TransportHandle, Web::HTML::AgentType);
+RefPtr<Web::HTML::DedicatedWorkerThreadLink> start_worker_thread_for_owner(IPC::TransportHandle, Web::HTML::AgentType, Web::HTML::WorkerAgentOwnerToken);
 
 // Whether the calling thread is one start_worker_thread() started. This can be asked from a signal handler.
 bool is_worker_thread();

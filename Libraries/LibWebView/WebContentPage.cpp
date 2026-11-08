@@ -3371,21 +3371,6 @@ void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadca
         WorkerAgentManager::the().post_broadcast_channel_message(move(message), *settings, client(), client().is_private());
 }
 
-void WebContentPage::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
-{
-    WorkerAgentManager::the().rtc_transform_init(client(), agent_id, transform_id, move(options_record));
-}
-
-void WebContentPage::rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id)
-{
-    WorkerAgentManager::the().rtc_transform_teardown(client(), agent_id, transform_id);
-}
-
-void WebContentPage::rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
-{
-    WorkerAgentManager::the().rtc_transform_encoded_audio_frame(client(), agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
-}
-
 void WebContentPage::did_finish_test(String text)
 {
     if (displays_tab() && view().on_test_finish)

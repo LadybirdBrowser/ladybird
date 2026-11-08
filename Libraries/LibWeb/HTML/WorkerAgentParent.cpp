@@ -136,6 +136,7 @@ void WorkerAgentParent::start()
     worker_agent_parents().set(m_owner_token, *this);
     auto started_agent = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
     m_agent_id = started_agent.agent_id;
+    m_dedicated_worker_thread_link = move(started_agent.dedicated_worker_thread_link);
 
     // NB: This is before any script can use the port, so that it finds out right now whether its peer is in this process.
     if (!started_agent.is_hosted_in_this_process)
@@ -204,6 +205,7 @@ void WorkerAgentParent::terminate()
 void WorkerAgentParent::forget_agent()
 {
     m_agent_id = 0;
+    m_dedicated_worker_thread_link = nullptr;
     give_up_on_parked_end();
     worker_agent_parents().remove(m_owner_token);
     m_outside_settings->remove_owned_worker_agent(*this);
@@ -291,24 +293,25 @@ void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)
 
 void WorkerAgentParent::rtc_transform_init(u64 transform_id, SerializedTransferRecord options_record)
 {
-    if (m_agent_id == 0)
+    if (!m_dedicated_worker_thread_link)
         return;
-    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_init(m_agent_id, transform_id, move(options_record));
+    options_record.serialized.same_agent_side_table = nullptr;
+    m_dedicated_worker_thread_link->rtc_transform_init(transform_id, move(options_record));
 }
 
 void WorkerAgentParent::rtc_transform_teardown(u64 transform_id)
 {
     m_transform_frame_callbacks.remove(transform_id);
-    if (m_agent_id == 0)
+    if (!m_dedicated_worker_thread_link)
         return;
-    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_teardown(m_agent_id, transform_id);
+    m_dedicated_worker_thread_link->rtc_transform_teardown(transform_id);
 }
 
 void WorkerAgentParent::rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
 {
-    if (m_agent_id == 0)
+    if (!m_dedicated_worker_thread_link)
         return;
-    Bindings::principal_host_defined_page(m_outside_settings->realm()).client().rtc_transform_encoded_audio_frame(m_agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+    m_dedicated_worker_thread_link->rtc_transform_encoded_audio_frame(transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
 void WorkerAgentParent::register_transform_frame_callback(u64 transform_id, TransformFrameWrittenCallback callback)

@@ -13,6 +13,7 @@ set(SOURCES
     WebDriverConnection.cpp
     WebUIConnection.cpp
     Worker/ConnectionFromClient.cpp
+    Worker/DedicatedWorkerThreadLink.cpp
     Worker/PageHost.cpp
     Worker/WebWorkerCompositorHost.cpp
     Worker/WorkerHost.cpp

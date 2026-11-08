@@ -32,7 +32,7 @@ public:
     GC::Ptr<HTML::Worker> worker() const { return m_worker; }
     u64 transform_id() const { return m_transform_id; }
 
-    // Send a frame to the worker over IPC. Frames written to the transformer's writable
+    // Send a frame to the worker. Frames written to the transformer's writable
     // return to the parent through on_frame_written.
     void enqueue_encoded_audio_frame(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
 
