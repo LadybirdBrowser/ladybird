@@ -413,7 +413,8 @@ fn call_other_function_from_jit(
                 && array_like.indexed_storage_kind() == IndexedStorageKind::Packed
                 && u64::from(array_like.indexed_packed_elements_span_size()) >= length
             {
-                let arguments = ArgumentStorage::filled(vm, length as usize, |slots| {
+                let mut arguments = ArgumentStorage::empty();
+                arguments.fill(vm, length as usize, |slots| {
                     array_like.copy_indexed_packed_elements(slots);
                 });
                 return Some(call_from_jit_or_generic(
@@ -468,7 +469,8 @@ fn call_other_function_from_jit(
                 unwrap_depth + 1,
             );
         }
-        let argument_list = ArgumentStorage::filled(vm, bound_argument_count + arguments.len(), |slots| {
+        let mut argument_list = ArgumentStorage::empty();
+        argument_list.fill(vm, bound_argument_count + arguments.len(), |slots| {
             let (bound_slots, argument_slots) = slots.split_at_mut(bound_argument_count);
             for (index, slot) in bound_slots.iter_mut().enumerate() {
                 *slot = bound_function.bound_argument(index);
@@ -539,36 +541,58 @@ struct ArgumentStorage<'vm> {
 impl<'vm> ArgumentStorage<'vm> {
     const INLINE_CAPACITY: usize = 16;
 
-    fn new(vm: &'vm Vm, values: impl ExactSizeIterator<Item = Value>) -> Self {
-        Self::filled(vm, values.len(), |slots| {
+    /// Storage without values, which `fill()` puts in. They go in where the storage is, and not into storage that is
+    /// moved there: a move leaves its source behind on the stack, where nothing clears it (see `drop()`).
+    fn empty() -> Self {
+        Self {
+            inline: [Value::UNDEFINED; Self::INLINE_CAPACITY],
+            count: 0,
+            rooted: None,
+        }
+    }
+
+    fn fill_from(&mut self, vm: &'vm Vm, values: impl ExactSizeIterator<Item = Value>) {
+        self.fill(vm, values.len(), |slots| {
             for (slot, value) in slots.iter_mut().zip(values) {
                 *slot = value;
             }
-        })
+        });
     }
 
-    /// `count` values, which `fill` writes into the slots it gets. Nothing may collect garbage while it does.
-    fn filled(vm: &'vm Vm, count: usize, fill: impl FnOnce(&mut [Value])) -> Self {
-        let mut storage = Self {
-            inline: [Value::UNDEFINED; Self::INLINE_CAPACITY],
-            count,
-            rooted: None,
-        };
+    /// Takes `count` values, which `fill` writes into the slots it gets. Nothing may collect garbage while it does.
+    fn fill(&mut self, vm: &'vm Vm, count: usize, fill: impl FnOnce(&mut [Value])) {
+        debug_assert!(self.count == 0 && self.rooted.is_none(), "the storage is filled once");
+        self.count = count;
         if count <= Self::INLINE_CAPACITY {
-            fill(&mut storage.inline[..count]);
+            fill(&mut self.inline[..count]);
         } else {
             let rooted = MarkedVec::with_capacity(vm, count);
             rooted.resize(count, Value::UNDEFINED);
             fill(&mut rooted.values_mut());
-            storage.rooted = Some(rooted);
+            self.rooted = Some(rooted);
         }
-        storage
     }
 
     fn values(&self) -> ArgumentValues<'_> {
         match &self.rooted {
             Some(rooted) => ArgumentValues::Rooted(rooted.values()),
             None => ArgumentValues::Inline(&self.inline[..self.count]),
+        }
+    }
+}
+
+impl Drop for ArgumentStorage<'_> {
+    /// Clears the values on the stack once the call is done with them. The garbage collector scans the stack
+    /// conservatively, and frames that do not initialize all of their slots come to lie over this one later: a value
+    /// left behind would keep its cell alive for as long as such a frame is there.
+    fn drop(&mut self) {
+        if self.rooted.is_some() {
+            return;
+        }
+        for slot in &mut self.inline[..self.count] {
+            // NB: The writes are volatile so that they are not taken for dead stores.
+            // SAFETY: The slot is a valid, aligned value of this storage.
+            unsafe { core::ptr::write_volatile(slot, Value::UNDEFINED) };
         }
     }
 }
@@ -645,7 +669,8 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             let call = instruction!(Call);
             let site = site(call.dst, call.length());
             let operands = call.arguments();
-            let storage = ArgumentStorage::new(vm, operands.iter().map(|operand| load(*operand)));
+            let mut storage = ArgumentStorage::empty();
+            storage.fill_from(vm, operands.iter().map(|operand| load(*operand)));
             let arguments = storage.values();
             let callee = load(call.callee);
             let this_value = load(call.this_value);
@@ -665,7 +690,8 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             let call = instruction!(CallConstruct);
             let site = site(call.dst, call.length());
             let operands = call.arguments();
-            let storage = ArgumentStorage::new(vm, operands.iter().map(|operand| load(*operand)));
+            let mut storage = ArgumentStorage::empty();
+            storage.fill_from(vm, operands.iter().map(|operand| load(*operand)));
             let arguments = storage.values();
             let callee = load(call.callee);
             if let Some(function) = value_as_ecmascript_function_object(callee)
@@ -687,7 +713,8 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             let call = instruction!(CallDirectEval);
             let site = site(call.dst, call.length());
             let operands = call.arguments();
-            let storage = ArgumentStorage::new(vm, operands.iter().map(|operand| load(*operand)));
+            let mut storage = ArgumentStorage::empty();
+            storage.fill_from(vm, operands.iter().map(|operand| load(*operand)));
             let arguments = storage.values();
             let mut values = op::CallDirectEvalValues {
                 dst: Value::EMPTY,
@@ -845,7 +872,8 @@ pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
             passed_argument_count,
         );
     }
-    let arguments = ArgumentStorage::new(
+    let mut arguments = ArgumentStorage::empty();
+    arguments.fill_from(
         vm,
         frame_ref.arguments()[..passed_argument_count]
             .iter()
@@ -1084,7 +1112,8 @@ pub extern "C" fn libjs_jit_slice_arguments(vm: &Vm, frame: &ExecutionContext, s
     } else {
         start.min(length)
     };
-    let arguments = ArgumentStorage::new(
+    let mut arguments = ArgumentStorage::empty();
+    arguments.fill_from(
         vm,
         frame.arguments()[first as usize..length as usize]
             .iter()
