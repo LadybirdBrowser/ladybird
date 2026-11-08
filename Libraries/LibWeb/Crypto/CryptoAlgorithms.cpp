@@ -59,6 +59,14 @@ enum class Asn1Structure : u8 {
 FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes, Asn1Structure, void*, bool*);
 }
 
+static bool receive_byte_result(ErrorOr<ByteBuffer> const& result, void* state, ReceiveEncodedBytes receive)
+{
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    return true;
+}
+
 int web_crypto_encode_base64url(ReadonlyBytes bytes, ReceiveEncodedBytes receive, void* state)
 {
     auto encoded = encode_base64url(bytes, AK::OmitPadding::Yes);
@@ -223,10 +231,7 @@ static ErrorOr<ByteBuffer> export_rsa_exponent(::Crypto::UnsignedBigInteger cons
 bool web_crypto_rsa_export_public_exponent(ReadonlyBytes public_exponent, void* state, ReceiveEncodedBytes receive)
 {
     auto bytes = export_rsa_exponent(::Crypto::UnsignedBigInteger::import_data(public_exponent));
-    if (bytes.is_error())
-        return false;
-    receive(state, bytes.value());
-    return true;
+    return receive_byte_result(bytes, state, receive);
 }
 
 bool web_crypto_rsa_read_key_metadata(CryptoKey::InternalKeyData const* key, u32* modulus_length, void* state, ReceiveEncodedBytes receive)
@@ -241,10 +246,7 @@ bool web_crypto_rsa_read_key_metadata(CryptoKey::InternalKeyData const* key, u32
             return export_rsa_exponent(private_key.public_exponent());
         },
         [](auto const&) -> ErrorOr<ByteBuffer> { VERIFY_NOT_REACHED(); });
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 CryptoKey::InternalKeyData* web_crypto_rsa_key_from_jwk_components(bool is_private, ReadonlySpan<ReadonlyBytes> components)
@@ -271,10 +273,7 @@ bool web_crypto_rsa_export_der(CryptoKey::InternalKeyData const* key, bool is_pu
     auto result = is_public
         ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::RSAPublicKey>(), ::Crypto::ASN1::rsa_encryption_oid, nullptr)
         : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::RSAPrivateKey>(), ::Crypto::ASN1::rsa_encryption_oid, nullptr);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const* key, u8 component, void* state, ReceiveEncodedBytes receive)
@@ -325,10 +324,7 @@ bool web_crypto_rsa_oaep_cipher(bool encrypt, ::Crypto::Hash::HashKind hash_kind
         rsa.set_label(label);
         return rsa.decrypt(input);
     }();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_rsa_pss_sign(::Crypto::Hash::HashKind hash_kind, CryptoKey::InternalKeyData const* key, u32 salt_length, ReadonlyBytes message, void* state, ReceiveEncodedBytes receive)
@@ -336,10 +332,7 @@ bool web_crypto_rsa_pss_sign(::Crypto::Hash::HashKind hash_kind, CryptoKey::Inte
     ::Crypto::PK::RSA_PSS_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPrivateKey>() };
     rsa.set_salt_length(salt_length);
     auto result = rsa.sign(message);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_rsa_pss_verify(::Crypto::Hash::HashKind hash_kind, CryptoKey::InternalKeyData const* key, u32 salt_length, ReadonlyBytes message, ReadonlyBytes signature, bool* verified)
@@ -357,10 +350,7 @@ bool web_crypto_rsa_pkcs1_sign(::Crypto::Hash::HashKind hash_kind, CryptoKey::In
 {
     ::Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, key->get<::Crypto::PK::RSAPrivateKey>() };
     auto result = rsa.sign(message);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_rsa_pkcs1_verify(::Crypto::Hash::HashKind hash_kind, CryptoKey::InternalKeyData const* key, ReadonlyBytes message, ReadonlyBytes signature, bool* verified)
@@ -386,30 +376,21 @@ bool web_crypto_aes_cbc_cipher(bool encrypt, ReadonlyBytes key, ReadonlyBytes in
 {
     ::Crypto::Cipher::AESCBCCipher cipher(key);
     auto result = encrypt ? cipher.encrypt(input, iv) : cipher.decrypt(input, iv);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_aes_ctr_cipher(bool encrypt, ReadonlyBytes key, ReadonlyBytes input, ReadonlyBytes counter, void* state, ReceiveEncodedBytes receive)
 {
     ::Crypto::Cipher::AESCTRCipher cipher(key);
     auto result = encrypt ? cipher.encrypt(input, counter) : cipher.decrypt(input, counter);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_aes_kw_cipher(bool wrap, ReadonlyBytes key, ReadonlyBytes input, void* state, ReceiveEncodedBytes receive)
 {
     ::Crypto::Cipher::AESKWCipher cipher(key);
     auto result = wrap ? cipher.wrap(input) : cipher.unwrap(input);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_aes_gcm_encrypt(ReadonlyBytes key, ReadonlyBytes plaintext, ReadonlyBytes iv, ReadonlyBytes additional_data, size_t tag_length, void* ciphertext, void* tag, ReceiveEncodedBytes receive)
@@ -462,11 +443,7 @@ bool web_crypto_sha_digest(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes dat
 
     auto digest = hash.digest();
     auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
-    if (result_buffer.is_error())
-        return false;
-
-    receive(state, result_buffer.value());
-    return true;
+    return receive_byte_result(result_buffer, state, receive);
 }
 
 struct OptionalBytes {
@@ -678,19 +655,13 @@ bool web_crypto_ec_export_der(EcCurve curve, CryptoKey::InternalKeyData const* k
         }
         return ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::ECPrivateKey>(), ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params);
     }();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_ec_export_uncompressed(CryptoKey::InternalKeyData const* key, void* state, ReceiveEncodedBytes receive)
 {
     auto result = key->get<::Crypto::PK::ECPublicKey>().to_uncompressed();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_ec_export_public_coordinates(EcCurve curve_id, CryptoKey::InternalKeyData const* key, void* x, void* y, ReceiveEncodedBytes receive)
@@ -718,10 +689,7 @@ bool web_crypto_ec_export_public_coordinates(EcCurve curve_id, CryptoKey::Intern
 bool web_crypto_ec_export_private_scalar(CryptoKey::InternalKeyData const* key, void* state, ReceiveEncodedBytes receive)
 {
     auto result = key->get<::Crypto::PK::ECPrivateKey>().d_bytes();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 enum class OkpCurve : u8 {
@@ -776,19 +744,13 @@ bool web_crypto_okp_export_der(OkpCurve, bool, ReadonlyBytes, void*, ReceiveEnco
 bool web_crypto_okp_generate_private_key(OkpCurve curve, void* state, ReceiveEncodedBytes receive)
 {
     auto result = okp_curve(curve).generate_private_key();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_okp_generate_public_key(OkpCurve curve, ReadonlyBytes private_key, void* state, ReceiveEncodedBytes receive)
 {
     auto result = okp_curve(curve).generate_public_key(private_key);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_okp_compute_coordinate(OkpCurve curve, ReadonlyBytes private_key, ReadonlyBytes public_key, void* state, ReceiveEncodedBytes receive)
@@ -797,10 +759,7 @@ bool web_crypto_okp_compute_coordinate(OkpCurve curve, ReadonlyBytes private_key
     auto result = curve == OkpCurve::X25519
         ? ::Crypto::Curves::X25519 {}.compute_coordinate(private_key, public_key)
         : ::Crypto::Curves::X448 {}.compute_coordinate(private_key, public_key);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_okp_sign(OkpCurve curve, ReadonlyBytes private_key, ReadonlyBytes message, ReadonlyBytes context, void* state, ReceiveEncodedBytes receive)
@@ -809,10 +768,7 @@ bool web_crypto_okp_sign(OkpCurve curve, ReadonlyBytes private_key, ReadonlyByte
     auto result = curve == OkpCurve::Ed25519
         ? ::Crypto::Curves::Ed25519 {}.sign(private_key, message)
         : ::Crypto::Curves::Ed448 {}.sign(private_key, message, context);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 FlatPtr web_crypto_okp_verify(OkpCurve curve, ReadonlyBytes public_key, ReadonlyBytes signature, ReadonlyBytes message, ReadonlyBytes context, bool* verified)
@@ -857,10 +813,7 @@ bool web_crypto_okp_export_der(OkpCurve curve, bool is_public, ReadonlyBytes key
         TRY(encoder.write(key));
         return ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), oid);
     }();
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 extern "C" {
@@ -906,10 +859,7 @@ bool web_crypto_mldsa_sign(::Crypto::PK::MLDSASize size, CryptoKey::InternalKeyD
 {
     ::Crypto::PK::MLDSA lattice(size, key->get<::Crypto::PK::MLDSAPrivateKey>(), MUST(ByteBuffer::copy(context)));
     auto result = lattice.sign(message);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_mldsa_verify(::Crypto::PK::MLDSASize size, CryptoKey::InternalKeyData const* key, ReadonlyBytes message, ReadonlyBytes signature, ReadonlyBytes context, bool* verified)
@@ -965,10 +915,7 @@ bool web_crypto_mldsa_export_der(CryptoKey::InternalKeyData const* key, bool is_
     auto result = is_public
         ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLDSAPublicKey>().public_key(), oid)
         : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::MLDSAPrivateKey>(), oid);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 extern "C" {
@@ -1022,10 +969,7 @@ bool web_crypto_mlkem_export_der(CryptoKey::InternalKeyData const* key, bool is_
     auto result = is_public
         ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLKEMPublicKey>().public_key(), oid)
         : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::MLKEMPrivateKey>(), oid);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 FlatPtr web_crypto_mlkem_encapsulate(::Crypto::PK::MLKEMSize size, CryptoKey::InternalKeyData const* key, void* shared_key, void* ciphertext, ReceiveEncodedBytes receive)
@@ -1076,20 +1020,14 @@ bool web_crypto_hkdf_derive_key(::Crypto::Hash::HashKind kind, ReadonlyBytes sal
 {
     ::Crypto::Hash::HKDF hkdf(kind);
     auto result = hkdf.derive_key(salt, key_derivation_key, info, length);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 bool web_crypto_pbkdf2_derive_key(::Crypto::Hash::HashKind kind, ReadonlyBytes password, ReadonlyBytes salt, u32 iterations, u32 length, void* state, ReceiveEncodedBytes receive)
 {
     ::Crypto::Hash::PBKDF2 pbkdf2(kind);
     auto result = pbkdf2.derive_key(password, salt, iterations, length);
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 static_assert(to_underlying(::Crypto::Hash::Argon2Type::Argon2d) == 0);
@@ -1175,10 +1113,7 @@ bool web_crypto_kmac_sign(::Crypto::Authentication::KMACKind kind, ReadonlyBytes
 {
     ::Crypto::Authentication::KMAC kmac(kind);
     auto result = kmac.sign(key, message, output_length, customization.to_optional());
-    if (result.is_error())
-        return false;
-    receive(state, result.value());
-    return true;
+    return receive_byte_result(result, state, receive);
 }
 
 extern "C" CryptoKey::InternalKeyData* web_crypto_public_key_for_private_key(CryptoKey::InternalKeyData const*, FlatPtr name, FlatPtr named_curve);
