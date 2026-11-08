@@ -180,6 +180,13 @@ public:
     QAction* open_settings_action();
     QAction* open_downloads_action();
     QAction* toggle_bookmark_bar_action();
+    QAction* toggle_sidebar_action();
+    QAction* open_location_action();
+    QAction* reload_action();
+    QAction* reload_bypassing_cache_action();
+    QAction* stop_action();
+    QAction* find_next_action();
+    QAction* find_previous_action();
     QAction* find_in_page_action();
     QAction* zoom_in_action();
     QAction* zoom_out_action();

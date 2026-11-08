@@ -3400,7 +3400,10 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
 
     m_vertical_tabs_toggle_button = new ChromeHeaderButton(m_vertical_tab_bar_column);
     m_vertical_tabs_toggle_button->setObjectName("LadybirdVerticalTabsToggleButton");
-    m_vertical_tabs_toggle_button->setDefaultAction(create_application_action(*this, ApplicationActions::the().toggle_vertical_tabs_expanded_action()));
+    auto* vertical_tabs_toggle_action = create_application_action(*this, ApplicationActions::the().toggle_vertical_tabs_expanded_action());
+    // NB: The application's sidebar action owns the shortcut, so the window and its View menu share one action for it.
+    vertical_tabs_toggle_action->setShortcuts({});
+    m_vertical_tabs_toggle_button->setDefaultAction(vertical_tabs_toggle_action);
     m_vertical_tabs_toggle_button->setAutoRaise(true);
     m_vertical_tabs_toggle_button->setFocusPolicy(Qt::NoFocus);
     m_vertical_tabs_toggle_button->setIconSize({ 16, 16 });

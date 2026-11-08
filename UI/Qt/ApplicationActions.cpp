@@ -149,7 +149,7 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
     m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
-    m_toggle_vertical_tabs_expanded_action = Action::create("Toggle Vertical Tabs Expanded"sv, ActionID::ToggleVerticalTabsExpanded, [] {
+    m_toggle_vertical_tabs_expanded_action = Action::create("Show Sidebar"sv, ActionID::ToggleVerticalTabsExpanded, [] {
         auto tab_settings = Application::settings().tab_settings();
         tab_settings.vertical_tabs_expanded = !tab_settings.vertical_tabs_expanded;
         Application::settings().set_tab_settings(tab_settings);
@@ -325,7 +325,9 @@ void ApplicationActions::update_vertical_tabs_action()
     auto const& tab_settings = Application::settings().tab_settings();
     m_toggle_vertical_tabs_expanded_action->set_visible(tab_settings.vertical_tabs_enabled);
     m_toggle_vertical_tabs_expanded_action->set_engaged(tab_settings.vertical_tabs_expanded);
-    m_toggle_vertical_tabs_expanded_action->set_tooltip(tab_settings.vertical_tabs_expanded ? "Hide Sidebar"sv : "Show Sidebar"sv);
+    auto text = tab_settings.vertical_tabs_expanded ? "Hide Sidebar"sv : "Show Sidebar"sv;
+    m_toggle_vertical_tabs_expanded_action->set_text(text);
+    m_toggle_vertical_tabs_expanded_action->set_tooltip(text);
 }
 
 void ApplicationActions::appearance_changed()

@@ -1191,12 +1191,12 @@ WindowToolbar::WindowToolbar(WebView::IsPrivate is_private, QWidget* parent)
 
     m_navigate_back_action.action().setEnabled(false);
     m_navigate_forward_action.action().setEnabled(false);
-    // NB: The reload shortcuts belong to what holds the toolbar, which stays shown when the toolbar does not, such as
-    //     while a page is full screen. Reloading without the cache has no button of its own at all.
+    // NB: The application's reload actions own the shortcuts, so the window and its View menu share one action for each.
+    //     The window also stays shown while a page is full screen, which the toolbar doesn't.
     m_reload_action = create_application_action(*this, application.reload_action());
-    parent->addAction(m_reload_action);
-    m_reload_bypassing_cache_action = create_application_action(*parent, application.reload_bypassing_cache_action());
-    parent->addAction(m_reload_bypassing_cache_action);
+    m_reload_action->setShortcuts({});
+    m_reload_bypassing_cache_action = create_application_action(*this, application.reload_bypassing_cache_action());
+    m_reload_bypassing_cache_action->setShortcuts({});
     m_stop_action = new QAction("Stop", this);
     m_stop_action->setToolTip("Stop loading this page");
     QObject::connect(m_stop_action, &QAction::triggered, this, [this] {
