@@ -58,14 +58,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(We
     return start_worker_agent(move(abstract_owner), outside_settings, move(request), owner.is_private());
 }
 
-Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerAgentManager::inside_settings(Web::HTML::WorkerAgentId agent_id) const
-{
-    auto agent = m_agents.find(agent_id);
-    if (agent == m_agents.end())
-        return {};
-    return *agent->value.inside_settings;
-}
-
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
 WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Owner owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
@@ -175,16 +167,10 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
         notify_worker_script_load_failure(owner);
         return {};
     }
-    auto counts_toward_top_level_site = [&](IsPrivate worker_is_private, Optional<URL::Origin> const& worker_top_level_origin) {
-        return worker_is_private == is_private && worker_top_level_origin.has_value() && worker_top_level_origin->is_same_site(*top_level_origin);
-    };
     size_t worker_count_of_top_level_site = 0;
-    for (auto const& [id, agent] : m_agents) {
-        if (counts_toward_top_level_site(agent.is_private, agent.top_level_origin))
-            ++worker_count_of_top_level_site;
-    }
-    for (auto const& exiting_worker : m_exiting_workers) {
-        if (counts_toward_top_level_site(exiting_worker.is_private, exiting_worker.top_level_origin))
+    for (auto const& client : m_clients) {
+        auto const& worker_top_level_origin = client->top_level_origin();
+        if (client->is_private() == is_private && worker_top_level_origin.has_value() && worker_top_level_origin->is_same_site(*top_level_origin))
             ++worker_count_of_top_level_site;
     }
     if (worker_count_of_top_level_site >= maximum_worker_count_per_top_level_site) {
@@ -268,6 +254,7 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
         return {};
     }
     auto client = client_or_error.release_value();
+    m_clients.append(client);
 
     Vector<Owner> owners;
     owners.append(owner);
@@ -300,12 +287,8 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
             [](WebContentOwner const& web_content_owner) {
                 return web_content_owner.client && web_content_owner.client->may_read_local_files();
             },
-            [&](WebWorkerOwner const& web_worker_owner) {
-                for (auto const& [id, owner_agent] : m_agents) {
-                    if (owner_agent.client.ptr() == web_worker_owner.client.ptr())
-                        return owner_agent.may_read_local_files;
-                }
-                return false;
+            [](WebWorkerOwner const& web_worker_owner) {
+                return web_worker_owner.client->may_read_local_files();
             });
 
     // AD-HOC: Seed worker_is_secure_context with the caller's value so reuse requests arriving before
@@ -321,20 +304,18 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
         .extended_lifetime = request.extended_lifetime,
         .extended_lifetime_timer = {},
         .worker_is_secure_context = request.caller_is_secure_context,
-        .is_private = is_private,
-        .top_level_origin = top_level_origin,
         .shared_worker_key = {},
         .owners = move(owners),
         .outside_settings_owner = owner,
-        .inside_settings = move(inside_settings),
-        .may_read_local_files = may_read_local_files,
-        .script_blob_url = {},
     };
+
+    auto inside_origin = inside_settings->origin();
+    client->set_inside_settings(move(inside_settings), may_read_local_files);
 
     // NB: The worker's URL was parsed with its blob URL entry, so revoking the URL must not stop the worker from
     //     fetching its script.
     if (auto session = client->session())
-        agent.script_blob_url = BlobURLHandle::for_url(session->blob_url_store.ptr(), request.url);
+        client->keep_script_blob_url_until_script_loads(BlobURLHandle::for_url(session->blob_url_store.ptr(), request.url));
 
     if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
@@ -348,7 +329,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
         m_shared_workers.set(*agent.shared_worker_key, agent_id);
     }
 
-    auto inside_origin = agent.inside_settings->origin();
     m_agents.set(agent_id, move(agent));
     client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id), host_has_only_this_worker);
 
@@ -385,45 +365,56 @@ bool WorkerAgentManager::hosts_shared_worker(WebContentClient const& process) co
     });
 }
 
-void WorkerAgentManager::update_permission_snapshot(PermissionManager const& manager)
+void WorkerAgentManager::for_each_client_with_inside_settings(Function<IterationDecision(WebWorkerClient&, CanonicalWorkerEnvironmentSettingsObject const&)> const& callback)
 {
-    for (auto const& agent : m_agents) {
-        auto session = agent.value.client->session();
-        if (session && session->permission_manager.ptr() == &manager)
-            agent.value.client->async_set_permission_snapshot(manager.snapshot_for(agent.value.client->permission_origins()));
+    auto clients = m_clients;
+    for (auto& client : clients) {
+        auto const* inside_settings = client->inside_settings();
+        if (inside_settings && callback(*client, *inside_settings) == IterationDecision::Break)
+            return;
     }
 }
 
-Optional<URL::Origin> WorkerAgentManager::top_level_origin(Web::HTML::WorkerAgentId agent_id) const
+void WorkerAgentManager::update_permission_snapshot(PermissionManager const& manager)
 {
-    auto agent = m_agents.find(agent_id);
-    if (agent == m_agents.end())
-        return {};
-    return agent->value.top_level_origin;
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        auto session = client.session();
+        if (session && session->permission_manager.ptr() == &manager)
+            client.async_set_permission_snapshot(manager.snapshot_for(client.permission_origins()));
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::update_site_compatibility_data(JsonValue const& data)
 {
-    for (auto const& agent : m_agents)
-        agent.value.client->async_set_site_compatibility_data(data);
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        client.async_set_site_compatibility_data(data);
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::update_user_agent(String const& user_agent)
 {
-    for (auto const& agent : m_agents)
-        agent.value.client->async_set_user_agent(user_agent);
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        client.async_set_user_agent(user_agent);
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::update_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode)
 {
-    for (auto const& agent : m_agents)
-        agent.value.client->async_set_navigator_compatibility_mode(mode);
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        client.async_set_navigator_compatibility_mode(mode);
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::update_preferred_languages(Vector<String> const& preferred_languages)
 {
-    for (auto const& agent : m_agents)
-        agent.value.client->async_set_preferred_languages(preferred_languages);
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        client.async_set_preferred_languages(preferred_languages);
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
@@ -486,7 +477,7 @@ void WorkerAgentManager::remove_private_workers_without_owners()
 {
     Vector<Web::HTML::WorkerAgentId> agents_to_close;
     for (auto const& entry : m_agents) {
-        if (entry.value.is_private == IsPrivate::Yes && entry.value.owners.is_empty())
+        if (entry.value.client->is_private() == IsPrivate::Yes && entry.value.owners.is_empty())
             agents_to_close.append(entry.key);
     }
 
@@ -538,21 +529,18 @@ void WorkerAgentManager::post_broadcast_channel_message(Web::HTML::PostedBroadca
         return IterationDecision::Continue;
     });
 
-    for (auto& entry : m_agents) {
-        auto& agent = entry.value;
-        if (agent.client.ptr() == &source_connection || agent.is_private != is_private)
-            continue;
-        if (obtain_a_storage_key_for_non_storage_purposes(*agent.inside_settings) == source_storage_key)
-            agent.client->async_broadcast_channel_message(message);
-    }
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, CanonicalWorkerEnvironmentSettingsObject const& inside_settings) {
+        if (&client != &source_connection && client.is_private() == is_private && obtain_a_storage_key_for_non_storage_purposes(inside_settings) == source_storage_key)
+            client.async_broadcast_channel_message(message);
+        return IterationDecision::Continue;
+    });
 }
 
 void WorkerAgentManager::for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const& callback)
 {
-    for (auto& entry : m_agents) {
-        if (callback(entry.value.client->request_server_site_bindings()) == IterationDecision::Break)
-            return;
-    }
+    for_each_client_with_inside_settings([&](WebWorkerClient& client, auto const&) {
+        return callback(client.request_server_site_bindings());
+    });
 }
 
 ErrorOr<void> WorkerAgentManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, Web::PageId page_id)
@@ -656,7 +644,6 @@ void WorkerAgentManager::worker_did_finish_loading_script(Web::HTML::WorkerAgent
 
     auto& agent = maybe_agent->value;
     agent.worker_is_secure_context = worker_is_secure_context;
-    agent.script_blob_url = {};
     agent.outside_settings_owner = {};
 }
 
@@ -759,26 +746,6 @@ void WorkerAgentManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
     });
 }
 
-void WorkerAgentManager::worker_did_request_file(Web::HTML::WorkerAgentId agent_id, ByteString path, i32 request_id)
-{
-    auto maybe_agent = m_agents.find(agent_id);
-    if (maybe_agent == m_agents.end())
-        return;
-
-    // NB: As a page, a worker reads a local file only through this broker, and only local file content may.
-    auto& client = maybe_agent->value.client;
-    if (!maybe_agent->value.may_read_local_files) {
-        client->async_handle_file_return(EACCES, {}, request_id);
-        return;
-    }
-
-    auto file = open_local_file_for_renderer(path);
-    if (file.is_error())
-        client->async_handle_file_return(file.error().code(), {}, request_id);
-    else
-        client->async_handle_file_return(0, file.release_value(), request_id);
-}
-
 void WorkerAgentManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRemovalCause cause)
 {
     auto maybe_agent = m_agents.find(agent_id);
@@ -826,24 +793,23 @@ void WorkerAgentManager::remove_agent(Web::HTML::WorkerAgentId agent_id, AgentRe
     }
 
     agent.closing = true;
-    if (!agent.client->is_open())
-        return;
-    agent.client->async_close_worker();
+    agent.client->forget_inside_settings_of_removed_agent();
 
     // NB: A thread leaves as soon as it gets out of the builtin or the request it may be in, and nothing waits for it.
     //     Until it is gone, it counts toward the workers of its top-level site.
-    m_exiting_workers.append({ agent.client, agent.is_private, move(agent.top_level_origin) });
+    if (agent.client->is_open())
+        agent.client->async_close_worker();
 }
 
 void WorkerAgentManager::worker_thread_did_exit(WebWorkerClient& client)
 {
-    Vector<ExitingWorker> exited_workers;
-    for (size_t i = m_exiting_workers.size(); i > 0; --i) {
-        if (m_exiting_workers[i - 1].client.ptr() == &client)
-            exited_workers.append(m_exiting_workers.take(i - 1));
+    Vector<NonnullRefPtr<WebWorkerClient>> exited_clients;
+    for (size_t i = m_clients.size(); i > 0; --i) {
+        if (m_clients[i - 1].ptr() == &client)
+            exited_clients.append(m_clients.take(i - 1));
     }
     // NB: The client is still tearing down its connection, so the last references to it go once it is done.
-    Core::deferred_invoke([exited_workers = move(exited_workers)] { });
+    Core::deferred_invoke([exited_clients = move(exited_clients)] { });
 }
 
 bool WorkerAgentManager::is_same_owner(Owner const& owner, Owner const& identity)

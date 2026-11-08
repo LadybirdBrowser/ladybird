@@ -14,6 +14,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerAgentManager.h>
@@ -82,6 +83,7 @@ void WebWorkerClient::did_close_shared_worker()
 
 void WebWorkerClient::did_finish_loading_worker_script(bool worker_is_secure_context)
 {
+    m_script_blob_url = {};
     WorkerAgentManager::the().worker_did_finish_loading_script(m_agent_id, worker_is_secure_context);
 }
 
@@ -106,13 +108,25 @@ void WebWorkerClient::remove_blob_url_entries()
         session->blob_url_store->remove_entries_added_by(WeakPtr<WebWorkerClient> { *this });
 }
 
+void WebWorkerClient::set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings, bool may_read_local_files)
+{
+    m_top_level_origin = inside_settings->top_level_origin();
+    m_inside_settings = move(inside_settings);
+    m_may_read_local_files = may_read_local_files;
+}
+
+void WebWorkerClient::forget_inside_settings_of_removed_agent()
+{
+    m_inside_settings = nullptr;
+    m_script_blob_url = {};
+}
+
 // The environment a worker names is its own.
 Optional<CanonicalEnvironmentSettingsObject const&> WebWorkerClient::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
 {
-    auto inside_settings = WorkerAgentManager::the().inside_settings(m_agent_id);
-    if (!inside_settings.has_value() || inside_settings->id() != environment_id)
+    if (!m_inside_settings || m_inside_settings->id() != environment_id)
         return {};
-    return *inside_settings;
+    return *m_inside_settings;
 }
 
 // A worker may learn the permissions only of its own top-level site; asking about any other gets just the defaults.
@@ -122,7 +136,7 @@ Messages::WebWorkerClient::DidRequestPermissionSnapshotResponse WebWorkerClient:
     if (!session)
         return Web::Permissions::PermissionSnapshot {};
 
-    auto worker_top_level_origin = WorkerAgentManager::the().top_level_origin(m_agent_id);
+    auto worker_top_level_origin = m_inside_settings ? m_inside_settings->top_level_origin() : Optional<URL::Origin> {};
     if (worker_top_level_origin.has_value() && worker_top_level_origin->is_same_origin(top_level_origin) && !top_level_origin.is_opaque() && !m_permission_origins.contains_slow(top_level_origin))
         m_permission_origins.append(top_level_origin);
     return session->permission_manager->snapshot_for(m_permission_origins);
@@ -136,15 +150,14 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
         return HTTP::Cookie::VersionedCookie {};
     }
 
-    auto inside_settings = WorkerAgentManager::the().inside_settings(m_agent_id);
-    if (!inside_settings.has_value() || !inside_settings->may_use_cookies_of(url))
+    if (!m_inside_settings || !m_inside_settings->may_use_cookies_of(url))
         return HTTP::Cookie::VersionedCookie {};
 
-    auto top_level_site = network_isolation_top_level_site(*inside_settings);
+    auto top_level_site = network_isolation_top_level_site(*m_inside_settings);
     if (!top_level_site.has_value())
         return HTTP::Cookie::VersionedCookie {};
 
-    HTTP::Cookie::PartitionContext partition_context { top_level_site.release_value(), inside_settings->has_cross_site_ancestor() };
+    HTTP::Cookie::PartitionContext partition_context { top_level_site.release_value(), m_inside_settings->has_cross_site_ancestor() };
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
         cookie.cookie = session->cookie_jar->get_cookie(url, source, partition_context);
@@ -180,7 +193,20 @@ Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_r
 
 void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
 {
-    WorkerAgentManager::the().worker_did_request_file(m_agent_id, move(path), request_id);
+    if (!m_inside_settings)
+        return;
+
+    // NB: As a page, a worker reads a local file only through this broker, and only local file content may.
+    if (!m_may_read_local_files) {
+        async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+
+    auto file = open_local_file_for_renderer(path);
+    if (file.is_error())
+        async_handle_file_return(file.error().code(), {}, request_id);
+    else
+        async_handle_file_return(0, file.release_value(), request_id);
 }
 
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)

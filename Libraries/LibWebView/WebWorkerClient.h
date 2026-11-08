@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/OwnPtr.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
@@ -15,6 +16,7 @@
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMediaClient/Client.h>
+#include <LibURL/Origin.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/BlobURLStore.h>
@@ -52,6 +54,13 @@ public:
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
 
+    void set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject>, bool may_read_local_files);
+    CanonicalWorkerEnvironmentSettingsObject const* inside_settings() const { return m_inside_settings.ptr(); }
+    void forget_inside_settings_of_removed_agent();
+    Optional<URL::Origin> const& top_level_origin() const { return m_top_level_origin; }
+    bool may_read_local_files() const { return m_may_read_local_files; }
+    void keep_script_blob_url_until_script_loads(BlobURLHandle handle) { m_script_blob_url = move(handle); }
+
     virtual void did_close_worker() override;
     virtual void did_close_shared_worker() override;
     virtual void did_finish_loading_worker_script(bool worker_is_secure_context) override;
@@ -87,6 +96,13 @@ private:
     Optional<u64> m_image_decoder_client_generation;
     Web::HTML::WorkerAgentId m_agent_id { 0 };
     Vector<URL::Origin> m_permission_origins;
+
+    OwnPtr<CanonicalWorkerEnvironmentSettingsObject> m_inside_settings;
+    Optional<URL::Origin> m_top_level_origin;
+    bool m_may_read_local_files { false };
+    // Keeps the blob URL entry of the worker's script alive until the script is loaded, so that the owner can
+    // revoke the URL right after constructing the worker.
+    BlobURLHandle m_script_blob_url;
 
     // The controller connections to the MediaServer and AudioServer spawned for this worker, from its first media use
     // until it ends.

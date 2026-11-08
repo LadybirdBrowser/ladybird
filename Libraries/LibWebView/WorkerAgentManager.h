@@ -61,7 +61,6 @@ public:
     };
     StartedWorkerAgent start_worker_agent(WebContentClient&, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
     StartedWorkerAgent start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
-    Optional<CanonicalWorkerEnvironmentSettingsObject const&> inside_settings(Web::HTML::WorkerAgentId) const;
     void update_site_compatibility_data(JsonValue const&);
     // A worker's navigator reports what its owner's page reports, so a changed spoofing choice or language list
     // reaches every live worker too.
@@ -94,7 +93,6 @@ public:
     void set_extended_lifetime_shared_worker_timeout_for_testing(AK::Duration timeout) { m_extended_lifetime_shared_worker_timeout = timeout; }
 
     void update_permission_snapshot(PermissionManager const&);
-    Optional<URL::Origin> top_level_origin(Web::HTML::WorkerAgentId) const;
 
     template<CallableAs<IterationDecision, WebWorkerClient&> Callback>
     void for_each_client(Callback callback)
@@ -141,7 +139,6 @@ private:
     void shared_worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
     void worker_thread_did_exit(WebWorkerClient&);
-    void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);
 
     enum class AgentRemovalCause {
         OwnerSetEmptied,
@@ -161,31 +158,21 @@ private:
         RefPtr<Core::Timer> extended_lifetime_timer;
         Optional<bool> worker_is_secure_context;
         bool closing { false };
-        IsPrivate is_private { IsPrivate::No };
-        Optional<URL::Origin> top_level_origin;
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
         // The owner that started the worker, whose outside settings are the client of the worker's script fetch, until
         // that fetch completes or the owner goes away.
         Optional<Owner> outside_settings_owner;
-        NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
-        bool may_read_local_files { false };
-        // Keeps the blob URL entry of the worker's script alive until the script is loaded, so that the owner can
-        // revoke the URL right after constructing the worker.
-        BlobURLHandle script_blob_url;
     };
 
     static bool is_same_owner(Owner const&, Owner const& identity);
     static void forget_removed_outside_settings_owner(WorkerAgent&);
 
-    // A worker whose agent is gone counts toward the workers of its top-level site until its thread closes its connection
-    // as it ends.
-    struct ExitingWorker {
-        NonnullRefPtr<WebWorkerClient> client;
-        IsPrivate is_private { IsPrivate::No };
-        Optional<URL::Origin> top_level_origin;
-    };
-    Vector<ExitingWorker> m_exiting_workers;
+    void for_each_client_with_inside_settings(Function<IterationDecision(WebWorkerClient&, CanonicalWorkerEnvironmentSettingsObject const&)> const&);
+
+    // A worker counts toward the workers of its top-level site until its thread closes its connection as it ends, also
+    // once its agent is gone.
+    Vector<NonnullRefPtr<WebWorkerClient>> m_clients;
 
     Web::HTML::WorkerAgentId m_next_agent_id { 0 };
     HashMap<Web::HTML::WorkerAgentId, WorkerAgent> m_agents;
