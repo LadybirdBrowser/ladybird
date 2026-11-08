@@ -47,6 +47,7 @@ public:
     Action& redo_action() { return *m_redo_action; }
     Action& cut_selection_action() { return *m_cut_selection_action; }
     Action& paste_action() { return *m_paste_action; }
+    Action& paste_and_match_style_action() { return *m_paste_and_match_style_action; }
     Action& select_all_action() { return *m_select_all_action; }
     Action& open_about_page_action() { return *m_open_about_page_action; }
     Action& open_downloads_page_action() { return *m_open_downloads_page_action; }
@@ -88,6 +89,7 @@ private:
     RefPtr<Action> m_redo_action;
     RefPtr<Action> m_cut_selection_action;
     RefPtr<Action> m_paste_action;
+    RefPtr<Action> m_paste_and_match_style_action;
     RefPtr<Action> m_select_all_action;
     RefPtr<Action> m_open_about_page_action;
     RefPtr<Action> m_open_downloads_page_action;

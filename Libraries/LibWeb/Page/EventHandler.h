@@ -28,6 +28,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/Forward.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -123,7 +124,7 @@ public:
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_pinch_event(CSSPixelPoint, PinchEvent const&, Optional<RemoteInputEventTarget>* remote_target);
-    [[nodiscard]] EventResult perform_paste_action();
+    [[nodiscard]] EventResult perform_paste_action(Clipboard::PasteMode);
     EventResult perform_paste_action(Vector<Clipboard::SystemClipboardItem> const& system_clipboard_data);
     // A null system_clipboard_data stands for content the UI process pastes in its place, like the primary selection.
     EventResult perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const&, Vector<Clipboard::SystemClipboardItem> const* system_clipboard_data);

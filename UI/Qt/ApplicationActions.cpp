@@ -15,6 +15,7 @@
 #include <UI/Qt/Tab.h>
 
 #include <QApplication>
+#include <QClipboard>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 
@@ -73,6 +74,20 @@ static constexpr auto undo_text_field = [](auto& text_field) { text_field.undo()
 static constexpr auto redo_text_field = [](auto& text_field) { text_field.redo(); };
 static constexpr auto copy_text_field = [](auto& text_field) { text_field.copy(); };
 static constexpr auto cut_text_field = [](auto& text_field) { text_field.cut(); };
+static constexpr auto paste_text_field = [](auto& text_field) {
+    // NB: With no text on the clipboard, QLineEdit::paste() would delete the selected text.
+    if (!QApplication::clipboard()->text().isEmpty())
+        text_field.paste();
+};
+static constexpr auto paste_and_match_style_text_field = [](auto& text_field) {
+    // NB: QPlainTextEdit::paste() formats Markdown from the clipboard, so insert its plain text directly instead.
+    if constexpr (IsSame<decltype(text_field), QPlainTextEdit&>) {
+        if (auto text = QApplication::clipboard()->text(); !text.isEmpty())
+            text_field.insertPlainText(text);
+    } else {
+        paste_text_field(text_field);
+    }
+};
 static constexpr auto select_all_text_field = [](auto& text_field) { text_field.selectAll(); };
 
 static Function<void()> debug_request(StringView request)
@@ -110,8 +125,11 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
     m_cut_selection_action = Action::create("Cut"sv, ActionID::CutSelection, on_focused_text_field_or_active_view(cut_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_cut_selection(view.view_id());
     }));
-    m_paste_action = Action::create("Paste"sv, ActionID::Paste, on_active_view([](RemoteView& view) {
-        HubConnection::the().async_view_paste(view.view_id());
+    m_paste_action = Action::create("Paste"sv, ActionID::Paste, on_focused_text_field_or_active_view(paste_text_field, [](RemoteView& view) {
+        HubConnection::the().async_view_paste(view.view_id(), Web::Clipboard::PasteMode::AllMimeTypes);
+    }));
+    m_paste_and_match_style_action = Action::create("Paste and Match Style"sv, ActionID::PasteAndMatchStyle, on_focused_text_field_or_active_view(paste_and_match_style_text_field, [](RemoteView& view) {
+        HubConnection::the().async_view_paste(view.view_id(), Web::Clipboard::PasteMode::PlainTextOnly);
     }));
     m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, on_focused_text_field_or_active_view(select_all_text_field, [](RemoteView& view) {
         HubConnection::the().async_view_select_all(view.view_id());

@@ -2656,6 +2656,7 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
     edit_menu->addAction(create_application_action(*menu_bar, application.cut_selection_action(), IncludeActionIcon::No));
     edit_menu->addAction(create_application_action(*menu_bar, application.copy_selection_action(), IncludeActionIcon::No));
     edit_menu->addAction(create_application_action(*menu_bar, application.paste_action(), IncludeActionIcon::No));
+    edit_menu->addAction(create_application_action(*menu_bar, application.paste_and_match_style_action(), IncludeActionIcon::No));
     edit_menu->addAction(create_application_action(*menu_bar, application.select_all_action(), IncludeActionIcon::No));
     edit_menu->addSeparator();
     if (for_browser_window == ForBrowserWindow::Yes) {

@@ -979,10 +979,10 @@ void ConnectionFromUI::view_cut_selection(u64 view_id)
     }
 }
 
-void ConnectionFromUI::view_paste(u64 view_id)
+void ConnectionFromUI::view_paste(u64 view_id, Web::Clipboard::PasteMode paste_mode)
 {
     if (auto* view = find_view(view_id))
-        view->paste_from_clipboard();
+        view->paste_from_clipboard(paste_mode);
 }
 
 void ConnectionFromUI::view_select_all(u64 view_id)

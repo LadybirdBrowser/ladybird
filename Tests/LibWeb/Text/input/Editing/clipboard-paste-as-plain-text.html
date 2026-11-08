@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"><b id="destination">seed</b></div>
+<script>
+    asyncTest(async done => {
+        const modCtrl = (1 << 1) | (1 << 3); // Ctrl and Super, to cover the platform clipboard modifier everywhere.
+        const modShift = 1 << 2;
+        const editor = document.getElementById("editor");
+        const destination = document.getElementById("destination");
+
+        // Seed the system clipboard with both a text/plain and a text/html representation, by canceling a copy event.
+        editor.focus();
+        getSelection().selectAllChildren(destination);
+        editor.addEventListener("copy", e => {
+            e.preventDefault();
+            e.clipboardData.setData("text/plain", "plain flavor");
+            e.clipboardData.setData("text/html", "<i>html flavor</i>");
+        }, { once: true });
+        internals.sendKey(editor, "C", modCtrl);
+
+        // The paste event only sees the plain text, and the text takes on the style of where it lands.
+        getSelection().collapse(destination.firstChild, 4);
+        const pasteEvent = new Promise(resolve => {
+            editor.addEventListener("paste", e => {
+                resolve(`types=${JSON.stringify(e.clipboardData.types)} html=${JSON.stringify(e.clipboardData.getData("text/html"))}`);
+            }, { once: true });
+        });
+        internals.sendKey(editor, "V", modCtrl | modShift);
+        println(`paste event: ${await pasteEvent}`);
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`editor: ${editor.innerHTML}`);
+        done();
+    });
+</script>
