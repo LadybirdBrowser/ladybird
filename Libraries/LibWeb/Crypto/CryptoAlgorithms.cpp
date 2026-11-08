@@ -847,29 +847,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(J
     return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, parallelism, memory, passes, maybe_version, secret_value, associated_data });
 }
 
-CShakeParams::~CShakeParams() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(JS::Realm& realm, JS::Value value)
-{
-    auto& vm = realm.vm();
-    VERIFY(value.is_object());
-    auto& object = value.as_object();
-
-    if (!TRY(object.has_property("outputLength"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
-    }
-
-    auto const output_length = TRY(object.get("outputLength"_utf16_fly_string));
-
-    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, output_length, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
-
-    auto const function_name = TRY(get_optional_buffer_source(vm, object, "functionName"_utf16_fly_string));
-
-    auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
-
-    return adopt_own<AlgorithmParams>(*new CShakeParams { length, function_name, customization });
-}
-
 KmacParams::~KmacParams() = default;
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-params
@@ -4063,39 +4040,28 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(JS::Realm&, AlgorithmPa
     return key;
 }
 
-// https://w3c.github.io/webcrypto/#sha-operations-digest
-WebIDL::ExceptionOr<ByteBuffer> SHA::digest(JS::Realm&, AlgorithmParams const& algorithm, ByteBuffer const& data)
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA1) == 4);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA256) == 5);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA384) == 6);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA512) == 7);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_256) == 8);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_384) == 9);
+static_assert(to_underlying(::Crypto::Hash::HashKind::SHA3_512) == 10);
+
+extern "C" bool web_crypto_sha_digest(::Crypto::Hash::HashKind, ReadonlyBytes, void*, ReceiveEncodedBytes);
+
+bool web_crypto_sha_digest(::Crypto::Hash::HashKind hash_kind, ReadonlyBytes data, void* state, ReceiveEncodedBytes receive)
 {
-    auto& algorithm_name = algorithm.name;
-
-    ::Crypto::Hash::HashKind hash_kind;
-    if (algorithm_name == "SHA-1"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA1;
-    } else if (algorithm_name == "SHA-256"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA256;
-    } else if (algorithm_name == "SHA-384"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA384;
-    } else if (algorithm_name == "SHA-512"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA512;
-    } else if (algorithm_name == "SHA3-256"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA3_256;
-    } else if (algorithm_name == "SHA3-384"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA3_384;
-    } else if (algorithm_name == "SHA3-512"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA3_512;
-    } else {
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", algorithm_name));
-    }
-
     ::Crypto::Hash::Manager hash { hash_kind };
     hash.update(data);
 
     auto digest = hash.digest();
     auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
     if (result_buffer.is_error())
-        return WebIDL::OperationError::create("Failed to create result buffer"_utf16);
+        return false;
 
-    return result_buffer.release_value();
+    receive(state, result_buffer.value());
+    return true;
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
@@ -10026,62 +9992,34 @@ WebIDL::ExceptionOr<Optional<u32>> Argon2::get_key_length(JS::Realm&, AlgorithmP
     return Optional<u32> {};
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
-WebIDL::ExceptionOr<void> CShake::validate_digest_parameters(AlgorithmParams const& params) const
-{
-    // NB: Step 5 throws an OperationError for the parameters that our cSHAKE does not support.
-    auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
-    auto result = ::Crypto::Hash::SHAKE::validate_parameters(
-        normalized_algorithm.output_length,
-        normalized_algorithm.customization.map([](auto const& value) { return value.span(); }),
-        normalized_algorithm.function_name.map([](auto const& value) { return value.span(); }));
-    if (result.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Hash function failed: {}", result.error()));
+struct OptionalBytes {
+    bool has_value;
+    ReadonlyBytes bytes;
 
-    return {};
+    Optional<ReadonlyBytes> to_optional() const { return has_value ? Optional<ReadonlyBytes> { bytes } : Optional<ReadonlyBytes> {}; }
+};
+
+static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE128) == 0);
+static_assert(to_underlying(::Crypto::Hash::SHAKEKind::CSHAKE256) == 1);
+
+extern "C" FlatPtr web_crypto_cshake_validate_parameters(u32, OptionalBytes, OptionalBytes);
+extern "C" FlatPtr web_crypto_cshake_digest(::Crypto::Hash::SHAKEKind, ReadonlyBytes, u32, OptionalBytes, OptionalBytes, void*, ReceiveEncodedBytes);
+
+FlatPtr web_crypto_cshake_validate_parameters(u32 output_length, OptionalBytes customization, OptionalBytes function_name)
+{
+    auto result = ::Crypto::Hash::SHAKE::validate_parameters(output_length, customization.to_optional(), function_name.to_optional());
+    if (result.is_error())
+        return Utf16String::formatted("{}", result.error()).into_raw();
+    return 0;
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
-WebIDL::ExceptionOr<ByteBuffer> CShake::digest(JS::Realm&, AlgorithmParams const& params, ByteBuffer const& data)
+FlatPtr web_crypto_cshake_digest(::Crypto::Hash::SHAKEKind kind, ReadonlyBytes data, u32 output_length, OptionalBytes customization, OptionalBytes function_name, void* state, ReceiveEncodedBytes receive)
 {
-    auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
-
-    // 1. Let outputLength be the outputLength member of normalizedAlgorithm.
-    auto const& output_length = normalized_algorithm.output_length;
-
-    // 2. Let functionName be the functionName member of normalizedAlgorithm if present or the empty octet string otherwise.
-    auto const& function_name = normalized_algorithm.function_name;
-
-    // 3. Let customization be the customization member of normalizedAlgorithm if present or the empty octet string otherwise.
-    auto const& customization = normalized_algorithm.customization;
-
-    auto const algorithm = [&]() {
-        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE128":
-        if (normalized_algorithm.name == "cSHAKE128"sv)
-            return ::Crypto::Hash::SHAKE(::Crypto::Hash::SHAKEKind::CSHAKE128);
-        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE256":
-        if (normalized_algorithm.name == "cSHAKE256"sv)
-            return ::Crypto::Hash::SHAKE(::Crypto::Hash::SHAKEKind::CSHAKE256);
-        VERIFY_NOT_REACHED();
-    }();
-
-    // 4. Let result be the result of performing the cSHAKE128/cSHAKE256 function defined in Section 3 of [NIST-SP800-185]
-    // using message as the X input parameter,
-    // outputLength as the L input parameter,
-    // functionName as the N input parameter,
-    // and customization as the S input parameter.
-    auto maybe_result = algorithm.digest(
-        data,
-        output_length,
-        customization.map([](auto const& value) { return value.span(); }),
-        function_name.map([](auto const& value) { return value.span(); }));
-
-    // 5. If performing the operation results in an error, then throw an OperationError.
+    auto maybe_result = ::Crypto::Hash::SHAKE(kind).digest(data, output_length, customization.to_optional(), function_name.to_optional());
     if (maybe_result.is_error())
-        return WebIDL::OperationError::create(Utf16String::formatted("Hash function failed: {}", maybe_result.error()));
-
-    // 6. Return result.
-    return maybe_result.release_value();
+        return Utf16String::formatted("{}", maybe_result.error()).into_raw();
+    receive(state, maybe_result.value());
+    return 0;
 }
 
 AeadParams::~AeadParams() = default;

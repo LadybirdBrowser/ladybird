@@ -26,8 +26,6 @@ enum class AlgorithmId : u8 {
     AesGcm,
     AesKw,
     HMAC,
-    SHA,
-    CShake,
     HKDF,
     PBKDF2,
     X25519,
@@ -59,7 +57,6 @@ enum class ParameterId : u8 {
     AesGcmParams,
     HmacKeyGenParams,
     HmacImportParams,
-    CShakeParams,
     HKDFParams,
     PBKDF2Params,
     Ed448Params,
@@ -127,7 +124,6 @@ JSCompletion web_crypto_algorithm_encrypt(JS::Realm* realm_pointer, NormalizedAl
 JSCompletion web_crypto_algorithm_decrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
 JSCompletion web_crypto_algorithm_sign(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
 JSCompletion web_crypto_algorithm_verify(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes signature, ReadonlyBytes data, bool* out);
-JSCompletion web_crypto_algorithm_digest(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, ReadonlyBytes data, void* state, ReceiveBytes receive);
 JSCompletion web_crypto_algorithm_derive_bits(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, OptionalLength length, void* state, ReceiveBytes receive);
 JSCompletion web_crypto_algorithm_import_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, KeyFormat format, ReadonlyBytes key_data, RawJsonWebKey const* jwk, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out);
 JSCompletion web_crypto_algorithm_generate_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out_key, CryptoKey** out_public_key, CryptoKey** out_private_key);
@@ -142,7 +138,6 @@ JSCompletion web_crypto_algorithm_validate_encrypt_parameters(JS::Realm* realm_p
 JSCompletion web_crypto_algorithm_validate_decrypt_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
 JSCompletion web_crypto_algorithm_validate_sign_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
 JSCompletion web_crypto_algorithm_validate_verify_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
-JSCompletion web_crypto_algorithm_validate_digest_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
 JSCompletion web_crypto_algorithm_validate_generate_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
 JSCompletion web_crypto_algorithm_validate_import_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
 JSCompletion web_crypto_algorithm_validate_derive_bits_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, OptionalLength length);
@@ -259,10 +254,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return AesKw::create();
         case AlgorithmId::HMAC:
             return HMAC::create();
-        case AlgorithmId::SHA:
-            return SHA::create();
-        case AlgorithmId::CShake:
-            return CShake::create();
         case AlgorithmId::HKDF:
             return HKDF::create();
         case AlgorithmId::PBKDF2:
@@ -325,8 +316,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return HmacKeyGenParams::from_value(realm, object);
         case ParameterId::HmacImportParams:
             return HmacImportParams::from_value(realm, object);
-        case ParameterId::CShakeParams:
-            return CShakeParams::from_value(realm, object);
         case ParameterId::HKDFParams:
             return HKDFParams::from_value(realm, object);
         case ParameterId::PBKDF2Params:
@@ -462,16 +451,6 @@ JSCompletion web_crypto_algorithm_verify(JS::Realm* realm_pointer, NormalizedAlg
     if (result.is_exception())
         return Bindings::completion_to_abi(realm, result.release_error());
     *out = result.value();
-    return JS::HostABI::normal_completion_to_abi(0);
-}
-
-JSCompletion web_crypto_algorithm_digest(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, ReadonlyBytes data, void* state, ReceiveBytes receive)
-{
-    auto& realm = *realm_pointer;
-    auto result = algorithm->methods->digest(realm, *algorithm->parameter, MUST(ByteBuffer::copy(data)));
-    if (result.is_exception())
-        return Bindings::completion_to_abi(realm, result.release_error());
-    receive(state, result.value().span());
     return JS::HostABI::normal_completion_to_abi(0);
 }
 
@@ -621,15 +600,6 @@ JSCompletion web_crypto_algorithm_validate_verify_parameters(JS::Realm* realm_po
 {
     auto& realm = *realm_pointer;
     auto result = algorithm->methods->validate_verify_parameters(*algorithm->parameter);
-    if (result.is_exception())
-        return Bindings::completion_to_abi(realm, result.release_error());
-    return JS::HostABI::normal_completion_to_abi(0);
-}
-
-JSCompletion web_crypto_algorithm_validate_digest_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
-{
-    auto& realm = *realm_pointer;
-    auto result = algorithm->methods->validate_digest_parameters(*algorithm->parameter);
     if (result.is_exception())
         return Bindings::completion_to_abi(realm, result.release_error());
     return JS::HostABI::normal_completion_to_abi(0);
