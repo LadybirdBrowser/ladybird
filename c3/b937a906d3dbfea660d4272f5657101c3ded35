@@ -1,0 +1,13 @@
+Ladybird synthesizes bold for a request of 600 or more where the
+selected face is lighter than 600, and an oblique slant for an italic or
+oblique request where the face is upright: 14 degrees for italic, and
+the requested angle for oblique. All three engines use the same 600
+threshold: in Gecko’s gfxFontStyle::NeedsSyntheticBold(), in WebKit’s
+computeSyntheticBold(), and likewise in Blink’s CSSSegmentedFontFace::
+GetFontData(). Gecko’s AngleForSyntheticOblique() also slants italic by
+14 degrees and oblique by its requested angle, whereas WebKit’s
+syntheticObliqueAngle() always gives 14 degrees, and Blink always skews
+by -1/4, about 14.04 degrees. A variable face whose weight axis stops
+short of the request is drawn at the end of the axis, unsynthesized, as
+WebKit’s computeSyntheticBold() draws it — and as WPT’s synthetic-bold-
+out-of-capabilities-range test expects.
