@@ -27,7 +27,6 @@ from Utils.webidl_parser import OperationParameter
 
 class ContainedStorageType(Enum):
     Vector = "Vector"
-    ConservativeVector = "GC::ConservativeVector"
     RootVector = "GC::RootVector"
 
 
@@ -189,9 +188,7 @@ def add_include_for_contained_storage_type(
     contained_storage_type: ContainedStorageType,
     includes: GeneratedIncludes,
 ) -> None:
-    if contained_storage_type is ContainedStorageType.ConservativeVector:
-        includes.add("LibGC/ConservativeVector.h")
-    elif contained_storage_type is ContainedStorageType.RootVector:
+    if contained_storage_type is ContainedStorageType.RootVector:
         includes.add("LibGC/RootVector.h")
     else:
         includes.add("AK/Vector.h")
@@ -232,7 +229,7 @@ def type_contains_gc_like_value(context: GenerationContext, idl_type: IDLType) -
 
 def contained_storage_type_for_aggregate_type(context: GenerationContext, idl_type: IDLType) -> ContainedStorageType:
     if type_contains_gc_like_value(context, idl_type):
-        return ContainedStorageType.ConservativeVector
+        return ContainedStorageType.RootVector
     return ContainedStorageType.Vector
 
 
@@ -325,14 +322,6 @@ def cpp_type_for_non_nullable_idl_type(
         if type_name == "record":
             key_cpp_type = cpp_type_for_idl_type_details(idl_type.parameters[0], context)
             value_cpp_type = cpp_type_for_idl_type_details(idl_type.parameters[1], context)
-            if (
-                key_cpp_type.contained_storage_type == ContainedStorageType.ConservativeVector
-                or value_cpp_type.contained_storage_type == ContainedStorageType.ConservativeVector
-            ):
-                return CppType(
-                    f"GC::ConservativeHashMap<{key_cpp_type.name}, {value_cpp_type.name}>",
-                    ContainedStorageType.ConservativeVector,
-                )
             if (
                 key_cpp_type.contained_storage_type == ContainedStorageType.RootVector
                 or value_cpp_type.contained_storage_type == ContainedStorageType.RootVector
@@ -471,9 +460,7 @@ def add_header_includes_for_idl_type(
             return
         if idl_type.name == "record":
             cpp_type = cpp_type_for_idl_type_details(idl_type, context)
-            if cpp_type.contained_storage_type is ContainedStorageType.ConservativeVector:
-                includes.add("LibGC/ConservativeHashMap.h")
-            elif cpp_type.contained_storage_type is ContainedStorageType.RootVector:
+            if cpp_type.contained_storage_type is ContainedStorageType.RootVector:
                 includes.add("LibGC/RootHashMap.h")
             else:
                 includes.add("AK/HashMap.h")

@@ -96,6 +96,8 @@ public:
     struct SampledAnimationOverlay {
         DOM::AbstractElement element;
         ComputedStyleWorkingSet const& style;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
     void publish_sampled_animation_overlays(Layout::BegunRead const& read, ReadonlySpan<SampledAnimationOverlay>, Span<StyleEngineFFI::FfiAnimationOverlayPublication> publications) const;
     // Give a layout-only variant of an element or pseudo-element style an authoritative record
@@ -138,6 +140,8 @@ public:
         DOM::AbstractElement abstract_element;
         ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects;
         ComputedStyleWorkingSet& computed_properties;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
     // Refreshes the animations of elements of this document, sampling them all in one call of the style engine.
     void refresh_animations_into_each(Layout::BegunRead const& read, ReadonlySpan<AnimationRefreshRequest>) const;

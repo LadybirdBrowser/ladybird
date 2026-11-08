@@ -276,8 +276,8 @@ void HTMLDetailsElement::update_shadow_tree_slots()
     if (!shadow_root())
         return;
 
-    GC::ConservativeVector<HTMLSlotElement::SlottableHandle> summary_assignment;
-    GC::ConservativeVector<HTMLSlotElement::SlottableHandle> descendants_assignment;
+    GC::RootVector<HTMLSlotElement::SlottableHandle> summary_assignment;
+    GC::RootVector<HTMLSlotElement::SlottableHandle> descendants_assignment;
 
     auto* summary = first_child_of_type<HTMLSummaryElement>();
     if (summary != nullptr)

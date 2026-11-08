@@ -6,7 +6,7 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -1065,8 +1065,10 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
     struct PreviousReadWriteState {
         GC::Ptr<DOM::Element> element;
         bool value;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
-    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    GC::RootVector<PreviousReadWriteState> previous_read_write_states;
     if (name == HTML::AttributeNames::contenteditable && old_value != value) {
         for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
             previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
@@ -1165,8 +1167,10 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
     struct PreviousReadWriteState {
         GC::Ptr<DOM::Element> element;
         bool value;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
-    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    GC::RootVector<PreviousReadWriteState> previous_read_write_states;
     for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
         if (auto* element = as_if<DOM::Element>(node))
             previous_read_write_states.append({ *element, SelectorMatching::element_matches_state(*element, CSS::PseudoClass::ReadWrite) });

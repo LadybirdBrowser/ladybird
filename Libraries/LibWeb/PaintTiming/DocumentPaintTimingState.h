@@ -40,6 +40,8 @@ struct PendingImageRecord {
 
     // loadTime, a DOMHighResTimeStamp
     HighResolutionTime::DOMHighResTimeStamp load_time { 0 };
+
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 // https://w3c.github.io/largest-contentful-paint/#largest-contentful-paint-candidate

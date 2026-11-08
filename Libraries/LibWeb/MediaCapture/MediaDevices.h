@@ -73,10 +73,14 @@ private:
     struct PendingGetUserMediaRequest final {
         GC::Ref<WebIDL::Promise> promise;
         Optional<DeviceIdConstraint> device_id_constraint;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
 
     struct PendingEnumerateDevicesRequest final {
         GC::Ref<WebIDL::Promise> promise;
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
 
     explicit MediaDevices(HTML::Window&);

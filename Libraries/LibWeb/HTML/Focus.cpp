@@ -9,7 +9,6 @@
 #include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/CSS.h>
@@ -1103,8 +1102,10 @@ static GC::RootVector<GC::Ref<DOM::Element>> tabindex_ordered_focus_navigation_s
         GC::Ref<DOM::Element> element;
         i32 tabindex;
         size_t tree_index;
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
-    GC::ConservativeVector<Item> positive_items;
+    GC::RootVector<Item> positive_items;
     GC::RootVector<GC::Ref<DOM::Element>> result;
 
     for (auto const& element : focus_navigation_scope(owner)) {

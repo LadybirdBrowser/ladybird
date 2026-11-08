@@ -1022,6 +1022,8 @@ struct ResolvedWhiteSpace {
 struct RecordedWhiteSpace {
     GC::Ref<DOM::Node> node;
     ResolvedWhiteSpace white_space;
+
+    void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(node); }
 };
 
 }
@@ -1174,9 +1176,9 @@ bool element_changes_formatting(DOM::Element& element)
 }
 
 // Record the white-space style of nodes, which are about to be joined into another block.
-static GC::ConservativeVector<RecordedWhiteSpace> record_white_space_of_nodes(GC::RootVector<GC::Ref<DOM::Node>>& nodes)
+static GC::RootVector<RecordedWhiteSpace> record_white_space_of_nodes(GC::RootVector<GC::Ref<DOM::Node>>& nodes)
 {
-    GC::ConservativeVector<RecordedWhiteSpace> recorded;
+    GC::RootVector<RecordedWhiteSpace> recorded;
     GC::RootVector<GC::Ref<DOM::Node>> new_nodes;
     for (auto node : nodes) {
         auto white_space = resolved_white_space(node);
@@ -1586,8 +1588,8 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         remove_node(*start_block->first_child());
 
     // 32. If start block is an ancestor of end block:
-    GC::ConservativeVector<RecordedNodeValue> values;
-    GC::ConservativeVector<RecordedWhiteSpace> recorded_white_space;
+    GC::RootVector<RecordedNodeValue> values;
+    GC::RootVector<RecordedWhiteSpace> recorded_white_space;
     if (start_block->is_ancestor_of(*end_block)) {
         // 1. Let reference node be end block.
         auto reference_node = end_block;
@@ -4126,10 +4128,10 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#record-the-values
-GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
+GC::RootVector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
 {
     // 1. Let values be a list of (node, command, specified command value) triples, initially empty.
-    GC::ConservativeVector<RecordedNodeValue> values;
+    GC::RootVector<RecordedNodeValue> values;
 
     // 2. For each node in node list, for each command in the list "subscript", "bold", "fontName",
     //    "fontSize", "foreColor", "hiliteColor", "italic", "strikethrough", and "underline" in that

@@ -24,7 +24,7 @@ struct FormDataEntry {
     Utf16String name;
     Value value;
 
-    void visit_edges(auto& visitor) const { visitor.visit(value); }
+    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 struct FormDataEntryValueABI {

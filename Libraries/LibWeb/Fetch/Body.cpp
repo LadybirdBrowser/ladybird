@@ -367,7 +367,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
 }
 
 // https://andreubotella.github.io/multipart-form-data/#multipart-form-data-parser
-MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type)
+MultipartParsingErrorOr<GC::RootVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type)
 {
     // 1. Assert: mimeType’s essence is "multipart/form-data".
     VERIFY(mime_type.essence() == "multipart/form-data"sv);
@@ -379,7 +379,7 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
     auto boundary = maybe_boundary.release_value();
 
     // 3. Let entry list be an empty entry list.
-    GC::ConservativeVector<XHR::FormDataEntry> entry_list;
+    GC::RootVector<XHR::FormDataEntry> entry_list;
 
     // 4. Let position be a pointer to a byte in input, initially pointing at the first byte.
     GenericLexer lexer(input);

@@ -39,7 +39,7 @@ XHR::FormDataEntry create_entry(Utf16View name, Variant<GC::Ref<FileAPI::Blob>, 
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#face-entry-construction
-static void construct_face_entry(GC::Ref<HTMLElement const> form_associated_custom_element, GC::ConservativeVector<XHR::FormDataEntry>& entry_list)
+static void construct_face_entry(GC::Ref<HTMLElement const> form_associated_custom_element, GC::RootVector<XHR::FormDataEntry>& entry_list)
 {
     // 1. If element's submission value is a list of entries, then append each item of element's submission value to
     //    entry list, and return.
@@ -48,7 +48,7 @@ static void construct_face_entry(GC::Ref<HTMLElement const> form_associated_cust
     //       content attribute value, they can be strings based on the name content attribute value, or they
     //       can be unrelated to the name content attribute.
     auto const& submission_value = form_associated_custom_element->face_submission_value();
-    if (auto const* form_data_entries = submission_value.get_pointer<GC::ConservativeVector<XHR::FormDataEntry>>()) {
+    if (auto const* form_data_entries = submission_value.get_pointer<GC::RootVector<XHR::FormDataEntry>>()) {
         entry_list.extend(*form_data_entries);
         return;
     }
@@ -79,7 +79,7 @@ static void construct_face_entry(GC::Ref<HTMLElement const> form_associated_cust
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set
-Optional<GC::ConservativeVector<XHR::FormDataEntry>> construct_entry_list(HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<Utf16String> encoding)
+Optional<GC::RootVector<XHR::FormDataEntry>> construct_entry_list(HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<Utf16String> encoding)
 {
     // 1. If form's constructing entry list is true, then return null.
     if (form.constructing_entry_list())
@@ -92,7 +92,7 @@ Optional<GC::ConservativeVector<XHR::FormDataEntry>> construct_entry_list(HTMLFo
     auto controls = form.get_submittable_elements();
 
     // 4. Let entry list be a new empty entry list.
-    GC::ConservativeVector<XHR::FormDataEntry> entry_list;
+    GC::RootVector<XHR::FormDataEntry> entry_list;
 
     // 5. For each element field in controls, in tree order:
     for (auto const& control : controls) {
@@ -277,7 +277,7 @@ ErrorOr<ByteBuffer> encode(Utf16View input, StringView encoding)
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
-ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVector<XHR::FormDataEntry> const& entry_list, StringView encoding)
+ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::RootVector<XHR::FormDataEntry> const& entry_list, StringView encoding)
 {
     // For field names and filenames for file fields, the result of the encoding in the previous bullet point must be
     // escaped by replacing any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`.

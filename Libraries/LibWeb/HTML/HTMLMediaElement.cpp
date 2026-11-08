@@ -10,8 +10,8 @@
 #include <AK/AnyOf.h>
 #include <AK/QuickSort.h>
 #include <LibCore/Timer.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/MediaSupport.h>
@@ -3859,8 +3859,10 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
         Utf16FlyString name;
         GC::Ref<TextTrackCue> target;
         double time { 0 };
+
+        void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(target); }
     };
-    GC::ConservativeVector<CueEvent> events;
+    GC::RootVector<CueEvent> events;
     GC::RootVector<GC::Ref<TextTrack>> affected_tracks;
 
     //    When the steps below say to prepare an event named event for a text track cue target with a time time, the user

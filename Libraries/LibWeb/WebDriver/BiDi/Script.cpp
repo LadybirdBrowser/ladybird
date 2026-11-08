@@ -7,10 +7,10 @@
 #include <AK/HashMap.h>
 #include <AK/JsonArray.h>
 #include <AK/RefCounted.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -711,7 +711,7 @@ Response get_realms(HTML::Navigable& navigable, JsonObject const& params)
     // NB: The browser process asks the process hosting each navigable's active document for the realms of that
     //     document.
     // FIXME: Include the realms of workers.
-    GC::ConservativeVector<HTML::EnvironmentSettingsObject*> environment_settings;
+    GC::RootVector<HTML::EnvironmentSettingsObject*> environment_settings;
     if (auto* local_navigable = as_if<HTML::LocalNavigable>(navigable)) {
         if (auto document = local_navigable->active_document()) {
             auto& settings = document->relevant_settings_object();

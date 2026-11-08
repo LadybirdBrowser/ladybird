@@ -105,6 +105,8 @@ private:
         // Whether the text was set apart from the node by white space, which a translation drops at the ends of runs.
         bool space_before { false };
         bool space_after { false };
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
 
     struct Unit {

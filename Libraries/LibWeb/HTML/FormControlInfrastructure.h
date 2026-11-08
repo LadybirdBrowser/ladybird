@@ -18,9 +18,9 @@ struct SerializedFormData {
 };
 
 XHR::FormDataEntry create_entry(Utf16View name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value);
-Optional<GC::ConservativeVector<XHR::FormDataEntry>> construct_entry_list(HTMLFormElement&, GC::Ptr<HTMLElement> submitter = nullptr, Optional<Utf16String> encoding = {});
+Optional<GC::RootVector<XHR::FormDataEntry>> construct_entry_list(HTMLFormElement&, GC::Ptr<HTMLElement> submitter = nullptr, Optional<Utf16String> encoding = {});
 ErrorOr<Utf16String> normalize_line_breaks(Utf16View value);
 ErrorOr<ByteBuffer> encode(Utf16View input, StringView encoding);
-ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVector<XHR::FormDataEntry> const& entry_list, StringView encoding = "UTF-8"sv);
+ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::RootVector<XHR::FormDataEntry> const& entry_list, StringView encoding = "UTF-8"sv);
 
 }

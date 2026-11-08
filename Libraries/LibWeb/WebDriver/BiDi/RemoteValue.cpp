@@ -10,7 +10,7 @@
 #include <AK/Random.h>
 #include <AK/TemporaryChange.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -251,7 +251,7 @@ struct Serializer {
 
     JsonValue serialize_as_a_remote_value(JS::Value, SerializationOptions const&, ResultOwnership);
     JsonArray serialize_as_a_list(GC::RootVector<JS::Value> const&, SerializationOptions const&, ResultOwnership);
-    JsonArray serialize_as_a_mapping(GC::ConservativeVector<Array<JS::Value, 2>> const&, SerializationOptions const&, ResultOwnership);
+    JsonArray serialize_as_a_mapping(GC::RootVector<Array<JS::Value, 2>> const&, SerializationOptions const&, ResultOwnership);
     JsonObject serialize_an_array_like(StringView type, Optional<String> handle_id, bool known_object, JS::Object const& value, GC::RootVector<JS::Value> const& items, SerializationOptions const&, ResultOwnership);
     Optional<String> handle_for_an_object(ResultOwnership, JS::Value);
     void set_internal_ids_if_needed(JsonObject& remote_value, JS::Object const&);
@@ -401,7 +401,7 @@ JsonArray Serializer::serialize_as_a_list(GC::RootVector<JS::Value> const& value
 }
 
 // https://w3c.github.io/webdriver-bidi/#serialize-as-a-mapping
-JsonArray Serializer::serialize_as_a_mapping(GC::ConservativeVector<Array<JS::Value, 2>> const& items, SerializationOptions const& serialization_options, ResultOwnership ownership_type)
+JsonArray Serializer::serialize_as_a_mapping(GC::RootVector<Array<JS::Value, 2>> const& items, SerializationOptions const& serialization_options, ResultOwnership ownership_type)
 {
     // 1. If serialization options["maxObjectDepth"] is not null, assert: serialization options["maxObjectDepth"] is
     //    greater than 0.
@@ -635,7 +635,7 @@ JsonValue Serializer::serialize_as_a_remote_value(JS::Value value, Serialization
         if (!known_object && serialization_options.max_object_depth != 0u) {
             // 1. Let serialized be the result of serialize as a mapping with CreateMapIterator(value, key+value),
             //    serialization options, ownership type, serialization internal map, realm, and session.
-            GC::ConservativeVector<Array<JS::Value, 2>> entries;
+            GC::RootVector<Array<JS::Value, 2>> entries;
             GC::RootVector<JS::Value> roots;
             (void)map->for_each_entry([&](JS::Value key, JS::Value entry_value) -> JS::ThrowCompletionOr<void> {
                 roots.append(key);
@@ -903,7 +903,7 @@ JsonValue Serializer::serialize_as_a_remote_value(JS::Value value, Serialization
     if (!known_object && serialization_options.max_object_depth != 0u) {
         // 1. Let serialized be the result of serialize as a mapping with EnumerableOwnPropertyNames(value, key+value),
         //    serialization options, ownership type, serialization internal map, realm, and session.
-        GC::ConservativeVector<Array<JS::Value, 2>> entries;
+        GC::RootVector<Array<JS::Value, 2>> entries;
         GC::RootVector<JS::Value> roots;
         if (auto properties = object.enumerable_own_property_names(JS::Object::PropertyKind::KeyAndValue); !properties.is_error()) {
             for (auto property : properties.value()) {
@@ -1172,7 +1172,7 @@ static ErrorOr<GC::RootVector<JS::Value>, Error> deserialize_value_list(JsonValu
 }
 
 // https://w3c.github.io/webdriver-bidi/#deserialize-key-value-list
-static ErrorOr<GC::ConservativeVector<Array<JS::Value, 2>>, Error> deserialize_key_value_list(JsonValue const* serialized_key_value_list, HTML::EnvironmentSettingsObject& settings, GC::RootVector<JS::Value>& roots)
+static ErrorOr<GC::RootVector<Array<JS::Value, 2>>, Error> deserialize_key_value_list(JsonValue const* serialized_key_value_list, HTML::EnvironmentSettingsObject& settings, GC::RootVector<JS::Value>& roots)
 {
     if (!serialized_key_value_list || !serialized_key_value_list->is_array())
         return invalid_argument("Expected a list of key-value pairs"sv);
@@ -1180,7 +1180,7 @@ static ErrorOr<GC::ConservativeVector<Array<JS::Value, 2>>, Error> deserialize_k
     auto& vm = settings.global_object().vm();
 
     // 1. Let deserialized key-value list be a new list.
-    GC::ConservativeVector<Array<JS::Value, 2>> deserialized_key_value_list;
+    GC::RootVector<Array<JS::Value, 2>> deserialized_key_value_list;
 
     // 2. For each serialized key-value in the serialized key-value list:
     for (auto const& serialized_key_value : serialized_key_value_list->as_array().values()) {

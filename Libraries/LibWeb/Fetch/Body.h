@@ -57,6 +57,6 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Streams::ReadableStream>> text_stream(JS::Realm&) const;
 };
 
-[[nodiscard]] MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type);
+[[nodiscard]] MultipartParsingErrorOr<GC::RootVector<XHR::FormDataEntry>> parse_multipart_form_data(StringView input, MimeSniff::MimeType const& mime_type);
 
 }

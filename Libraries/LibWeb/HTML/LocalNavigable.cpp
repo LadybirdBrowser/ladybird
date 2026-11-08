@@ -3763,9 +3763,9 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         auto navigation = active_window()->navigation();
 
         // 2. Let entryListForFiring be formDataEntryList if documentResource is a POST resource; otherwise, null.
-        auto entry_list_for_firing = [&]() -> Optional<GC::ConservativeVector<XHR::FormDataEntry>> {
+        auto entry_list_for_firing = [&]() -> Optional<GC::RootVector<XHR::FormDataEntry>> {
             if (document_resource.has<POSTResource>())
-                return GC::ConservativeVector { form_data_entry_list.value() };
+                return GC::RootVector { form_data_entry_list.value() };
             return {};
         }();
 

@@ -11,7 +11,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
-#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/HTMLFormElement.h>
@@ -38,7 +38,7 @@ using ValidityStateFlags = Bindings::ValidityStateFlags;
 class WEB_API FormAssociatedElement {
 public:
     // NB: FACE stands for form-associated custom element.
-    using FACESubmissionValue = Variant<GC::Ref<FileAPI::File>, Utf16String, GC::ConservativeVector<XHR::FormDataEntry>, Empty>;
+    using FACESubmissionValue = Variant<GC::Ref<FileAPI::File>, Utf16String, GC::RootVector<XHR::FormDataEntry>, Empty>;
 
     virtual bool is_form_associated_element() const;
 

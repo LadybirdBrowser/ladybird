@@ -10,8 +10,8 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibGC/ConservativeVector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Page/SpellingError.h>
@@ -55,8 +55,10 @@ private:
         size_t node_start { 0 };
         size_t node_end { 0 };
         bool checked { false };
+
+        void visit_edges(GC::Cell::Visitor&) const;
     };
-    using Paragraph = GC::ConservativeVector<ParagraphPiece>;
+    using Paragraph = GC::RootVector<ParagraphPiece>;
 
     struct RequestPiece {
         GC::Weak<DOM::Text> text;

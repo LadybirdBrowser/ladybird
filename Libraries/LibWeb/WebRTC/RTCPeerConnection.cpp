@@ -1016,14 +1016,28 @@ namespace {
 struct TrackEventInit {
     GC::Ref<RTCRtpReceiver> receiver;
     GC::Ref<MediaCapture::MediaStreamTrack> track;
-    GC::RootVector<GC::Ref<MediaCapture::MediaStream>> streams;
+    Vector<GC::Ref<MediaCapture::MediaStream>> streams;
     GC::Ref<RTCRtpTransceiver> transceiver;
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(receiver);
+        visitor.visit(track);
+        visitor.visit(streams);
+        visitor.visit(transceiver);
+    }
 };
 
 // Spec uses "(stream, track) pairs" in addList/removeList; alias for clarity.
 struct StreamTrackPair {
     GC::Ref<MediaCapture::MediaStream> stream;
     GC::Ref<MediaCapture::MediaStreamTrack> track;
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(stream);
+        visitor.visit(track);
+    }
 };
 
 constexpr bool direction_is_receive(Bindings::RTCRtpTransceiverDirection d)
@@ -1043,8 +1057,8 @@ constexpr bool direction_is_send_only_or_inactive(Bindings::RTCRtpTransceiverDir
 // https://www.w3.org/TR/webrtc/#set-associated-remote-streams
 static void set_the_associated_remote_streams(RTCPeerConnection& pc, RTCRtpReceiver& receiver,
     Vector<String> const& msids,
-    GC::ConservativeVector<StreamTrackPair>& add_list,
-    GC::ConservativeVector<StreamTrackPair>& remove_list)
+    GC::RootVector<StreamTrackPair>& add_list,
+    GC::RootVector<StreamTrackPair>& remove_list)
 {
     // 1. Let connection be the RTCPeerConnection object associated with receiver.
     auto& connection = pc;
@@ -1098,7 +1112,7 @@ static void set_the_associated_remote_streams(RTCPeerConnection& pc, RTCRtpRecei
 }
 
 // https://www.w3.org/TR/webrtc/#process-the-addition-of-a-remote-track
-static void process_addition_of_remote_track(RTCRtpTransceiver& transceiver, GC::ConservativeVector<TrackEventInit>& track_event_inits)
+static void process_addition_of_remote_track(RTCRtpTransceiver& transceiver, GC::RootVector<TrackEventInit>& track_event_inits)
 {
     // 1. Let receiver be transceiver.[[Receiver]].
     auto receiver = transceiver.receiver();
@@ -1126,9 +1140,9 @@ static void process_removal_of_remote_track(RTCRtpTransceiver& transceiver, GC::
 // https://www.w3.org/TR/webrtc/#process-remote-tracks
 static void process_remote_tracks(RTCPeerConnection& pc, RTCRtpTransceiver& transceiver,
     Bindings::RTCRtpTransceiverDirection direction, Vector<String> const& msids,
-    GC::ConservativeVector<StreamTrackPair>& add_list,
-    GC::ConservativeVector<StreamTrackPair>& remove_list,
-    GC::ConservativeVector<TrackEventInit>& track_event_inits,
+    GC::RootVector<StreamTrackPair>& add_list,
+    GC::RootVector<StreamTrackPair>& remove_list,
+    GC::RootVector<TrackEventInit>& track_event_inits,
     GC::RootVector<GC::Ref<MediaCapture::MediaStreamTrack>>& mute_tracks)
 {
     auto add_list_size_before = add_list.size();
@@ -1206,9 +1220,9 @@ void RTCPeerConnection::on_remote_track_added(u64 receiver_id, u64 transceiver_i
 
     // Drive the spec's "process remote tracks" algorithm. The IPC only signals new
     // tracks today (no removals), so direction is recvonly.
-    GC::ConservativeVector<StreamTrackPair> add_list;
-    GC::ConservativeVector<StreamTrackPair> remove_list;
-    GC::ConservativeVector<TrackEventInit> track_event_inits;
+    GC::RootVector<StreamTrackPair> add_list;
+    GC::RootVector<StreamTrackPair> remove_list;
+    GC::RootVector<TrackEventInit> track_event_inits;
     GC::RootVector<GC::Ref<MediaCapture::MediaStreamTrack>> mute_tracks;
     process_remote_tracks(*this, *transceiver, Bindings::RTCRtpTransceiverDirection::Recvonly,
         stream_ids, add_list, remove_list, track_event_inits, mute_tracks);
