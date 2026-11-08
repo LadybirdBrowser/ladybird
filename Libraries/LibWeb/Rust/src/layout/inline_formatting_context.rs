@@ -2841,13 +2841,13 @@ impl<'context> InlineFormattingContext<'context> {
             if entered_inline_box.is_none() && !self.laid_out_atomic_inline(child) {
                 return true;
             }
-            block_formatting_context::margins_can_collapse_through_box_itself(facts, self.style(child), || {
-                match entered_inline_box {
-                    Some(sides) => sides.border_box_block_size(false),
-                    None => {
-                        let atomic_inline = self.placed_atomic_inline(child).geometry.cells;
-                        atomic_inline.border_box_block_size(false)
-                    }
+            // NB: clear applies only to block-level boxes, so no inline-level box introduces clearance.
+            block_formatting_context::margins_can_collapse_through_box_itself(facts, false, || match entered_inline_box
+            {
+                Some(sides) => sides.border_box_block_size(false),
+                None => {
+                    let atomic_inline = self.placed_atomic_inline(child).geometry.cells;
+                    atomic_inline.border_box_block_size(false)
                 }
             }) && self.children_let_margins_collapse_through(child)
         })
