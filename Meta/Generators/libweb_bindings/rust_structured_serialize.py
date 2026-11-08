@@ -31,7 +31,7 @@ STORAGE_IDENTIFIERS = (
 )
 
 # The serializable interfaces implemented in C++ whose steps run in Rust.
-CPP_INTERFACES_WITH_RUST_STEPS = ("CryptoKey", "DOMException", "QuotaExceededError", "RTCEncodedAudioFrame")
+CPP_INTERFACES_WITH_RUST_STEPS = ("DOMException", "QuotaExceededError", "RTCEncodedAudioFrame")
 
 
 def write_rust_serializable_dispatch(out: TextIO, interfaces: List[Interface], values: Dict[str, int]) -> None:

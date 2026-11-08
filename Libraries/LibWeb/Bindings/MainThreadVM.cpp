@@ -45,7 +45,6 @@
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
@@ -797,7 +796,6 @@ void shut_down_agent()
     Fetch::Fetching::disarm_all_body_stream_wakes();
     HTML::clear_message_event_ports_caches();
     PerformanceTimeline::clear_supported_entry_types_caches();
-    Crypto::clear_crypto_key_caches();
     ServiceWorker::clear_service_worker_container_ready_promise_caches();
     PermissionsAPI::PermissionStore::forget_statuses_of_this_agent();
     FileAPI::forget_blob_url_store_of_this_agent();

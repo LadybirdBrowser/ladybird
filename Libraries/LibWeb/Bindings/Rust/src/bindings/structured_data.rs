@@ -69,6 +69,10 @@ impl<'a, 'memory> SerializationWriter<'a, 'memory> {
         self.serialized().encode_i32(value);
     }
 
+    pub(crate) fn write_u16(&mut self, value: u16) {
+        self.serialized().encode_u16(value);
+    }
+
     pub(crate) fn write_u32(&mut self, value: u32) {
         self.serialized().encode_u32(value);
     }
@@ -148,6 +152,10 @@ impl<'a, 'memory> SerializationReader<'a, 'memory> {
 
     pub(crate) fn read_i32(&mut self) -> WebIdlResult<i32> {
         self.serialized().decode_i32()
+    }
+
+    pub(crate) fn read_u16(&mut self) -> WebIdlResult<u16> {
+        self.serialized().decode_u16()
     }
 
     pub(crate) fn read_u32(&mut self) -> WebIdlResult<u32> {

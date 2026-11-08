@@ -22,7 +22,6 @@ pub(crate) enum SerializableSteps {
     Rust,
     DOMException,
     QuotaExceededError,
-    CryptoKey,
     RTCEncodedAudioFrame,
 }
 

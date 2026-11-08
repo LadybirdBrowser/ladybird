@@ -6,125 +6,16 @@
  */
 
 #include <AK/Memory.h>
-#include <AK/NeverDestroyed.h>
-#include <LibGC/Heap.h>
-#include <LibGC/WeakInlines.h>
 #include <LibJS/HostClassBuilder.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/CryptoKey.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Crypto {
 
-namespace {
-
-struct CryptoKeyCacheEntry {
-    GC::Weak<CryptoKey> key;
-    Bindings::WrapperWorldWeakValueCache<JS::Object> usages_objects;
-};
-
-static Vector<CryptoKeyCacheEntry>& crypto_key_caches()
-{
-    static thread_local NeverDestroyed<Vector<CryptoKeyCacheEntry>> caches;
-    return *caches;
-}
-
-static void prune_crypto_key_caches()
-{
-    crypto_key_caches().remove_all_matching([](auto const& entry) {
-        return !entry.key;
-    });
-}
-
-static CryptoKeyCacheEntry& cache_for(CryptoKey& key)
-{
-    auto& caches = crypto_key_caches();
-    prune_crypto_key_caches();
-
-    for (auto& entry : caches) {
-        if (entry.key.ptr().ptr() == &key)
-            return entry;
-    }
-
-    caches.append(CryptoKeyCacheEntry { key, {} });
-    return caches.last();
-}
-
-}
-
-void clear_crypto_key_caches()
-{
-    crypto_key_caches().clear();
-}
-
-namespace {
-
-static JS::ThrowCompletionOr<GC::Ref<JS::Uint8Array>> create_uint8_array_from_bytes(JS::Realm& realm, ReadonlyBytes bytes)
-{
-    auto array = TRY(JS::Uint8Array::create(realm, bytes.size()));
-    array->viewed_array_buffer()->overwrite(0, bytes.data(), bytes.size());
-    return array;
-}
-
-static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_key_algorithm_object(JS::Realm& realm, Utf16String const& name)
-{
-    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-    TRY(object->create_data_property_or_throw("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), name)));
-    return object;
-}
-
-static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_algorithm_object(JS::Realm& realm, CryptoKey::InternalAlgorithmData const& algorithm)
-{
-    return TRY(algorithm.visit(
-        [&](CryptoKey::KeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            return create_key_algorithm_object(realm, algorithm.name());
-        },
-        [&](CryptoKey::RsaKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("modulusLength"_utf16_fly_string, JS::Value(algorithm.modulus_length())));
-            TRY(object->create_data_property_or_throw("publicExponent"_utf16_fly_string, TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes()))));
-            return object;
-        },
-        [&](CryptoKey::RsaHashedKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("modulusLength"_utf16_fly_string, JS::Value(algorithm.modulus_length())));
-            TRY(object->create_data_property_or_throw("publicExponent"_utf16_fly_string, TRY(create_uint8_array_from_bytes(realm, algorithm.public_exponent().bytes()))));
-            TRY(object->create_data_property_or_throw("hash"_utf16_fly_string, TRY(create_key_algorithm_object(realm, algorithm.hash()))));
-            return object;
-        },
-        [&](CryptoKey::EcKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("namedCurve"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), algorithm.named_curve())));
-            return object;
-        },
-        [&](CryptoKey::AesKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
-            return object;
-        },
-        [&](CryptoKey::HmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("hash"_utf16_fly_string, TRY(create_key_algorithm_object(realm, algorithm.hash()))));
-            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
-            return object;
-        },
-        [&](CryptoKey::KmacKeyAlgorithmData const& algorithm) -> JS::ThrowCompletionOr<GC::Ref<JS::Object>> {
-            auto object = TRY(create_key_algorithm_object(realm, algorithm.name()));
-            TRY(object->create_data_property_or_throw("length"_utf16_fly_string, JS::Value(algorithm.length())));
-            return object;
-        }));
-}
-
-}
-
-GC_DEFINE_ALLOCATOR(CryptoKey);
 enum class SerializedKeyAlgorithmType : u8 {
     Key,
     Rsa,
@@ -135,112 +26,17 @@ enum class SerializedKeyAlgorithmType : u8 {
     Kmac,
 };
 
-GC::Ref<CryptoKey> CryptoKey::create(InternalKeyData key_data)
-{
-    return GC::Heap::the().allocate<CryptoKey>(move(key_data));
-}
-
-CryptoKey::CryptoKey(InternalKeyData key_data)
-    : m_algorithm(KeyAlgorithmData {})
-    , m_key_data(move(key_data))
-{
-}
-
-void CryptoKey::finalize()
-{
-    Base::finalize();
-    m_key_data.visit(
-        [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
-        [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
-        [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
-        [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
-}
-
-void CryptoKey::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    for (auto const& cached_algorithm_object : m_cached_algorithm_objects)
-        visitor.visit(cached_algorithm_object.object);
-}
-
-void CryptoKey::set_algorithm(InternalAlgorithmData algorithm)
-{
-    m_algorithm = move(algorithm);
-    m_algorithm_name = {};
-    m_cached_algorithm_objects.clear();
-}
-
-void CryptoKey::set_usages(Vector<KeyUsage> usages)
-{
-    m_key_usages = move(usages);
-}
-
-Bindings::KeyType CryptoKey::bindings_type() const
-{
-    switch (m_type) {
-    case KeyType::Public:
-        return Bindings::KeyType::Public;
-    case KeyType::Private:
-        return Bindings::KeyType::Private;
-    case KeyType::Secret:
-        return Bindings::KeyType::Secret;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-JS::ThrowCompletionOr<JS::Value> CryptoKey::algorithm(JS::Realm& realm)
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    auto wrapper = Bindings::wrap(wrapper_world, realm, GC::Ref { *this });
-    m_cached_algorithm_objects.remove_all_matching([](auto const& entry) { return !entry.wrapper; });
-
-    auto cached_object = m_cached_algorithm_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper; });
-    if (!cached_object.is_end())
-        return cached_object->object;
-
-    auto object = TRY(create_algorithm_object(realm, m_algorithm));
-    m_cached_algorithm_objects.append({ wrapper, object });
-    return object;
-}
-
-JS::ThrowCompletionOr<JS::Value> CryptoKey::usages(JS::Realm& realm)
-{
-    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
-    auto& cache = cache_for(*this);
-
-    if (auto object = cache.usages_objects.get(wrapper_world))
-        return object;
-
-    auto usages = GC::make_root(JS::Array::create_from<KeyUsage>(realm, m_key_usages.span(), [&](auto& key_usage) -> JS::Value {
-        return JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(key_usage));
-    }));
-    MUST(usages->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
-
-    cache.usages_objects.set(wrapper_world, *usages);
-    return GC::Ref<JS::Object> { *usages };
-}
-
-Utf16String const& CryptoKey::algorithm_name() const
-{
-    if (m_algorithm_name.is_empty())
-        m_algorithm_name = m_algorithm.visit([](auto const& algorithm) { return algorithm.name(); });
-    return m_algorithm_name;
-}
-
-// The fields of a CryptoKey, which its serialization steps in Rust (Libraries/LibWeb/Bindings/Rust/src/crypto) write and
-// its deserialization steps read. The strings of a key that C++ hands over are the receiver's, and its bytes borrow from
-// the key, or from what is exported of it, for the call. Rust lends what it creates a key from.
-struct CryptoKeyFields {
+struct CryptoKeyAlgorithmFields {
     u8 type { 0 };
-    bool extractable { false };
-    u8 algorithm_type { 0 };
-    FlatPtr algorithm_name { 0 };
+    FlatPtr name { 0 };
     u32 modulus_length { 0 };
     ReadonlyBytes public_exponent;
     FlatPtr hash { 0 };
     FlatPtr named_curve { 0 };
     u32 length { 0 };
-    ReadonlySpan<u8> usages;
+};
+
+struct CryptoKeyHandleFields {
     u8 handle_tag { 0 };
     Array<ReadonlyBytes, 8> handle_buffers;
     size_t handle_buffer_count { 0 };
@@ -251,16 +47,154 @@ struct CryptoKeyFields {
 
 extern "C" {
 
-void web_crypto_key_with_fields(JSObject*, void* state, void (*steps)(void* state, CryptoKeyFields const*));
-JSCompletion web_crypto_key_create(void* realm, CryptoKeyFields const*, JSObject** out_key);
+CryptoKey* web_rust_crypto_key_create(JSVM*, CryptoKey::InternalKeyData*);
+CryptoKey::InternalKeyData const* web_rust_crypto_key_handle(CryptoKey const*);
+bool web_rust_crypto_key_extractable(CryptoKey const*);
+u8 web_rust_crypto_key_type(CryptoKey const*);
+void web_rust_crypto_key_set_extractable(CryptoKey*, bool);
+void web_rust_crypto_key_set_type(CryptoKey*, u8);
+void web_rust_crypto_key_get_algorithm(CryptoKey const*, CryptoKeyAlgorithmFields*);
+void web_rust_crypto_key_set_algorithm(CryptoKey*, CryptoKeyAlgorithmFields const*);
+FlatPtr web_rust_crypto_key_algorithm_name(CryptoKey const*);
+void web_rust_crypto_key_with_usages(CryptoKey const*, void*, void (*)(void*, ReadonlySpan<KeyUsage>));
+void web_rust_crypto_key_set_usages(CryptoKey*, ReadonlySpan<KeyUsage>);
+
+void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData*);
+void web_crypto_key_encode_handle(CryptoKey::InternalKeyData const*, void*, void (*)(void*, CryptoKeyHandleFields const*));
+JSCompletion web_crypto_key_decode_handle(void* realm, CryptoKeyHandleFields const*, CryptoKey::InternalKeyData** out_handle);
 }
 
-// NB: The Rust side names these values by their underlying values.
-static_assert(to_underlying(KeyType::Public) == to_underlying(Bindings::KeyType::Public));
-static_assert(to_underlying(KeyType::Private) == to_underlying(Bindings::KeyType::Private));
-static_assert(to_underlying(KeyType::Secret) == to_underlying(Bindings::KeyType::Secret));
-static_assert(to_underlying(Bindings::KeyType::Secret) == 2);
-static_assert(sizeof(Bindings::KeyUsage) == 1);
+GC::Ref<CryptoKey> CryptoKey::create(InternalKeyData key_data)
+{
+    return *web_rust_crypto_key_create(JS::HostABI::vm_to_abi(JS::VM::the()), new InternalKeyData(move(key_data)));
+}
+
+void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData* handle)
+{
+    handle->visit(
+        [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
+        [](OKPPublicKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
+        [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
+        [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
+    delete handle;
+}
+
+CryptoKey::InternalKeyData const& CryptoKey::handle() const
+{
+    return *web_rust_crypto_key_handle(this);
+}
+
+void CryptoKey::set_algorithm(InternalAlgorithmData algorithm)
+{
+    CryptoKeyAlgorithmFields fields;
+    Utf16String hash;
+    Utf16String named_curve;
+    auto name = algorithm.visit([](auto const& data) { return data.name(); });
+    algorithm.visit(
+        [&](KeyAlgorithmData const&) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Key);
+        },
+        [&](RsaKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Rsa);
+            fields.modulus_length = data.modulus_length();
+            fields.public_exponent = data.public_exponent().bytes();
+        },
+        [&](RsaHashedKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::RsaHashed);
+            fields.modulus_length = data.modulus_length();
+            fields.public_exponent = data.public_exponent().bytes();
+            hash = data.hash();
+        },
+        [&](EcKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Ec);
+            named_curve = data.named_curve();
+        },
+        [&](AesKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Aes);
+            fields.length = data.length();
+        },
+        [&](HmacKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Hmac);
+            hash = data.hash();
+            fields.length = data.length();
+        },
+        [&](KmacKeyAlgorithmData const& data) {
+            fields.type = to_underlying(SerializedKeyAlgorithmType::Kmac);
+            fields.length = data.length();
+        });
+    fields.name = move(name).into_raw();
+    fields.hash = move(hash).into_raw();
+    fields.named_curve = move(named_curve).into_raw();
+    web_rust_crypto_key_set_algorithm(this, &fields);
+}
+
+void CryptoKey::set_usages(Vector<KeyUsage> usages)
+{
+    web_rust_crypto_key_set_usages(this, usages.span());
+}
+
+bool CryptoKey::extractable() const
+{
+    return web_rust_crypto_key_extractable(this);
+}
+
+KeyType CryptoKey::type() const
+{
+    return static_cast<KeyType>(web_rust_crypto_key_type(this));
+}
+
+void CryptoKey::set_extractable(bool extractable)
+{
+    web_rust_crypto_key_set_extractable(this, extractable);
+}
+
+void CryptoKey::set_type(KeyType type)
+{
+    web_rust_crypto_key_set_type(this, to_underlying(type));
+}
+
+CryptoKey::InternalAlgorithmData CryptoKey::internal_algorithm() const
+{
+    CryptoKeyAlgorithmFields fields;
+    web_rust_crypto_key_get_algorithm(this, &fields);
+    auto name = Utf16String::from_raw(fields.name);
+    switch (static_cast<SerializedKeyAlgorithmType>(fields.type)) {
+    case SerializedKeyAlgorithmType::Key:
+        return KeyAlgorithmData { move(name) };
+    case SerializedKeyAlgorithmType::Rsa:
+        return RsaKeyAlgorithmData { move(name), fields.modulus_length, MUST(ByteBuffer::copy(fields.public_exponent)) };
+    case SerializedKeyAlgorithmType::RsaHashed:
+        return RsaHashedKeyAlgorithmData { move(name), fields.modulus_length, MUST(ByteBuffer::copy(fields.public_exponent)), Utf16String::from_raw(fields.hash) };
+    case SerializedKeyAlgorithmType::Ec:
+        return EcKeyAlgorithmData { move(name), Utf16String::from_raw(fields.named_curve) };
+    case SerializedKeyAlgorithmType::Aes:
+        return AesKeyAlgorithmData { move(name), static_cast<u16>(fields.length) };
+    case SerializedKeyAlgorithmType::Hmac:
+        return HmacKeyAlgorithmData { move(name), Utf16String::from_raw(fields.hash), fields.length };
+    case SerializedKeyAlgorithmType::Kmac:
+        return KmacKeyAlgorithmData { move(name), fields.length };
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Vector<KeyUsage> CryptoKey::internal_usages() const
+{
+    Vector<KeyUsage> usages;
+    web_rust_crypto_key_with_usages(this, &usages, [](void* state, ReadonlySpan<KeyUsage> values) {
+        static_cast<Vector<KeyUsage>*>(state)->append(values.data(), values.size());
+    });
+    return usages;
+}
+
+Utf16String CryptoKey::algorithm_name() const
+{
+    return Utf16String::adopt_raw(web_rust_crypto_key_algorithm_name(this));
+}
+
+static_assert(to_underlying(KeyType::Public) == 0);
+static_assert(to_underlying(KeyType::Private) == 1);
+static_assert(to_underlying(KeyType::Secret) == 2);
+static_assert(sizeof(KeyUsage) == 1);
 static_assert(to_underlying(Bindings::KeyUsage::Encrypt) == 0);
 static_assert(to_underlying(Bindings::KeyUsage::Decrypt) == 1);
 static_assert(to_underlying(Bindings::KeyUsage::Sign) == 2);
@@ -286,55 +220,9 @@ static ByteBuffer export_big_integer(::Crypto::UnsignedBigInteger const& value)
     return buffer;
 }
 
-void web_crypto_key_with_fields(JSObject* object, void* state, void (*steps)(void* state, CryptoKeyFields const*))
+void web_crypto_key_encode_handle(CryptoKey::InternalKeyData const* handle, void* state, void (*steps)(void*, CryptoKeyHandleFields const*))
 {
-    auto const& key = Bindings::impl_from<CryptoKey>(*JS::HostABI::object_from_abi(object));
-    CryptoKeyFields fields;
-    fields.type = to_underlying(key.type());
-    fields.extractable = key.extractable();
-
-    Utf16String algorithm_name = key.algorithm_name();
-    Utf16String hash;
-    Utf16String named_curve;
-    key.internal_algorithm().visit(
-        [&](CryptoKey::KeyAlgorithmData const&) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Key);
-        },
-        [&](CryptoKey::RsaKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Rsa);
-            fields.modulus_length = algorithm.modulus_length();
-            fields.public_exponent = algorithm.public_exponent().bytes();
-        },
-        [&](CryptoKey::RsaHashedKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::RsaHashed);
-            fields.modulus_length = algorithm.modulus_length();
-            fields.public_exponent = algorithm.public_exponent().bytes();
-            hash = algorithm.hash();
-        },
-        [&](CryptoKey::EcKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Ec);
-            named_curve = algorithm.named_curve();
-        },
-        [&](CryptoKey::AesKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Aes);
-            fields.length = algorithm.length();
-        },
-        [&](CryptoKey::HmacKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Hmac);
-            hash = algorithm.hash();
-            fields.length = algorithm.length();
-        },
-        [&](CryptoKey::KmacKeyAlgorithmData const& algorithm) {
-            fields.algorithm_type = to_underlying(SerializedKeyAlgorithmType::Kmac);
-            fields.length = algorithm.length();
-        });
-    fields.algorithm_name = move(algorithm_name).into_raw();
-    fields.hash = move(hash).into_raw();
-    fields.named_curve = move(named_curve).into_raw();
-
-    auto usages = key.internal_usages();
-    fields.usages = { reinterpret_cast<u8 const*>(usages.data()), usages.size() };
-
+    CryptoKeyHandleFields fields;
     // NB: The inline capacity holds every buffer that a handle exports, so that none moves while the fields borrow it.
     Vector<ByteBuffer, 8> exported;
     auto add = [&](ReadonlyBytes bytes) { fields.handle_buffers[fields.handle_buffer_count++] = bytes; };
@@ -342,7 +230,7 @@ void web_crypto_key_with_fields(JSObject* object, void* state, void (*steps)(voi
         exported.unchecked_append(move(buffer));
         add(exported.last().bytes());
     };
-    key.handle().visit(
+    handle->visit(
         [&](ByteBuffer const& buffer) {
             fields.handle_tag = to_underlying(HandleTag::ByteBuffer);
             add(buffer.bytes());
@@ -415,7 +303,7 @@ void web_crypto_key_with_fields(JSObject* object, void* state, void (*steps)(voi
         secure_zero(buffer.data(), buffer.size());
 }
 
-static WebIDL::ExceptionOr<CryptoKey::InternalKeyData> handle_from_fields(JS::VM& vm, CryptoKeyFields const& fields)
+static WebIDL::ExceptionOr<CryptoKey::InternalKeyData> handle_from_fields(JS::VM& vm, CryptoKeyHandleFields const& fields)
 {
     auto buffer = [&](size_t index) {
         VERIFY(index < fields.handle_buffer_count);
@@ -463,47 +351,13 @@ static WebIDL::ExceptionOr<CryptoKey::InternalKeyData> handle_from_fields(JS::VM
     VERIFY_NOT_REACHED();
 }
 
-static WebIDL::ExceptionOr<CryptoKey::InternalAlgorithmData> algorithm_from_fields(JS::VM& vm, CryptoKeyFields const& fields)
-{
-    auto name = Utf16String::from_raw(fields.algorithm_name);
-    switch (static_cast<SerializedKeyAlgorithmType>(fields.algorithm_type)) {
-    case SerializedKeyAlgorithmType::Key:
-        return CryptoKey::KeyAlgorithmData { move(name) };
-    case SerializedKeyAlgorithmType::Rsa:
-        return CryptoKey::RsaKeyAlgorithmData { move(name), fields.modulus_length, TRY_OR_THROW_OOM(vm, ByteBuffer::copy(fields.public_exponent)) };
-    case SerializedKeyAlgorithmType::RsaHashed:
-        return CryptoKey::RsaHashedKeyAlgorithmData { move(name), fields.modulus_length, TRY_OR_THROW_OOM(vm, ByteBuffer::copy(fields.public_exponent)), Utf16String::from_raw(fields.hash) };
-    case SerializedKeyAlgorithmType::Ec:
-        return CryptoKey::EcKeyAlgorithmData { move(name), Utf16String::from_raw(fields.named_curve) };
-    case SerializedKeyAlgorithmType::Aes:
-        return CryptoKey::AesKeyAlgorithmData { move(name), static_cast<u16>(fields.length) };
-    case SerializedKeyAlgorithmType::Hmac:
-        return CryptoKey::HmacKeyAlgorithmData { move(name), Utf16String::from_raw(fields.hash), fields.length };
-    case SerializedKeyAlgorithmType::Kmac:
-        return CryptoKey::KmacKeyAlgorithmData { move(name), fields.length };
-    }
-    VERIFY_NOT_REACHED();
-}
-
-JSCompletion web_crypto_key_create(void* realm, CryptoKeyFields const* fields, JSObject** out_key)
+JSCompletion web_crypto_key_decode_handle(void* realm, CryptoKeyHandleFields const* fields, CryptoKey::InternalKeyData** out_handle)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto& vm = js_realm.vm();
-    auto key = [&]() -> WebIDL::ExceptionOr<GC::Ref<CryptoKey>> {
-        auto key = CryptoKey::create(TRY(handle_from_fields(vm, *fields)));
-        key->set_type(static_cast<KeyType>(fields->type));
-        key->set_extractable(fields->extractable);
-        key->set_algorithm(TRY(algorithm_from_fields(vm, *fields)));
-        Vector<KeyUsage> usages;
-        TRY_OR_THROW_OOM(vm, usages.try_ensure_capacity(fields->usages.size()));
-        for (auto usage : fields->usages)
-            usages.unchecked_append(static_cast<KeyUsage>(usage));
-        key->set_usages(move(usages));
-        return key;
-    }();
-    if (key.is_exception())
-        return Bindings::completion_to_abi(js_realm, key.release_error());
-    *out_key = JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, key.release_value()).ptr());
+    auto handle = handle_from_fields(js_realm.vm(), *fields);
+    if (handle.is_exception())
+        return Bindings::completion_to_abi(js_realm, handle.release_error());
+    *out_handle = new CryptoKey::InternalKeyData(handle.release_value());
     return Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 

@@ -38,7 +38,6 @@ use crate::bindings::structured_data::{
     SerializationReader, SerializationWriter, TransferDataReader, TransferDataWriter, Transferable,
 };
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::crypto::crypto_key;
 use crate::html::image_bitmap::ImageBitmap;
 use crate::html::message_port::MessagePort;
 use crate::html::offscreen_canvas;
@@ -994,7 +993,6 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                     SerializableSteps::QuotaExceededError => {
                         quota_exceeded_error::serialization_steps(&QuotaExceededErrorFields::of(object), serialized);
                     }
-                    SerializableSteps::CryptoKey => crypto_key::serialization_steps(object, serialized),
                     SerializableSteps::RTCEncodedAudioFrame => {
                         crate::webrtc::rtc_encoded_audio_frame::serialization_steps(
                             object,
@@ -1583,9 +1581,6 @@ impl Deserializer<'_, '_, '_> {
                     SerializableSteps::QuotaExceededError => {
                         let fields = quota_exceeded_error::deserialization_steps(self.serialized)?;
                         Value::from_object(quota_exceeded_error::create(realm, &fields))
-                    }
-                    SerializableSteps::CryptoKey => {
-                        Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
                     }
                     SerializableSteps::RTCEncodedAudioFrame => {
                         Value::from_object(crate::webrtc::rtc_encoded_audio_frame::deserialization_steps(

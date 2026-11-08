@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The serialization steps of the serializable interfaces of the Web Cryptography API, which LibWeb implements in C++.
+//! The Web Cryptography API.
 
+#[cfg_attr(not(web_idl_bindings), allow(dead_code))]
 pub(crate) mod crypto_key;

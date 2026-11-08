@@ -13,7 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -42,9 +42,8 @@ enum class KeyType {
     Secret,
 };
 
-class WEB_API CryptoKey final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CryptoKey, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(CryptoKey);
+class WEB_API CryptoKey final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CryptoKey, crypto_key)
 
 public:
     using ImportKeyData = Variant<ByteBuffer, JsonWebKey>;
@@ -116,52 +115,27 @@ public:
 
     [[nodiscard]] static GC::Ref<CryptoKey> create(InternalKeyData);
 
-    bool extractable() const { return m_extractable; }
-    KeyType type() const { return m_type; }
-    Bindings::KeyType bindings_type() const;
-    JS::ThrowCompletionOr<JS::Value> algorithm(JS::Realm&);
-    JS::ThrowCompletionOr<JS::Value> usages(JS::Realm&);
+    bool extractable() const;
+    KeyType type() const;
 
-    InternalAlgorithmData const& internal_algorithm() const { return m_algorithm; }
-    Vector<KeyUsage> internal_usages() const { return m_key_usages; }
-    RsaHashedKeyAlgorithmData const& rsa_hashed_algorithm() const { return m_algorithm.get<RsaHashedKeyAlgorithmData>(); }
-    EcKeyAlgorithmData const& ec_algorithm() const { return m_algorithm.get<EcKeyAlgorithmData>(); }
-    HmacKeyAlgorithmData const& hmac_algorithm() const { return m_algorithm.get<HmacKeyAlgorithmData>(); }
+    InternalAlgorithmData internal_algorithm() const;
+    Vector<KeyUsage> internal_usages() const;
+    RsaHashedKeyAlgorithmData rsa_hashed_algorithm() const { return internal_algorithm().get<RsaHashedKeyAlgorithmData>(); }
+    EcKeyAlgorithmData ec_algorithm() const { return internal_algorithm().get<EcKeyAlgorithmData>(); }
+    HmacKeyAlgorithmData hmac_algorithm() const { return internal_algorithm().get<HmacKeyAlgorithmData>(); }
 
-    void set_extractable(bool extractable) { m_extractable = extractable; }
-    void set_type(KeyType type) { m_type = type; }
+    void set_extractable(bool);
+    void set_type(KeyType);
     void set_algorithm(InternalAlgorithmData);
     void set_usages(Vector<KeyUsage>);
 
-    InternalKeyData const& handle() const { return m_key_data; }
-    Utf16String const& algorithm_name() const;
-
-private:
-    explicit CryptoKey(InternalKeyData);
-
-    virtual void finalize() override;
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    KeyType m_type;
-    bool m_extractable { false };
-    InternalAlgorithmData m_algorithm;
-
-    Vector<KeyUsage> m_key_usages;
-    InternalKeyData m_key_data; // [[handle]]
-    mutable Utf16String m_algorithm_name;
-    struct CachedAlgorithmObject {
-        GC::Weak<JS::HostObject> wrapper;
-        GC::Ptr<JS::Object> object;
-    };
-    Vector<CachedAlgorithmObject> m_cached_algorithm_objects;
+    InternalKeyData const& handle() const;
+    Utf16String algorithm_name() const;
 };
 
 struct CryptoKeyPair {
     GC::Ref<CryptoKey> public_key;
     GC::Ref<CryptoKey> private_key;
 };
-
-// For an agent that goes away, whose weak references the cache would keep beyond the end of its heap.
-void clear_crypto_key_caches();
 
 }
