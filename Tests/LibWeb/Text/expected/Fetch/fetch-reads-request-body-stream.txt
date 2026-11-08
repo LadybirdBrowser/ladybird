@@ -1,0 +1,4 @@
+response: ok
+request bodyUsed: true
+canceling the clone's body: resolved
+clone's body: the body

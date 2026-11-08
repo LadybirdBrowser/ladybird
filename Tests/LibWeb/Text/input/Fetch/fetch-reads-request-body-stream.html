@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const url = await httpTestServer().createEcho("POST", "/fetch-reads-request-body-stream", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "ok",
+        });
+        const timeout = () => new Promise(resolve => setTimeout(() => resolve("still pending"), 2000));
+
+        const request = new Request(url, { method: "POST", body: "the body" });
+        const clone = request.clone();
+        const response = await fetch(request);
+        println(`response: ${await response.text()}`);
+        println(`request bodyUsed: ${request.bodyUsed}`);
+        println(`canceling the clone's body: ${await Promise.race([clone.body.cancel().then(() => "resolved"), timeout()])}`);
+
+        const unread = new Request(url, { method: "POST", body: "the body" });
+        const unreadClone = unread.clone();
+        await (await fetch(unread)).text();
+        println(`clone's body: ${await Promise.race([unreadClone.text(), timeout()])}`);
+        done();
+    });
+</script>

@@ -3078,6 +3078,16 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             request_body_reader->body->incrementally_read_loop(request_body_reader->reader, fetch_params.controller()->task_destination(), process_body_chunk_bytes, process_end_of_body, process_body_error);
         }
+
+        // AD-HOC: A body with a source is sent from its source, but its stream has to be read all the same: A stream
+        //         teed from it (that of a clone of the Request, e.g.) can't finish, or be canceled, until it is.
+        if (auto const& request_body_reader = fetch_params.controller()->algorithms()->request_body_reader(); source.has_value() && request_body_reader.has_value()) {
+            auto ignore_chunk = GC::create_function(GC::Heap::the(), [](ByteBuffer) { });
+            auto ignore_end_of_body = GC::create_function(GC::Heap::the(), [] { });
+            auto ignore_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
+            HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            request_body_reader->body->incrementally_read_loop(request_body_reader->reader, fetch_params.controller()->task_destination(), ignore_chunk, ignore_end_of_body, ignore_error);
+        }
     }
 
     return pending_response;
