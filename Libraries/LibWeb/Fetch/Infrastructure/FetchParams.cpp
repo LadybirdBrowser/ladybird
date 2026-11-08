@@ -46,6 +46,11 @@ NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
     return adopt_ref(*new FetchParams(params));
 }
 
+Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id) const
+{
+    return Engine::StartFetchInput { {}, fetch_id, m_control_block->body_intent(), m_blob_url_entry };
+}
+
 GC::Ref<FetchController> FetchParams::controller() const
 {
     VERIFY(m_controller_registry);

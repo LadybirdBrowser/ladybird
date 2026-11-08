@@ -13,12 +13,14 @@
 #include <LibGC/Testing.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 
@@ -44,6 +46,8 @@ struct FetchHarness {
         : document(create_test_document())
         , realm(document->relevant_settings_object().realm())
     {
+        // Each case has an event loop of its own, which the window agent's fetches have to run on.
+        Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
     }
 
     // An unknown scheme: scheme fetch returns a network error, which has no body.

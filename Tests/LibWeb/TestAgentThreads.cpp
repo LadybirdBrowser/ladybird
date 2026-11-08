@@ -22,6 +22,9 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -29,6 +32,7 @@
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -100,6 +104,17 @@ static constexpr auto AGENT_SCRIPT = R"~~~(
         for (let i = 0; i < 10; ++i)
             URL.revokeObjectURL(urls[i]);
         // NB: The others stay for the agent's shutdown to remove.
+    }
+
+    async function fetches() {
+        const response = await fetch("data:text/plain,hello");
+        check("data fetch", (await response.text()) === "hello");
+
+        const url = URL.createObjectURL(new Blob(["from a blob"], { type: "text/plain" }));
+        const blobResponse = await fetch(url);
+        check("blob fetch type", blobResponse.headers.get("Content-Type") === "text/plain");
+        check("blob fetch", (await blobResponse.text()) === "from a blob");
+        URL.revokeObjectURL(url);
     }
 
     function urls() {
@@ -295,6 +310,7 @@ static constexpr auto AGENT_SCRIPT = R"~~~(
     async function runPass(pass) {
         await timers();
         await blobs();
+        await fetches();
         urls();
         await messaging();
         await cryptography();
@@ -447,7 +463,31 @@ public:
     {
         as<Web::HTML::DedicatedWorkerGlobalScope>(*m_global_scope).close();
         Core::EventLoop::current().exec();
+        shut_down();
+    }
 
+    // Starts a fetch of the URL in a task that then closes the worker, and runs the worker's event loop until it is
+    // destroyed. Returns the fetch's request.
+    NonnullRefPtr<Web::Fetch::Infrastructure::Request> fetch_and_close(StringView url, Web::Fetch::Infrastructure::FetchAlgorithms::Input input)
+    {
+        auto request = Web::Fetch::Infrastructure::Request::create();
+        request->set_url_list({ *URL::Parser::basic_parse(url) });
+        request->set_client(m_settings->address());
+        auto algorithms = Web::Fetch::Infrastructure::FetchAlgorithms::create(move(input));
+
+        auto steps = GC::create_function(GC::Heap::the(), GC::captures(*m_settings, *m_global_scope, request, algorithms), [](auto& settings, auto& global_scope, auto& request, auto& algorithms) {
+            Web::HTML::TemporaryExecutionContext execution_context { settings.realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            (void)Web::Fetch::Fetching::fetch(settings.realm(), request, algorithms);
+            as<Web::HTML::DedicatedWorkerGlobalScope>(global_scope).close();
+        });
+        Web::HTML::queue_global_task(Web::HTML::Task::Source::Unspecified, m_settings->realm().global_object(), steps);
+        Core::EventLoop::current().exec();
+        return request;
+    }
+
+    // What the host of a worker does once the worker's event loop is destroyed.
+    void shut_down()
+    {
         m_global_scope->clear_map_of_active_timers();
         Web::HTML::MessagePort::disentangle_ports_of_realm(Web::HTML::relevant_realm(*m_global_scope));
         m_global_scope->owner_set().clear();
@@ -514,6 +554,12 @@ static void set_up_process()
         return;
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
+}
+
+// Each command an executor posts holds the executor until the command has run or been dropped.
+static bool has_queued_commands(Web::Fetch::Engine::FetchExecutor const& executor)
+{
+    return executor.ref_count() > 1;
 }
 
 TEST_CASE(an_agent_runs_on_a_thread_of_its_own)
@@ -584,6 +630,25 @@ TEST_CASE(a_thread_hosts_one_agent_after_the_other)
             run_agent();
     });
     EXPECT_EQ(s_failures.load(), 0u);
+}
+
+TEST_CASE(a_fetch_started_just_before_close_never_runs_its_in_parallel_steps)
+{
+    set_up_process();
+    run_on_agent_threads(1, [](size_t) {
+        Core::EventLoop event_loop;
+        TestAgent agent;
+
+        auto request = agent.fetch_and_close("about:blank"sv, Web::Fetch::Infrastructure::FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
+
+        // The worker's event loop has stopped with the command that runs the fetch's in-parallel steps still queued.
+        EXPECT(has_queued_commands(*Web::HTML::surrounding_agent().fetch_executor));
+
+        agent.shut_down();
+
+        // Main fetch's in-parallel steps would make the response tainting of this no-cors request opaque.
+        EXPECT_EQ(request->response_tainting(), Web::Fetch::Infrastructure::Request::ResponseTainting::Basic);
+    });
 }
 
 TEST_CASE(navigator_compatibility_reaches_every_agent)

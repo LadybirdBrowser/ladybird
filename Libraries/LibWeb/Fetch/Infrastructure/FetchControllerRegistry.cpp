@@ -12,6 +12,7 @@ namespace Web::Fetch::Infrastructure {
 
 static Atomic<u64> s_next_registry_id { 1 };
 static Atomic<u64> s_next_serial { 1 };
+static Atomic<u64> s_next_fetch_id { 1 };
 
 FetchControllerRegistry::FetchControllerRegistry()
     : m_id(s_next_registry_id.fetch_add(1))
@@ -44,6 +45,18 @@ Vector<GC::Root<FetchController>> FetchControllerRegistry::controllers() const
     for (auto const& entry : m_controllers)
         controllers.unchecked_append(GC::make_root(*entry.value));
     return controllers;
+}
+
+Engine::FetchId FetchControllerRegistry::defer_main_fetch_steps(GC::Ref<GC::Function<void()>> steps)
+{
+    Engine::FetchId fetch_id { s_next_fetch_id.fetch_add(1) };
+    m_deferred_main_fetch_steps.set(fetch_id, GC::make_root(steps));
+    return fetch_id;
+}
+
+GC::Root<GC::Function<void()>> FetchControllerRegistry::take_deferred_main_fetch_steps(Engine::FetchId fetch_id)
+{
+    return m_deferred_main_fetch_steps.take(fetch_id).release_value();
 }
 
 }
