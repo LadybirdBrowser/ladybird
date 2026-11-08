@@ -78,7 +78,6 @@ mod tests {
     #[test]
     fn native_publication_and_image_discovery_keep_style_data_immutable() {
         use crate::css::style::StyleEngine;
-        use crate::css::style::bridge::publish_rule_declarations;
         use crate::css::style::pipeline::rule_store::{CascadeOrigin, RuleKind};
         let rules = rules(".文字 { width: 13px; transition: width 1s; background-image: url(image.png); }");
         let rule = &rules.rule_at(0);
@@ -90,10 +89,17 @@ mod tests {
             &declarations,
             &style.declarations.data()
         ));
+        assert!(
+            declarations
+                .properties()
+                .entries()
+                .iter()
+                .any(|entry| { crate::css::property_metadata::property_defines_a_css_transition(entry.property()) })
+        );
         let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Style);
-        assert!(publish_rule_declarations(&mut engine, id.0 + 1, &declarations));
+        engine.publish_block_declarations(id, &declarations);
         extern "C" fn image(context: *mut c_void, _: *const c_void) {
             unsafe {
                 *context.cast::<usize>() += 1;

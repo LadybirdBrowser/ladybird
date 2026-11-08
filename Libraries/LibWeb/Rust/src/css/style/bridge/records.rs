@@ -166,23 +166,6 @@ pub unsafe extern "C" fn style_engine_view_has_matching_transition_entries(
     })
 }
 
-pub(crate) fn publish_rule_declarations(
-    engine: &mut StyleEngine,
-    rule: u32,
-    data: &crate::css::declaration_block::SharedDeclarationBlock,
-) -> bool {
-    if rule == 0 {
-        return false;
-    }
-    let has_transitions = data
-        .properties()
-        .entries()
-        .iter()
-        .any(|entry| crate::css::property_metadata::property_defines_a_css_transition(entry.property()));
-    engine.publish_block_declarations(RuleID(rule - 1), data);
-    has_transitions
-}
-
 /// What a read of one element's style the host makes before the next style update asks of the
 /// engine; see `StyleEngine::answer_record_demand`. A read-only demand leaves the engine as it
 /// was: its record is only for the host to read. Any other is installed and acknowledged as a

@@ -11,7 +11,7 @@
 
 use super::super::bridge::{
     BoundScopeChain, FfiDocumentStyleComputationInputs, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont,
-    element_adjustment_fact, publish_rule_declarations, publish_style_rule,
+    element_adjustment_fact, publish_style_rule,
 };
 use super::super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::super::*;
@@ -329,7 +329,7 @@ pub(super) fn add_rules(engine: &mut StyleEngine, sheet: SheetID, source: &str) 
         .iter()
         .map(|parsed| {
             let rule = publish_parsed_rule(engine, sheet, parsed);
-            publish_rule_declarations(engine, rule.0 + 1, &parsed.declarations);
+            engine.publish_block_declarations(rule, &parsed.declarations);
             rule
         })
         .collect()

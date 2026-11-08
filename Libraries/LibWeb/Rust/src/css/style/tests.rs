@@ -30,7 +30,7 @@ impl StyleEngine {}
 
 #[test]
 fn native_declaration_publication_reuses_values_and_observes_live_mutation() {
-    use super::bridge::{BoundScopeChain, publish_rule_declarations, publish_style_rule};
+    use super::bridge::{BoundScopeChain, publish_style_rule};
     use crate::css::declaration_block::{
         DeclarationBlock, rust_declaration_block_replace, rust_declaration_block_retain,
     };
@@ -59,10 +59,13 @@ fn native_declaration_publication_reuses_values_and_observes_live_mutation() {
             .unwrap(),
     );
     let callbacks = crate::css::ffi_stats::CPP_CALLBACK_COUNT.get();
-    assert!(!publish_rule_declarations(&mut engine, rule, &first.data()));
-    assert!(!publish_rule_declarations(&mut engine, rule, &second));
+    let rule = RuleID(rule - 1);
+    engine.publish_block_declarations(rule, &first.data());
+    engine.publish_block_declarations(rule, &second);
+    let declared_before_the_mutation = engine.current_declared_properties_of(rule).to_vec();
     rust_declaration_block_replace(&mut first, &transitions);
-    assert!(publish_rule_declarations(&mut engine, rule, &retained.data()));
+    engine.publish_block_declarations(rule, &retained.data());
+    assert!(engine.current_declared_properties_of(rule) != declared_before_the_mutation);
     assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), callbacks);
 }
 
