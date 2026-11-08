@@ -77,6 +77,10 @@ public:
         request->set_buffered_request_finished_callback(
             [this, request_id, on_response = move(on_response)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
                 HTTP::HeaderList const& headers, Optional<u32> response_code, Optional<String> const&, Requests::CacheState, Core::ImmutableBytes payload) {
+                // A canceled request can still finish before its deferred stop runs.
+                if (!m_requests.contains(request_id))
+                    return;
+
                 // A request cannot be destroyed from inside its own callback.
                 Core::deferred_invoke([this, request_id] { m_requests.remove(request_id); });
                 Optional<ByteString> content_type;
