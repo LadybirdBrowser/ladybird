@@ -571,7 +571,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                 track->set_settings(move(settings));
                 track->set_media_devices({}, *media_devices);
 
-                track->start_audio_capture(GC::create_function(GC::Heap::the(), [promise, media_devices, stream, track, granted_device_id](ErrorOr<void> access) {
+                track->start_audio_capture(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, stream, track, move(granted_device_id)), [](auto& promise, auto& media_devices, auto& stream, auto& track, auto& granted_device_id, ErrorOr<void> access) {
                     auto& realm = WebIDL::promise_realm(*promise);
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
