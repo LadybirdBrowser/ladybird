@@ -615,33 +615,6 @@ pub struct FfiElementArrival {
     pub construction_facts: u32,
 }
 
-/// The facts of `arrival` its row takes, with its run `atoms` of the shared atom column: its custom states, then its
-/// classes, then its attributes as name and value pairs.
-pub(in crate::css::style) fn element_arrival_facts<'a>(
-    arrival: &FfiElementArrival,
-    atoms: &'a [u32],
-) -> super::projection_writes::ElementArrivalFacts<'a> {
-    super::projection_writes::ElementArrivalFacts {
-        tag: StyleAtomID(arrival.tag_atom),
-        folded_tag: StyleAtomID(arrival.folded_tag_atom),
-        namespace: StyleAtomID(arrival.namespace_atom),
-        id: StyleAtomID(arrival.id_atom),
-        language: StyleAtomID(arrival.language_atom),
-        directionality: StyleAtomID(arrival.directionality_atom),
-        heading_level: arrival.heading_level,
-        backing_pseudo_kind_plus_one: arrival.associated_pseudo_kind_plus_one,
-        is_slot: arrival.is_slot,
-        has_text_content: arrival.has_text_content,
-        states: super::index::StateSet(arrival.states),
-        adjustment_facts: arrival.adjustment_facts,
-        construction_facts: arrival.construction_facts,
-        box_kind: arrival.box_kind,
-        atoms,
-        custom_state_count: arrival.custom_state_count as usize,
-        class_count: arrival.class_count as usize,
-    }
-}
-
 pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 11;
 pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 16;
 
@@ -1051,7 +1024,7 @@ impl super::projection_writes::ProjectionWrites<'_> {
             return;
         };
         *atoms = rest;
-        self.record_element_arrival(node, &element_arrival_facts(arrival, arrival_atoms), None);
+        self.record_element_arrival(node, arrival, arrival_atoms, None);
     }
 
     /// Write the local fact the host published as `delta`.
