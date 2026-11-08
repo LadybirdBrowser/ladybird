@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -14,8 +15,9 @@ namespace Web::Fetch::Fetching {
 void FetchEngine::handle_command(Engine::EngineCommand command)
 {
     command.visit(
-        [](Engine::Command::StartFetch const& start_fetch) {
-            run_deferred_main_fetch_steps(start_fetch.input.fetch_id);
+        [](Engine::Command::StartFetch& start_fetch) {
+            auto record = Engine::FetchEngineRecord::create(move(start_fetch.input.event_sink));
+            run_deferred_main_fetch_steps(start_fetch.input.fetch_id, move(record));
         },
         [](Engine::Command::Abort const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Command::Terminate const&) { VERIFY_NOT_REACHED(); },
