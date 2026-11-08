@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const urls = [];
+        const popup = window.open();
+        const frame = () => new Promise(resolve => popup.requestAnimationFrame(resolve));
+        const settle = async () => {
+            await frame();
+            await frame();
+        };
+
+        async function imageURL(width, height) {
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext("2d").fillRect(0, 0, width, height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve));
+            const url = URL.createObjectURL(blob);
+            urls.push(url);
+            return url;
+        }
+
+        async function resize(width, height) {
+            popup.internals.resizeWindow(width, height);
+            if (!await waitForCondition(() =>
+                popup.innerWidth === width / popup.devicePixelRatio &&
+                popup.innerHeight === height / popup.devicePixelRatio))
+                throw new Error("Viewport did not resize");
+            await settle();
+        }
+
+        async function navigate(url) {
+            const previousDocument = popup.document;
+            popup.location.href = url;
+            if (!await waitForCondition(() =>
+                popup.document !== previousDocument &&
+                popup.document.readyState === "complete" &&
+                popup.document.images[0]?.complete &&
+                popup.document.images[0].naturalWidth > 0))
+                throw new Error("Image document did not load");
+            await settle();
+        }
+
+        async function zoom(factor) {
+            popup.internals.setBrowserZoom(factor);
+            await settle();
+        }
+
+        function report(label) {
+            const scrollX = popup.scrollX;
+            const scrollY = popup.scrollY;
+            const rect = popup.document.images[0].getBoundingClientRect();
+            const pixels = value => Math.round(value * popup.devicePixelRatio);
+            println(`${label}: ${pixels(rect.width)}x${pixels(rect.height)} at ${pixels(rect.x + scrollX)},${pixels(rect.y + scrollY)}`);
+        }
+
+        try {
+            await zoom(1);
+            popup.internals.setDevicePixelRatio(1);
+            await resize(800, 600);
+
+            const large = await imageURL(2000, 1500);
+            const small = await imageURL(100, 80);
+            await navigate(large);
+            report("Large, 100%");
+            await zoom(2);
+            report("Large, 200%");
+            popup.scrollTo({ left: 10000, top: 10000, behavior: "instant" });
+            await settle();
+            println(`Scrollable in both axes: ${popup.scrollX > 0 && popup.scrollY > 0}`);
+            popup.scrollTo({ left: 0, top: 0, behavior: "instant" });
+            await settle();
+            await zoom(0.5);
+            report("Large, 50%");
+
+            await zoom(2);
+            await resize(400, 300);
+            report("Large, resized at 200%");
+            await resize(800, 600);
+            await zoom(1);
+            await navigate(small);
+            report("Small, 100%");
+            await zoom(2);
+            report("Small, 200%");
+            await zoom(0.5);
+            report("Small, 50%");
+
+            await zoom(1);
+            await navigate(large);
+            popup.internals.setDevicePixelRatio(2);
+            await resize(800, 600);
+            println(`Device pixel ratio: ${popup.devicePixelRatio}`);
+            report("Large, DPR 2, 100%");
+            await zoom(2);
+            report("Large, DPR 2, 200%");
+        } catch (error) {
+            println(`Error: ${error.message}`);
+        } finally {
+            popup.close();
+            urls.forEach(url => URL.revokeObjectURL(url));
+        }
+    });
+</script>

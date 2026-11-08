@@ -389,7 +389,9 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     if (type.is_image()) {
         auto img_element = TRY(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
         image_element = as<HTML::HTMLImageElement>(*img_element);
-        set_host_element_style(img_element, Utf16String::formatted("{} background-color: #fff;", host_element_style));
+        // Auto margins center an image that fits and keep overflow reachable from the top-left corner.
+        set_host_element_style(*document->body(), u"display: flex; min-height: 100vh; margin: 0;"sv);
+        set_host_element_style(img_element, u"flex: none; max-width: 100vw; max-height: 100vh; margin: auto; background-color: #fff;"sv);
         img_element->set_attribute_value(HTML::AttributeNames::src, url_utf16);
         TRY(document->body()->append_child(img_element));
         TRY(insert_title(document, url_string));

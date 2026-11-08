@@ -9,6 +9,7 @@
 #include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -49,6 +50,7 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
@@ -162,6 +164,7 @@ void HTMLImageElement::adopted_from(DOM::Document& old_document)
 {
     old_document.unregister_viewport_client(*this);
     document().register_viewport_client(*this);
+    m_image_document_zoom_level.clear();
 
     m_document_observer->retarget_for_adoption(document());
 
@@ -208,6 +211,20 @@ void HTMLImageElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
 void HTMLImageElement::set_resource_from_navigation_response(GC::Ref<SharedResourceRequest> resource)
 {
     m_resource_from_navigation_response = resource;
+    update_image_document_zoom();
+}
+
+void HTMLImageElement::update_image_document_zoom()
+{
+    auto zoom_level = document().page().client().zoom_level();
+    m_image_document_zoom_level = zoom_level;
+
+    // Fit against the viewport at 100% page zoom. Viewport units keep the fit responsive to window resizing.
+    auto style = this->style();
+    auto max_width = Utf16String::formatted("{}vw", 100 * zoom_level);
+    auto max_height = Utf16String::formatted("{}vh", 100 * zoom_level);
+    MUST(style->set_property(CSS::PropertyID::MaxWidth, max_width.utf16_view()));
+    MUST(style->set_property(CSS::PropertyID::MaxHeight, max_height.utf16_view()));
 }
 
 void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
@@ -1436,6 +1453,9 @@ void HTMLImageElement::stop_delaying_the_load_event_for_aborted_requests()
 
 void HTMLImageElement::did_set_viewport_rect(CSSPixelRect const& viewport_rect)
 {
+    if (m_image_document_zoom_level.has_value() && m_image_document_zoom_level.value() != document().page().client().zoom_level())
+        update_image_document_zoom();
+
     if (viewport_rect.size() == m_last_seen_viewport_size)
         return;
     m_last_seen_viewport_size = viewport_rect.size();
