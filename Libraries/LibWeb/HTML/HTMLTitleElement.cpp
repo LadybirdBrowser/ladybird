@@ -21,10 +21,27 @@ HTMLTitleElement::HTMLTitleElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLTitleElement::~HTMLTitleElement() = default;
 
+// NB: Inserting or removing a title element can change which one is the document's title element, and so the
+//     document's title, without any change to a title element's own children.
+void HTMLTitleElement::inserted()
+{
+    HTMLElement::inserted();
+    if (is_connected())
+        report_title_change_to_page();
+}
+
+void HTMLTitleElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
+{
+    HTMLElement::removed_from(is_subtree_root, old_ancestor, old_root);
+    if (old_root.is_document())
+        report_title_change_to_page();
+}
+
 void HTMLTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     HTMLElement::children_changed(metadata);
-    if (!m_suppresses_title_change_reports)
+    // NB: A disconnected title element isn't the document's title element, so changing its text changes nothing.
+    if (!m_suppresses_title_change_reports && is_connected())
         report_title_change_to_page();
 }
 

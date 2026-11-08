@@ -25,6 +25,8 @@ private:
     HTMLTitleElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_title_element() const override { return true; }
+    virtual void inserted() override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 
     void report_title_change_to_page();
