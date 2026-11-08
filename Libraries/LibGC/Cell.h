@@ -280,8 +280,6 @@ public:
         {
         }
 
-        virtual void visit_possible_values(ReadonlyBytes) = 0;
-
         // Visits a value that is reachable only while key is, such as a WeakMap entry's. Only marking tells them apart.
         // The caller must drop its entries whose key died, or the next collection reads a freed key.
         virtual void visit_ephemeron(Cell& key, NanBoxedValue const& value);

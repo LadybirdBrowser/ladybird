@@ -68,8 +68,6 @@ public:
     {
     }
 
-    virtual void visit_possible_values(ReadonlyBytes) override;
-
 private:
     virtual void visit_impl(Cell&) override;
     virtual void visit_impl(ReadonlySpan<NanBoxedValue>) override;

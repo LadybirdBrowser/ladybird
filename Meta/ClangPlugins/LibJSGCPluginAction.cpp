@@ -144,7 +144,6 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
         "GC::RootHashTableBase",
         "GC::Heap",
         "GC::MarkedVector",
-        "GC::ConservativeVector",
         "GC::RootHashMap",
         "GC::RootHashMapBase",
     };
@@ -1107,7 +1106,6 @@ static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& 
         "AK::RefPtr",
         "AK::Span",
         "AK::WeakPtr",
-        "GC::ConservativeVector",
         "GC::RawPtr",
         "GC::RawRef",
         "GC::Root",
@@ -1472,7 +1470,6 @@ static bool is_container_with_heap_storage(std::string const& template_name)
 static bool is_container_scanned_by_gc(std::string const& template_name)
 {
     static std::unordered_set<std::string> const template_names {
-        "GC::ConservativeVector",
         "GC::RootHashMap",
         "GC::RootHashTable",
         "GC::RootVector",
@@ -1618,7 +1615,7 @@ void LibJSGCVisitor::validate_type_on_stack(clang::QualType type, clang::SourceL
         return;
 
     auto& diag_engine = m_context.getDiagnostics();
-    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 keeps GC pointers in heap memory that is not scanned for roots; use GC::RootVector, GC::RootHashMap, GC::RootHashTable or a GC::Conservative container instead");
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 keeps GC pointers in heap memory that is not scanned for roots; use GC::RootVector, GC::RootHashMap or GC::RootHashTable instead");
     diag_engine.Report(location, diag_id) << *container;
 }
 

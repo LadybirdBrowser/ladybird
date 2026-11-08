@@ -3,7 +3,6 @@ set(SOURCES
     CAPI.cpp
     Cell.cpp
     CellAllocator.cpp
-    ConservativeVector.cpp
     CrossHeapMember.cpp
     Root.cpp
     RootHashMap.cpp

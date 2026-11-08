@@ -80,7 +80,6 @@ unsafe extern "C" {
     fn gc_root_create(cell: *mut c_void) -> *mut c_void;
     fn gc_root_destroy(root: *mut c_void);
     pub(crate) fn gc_visitor_visit_cell(visitor: *mut c_void, cell: *mut c_void);
-    fn gc_visitor_visit_possible_values(visitor: *mut c_void, data: *const u8, size: usize);
     fn gc_primitive_storage_reserve(
         size: usize,
         capacity: usize,
@@ -112,7 +111,6 @@ fn gc_interface(heap: *mut c_void) -> GcInterface {
         gc_root_create,
         gc_root_destroy,
         gc_visitor_visit_cell,
-        gc_visitor_visit_possible_values,
         gc_primitive_storage_reserve,
         gc_primitive_storage_resize,
         gc_primitive_storage_free,

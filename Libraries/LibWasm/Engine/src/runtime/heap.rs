@@ -88,7 +88,6 @@ pub struct GcInterface {
     pub gc_root_create: unsafe extern "C" fn(cell: *mut c_void) -> *mut c_void,
     pub gc_root_destroy: unsafe extern "C" fn(root: *mut c_void),
     pub gc_visitor_visit_cell: unsafe extern "C" fn(visitor: *mut c_void, cell: *mut c_void),
-    pub gc_visitor_visit_possible_values: unsafe extern "C" fn(visitor: *mut c_void, data: *const u8, size: usize),
     pub gc_primitive_storage_reserve: unsafe extern "C" fn(
         size: usize,
         capacity: usize,

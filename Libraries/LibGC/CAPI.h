@@ -192,8 +192,6 @@ GC_API void gc_visitor_visit_cells(GCVisitor*, GCCell* const*, size_t count);
 GC_API void gc_visitor_visit_values(GCVisitor*, uint64_t const*, size_t count);
 // Visits a NaN-boxed value that is reachable only while key is, such as a WeakMap entry's.
 GC_API void gc_visitor_visit_ephemeron(GCVisitor*, GCCell* key, uint64_t const* value);
-// Treats every aligned word in the range as a possible pointer to a cell or NaN-boxed cell value.
-GC_API void gc_visitor_visit_possible_values(GCVisitor*, uint8_t const*, size_t size);
 
 // Primitive storage holds byte buffers inside the cage that starts at gc_primitive_storage_cage_base(), so that the
 // interpreter can reach any of their bytes as a cage offset masked with primitive_storage_cage_offset_mask. Like the

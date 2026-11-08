@@ -43,7 +43,6 @@ TEST_SETUP
 class TestVisitor : public GC::Cell::Visitor {
     virtual void visit_impl(GC::Cell& cell) override { visited_cells.set(&cell); }
     virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue> span) override { last_nan_span_size = span.size(); }
-    virtual void visit_possible_values(ReadonlyBytes) override { }
 
 public:
     HashTable<GC::Cell*> visited_cells;
