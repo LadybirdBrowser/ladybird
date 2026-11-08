@@ -48,6 +48,7 @@ public:
     void request_file(Web::FileRequest);
 
     DedicatedWorkerThreadLink* dedicated_worker_thread_link() { return m_dedicated_worker_thread_link.ptr(); }
+    NonnullRefPtr<Web::HTML::ScriptAbortHandle> script_abort_handle() const { return m_script_abort_handle; }
 
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }

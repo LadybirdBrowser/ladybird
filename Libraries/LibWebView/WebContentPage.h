@@ -388,6 +388,7 @@ private:
     virtual void did_request_pinch_event_for_testing(Web::HTML::CrossProcessId local_root_id, Web::PinchEvent event) override;
     virtual void request_unload_check(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) override;
     Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request);
+    void register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport);
     Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL, HTTP::Cookie::Source);

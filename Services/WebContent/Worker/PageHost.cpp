@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
@@ -167,24 +168,15 @@ Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_u
     return response->take_entry();
 }
 
-Web::PageClient::StartedWorkerAgent PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
+RefPtr<Web::HTML::DedicatedWorkerThreadLink> PageHost::start_dedicated_worker(Web::HTML::WorkerAgentStartRequest&& request)
 {
-    auto agent_type = request.agent_type;
-    auto owner_token = request.owner_token;
-    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::StartWorkerAgent>(move(request));
-    if (!response)
+    auto started_thread = start_dedicated_worker_thread(request.owner_token);
+    if (started_thread.is_error()) {
+        dbgln("Unable to start a dedicated worker: {}", started_thread.error());
         return {};
-
-    // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
-    RefPtr<Web::HTML::DedicatedWorkerThreadLink> dedicated_worker_thread_link;
-    if (auto transport = response->take_thread_transport(); transport.has_value())
-        dedicated_worker_thread_link = start_worker_thread_for_owner(transport.release_value(), agent_type, owner_token);
-    return { response->agent_id(), response->is_hosted_in_caller_process(), move(dedicated_worker_thread_link) };
-}
-
-void PageHost::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    m_client.async_close_worker_agent(agent_id, owner_token);
+    }
+    m_client.async_register_dedicated_worker(move(request), move(started_thread.value().browser_end_of_worker_connection));
+    return move(started_thread.value().link);
 }
 
 void PageHost::ensure_compositor_host()
@@ -206,8 +198,13 @@ void PageHost::did_finish_loading_worker_script(bool worker_is_secure_context)
 
 void PageHost::did_fail_loading_worker_script()
 {
-    if (auto* link = m_client.dedicated_worker_thread_link())
+    if (auto* link = m_client.dedicated_worker_thread_link()) {
         link->report_script_load_failure_to_owner();
+        Core::deferred_invoke([&client = m_client] {
+            client.close_worker();
+        });
+        return;
+    }
     m_client.async_did_fail_loading_worker_script();
 }
 

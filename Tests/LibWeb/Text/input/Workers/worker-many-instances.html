@@ -34,6 +34,14 @@
         await waitForCondition(() => replies.length === 2 * WORKER_COUNT, 1200);
         println(`pongs: ${replies.filter(reply => reply === "pong").length}`);
 
+        const workerBeyondTheLimit = new Worker(url);
+        const workerBeyondTheLimitFailed = await new Promise(resolve => {
+            workerBeyondTheLimit.onerror = () => resolve(true);
+            workerBeyondTheLimit.onmessage = () => resolve(false);
+        });
+        println(`worker beyond the limit fails: ${workerBeyondTheLimitFailed}`);
+        workerBeyondTheLimit.terminate();
+
         for (const worker of workers) worker.terminate();
         await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
         println(`agents after terminate: ${internals.workerAgentCount()}`);

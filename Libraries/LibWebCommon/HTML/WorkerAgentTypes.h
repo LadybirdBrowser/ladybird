@@ -18,6 +18,11 @@
 
 namespace Web::HTML {
 
+// Generous enough for a site that starts a worker per CPU core, as compute-heavy sites do. A worker on a thread costs
+// less than a process, but still has a heap, JIT threads and connections to itself, and one page can start them all.
+// The Browser allows this many per top-level site, and a WebContent process this many on its threads.
+static constexpr size_t maximum_worker_count = 64;
+
 struct WEBCOMMON_API WorkerAgentStartRequest {
     URL::URL url;
     AgentType agent_type { AgentType::DedicatedWorker };

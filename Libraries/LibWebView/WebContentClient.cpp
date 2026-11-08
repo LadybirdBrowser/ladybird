@@ -823,6 +823,12 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_wor
     return { Web::HTML::WorkerAgentId {}, Optional<IPC::TransportHandle> {}, false };
 }
 
+void WebContentClient::register_dedicated_worker(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport)
+{
+    if (auto* page = this->page(page_id))
+        page->register_dedicated_worker(move(request), move(worker_transport));
+}
+
 void WebContentClient::did_close_browsing_context(Web::PageId page_id)
 {
     if (auto* page = this->page(page_id)) {

@@ -231,6 +231,7 @@ private:
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data, JsonValue network_response) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Web::HTML::CrossProcessId current_navigable_id, Utf16String name, bool no_opener, Optional<URL::URL> current_document_base_url) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
+    virtual void register_dedicated_worker(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection(Optional<Utf16String> top_level_site) override;

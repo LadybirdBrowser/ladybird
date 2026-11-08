@@ -1,4 +1,5 @@
 scripts ran: 64, all alike: true
 agents: 64
 pongs: 64
+worker beyond the limit fails: true
 agents after terminate: 0

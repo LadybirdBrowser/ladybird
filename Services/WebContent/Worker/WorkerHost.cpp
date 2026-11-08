@@ -67,6 +67,9 @@ void WorkerHost::run_closing_steps()
     // 18. Empty worker global scope's owner set.
     m_worker_global_scope->owner_set().clear();
 
+    // AD-HOC: As a document does when it is destroyed, the worker leaves the owner sets of the workers it owns.
+    m_inside_settings->release_owned_worker_agents();
+
     // AD-HOC: The File API only has these steps for a Document, but the blob URLs of a worker go away with it as well.
     Web::FileAPI::remove_entries_of_environment(*m_inside_settings, *m_worker_global_scope->page());
 
