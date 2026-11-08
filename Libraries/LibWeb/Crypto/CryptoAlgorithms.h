@@ -25,14 +25,7 @@ namespace Web::Crypto {
 
 using AlgorithmIdentifier = Variant<GC::Ref<JS::Object>, Utf16String>;
 using NamedCurve = Utf16String;
-using KeyDataType = FlattenVariant<WebIDL::BufferSourceVariant, Variant<JsonWebKey>>;
 using ExportKeyResult = Variant<ByteBuffer, JsonWebKey>;
-
-// https://wicg.github.io/webcrypto-modern-algos/#encapsulation
-struct EncapsulatedKey {
-    Optional<GC::Root<CryptoKey>> shared_key;
-    Optional<ByteBuffer> ciphertext;
-};
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation
 struct EncapsulatedBits {

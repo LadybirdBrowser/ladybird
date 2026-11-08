@@ -7,6 +7,8 @@ dictionary Algorithm {
 // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
 enum KeyFormat { "raw-public", "raw-private", "raw-seed", "raw-secret", "raw", "spki", "pkcs8", "jwk" };
 
+typedef (BufferSource or JsonWebKey) KeyDataType;
+
 dictionary RsaOtherPrimesInfo {
     // The following fields are defined in Section 6.3.2.7 of JSON Web Algorithms
     DOMString r;
@@ -46,6 +48,12 @@ dictionary JsonWebKey {
     DOMString priv;
 };
 
+// https://w3c.github.io/webcrypto/#dfn-CryptoKeyPair
+dictionary CryptoKeyPair {
+    CryptoKey publicKey;
+    CryptoKey privateKey;
+};
+
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation
 dictionary EncapsulatedKey {
     CryptoKey sharedKey;
@@ -59,7 +67,7 @@ dictionary EncapsulatedBits {
 };
 
 // https://w3c.github.io/webcrypto/#subtlecrypto-interface
-[SecureContext,Exposed=(Window,Worker)]
+[SecureContext,Exposed=(Window,Worker),ImplementedIn=Rust]
 interface SubtleCrypto {
     [NeedsCallerRealm] Promise<ArrayBuffer> encrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
     [NeedsCallerRealm] Promise<ArrayBuffer> decrypt(AlgorithmIdentifier algorithm, CryptoKey key, BufferSource data);
@@ -72,7 +80,7 @@ interface SubtleCrypto {
     [NeedsCallerRealm] Promise<CryptoKey> deriveKey(AlgorithmIdentifier algorithm, CryptoKey baseKey, AlgorithmIdentifier derivedKeyType, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm, CryptoKey baseKey, optional [EnforceRange] unsigned long? length = null);
 
-    [NeedsCallerRealm] Promise<CryptoKey> importKey(KeyFormat format, (BufferSource or JsonWebKey) keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] Promise<CryptoKey> importKey(KeyFormat format, KeyDataType keyData,  AlgorithmIdentifier algorithm, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<(ArrayBuffer or JsonWebKey)> exportKey(KeyFormat format, CryptoKey key);
 
     [NeedsCallerRealm] Promise<ArrayBuffer> wrapKey(KeyFormat format, CryptoKey key, CryptoKey wrappingKey, AlgorithmIdentifier wrapAlgorithm);
@@ -84,6 +92,6 @@ interface SubtleCrypto {
     [NeedsCallerRealm] Promise<CryptoKey> decapsulateKey(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<ArrayBuffer> decapsulateBits(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext);
     [NeedsCallerRealm] Promise<CryptoKey> getPublicKey(CryptoKey key, sequence<KeyUsage> keyUsages);
-    [NeedsCallerRealm] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, optional [EnforceRange] unsigned long? length = null);
-    [NeedsCallerRealm] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, AlgorithmIdentifier additionalAlgorithm);
+    [NeedsCallerRealm, ImplementedAs=supports_length] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, optional [EnforceRange] unsigned long? length = null);
+    [NeedsCallerRealm, ImplementedAs=supports_additional_algorithm] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, AlgorithmIdentifier additionalAlgorithm);
 };

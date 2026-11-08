@@ -16,20 +16,37 @@
 
 namespace Web::Crypto {
 
-struct CryptoKeyPair;
-struct EncapsulatedBits;
-struct EncapsulatedKey;
-
 using KeyFormat = Bindings::KeyFormat;
-using RsaOtherPrimesInfo = Bindings::RsaOtherPrimesInfo;
-using JsonWebKey = Bindings::JsonWebKey;
 
-WebIDL::ExceptionOr<JsonWebKey> parse_json_web_key(JS::Realm&, ReadonlyBytes data);
-void resolve_crypto_key_promise(JS::Realm&, WebIDL::Promise&, GC::Ref<CryptoKey>);
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_bits(JS::Realm&, EncapsulatedBits const&);
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_key(JS::Realm&, EncapsulatedKey const&);
-JS::Value crypto_key(JS::Realm&, GC::Ref<CryptoKey>);
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> crypto_key_pair(JS::Realm&, CryptoKeyPair const&);
+struct RsaOtherPrimesInfo {
+    Optional<Utf16String> d {};
+    Optional<Utf16String> r {};
+    Optional<Utf16String> t {};
+};
+
+struct JsonWebKey {
+    Optional<Utf16String> alg {};
+    Optional<Utf16String> crv {};
+    Optional<Utf16String> d {};
+    Optional<Utf16String> dp {};
+    Optional<Utf16String> dq {};
+    Optional<Utf16String> e {};
+    Optional<bool> ext {};
+    Optional<Utf16String> k {};
+    Optional<Vector<Utf16String>> key_ops {};
+    Optional<Utf16String> kty {};
+    Optional<Utf16String> n {};
+    Optional<Vector<RsaOtherPrimesInfo>> oth {};
+    Optional<Utf16String> p {};
+    Optional<Utf16String> priv {};
+    Optional<Utf16String> pub {};
+    Optional<Utf16String> q {};
+    Optional<Utf16String> qi {};
+    Optional<Utf16String> use {};
+    Optional<Utf16String> x {};
+    Optional<Utf16String> y {};
+};
+
 JS::ThrowCompletionOr<GC::Ref<CryptoKey>> crypto_key_from_value(JS::VM&, JS::Value);
 
 }
