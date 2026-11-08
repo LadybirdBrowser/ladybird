@@ -280,6 +280,12 @@ pub(crate) struct EncapsulatedKeyData {
 
 type ReceiveBytes = unsafe extern "C" fn(*mut c_void, Span<'_, u8>);
 
+fn receive_native_bytes<T>(call: impl FnOnce(*mut c_void, ReceiveBytes) -> T) -> (T, Option<Bytes>) {
+    let mut bytes: Option<Bytes> = None;
+    let status = call(core::ptr::from_mut(&mut bytes).cast(), receive_bytes);
+    (status, bytes)
+}
+
 unsafe extern "C" {
     fn web_crypto_public_key_for_private_key(key: *const c_void, name: usize, named_curve: usize) -> *mut c_void;
 }
@@ -630,16 +636,10 @@ impl AlgorithmMethods for Sha {
             ));
         };
 
-        let mut result_buffer: Option<Bytes> = None;
         // SAFETY: The input and the output slot live for the call.
-        let success = unsafe {
-            web_crypto_sha_digest(
-                hash_kind,
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut result_buffer).cast(),
-                receive_bytes,
-            )
-        };
+        let (success, result_buffer) = receive_native_bytes(|state, receive| unsafe {
+            web_crypto_sha_digest(hash_kind, Span::new(data.as_slice()), state, receive)
+        });
         // 2. If performing the operation results in an error, then throw an OperationError.
         if !success {
             return Err(Exception::Dom(
@@ -711,19 +711,18 @@ impl AlgorithmMethods for CShakeParams {
             unreachable!("the algorithm is cSHAKE128 or cSHAKE256");
         };
 
-        let mut result: Option<Bytes> = None;
         // SAFETY: The input and the output slot live for the call.
-        let maybe_result = unsafe {
+        let (maybe_result, result) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_cshake_digest(
                 kind,
                 Span::new(data.as_slice()),
                 output_length,
                 customization.into(),
                 function_name.into(),
-                core::ptr::from_mut(&mut result).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // 5. If performing the operation results in an error, then throw an OperationError.
         if maybe_result != 0 {
@@ -952,17 +951,10 @@ fn hmac_calculate_message_digest(hash_name: &Utf16String, key: &[u8], message: &
         ));
     };
 
-    let mut mac: Option<Bytes> = None;
     // SAFETY: The input and output are lent for the duration of the call.
-    unsafe {
-        web_crypto_hmac_sign(
-            hash_kind,
-            Span::new(key),
-            Span::new(message),
-            core::ptr::from_mut(&mut mac).cast(),
-            receive_bytes,
-        );
-    }
+    let ((), mac) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_hmac_sign(hash_kind, Span::new(key), Span::new(message), state, receive);
+    });
     Ok(mac.expect("LibCrypto returns a MAC"))
 }
 
@@ -1007,19 +999,18 @@ fn kmac_calculate_mac(
         return Err(dom_error("OperationError", b"Unsupported KMAC algorithm"));
     };
 
-    let mut mac: Option<Bytes> = None;
     // SAFETY: The input and output are lent for the duration of the call.
-    let success = unsafe {
+    let (success, mac) = receive_native_bytes(|state, receive| unsafe {
         web_crypto_kmac_sign(
             kind,
             Span::new(key),
             Span::new(message),
             output_length_bits,
             customization.into(),
-            core::ptr::from_mut(&mut mac).cast(),
-            receive_bytes,
+            state,
+            receive,
         )
-    };
+    });
     if !success {
         return Err(dom_error("OperationError", b"KMAC operation failed"));
     }
@@ -2444,19 +2435,18 @@ impl AlgorithmMethods for HkdfParams {
             return Ok(Bytes::new(Vec::new()));
         }
 
-        let mut result: Option<Bytes> = None;
         // SAFETY: The inputs and output are lent for this call.
-        let success = unsafe {
+        let (success, result) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_hkdf_derive_key(
                 hash_kind,
                 Span::new(normalized_algorithm.salt.as_slice()),
                 Span::new(key_derivation_key),
                 Span::new(normalized_algorithm.info.as_slice()),
                 length / 8,
-                core::ptr::from_mut(&mut result).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // 6. If the key derivation operation fails, then throw an OperationError.
         if !success {
@@ -2533,19 +2523,18 @@ impl AlgorithmMethods for Pbkdf2Params {
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
 
-        let mut result: Option<Bytes> = None;
         // SAFETY: The inputs and output are lent for this call.
-        let success = unsafe {
+        let (success, result) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_pbkdf2_derive_key(
                 hash_kind,
                 Span::new(password),
                 Span::new(salt.as_slice()),
                 iterations,
                 derived_key_length_bytes,
-                core::ptr::from_mut(&mut result).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // 6. If the key derivation operation fails, then throw an OperationError.
         if !success {
@@ -2782,11 +2771,10 @@ impl AlgorithmMethods for Argon2Params {
             associated_data: associated_data.into(),
             tag_length: length.expect("validation requires a length") / 8,
         };
-        let mut result: Option<Bytes> = None;
         // SAFETY: The inputs and output are lent for this call.
-        let maybe_result = unsafe {
-            web_crypto_argon2_derive_key(kind, &inputs, core::ptr::from_mut(&mut result).cast(), receive_bytes)
-        };
+        let (maybe_result, result) = receive_native_bytes(|state, receive| unsafe {
+            web_crypto_argon2_derive_key(kind, &inputs, state, receive)
+        });
 
         // 10. If the key derivation operation fails, then throw an OperationError.
         if maybe_result != 0 {
@@ -2844,51 +2832,6 @@ impl AesCtrParams {
         let length = to_octet_enforcing_range(vm, length_value)?;
 
         Ok(Self { counter: iv, length })
-    }
-}
-
-#[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
-struct AesGcmParams {
-    iv: Bytes,
-    additional_data: Option<Bytes>,
-    tag_length: Option<u8>,
-}
-
-impl AesGcmParams {
-    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
-        let iv_value = object.get(vm, &PropertyKey::from_utf8("iv"))?;
-        let Some(iv_source) = buffer_source_type_of(iv_value) else {
-            return vm
-                .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
-                .map_err(Into::into);
-        };
-        let iv = get_a_copy_of_the_bytes(vm, iv_source)?;
-
-        let mut additional_data = None;
-        let additional_data_property = PropertyKey::from_utf8("additionalData");
-        if object.has_property(vm, &additional_data_property)? {
-            let additional_data_value = object.get(vm, &additional_data_property)?;
-            let Some(additional_data_source) = buffer_source_type_of(additional_data_value) else {
-                return vm
-                    .throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"BufferSource"])
-                    .map_err(Into::into);
-            };
-            additional_data = Some(get_a_copy_of_the_bytes(vm, additional_data_source)?);
-        }
-
-        let mut tag_length = None;
-        let tag_length_property = PropertyKey::from_utf8("tagLength");
-        if object.has_property(vm, &tag_length_property)? {
-            let tag_length_value = object.get(vm, &tag_length_property)?;
-            tag_length = Some(to_octet_enforcing_range(vm, tag_length_value)?);
-        }
-
-        Ok(Self {
-            iv,
-            additional_data,
-            tag_length,
-        })
     }
 }
 
@@ -2984,7 +2927,7 @@ enum AesParameters {
     Base,
     Cbc(AesCbcParams),
     Ctr(AesCtrParams),
-    Gcm(AesGcmParams),
+    Gcm(AeadParams),
     KeyGen(AesKeyGenParams),
     DerivedKey(AesDerivedKeyParams),
     Aead(AeadParams),
@@ -2996,7 +2939,7 @@ impl AesParameters {
             AesParameterType::Base => Self::Base,
             AesParameterType::Cbc => Self::Cbc(AesCbcParams::from_value(vm, object)?),
             AesParameterType::Ctr => Self::Ctr(AesCtrParams::from_value(vm, object)?),
-            AesParameterType::Gcm => Self::Gcm(AesGcmParams::from_value(vm, object)?),
+            AesParameterType::Gcm => Self::Gcm(AeadParams::from_value(vm, object)?),
             AesParameterType::KeyGen => Self::KeyGen(AesKeyGenParams::from_value(vm, object)?),
             AesParameterType::DerivedKey => Self::DerivedKey(AesDerivedKeyParams::from_value(vm, object)?),
             AesParameterType::Aead => Self::Aead(AeadParams::from_value(vm, object)?),
@@ -3101,18 +3044,17 @@ impl AlgorithmMethods for AesCbc {
         // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of
         //    [NIST-SP800-38A] using AES as the block cipher, the iv member of normalizedAlgorithm as the IV input
         //    parameter and paddedPlaintext as the input plaintext.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_cbc_cipher(
                 true,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(plaintext.as_slice()),
                 Span::new(normalized_algorithm.iv.as_slice()),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_ciphertext {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
@@ -3156,18 +3098,17 @@ impl AlgorithmMethods for AesCbc {
         // 4. Let p be the value of the last octet of paddedPlaintext.
         // 5. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
         // 6. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_cbc_cipher(
                 false,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(ciphertext.as_slice()),
                 Span::new(normalized_algorithm.iv.as_slice()),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_plaintext {
             return Err(dom_error("OperationError", b"Failed to decrypt"));
         }
@@ -3910,18 +3851,17 @@ impl AlgorithmMethods for AesCtr {
         //    value of the counter block, the length member of normalizedAlgorithm as the input parameter m to the
         //    standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A] and plaintext as
         //    the input plaintext.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_ctr_cipher(
                 true,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(plaintext.as_slice()),
                 Span::new(counter.as_slice()),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_ciphertext {
             return Err(dom_error("OperationError", b"Encryption failed"));
         }
@@ -3964,18 +3904,17 @@ impl AlgorithmMethods for AesCtr {
         //    value of the counter block, the length member of normalizedAlgorithm as the input parameter m to the
         //    standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A] and ciphertext as
         //    the input ciphertext.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_ctr_cipher(
                 false,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(ciphertext.as_slice()),
                 Span::new(counter.as_slice()),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_plaintext {
             return Err(dom_error("OperationError", b"Decryption failed"));
         }
@@ -4441,19 +4380,18 @@ impl AlgorithmMethods for AesGcm {
         //    input parameter, tagLength as the t pre-requisite, actualCiphertext as the input ciphertext, C and tag as
         //    the authentication tag, T.
         // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The inputs and output slot live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_gcm_decrypt(
                 Span::new(key.byte_handle_bytes()),
                 Span::new(&actual_ciphertext),
                 Span::new(normalized_algorithm.iv.as_slice()),
                 Span::new(additional_data),
                 Span::new(&tag),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         if !maybe_plaintext {
             return Err(dom_error("OperationError", b"Decryption failed"));
@@ -4898,17 +4836,16 @@ impl AlgorithmMethods for AesKw {
 
         // 2. Let ciphertext be the result of performing the Key Wrap operation described in Section 2.2.1 of [RFC3394]
         //    with plaintext as the plaintext to be wrapped and using the default Initial Value defined in Section 2.2.3.1 of the same document.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_kw_cipher(
                 true,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(plaintext.as_slice()),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_ciphertext {
             return Err(dom_error("OperationError", b"Key wrap failed"));
         }
@@ -4928,17 +4865,16 @@ impl AlgorithmMethods for AesKw {
         //    with ciphertext as the input ciphertext and using the default Initial Value defined in Section 2.2.3.1 of
         //    the same document.
         // 2. If the Key Unwrap operation returns an error, then throw an OperationError.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_kw_cipher(
                 false,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(ciphertext.as_slice()),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_plaintext {
             return Err(dom_error("OperationError", b"Key unwrap failed"));
         }
@@ -5017,9 +4953,8 @@ impl AlgorithmMethods for AesOcb {
         //    additionalData as the A input parameter,
         //    plaintext as the P input parameter,
         //    and tagLength as the TAGLEN global parameter.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The inputs and output slot live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_ocb_cipher(
                 true,
                 Span::new(key.byte_handle_bytes()),
@@ -5027,10 +4962,10 @@ impl AlgorithmMethods for AesOcb {
                 Span::new(normalized_algorithm.iv.as_slice()),
                 Span::new(additional_data),
                 tag_length,
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         if maybe_ciphertext != 0 {
             // SAFETY: LibCrypto transfers an ownership reference.
@@ -5104,9 +5039,8 @@ impl AlgorithmMethods for AesOcb {
         //    additionalData as the A input parameter,
         //    ciphertext as the C input parameter,
         //    and tagLength as the TAGLEN global parameter.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The inputs and output slot live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_aes_ocb_cipher(
                 false,
                 Span::new(key.byte_handle_bytes()),
@@ -5114,10 +5048,10 @@ impl AlgorithmMethods for AesOcb {
                 Span::new(normalized_algorithm.iv.as_slice()),
                 Span::new(additional_data),
                 tag_length,
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // 5. Perform the OCB-DECRYPT function described in Section 4.3 of [RFC7253] using AES as the block cipher,
         //    using the key represented by [[handle]] internal slot of key as the K input parameter, the iv member of
@@ -5548,19 +5482,18 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         //    described in Section 2.8 of [RFC8439], using the key represented by [[handle]] internal slot of key as the
         //    key input parameter, the iv member of normalizedAlgorithm as the nonce input parameter, plaintext as the
         //    plaintext input parameter, and additionalData as the additional authenticated data (AAD) input parameter.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The inputs and output slot live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_chacha20_poly1305_cipher(
                 true,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(normalized_algorithm.iv.as_slice()),
                 Span::new(plaintext.as_slice()),
                 Span::new(additional_data),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         if maybe_ciphertext != 0 {
             // SAFETY: LibCrypto transfers an ownership reference.
@@ -5614,19 +5547,18 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         //    represented by [[handle]] internal slot of key as the key input parameter, the iv member of normalizedAlgorithm
         //    as the nonce input parameter, ciphertext as the ciphertext input parameter, and additionalData as the additional
         //    authenticated data (AAD) input parameter.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The inputs and output slot live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_chacha20_poly1305_cipher(
                 false,
                 Span::new(key.byte_handle_bytes()),
                 Span::new(normalized_algorithm.iv.as_slice()),
                 Span::new(ciphertext.as_slice()),
                 Span::new(additional_data),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // If the result of the algorithm is the indication of authentication failure:
         //       throw an OperationError
@@ -6261,15 +6193,10 @@ fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams
 }
 
 fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The exponent and the output slot are lent for the call.
-    let success = unsafe {
-        web_crypto_rsa_export_public_exponent(
-            Span::new(exponent.as_slice()),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    };
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_rsa_export_public_exponent(Span::new(exponent.as_slice()), state, receive)
+    });
     if !success {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -6280,16 +6207,10 @@ fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
 
 fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)> {
     let mut modulus_length = 0;
-    let mut exponent: Option<Bytes> = None;
     // SAFETY: The key handle and the output slots are lent for the call.
-    let success = unsafe {
-        web_crypto_rsa_read_key_metadata(
-            key.handle().as_ptr(),
-            &mut modulus_length,
-            core::ptr::from_mut(&mut exponent).cast(),
-            receive_bytes,
-        )
-    };
+    let (success, exponent) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_rsa_read_key_metadata(key.handle().as_ptr(), &mut modulus_length, state, receive)
+    });
     if !success {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -6329,16 +6250,10 @@ fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResul
 }
 
 fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle and the output slot are lent for the call.
-    let success = unsafe {
-        web_crypto_rsa_export_der(
-            key.handle().as_ptr(),
-            is_public,
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    };
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_rsa_export_der(key.handle().as_ptr(), is_public, state, receive)
+    });
     if !success {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -6348,16 +6263,10 @@ fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult
 }
 
 fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
-    let mut bytes: Option<Bytes> = None;
     // SAFETY: The key handle and the output slot are lent for the call.
-    let success = unsafe {
-        web_crypto_rsa_export_jwk_integer(
-            key.handle().as_ptr(),
-            component,
-            core::ptr::from_mut(&mut bytes).cast(),
-            receive_bytes,
-        )
-    };
+    let (success, bytes) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_rsa_export_jwk_integer(key.handle().as_ptr(), component, state, receive)
+    });
     if !success {
         return Err(out_of_memory(vm));
     }
@@ -6441,19 +6350,18 @@ impl AlgorithmMethods for RsaOaep {
         };
 
         // 5. Let ciphertext be the value C that results from performing the operation.
-        let mut ciphertext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_ciphertext = unsafe {
+        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_rsa_oaep_cipher(
                 true,
                 hash_kind,
                 key.handle().as_ptr(),
                 Span::new(label.as_slice()),
                 Span::new(plaintext.as_slice()),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_ciphertext {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
@@ -6506,19 +6414,18 @@ impl AlgorithmMethods for RsaOaep {
         };
 
         // 5. Let plaintext the value M that results from performing the operation.
-        let mut plaintext: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_plaintext = unsafe {
+        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_rsa_oaep_cipher(
                 false,
                 hash_kind,
                 key.handle().as_ptr(),
                 Span::new(label.as_slice()),
                 Span::new(ciphertext.as_slice()),
-                core::ptr::from_mut(&mut plaintext).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_plaintext {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
@@ -7283,18 +7190,17 @@ impl AlgorithmMethods for RsaPss {
         };
 
         // 4. Let signature be the signature, S, that results from performing the operation.
-        let mut signature: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_signature = unsafe {
+        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_rsa_pss_sign(
                 hash_kind,
                 key.handle().as_ptr(),
                 pss_params.salt_length,
                 Span::new(message.as_slice()),
-                core::ptr::from_mut(&mut signature).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_signature {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
@@ -8000,17 +7906,16 @@ impl AlgorithmMethods for RsassaPkcs1 {
         };
 
         // 4. Let signature be the value S that results from performing the operation.
-        let mut signature: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
-        let maybe_signature = unsafe {
+        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_rsa_pkcs1_sign(
                 hash_kind,
                 key.handle().as_ptr(),
                 Span::new(message.as_slice()),
-                core::ptr::from_mut(&mut signature).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_signature {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
@@ -8800,32 +8705,22 @@ fn ec_key_is_valid(curve: EcCurve, key: Ref<CryptoKey>) -> Result<bool, ()> {
 }
 
 fn ec_export_der(curve: EcCurve, key: Ref<CryptoKey>, is_public: bool) -> Result<Bytes, ()> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle and the output slot are lent for the call.
-    if !unsafe {
-        web_crypto_ec_export_der(
-            curve,
-            key.handle().as_ptr(),
-            is_public,
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_ec_export_der(curve, key.handle().as_ptr(), is_public, state, receive)
+    });
+    if !success {
         return Err(());
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
 }
 
 fn ec_export_uncompressed(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle and the output slot are lent for the call.
-    if !unsafe {
-        web_crypto_ec_export_uncompressed(
-            key.handle().as_ptr(),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_ec_export_uncompressed(key.handle().as_ptr(), state, receive)
+    });
+    if !success {
         return Err(());
     }
     Ok(result.expect("LibCrypto returns the encoded bytes"))
@@ -8853,15 +8748,11 @@ fn ec_export_public_coordinates(curve: EcCurve, key: Ref<CryptoKey>) -> Result<(
 }
 
 fn ec_export_private_scalar(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle and the output slot are lent for the call.
-    if !unsafe {
-        web_crypto_ec_export_private_scalar(
-            key.handle().as_ptr(),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_ec_export_private_scalar(key.handle().as_ptr(), state, receive)
+    });
+    if !success {
         return Err(());
     }
     Ok(result.expect("LibCrypto returns the private scalar"))
@@ -9032,16 +8923,10 @@ impl AlgorithmMethods for Ecdsa {
         // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
-        let mut digest: Option<Bytes> = None;
         // SAFETY: The input and output slot live for the call.
-        let success = unsafe {
-            web_crypto_sha_digest(
-                hash_kind,
-                Span::new(message.as_slice()),
-                core::ptr::from_mut(&mut digest).cast(),
-                receive_bytes,
-            )
-        };
+        let (success, digest) = receive_native_bytes(|state, receive| unsafe {
+            web_crypto_sha_digest(hash_kind, Span::new(message.as_slice()), state, receive)
+        });
         if !success {
             return cx
                 .vm()
@@ -9167,16 +9052,10 @@ impl AlgorithmMethods for Ecdsa {
         // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
-        let mut digest: Option<Bytes> = None;
         // SAFETY: The input and output slot live for the call.
-        let success = unsafe {
-            web_crypto_sha_digest(
-                hash_kind,
-                Span::new(message.as_slice()),
-                core::ptr::from_mut(&mut digest).cast(),
-                receive_bytes,
-            )
-        };
+        let (success, digest) = receive_native_bytes(|state, receive| unsafe {
+            web_crypto_sha_digest(hash_kind, Span::new(message.as_slice()), state, receive)
+        });
         if !success {
             return cx
                 .vm()
@@ -10222,18 +10101,17 @@ impl AlgorithmMethods for Ecdh {
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
             // NOTE: Remove the prefix from the uncompressed point
             let mut error = 0;
-            let mut secret_data: Option<Bytes> = None;
             // SAFETY: The key handles and output slots live for the call.
-            let status = unsafe {
+            let (status, secret_data) = receive_native_bytes(|state, receive| unsafe {
                 web_crypto_ec_compute_coordinate(
                     curve,
                     key.handle().as_ptr(),
                     public_key.handle().as_ptr(),
                     &mut error,
-                    core::ptr::from_mut(&mut secret_data).cast(),
-                    receive_bytes,
+                    state,
+                    receive,
                 )
-            };
+            });
             if status == 1 {
                 // SAFETY: LibCrypto transfers ownership of the error message.
                 let detail = unsafe { Utf16String::from_raw_owned(error) };
@@ -11103,42 +10981,32 @@ fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
 }
 
 fn okp_generate_private_key(curve: OkpCurve) -> Result<Bytes, ()> {
-    let mut key: Option<Bytes> = None;
     // SAFETY: The output slot is lent for the call.
-    if !unsafe { web_crypto_okp_generate_private_key(curve, core::ptr::from_mut(&mut key).cast(), receive_bytes) } {
+    let (success, key) =
+        receive_native_bytes(|state, receive| unsafe { web_crypto_okp_generate_private_key(curve, state, receive) });
+    if !success {
         return Err(());
     }
     Ok(key.expect("LibCrypto returns the private key"))
 }
 
 fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Bytes, ()> {
-    let mut key: Option<Bytes> = None;
     // SAFETY: The private key and output slot are lent for the call.
-    if !unsafe {
-        web_crypto_okp_generate_public_key(
-            curve,
-            Span::new(private_key),
-            core::ptr::from_mut(&mut key).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, key) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_okp_generate_public_key(curve, Span::new(private_key), state, receive)
+    });
+    if !success {
         return Err(());
     }
     Ok(key.expect("LibCrypto returns the public key"))
 }
 
 fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebIdlResult<Bytes> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key and the output slot are lent for the call.
-    if !unsafe {
-        web_crypto_okp_export_der(
-            curve,
-            is_public,
-            Span::new(key),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_okp_export_der(curve, is_public, Span::new(key), state, receive)
+    });
+    if !success {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
             .map_err(Into::into);
@@ -11696,18 +11564,17 @@ impl AlgorithmMethods for Ed25519 {
             return Err(dom_error("OperationError", b"Failed to generate public key"));
         }
 
-        let mut signature: Option<Bytes> = None;
         // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_signature = unsafe {
+        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_okp_sign(
                 OkpCurve::Ed25519,
                 Span::new(key.okp_handle_bytes()),
                 Span::new(message.as_slice()),
                 Span::new(&[]),
-                core::ptr::from_mut(&mut signature).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_signature {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
@@ -12318,18 +12185,17 @@ impl AlgorithmMethods for Ed448 {
 
         // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
         //    with message as M and context as C, using the Ed448 private key associated with key.
-        let mut signature: Option<Bytes> = None;
         // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_signature = unsafe {
+        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_okp_sign(
                 OkpCurve::Ed448,
                 Span::new(key.okp_handle_bytes()),
                 Span::new(message.as_slice()),
                 Span::new(context),
-                core::ptr::from_mut(&mut signature).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_signature {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
@@ -12485,17 +12351,16 @@ impl AlgorithmMethods for X25519 {
         let private_key = key.okp_handle_bytes();
         let public_key_data = public_key.okp_handle_bytes();
 
-        let mut secret: Option<Bytes> = None;
         // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_secret = unsafe {
+        let (maybe_secret, secret) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_okp_compute_coordinate(
                 OkpCurve::X25519,
                 Span::new(private_key),
                 Span::new(public_key_data),
-                core::ptr::from_mut(&mut secret).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_secret {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         }
@@ -13094,17 +12959,16 @@ impl AlgorithmMethods for X448 {
         let private_key = key.okp_handle_bytes();
         let public_key_data = public_key.okp_handle_bytes();
 
-        let mut secret: Option<Bytes> = None;
         // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_secret = unsafe {
+        let (maybe_secret, secret) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_okp_compute_coordinate(
                 OkpCurve::X448,
                 Span::new(private_key),
                 Span::new(public_key_data),
-                core::ptr::from_mut(&mut secret).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
         if !maybe_secret {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         }
@@ -13744,17 +13608,11 @@ fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result
 }
 
 fn mldsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle, OID and output slot are lent for the call.
-    if !unsafe {
-        web_crypto_mldsa_export_der(
-            key.handle().as_ptr(),
-            is_public,
-            Span::new(oid),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_mldsa_export_der(key.handle().as_ptr(), is_public, Span::new(oid), state, receive)
+    });
+    if !success {
         return Err(out_of_memory(vm));
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
@@ -13829,18 +13687,17 @@ impl AlgorithmMethods for MlDsa {
         } else {
             unreachable!("the name identifies an ML-DSA parameter set")
         };
-        let mut signature: Option<Bytes> = None;
         // SAFETY: The key, input bytes and output slot are lent for the call.
-        let maybe_result = unsafe {
+        let (maybe_result, signature) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_mldsa_sign(
                 size,
                 key.handle().as_ptr(),
                 Span::new(message.as_slice()),
                 Span::new(context),
-                core::ptr::from_mut(&mut signature).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         // 5. If the ML-DSA.Sign algorithm returned an error, throw an OperationError.
         if !maybe_result {
@@ -14637,17 +14494,11 @@ fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<NativeKeyPair
 }
 
 fn mlkem_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
-    let mut result: Option<Bytes> = None;
     // SAFETY: The key handle, OID and output slot are lent for the call.
-    if !unsafe {
-        web_crypto_mlkem_export_der(
-            key.handle().as_ptr(),
-            is_public,
-            Span::new(oid),
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-        )
-    } {
+    let (success, result) = receive_native_bytes(|state, receive| unsafe {
+        web_crypto_mlkem_export_der(key.handle().as_ptr(), is_public, Span::new(oid), state, receive)
+    });
+    if !success {
         return Err(out_of_memory(vm));
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
@@ -15163,11 +15014,10 @@ impl AlgorithmMethods for MlKem {
             }
 
             // 2. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]] internal slot of key.
-            let mut data: Option<Bytes> = None;
             // SAFETY: The handle and output slot are lent for the call.
-            unsafe {
-                web_crypto_mlkem_public_bytes(handle.as_ptr(), core::ptr::from_mut(&mut data).cast(), receive_bytes);
-            };
+            let ((), data) = receive_native_bytes(|state, receive| unsafe {
+                web_crypto_mlkem_public_bytes(handle.as_ptr(), state, receive);
+            });
             let data = data.expect("LibCrypto returns the public key bytes");
 
             // 3. Let result be data.
@@ -15318,17 +15168,16 @@ impl AlgorithmMethods for MlKem {
         } else {
             unreachable!("the name identifies an ML-KEM parameter set")
         };
-        let mut shared_key: Option<Bytes> = None;
         // SAFETY: The handle, ciphertext and output slot are lent for the call.
-        let maybe_shared_key = unsafe {
+        let (maybe_shared_key, shared_key) = receive_native_bytes(|state, receive| unsafe {
             web_crypto_mlkem_decapsulate(
                 size,
                 key.handle().as_ptr(),
                 Span::new(ciphertext.as_slice()),
-                core::ptr::from_mut(&mut shared_key).cast(),
-                receive_bytes,
+                state,
+                receive,
             )
-        };
+        });
 
         if maybe_shared_key != 0 {
             // SAFETY: LibCrypto transfers ownership of the error message.

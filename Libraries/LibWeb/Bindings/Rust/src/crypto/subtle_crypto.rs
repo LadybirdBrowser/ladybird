@@ -277,6 +277,21 @@ fn create_rejected_promise_from_exception(vm: &Vm, realm: Gc<Realm>, exception: 
     })
 }
 
+fn queue_crypto_rejection(vm: &Vm, realm: Gc<Realm>, promise: WebIdlPromise, exception: Exception) {
+    let value = exception.throw(&CallContext::new(vm, realm)).value();
+    queue_a_global_task(
+        vm,
+        realm.global_object(),
+        TaskSource::Crypto,
+        (realm, promise, value),
+        |vm, (realm, promise, value)| {
+            with_temporary_execution_context_and_callbacks(realm, || {
+                reject_promise(vm, promise, value);
+            });
+        },
+    );
+}
+
 fn reject_promise_with_exception(vm: &Vm, promise: WebIdlPromise, exception: Exception) {
     let realm = promise_realm(promise);
     with_temporary_execution_context(realm, || {
@@ -524,30 +539,25 @@ impl SubtleCrypto {
                     // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
                     //    the crypto task source, given realm's global object, to reject promise with the returned
                     //    error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Algorithm mismatch"),
+                        );
                         return;
                     }
 
                     // 10. If the [[usages]] internal slot of key does not contain an entry that is "encrypt", then throw an InvalidAccessError.
                     if !key.internal_usages().contains(&KeyUsage::Encrypt) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Key does not support encryption"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Key does not support encryption"),
+                        );
                         return;
                     }
 
@@ -556,7 +566,7 @@ impl SubtleCrypto {
                         .methods
                         .encrypt(&CallContext::new(vm, realm), key, &data);
                     if let Err(error) = cipher_text {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
 
@@ -622,30 +632,25 @@ impl SubtleCrypto {
                     // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
                     //    the crypto task source, given realm's global object, to reject promise with the returned
                     //    error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Algorithm mismatch"),
+                        );
                         return;
                     }
 
                     // 10. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
                     if !key.internal_usages().contains(&KeyUsage::Decrypt) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Key does not support decryption"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Key does not support decryption"),
+                        );
                         return;
                     }
 
@@ -654,7 +659,7 @@ impl SubtleCrypto {
                         .methods
                         .decrypt(&CallContext::new(vm, realm), key, &data);
                     if let Err(error) = plain_text {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
 
@@ -720,28 +725,13 @@ impl SubtleCrypto {
                     // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
                     //    the crypto task source, given realm's global object, to reject promise with the returned
                     //    error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 9. Let digest be the result of performing the digest operation specified by normalizedAlgorithm using algorithm, with data as message.
                     let digest = algorithm_object
                         .methods
                         .digest(realm, &algorithm_object.parameter, &data_buffer);
 
                     if let Err(error) = digest {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
 
@@ -1149,31 +1139,26 @@ impl SubtleCrypto {
                     // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
                     //    crypto task source, given realm's global object, to reject promise with the returned error; and then
                     //    terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of key then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Algorithm mismatch"),
+                        );
                         return;
                     }
 
                     // 10. If the [[usages]] internal slot of key does not contain an entry that is "sign", then throw an InvalidAccessError.
                     if !key.internal_usages().contains(&KeyUsage::Sign) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Key does not support signing"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Key does not support signing"),
+                        );
                         return;
                     }
 
@@ -1186,7 +1171,7 @@ impl SubtleCrypto {
                         &data,
                     );
                     if let Err(error) = signature {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
 
@@ -1260,31 +1245,26 @@ impl SubtleCrypto {
                     // 9. If the following steps or referenced procedures say to throw an error, queue a global task on the
                     //    crypto task source, given realm's global object, to reject promise with the returned error; and then
                     //    terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 10. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of key then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Algorithm mismatch"),
+                        );
                         return;
                     }
 
                     // 11. If the [[usages]] internal slot of key does not contain an entry that is "verify", then throw an InvalidAccessError.
                     if !key.internal_usages().contains(&KeyUsage::Verify) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Key does not support verification"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Key does not support verification"),
+                        );
                         return;
                     }
 
@@ -1298,7 +1278,7 @@ impl SubtleCrypto {
                         &data,
                     );
                     if let Err(error) = result {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
 
@@ -2057,32 +2037,27 @@ impl SubtleCrypto {
                 with_temporary_execution_context_and_callbacks(realm, || {
                     // 9. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
                     //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 10. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of encapsulationKey then throw an InvalidAccessError.
                     if normalized_encapsulation_algorithm.parameter.name != encapsulation_key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"),
+                        );
                         return;
                     }
 
                     // 11. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateKey", then
                     //     throw an InvalidAccessError.
                     if !encapsulation_key.internal_usages().contains(&KeyUsage::EncapsulateKey) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key usage"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid encapsulation key usage"),
+                        );
                         return;
                     }
 
@@ -2094,7 +2069,7 @@ impl SubtleCrypto {
                         encapsulation_key,
                     );
                     if let Err(error) = maybe_encapsulated_bits {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     let encapsulated_bits = maybe_encapsulated_bits.must();
@@ -2115,7 +2090,7 @@ impl SubtleCrypto {
                         &usages,
                     );
                     if let Err(error) = maybe_shared_key {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     // FIXME: 14. If usages is empty, then throw a SyntaxError.
@@ -2200,32 +2175,27 @@ impl SubtleCrypto {
                 with_temporary_execution_context_and_callbacks(realm, || {
                     // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
                     //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 8. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of encapsulationKey then throw an InvalidAccessError.
                     if normalized_encapsulation_algorithm.parameter.name != encapsulation_key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"),
+                        );
                         return;
                     }
 
                     // 9. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateBits", then
                     //    throw an InvalidAccessError.
                     if !encapsulation_key.internal_usages().contains(&KeyUsage::EncapsulateBits) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key usages"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid encapsulation key usages"),
+                        );
                         return;
                     }
 
@@ -2237,7 +2207,7 @@ impl SubtleCrypto {
                         encapsulation_key,
                     );
                     if let Err(error) = maybe_encapsulated_bits {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     let encapsulated_bits = maybe_encapsulated_bits.must();
@@ -2346,32 +2316,27 @@ impl SubtleCrypto {
                 with_temporary_execution_context_and_callbacks(realm, || {
                     // 10. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
                     //     source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 11. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of decapsulationKey then throw an InvalidAccessError.
                     if normalized_decapsulation_algorithm.parameter.name != decapsulation_key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid algorithm name"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid algorithm name"),
+                        );
                         return;
                     }
 
                     // 12. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateKey", then
                     //     throw an InvalidAccessError.
                     if !decapsulation_key.internal_usages().contains(&KeyUsage::DecapsulateKey) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid key usages"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid key usages"),
+                        );
                         return;
                     }
                     // 13. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
@@ -2383,7 +2348,7 @@ impl SubtleCrypto {
                         &cipher_text,
                     );
                     if let Err(error) = maybe_decapsulated_bits {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     let decapsulated_bits = maybe_decapsulated_bits.must();
@@ -2400,7 +2365,7 @@ impl SubtleCrypto {
                         &usages,
                     );
                     if let Err(error) = maybe_shared_key {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     // FIXME: 15. If usages is empty, then throw a SyntaxError.
@@ -2485,32 +2450,27 @@ impl SubtleCrypto {
                 with_temporary_execution_context_and_callbacks(realm, || {
                     // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
                     //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 9. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of decapsulationKey then throw an InvalidAccessError.
                     if normalized_decapsulation_algorithm.parameter.name != decapsulation_key.algorithm_name() {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid algorithm name"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid algorithm name"),
+                        );
                         return;
                     }
 
                     // 10. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateBits", then
                     //     throw an InvalidAccessError.
                     if !decapsulation_key.internal_usages().contains(&KeyUsage::DecapsulateBits) {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Invalid key usages"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Invalid key usages"),
+                        );
                         return;
                     }
 
@@ -2523,7 +2483,7 @@ impl SubtleCrypto {
                         &cipher_text,
                     );
                     if let Err(error) = maybe_decapsulated_bits {
-                        throw_in_this_context(error);
+                        queue_crypto_rejection(vm, realm, promise, error);
                         return;
                     }
                     let decapsulated_bits = maybe_decapsulated_bits.must();
@@ -2607,24 +2567,14 @@ impl SubtleCrypto {
                     // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto
                     //    task source, given realm's global object, to reject promise with the returned error; and then terminate
                     //    the algorithm.
-                    let throw_in_this_context = |exception: Exception| {
-                        let value = exception.throw(&CallContext::new(vm, realm)).value();
-                        queue_a_global_task(
-                            vm,
-                            realm.global_object(),
-                            TaskSource::Crypto,
-                            (realm, promise, value),
-                            |vm, (realm, promise, value)| {
-                                with_temporary_execution_context_and_callbacks(realm, || {
-                                    reject_promise(vm, promise, value);
-                                });
-                            },
-                        );
-                    };
-
                     // 8. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
                     if key.key_type() != KeyType::Private {
-                        throw_in_this_context(dom_error("InvalidAccessError", b"Key is not a private key"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("InvalidAccessError", b"Key is not a private key"),
+                        );
                         return;
                     }
 
@@ -2632,7 +2582,12 @@ impl SubtleCrypto {
                     //    algorithm, then throw a SyntaxError.
                     for usage in &key_usages {
                         if !public_key_usages.contains(usage) {
-                            throw_in_this_context(dom_error("SyntaxError", b"Invalid key usage for a public key"));
+                            queue_crypto_rejection(
+                                vm,
+                                realm,
+                                promise,
+                                dom_error("SyntaxError", b"Invalid key usage for a public key"),
+                            );
                             return;
                         }
                     }
@@ -2643,7 +2598,12 @@ impl SubtleCrypto {
 
                     // 11. If an error occurred, then throw a OperationError.
                     if public_key_data.is_none() {
-                        throw_in_this_context(dom_error("OperationError", b"Failed to derive the public key"));
+                        queue_crypto_rejection(
+                            vm,
+                            realm,
+                            promise,
+                            dom_error("OperationError", b"Failed to derive the public key"),
+                        );
                         return;
                     }
                     let public_key = public_key_data.expect("the public key was derived");
@@ -3028,333 +2988,138 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
         // https://w3c.github.io/webcrypto/#algorithm-conventions
 
         // https://w3c.github.io/webcrypto/#rsassa-pkcs1-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Import),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "RSASSA-PKCS1-v1_5",
-            RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base),
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base)),
+            ("verify", RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base)),
+            (
+                "generateKey",
+                RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::KeyGen),
+            ),
+            ("importKey", RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Import)),
+            ("exportKey", RegisteredAlgorithm::RsassaPkcs1(RsaParameterType::Base)),
+        ] {
+            define_an_algorithm(
+                &mut internal_object,
+                operation,
+                "RSASSA-PKCS1-v1_5",
+                registered_algorithm,
+            );
+        }
 
         // https://w3c.github.io/webcrypto/#rsa-pss-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "RSA-PSS",
-            RegisteredAlgorithm::RsaPss(RsaParameterType::Pss),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "RSA-PSS",
-            RegisteredAlgorithm::RsaPss(RsaParameterType::Pss),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "RSA-PSS",
-            RegisteredAlgorithm::RsaPss(RsaParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "RSA-PSS",
-            RegisteredAlgorithm::RsaPss(RsaParameterType::Import),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "RSA-PSS",
-            RegisteredAlgorithm::RsaPss(RsaParameterType::Base),
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::RsaPss(RsaParameterType::Pss)),
+            ("verify", RegisteredAlgorithm::RsaPss(RsaParameterType::Pss)),
+            ("generateKey", RegisteredAlgorithm::RsaPss(RsaParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::RsaPss(RsaParameterType::Import)),
+            ("exportKey", RegisteredAlgorithm::RsaPss(RsaParameterType::Base)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "RSA-PSS", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#rsa-oaep-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "RSA-OAEP",
-            RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "RSA-OAEP",
-            RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "RSA-OAEP",
-            RegisteredAlgorithm::RsaOaep(RsaParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "RSA-OAEP",
-            RegisteredAlgorithm::RsaOaep(RsaParameterType::Import),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "RSA-OAEP",
-            RegisteredAlgorithm::RsaOaep(RsaParameterType::Base),
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep)),
+            ("decrypt", RegisteredAlgorithm::RsaOaep(RsaParameterType::Oaep)),
+            ("generateKey", RegisteredAlgorithm::RsaOaep(RsaParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::RsaOaep(RsaParameterType::Import)),
+            ("exportKey", RegisteredAlgorithm::RsaOaep(RsaParameterType::Base)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "RSA-OAEP", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#ecdsa-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "ECDSA",
-            RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "ECDSA",
-            RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "ECDSA",
-            RegisteredAlgorithm::Ecdsa(EcParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "ECDSA",
-            RegisteredAlgorithm::Ecdsa(EcParameterType::Import),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "ECDSA",
-            RegisteredAlgorithm::Ecdsa(EcParameterType::Base),
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify)),
+            ("verify", RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify)),
+            ("generateKey", RegisteredAlgorithm::Ecdsa(EcParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::Ecdsa(EcParameterType::Import)),
+            ("exportKey", RegisteredAlgorithm::Ecdsa(EcParameterType::Base)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "ECDSA", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#ecdh-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "ECDH",
-            RegisteredAlgorithm::Ecdh(EcParameterType::Import),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "ECDH",
-            RegisteredAlgorithm::Ecdh(EcParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "deriveBits",
-            "ECDH",
-            RegisteredAlgorithm::Ecdh(EcParameterType::Derive),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "ECDH",
-            RegisteredAlgorithm::Ecdh(EcParameterType::KeyGen),
-        );
+        for (operation, registered_algorithm) in [
+            ("importKey", RegisteredAlgorithm::Ecdh(EcParameterType::Import)),
+            ("exportKey", RegisteredAlgorithm::Ecdh(EcParameterType::Base)),
+            ("deriveBits", RegisteredAlgorithm::Ecdh(EcParameterType::Derive)),
+            ("generateKey", RegisteredAlgorithm::Ecdh(EcParameterType::KeyGen)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "ECDH", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#aes-ctr-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::Ctr),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::Ctr),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "AES-CTR",
-            RegisteredAlgorithm::AesCtr(AesParameterType::DerivedKey),
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::AesCtr(AesParameterType::Ctr)),
+            ("decrypt", RegisteredAlgorithm::AesCtr(AesParameterType::Ctr)),
+            ("generateKey", RegisteredAlgorithm::AesCtr(AesParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::AesCtr(AesParameterType::Base)),
+            ("exportKey", RegisteredAlgorithm::AesCtr(AesParameterType::Base)),
+            (
+                "get key length",
+                RegisteredAlgorithm::AesCtr(AesParameterType::DerivedKey),
+            ),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "AES-CTR", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#aes-cbc-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::Cbc),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::Cbc),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "AES-CBC",
-            RegisteredAlgorithm::AesCbc(AesParameterType::DerivedKey),
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::AesCbc(AesParameterType::Cbc)),
+            ("decrypt", RegisteredAlgorithm::AesCbc(AesParameterType::Cbc)),
+            ("generateKey", RegisteredAlgorithm::AesCbc(AesParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::AesCbc(AesParameterType::Base)),
+            ("exportKey", RegisteredAlgorithm::AesCbc(AesParameterType::Base)),
+            (
+                "get key length",
+                RegisteredAlgorithm::AesCbc(AesParameterType::DerivedKey),
+            ),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "AES-CBC", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#aes-gcm-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::Gcm),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::Gcm),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "AES-GCM",
-            RegisteredAlgorithm::AesGcm(AesParameterType::DerivedKey),
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::AesGcm(AesParameterType::Gcm)),
+            ("decrypt", RegisteredAlgorithm::AesGcm(AesParameterType::Gcm)),
+            ("generateKey", RegisteredAlgorithm::AesGcm(AesParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::AesGcm(AesParameterType::Base)),
+            ("exportKey", RegisteredAlgorithm::AesGcm(AesParameterType::Base)),
+            (
+                "get key length",
+                RegisteredAlgorithm::AesGcm(AesParameterType::DerivedKey),
+            ),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "AES-GCM", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#aes-kw-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "wrapKey",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "unwrapKey",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "AES-KW",
-            RegisteredAlgorithm::AesKw(AesParameterType::DerivedKey),
-        );
+        for (operation, registered_algorithm) in [
+            ("wrapKey", RegisteredAlgorithm::AesKw(AesParameterType::Base)),
+            ("unwrapKey", RegisteredAlgorithm::AesKw(AesParameterType::Base)),
+            ("generateKey", RegisteredAlgorithm::AesKw(AesParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::AesKw(AesParameterType::Base)),
+            ("exportKey", RegisteredAlgorithm::AesKw(AesParameterType::Base)),
+            (
+                "get key length",
+                RegisteredAlgorithm::AesKw(AesParameterType::DerivedKey),
+            ),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "AES-KW", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#hmac-registration
-        define_an_algorithm(&mut internal_object, "sign", "HMAC", RegisteredAlgorithm::Hmac);
-        define_an_algorithm(&mut internal_object, "verify", "HMAC", RegisteredAlgorithm::Hmac);
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "HMAC",
-            RegisteredAlgorithm::HmacKeyGen,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "HMAC",
-            RegisteredAlgorithm::HmacImport,
-        );
-        define_an_algorithm(&mut internal_object, "exportKey", "HMAC", RegisteredAlgorithm::Hmac);
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "HMAC",
-            RegisteredAlgorithm::HmacImport,
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::Hmac),
+            ("verify", RegisteredAlgorithm::Hmac),
+            ("generateKey", RegisteredAlgorithm::HmacKeyGen),
+            ("importKey", RegisteredAlgorithm::HmacImport),
+            ("exportKey", RegisteredAlgorithm::Hmac),
+            ("get key length", RegisteredAlgorithm::HmacImport),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "HMAC", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#sha-registration
         define_an_algorithm(&mut internal_object, "digest", "SHA-1", RegisteredAlgorithm::Sha);
@@ -3372,306 +3137,147 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
         define_an_algorithm(&mut internal_object, "digest", "cSHAKE256", RegisteredAlgorithm::CShake);
 
         // https://w3c.github.io/webcrypto/#hkdf-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "deriveBits",
-            "HKDF",
-            RegisteredAlgorithm::HkdfParams,
-        );
-        define_an_algorithm(&mut internal_object, "importKey", "HKDF", RegisteredAlgorithm::Hkdf);
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "HKDF",
-            RegisteredAlgorithm::Hkdf,
-        );
+        for (operation, registered_algorithm) in [
+            ("deriveBits", RegisteredAlgorithm::HkdfParams),
+            ("importKey", RegisteredAlgorithm::Hkdf),
+            ("get key length", RegisteredAlgorithm::Hkdf),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "HKDF", registered_algorithm);
+        }
 
         // https://w3c.github.io/webcrypto/#pbkdf2-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "deriveBits",
-            "PBKDF2",
-            RegisteredAlgorithm::Pbkdf2Params,
-        );
-        define_an_algorithm(&mut internal_object, "importKey", "PBKDF2", RegisteredAlgorithm::Pbkdf2);
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "PBKDF2",
-            RegisteredAlgorithm::Pbkdf2,
-        );
+        for (operation, registered_algorithm) in [
+            ("deriveBits", RegisteredAlgorithm::Pbkdf2Params),
+            ("importKey", RegisteredAlgorithm::Pbkdf2),
+            ("get key length", RegisteredAlgorithm::Pbkdf2),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "PBKDF2", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "deriveBits",
-            "X25519",
-            RegisteredAlgorithm::X25519(true),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "X25519",
-            RegisteredAlgorithm::X25519(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "X25519",
-            RegisteredAlgorithm::X25519(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "X25519",
-            RegisteredAlgorithm::X25519(false),
-        );
+        for (operation, registered_algorithm) in [
+            ("deriveBits", RegisteredAlgorithm::X25519(true)),
+            ("generateKey", RegisteredAlgorithm::X25519(false)),
+            ("importKey", RegisteredAlgorithm::X25519(false)),
+            ("exportKey", RegisteredAlgorithm::X25519(false)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "X25519", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "deriveBits",
-            "X448",
-            RegisteredAlgorithm::X448(true),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "X448",
-            RegisteredAlgorithm::X448(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "X448",
-            RegisteredAlgorithm::X448(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "X448",
-            RegisteredAlgorithm::X448(false),
-        );
+        for (operation, registered_algorithm) in [
+            ("deriveBits", RegisteredAlgorithm::X448(true)),
+            ("generateKey", RegisteredAlgorithm::X448(false)),
+            ("importKey", RegisteredAlgorithm::X448(false)),
+            ("exportKey", RegisteredAlgorithm::X448(false)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "X448", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed25519-registration
-        define_an_algorithm(&mut internal_object, "sign", "Ed25519", RegisteredAlgorithm::Ed25519);
-        define_an_algorithm(&mut internal_object, "verify", "Ed25519", RegisteredAlgorithm::Ed25519);
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "Ed25519",
-            RegisteredAlgorithm::Ed25519,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "Ed25519",
-            RegisteredAlgorithm::Ed25519,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "Ed25519",
-            RegisteredAlgorithm::Ed25519,
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::Ed25519),
+            ("verify", RegisteredAlgorithm::Ed25519),
+            ("generateKey", RegisteredAlgorithm::Ed25519),
+            ("importKey", RegisteredAlgorithm::Ed25519),
+            ("exportKey", RegisteredAlgorithm::Ed25519),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "Ed25519", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
-        define_an_algorithm(&mut internal_object, "sign", "Ed448", RegisteredAlgorithm::Ed448(true));
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "Ed448",
-            RegisteredAlgorithm::Ed448(true),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "Ed448",
-            RegisteredAlgorithm::Ed448(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "Ed448",
-            RegisteredAlgorithm::Ed448(false),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "Ed448",
-            RegisteredAlgorithm::Ed448(false),
-        );
+        for (operation, registered_algorithm) in [
+            ("sign", RegisteredAlgorithm::Ed448(true)),
+            ("verify", RegisteredAlgorithm::Ed448(true)),
+            ("generateKey", RegisteredAlgorithm::Ed448(false)),
+            ("importKey", RegisteredAlgorithm::Ed448(false)),
+            ("exportKey", RegisteredAlgorithm::Ed448(false)),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "Ed448", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
         for name in ["ML-DSA-44", "ML-DSA-65", "ML-DSA-87"] {
-            define_an_algorithm(&mut internal_object, "sign", name, RegisteredAlgorithm::MlDsa(true));
-            define_an_algorithm(&mut internal_object, "verify", name, RegisteredAlgorithm::MlDsa(true));
-            define_an_algorithm(
-                &mut internal_object,
-                "generateKey",
-                name,
-                RegisteredAlgorithm::MlDsa(false),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "importKey",
-                name,
-                RegisteredAlgorithm::MlDsa(false),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "exportKey",
-                name,
-                RegisteredAlgorithm::MlDsa(false),
-            );
+            for (operation, registered_algorithm) in [
+                ("sign", RegisteredAlgorithm::MlDsa(true)),
+                ("verify", RegisteredAlgorithm::MlDsa(true)),
+                ("generateKey", RegisteredAlgorithm::MlDsa(false)),
+                ("importKey", RegisteredAlgorithm::MlDsa(false)),
+                ("exportKey", RegisteredAlgorithm::MlDsa(false)),
+            ] {
+                define_an_algorithm(&mut internal_object, operation, name, registered_algorithm);
+            }
         }
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
         for name in ["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"] {
-            define_an_algorithm(&mut internal_object, "generateKey", name, RegisteredAlgorithm::MlKem);
-            define_an_algorithm(&mut internal_object, "importKey", name, RegisteredAlgorithm::MlKem);
-            define_an_algorithm(&mut internal_object, "exportKey", name, RegisteredAlgorithm::MlKem);
-            define_an_algorithm(&mut internal_object, "encapsulate", name, RegisteredAlgorithm::MlKem);
-            define_an_algorithm(&mut internal_object, "decapsulate", name, RegisteredAlgorithm::MlKem);
-            define_an_algorithm(
-                &mut internal_object,
-                "get shared key length",
-                name,
-                RegisteredAlgorithm::MlKem,
-            );
+            for (operation, registered_algorithm) in [
+                ("generateKey", RegisteredAlgorithm::MlKem),
+                ("importKey", RegisteredAlgorithm::MlKem),
+                ("exportKey", RegisteredAlgorithm::MlKem),
+                ("encapsulate", RegisteredAlgorithm::MlKem),
+                ("decapsulate", RegisteredAlgorithm::MlKem),
+                ("get shared key length", RegisteredAlgorithm::MlKem),
+            ] {
+                define_an_algorithm(&mut internal_object, operation, name, registered_algorithm);
+            }
         }
 
         // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration
         for algorithm in ["Argon2d", "Argon2i", "Argon2id"] {
-            define_an_algorithm(
-                &mut internal_object,
-                "importKey",
-                algorithm,
-                RegisteredAlgorithm::Argon2,
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "deriveBits",
-                algorithm,
-                RegisteredAlgorithm::Argon2Params,
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "get key length",
-                algorithm,
-                RegisteredAlgorithm::Argon2,
-            );
+            for (operation, registered_algorithm) in [
+                ("importKey", RegisteredAlgorithm::Argon2),
+                ("deriveBits", RegisteredAlgorithm::Argon2Params),
+                ("get key length", RegisteredAlgorithm::Argon2),
+            ] {
+                define_an_algorithm(&mut internal_object, operation, algorithm, registered_algorithm);
+            }
         }
 
         // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305Aead,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305Aead,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305,
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "ChaCha20-Poly1305",
-            RegisteredAlgorithm::ChaCha20Poly1305,
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::ChaCha20Poly1305Aead),
+            ("decrypt", RegisteredAlgorithm::ChaCha20Poly1305Aead),
+            ("generateKey", RegisteredAlgorithm::ChaCha20Poly1305),
+            ("importKey", RegisteredAlgorithm::ChaCha20Poly1305),
+            ("exportKey", RegisteredAlgorithm::ChaCha20Poly1305),
+            ("get key length", RegisteredAlgorithm::ChaCha20Poly1305),
+        ] {
+            define_an_algorithm(
+                &mut internal_object,
+                operation,
+                "ChaCha20-Poly1305",
+                registered_algorithm,
+            );
+        }
 
         // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "encrypt",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::Aead),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "decrypt",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::Aead),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "generateKey",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::KeyGen),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "importKey",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::Base),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "get key length",
-            "AES-OCB",
-            RegisteredAlgorithm::AesOcb(AesParameterType::DerivedKey),
-        );
+        for (operation, registered_algorithm) in [
+            ("encrypt", RegisteredAlgorithm::AesOcb(AesParameterType::Aead)),
+            ("decrypt", RegisteredAlgorithm::AesOcb(AesParameterType::Aead)),
+            ("generateKey", RegisteredAlgorithm::AesOcb(AesParameterType::KeyGen)),
+            ("importKey", RegisteredAlgorithm::AesOcb(AesParameterType::Base)),
+            ("exportKey", RegisteredAlgorithm::AesOcb(AesParameterType::Base)),
+            (
+                "get key length",
+                RegisteredAlgorithm::AesOcb(AesParameterType::DerivedKey),
+            ),
+        ] {
+            define_an_algorithm(&mut internal_object, operation, "AES-OCB", registered_algorithm);
+        }
 
         // https://wicg.github.io/webcrypto-modern-algos/#kmac-registration
         for algorithm in ["KMAC128", "KMAC256"] {
-            define_an_algorithm(
-                &mut internal_object,
-                "sign",
-                algorithm,
-                RegisteredAlgorithm::KmacSignOrVerify,
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "verify",
-                algorithm,
-                RegisteredAlgorithm::KmacSignOrVerify,
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "generateKey",
-                algorithm,
-                RegisteredAlgorithm::KmacKeyGen,
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "importKey",
-                algorithm,
-                RegisteredAlgorithm::KmacImport,
-            );
-            define_an_algorithm(&mut internal_object, "exportKey", algorithm, RegisteredAlgorithm::Kmac);
-            define_an_algorithm(
-                &mut internal_object,
-                "get key length",
-                algorithm,
-                RegisteredAlgorithm::KmacImport,
-            );
+            for (operation, registered_algorithm) in [
+                ("sign", RegisteredAlgorithm::KmacSignOrVerify),
+                ("verify", RegisteredAlgorithm::KmacSignOrVerify),
+                ("generateKey", RegisteredAlgorithm::KmacKeyGen),
+                ("importKey", RegisteredAlgorithm::KmacImport),
+                ("exportKey", RegisteredAlgorithm::Kmac),
+                ("get key length", RegisteredAlgorithm::KmacImport),
+            ] {
+                define_an_algorithm(&mut internal_object, operation, algorithm, registered_algorithm);
+            }
         }
 
         internal_object
