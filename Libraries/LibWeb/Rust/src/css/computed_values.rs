@@ -34,15 +34,15 @@ pub use crate::css::computed_value_types::{
     ComputedGridPlacementKind, ComputedGridTrackBreadth, ComputedGridTrackEntry, ComputedGridTrackEntryKind,
     ComputedGridTrackList, ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedOverflowClipMargin,
     ComputedOverflowClipMarginSide, ComputedPositionTryFallback, ComputedResolvedTransform, ComputedSize,
-    ComputedSizeKind, ComputedStyleValueHandle, ComputedSvgDash, ComputedSvgPaint, ComputedTextIndent,
-    ComputedTextUnderlineOffset, ComputedTextUnderlinePosition, ComputedVerticalAlign, ContentValues, EffectsValues,
-    FontValues, GRID_NO_INDEX, GridValues, InheritedBits, InheritedListTableValues, InheritedSVGValues,
-    InheritedSetValues, InheritedTextValues, InheritedUIValues, MaskValues, MiscInteractionValues, MiscLayoutValues,
-    ResetBits, RetainedComputedCursorList, RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList,
-    RetainedComputedShadowList, RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList,
-    RetainedGridTrackEntryList, RetainedPositionAreaList, RetainedPositionTryFallbackList,
-    RetainedTextDecorationLineList, RetainedWillChangePropertyList, SVGResetValues, SizingValues, StyleBits,
-    SurroundValues, TextResetValues, TransformValues,
+    ComputedSizeKind, ComputedStyleValueHandle, ComputedSvgDash, ComputedTextIndent, ComputedTextUnderlineOffset,
+    ComputedTextUnderlinePosition, ComputedVerticalAlign, ContentValues, EffectsValues, FontValues, GRID_NO_INDEX,
+    GridValues, InheritedBits, InheritedListTableValues, InheritedSVGValues, InheritedSetValues, InheritedTextValues,
+    InheritedUIValues, MaskValues, MiscInteractionValues, MiscLayoutValues, ResetBits, RetainedComputedCursorList,
+    RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList, RetainedComputedShadowList,
+    RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList,
+    RetainedPositionAreaList, RetainedPositionTryFallbackList, RetainedTextDecorationLineList,
+    RetainedWillChangePropertyList, SVGResetValues, SizingValues, StyleBits, SurroundValues, TextResetValues,
+    TransformValues,
 };
 use crate::css::computed_value_views::InlineLengthPercentage;
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
@@ -191,47 +191,6 @@ macro_rules! layout_input_equal {
     };
 }
 
-impl_computed_payload_clone_and_eq!(SizingValues {
-    width,
-    min_width,
-    max_width,
-    height,
-    min_height,
-    max_height,
-});
-impl_computed_payload_clone_and_eq!(ComputedFlexBasis { is_content, size });
-impl_computed_payload_clone_and_eq!(ComputedGap { is_normal, value });
-impl_computed_payload_clone_and_eq!(AlignmentValues {
-    webkit_box_orient,
-    flex_direction,
-    flex_wrap,
-    flex_basis,
-    flex_grow,
-    flex_shrink,
-    order,
-    align_content,
-    align_items,
-    align_self,
-    align_items_is_last_baseline,
-    align_self_is_last_baseline,
-    align_content_is_last_baseline,
-    justify_content,
-    justify_items,
-    justify_self,
-    align_items_overflow,
-    justify_items_overflow,
-    align_self_overflow,
-    justify_self_overflow,
-    align_content_overflow,
-    column_gap,
-    row_gap,
-});
-impl_computed_payload_clone_and_eq!(ComputedLengthBox {
-    top,
-    right,
-    bottom,
-    left,
-});
 impl Clone for SurroundValues {
     fn clone(&self) -> Self {
         Self {
@@ -265,21 +224,6 @@ impl PartialEq for SurroundValues {
             && self.padding == other.padding
     }
 }
-impl_computed_payload_clone_and_eq!(SVGResetValues {
-    cx,
-    cy,
-    d,
-    r,
-    rx,
-    ry,
-    x,
-    y,
-    stop_color,
-    stop_opacity,
-    flood_color,
-    flood_opacity,
-    vector_effect,
-});
 impl RetainedTextDecorationLineList {
     pub(crate) fn from_vec(values: Vec<u8>) -> Self {
         let slice = values.into_boxed_slice();
@@ -316,36 +260,6 @@ impl PartialEq for RetainedTextDecorationLineList {
     }
 }
 
-impl_computed_payload_clone_and_eq!(TextResetValues {
-    text_decoration_lines,
-    text_decoration_thickness_kind,
-    text_decoration_thickness,
-    text_decoration_style,
-    text_decoration_color,
-    white_space_trim_discard_before,
-    white_space_trim_discard_after,
-    white_space_trim_discard_inner,
-});
-impl_computed_payload_clone_and_eq!(ComputedResolvedTransform {
-    is_translate,
-    matrix,
-    x_px,
-    y_px,
-    z_px,
-    x_percentage,
-    y_percentage,
-});
-impl_computed_payload_clone_and_eq!(ComputedFilterOperation {
-    kind,
-    color_operation,
-    amount,
-    shadow_offset_x,
-    shadow_offset_y,
-    shadow_radius,
-    shadow_color,
-    url_value,
-});
-
 macro_rules! impl_retained_computed_list {
     ($list:ident, $element:ty) => {
         impl $list {
@@ -381,34 +295,8 @@ impl_retained_computed_list!(
     RetainedComputedShadowList,
     crate::css::computed_value_types::ComputedShadow
 );
-impl_computed_payload_clone_and_eq!(ComputedCursor {
-    is_cursor_value,
-    cursor,
-    predefined,
-});
 impl_retained_computed_list!(RetainedComputedCursorList, ComputedCursor);
-impl_computed_payload_clone_and_eq!(ComputedSvgPaint {
-    kind,
-    url,
-    has_color,
-    color,
-});
-impl_computed_payload_clone_and_eq!(ComputedSvgDash {
-    is_number,
-    number,
-    value,
-});
 impl_retained_computed_list!(RetainedComputedSvgDashList, ComputedSvgDash);
-impl_computed_payload_clone_and_eq!(ComputedTextIndent {
-    length_percentage,
-    each_line,
-    hanging,
-});
-impl_computed_payload_clone_and_eq!(ComputedTextUnderlineOffset {
-    used_value,
-    is_auto,
-    value,
-});
 impl_computed_payload_clone_and_eq!(InheritedTextValues {
     text_justify,
     line_break,
@@ -435,58 +323,6 @@ impl_computed_payload_clone_and_eq!(InheritedTextValues {
     letter_spacing_style_value,
     orphans,
     widows,
-});
-impl_computed_payload_clone_and_eq!(AnimationValues {
-    animation_name,
-    animation_composition,
-    animation_delay,
-    animation_direction,
-    animation_duration,
-    animation_fill_mode,
-    animation_iteration_count,
-    animation_play_state,
-    animation_range_start,
-    animation_range_end,
-    animation_timeline,
-    animation_timing_function,
-    scroll_timeline_name,
-    scroll_timeline_axis,
-    timeline_scope,
-    view_timeline_name,
-    view_timeline_axis,
-    view_timeline_inset,
-    transition_property,
-    transition_duration,
-    transition_timing_function,
-    transition_delay,
-    transition_behavior,
-    transition_delay_and_duration_are_single_zero,
-});
-impl_computed_payload_clone_and_eq!(MaskValues {
-    mask_image,
-    mask_type,
-    clip_path,
-    mask_mode,
-    mask_repeat,
-    mask_position,
-    mask_clip,
-    mask_origin,
-    mask_size,
-    mask_composite,
-});
-impl_computed_payload_clone_and_eq!(BackgroundValues {
-    background_color,
-    background_color_style_value,
-    background_color_clip,
-    background_image,
-    background_attachment,
-    background_blend_mode,
-    background_clip,
-    background_origin,
-    background_position_x,
-    background_position_y,
-    background_repeat,
-    background_size,
 });
 impl_computed_payload_clone_and_eq!(BorderValues {
     border_left => border_side_layout_inputs_equal,
@@ -516,30 +352,6 @@ impl_computed_payload_clone_and_eq!(BorderValues {
     border_image_width,
     border_image_outset,
     border_image_repeat,
-});
-impl_computed_payload_clone_and_eq!(ContentValues {
-    content,
-    counter_increment,
-    counter_reset,
-    counter_set,
-});
-impl_computed_payload_clone_and_eq!(InheritedListTableValues {
-    list_style_type,
-    list_style_image,
-    quotes,
-    border_spacing_horizontal,
-    border_spacing_vertical,
-});
-impl_computed_payload_clone_and_eq!(ComputedOverflowClipMarginSide {
-    has_visual_box,
-    visual_box,
-    offset,
-});
-impl_computed_payload_clone_and_eq!(ComputedOverflowClipMargin {
-    left,
-    top,
-    right,
-    bottom,
 });
 impl_computed_payload_clone_and_eq!(MiscLayoutValues {
     outline_offset_style_value,
@@ -674,42 +486,8 @@ impl PartialEq for FontValues {
             && self.font_size_value == other.font_size_value
     }
 }
-impl_computed_payload_clone_and_eq!(InheritedSVGValues {
-    fill,
-    stroke,
-    fill_rule,
-    clip_rule,
-    fill_opacity,
-    stroke_opacity,
-    stroke_linecap,
-    stroke_linejoin,
-    stroke_dasharray,
-    stroke_dashoffset,
-    stroke_miterlimit,
-    stroke_width,
-    color_interpolation,
-    color_interpolation_filters,
-    paint_order,
-    paint_order_serialization_length,
-    paint_order_is_normal,
-    text_anchor,
-    has_dominant_baseline,
-    dominant_baseline,
-    shape_rendering,
-});
 impl_retained_computed_list!(RetainedPositionAreaList, u8);
-impl_computed_payload_clone_and_eq!(ComputedPositionTryFallback {
-    name,
-    tactics,
-    tactic_count,
-    has_position_area,
-    position_area,
-});
 impl_retained_computed_list!(RetainedPositionTryFallbackList, ComputedPositionTryFallback);
-impl_computed_payload_clone_and_eq!(ComputedFilter {
-    filter_list,
-    operations
-});
 impl_computed_payload_clone_and_eq!(EffectsValues {
     opacity => paint_only,
     filter,
@@ -726,21 +504,6 @@ impl_computed_payload_clone_and_eq!(EffectsValues {
     isolation_style_value,
     box_shadow_style_value,
     clip_style_value,
-});
-impl_computed_payload_clone_and_eq!(AnchorValues {
-    anchor_names,
-    anchor_scope_all,
-    anchor_scope_names,
-    position_anchor_type,
-    position_anchor_name,
-    position_area,
-    position_try_fallbacks,
-    has_position_try_order,
-    position_try_order,
-    position_visibility_always,
-    position_visibility_anchors_valid,
-    position_visibility_anchors_visible,
-    position_visibility_no_overflow,
 });
 impl_computed_payload_clone_and_eq!(InheritedUIValues {
     caret_color => paint_only,
@@ -781,107 +544,6 @@ impl Clone for RetainedComputedResolvedTransformList {
 
 retained_list_drop!(RetainedComputedResolvedTransformList);
 retained_list_partial_eq!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
-
-impl_computed_payload_clone_and_eq!(TransformValues {
-    transformations,
-    resolved_transforms,
-    transform_box,
-    transform_origin_x,
-    transform_origin_y,
-    transform_origin_z,
-    transform_style,
-    backface_visibility,
-    rotate,
-    translate,
-    scale,
-    has_perspective,
-    perspective_px,
-    perspective_origin_x,
-    perspective_origin_y,
-    has_offset_path,
-    offset_path,
-    offset_distance,
-    offset_position,
-    offset_anchor,
-    offset_rotate,
-});
-impl_computed_payload_clone_and_eq!(ComputedVerticalAlign {
-    is_keyword,
-    keyword,
-    value,
-});
-impl_computed_payload_clone_and_eq!(BoxValues {
-    display,
-    display_before_box_type_transformation,
-    field_sizing,
-    baseline_source,
-    resize,
-    text_overflow,
-    grid_auto_flow_row,
-    grid_auto_flow_dense,
-    column_width,
-    column_count_has_value,
-    column_count,
-    continue_,
-    max_lines,
-    has_z_index,
-    z_index,
-    vertical_align,
-    aspect_ratio,
-    contain_intrinsic_width,
-    contain_intrinsic_height,
-    size_containment,
-    inline_size_containment,
-    layout_containment,
-    style_containment,
-    paint_containment,
-    is_size_container,
-    is_inline_size_container,
-    is_scroll_state_container,
-    container_name,
-});
-
-impl_computed_payload_clone_and_eq!(ComputedGridTrackBreadth {
-    is_flex,
-    flex_factor,
-    size,
-});
-impl_computed_payload_clone_and_eq!(ComputedGridTrackEntry {
-    kind,
-    next_sibling,
-    name_index_start,
-    name_index_count,
-    size,
-    min_size,
-    max_size,
-    repeat_type,
-    repeat_count,
-    repeat_list,
-});
-impl_computed_payload_clone_and_eq!(GridValues {
-    names,
-    name_indices,
-    entries,
-    areas,
-    template_columns,
-    template_rows,
-    auto_columns,
-    auto_rows,
-    column_start,
-    column_end,
-    row_start,
-    row_end,
-    grid_template_columns_style_value,
-    grid_template_rows_style_value,
-    grid_auto_columns_style_value,
-    grid_auto_rows_style_value,
-    grid_template_areas_style_value,
-    grid_column_start_style_value,
-    grid_column_end_style_value,
-    grid_row_start_style_value,
-    grid_row_end_style_value,
-    fit_tolerance_style_value,
-});
 
 macro_rules! impl_retained_grid_list {
     ($list:ident, $element:ty) => {
