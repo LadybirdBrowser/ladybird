@@ -761,7 +761,9 @@ bool BookmarksBarContainer::event(QEvent* event)
 
 bool BookmarksBarContainer::eventFilter(QObject* watched, QEvent* event)
 {
-    if (m_tab && m_tab->is_loaded() && watched == &m_tab->location_edit() && event->type() == QEvent::DynamicPropertyChange) {
+    auto watched_location_edit = m_tab && m_tab->is_loaded() && watched == &m_tab->location_edit();
+
+    if (watched_location_edit && event->type() == QEvent::DynamicPropertyChange) {
         if (static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "autocompleteOpen")
             update_hover();
     }
@@ -772,7 +774,7 @@ bool BookmarksBarContainer::eventFilter(QObject* watched, QEvent* event)
     if (watched == m_bar && event->type() == QEvent::LayoutRequest)
         update_geometry();
 
-    if (watched == &m_toolbar || watched == this || watched == m_sidebar) {
+    if (watched == &m_toolbar || watched == this || watched == m_sidebar || watched_location_edit) {
         if (event->type() == QEvent::Enter || event->type() == QEvent::Show) {
             update_hover();
         } else if (event->type() == QEvent::Leave) {
