@@ -3958,6 +3958,15 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
 }
 
 fn parse_color_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if context.is_ua_style_sheet && property == property_id::COLOR {
+        let mut tokens = values.iter().filter(|value| !value.is_whitespace());
+        if let Some(value) = tokens.next()
+            && tokens.next().is_none()
+            && let Some(value) = parse_specific_keyword(value, &[keyword::_LIBWEB_QUIRK_INHERIT])
+        {
+            return ParseOutcome::Parsed(shared_style_value(value));
+        }
+    }
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
         || property_is_shorthand(property)
         || !property_accepted_value_types(property).contains(&VALUE_TYPE_COLOR)
@@ -6688,6 +6697,36 @@ mod tests {
         let source = utf16(source);
         let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
         parse_css_value(context, property, &values)
+    }
+
+    #[test]
+    fn quirk_inherit_is_only_a_ua_color_value() {
+        let mut ua = context();
+        ua.is_ua_style_sheet = true;
+        assert_eq!(
+            parsed_keyword(parse_with_context(&ua, property_id::COLOR, " -LIBWEB-QUIRK-INHERIT ")),
+            keyword::_LIBWEB_QUIRK_INHERIT
+        );
+        for property in [
+            property_id::COLOR,
+            property_id::BACKGROUND_COLOR,
+            property_id::BORDER_TOP_COLOR,
+        ] {
+            assert!(matches!(
+                parse(property, "-libweb-quirk-inherit"),
+                ParseOutcome::Invalid
+            ));
+        }
+        for (property, value) in [
+            (property_id::COLOR, "-libweb-quirk-inherit red"),
+            (property_id::BACKGROUND_COLOR, "-libweb-quirk-inherit"),
+            (property_id::BORDER_COLOR, "-libweb-quirk-inherit"),
+        ] {
+            assert!(matches!(
+                parse_with_context(&ua, property, value),
+                ParseOutcome::Invalid
+            ));
+        }
     }
 
     #[test]

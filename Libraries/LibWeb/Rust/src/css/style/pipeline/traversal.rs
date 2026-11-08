@@ -289,6 +289,14 @@ pub(super) struct PassContext<'a> {
     /// What of those moved from the ones the document element had before, which restyles every
     /// element under it that reads it.
     pub(super) root_font_moved: std::sync::OnceLock<RootFontReads>,
+    /// The body's color computed independently of the order in which the workers reach tables.
+    pub(super) quirks_body_style: std::sync::OnceLock<QuirksBodyStyle>,
+}
+
+pub(super) struct QuirksBodyStyle {
+    color: Option<RetainedStyleValueData>,
+    fonts: Vec<font_resolution::FontRequest>,
+    random_bases: Vec<RandomBaseRequest>,
 }
 
 impl<'a> PassContext<'a> {
@@ -320,11 +328,71 @@ impl<'a> PassContext<'a> {
             held_root_font,
             root_font: Default::default(),
             root_font_moved: Default::default(),
+            quirks_body_style: Default::default(),
         }
     }
 }
 
 impl PassContext<'_> {
+    // https://quirks.spec.whatwg.org/#the-tables-inherit-color-from-body-quirk
+    // A body after the table can still be awaiting computation on another worker. Compute its inheritance chain
+    // privately, as an on-demand read does, and keep the result for this round. Font and random-value requests
+    // suspend the table until the next round, which computes the dependency against the resolved inputs.
+    fn quirks_table_color(&self, node: StyleNodeID) -> &QuirksBodyStyle {
+        self.quirks_body_style.get_or_init(|| {
+            let Some(body) = self.state.quirks_table_body(node) else {
+                return QuirksBodyStyle {
+                    color: Some(
+                        crate::css::style_compute::initial_value_handle(
+                            crate::css::property_metadata::property_id::COLOR,
+                        )
+                        .clone(),
+                    ),
+                    fonts: Vec::new(),
+                    random_bases: Vec::new(),
+                };
+            };
+            if self.records.computed(body)
+                && let Some(view) = self.records.assigned_record_view(body)
+            {
+                return QuirksBodyStyle {
+                    color: Some(
+                        view.longhands()
+                            .effective_value(view.animated_overlay, crate::css::property_metadata::property_id::COLOR)
+                            .clone(),
+                    ),
+                    fonts: Vec::new(),
+                    random_bases: Vec::new(),
+                };
+            }
+            let mut chain: SmallVec<[StyleNodeID; 32]> =
+                std::iter::successors(Some(body), |&node| self.state.projection.inheritance_parent(node)).collect();
+            chain.reverse();
+            let mut cells = super::records::RecordCells::default();
+            cells.reserve(self.state.projection.element_slot_count());
+            let records =
+                Records::new(self.state, &cells, None).composing_over_equal_records(Record::holds_the_same_style_as);
+            let context = PassContext {
+                uses_caches: false,
+                ..PassContext::new(self.state, self.index, self.initial, &records, self.root_font())
+            };
+            let statistics = style_chain(&context, &chain);
+            let color = records
+                .assigned_record_view(body)
+                .filter(|_| records.computed(body))
+                .map(|view| {
+                    view.longhands()
+                        .effective_value(view.animated_overlay, crate::css::property_metadata::property_id::COLOR)
+                        .clone()
+                });
+            QuirksBodyStyle {
+                color,
+                fonts: statistics.font_requests,
+                random_bases: statistics.random_requests,
+            }
+        })
+    }
+
     /// The matched declarations cache of the pass.
     fn matched_declarations(&self) -> &MatchedDeclarationsCache {
         self.kept_matched_declarations.unwrap_or(&self.own_matched_declarations)
@@ -832,6 +900,7 @@ impl<'a> Scratch<'a> {
         // What an element matches, its parent and its containers decide its style. Its matches
         // are the ones it had where no entry it was rematched for answers otherwise.
         let only_matches_moved = rematched
+            && !state.is_quirks_table(node)
             && moved & (PARENT_CHANGED | CONTAINERS_MOVED | RECOMPUTE_SELF) == 0
             && (moved & PARENT_RESTYLED == 0
                 || state
@@ -1399,6 +1468,7 @@ impl<'a> Scratch<'a> {
                 target,
                 context.root_font(),
                 group_seeds,
+                None,
             );
             if let Some(request) = suspended_font {
                 self.statistics.font_requests.push(request);
@@ -1436,6 +1506,7 @@ impl<'a> Scratch<'a> {
                     target,
                     context.root_font(),
                     group_seeds,
+                    None,
                 );
                 computed.reads.display_none_is_animated = ignoring_animations
                     .is_some_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
@@ -1785,6 +1856,25 @@ impl<'a> Scratch<'a> {
         // samples its animations over the record the pass installs.
         let sampled_custom_properties = context.records.sampled_custom_properties(node).flatten();
 
+        let quirks_color = if state.is_quirks_table(node) {
+            let requested = self.requested();
+            let body = context.quirks_table_color(node);
+            self.statistics.font_requests.extend(body.fonts.iter().cloned());
+            self.statistics
+                .random_requests
+                .extend(body.random_bases.iter().map(|request| RandomBaseRequest {
+                    node: request.node,
+                    name: request.name.clone(),
+                    element_shared: request.element_shared,
+                }));
+            if self.waits(node, requested) || body.color.is_none() {
+                return Err(Outcome::ComputeDeclined);
+            }
+            body.color.as_ref()
+        } else {
+            None
+        };
+
         let group_seeds = context
             .initial
             .group_seeds(parent.and_then(|(parent, _)| context.records.get_shared(parent)));
@@ -1819,6 +1909,7 @@ impl<'a> Scratch<'a> {
                 super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                 context.root_font(),
                 group_seeds,
+                quirks_color,
             );
             if let Some(request) = suspended_font {
                 self.statistics.font_requests.push(request);
@@ -1859,6 +1950,7 @@ impl<'a> Scratch<'a> {
                     super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                     context.root_font(),
                     group_seeds,
+                    quirks_color,
                 );
                 computed.reads.display_none_is_animated = ignoring_animations
                     .is_some_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
@@ -2042,7 +2134,7 @@ impl<'a> Scratch<'a> {
         node: StyleNodeID,
         backed: Option<(u8, StyleNodeID)>,
     ) -> Option<MatchedKey<'c>> {
-        if !context.uses_caches || backed.is_some() {
+        if !context.uses_caches || backed.is_some() || context.state.is_quirks_table(node) {
             return None;
         }
         let state = context.state;

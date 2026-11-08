@@ -21,6 +21,8 @@ li :is(dir, menu, ol, ul) { list-style-position: outside; }
  */
 
 table {
+    /* https://quirks.spec.whatwg.org/#the-tables-inherit-color-from-body-quirk */
+    color: -libweb-quirk-inherit;
     font-weight: initial;
     font-style: initial;
     font-variant: initial;

@@ -1,0 +1,29 @@
+<!-- Quirks Mode -->
+<title>Quirks Mode: The tables inherit color from body quirk - Table with body removed, light mode</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-tables-inherit-color-from-body-quirk">
+<link rel="match" href="../../../expected/wpt-import/quirks/tables-inherit-color-from-body-quirk-004-ref.html">
+<link rel="stylesheet" type="text/css" href="../fonts/ahem.css">
+<style>
+html { color-scheme: light; }
+body { color: red; height: min-content; margin: 0; }
+p { color: initial; }
+div { color: red; display: flow-root; margin: 0 8px; }
+table { font: 200px/1 Ahem; }
+</style>
+<body>
+  <div>
+    <p>Test passes if there is a square filled with initial color and <strong>no red</strong>.</p>
+    <table cellspacing="0" cellpadding="0">
+      <tr>
+        <td>X</td>
+      </tr>
+    </table>
+  </div>
+</body>
+<script>
+  // For stability of the test, compute the color of the body.
+  getComputedStyle(document.body).color;
+
+  document.body.replaceWith(document.querySelector("div"));
+</script>
