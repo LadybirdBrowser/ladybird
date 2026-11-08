@@ -12,6 +12,8 @@
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Actions.h>
 
+#include <QMetaObject>
+
 namespace Ladybird {
 
 class RemoteView;
@@ -80,6 +82,8 @@ private:
     RefPtr<Action> m_reload_action;
     RefPtr<Action> m_reload_bypassing_cache_action;
     RefPtr<Action> m_copy_selection_action;
+    QMetaObject::Connection m_focus_changed_connection;
+
     RefPtr<Action> m_undo_action;
     RefPtr<Action> m_redo_action;
     RefPtr<Action> m_cut_selection_action;
