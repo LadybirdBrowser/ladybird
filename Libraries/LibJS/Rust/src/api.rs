@@ -97,6 +97,6 @@ pub use crate::runtime::typed_array::{
     typed_array_byte_length, typed_array_length,
 };
 pub use crate::runtime::value::{number_to_string, same_value};
-pub use crate::utf16::{Utf16Display, Utf16View, to_well_formed};
+pub use crate::utf16::{Utf16Display, Utf16View, to_well_formed, utf16_formatted};
 /// Derives Trace for a type of the embedder, which marks the type `#[gc(crate = libjs_rust)]`.
 pub use libjs_runtime_macros::Trace;

@@ -139,3 +139,9 @@ struct CryptoKeyPair {
 };
 
 }
+
+namespace Web::Bindings {
+
+WEB_API GC::Ref<JS::HostObject> wrap(WrapperWorld&, JS::Realm&, GC::Ref<Crypto::CryptoKey>);
+
+}

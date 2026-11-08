@@ -6,1510 +6,389 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
-#include <AK/NeverDestroyed.h>
 #include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/Hash/HashManager.h>
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/ExceptionOrUtils.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Crypto {
 
-struct RegisteredAlgorithm {
-    NonnullOwnPtr<AlgorithmMethods> (*create_methods)() = nullptr;
-    JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> (*parameter_from_value)(JS::Realm&, JS::Value) = nullptr;
+enum class AlgorithmId : u8 {
+    RSASSAPKCS1,
+    RSAPSS,
+    RSAOAEP,
+    ECDSA,
+    ECDH,
+    AesCtr,
+    AesCbc,
+    AesGcm,
+    AesKw,
+    HMAC,
+    SHA,
+    CShake,
+    HKDF,
+    PBKDF2,
+    X25519,
+    X448,
+    ED25519,
+    ED448,
+    MLDSA,
+    MLKEM,
+    Argon2,
+    ChaCha20Poly1305,
+    AesOcb,
+    KMAC,
 };
-using RegisteredAlgorithms = HashMap<Utf16String, RegisteredAlgorithm>;
-using SupportedAlgorithmsMap = HashMap<String, RegisteredAlgorithms>;
 
-static SupportedAlgorithmsMap& supported_algorithms_internal();
-static SupportedAlgorithmsMap const& supported_algorithms();
-static void define_supported_algorithms();
+enum class ParameterId : u8 {
+    AlgorithmParams,
+    RsaHashedKeyGenParams,
+    RsaHashedImportParams,
+    RsaPssParams,
+    RsaOaepParams,
+    EcdsaParams,
+    EcKeyGenParams,
+    EcKeyImportParams,
+    EcdhKeyDeriveParams,
+    AesCtrParams,
+    AesKeyGenParams,
+    AesDerivedKeyParams,
+    AesCbcParams,
+    AesGcmParams,
+    HmacKeyGenParams,
+    HmacImportParams,
+    CShakeParams,
+    HKDFParams,
+    PBKDF2Params,
+    Ed448Params,
+    ContextParams,
+    Argon2Params,
+    AeadParams,
+    KmacParams,
+    KmacKeyGenParams,
+    KmacImportParams,
+};
 
-template<typename Methods, typename Param = AlgorithmParams>
-static void define_an_algorithm(String op, StringView algorithm);
+struct RawRsaOtherPrimesInfo {
+    FlatPtr d;
+    FlatPtr r;
+    FlatPtr t;
+};
 
-GC_DEFINE_ALLOCATOR(SubtleCrypto);
+struct RawJsonWebKey {
+    FlatPtr alg;
+    FlatPtr crv;
+    FlatPtr d;
+    FlatPtr dp;
+    FlatPtr dq;
+    FlatPtr e;
+    FlatPtr k;
+    FlatPtr kty;
+    FlatPtr n;
+    FlatPtr p;
+    FlatPtr priv;
+    FlatPtr pub;
+    FlatPtr q;
+    FlatPtr qi;
+    FlatPtr use;
+    FlatPtr x;
+    FlatPtr y;
+    u8 ext;
+    bool has_key_ops;
+    ReadonlySpan<FlatPtr> key_ops;
+    bool has_oth;
+    ReadonlySpan<RawRsaOtherPrimesInfo> oth;
+};
 
-// NB: Getting a copy of the bytes held by a buffer source can only fail when allocating the copy fails.
-static WebIDL::ExceptionOr<ByteBuffer> get_a_copy_of_the_bytes(JS::VM& vm, WebIDL::BufferSource const& buffer_source)
-{
-    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(buffer_source));
+struct OptionalLength {
+    bool has_value;
+    u32 value;
+
+    Optional<u32> to_optional() const
+    {
+        if (has_value)
+            return value;
+        return {};
+    }
+};
+
+using ReceiveBytes = void (*)(void*, ReadonlyBytes);
+using ReceiveJsonWebKey = void (*)(void*, RawJsonWebKey const&);
+using ReceiveUsages = void (*)(void*, ReadonlySpan<KeyUsage>);
+
+extern "C" {
+JSCompletion web_rust_crypto_normalize_an_algorithm(JSVM*, JS::Realm*, JSObject*, FlatPtr, ReadonlyBytes, NormalizedAlgorithmAndParameter**);
+JSCompletion web_crypto_algorithm_from_value(JS::Realm*, AlgorithmId, ParameterId, JSValue, FlatPtr, NormalizedAlgorithmAndParameter**);
+void web_crypto_algorithm_destroy(NormalizedAlgorithmAndParameter*);
+void web_crypto_algorithm_public_key_usages(NormalizedAlgorithmAndParameter const*, void*, ReceiveUsages);
+void web_crypto_normalized_key_usages(ReadonlySpan<KeyUsage>, void*, ReceiveUsages);
+CryptoKey* web_crypto_public_key_for_private_key(CryptoKey const*);
+JSCompletion web_crypto_algorithm_encrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_decrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_sign(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_verify(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes signature, ReadonlyBytes data, bool* out);
+JSCompletion web_crypto_algorithm_digest(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_derive_bits(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, OptionalLength length, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_import_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, KeyFormat format, ReadonlyBytes key_data, RawJsonWebKey const* jwk, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out);
+JSCompletion web_crypto_algorithm_generate_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out_key, CryptoKey** out_public_key, CryptoKey** out_private_key);
+JSCompletion web_crypto_algorithm_export_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, KeyFormat format, CryptoKey* key, void* state, ReceiveBytes receive_bytes, ReceiveJsonWebKey receive_jwk);
+JSCompletion web_crypto_algorithm_get_key_length(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, OptionalLength* out);
+JSCompletion web_crypto_algorithm_get_shared_key_length(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, u32* out);
+JSCompletion web_crypto_algorithm_wrap_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_unwrap_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_encapsulate(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, void* shared_key, void* ciphertext, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_decapsulate(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
+JSCompletion web_crypto_algorithm_validate_encrypt_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_decrypt_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_sign_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_verify_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_digest_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_generate_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_import_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm);
+JSCompletion web_crypto_algorithm_validate_derive_bits_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, OptionalLength length);
 }
 
-GC::Ref<SubtleCrypto> SubtleCrypto::create()
+static Optional<Utf16String> string_from_raw(FlatPtr raw)
 {
-    return GC::Heap::the().allocate<SubtleCrypto>();
+    if (raw)
+        return Utf16String::from_raw(raw);
+    return {};
 }
 
-SubtleCrypto::SubtleCrypto()
+static JsonWebKey json_web_key_from_raw(RawJsonWebKey const& raw)
 {
+    JsonWebKey key;
+    key.alg = string_from_raw(raw.alg);
+    key.crv = string_from_raw(raw.crv);
+    key.d = string_from_raw(raw.d);
+    key.dp = string_from_raw(raw.dp);
+    key.dq = string_from_raw(raw.dq);
+    key.e = string_from_raw(raw.e);
+    key.k = string_from_raw(raw.k);
+    key.kty = string_from_raw(raw.kty);
+    key.n = string_from_raw(raw.n);
+    key.p = string_from_raw(raw.p);
+    key.priv = string_from_raw(raw.priv);
+    key.pub = string_from_raw(raw.pub);
+    key.q = string_from_raw(raw.q);
+    key.qi = string_from_raw(raw.qi);
+    key.use = string_from_raw(raw.use);
+    key.x = string_from_raw(raw.x);
+    key.y = string_from_raw(raw.y);
+    if (raw.ext)
+        key.ext = raw.ext == 2;
+    if (raw.has_key_ops) {
+        key.key_ops = Vector<Utf16String> {};
+        for (auto value : raw.key_ops)
+            key.key_ops->append(Utf16String::from_raw(value));
+    }
+    if (raw.has_oth) {
+        key.oth = Vector<RsaOtherPrimesInfo> {};
+        for (auto const& prime : raw.oth)
+            key.oth->append(RsaOtherPrimesInfo { string_from_raw(prime.d), string_from_raw(prime.r), string_from_raw(prime.t) });
+    }
+    return key;
 }
 
-SubtleCrypto::~SubtleCrypto() = default;
-
-static JS::ThrowCompletionOr<JS::Value> export_key_result_to_js_value(JS::Realm& realm, ExportKeyResult result)
+static FlatPtr raw_string(Optional<Utf16String> const& string)
 {
-    if (result.has<ByteBuffer>())
-        return JS::Value(JS::ArrayBuffer::create(realm, move(result.get<ByteBuffer>())));
-
-    return Bindings::json_web_key_to_value(realm, result.get<JsonWebKey>());
+    return string.has_value() ? string->raw_identity() : 0;
 }
 
-static JS::ThrowCompletionOr<ByteBuffer> export_key_result_to_bytes(JS::Realm& realm, ExportKeyResult result)
+static void with_raw_json_web_key(JsonWebKey const& key, void* state, ReceiveJsonWebKey receive)
 {
-    if (result.has<ByteBuffer>())
-        return move(result.get<ByteBuffer>());
-
-    auto json = TRY(Bindings::json_web_key_to_json(realm.vm(), result.get<JsonWebKey>())).to_well_formed_utf8();
-    return MUST(ByteBuffer::copy(json.bytes()));
+    Vector<FlatPtr> key_ops;
+    if (key.key_ops.has_value()) {
+        for (auto const& value : *key.key_ops)
+            key_ops.append(value.raw_identity());
+    }
+    Vector<RawRsaOtherPrimesInfo> oth;
+    if (key.oth.has_value()) {
+        for (auto const& prime : *key.oth)
+            oth.append(RawRsaOtherPrimesInfo { raw_string(prime.d), raw_string(prime.r), raw_string(prime.t) });
+    }
+    RawJsonWebKey raw {
+        raw_string(key.alg),
+        raw_string(key.crv),
+        raw_string(key.d),
+        raw_string(key.dp),
+        raw_string(key.dq),
+        raw_string(key.e),
+        raw_string(key.k),
+        raw_string(key.kty),
+        raw_string(key.n),
+        raw_string(key.p),
+        raw_string(key.priv),
+        raw_string(key.pub),
+        raw_string(key.q),
+        raw_string(key.qi),
+        raw_string(key.use),
+        raw_string(key.x),
+        raw_string(key.y),
+        static_cast<u8>(key.ext.has_value() ? (*key.ext ? 2 : 1) : 0),
+        key.key_ops.has_value(),
+        key_ops.span(),
+        key.oth.has_value(),
+        oth.span(),
+    };
+    receive(state, raw);
 }
 
-// https://w3c.github.io/webcrypto/#dfn-normalize-an-algorithm
 WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm& realm, AlgorithmIdentifier const& algorithm, String operation)
 {
-    auto& vm = realm.vm();
+    JSObject* object = nullptr;
+    FlatPtr name = 0;
+    if (algorithm.has<Utf16String>())
+        name = algorithm.get<Utf16String>().raw_identity();
+    else
+        object = JS::HostABI::object_to_abi(algorithm.get<GC::Ref<JS::Object>>().ptr());
 
-    // If alg is an instance of a DOMString:
-    if (algorithm.has<Utf16String>()) {
-        // Return the result of running the normalize an algorithm algorithm,
-        // with the alg set to a new Algorithm dictionary whose name attribute is alg, and with the op set to op.
-        auto dictionary = TRY(Bindings::create_algorithm_dictionary(realm, algorithm.get<Utf16String>()));
-        return normalize_an_algorithm(realm, dictionary, operation);
-    }
+    NormalizedAlgorithmAndParameter* normalized_algorithm = nullptr;
+    TRY(JS::HostABI::completion_from_abi<void>(web_rust_crypto_normalize_an_algorithm(
+        JS::HostABI::vm_to_abi(realm.vm()), &realm, object, name, operation.bytes(), &normalized_algorithm)));
+    return move(*adopt_own(*normalized_algorithm));
+}
 
-    // If alg is an object:
-    // 1. Let registeredAlgorithms be the associative container stored at the op key of supportedAlgorithms.
-    auto const& internal_object = supported_algorithms();
-    auto maybe_registered_algorithms = internal_object.get(operation);
-
-    // NB: supports() can normalize with op set to "deriveKey", for which there is no container and thus no registered
-    //     algorithm.
-    if (!maybe_registered_algorithms.has_value())
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Operation '{}' is not supported", operation));
-    auto registered_algorithms = maybe_registered_algorithms.value();
-
-    // 2. Let initialAlg be the result of converting the ECMAScript object represented by alg to
-    // the IDL dictionary type Algorithm, as defined by [WebIDL].
-    // 3. If an error occurred, return the error and terminate this algorithm.
-    // Note: We're not going to bother creating an Algorithm object, all we want is the name attribute so that we can
-    //       fetch the actual algorithm factory from the registeredAlgorithms map.
-    auto initial_algorithm = TRY(algorithm.get<GC::Ref<JS::Object>>()->get("name"_utf16_fly_string));
-
-    if (initial_algorithm.is_undefined()) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Algorithm");
-    }
-
-    // 4. Let algName be the value of the name attribute of initialAlg.
-    auto algorithm_name = TRY(initial_algorithm.to_utf16_string(vm));
-
-    RegisteredAlgorithm desired_type;
-
-    // 5. If registeredAlgorithms contains a key that is a case-insensitive string match for algName:
-    for (auto const& entry : registered_algorithms) {
-        if (!entry.key.equals_ignoring_ascii_case(algorithm_name))
-            continue;
-
-        // 1. Set algName to the value of the matching key.
-        algorithm_name = entry.key;
-
-        // 2. Let desiredType be the IDL dictionary type stored at algName in registeredAlgorithms.
-        desired_type = entry.value;
-        break;
-    }
-
-    if (!desired_type.create_methods) {
-        // Otherwise:
-        // Return a new NotSupportedError and terminate this algorithm.
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Algorithm '{}' is not supported for operation '{}'", algorithm_name, operation));
-    }
-
-    // 8. Let normalizedAlgorithm be the result of converting the ECMAScript object represented by alg
-    // to the IDL dictionary type desiredType, as defined by [WebIDL].
-    // 10. If an error occurred, return the error and terminate this algorithm.
-    // 11. Let dictionaries be a list consisting of the IDL dictionary type desiredType
-    // and all of desiredType's inherited dictionaries, in order from least to most derived.
-    // 12. For each dictionary dictionary in dictionaries:
-    //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
-    auto methods = desired_type.create_methods();
-    auto parameter = TRY(desired_type.parameter_from_value(realm, algorithm.get<GC::Ref<JS::Object>>()));
-
-    // 9. Set the name attribute of normalizedAlgorithm to algName.
+JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, AlgorithmId method_id, ParameterId parameter_id, JSValue value, FlatPtr name, NormalizedAlgorithmAndParameter** out)
+{
+    auto& realm = *realm_pointer;
+    auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
+        switch (method_id) {
+        case AlgorithmId::RSASSAPKCS1:
+            return RSASSAPKCS1::create();
+        case AlgorithmId::RSAPSS:
+            return RSAPSS::create();
+        case AlgorithmId::RSAOAEP:
+            return RSAOAEP::create();
+        case AlgorithmId::ECDSA:
+            return ECDSA::create();
+        case AlgorithmId::ECDH:
+            return ECDH::create();
+        case AlgorithmId::AesCtr:
+            return AesCtr::create();
+        case AlgorithmId::AesCbc:
+            return AesCbc::create();
+        case AlgorithmId::AesGcm:
+            return AesGcm::create();
+        case AlgorithmId::AesKw:
+            return AesKw::create();
+        case AlgorithmId::HMAC:
+            return HMAC::create();
+        case AlgorithmId::SHA:
+            return SHA::create();
+        case AlgorithmId::CShake:
+            return CShake::create();
+        case AlgorithmId::HKDF:
+            return HKDF::create();
+        case AlgorithmId::PBKDF2:
+            return PBKDF2::create();
+        case AlgorithmId::X25519:
+            return X25519::create();
+        case AlgorithmId::X448:
+            return X448::create();
+        case AlgorithmId::ED25519:
+            return ED25519::create();
+        case AlgorithmId::ED448:
+            return ED448::create();
+        case AlgorithmId::MLDSA:
+            return MLDSA::create();
+        case AlgorithmId::MLKEM:
+            return MLKEM::create();
+        case AlgorithmId::Argon2:
+            return Argon2::create();
+        case AlgorithmId::ChaCha20Poly1305:
+            return ChaCha20Poly1305::create();
+        case AlgorithmId::AesOcb:
+            return AesOcb::create();
+        case AlgorithmId::KMAC:
+            return KMAC::create();
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    auto parameter_or_error = [&]() -> JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> {
+        auto object = JS::HostABI::value_from_abi(value);
+        switch (parameter_id) {
+        case ParameterId::AlgorithmParams:
+            return AlgorithmParams::from_value(realm, object);
+        case ParameterId::RsaHashedKeyGenParams:
+            return RsaHashedKeyGenParams::from_value(realm, object);
+        case ParameterId::RsaHashedImportParams:
+            return RsaHashedImportParams::from_value(realm, object);
+        case ParameterId::RsaPssParams:
+            return RsaPssParams::from_value(realm, object);
+        case ParameterId::RsaOaepParams:
+            return RsaOaepParams::from_value(realm, object);
+        case ParameterId::EcdsaParams:
+            return EcdsaParams::from_value(realm, object);
+        case ParameterId::EcKeyGenParams:
+            return EcKeyGenParams::from_value(realm, object);
+        case ParameterId::EcKeyImportParams:
+            return EcKeyImportParams::from_value(realm, object);
+        case ParameterId::EcdhKeyDeriveParams:
+            return EcdhKeyDeriveParams::from_value(realm, object);
+        case ParameterId::AesCtrParams:
+            return AesCtrParams::from_value(realm, object);
+        case ParameterId::AesKeyGenParams:
+            return AesKeyGenParams::from_value(realm, object);
+        case ParameterId::AesDerivedKeyParams:
+            return AesDerivedKeyParams::from_value(realm, object);
+        case ParameterId::AesCbcParams:
+            return AesCbcParams::from_value(realm, object);
+        case ParameterId::AesGcmParams:
+            return AesGcmParams::from_value(realm, object);
+        case ParameterId::HmacKeyGenParams:
+            return HmacKeyGenParams::from_value(realm, object);
+        case ParameterId::HmacImportParams:
+            return HmacImportParams::from_value(realm, object);
+        case ParameterId::CShakeParams:
+            return CShakeParams::from_value(realm, object);
+        case ParameterId::HKDFParams:
+            return HKDFParams::from_value(realm, object);
+        case ParameterId::PBKDF2Params:
+            return PBKDF2Params::from_value(realm, object);
+        case ParameterId::Ed448Params:
+            return Ed448Params::from_value(realm, object);
+        case ParameterId::ContextParams:
+            return ContextParams::from_value(realm, object);
+        case ParameterId::Argon2Params:
+            return Argon2Params::from_value(realm, object);
+        case ParameterId::AeadParams:
+            return AeadParams::from_value(realm, object);
+        case ParameterId::KmacParams:
+            return KmacParams::from_value(realm, object);
+        case ParameterId::KmacKeyGenParams:
+            return KmacKeyGenParams::from_value(realm, object);
+        case ParameterId::KmacImportParams:
+            return KmacImportParams::from_value(realm, object);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    if (parameter_or_error.is_error())
+        return JS::HostABI::throw_completion_to_abi(parameter_or_error.release_error().value());
+    auto parameter = parameter_or_error.release_value();
     VERIFY(parameter->name.is_empty());
-    parameter->name = algorithm_name;
-
-    auto normalized_algorithm = NormalizedAlgorithmAndParameter { move(methods), move(parameter) };
-
-    // 13. Return normalizedAlgorithm.
-    return normalized_algorithm;
+    parameter->name = Utf16String::from_raw(name);
+    *out = new NormalizedAlgorithmAndParameter { move(methods), move(parameter) };
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-encrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(JS::Realm& realm, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter)
+void web_crypto_algorithm_destroy(NormalizedAlgorithmAndParameter* algorithm)
 {
-    auto& vm = realm.vm();
-    auto& global = realm.global_object();
-
-    // 1. Let algorithm and key be the algorithm and key parameters passed to the encrypt() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "encrypt".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "encrypt"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the encrypt() method.
-    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
-    auto data = data_or_error.release_value();
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, global, normalized_algorithm.release_value(), promise, key, move(data)), [](auto& realm, auto& global, auto& normalized_algorithm, auto& promise, auto& key, auto& data) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16)));
-            return;
-        }
-
-        // 10. If the [[usages]] internal slot of key does not contain an entry that is "encrypt", then throw an InvalidAccessError.
-        if (!key->internal_usages().contains_slow(KeyUsage::Encrypt)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key does not support encryption"_utf16)));
-            return;
-        }
-
-        // 11. Let ciphertext be the result of performing the encrypt operation specified by normalizedAlgorithm using algorithm and key and with data as plaintext.
-        auto cipher_text = normalized_algorithm.methods->encrypt(realm, *normalized_algorithm.parameter, key, data);
-        if (cipher_text.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, cipher_text.release_error()));
-            return;
-        }
-
-        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, cipher_text.release_value()), [](auto& realm, auto& promise, auto& cipher_text_bytes) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 13. Let result be the result of creating an ArrayBuffer in realm, containing ciphertext.
-            // 14. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, move(cipher_text_bytes)));
-        }));
-    }));
-
-    return promise;
+    delete algorithm;
 }
 
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-decrypt
-GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(JS::Realm& realm, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter)
+void web_crypto_algorithm_public_key_usages(NormalizedAlgorithmAndParameter const* algorithm, void* state, ReceiveUsages receive)
 {
-    auto& vm = realm.vm();
-    auto& global = realm.global_object();
-
-    // 1. Let algorithm and key be the algorithm and key parameters passed to the decrypt() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "decrypt".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "decrypt"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the decrypt() method.
-    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
-    auto data = data_or_error.release_value();
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, global, normalized_algorithm.release_value(), promise, key, move(data)), [](auto& realm, auto& global, auto& normalized_algorithm, auto& promise, auto& key, auto& data) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16)));
-            return;
-        }
-
-        // 10. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
-        if (!key->internal_usages().contains_slow(KeyUsage::Decrypt)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key does not support decryption"_utf16)));
-            return;
-        }
-
-        // 11. Let plaintext be the result of performing the decrypt operation specified by normalizedAlgorithm using key and algorithm and with data as ciphertext.
-        auto plain_text = normalized_algorithm.methods->decrypt(realm, *normalized_algorithm.parameter, key, data);
-        if (plain_text.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, plain_text.release_error()));
-            return;
-        }
-
-        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, plain_text.release_value()), [](auto& realm, auto& promise, auto& plain_text_bytes) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 13. Let result be the result of creating an ArrayBuffer in realm, containing plaintext.
-            // 14. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, move(plain_text_bytes)));
-        }));
-    }));
-
-    return promise;
+    if (auto usages = algorithm->methods->public_key_usages(); usages.has_value())
+        receive(state, *usages);
 }
 
-// https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-digest
-GC::Ref<WebIDL::Promise> SubtleCrypto::digest(JS::Realm& realm, AlgorithmIdentifier const& algorithm, WebIDL::BufferSourceVariant const& data)
+void web_crypto_normalized_key_usages(ReadonlySpan<KeyUsage> usages, void* state, ReceiveUsages receive)
 {
-    auto& vm = realm.vm();
-    auto& global = realm.global_object();
-
-    // 1. Let algorithm be the algorithm parameter passed to the digest() method.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "digest".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "digest"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    // FIXME: Spec bug: link to https://webidl.spec.whatwg.org/#a-promise-rejected-with
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the digest() method.
-    auto data_buffer_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data });
-    if (data_buffer_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, data_buffer_or_error.release_error());
-    auto data_buffer = data_buffer_or_error.release_value();
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, global, normalized_algorithm.release_value(), promise, move(data_buffer)), [](auto& realm, auto& global, auto& algorithm_object, auto& promise, auto& data_buffer) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 9. Let digest be the result of performing the digest operation specified by normalizedAlgorithm using algorithm, with data as message.
-        auto digest = algorithm_object.methods->digest(realm, *algorithm_object.parameter, data_buffer);
-
-        if (digest.is_exception()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, digest.release_error()));
-            return;
-        }
-
-        // 10. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, digest.release_value()), [](auto& realm, auto& promise, auto& digest_bytes) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 11. Let result be the result of creating an ArrayBuffer in realm, containing digest.
-            // 12. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, move(digest_bytes)));
-        }));
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-generateKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(JS::Realm& realm, AlgorithmIdentifier algorithm, bool extractable, Vector<KeyUsage> key_usages)
-{
-    // 1. Let algorithm, extractable and usages be the algorithm, extractable and keyUsages
-    //    parameters passed to the generateKey() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm,
-    //    with alg set to algorithm and op set to "generateKey".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "generateKey"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 5. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, normalized_algorithm.release_value(), promise, extractable, move(key_usages)), [](auto& realm, auto& normalized_algorithm, auto& promise, auto& extractable, auto& key_usages) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 6. If the following steps or referenced procedures say to throw an error, reject promise with
-        //    the returned error and then terminate the algorithm.
-
-        // 7. Let result be the result of performing the generate key operation specified by normalizedAlgorithm
-        //    using algorithm, extractable and usages.
-        auto result_or_error = normalized_algorithm.methods->generate_key(realm, *normalized_algorithm.parameter, extractable, key_usages);
-
-        if (result_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-            return;
-        }
-        auto result = result_or_error.release_value();
-
-        // 8. If result is a CryptoKey object:
-        //      If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-        //    If result is a CryptoKeyPair object:
-        //      If the [[usages]] internal slot of the privateKey attribute of result is the empty sequence, then throw a SyntaxError.
-        // 9. Resolve promise with result.
-        result.visit(
-            [&](GC::Ref<CryptoKey>& key) {
-                if ((key->type() == KeyType::Secret || key->type() == KeyType::Private) && key_usages.is_empty()) {
-                    WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("usages must not be empty"_utf16));
-                    return;
-                }
-                resolve_crypto_key_promise(realm, promise, key);
-            },
-            [&](CryptoKeyPair& key_pair) {
-                if (key_pair.private_key->internal_usages().is_empty()) {
-                    WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("usages must not be empty"_utf16));
-                    return;
-                }
-                auto object = crypto_key_pair(realm, key_pair);
-                if (object.is_error()) {
-                    WebIDL::reject_promise_with_exception(promise, object.release_error());
-                    return;
-                }
-                WebIDL::resolve_promise(promise, object.release_value());
-            });
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<KeyUsage> key_usages)
-{
-    // 1. Let format, algorithm, extractable and usages, be the format, algorithm, extractable and keyUsages
-    //    parameters passed to the importKey() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "importKey".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "importKey"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    Variant<ByteBuffer, JsonWebKey, Empty> real_key_data;
-
-    // 4. If format is equal to the string "jwk":
-    if (format == KeyFormat::Jwk) {
-        // 1. If the keyData parameter passed to the importKey() method is not a JsonWebKey dictionary, throw a TypeError.
-        if (!key_data.has<JsonWebKey>())
-            return WebIDL::create_rejected_promise_from_exception(realm, realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "JsonWebKey"));
-
-        // 2. Let keyData be the keyData parameter passed to the importKey() method.
-        real_key_data = move(key_data.get<JsonWebKey>());
-    }
-    // Otherwise:
-    else {
-        // 1. If the keyData parameter passed to the importKey() method is a JsonWebKey dictionary, throw a TypeError.
-        if (key_data.has<JsonWebKey>())
-            return WebIDL::create_rejected_promise_from_exception(realm, realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource"));
-
-        // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the
-        //    importKey() method.
-        auto key_data_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { key_data.downcast<WebIDL::BufferSourceVariant>() });
-        if (key_data_or_error.is_error())
-            return WebIDL::create_rejected_promise_from_exception(realm, key_data_or_error.release_error());
-        real_key_data = key_data_or_error.release_value();
-    }
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, move(real_key_data), normalized_algorithm.release_value(), promise, format, extractable, move(key_usages)), [](auto& realm, auto& real_key_data, auto& normalized_algorithm, auto& promise, auto& format, auto& extractable, auto& key_usages) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-        // FIXME: 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error; and then
-        //    terminate the algorithm.
-
-        // 9. Let result be the CryptoKey object that results from performing the import key operation
-        //    specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
-        auto maybe_result = normalized_algorithm.methods->import_key(realm, *normalized_algorithm.parameter, format, real_key_data.template downcast<CryptoKey::ImportKeyData>(), extractable, key_usages);
-        if (maybe_result.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, maybe_result.release_error());
-            return;
-        }
-        auto result = maybe_result.release_value();
-
-        // 10. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-        if ((result->type() == KeyType::Secret || result->type() == KeyType::Private) && key_usages.is_empty()) {
-            WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("usages must not be empty"_utf16));
-            return;
-        }
-
-        // 11. Set the [[extractable]] internal slot of result to extractable.
-        result->set_extractable(extractable);
-
-        // 12. Set the [[usages]] internal slot of result to the normalized value of usages.
-        result->set_usages(normalized_key_usages(key_usages));
-
-        // FIXME: 13. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        // FIXME: 14. Let result be the result of converting result to an ECMAScript Object in realm, as defined by [WebIDL].
-
-        // 15. Resolve promise with result.
-        resolve_crypto_key_promise(realm, promise, result);
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-exportKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
-{
-    // 1. Let format and key be the format and key parameters passed to the exportKey() method, respectively.
-
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 3. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, key, promise, format), [](auto& realm, auto& key, auto& promise, auto& format) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 4.  If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
-
-        // 5. If the name member of the [[algorithm]] internal slot of key does not identify a registered algorithm that supports the export key operation,
-        //    then throw a NotSupportedError.
-        // Note: Handled by the base AlgorithmMethods implementation
-        // FIXME: Stash the AlgorithmMethods on the KeyAlgorithm
-        auto normalized_algorithm_or_error = normalize_an_algorithm(realm, key->algorithm_name(), "exportKey"_string);
-        if (normalized_algorithm_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, normalized_algorithm_or_error.release_error());
-            return;
-        }
-        auto normalized_algorithm = normalized_algorithm_or_error.release_value();
-
-        // 6. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
-        if (!key->extractable()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key is not extractable"_utf16));
-            return;
-        }
-
-        // 7. Let result be the result of performing the export key operation specified by the [[algorithm]] internal slot of key using key and format.
-        auto result_or_error = normalized_algorithm.methods->export_key(realm, format, key);
-        if (result_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-            return;
-        }
-
-        // 8. Resolve promise with result.
-        auto result = export_key_result_to_js_value(realm, result_or_error.release_value());
-        if (result.is_error()) {
-            WebIDL::reject_promise(promise, result.release_error().release_value());
-            return;
-        }
-        WebIDL::resolve_promise(promise, result.release_value());
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-sign
-GC::Ref<WebIDL::Promise> SubtleCrypto::sign(JS::Realm& realm, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& data_parameter)
-{
-    auto& vm = realm.vm();
-    auto& global = realm.global_object();
-
-    // 1. Let algorithm and key be the algorithm and key parameters passed to the sign() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "sign".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "sign"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the sign() method.
-    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
-    auto data = data_or_error.release_value();
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, global, normalized_algorithm.release_value(), promise, key, move(data)), [](auto& realm, auto& global, auto& normalized_algorithm, auto& promise, auto& key, auto& data) {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error; and then
-        //    terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //    internal slot of key then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16)));
-            return;
-        }
-
-        // 10. If the [[usages]] internal slot of key does not contain an entry that is "sign", then throw an InvalidAccessError.
-        if (!key->internal_usages().contains_slow(KeyUsage::Sign)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key does not support signing"_utf16)));
-            return;
-        }
-
-        // 11. Let signature be the result of performing the sign operation specified by normalizedAlgorithm using key
-        //     and algorithm and with data as message.
-        auto signature = normalized_algorithm.methods->sign(realm, *normalized_algorithm.parameter, key, data);
-        if (signature.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, signature.release_error()));
-            return;
-        }
-
-        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, signature.release_value()), [](auto& realm, auto& promise, auto& signature_bytes) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 13. Let result be the result of creating an ArrayBuffer in realm, containing signature.
-            // 14. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, move(signature_bytes)));
-        }));
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-verify
-GC::Ref<WebIDL::Promise> SubtleCrypto::verify(JS::Realm& realm, AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, WebIDL::BufferSourceVariant const& signature_data, WebIDL::BufferSourceVariant const& data_parameter)
-{
-    auto& vm = realm.vm();
-    auto& global = realm.global_object();
-
-    // 1. Let algorithm and key be the algorithm and key parameters passed to the verify() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "verify".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "verify"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let signature be the result of getting a copy of the bytes held by the signature parameter passed to the verify() method.
-    auto signature_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { signature_data });
-    if (signature_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, signature_or_error.release_error());
-    auto signature = signature_or_error.release_value();
-
-    // 5. Let data be the result of getting a copy of the bytes held by the data parameter passed to the verify() method.
-    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
-    auto data = data_or_error.release_value();
-
-    // 6. Let realm be the relevant realm of this.
-
-    // 7. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 8. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, global, normalized_algorithm.release_value(), promise, key, move(signature), move(data)), [](auto& realm, auto& global, auto& normalized_algorithm, auto& promise, auto& key, auto& signature, auto& data) {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 9. If the following steps or referenced procedures say to throw an error, queue a global task on the
-        //    crypto task source, given realm's global object, to reject promise with the returned error; and then
-        //    terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 10. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //     internal slot of key then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16)));
-            return;
-        }
-
-        // 11. If the [[usages]] internal slot of key does not contain an entry that is "verify", then throw an InvalidAccessError.
-        if (!key->internal_usages().contains_slow(KeyUsage::Verify)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key does not support verification"_utf16)));
-            return;
-        }
-
-        // 12. Let result be the result of performing the verify operation specified by normalizedAlgorithm using key,
-        //     algorithm and signature and with data as message.
-        auto result = normalized_algorithm.methods->verify(realm, *normalized_algorithm.parameter, key, signature, data);
-        if (result.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error()));
-            return;
-        }
-
-        // 13. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, result.release_value()), [](auto& realm, auto& promise, auto& verification_result) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 14. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::Value(verification_result));
-        }));
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveBits
-GC::Ref<WebIDL::Promise> SubtleCrypto::derive_bits(JS::Realm& realm, AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional)
-{
-    // 1. Let algorithm, baseKey and length, be the algorithm, baseKey and length parameters passed to the deriveBits() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "deriveBits".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "deriveBits"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let promise be a new Promise object.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 5. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, normalized_algorithm.release_value(), promise, base_key, length_optional), [](auto& realm, auto& normalized_algorithm, auto& promise, auto& base_key, auto& length_optional) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 6. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
-
-        // 7. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != base_key->algorithm_name()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16));
-            return;
-        }
-
-        // 8. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveBits", then throw an InvalidAccessError.
-        if (!base_key->internal_usages().contains_slow(KeyUsage::DeriveBits)) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key does not support deriving bits"_utf16));
-            return;
-        }
-
-        // 9. Let result be the result of creating an ArrayBuffer containing the result of performing the derive bits operation specified by normalizedAlgorithm using baseKey, algorithm and length.
-        auto result = normalized_algorithm.methods->derive_bits(realm, *normalized_algorithm.parameter, base_key, length_optional);
-        if (result.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, result.release_error());
-            return;
-        }
-
-        // 10. Resolve promise with result.
-        WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, result.release_value()));
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(JS::Realm& realm, AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<KeyUsage> key_usages)
-{
-    // 1. Let algorithm, baseKey, derivedKeyType, extractable and usages be the algorithm, baseKey, derivedKeyType, extractable and keyUsages parameters passed to the deriveKey() method, respectively.
-
-    // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "deriveBits".
-    auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "deriveBits"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-    if (normalized_algorithm.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
-
-    // 4. Let normalizedDerivedKeyAlgorithmImport be the result of normalizing an algorithm, with alg set to derivedKeyType and op set to "importKey".
-    auto normalized_derived_key_algorithm_import = normalize_an_algorithm(realm, derived_key_type, "importKey"_string);
-
-    // 5. If an error occurred, return a Promise rejected with normalizedDerivedKeyAlgorithmImport.
-    if (normalized_derived_key_algorithm_import.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_derived_key_algorithm_import.release_error());
-
-    // 6. Let normalizedDerivedKeyAlgorithmLength be the result of normalizing an algorithm, with alg set to derivedKeyType and op set to "get key length".
-    auto normalized_derived_key_algorithm_length = normalize_an_algorithm(realm, derived_key_type, "get key length"_string);
-
-    // 7. If an error occurred, return a Promise rejected with normalizedDerivedKeyAlgorithmLength.
-    if (normalized_derived_key_algorithm_length.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_derived_key_algorithm_length.release_error());
-
-    // 8. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 9. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, normalized_algorithm.release_value(), promise, normalized_derived_key_algorithm_import.release_value(), normalized_derived_key_algorithm_length.release_value(), move(base_key), extractable, move(key_usages)), [](auto& realm, auto& normalized_algorithm, auto& promise, auto& normalized_derived_key_algorithm_import, auto& normalized_derived_key_algorithm_length, auto& base_key, auto& extractable, auto& key_usages) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 10. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
-
-        // 11. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != base_key->algorithm_name()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16));
-            return;
-        }
-
-        // 12. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveKey", then throw an InvalidAccessError.
-        if (!base_key->internal_usages().contains_slow(KeyUsage::DeriveKey)) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key does not support deriving keys"_utf16));
-            return;
-        }
-
-        // 13. Let length be the result of performing the get key length algorithm specified by normalizedDerivedKeyAlgorithmLength using derivedKeyType.
-        auto length_result = normalized_derived_key_algorithm_length.methods->get_key_length(realm, *normalized_derived_key_algorithm_length.parameter);
-        if (length_result.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, length_result.release_error());
-            return;
-        }
-
-        auto length = length_result.release_value();
-
-        // 14. Let secret be the result of performing the derive bits operation specified by normalizedAlgorithm using key, algorithm and length.
-        auto secret = normalized_algorithm.methods->derive_bits(realm, *normalized_algorithm.parameter, base_key, length);
-        if (secret.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, secret.release_error());
-            return;
-        }
-
-        // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
-        auto secret_bytes = secret.release_value();
-        auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(realm, *normalized_derived_key_algorithm_import.parameter, KeyFormat::Raw, move(secret_bytes), extractable, key_usages);
-        if (result_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-            return;
-        }
-        auto result = result_or_error.release_value();
-
-        // 16. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-        if ((result->type() == KeyType::Secret || result->type() == KeyType::Private) && key_usages.is_empty()) {
-            WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("usages must not be empty"_utf16));
-            return;
-        }
-
-        // 17. Set the [[extractable]] internal slot of result to extractable.
-        result->set_extractable(extractable);
-
-        // 18. Set the [[usages]] internal slot of result to the normalized value of usages.
-        result->set_usages(normalized_key_usages(key_usages));
-
-        // 19. Resolve promise with result.
-        resolve_crypto_key_promise(realm, promise, result);
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier algorithm)
-{
-    // 5. Let realm be the relevant realm of this.
-    // 1. Let format, key, wrappingKey and algorithm be the format, key, wrappingKey and wrapAlgorithm parameters passed to the wrapKey() method, respectively.
-
-    String operation;
-    auto normalized_algorithm_or_error = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
-        // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "wrapKey".
-        auto normalized_algorithm_wrap_key_or_error = normalize_an_algorithm(realm, algorithm, "wrapKey"_string);
-
-        // 3. If an error occurred, let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "encrypt".
-        // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-        if (normalized_algorithm_wrap_key_or_error.is_error()) {
-            auto normalized_algorithm_encrypt_or_error = normalize_an_algorithm(realm, algorithm, "encrypt"_string);
-            if (normalized_algorithm_encrypt_or_error.is_error())
-                return normalized_algorithm_encrypt_or_error.release_error();
-
-            operation = "encrypt"_string;
-            return normalized_algorithm_encrypt_or_error.release_value();
-        } else {
-            operation = "wrapKey"_string;
-            return normalized_algorithm_wrap_key_or_error.release_value();
-        }
-    }();
-    if (normalized_algorithm_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm_or_error.release_error());
-
-    auto normalized_algorithm = normalized_algorithm_or_error.release_value();
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, move(normalized_algorithm), promise, move(wrapping_key), move(key), format, operation), [](auto& realm, auto& normalized_algorithm, auto& promise, auto& wrapping_key, auto& key, auto& format, auto& operation) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // FIXME: 8. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-
-        // 9. If the name member of normalizedAlgorithm is not equal to the name attribute
-        //    of the [[algorithm]] internal slot of wrappingKey then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != wrapping_key->algorithm_name()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16));
-            return;
-        }
-
-        // 10. If the [[usages]] internal slot of wrappingKey does not contain an entry that is "wrapKey", then throw an InvalidAccessError.
-        if (!wrapping_key->internal_usages().contains_slow(KeyUsage::WrapKey)) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key does not support wrapping keys"_utf16));
-            return;
-        }
-
-        // 11. If the algorithm identified by the [[algorithm]] internal slot of key does not support the export key operation, then throw a NotSupportedError.
-        // Note: Handled by the base AlgorithmMethods implementation
-
-        // 12. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
-        if (!key->extractable()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key is not extractable"_utf16));
-            return;
-        }
-
-        // 13. Let exportedKey be the result of performing the export key operation specified by the [[algorithm]] internal slot of key using key and format.
-        // NOTE: The spec does not mention we need to normalize this, but it's the only way we have to get to export_key.
-        auto normalized_key_algorithm = normalize_an_algorithm(realm, key->algorithm_name(), "exportKey"_string);
-        if (normalized_key_algorithm.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, normalized_key_algorithm.release_error());
-            return;
-        }
-
-        auto exported_key_or_error = normalized_key_algorithm.release_value().methods->export_key(realm, format, key);
-        if (exported_key_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, exported_key_or_error.release_error());
-            return;
-        }
-
-        // 14. If format is equal to the string "jwk":
-        //     1. Let json be the result of representing exportedKey as a UTF-16 string conforming to the JSON grammar;
-        //        for example, by executing the JSON.stringify algorithm specified in [ECMA-262] in the context of a new
-        //        global object.
-        //     2. Let bytes be the result of UTF-8 encoding json.
-        //     Otherwise:
-        //     Let bytes be exportedKey.
-        auto bytes_or_error = export_key_result_to_bytes(realm, exported_key_or_error.release_value());
-        if (bytes_or_error.is_error()) {
-            WebIDL::reject_promise(promise, bytes_or_error.release_error().release_value());
-            return;
-        }
-        auto bytes = bytes_or_error.release_value();
-
-        ByteBuffer result;
-        // 15. If normalizedAlgorithm supports the wrap key operation:
-        if (operation == "wrapKey") {
-            // Let result be the result of performing the wrap key operation specified by normalizedAlgorithm
-            // using algorithm, wrappingKey as key and bytes as plaintext.
-            auto result_or_error = normalized_algorithm.methods->wrap_key(realm, *normalized_algorithm.parameter, wrapping_key, bytes);
-            if (result_or_error.is_error()) {
-                WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-                return;
-            }
-
-            result = result_or_error.release_value();
-        }
-
-        // Otherwise, if normalizedAlgorithm supports the encrypt operation:
-        else if (operation == "encrypt") {
-            // Let result be the result of performing the encrypt operation specified by normalizedAlgorithm
-            // using algorithm, wrappingKey as key and bytes as plaintext.
-            auto result_or_error = normalized_algorithm.methods->encrypt(realm, *normalized_algorithm.parameter, wrapping_key, bytes);
-            if (result_or_error.is_error()) {
-                WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-                return;
-            }
-
-            result = result_or_error.release_value();
-        }
-
-        // Otherwise:
-        else {
-            // throw a NotSupportedError.
-            WebIDL::reject_promise(promise, WebIDL::NotSupportedError::create("Algorithm does not support wrapping"_utf16));
-            return;
-        }
-
-        // FIXME: 16. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        // FIXME: 17. Let result be the result of creating an ArrayBuffer in realm, containing result.
-        // 18. Resolve promise with result.
-        WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, move(result)));
-    }));
-
-    return promise;
-}
-
-// https://w3c.github.io/webcrypto/#SubtleCrypto-method-unwrapKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(JS::Realm& realm, KeyFormat format, WebIDL::BufferSourceVariant wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<KeyUsage> key_usages)
-{
-    // 8. Let realm be the relevant realm of this.
-    // 1. Let format, unwrappingKey, algorithm, unwrappedKeyAlgorithm, extractable and usages, be the format, unwrappingKey, unwrapAlgorithm,
-    //    unwrappedKeyAlgorithm, extractable and keyUsages parameters passed to the unwrapKey() method, respectively.
-
-    String operation;
-    auto normalized_algorithm_or_error = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
-        // 2. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "unwrapKey".
-        auto normalized_algorithm_unwrap_key_or_error = normalize_an_algorithm(realm, algorithm, "unwrapKey"_string);
-
-        // 3. If an error occurred, let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set to "decrypt".
-        // 4. If an error occurred, return a Promise rejected with normalizedAlgorithm.
-        if (normalized_algorithm_unwrap_key_or_error.is_error()) {
-            auto normalized_algorithm_decrypt_or_error = normalize_an_algorithm(realm, algorithm, "decrypt"_string);
-            if (normalized_algorithm_decrypt_or_error.is_error())
-                return normalized_algorithm_decrypt_or_error.release_error();
-
-            operation = "decrypt"_string;
-            return normalized_algorithm_decrypt_or_error.release_value();
-        } else {
-            operation = "unwrapKey"_string;
-            return normalized_algorithm_unwrap_key_or_error.release_value();
-        }
-    }();
-    if (normalized_algorithm_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm_or_error.release_error());
-
-    auto normalized_algorithm = normalized_algorithm_or_error.release_value();
-
-    // 5. Let normalizedKeyAlgorithm be the result of normalizing an algorithm, with alg set to unwrappedKeyAlgorithm and op set to "importKey".
-    auto normalized_key_algorithm_or_error = normalize_an_algorithm(realm, unwrapped_key_algorithm, "importKey"_string);
-    if (normalized_key_algorithm_or_error.is_error()) {
-        // 6. If an error occurred, return a Promise rejected with normalizedKeyAlgorithm.
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_key_algorithm_or_error.release_error());
-    }
-
-    auto normalized_key_algorithm = normalized_key_algorithm_or_error.release_value();
-
-    // 7. Let wrappedKey be the result of getting a copy of the bytes held by the wrappedKey parameter passed to the unwrapKey() method.
-    auto real_wrapped_key_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { wrapped_key });
-    if (real_wrapped_key_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, real_wrapped_key_or_error.release_error());
-    auto real_wrapped_key = real_wrapped_key_or_error.release_value();
-
-    // 9. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 10. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(realm, move(normalized_algorithm), promise, unwrapping_key, move(real_wrapped_key), operation, format, extractable, move(key_usages), move(normalized_key_algorithm)), [](auto& realm, auto& normalized_algorithm, auto& promise, auto& unwrapping_key, auto& real_wrapped_key, auto& operation, auto& format, auto& extractable, auto& key_usages, auto& normalized_key_algorithm) -> void {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // FIXME: 11. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-
-        // 12. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot
-        //     of unwrappingKey then throw an InvalidAccessError.
-        if (normalized_algorithm.parameter->name != unwrapping_key->algorithm_name()) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Algorithm mismatch"_utf16));
-            return;
-        }
-
-        // 13. If the [[usages]] internal slot of unwrappingKey does not contain an entry that is "unwrapKey", then throw an InvalidAccessError.
-        if (!unwrapping_key->internal_usages().contains_slow(KeyUsage::UnwrapKey)) {
-            WebIDL::reject_promise(promise, WebIDL::InvalidAccessError::create("Key does not support unwrapping keys"_utf16));
-            return;
-        }
-
-        auto bytes_or_error = [&]() -> WebIDL::ExceptionOr<ByteBuffer> {
-            // 14. If normalizedAlgorithm supports an unwrap key operation:
-            if (operation == "unwrapKey") {
-                // Let bytes be the result of performing the unwrap key operation specified by normalizedAlgorithm
-                // using algorithm, unwrappingKey as key and wrappedKey as ciphertext.
-                return normalized_algorithm.methods->unwrap_key(realm, *normalized_algorithm.parameter, unwrapping_key, real_wrapped_key);
-            }
-
-            // Otherwise, if normalizedAlgorithm supports a decrypt operation:
-            else if (operation == "decrypt") {
-                // Let bytes be the result of performing the decrypt operation specified by normalizedAlgorithm
-                // using algorithm, unwrappingKey as key and wrappedKey as ciphertext.
-                return normalized_algorithm.methods->decrypt(realm, *normalized_algorithm.parameter, unwrapping_key, real_wrapped_key);
-            }
-
-            // Otherwise:
-            else {
-                // throw a NotSupportedError.
-                return WebIDL::NotSupportedError::create("Algorithm does not support wrapping"_utf16);
-            }
-        }();
-        if (bytes_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, bytes_or_error.release_error());
-            return;
-        }
-
-        auto bytes = bytes_or_error.release_value();
-
-        Variant<ByteBuffer, JsonWebKey, Empty> key;
-
-        // 15. If format is equal to the string "jwk":
-        if (format == KeyFormat::Jwk) {
-            // Let key be the result of executing the parse a JWK algorithm, with bytes as the data to be parsed.
-            auto maybe_parsed = parse_json_web_key(realm, bytes.bytes());
-            if (maybe_parsed.is_error()) {
-                WebIDL::reject_promise_with_exception(promise, maybe_parsed.release_error());
-                return;
-            }
-
-            key = maybe_parsed.release_value();
-        }
-
-        // Otherwise:
-        else {
-            // Let key be bytes.
-            key = move(bytes);
-        }
-
-        // 16. Let result be the result of performing the import key operation specified by normalizedKeyAlgorithm
-        //    using unwrappedKeyAlgorithm as algorithm, format, usages and extractable and with key as keyData.
-        auto result_or_error = normalized_key_algorithm.methods->import_key(realm, *normalized_key_algorithm.parameter, format, key.downcast<CryptoKey::ImportKeyData>(), extractable, key_usages);
-        if (result_or_error.is_error()) {
-            WebIDL::reject_promise_with_exception(promise, result_or_error.release_error());
-            return;
-        }
-
-        auto result = result_or_error.release_value();
-
-        // 17. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-        if ((result->type() == KeyType::Secret || result->type() == KeyType::Private) && key_usages.is_empty()) {
-            WebIDL::reject_promise(promise, WebIDL::SyntaxError::create("Usages must not be empty"_utf16));
-            return;
-        }
-
-        // 18. Set the [[extractable]] internal slot of result to extractable.
-        result->set_extractable(extractable);
-
-        // 19. Set the [[usages]] internal slot of result to the normalized value of usages.
-        result->set_usages(normalized_key_usages(key_usages));
-
-        // FIXME: 20. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        // FIXME: 21. Let result be the result of converting result to an ECMAScript Object in realm, as defined by [WebIDL].
-        // 22. Resolve promise with result.
-        resolve_crypto_key_promise(realm, promise, result);
-    }));
-
-    return promise;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-encapsulateKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(JS::Realm& realm, AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<KeyUsage> key_usages)
-{
-    auto& global = realm.global_object();
-    auto& heap = GC::Heap::the();
-
-    // 1. Let encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable and usages be the
-    //    encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable and keyUsages parameters passed to
-    //    the encapsulateKey() method, respectively.
-
-    // 2. Let normalizedEncapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
-    //    encapsulationAlgorithm and op set to "encapsulate".
-    auto maybe_normalized_encapsulation_algorithm = normalize_an_algorithm(realm, encapsulation_algorithm, "encapsulate"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedEncapsulationAlgorithm.
-    if (maybe_normalized_encapsulation_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, maybe_normalized_encapsulation_algorithm.exception());
-    }
-    auto normalized_encapsulation_algorithm = maybe_normalized_encapsulation_algorithm.release_value();
-
-    // 4. Let normalizedSharedKeyAlgorithm be the result of normalizing an algorithm, with alg
-    //    set to sharedKeyAlgorithm and op set to "importKey".
-    auto maybe_normalized_shared_key_algorithm = normalize_an_algorithm(realm, shared_key_algorithm, "importKey"_string);
-
-    // 5. If an error occurred, return a Promise rejected with normalizedSharedKeyAlgorithm.
-    if (maybe_normalized_shared_key_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, maybe_normalized_shared_key_algorithm.exception());
-    }
-    auto normalized_shared_key_algorithm = maybe_normalized_shared_key_algorithm.release_value();
-
-    // 6. Let realm be the relevant realm of this.
-
-    // 7. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 8. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, GC::captures(realm, global, move(normalized_encapsulation_algorithm), encapsulation_key, promise, move(normalized_shared_key_algorithm), extractable, move(key_usages)), [](auto& realm, auto& global, auto& normalized_encapsulation_algorithm, auto& encapsulation_key, auto& promise, auto& normalized_shared_key_algorithm, auto& extractable, auto& usages) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 9. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
-        //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 10. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //     internal slot of encapsulationKey then throw an InvalidAccessError.
-        if (normalized_encapsulation_algorithm.parameter->name != encapsulation_key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid encapsulation key algorithm"_utf16)));
-            return;
-        }
-
-        // 11. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateKey", then
-        //     throw an InvalidAccessError.
-        if (!encapsulation_key->internal_usages().contains_slow(KeyUsage::EncapsulateKey)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid encapsulation key usage"_utf16)));
-            return;
-        }
-
-        // 12. Let encapsulatedBits be the result of performing the encapsulate operation specified by the [[algorithm]]
-        //     internal slot of encapsulationKey using encapsulationKey.
-        auto maybe_encapsulated_bits = normalized_encapsulation_algorithm.methods->encapsulate(realm, *normalized_encapsulation_algorithm.parameter, encapsulation_key);
-        if (maybe_encapsulated_bits.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_encapsulated_bits.release_error()));
-            return;
-        }
-        auto encapsulated_bits = maybe_encapsulated_bits.release_value();
-
-        // 13. Let sharedKey be the result of performing the import key operation specified by
-        //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the sharedKey field of encapsulatedBits as
-        //     keyData, sharedKeyAlgorithm as algorithm and using extractable and usages.
-        auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(realm,
-            *normalized_shared_key_algorithm.parameter,
-            KeyFormat::RawSecret,
-            encapsulated_bits.shared_key.value(),
-            extractable,
-            usages);
-        if (maybe_shared_key.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_shared_key.release_error()));
-            return;
-        }
-        auto shared_key = maybe_shared_key.release_value();
-
-        // 14. Set the [[extractable]] internal slot of sharedKey to extractable.
-        shared_key->set_extractable(extractable);
-
-        // 15. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
-        shared_key->set_usages(normalized_key_usages(usages));
-
-        // 16. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
-        //     to the ciphertext field of encapsulatedBits.
-        // NB: The task makes encapsulatedKey of the captured sharedKey and ciphertext, as the dictionary roots its key.
-
-        // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, shared_key, encapsulated_bits.ciphertext), [](auto& realm, auto& promise, auto& shared_key, auto& ciphertext) {
-            auto encapsulated_key = EncapsulatedKey { shared_key, ciphertext };
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            // 18. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
-            auto maybe_result = ::Web::Crypto::encapsulated_key(realm, encapsulated_key);
-            if (maybe_result.is_error()) {
-                WebIDL::reject_promise(promise, maybe_result.release_error().value());
-                return;
-            }
-            auto const result = maybe_result.release_value();
-
-            // 19. Resolve promise with result.
-            WebIDL::resolve_promise(promise, result);
-        }));
-    }));
-
-    return promise;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-encapsulateBits
-GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(JS::Realm& realm, AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key)
-{
-    auto& global = realm.global_object();
-    auto& heap = GC::Heap::the();
-
-    // 1. Let encapsulationAlgorithm and encapsulationKey be the encapsulationAlgorithm and encapsulationKey
-    //    parameters passed to the encapsulateBits() method, respectively.
-
-    // 2. Let normalizedEncapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
-    //    encapsulationAlgorithm and op set to "encapsulate".
-    auto maybe_normalized_encapsulation_algorithm = normalize_an_algorithm(realm, encapsulation_algorithm, "encapsulate"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedEncapsulationAlgorithm.
-    if (maybe_normalized_encapsulation_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, maybe_normalized_encapsulation_algorithm.release_error());
-    }
-    auto normalized_encapsulation_algorithm = maybe_normalized_encapsulation_algorithm.release_value();
-
-    // 4. Let realm be the relevant realm of this.
-
-    // 5. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 6. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, GC::captures(realm, global, move(normalized_encapsulation_algorithm), promise, encapsulation_key), [](auto& realm, auto& global, auto& normalized_encapsulation_algorithm, auto& promise, auto& encapsulation_key) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
-        //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 8. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //    internal slot of encapsulationKey then throw an InvalidAccessError.
-        if (normalized_encapsulation_algorithm.parameter->name != encapsulation_key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid encapsulation key algorithm"_utf16)));
-            return;
-        }
-
-        // 9. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateBits", then
-        //    throw an InvalidAccessError.
-        if (!encapsulation_key->internal_usages().contains_slow(KeyUsage::EncapsulateBits)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid encapsulation key usages"_utf16)));
-            return;
-        }
-
-        // 10. Let encapsulatedBits be the result of performing the encapsulate operation specified by the [[algorithm]]
-        //     internal slot of encapsulationKey using encapsulationKey.
-        auto maybe_encapsulated_bits = normalized_encapsulation_algorithm.methods->encapsulate(realm, *normalized_encapsulation_algorithm.parameter, encapsulation_key);
-        if (maybe_encapsulated_bits.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_encapsulated_bits.release_error()));
-            return;
-        }
-        auto encapsulated_bits = maybe_encapsulated_bits.release_value();
-
-        // 11. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, encapsulated_bits), [](auto& realm, auto& promise, auto& encapsulated_bits) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 12. Let result be the result of converting encapsulatedBits to an ECMAScript Object in realm, as defined by [WebIDL].
-            auto maybe_result = ::Web::Crypto::encapsulated_bits(realm, encapsulated_bits);
-            if (maybe_result.is_error()) {
-                WebIDL::reject_promise(promise, maybe_result.release_error().value());
-                return;
-            }
-            auto const result = maybe_result.release_value();
-
-            // 13. Resolve promise with result.
-            WebIDL::resolve_promise(promise, result);
-        }));
-    }));
-
-    return promise;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(JS::Realm& realm, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<KeyUsage> const& usages)
-{
-    auto& global = realm.global_object();
-    auto& heap = GC::Heap::the();
-
-    // 1. Let decapsulationAlgorithm, decapsulationKey, sharedKeyAlgorithm, extractable and usages be the
-    //    decapsulationAlgorithm, decapsulationKey, sharedKeyAlgorithm, extractable and keyUsages parameters passed to
-    //    the decapsulateKey() method, respectively.
-
-    // 2. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
-    //    decapsulationAlgorithm and op set to "decapsulate".
-    auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
-    if (normalized_decapsulation_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
-    }
-
-    // 4. Let normalizedSharedKeyAlgorithm be the result of normalizing an algorithm, with alg
-    //    set to sharedKeyAlgorithm and op set to "importKey".
-    auto normalized_shared_key_algorithm = normalize_an_algorithm(realm, shared_key_algorithm, "importKey"_string);
-
-    // 5. If an error occurred, return a Promise rejected with normalizedSharedKeyAlgorithm.
-    if (normalized_shared_key_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_shared_key_algorithm.release_error());
-    }
-
-    // 6. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
-    //    decapsulateKey() method.
-    auto cipher_text_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { ciphertext });
-    if (cipher_text_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, cipher_text_or_error.release_error());
-    auto cipher_text = cipher_text_or_error.release_value();
-
-    // 7. Let realm be the relevant realm of this.
-
-    // 8. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 9. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, GC::captures(realm, global, normalized_decapsulation_algorithm.release_value(), promise, decapsulation_key, move(cipher_text), normalized_shared_key_algorithm.release_value(), extractable, usages), [](auto& realm, auto& global, auto& normalized_decapsulation_algorithm, auto& promise, auto& decapsulation_key, auto& cipher_text, auto& normalized_shared_key_algorithm, auto& extractable, auto& usages) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 10. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
-        //     source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 11. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //     internal slot of decapsulationKey then throw an InvalidAccessError.
-        if (normalized_decapsulation_algorithm.parameter->name != decapsulation_key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid algorithm name"_utf16)));
-            return;
-        }
-
-        // 12. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateKey", then
-        //     throw an InvalidAccessError.
-        if (!decapsulation_key->internal_usages().contains_slow(KeyUsage::DecapsulateKey)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid key usages"_utf16)));
-            return;
-        }
-        // 13. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
-        //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
-        auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(realm,
-            *normalized_decapsulation_algorithm.parameter,
-            decapsulation_key,
-            cipher_text);
-        if (maybe_decapsulated_bits.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_decapsulated_bits.release_error()));
-            return;
-        }
-        auto const decapsulated_bits = maybe_decapsulated_bits.release_value();
-
-        // 14. Let sharedKey be the result of performing the import key operation specified by
-        //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the decapsulatedBits as keyData,
-        //     sharedKeyAlgorithm as algorithm and using extractable and usages.
-        auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(realm,
-            *normalized_shared_key_algorithm.parameter,
-            KeyFormat::RawSecret,
-            MUST(ByteBuffer::copy(decapsulated_bits.bytes())),
-            extractable,
-            usages);
-        if (maybe_shared_key.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_shared_key.release_error()));
-            return;
-        }
-        auto const shared_key = maybe_shared_key.release_value();
-
-        // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
-        shared_key->set_extractable(extractable);
-
-        // 16. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
-        shared_key->set_usages(normalized_key_usages(usages));
-
-        // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, shared_key), [](auto& realm, auto& promise, auto& shared_key) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            // 18. Let result be the result of converting sharedKey to an ECMAScript Object in realm, as defined by [WebIDL].
-            // 19. Resolve promise with result.
-            resolve_crypto_key_promise(realm, promise, shared_key);
-        }));
-    }));
-
-    return promise;
-}
-
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateBits
-GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(JS::Realm& realm, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext)
-{
-    auto& global = realm.global_object();
-    auto& heap = GC::Heap::the();
-
-    // 1. Let decapsulationAlgorithm and decapsulationKey be the decapsulationAlgorithm and decapsulationKey
-    //    parameters passed to the decapsulateBits() method, respectively.
-
-    // 2. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
-    //    decapsulationAlgorithm and op set to "decapsulate".
-    auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
-
-    // 3. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
-    if (normalized_decapsulation_algorithm.is_error()) {
-        return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
-    }
-
-    // 4. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
-    //    decapsulateBits() method.
-    auto cipher_text_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { ciphertext });
-    if (cipher_text_or_error.is_error())
-        return WebIDL::create_rejected_promise_from_exception(realm, cipher_text_or_error.release_error());
-    auto cipher_text = cipher_text_or_error.release_value();
-
-    // 5. Let realm be the relevant realm of this.
-
-    // 6. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, GC::captures(realm, global, normalized_decapsulation_algorithm.release_value(), promise, decapsulation_key, move(cipher_text)), [](auto& realm, auto& global, auto& normalized_decapsulation_algorithm, auto& promise, auto& decapsulation_key, auto& cipher_text) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
-        //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 9. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
-        //    internal slot of decapsulationKey then throw an InvalidAccessError.
-        if (normalized_decapsulation_algorithm.parameter->name != decapsulation_key->algorithm_name()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid algorithm name"_utf16)));
-            return;
-        }
-
-        // 10. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateBits", then
-        //     throw an InvalidAccessError.
-        if (!decapsulation_key->internal_usages().contains_slow(KeyUsage::DecapsulateBits)) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Invalid key usages"_utf16)));
-            return;
-        }
-
-        // 11. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
-        //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
-        auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(realm,
-            *normalized_decapsulation_algorithm.parameter,
-            decapsulation_key,
-            cipher_text);
-        if (maybe_decapsulated_bits.is_error()) {
-            throw_in_this_context(WebIDL::exception_to_throw_completion(realm.vm(), realm, maybe_decapsulated_bits.release_error()));
-            return;
-        }
-        auto const decapsulated_bits = maybe_decapsulated_bits.release_value();
-
-        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, decapsulated_bits), [](auto& realm, auto& promise, auto& decapsulated_bits) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            // 13. Let result be the result of creating an ArrayBuffer in realm, containing decapsulatedBits.
-            // 14. Resolve promise with result.
-            WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, decapsulated_bits));
-        }));
-    }));
-
-    return promise;
+    auto normalized = normalized_key_usages(usages);
+    receive(state, normalized.span());
 }
 
 static ErrorOr<CryptoKey::InternalKeyData> public_key_for_private_key(CryptoKey const& key)
@@ -1561,573 +440,249 @@ static ErrorOr<CryptoKey::InternalKeyData> public_key_for_private_key(CryptoKey 
         });
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-getPublicKey
-GC::Ref<WebIDL::Promise> SubtleCrypto::get_public_key(JS::Realm& realm, GC::Ref<CryptoKey> key, Vector<KeyUsage> key_usages)
+CryptoKey* web_crypto_public_key_for_private_key(CryptoKey const* key)
 {
-    auto& global = realm.global_object();
-    auto& heap = GC::Heap::the();
-
-    // 1. Let key and usages be the key and keyUsages parameters passed to the getPublicKey() method, respectively.
-
-    // 2. Let algorithm be the [[algorithm]] internal slot of key.
-    // NB: Every algorithm that supports deriving a public key registers an export key operation, which lets us find
-    //     the algorithm's methods.
-    auto normalized_algorithm = normalize_an_algorithm(realm, key->algorithm_name(), "exportKey"_string);
-
-    // 3. If the cryptographic algorithm identified by algorithm does not support deriving a public key from a private
-    //    key, then return a Promise rejected with a NotSupportedError.
-    Optional<ReadonlySpan<KeyUsage>> public_key_usages;
-    if (!normalized_algorithm.is_error())
-        public_key_usages = normalized_algorithm.value().methods->public_key_usages();
-    if (!public_key_usages.has_value()) {
-        auto error = WebIDL::NotSupportedError::create(Utf16String::formatted("Algorithm '{}' does not support deriving a public key", key->algorithm_name()));
-        return WebIDL::create_rejected_promise_from_exception(realm, error);
-    }
-
-    // 4. Let realm be the relevant realm of this.
-
-    // 5. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
-
-    // 6. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, GC::captures(realm, global, promise, key, move(key_usages), Vector<KeyUsage>(*public_key_usages)), [](auto& realm, auto& global, auto& promise, auto& key, auto& key_usages, auto& public_key_usages) -> void {
-        auto& heap = GC::Heap::the();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
-
-        // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto
-        //    task source, given realm's global object, to reject promise with the returned error; and then terminate
-        //    the algorithm.
-        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
-            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, completion.value()), [](auto& realm, auto& promise, auto& value) {
-                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::reject_promise(promise, value);
-            }));
-        };
-
-        // 8. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != KeyType::Private) {
-            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key is not a private key"_utf16)));
-            return;
-        }
-
-        // 9. If usages contains an entry which is not supported for a public key by the algorithm identified by
-        //    algorithm, then throw a SyntaxError.
-        for (auto usage : key_usages) {
-            if (!public_key_usages.contains_slow(usage)) {
-                throw_in_this_context(throw_completion(realm, WebIDL::SyntaxError::create("Invalid key usage for a public key"_utf16)));
-                return;
-            }
-        }
-
-        // 10. Let publicKey be a new CryptoKey representing the public key corresponding to the private key represented
-        //     by the [[handle]] internal slot of key.
-        auto public_key_data = public_key_for_private_key(key);
-
-        // 11. If an error occurred, then throw a OperationError.
-        if (public_key_data.is_error()) {
-            throw_in_this_context(throw_completion(realm, WebIDL::OperationError::create("Failed to derive the public key"_utf16)));
-            return;
-        }
-        auto public_key = CryptoKey::create(public_key_data.release_value());
-
-        // 12. Set the [[type]] internal slot of publicKey to "public".
-        public_key->set_type(KeyType::Public);
-
-        // 13. Set the [[algorithm]] internal slot of publicKey to algorithm.
-        public_key->set_algorithm(key->internal_algorithm());
-
-        // 14. Set the [[extractable]] internal slot of publicKey to true.
-        public_key->set_extractable(true);
-
-        // 15. Set the [[usages]] internal slot of publicKey to the normalized value of usages.
-        public_key->set_usages(normalized_key_usages(key_usages));
-
-        // 16. Queue a global task on the crypto task source, given realm's global object, to perform the remaining
-        //     steps.
-        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, GC::captures(realm, promise, public_key), [](auto& realm, auto& promise, auto& public_key) {
-            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-
-            // 17. Let result be the result of converting publicKey to an ECMAScript Object in realm, as defined by
-            //     [WebIDL].
-            // 18. Resolve promise with result.
-            resolve_crypto_key_promise(realm, promise, public_key);
-        }));
-    }));
-
-    return promise;
+    auto data = public_key_for_private_key(*key);
+    if (data.is_error())
+        return nullptr;
+    return CryptoKey::create(data.release_value()).ptr();
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-determine-support-from-operation-steps
-static bool determine_support_from_operation_steps(JS::Realm& realm, StringView op, NormalizedAlgorithmAndParameter& normalized_algorithm, Optional<u32> length)
+JSCompletion web_crypto_algorithm_encrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
 {
-    auto& methods = *normalized_algorithm.methods;
-    auto const& parameter = *normalized_algorithm.parameter;
-
-    // 1. If the specified operation or normalized algorithm (or one of its parameter values) is expected to fail (for
-    //    any key and/or data) for an implementation-specific reason (e.g. known nonconformance to the specification),
-    //    return false.
-    // NB: The validate_*_parameters() methods of the algorithms also reject parameters that we do not support.
-
-    // 2. If op is "generateKey" or "importKey", let usages be the empty list.
-    // NB: An empty list of usages never makes a step of these operations throw.
-
-    // 3. For each of the steps of the operation specified by op of the algorithm specified by normalizedAlgorithm:
-    //    -> If the step says to throw an error: Return false.
-    //    -> If the step says to generate a key: Return true.
-    //    -> If the step relies on an unavailable parameter, such as key, plaintext or ciphertext: Return true.
-    //    -> If the step says to return a value: Return true.
-    //    -> Otherwise: Execute the step.
-    // NB: The validate_*_parameters() methods of an algorithm perform the steps of its operations that come before the
-    //     first step that relies on an unavailable parameter, generates a key or returns a value. The operations that
-    //     have no such method rely on an unavailable parameter in their first steps. The get key length operation
-    //     relies on its parameters only, so we perform it in full.
-    auto result = [&] -> WebIDL::ExceptionOr<void> {
-        if (op == "encrypt"sv)
-            return methods.validate_encrypt_parameters(parameter);
-        if (op == "decrypt"sv)
-            return methods.validate_decrypt_parameters(parameter);
-        if (op == "sign"sv)
-            return methods.validate_sign_parameters(parameter);
-        if (op == "verify"sv)
-            return methods.validate_verify_parameters(parameter);
-        if (op == "digest"sv)
-            return methods.validate_digest_parameters(parameter);
-        if (op == "generateKey"sv)
-            return methods.validate_generate_key_parameters(parameter);
-        if (op == "importKey"sv)
-            return methods.validate_import_key_parameters(parameter);
-        if (op == "deriveBits"sv)
-            return methods.validate_derive_bits_parameters(parameter, length);
-        if (op == "get key length"sv)
-            TRY(methods.get_key_length(realm, parameter));
-        return {};
-    }();
-    return !result.is_error();
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->encrypt(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-check-support-for-algorithm
-static bool check_support_for_an_algorithm(JS::Realm& realm, String op, AlgorithmIdentifier const& alg, Optional<u32> length)
+JSCompletion web_crypto_algorithm_decrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
 {
-    // 1. If op is "encapsulateKey" or "encapsulateBits", set op to "encapsulate".
-    if (op.is_one_of("encapsulateKey"sv, "encapsulateBits"sv))
-        op = "encapsulate"_string;
-
-    // 2. If op is "decapsulateKey" or "decapsulateBits", set op to "decapsulate".
-    if (op.is_one_of("decapsulateKey"sv, "decapsulateBits"sv))
-        op = "decapsulate"_string;
-
-    // 3. If op is "getPublicKey":
-    if (op == "getPublicKey"sv) {
-        // 1. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to alg and op set to
-        //    "exportKey".
-        auto normalized_algorithm = normalize_an_algorithm(realm, alg, "exportKey"_string);
-
-        // 2. If an error occurred, return false.
-        if (normalized_algorithm.is_error())
-            return false;
-
-        // 3. If the cryptographic algorithm identified by normalizedAlgorithm does not support deriving a public key
-        //    from a private key, then return false.
-        // 4. Otherwise, return true.
-        return normalized_algorithm.value().methods->public_key_usages().has_value();
-    }
-
-    // 4. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to alg and op set to op.
-    auto normalized_algorithm = normalize_an_algorithm(realm, alg, op);
-
-    // 5. If an error occurred:
-    if (normalized_algorithm.is_error()) {
-        // 1. If op is "wrapKey", return the result of checking support for an algorithm with op set to "encrypt" and
-        //    alg set to alg.
-        if (op == "wrapKey"sv)
-            return check_support_for_an_algorithm(realm, "encrypt"_string, alg, {});
-
-        // 2. If op is "unwrapKey", return the result of checking support for an algorithm with op set to "decrypt" and
-        //    alg set to alg.
-        if (op == "unwrapKey"sv)
-            return check_support_for_an_algorithm(realm, "decrypt"_string, alg, {});
-
-        // 3. Otherwise, return false.
-        return false;
-    }
-
-    // 6. Return the result of determining support from operation steps, with op set to op, normalizedAlgorithm set to
-    //    normalizedAlgorithm, and length set to length.
-    return determine_support_from_operation_steps(realm, op, normalized_algorithm.value(), length);
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->decrypt(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-static bool is_a_supported_operation(Utf16String const& operation)
+JSCompletion web_crypto_algorithm_sign(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
 {
-    return operation.is_one_of("encrypt"sv, "decrypt"sv, "sign"sv, "verify"sv, "digest"sv, "generateKey"sv,
-        "deriveKey"sv, "deriveBits"sv, "importKey"sv, "exportKey"sv, "wrapKey"sv, "unwrapKey"sv, "encapsulateKey"sv,
-        "encapsulateBits"sv, "decapsulateKey"sv, "decapsulateBits"sv, "getPublicKey"sv);
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->sign(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-supports
-bool SubtleCrypto::supports(JS::Realm& realm, Utf16String const& operation, AlgorithmIdentifier const& algorithm, Optional<u32> length)
+JSCompletion web_crypto_algorithm_verify(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes signature, ReadonlyBytes data, bool* out)
 {
-    // 1. If operation is not one of "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey",
-    //    "deriveBits", "importKey", "exportKey", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits",
-    //    "decapsulateKey", "decapsulateBits" or "getPublicKey", return false.
-    if (!is_a_supported_operation(operation))
-        return false;
-
-    // 2. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm, and
-    //    length set to length.
-    return check_support_for_an_algorithm(realm, operation.to_utf8(), algorithm, length);
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->verify(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(signature)), MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    *out = result.value();
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-supports-additionalAlgorithm
-bool SubtleCrypto::supports(JS::Realm& realm, Utf16String const& operation, AlgorithmIdentifier const& algorithm, AlgorithmIdentifier const& additional_algorithm)
+JSCompletion web_crypto_algorithm_digest(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, ReadonlyBytes data, void* state, ReceiveBytes receive)
 {
-    // 1. If operation is not one of "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey",
-    //    "deriveBits", "importKey", "exportKey", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits",
-    //    "decapsulateKey", "decapsulateBits" or "getPublicKey", return false.
-    if (!is_a_supported_operation(operation))
-        return false;
-
-    auto op = operation.to_utf8();
-
-    // 2. If operation is "deriveKey" or "unwrapKey":
-    if (op.is_one_of("deriveKey"sv, "unwrapKey"sv)) {
-        // 1. If the result of checking support for an algorithm with op set to "importKey" and alg set to
-        //    additionalAlgorithm is false, return false.
-        if (!check_support_for_an_algorithm(realm, "importKey"_string, additional_algorithm, {}))
-            return false;
-    }
-
-    // 3. If operation is "wrapKey":
-    if (op == "wrapKey"sv) {
-        // 1. If the result of checking support for an algorithm with op set to "exportKey" and alg set to
-        //    additionalAlgorithm is false, return false.
-        if (!check_support_for_an_algorithm(realm, "exportKey"_string, additional_algorithm, {}))
-            return false;
-    }
-
-    // 4. If operation is "encapsulateKey" or "decapsulateKey":
-    if (op.is_one_of("encapsulateKey"sv, "decapsulateKey"sv)) {
-        // 1. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set
-        //    to "get shared key length".
-        auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "get shared key length"_string);
-
-        // 2. If an error occurred, return false.
-        if (normalized_algorithm.is_error())
-            return false;
-
-        // 3. Let sharedKeyLength be the result of performing the get shared key length algorithm specified by
-        //    normalizedAlgorithm using algorithm.
-        auto shared_key_length = normalized_algorithm.value().methods->get_shared_key_length(*normalized_algorithm.value().parameter);
-        if (shared_key_length.is_error())
-            return false;
-
-        // 4. Let normalizedAdditionalAlgorithm be the result of normalizing an algorithm, with alg set to
-        //    additionalAlgorithm and op set to "importKey".
-        auto normalized_additional_algorithm = normalize_an_algorithm(realm, additional_algorithm, "importKey"_string);
-
-        // 5. If an error occurred, return false.
-        if (normalized_additional_algorithm.is_error())
-            return false;
-
-        // 6. If the result of determining support from operation steps with op set to "importKey" and
-        //    normalizedAlgorithm set to normalizedAdditionalAlgorithm, and length set to null is false, return false.
-        if (!determine_support_from_operation_steps(realm, "importKey"sv, normalized_additional_algorithm.value(), {}))
-            return false;
-
-        // 7. If the import key operation specified by normalizedAdditionalAlgorithm would throw an error for every value
-        //    of keyData that is a byte sequence whose length in bits is sharedKeyLength when format is "raw-secret",
-        //    return false.
-        // NB: Whether importing secret key data fails depends on its length only, so importing zeroes of that length
-        //     tells whether every such keyData fails.
-        auto key_data = MUST(ByteBuffer::create_zeroed(ceil_div(shared_key_length.value(), 8u)));
-        auto const& import_algorithm = normalized_additional_algorithm.value();
-        if (import_algorithm.methods->import_key(realm, *import_algorithm.parameter, KeyFormat::RawSecret, move(key_data), false, {}).is_error())
-            return false;
-    }
-
-    // 5. Let length be null.
-    Optional<u32> length;
-
-    // 6. If operation is "deriveKey":
-    if (op == "deriveKey"sv) {
-        // 1. If the result of checking support for an algorithm with op set to "get key length" and alg set to
-        //    additionalAlgorithm is false, return false.
-        if (!check_support_for_an_algorithm(realm, "get key length"_string, additional_algorithm, {}))
-            return false;
-
-        // 2. Let normalizedAdditionalAlgorithm be the result of normalizing an algorithm, with alg set to
-        //    additionalAlgorithm and op set to "get key length".
-        // NB: Normalizing can run author code, so this second normalization can fail even though the first succeeded.
-        auto normalized_additional_algorithm = normalize_an_algorithm(realm, additional_algorithm, "get key length"_string);
-        if (normalized_additional_algorithm.is_error())
-            return false;
-
-        // 3. Let length be the result of performing the get key length algorithm specified by additionalAlgorithm
-        //    using normalizedAdditionalAlgorithm.
-        auto& normalized_length_algorithm = normalized_additional_algorithm.value();
-        auto key_length = normalized_length_algorithm.methods->get_key_length(realm, *normalized_length_algorithm.parameter);
-        if (key_length.is_error())
-            return false;
-        length = key_length.release_value();
-
-        // 4. Set operation to "deriveBits".
-        op = "deriveBits"_string;
-    }
-
-    // 7. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm, and
-    //    length set to length.
-    return check_support_for_an_algorithm(realm, move(op), algorithm, length);
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->digest(realm, *algorithm->parameter, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-SupportedAlgorithmsMap& supported_algorithms_internal()
+JSCompletion web_crypto_algorithm_derive_bits(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, OptionalLength length, void* state, ReceiveBytes receive)
 {
-    static NeverDestroyed<SupportedAlgorithmsMap> supported_algorithms;
-    return *supported_algorithms;
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->derive_bits(realm, *algorithm->parameter, *key, length.to_optional());
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-SupportedAlgorithmsMap const& supported_algorithms()
+JSCompletion web_crypto_algorithm_import_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, KeyFormat format, ReadonlyBytes key_data, RawJsonWebKey const* jwk, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out)
 {
-    // NB: Every agent of the process reads this map, so it is defined once and never changes after that.
-    [[maybe_unused]] static bool const is_defined = [] {
-        define_supported_algorithms();
-        return true;
-    }();
-    return supported_algorithms_internal();
+    auto& realm = *realm_pointer;
+    Vector<KeyUsage> usage_vector;
+    usage_vector.append(usages.data(), usages.size());
+    CryptoKey::ImportKeyData data = jwk ? CryptoKey::ImportKeyData { json_web_key_from_raw(*jwk) } : CryptoKey::ImportKeyData { MUST(ByteBuffer::copy(key_data)) };
+    auto result = algorithm->methods->import_key(realm, *algorithm->parameter, format, move(data), extractable, usage_vector);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    *out = result.value().ptr();
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://w3c.github.io/webcrypto/#algorithm-normalization-internal
-void define_supported_algorithms()
+JSCompletion web_crypto_algorithm_generate_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, bool extractable, ReadonlySpan<KeyUsage> usages, CryptoKey** out_key, CryptoKey** out_public_key, CryptoKey** out_private_key)
 {
-    auto& internal_object = supported_algorithms_internal();
-
-    // 1. For each value, v in the List of supported operations,
-    // set the v key of the internal object supportedAlgorithms to a new associative container.
-    auto supported_operations = Vector {
-        "encrypt"_string,
-        "decrypt"_string,
-        "sign"_string,
-        "verify"_string,
-        "digest"_string,
-        "deriveBits"_string,
-        "wrapKey"_string,
-        "unwrapKey"_string,
-        "generateKey"_string,
-        "importKey"_string,
-        "exportKey"_string,
-        "get key length"_string,
-        "encapsulate"_string,
-        "decapsulate"_string,
-        "get shared key length"_string
-    };
-
-    for (auto& operation : supported_operations) {
-        internal_object.set(operation, {});
-    }
-
-    // https://w3c.github.io/webcrypto/#algorithm-conventions
-
-    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-registration
-    define_an_algorithm<RSASSAPKCS1>("sign"_string, "RSASSA-PKCS1-v1_5"_string);
-    define_an_algorithm<RSASSAPKCS1>("verify"_string, "RSASSA-PKCS1-v1_5"_string);
-    define_an_algorithm<RSASSAPKCS1, RsaHashedKeyGenParams>("generateKey"_string, "RSASSA-PKCS1-v1_5"_string);
-    define_an_algorithm<RSASSAPKCS1, RsaHashedImportParams>("importKey"_string, "RSASSA-PKCS1-v1_5"_string);
-    define_an_algorithm<RSASSAPKCS1>("exportKey"_string, "RSASSA-PKCS1-v1_5"_string);
-
-    // https://w3c.github.io/webcrypto/#rsa-pss-registration
-    define_an_algorithm<RSAPSS, RsaPssParams>("sign"_string, "RSA-PSS"_string);
-    define_an_algorithm<RSAPSS, RsaPssParams>("verify"_string, "RSA-PSS"_string);
-    define_an_algorithm<RSAPSS, RsaHashedKeyGenParams>("generateKey"_string, "RSA-PSS"_string);
-    define_an_algorithm<RSAPSS, RsaHashedImportParams>("importKey"_string, "RSA-PSS"_string);
-    define_an_algorithm<RSAPSS>("exportKey"_string, "RSA-PSS"_string);
-
-    // https://w3c.github.io/webcrypto/#rsa-oaep-registration
-    define_an_algorithm<RSAOAEP, RsaOaepParams>("encrypt"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaOaepParams>("decrypt"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaHashedKeyGenParams>("generateKey"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaHashedImportParams>("importKey"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP>("exportKey"_string, "RSA-OAEP"_string);
-
-    // https://w3c.github.io/webcrypto/#ecdsa-registration
-    define_an_algorithm<ECDSA, EcdsaParams>("sign"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA, EcdsaParams>("verify"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA, EcKeyGenParams>("generateKey"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA, EcKeyImportParams>("importKey"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA>("exportKey"_string, "ECDSA"_string);
-
-    // https://w3c.github.io/webcrypto/#ecdh-registration
-    define_an_algorithm<ECDH, EcKeyImportParams>("importKey"_string, "ECDH"_string);
-    define_an_algorithm<ECDH>("exportKey"_string, "ECDH"_string);
-    define_an_algorithm<ECDH, EcdhKeyDeriveParams>("deriveBits"_string, "ECDH"_string);
-    define_an_algorithm<ECDH, EcKeyGenParams>("generateKey"_string, "ECDH"_string);
-
-    // https://w3c.github.io/webcrypto/#aes-ctr-registration
-    define_an_algorithm<AesCtr, AesCtrParams>("encrypt"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesCtrParams>("decrypt"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesKeyGenParams>("generateKey"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr>("exportKey"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesDerivedKeyParams>("get key length"_string, "AES-CTR"_string);
-
-    // https://w3c.github.io/webcrypto/#aes-cbc-registration
-    define_an_algorithm<AesCbc, AesCbcParams>("encrypt"_string, "AES-CBC"_string);
-    define_an_algorithm<AesCbc, AesCbcParams>("decrypt"_string, "AES-CBC"_string);
-    define_an_algorithm<AesCbc, AesKeyGenParams>("generateKey"_string, "AES-CBC"_string);
-    define_an_algorithm<AesCbc>("importKey"_string, "AES-CBC"_string);
-    define_an_algorithm<AesCbc>("exportKey"_string, "AES-CBC"_string);
-    define_an_algorithm<AesCbc, AesDerivedKeyParams>("get key length"_string, "AES-CBC"_string);
-
-    // https://w3c.github.io/webcrypto/#aes-gcm-registration
-    define_an_algorithm<AesGcm, AesGcmParams>("encrypt"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm, AesGcmParams>("decrypt"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm, AesKeyGenParams>("generateKey"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm>("importKey"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm>("exportKey"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
-
-    // https://w3c.github.io/webcrypto/#aes-kw-registration
-    define_an_algorithm<AesKw>("wrapKey"_string, "AES-KW"_string);
-    define_an_algorithm<AesKw>("unwrapKey"_string, "AES-KW"_string);
-    define_an_algorithm<AesKw, AesKeyGenParams>("generateKey"_string, "AES-KW"_string);
-    define_an_algorithm<AesKw>("importKey"_string, "AES-KW"_string);
-    define_an_algorithm<AesKw>("exportKey"_string, "AES-KW"_string);
-    define_an_algorithm<AesKw, AesDerivedKeyParams>("get key length"_string, "AES-KW"_string);
-
-    // https://w3c.github.io/webcrypto/#hmac-registration
-    define_an_algorithm<HMAC>("sign"_string, "HMAC"_string);
-    define_an_algorithm<HMAC>("verify"_string, "HMAC"_string);
-    define_an_algorithm<HMAC, HmacKeyGenParams>("generateKey"_string, "HMAC"_string);
-    define_an_algorithm<HMAC, HmacImportParams>("importKey"_string, "HMAC"_string);
-    define_an_algorithm<HMAC>("exportKey"_string, "HMAC"_string);
-    define_an_algorithm<HMAC, HmacImportParams>("get key length"_string, "HMAC"_string);
-
-    // https://w3c.github.io/webcrypto/#sha-registration
-    define_an_algorithm<SHA>("digest"_string, "SHA-1"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-256"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-384"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-512"_string);
-
-    // https://wicg.github.io/webcrypto-modern-algos/#sha3-registration
-    define_an_algorithm<SHA>("digest"_string, "SHA3-256"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA3-384"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA3-512"_string);
-
-    // https://wicg.github.io/webcrypto-modern-algos/#cshake-registration
-    define_an_algorithm<CShake, CShakeParams>("digest"_string, "cSHAKE128"_string);
-    define_an_algorithm<CShake, CShakeParams>("digest"_string, "cSHAKE256"_string);
-
-    // https://w3c.github.io/webcrypto/#hkdf-registration
-    define_an_algorithm<HKDF, HKDFParams>("deriveBits"_string, "HKDF"_string);
-    define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
-    define_an_algorithm<HKDF>("get key length"_string, "HKDF"_string);
-
-    // https://w3c.github.io/webcrypto/#pbkdf2-registration
-    define_an_algorithm<PBKDF2, PBKDF2Params>("deriveBits"_string, "PBKDF2"_string);
-    define_an_algorithm<PBKDF2>("importKey"_string, "PBKDF2"_string);
-    define_an_algorithm<PBKDF2>("get key length"_string, "PBKDF2"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
-    define_an_algorithm<X25519, EcdhKeyDeriveParams>("deriveBits"_string, "X25519"_string);
-    define_an_algorithm<X25519>("generateKey"_string, "X25519"_string);
-    define_an_algorithm<X25519>("importKey"_string, "X25519"_string);
-    define_an_algorithm<X25519>("exportKey"_string, "X25519"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
-    define_an_algorithm<X448, EcdhKeyDeriveParams>("deriveBits"_string, "X448"_string);
-    define_an_algorithm<X448>("generateKey"_string, "X448"_string);
-    define_an_algorithm<X448>("importKey"_string, "X448"_string);
-    define_an_algorithm<X448>("exportKey"_string, "X448"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#ed25519-registration
-    define_an_algorithm<ED25519>("sign"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("verify"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("generateKey"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("importKey"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("exportKey"_string, "Ed25519"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
-    define_an_algorithm<ED448, Ed448Params>("sign"_string, "Ed448"_string);
-    define_an_algorithm<ED448, Ed448Params>("verify"_string, "Ed448"_string);
-    define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
-    define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
-    define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
-
-    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
-    for (auto const& name : { "ML-DSA-44"_string, "ML-DSA-65"_string, "ML-DSA-87"_string }) {
-        define_an_algorithm<MLDSA, ContextParams>("sign"_string, name);
-        define_an_algorithm<MLDSA, ContextParams>("verify"_string, name);
-        define_an_algorithm<MLDSA>("generateKey"_string, name);
-        define_an_algorithm<MLDSA>("importKey"_string, name);
-        define_an_algorithm<MLDSA>("exportKey"_string, name);
-    }
-
-    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
-    for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
-        define_an_algorithm<MLKEM>("generateKey"_string, name);
-        define_an_algorithm<MLKEM>("importKey"_string, name);
-        define_an_algorithm<MLKEM>("exportKey"_string, name);
-        define_an_algorithm<MLKEM>("encapsulate"_string, name);
-        define_an_algorithm<MLKEM>("decapsulate"_string, name);
-        define_an_algorithm<MLKEM>("get shared key length"_string, name);
-    }
-
-    // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration
-    for (auto const& algorithm : { "Argon2d"_string, "Argon2i"_string, "Argon2id"_string }) {
-        define_an_algorithm<Argon2>("importKey"_string, algorithm);
-        define_an_algorithm<Argon2, Argon2Params>("deriveBits"_string, algorithm);
-        define_an_algorithm<Argon2>("get key length"_string, algorithm);
-    }
-
-    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-registration
-    define_an_algorithm<ChaCha20Poly1305, AeadParams>("encrypt"_string, "ChaCha20-Poly1305"_string);
-    define_an_algorithm<ChaCha20Poly1305, AeadParams>("decrypt"_string, "ChaCha20-Poly1305"_string);
-    define_an_algorithm<ChaCha20Poly1305>("generateKey"_string, "ChaCha20-Poly1305"_string);
-    define_an_algorithm<ChaCha20Poly1305>("importKey"_string, "ChaCha20-Poly1305"_string);
-    define_an_algorithm<ChaCha20Poly1305>("exportKey"_string, "ChaCha20-Poly1305"_string);
-    define_an_algorithm<ChaCha20Poly1305>("get key length"_string, "ChaCha20-Poly1305"_string);
-
-    // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-registration
-    define_an_algorithm<AesOcb, AeadParams>("encrypt"_string, "AES-OCB"_string);
-    define_an_algorithm<AesOcb, AeadParams>("decrypt"_string, "AES-OCB"_string);
-    define_an_algorithm<AesOcb, AesKeyGenParams>("generateKey"_string, "AES-OCB"_string);
-    define_an_algorithm<AesOcb>("importKey"_string, "AES-OCB"_string);
-    define_an_algorithm<AesOcb>("exportKey"_string, "AES-OCB"_string);
-    define_an_algorithm<AesOcb, AesDerivedKeyParams>("get key length"_string, "AES-OCB"_string);
-
-    // https://wicg.github.io/webcrypto-modern-algos/#kmac-registration
-    for (auto const& algorithm : { "KMAC128"_string, "KMAC256"_string }) {
-        define_an_algorithm<KMAC, KmacParams>("sign"_string, algorithm);
-        define_an_algorithm<KMAC, KmacParams>("verify"_string, algorithm);
-        define_an_algorithm<KMAC, KmacKeyGenParams>("generateKey"_string, algorithm);
-        define_an_algorithm<KMAC, KmacImportParams>("importKey"_string, algorithm);
-        define_an_algorithm<KMAC>("exportKey"_string, algorithm);
-        define_an_algorithm<KMAC, KmacImportParams>("get key length"_string, algorithm);
-    }
+    auto& realm = *realm_pointer;
+    Vector<KeyUsage> usage_vector;
+    usage_vector.append(usages.data(), usages.size());
+    auto result = algorithm->methods->generate_key(realm, *algorithm->parameter, extractable, usage_vector);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    result.value().visit(
+        [&](GC::Ref<CryptoKey> const& key) { *out_key = key.ptr(); },
+        [&](CryptoKeyPair const& pair) {
+            *out_public_key = pair.public_key.ptr();
+            *out_private_key = pair.private_key.ptr();
+        });
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-// https://w3c.github.io/webcrypto/#concept-define-an-algorithm
-template<typename Methods, typename Param>
-void define_an_algorithm(AK::String op, StringView algorithm)
+JSCompletion web_crypto_algorithm_export_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, KeyFormat format, CryptoKey* key, void* state, ReceiveBytes receive_bytes, ReceiveJsonWebKey receive_jwk)
 {
-    auto& internal_object = supported_algorithms_internal();
-
-    // 1. Let registeredAlgorithms be the associative container stored at the op key of supportedAlgorithms.
-    // NOTE: There should always be a container at the op key.
-    auto maybe_registered_algorithms = internal_object.get(op);
-    auto registered_algorithms = maybe_registered_algorithms.value();
-
-    // 2. Set the alg key of registeredAlgorithms to the IDL dictionary type type.
-    registered_algorithms.set(Utf16String::from_ascii_without_validation(algorithm.bytes()), RegisteredAlgorithm { &Methods::create, &Param::from_value });
-    internal_object.set(op, registered_algorithms);
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->export_key(realm, format, *key);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    result.value().visit(
+        [&](ByteBuffer const& bytes) { receive_bytes(state, bytes.span()); },
+        [&](JsonWebKey const& key) { with_raw_json_web_key(key, state, receive_jwk); });
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
+JSCompletion web_crypto_algorithm_get_key_length(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, OptionalLength* out)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->get_key_length(realm, *algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    *out = { result.value().has_value(), result.value().value_or(0) };
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
-namespace Web::Bindings {
-
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> create_algorithm_dictionary(JS::Realm& realm, Utf16String const& name)
+JSCompletion web_crypto_algorithm_get_shared_key_length(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, u32* out)
 {
-    auto dictionary = JS::Object::create(realm, realm.intrinsics().object_prototype());
-    TRY(dictionary->create_data_property("name"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), name)));
-    return dictionary;
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->get_shared_key_length(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    *out = result.value();
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_wrap_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->wrap_key(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_unwrap_key(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->unwrap_key(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_encapsulate(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, void* shared_key, void* ciphertext, ReceiveBytes receive)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->encapsulate(realm, *algorithm->parameter, *key);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    if (result.value().shared_key.has_value())
+        receive(shared_key, result.value().shared_key->span());
+    if (result.value().ciphertext.has_value())
+        receive(ciphertext, result.value().ciphertext->span());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_decapsulate(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->decapsulate(realm, *algorithm->parameter, *key, MUST(ByteBuffer::copy(data)));
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    receive(state, result.value().span());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_encrypt_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_encrypt_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_decrypt_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_decrypt_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_sign_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_sign_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_verify_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_verify_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_digest_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_digest_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_generate_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_generate_key_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_import_key_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_import_key_parameters(*algorithm->parameter);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
+}
+
+JSCompletion web_crypto_algorithm_validate_derive_bits_parameters(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, OptionalLength length)
+{
+    auto& realm = *realm_pointer;
+    auto result = algorithm->methods->validate_derive_bits_parameters(*algorithm->parameter, length.to_optional());
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    return JS::HostABI::normal_completion_to_abi(0);
 }
 
 }

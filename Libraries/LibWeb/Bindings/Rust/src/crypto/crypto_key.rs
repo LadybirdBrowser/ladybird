@@ -17,12 +17,14 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::conversions::create_uint8_array;
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, create_dictionary_object};
+use crate::bindings::interface::{
+    Ref, Wrappable, allocate, cell_from_abi, cell_into_abi, create_dictionary_object, realm_arguments, wrap,
+};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::structured_data::{Serializable, SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum KeyType {
     Public,
@@ -32,7 +34,8 @@ pub(crate) enum KeyType {
 
 const KEY_TYPE_VALUES: [KeyType; 3] = [KeyType::Public, KeyType::Private, KeyType::Secret];
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Trace)]
+#[gc(crate = libjs_rust)]
 #[repr(u8)]
 pub(crate) enum KeyUsage {
     Encrypt,
@@ -64,7 +67,8 @@ const KEY_USAGE_VALUES: [KeyUsage; 12] = [
     KeyUsage::DecapsulateBits,
 ];
 
-enum InternalAlgorithmData {
+#[derive(Clone)]
+pub(crate) enum InternalAlgorithmData {
     Key {
         name: Utf16String,
     },
@@ -279,17 +283,37 @@ impl CryptoKey {
         self.handle.borrow().as_ref().expect("a live key has its handle").0
     }
 
-    fn set_algorithm(&self, algorithm: InternalAlgorithmData) {
+    pub(crate) fn internal_algorithm(&self) -> core::cell::Ref<'_, InternalAlgorithmData> {
+        self.algorithm.borrow()
+    }
+
+    pub(crate) fn internal_usages(&self) -> core::cell::Ref<'_, [KeyUsage]> {
+        core::cell::Ref::map(self.key_usages.borrow(), Vec::as_slice)
+    }
+
+    pub(crate) fn is_extractable(&self) -> bool {
+        self.extractable.get()
+    }
+
+    pub(crate) fn set_extractable(&self, extractable: bool) {
+        self.extractable.set(extractable);
+    }
+
+    pub(crate) fn set_type(&self, key_type: KeyType) {
+        self.r#type.set(Some(key_type));
+    }
+
+    pub(crate) fn set_algorithm(&self, algorithm: InternalAlgorithmData) {
         self.algorithm.replace(algorithm);
         self.algorithm_name.replace(Utf16String::default());
         self.cached_algorithm_objects.replace(Vec::new());
     }
 
-    fn set_usages(&self, usages: Vec<KeyUsage>) {
+    pub(crate) fn set_usages(&self, usages: Vec<KeyUsage>) {
         self.key_usages.replace(usages);
     }
 
-    fn key_type(&self) -> KeyType {
+    pub(crate) fn key_type(&self) -> KeyType {
         self.r#type
             .get()
             .expect("the key type is initialized before it is read")
@@ -345,7 +369,7 @@ impl CryptoKey {
         Ok(Value::from_object(usages))
     }
 
-    fn algorithm_name(&self) -> Utf16String {
+    pub(crate) fn algorithm_name(&self) -> Utf16String {
         let mut algorithm_name = self.algorithm_name.borrow_mut();
         if algorithm_name.is_empty() {
             *algorithm_name = self.algorithm.borrow().name().clone();
@@ -774,6 +798,20 @@ pub unsafe extern "C" fn web_rust_crypto_key_create(vm: *const c_void, handle: *
     let vm = unsafe { &*vm.cast::<Vm>() };
     let handle = CryptoKeyHandle(NonNull::new(handle).expect("LibWeb supplies the handle"));
     cell_into_abi(CryptoKey::create(vm, handle))
+}
+
+/// # Safety
+///
+/// The VM, realm, and CryptoKey cell must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_key_wrap(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    key: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller supplies the live VM, realm, and CryptoKey cell.
+    let ((vm, realm), key) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<CryptoKey>(key)) };
+    wrap(&CallContext::new(vm, realm), key).as_ptr().cast()
 }
 
 /// # Safety

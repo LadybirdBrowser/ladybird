@@ -6,34 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Crypto/SubtleCrypto.h>
+#include <LibWeb/Bindings/Crypto.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
 
-class Crypto : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(Crypto, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(Crypto);
+class Crypto : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(Crypto, crypto)
 
 public:
     [[nodiscard]] static GC::Ref<Crypto> create();
-
-    virtual ~Crypto() override;
-
-    GC::Ref<SubtleCrypto> subtle() const;
-
-    WebIDL::ExceptionOr<WebIDL::ArrayBufferViewVariant> get_random_values(WebIDL::ArrayBufferViewVariant) const;
-    Utf16String random_uuid() const;
-
-protected:
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-private:
-    Crypto();
-
-    GC::Ptr<SubtleCrypto> m_subtle;
 };
 
 WEB_API String generate_random_uuid();

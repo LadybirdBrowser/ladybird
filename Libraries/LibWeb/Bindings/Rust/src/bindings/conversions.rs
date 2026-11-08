@@ -1157,6 +1157,15 @@ impl ToJs for Gc<TypedArrayBase> {
     }
 }
 
+impl ToJs for ArrayBufferView {
+    fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
+        Ok(match self {
+            Self::DataView(view) => Value::from_object(view),
+            Self::TypedArray(array) => Value::from_object(array),
+        })
+    }
+}
+
 impl ToJs for Gc<ArrayBuffer> {
     fn to_js(self, _: &CallContext) -> ThrowCompletionOr<Value> {
         Ok(Value::from_object(self))

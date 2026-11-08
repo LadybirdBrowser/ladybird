@@ -7,9 +7,11 @@
 
 #include <AK/Memory.h>
 #include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/RustSerialization.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -359,6 +361,19 @@ JSCompletion web_crypto_key_decode_handle(void* realm, CryptoKeyHandleFields con
         return Bindings::completion_to_abi(js_realm, handle.release_error());
     *out_handle = new CryptoKey::InternalKeyData(handle.release_value());
     return Bindings::completion_to_abi(js_realm, JS::js_undefined());
+}
+
+}
+
+namespace Web::Bindings {
+
+extern "C" JSObject* web_rust_crypto_key_wrap(JSVM*, void*, Crypto::CryptoKey*);
+
+GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Crypto::CryptoKey> key)
+{
+    VERIFY(&wrapper_world == &host_defined_wrapper_world(preferred_realm));
+    auto* wrapper = web_rust_crypto_key_wrap(JS::HostABI::vm_to_abi(preferred_realm.vm()), &preferred_realm, key.ptr());
+    return as<JS::HostObject>(*JS::HostABI::object_from_abi(wrapper));
 }
 
 }
