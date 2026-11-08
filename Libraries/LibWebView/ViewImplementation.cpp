@@ -898,9 +898,15 @@ static bool is_activation_triggering_input_event(Web::InputEvent const& event)
 static bool is_paste_shortcut(Web::InputEvent const& event)
 {
     auto const* key_event = event.get_pointer<Web::KeyEvent>();
-    return key_event && key_event->type == Web::KeyEvent::Type::KeyDown && key_event->key == Web::UIEvents::KeyCode::Key_V
-        && (key_event->modifiers & Web::UIEvents::Mod_PlatformCtrl) != 0
-        && (key_event->modifiers & (Web::UIEvents::Mod_Shift | Web::UIEvents::Mod_Alt)) == 0;
+    if (!key_event || key_event->type != Web::KeyEvent::Type::KeyDown || key_event->key != Web::UIEvents::KeyCode::Key_V
+        || (key_event->modifiers & Web::UIEvents::Mod_PlatformCtrl) == 0)
+        return false;
+
+#if defined(AK_OS_MACOS)
+    return (key_event->modifiers & Web::UIEvents::Mod_Alt) == 0 || (key_event->modifiers & Web::UIEvents::Mod_Shift) != 0;
+#else
+    return (key_event->modifiers & Web::UIEvents::Mod_Alt) == 0;
+#endif
 }
 
 // A page busy for a while handles input late, and its activation counts from then. A page that never finishes handling
@@ -2809,12 +2815,13 @@ WebContentPage& ViewImplementation::focused_navigable_host() const
     return host ? *host : page();
 }
 
-void ViewImplementation::paste_from_clipboard()
+void ViewImplementation::paste_from_clipboard(Web::Clipboard::PasteMode paste_mode)
 {
     // The user asked the browser to paste, which hands the page the system clipboard data.
-    read_clipboard_item([host = NonnullRefPtr { focused_navigable_host() }](Web::Clipboard::SystemClipboardItem item) {
+    read_clipboard_item([host = NonnullRefPtr { focused_navigable_host() }, paste_mode](Web::Clipboard::SystemClipboardItem item) {
         if (!host->is_open())
             return;
+        Web::Clipboard::apply_paste_mode(item, paste_mode);
         Vector<Web::Clipboard::SystemClipboardItem> system_clipboard_data;
         if (!item.system_clipboard_representations.is_empty())
             system_clipboard_data.append(move(item));

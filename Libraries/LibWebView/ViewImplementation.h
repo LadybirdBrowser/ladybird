@@ -488,7 +488,7 @@ public:
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
-    void paste_from_clipboard();
+    void paste_from_clipboard(Web::Clipboard::PasteMode);
 
     // Used by platform input methods to drive marked/preedit-text composition, and to query the on-screen caret
     // position for placing IME overlays.

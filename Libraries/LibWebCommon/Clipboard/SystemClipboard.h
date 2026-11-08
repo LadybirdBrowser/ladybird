@@ -35,6 +35,13 @@ struct SystemClipboardItem {
     Vector<SystemClipboardRepresentation> system_clipboard_representations;
 };
 
+enum class PasteMode : u8 {
+    AllMimeTypes,
+    PlainTextOnly,
+};
+
+WEBCOMMON_API void apply_paste_mode(SystemClipboardItem&, PasteMode);
+
 }
 
 namespace IPC {

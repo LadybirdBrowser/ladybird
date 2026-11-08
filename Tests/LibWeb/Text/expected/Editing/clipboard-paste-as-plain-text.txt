@@ -1,0 +1,2 @@
+paste event: types=["text/plain"] html=""
+editor: <b id="destination">seedplain flavor</b>

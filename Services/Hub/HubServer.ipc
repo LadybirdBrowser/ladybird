@@ -245,7 +245,7 @@ endpoint HubServer
     view_undo(u64 view_id) =|
     view_redo(u64 view_id) =|
     view_cut_selection(u64 view_id) =|
-    view_paste(u64 view_id) =|
+    view_paste(u64 view_id, Web::Clipboard::PasteMode paste_mode) =|
     view_select_all(u64 view_id) =|
     view_get_source(u64 view_id) =|
     view_debug_request(u64 view_id, ByteString request, ByteString argument) =|

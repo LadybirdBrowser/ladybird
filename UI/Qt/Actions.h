@@ -40,6 +40,7 @@ enum class ActionID {
     CopySelection,
     CutSelection,
     Paste,
+    PasteAndMatchStyle,
     SelectAll,
 
     LookUpSelectedText,

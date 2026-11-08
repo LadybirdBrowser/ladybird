@@ -123,7 +123,10 @@ static void add_text_edit_actions(Menu& menu, u64 view_id, bool is_editable, boo
     }
     if (is_editable) {
         menu.add_action(Action::create("Paste"sv, ActionID::Paste, on_view(view_id, [](RemoteView& view) {
-            HubConnection::the().async_view_paste(view.view_id());
+            HubConnection::the().async_view_paste(view.view_id(), Web::Clipboard::PasteMode::AllMimeTypes);
+        })));
+        menu.add_action(Action::create("Paste and Match Style"sv, ActionID::PasteAndMatchStyle, on_view(view_id, [](RemoteView& view) {
+            HubConnection::the().async_view_paste(view.view_id(), Web::Clipboard::PasteMode::PlainTextOnly);
         })));
         menu.add_action(Action::create("Select All"sv, ActionID::SelectAll, on_view(view_id, [](RemoteView& view) {
             HubConnection::the().async_view_select_all(view.view_id());

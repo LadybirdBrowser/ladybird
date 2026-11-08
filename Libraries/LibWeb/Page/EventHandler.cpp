@@ -2135,13 +2135,23 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (key == UIEvents::KeyCode::Key_X)
             return perform_cut_action();
         if (key == UIEvents::KeyCode::Key_V)
-            return perform_paste_action();
+            return perform_paste_action(Clipboard::PasteMode::AllMimeTypes);
         if (key == UIEvents::KeyCode::Key_Z)
             return Editing::perform_history_action(*document, Editing::HistoryAction::Undo);
 #if !defined(AK_OS_MACOS)
         // INTEROP: Chromium redoes on Ctrl+Y on Windows and Linux; on macOS Cmd+Y is not a redo shortcut.
         if (key == UIEvents::KeyCode::Key_Y)
             return Editing::perform_history_action(*document, Editing::HistoryAction::Redo);
+#endif
+    }
+    if ((modifiers & UIEvents::Mod_PlatformCtrl) != 0 && (modifiers & UIEvents::Mod_Shift) != 0 && key == UIEvents::KeyCode::Key_V) {
+#if defined(AK_OS_MACOS)
+        // INTEROP: On macOS the system-wide Paste and Match Style shortcut also holds Option. Gecko accepts it with and
+        //          without Option, and Blink accepts it with Option.
+        return perform_paste_action(Clipboard::PasteMode::PlainTextOnly);
+#else
+        if ((modifiers & UIEvents::Mod_Alt) == 0)
+            return perform_paste_action(Clipboard::PasteMode::PlainTextOnly);
 #endif
     }
     if ((modifiers & UIEvents::Mod_PlatformCtrl) != 0 && (modifiers & UIEvents::Mod_Shift) != 0 && (modifiers & UIEvents::Mod_Alt) == 0
@@ -2836,7 +2846,7 @@ bool EventHandler::perform_cut_action(ClipboardActionTrigger trigger)
 }
 
 // https://w3c.github.io/clipboard-apis/#paste-action
-EventResult EventHandler::perform_paste_action()
+EventResult EventHandler::perform_paste_action(Clipboard::PasteMode paste_mode)
 {
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
@@ -2844,7 +2854,10 @@ EventResult EventHandler::perform_paste_action()
 
     // NB: The system clipboard lives in the UI process. So, retrieve its contents first — and run the rest of the paste
     //     action once the contents arrive.
-    document->page().request_clipboard_entries_for_paste(GC::create_function(document->heap(), GC::captures(GC::Ref { *document }), [](auto& document, Vector<Clipboard::SystemClipboardItem> system_clipboard_data) {
+    document->page().request_clipboard_entries_for_paste(GC::create_function(document->heap(), GC::captures(GC::Ref { *document }, paste_mode), [](auto& document, auto paste_mode, Vector<Clipboard::SystemClipboardItem> system_clipboard_data) {
+        for (auto& item : system_clipboard_data)
+            Clipboard::apply_paste_mode(item, paste_mode);
+
         if (auto navigable = document->navigable())
             navigable->event_handler().perform_paste_action(system_clipboard_data);
     }));

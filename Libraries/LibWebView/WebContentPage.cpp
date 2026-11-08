@@ -2490,7 +2490,7 @@ void WebContentPage::did_request_paste_from_clipboard_for_testing()
         client().did_misbehave("did_request_paste_from_clipboard_for_testing"sv, "not driven by WebDriver or a test"sv);
         return;
     }
-    view().paste_from_clipboard();
+    view().paste_from_clipboard(Web::Clipboard::PasteMode::AllMimeTypes);
 }
 
 void WebContentPage::did_request_spell_check(u64 request_id, Utf16String text)
