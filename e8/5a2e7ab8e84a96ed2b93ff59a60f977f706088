@@ -1,0 +1,11 @@
+Ladybird now stands a glyph that paints nothing, with the tab stop’s
+advance, for the leading tabs of a text item, so that offsets map to
+glyphs past the tabs. Blink does much the same: Its ShapeResult::
+CreateForTabulationCharacters() makes a space-glyph entry for each tab,
+carrying the tab’s advance, which caret and selection code then reads
+as any other glyph, and its painter draws nothing for a tab. WebKit
+keeps the tab’s glyph and its advance, and only makes it invisible in
+GlyphBuffer::makeGlyphInvisible(), so its selection rects measure the
+tab too. And Gecko leaves tabs unshaped, adding each tab’s width as
+spacing after it (TabWidthStore::ApplySpacing()), which both drawing
+and GetAdvanceWidth() for character rects then take into account.
