@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: float in line-clamp before clamp point which extends past it</title>
+<link rel="author" title="Andreu Botella" href="mailto:abotella@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-overflow/line-clamp/reference/line-clamp-with-floats-005-ref.html">
+<meta name="assert" content="Floats in a block formatting context before the clamp point are not hidden, but they are clipped to the line-clamp container's content edge">
+<style>
+.clamp {
+  line-clamp: 4;
+  font: 16px / 32px serif;
+  padding: 4px;
+  background-color: yellow;
+}
+.float {
+  float: left;
+  width: 50px;
+  height: 75px;
+  margin: 4px;
+  background-color: skyblue;
+}
+.pre {
+  white-space: pre;
+}
+</style>
+<div class="clamp">
+<div class="pre">Line 1
+Line 2
+Line 3</div>
+<div class="float"></div>
+<div class="pre">Line 4
+Line 5</div>
+</div>

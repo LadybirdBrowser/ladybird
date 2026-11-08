@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: floats inside line-clamp only clip to the container's block-end edge</title>
+<link rel="author" title="Andreu Botella" href="mailto:abotella@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square.xht">
+<meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-4327">
+<meta name="assert" content="Floats inside a line-clamp container clip to the block-end content edge of the container, not to any of the other edges.">
+<style>
+.bg {
+  display: flow-root;
+  background: linear-gradient(red, red) 0px 0px / 100px 100px no-repeat;
+}
+.clamp {
+  line-clamp: 4;
+  font: 16px / 16px serif;
+  margin: 18px;
+  padding: 18px;
+  /* 18 + 18 + 4 * 16 = 100 */
+  color: transparent;
+}
+.float {
+  float: left;
+  width: 100px;
+  height: 300px;
+  position: relative;
+  top: -36px;
+  left: -36px;
+  background:
+    linear-gradient(green, green) 0px 0px / 100px 100px no-repeat,
+    red;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="bg">
+  <div class="clamp">
+    <div class="float"></div>
+    Line 1 <br>
+    Line 2 <br>
+    Line 3 <br>
+    Line 4 <br>
+    Line 5
+  </div>
+</div>

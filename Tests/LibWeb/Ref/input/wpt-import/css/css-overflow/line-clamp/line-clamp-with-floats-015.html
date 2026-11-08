@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Overflow: a float in a line-clamp container does not make it taller</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow-4/#line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Floats in a line-clamp container do not introduce any clearance that would make the line-clamp container increase its height.">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+.clamp {
+  line-clamp: 2;
+  font: 50px / 1 Ahem;
+  color: transparent;
+  width: 100px;
+  background-color: green;
+}
+.float {
+  float: left;
+  width: 10px;
+  height: 200px;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="background-color: red; width: 100px; height: 100px; position: absolute; z-index: -1"></div>
+<div class="clamp"><div class="float"></div>X<br>X<br>X</div>
