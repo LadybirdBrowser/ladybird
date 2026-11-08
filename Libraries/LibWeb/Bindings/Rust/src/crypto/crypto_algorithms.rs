@@ -3219,10 +3219,6 @@ impl AlgorithmMethods for AesCtr {
                 return Err(dom_error("DataError", b"Missing 'k' field"));
             }
 
-            if jwk.alg.is_none() {
-                return Err(dom_error("DataError", b"Missing 'alg' field"));
-            }
-
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
@@ -3694,10 +3690,6 @@ impl AlgorithmMethods for AesGcm {
             //   unless the application uses another means or convention to determine the algorithm used.
             if jwk.k.is_none() {
                 return Err(dom_error("DataError", b"Missing 'k' field"));
-            }
-
-            if jwk.alg.is_none() {
-                return Err(dom_error("DataError", b"Missing 'alg' field"));
             }
 
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
@@ -4212,10 +4204,6 @@ impl AlgorithmMethods for AesKw {
             // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
             //   unless the application uses another means or convention to determine the algorithm used.
             // NOTE: "k" is already checked in step 4.
-            if jwk.alg.is_none() {
-                return Err(dom_error("DataError", b"Missing 'alg' field"));
-            }
-
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
@@ -4842,10 +4830,6 @@ impl AlgorithmMethods for AesOcb {
 
             // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
             // NOTE: "k" is already checked in step 4.
-            if jwk.alg.is_none() {
-                return Err(dom_error("DataError", b"Missing 'alg' field"));
-            }
-
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 

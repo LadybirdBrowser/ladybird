@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const jwk = { kty: "oct", k: "AAAAAAAAAAAAAAAAAAAAAA" };
+        for (const [name, usages] of [
+            ["AES-CBC", ["encrypt"]],
+            ["AES-CTR", ["encrypt"]],
+            ["AES-GCM", ["encrypt"]],
+            ["AES-KW", ["wrapKey"]],
+            ["AES-OCB", ["encrypt"]],
+        ]) {
+            try {
+                const key = await crypto.subtle.importKey("jwk", jwk, name, true, usages);
+                const exported = await crypto.subtle.exportKey("jwk", key);
+                println(`${name}: imported, exported alg ${exported.alg}`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+    });
+</script>
