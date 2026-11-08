@@ -119,6 +119,46 @@ describe("the prototype property of normal functions that never had it looked at
         expect(new B()).toBeInstanceOf(A);
     });
 
+    test("functions from the Function constructor", () => {
+        const f = new Function("a", "b", "");
+        f.g = 1;
+        expect(Object.getOwnPropertyNames(f)).toEqual(["length", "name", "prototype", "g"]);
+        expect(Object.getOwnPropertyDescriptor(f, "prototype")).toEqual({
+            value: f.prototype,
+            writable: true,
+            enumerable: false,
+            configurable: false,
+        });
+        expect(Object.getOwnPropertyDescriptor(f.prototype, "constructor")).toEqual({
+            value: f,
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+        expect(Object.getPrototypeOf(f.prototype)).toBe(Object.prototype);
+        expect(new f()).toBeInstanceOf(f);
+    });
+
+    test("it shadows enumerable properties of the prototype chain", () => {
+        Object.prototype.prototype = 1;
+        try {
+            function f() {}
+            expect(f.length).toBe(0);
+            const keys = [];
+            for (const key in f) keys.push(key);
+            expect(keys).toEqual([]);
+
+            function g() {}
+            g.a = 1;
+            expect(g.name).toBe("g");
+            const otherKeys = [];
+            for (const key in g) otherKeys.push(key);
+            expect(otherKeys).toEqual(["a"]);
+        } finally {
+            delete Object.prototype.prototype;
+        }
+    });
+
     test("functions made in a loop", () => {
         const make = () => {
             function F(x) {}
