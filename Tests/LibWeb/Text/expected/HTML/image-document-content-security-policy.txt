@@ -1,5 +1,5 @@
 Image size: 120x120
 Root background: rgb(34, 34, 34)
-Image position: absolute
+Image position: static
 Other image: blocked by img-src
 Same image: blocked by img-src

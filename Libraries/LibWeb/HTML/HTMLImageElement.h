@@ -167,6 +167,7 @@ private:
     void handle_failed_fetch();
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent);
     void stop_delaying_the_load_event_for_aborted_requests();
+    void update_image_document_zoom();
 
     void create_alt_text_shadow_tree();
     void remove_alt_text_shadow_tree();
@@ -205,6 +206,7 @@ private:
     SourceSet m_source_set;
 
     CSSPixelSize m_last_seen_viewport_size;
+    Optional<double> m_image_document_zoom_level;
 
     bool m_is_child_of_picture { false };
 

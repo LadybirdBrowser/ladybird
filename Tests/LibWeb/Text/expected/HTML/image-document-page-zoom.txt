@@ -1,0 +1,11 @@
+Large, 100%: 800x600 at 0,0
+Large, 200%: 1600x1200 at 0,0
+Scrollable in both axes: true
+Large, 50%: 400x300 at 200,150
+Large, resized at 200%: 800x600 at 0,0
+Small, 100%: 100x80 at 350,260
+Small, 200%: 200x160 at 300,220
+Small, 50%: 50x40 at 375,280
+Device pixel ratio: 2
+Large, DPR 2, 100%: 800x600 at 0,0
+Large, DPR 2, 200%: 1600x1200 at 0,0
