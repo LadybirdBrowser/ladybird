@@ -65,14 +65,12 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
     // FIXME: The worker takes the rest of the outside settings, such as their top-level origin, policy container and
     //        cross-origin isolated capability, as the owner's process gave them.
     if (!outside_settings.has_value()) {
-        notify_worker_script_load_failure(owner);
         return {};
     }
     request.outside_settings.origin = outside_settings->origin();
 
     // Only dedicated and shared workers are started on an owner's request.
     if (request.agent_type != Web::HTML::AgentType::DedicatedWorker && request.agent_type != Web::HTML::AgentType::SharedWorker) {
-        notify_worker_script_load_failure(owner);
         return {};
     }
 
@@ -125,14 +123,12 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
                     // 11.5.3. If workerIsSecureContext is not callerIsSecureContext, queue a global task
                     //         on the DOM manipulation task source given worker's relevant global object
                     //         to fire an event named error at worker and abort these steps.
-                    // AD-HOC: Error firing is routed back over IPC via notify_worker_script_load_failure;
-                    //         the spec's queue-global-task happens inside WorkerAgentParent in the
-                    //         requesting process.
+                    // AD-HOC: The owner fires the error itself when it gets no agent back; the spec's
+                    //         queue-global-task happens inside WorkerAgentParent in the requesting process.
                     if (agent.worker_type != request.type
                         || agent.credentials != request.credentials
                         || agent.extended_lifetime != request.extended_lifetime
                         || (agent.worker_is_secure_context.has_value() && *agent.worker_is_secure_context != request.caller_is_secure_context)) {
-                        notify_worker_script_load_failure(owner);
                         return {};
                     }
 
@@ -164,7 +160,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
     //     whose creator's browsing context has been discarded, leaving it no top-level origin, does not start.
     auto top_level_origin = outside_settings->top_level_origin();
     if (!top_level_origin.has_value()) {
-        notify_worker_script_load_failure(owner);
         return {};
     }
     size_t worker_count_of_top_level_site = 0;
@@ -174,7 +169,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
             ++worker_count_of_top_level_site;
     }
     if (worker_count_of_top_level_site >= maximum_worker_count_per_top_level_site) {
-        notify_worker_script_load_failure(owner);
         return {};
     }
 
@@ -198,7 +192,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
     }
     // NB: Nothing would close a process started for a dedicated worker, as only shared workers keep a process alive.
     if (request.agent_type == Web::HTML::AgentType::DedicatedWorker && !host) {
-        notify_worker_script_load_failure(owner);
         return {};
     }
     bool const host_has_only_this_worker = !host;
@@ -250,7 +243,6 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(Ow
         dbgln("Unable to start a worker: {}", client_or_error.error());
         if (host_has_only_this_worker && host)
             host->close_server_if_unused();
-        notify_worker_script_load_failure(owner);
         return {};
     }
     auto client = client_or_error.release_value();
@@ -578,62 +570,33 @@ ErrorOr<void> WorkerAgentManager::simulate_request_server_connection_loss_for_te
 
 void WorkerAgentManager::notify_worker_script_load_failure(Owner const& owner)
 {
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                web_content_owner.client->async_did_worker_agent_fail_loading_script(owner.token);
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            web_worker_owner.client->async_did_worker_agent_fail_loading_script(owner.token);
-        });
-}
-
-void WorkerAgentManager::notify_worker_exception(Owner const& owner, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
-{
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                web_content_owner.client->async_did_worker_agent_report_exception(owner.token, message, filename, lineno, colno);
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            web_worker_owner.client->async_did_worker_agent_report_exception(owner.token, message, filename, lineno, colno);
-        });
+    if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && web_content_owner->client)
+        web_content_owner->client->async_did_worker_agent_fail_loading_script(owner.token);
 }
 
 void WorkerAgentManager::notify_worker_content_security_policy_violation(Owner const& owner, u64 policy_index, String const& effective_directive, URL::URL const& resource)
 {
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                web_content_owner.client->async_did_worker_agent_report_content_security_policy_violation(owner.token, policy_index, effective_directive, resource);
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            web_worker_owner.client->async_did_worker_agent_report_content_security_policy_violation(owner.token, policy_index, effective_directive, resource);
-        });
+    if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && web_content_owner->client)
+        web_content_owner->client->async_did_worker_agent_report_content_security_policy_violation(owner.token, policy_index, effective_directive, resource);
 }
 
 void WorkerAgentManager::notify_worker_close(Owner const& owner)
 {
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                web_content_owner.client->async_did_worker_agent_close(owner.token);
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            web_worker_owner.client->async_did_worker_agent_close(owner.token);
-        });
+    if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && web_content_owner->client)
+        web_content_owner->client->async_did_worker_agent_close(owner.token);
 }
 
 void WorkerAgentManager::notify_worker_death(Owner const& owner)
 {
-    owner.client.visit(
-        [&](WebContentOwner const& web_content_owner) {
-            if (web_content_owner.client)
-                web_content_owner.client->async_did_worker_agent_die(owner.token);
-        },
-        [&](WebWorkerOwner const& web_worker_owner) {
-            web_worker_owner.client->async_did_worker_agent_die(owner.token);
-        });
+    if (auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>(); web_content_owner && web_content_owner->client)
+        web_content_owner->client->async_did_worker_agent_die(owner.token);
+}
+
+Vector<WorkerAgentManager::Owner> WorkerAgentManager::owners_told_by_the_browser(WorkerAgent const& agent)
+{
+    if (agent.agent_type == Web::HTML::AgentType::DedicatedWorker)
+        return {};
+    return agent.owners;
 }
 
 void WorkerAgentManager::worker_did_finish_loading_script(Web::HTML::WorkerAgentId agent_id, bool worker_is_secure_context)
@@ -659,23 +622,13 @@ void WorkerAgentManager::worker_did_fail_loading_script(Web::HTML::WorkerAgentId
 
     agent.closing = true;
     agent.outside_settings_owner = {};
-    auto owners = agent.owners;
+    auto owners = owners_told_by_the_browser(agent);
     for (auto const& owner : owners)
         notify_worker_script_load_failure(owner);
 
     Core::deferred_invoke([this, agent_id] {
         remove_agent(agent_id, AgentRemovalCause::AgentTerminated);
     });
-}
-
-void WorkerAgentManager::worker_did_report_exception(Web::HTML::WorkerAgentId agent_id, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
-{
-    auto maybe_agent = m_agents.find(agent_id);
-    if (maybe_agent == m_agents.end())
-        return;
-
-    for (auto const& owner : maybe_agent->value.owners)
-        notify_worker_exception(owner, message, filename, lineno, colno);
 }
 
 void WorkerAgentManager::worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId agent_id, u64 policy_index, String effective_directive, URL::URL resource)
@@ -703,7 +656,7 @@ void WorkerAgentManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
         return;
 
     agent.closing = true;
-    auto owners = agent.owners;
+    auto owners = owners_told_by_the_browser(agent);
     for (auto const& owner : owners)
         notify_worker_close(owner);
 
@@ -737,7 +690,7 @@ void WorkerAgentManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
     }
 
     agent.closing = true;
-    auto owners = agent.owners;
+    auto owners = owners_told_by_the_browser(agent);
     for (auto const& owner : owners)
         notify_worker_death(owner);
 

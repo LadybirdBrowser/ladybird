@@ -126,14 +126,12 @@ private:
     static bool owner_process_may_host_shared_worker(WebContentOwner const&, CanonicalEnvironmentSettingsObject const& outside_settings);
 
     void notify_worker_script_load_failure(Owner const&);
-    void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
     void notify_worker_content_security_policy_violation(Owner const&, u64 policy_index, String const& effective_directive, URL::URL const& resource);
     void notify_worker_close(Owner const&);
     void notify_worker_death(Owner const&);
 
     void worker_did_finish_loading_script(Web::HTML::WorkerAgentId, bool worker_is_secure_context);
     void worker_did_fail_loading_script(Web::HTML::WorkerAgentId);
-    void worker_did_report_exception(Web::HTML::WorkerAgentId, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     void worker_did_report_outside_settings_content_security_policy_violation(Web::HTML::WorkerAgentId, u64 policy_index, String effective_directive, URL::URL resource);
     void worker_did_close(Web::HTML::WorkerAgentId);
     void shared_worker_did_close(Web::HTML::WorkerAgentId);
@@ -166,6 +164,7 @@ private:
     };
 
     static bool is_same_owner(Owner const&, Owner const& identity);
+    static Vector<Owner> owners_told_by_the_browser(WorkerAgent const&);
     static void forget_removed_outside_settings_owner(WorkerAgent&);
 
     void for_each_client_with_inside_settings(Function<IterationDecision(WebWorkerClient&, CanonicalWorkerEnvironmentSettingsObject const&)> const&);

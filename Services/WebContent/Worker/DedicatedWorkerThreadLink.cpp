@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/HTML/WorkerAgentParent.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
 #include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 
@@ -62,6 +63,43 @@ void DedicatedWorkerThreadLink::post_to_owner(Function<void()> function)
 {
     if (auto event_loop = m_owner_event_loop->take(); event_loop.is_alive())
         event_loop->deferred_invoke(move(function));
+}
+
+void DedicatedWorkerThreadLink::report_script_load_failure_to_owner()
+{
+    post_to_owner([owner_token = m_owner_token] {
+        Web::HTML::WorkerAgentParent::did_fail_loading_worker_script(owner_token);
+    });
+}
+
+void DedicatedWorkerThreadLink::report_exception_to_owner(Utf16String message, Utf16String filename, u32 lineno, u32 colno)
+{
+    post_to_owner([owner_token = m_owner_token, message = move(message), filename = move(filename), lineno, colno] mutable {
+        Web::HTML::WorkerAgentParent::did_report_worker_exception(owner_token, move(message), move(filename), lineno, colno);
+    });
+}
+
+void DedicatedWorkerThreadLink::report_content_security_policy_violation_to_owner(u64 policy_index, String effective_directive, URL::URL const& resource)
+{
+    auto resource_without_thread_unsafe_blob_url_entry = resource;
+    resource_without_thread_unsafe_blob_url_entry.set_blob_url_entry({});
+    post_to_owner([owner_token = m_owner_token, policy_index, effective_directive = move(effective_directive), resource = move(resource_without_thread_unsafe_blob_url_entry)] mutable {
+        Web::HTML::WorkerAgentParent::did_report_content_security_policy_violation(owner_token, policy_index, move(effective_directive), move(resource));
+    });
+}
+
+void DedicatedWorkerThreadLink::report_close_to_owner()
+{
+    post_to_owner([owner_token = m_owner_token] {
+        Web::HTML::WorkerAgentParent::did_close_worker(owner_token);
+    });
+}
+
+void DedicatedWorkerThreadLink::report_death_to_owner()
+{
+    post_to_owner([owner_token = m_owner_token] {
+        Web::HTML::WorkerAgentParent::did_worker_agent_die(owner_token);
+    });
 }
 
 void DedicatedWorkerThreadLink::rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record)

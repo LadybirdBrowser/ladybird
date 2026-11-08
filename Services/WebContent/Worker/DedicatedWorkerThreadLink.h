@@ -9,8 +9,11 @@
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
+#include <LibURL/URL.h>
 #include <LibWeb/HTML/DedicatedWorkerThreadLink.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <WebContent/Worker/Forward.h>
@@ -28,6 +31,12 @@ public:
     void detach_worker_connection();
 
     void post_to_owner(Function<void()>);
+
+    void report_script_load_failure_to_owner();
+    void report_exception_to_owner(Utf16String message, Utf16String filename, u32 lineno, u32 colno);
+    void report_content_security_policy_violation_to_owner(u64 policy_index, String effective_directive, URL::URL const& resource);
+    void report_close_to_owner();
+    void report_death_to_owner();
 
     virtual void rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
     virtual void rtc_transform_teardown(u64 transform_id) override;

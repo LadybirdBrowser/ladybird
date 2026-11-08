@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const OWNER = `
+        const blobURL = source => URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+
+        function throwingWorker() {
+            return new Promise(resolve => {
+                const nested = new Worker(blobURL('throw new Error("thrown in nested worker");'));
+                nested.onerror = event => {
+                    event.preventDefault();
+                    resolve(\`exception: \${event.message.includes("thrown in nested worker")}\`);
+                };
+            });
+        }
+
+        function workerThatFailsToLoad() {
+            return new Promise(resolve => {
+                const nested = new Worker("data:text/javascript,(");
+                nested.onerror = event => resolve(\`load failure: \${event.constructor.name}\`);
+            });
+        }
+
+        function terminatedWorker() {
+            return new Promise(resolve => {
+                const nested = new Worker(blobURL('setInterval(() => postMessage("tick"), 1);'));
+                nested.onmessage = () => {
+                    nested.terminate();
+                    let late_ticks = 0;
+                    setTimeout(() => {
+                        nested.onmessage = () => ++late_ticks;
+                        setTimeout(() => resolve(\`ticks long after terminate: \${late_ticks}\`), 50);
+                    }, 20);
+                };
+            });
+        }
+
+        (async () => {
+            postMessage(await throwingWorker());
+            postMessage(await workerThatFailsToLoad());
+            postMessage(await terminatedWorker());
+
+            const running = new Worker(blobURL('postMessage("running"); setInterval(() => {}, 1);'));
+            running.onmessage = () => {
+                postMessage("closing");
+                close();
+            };
+        })();
+    `;
+
+    promiseTest(async () => {
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+
+        const owner = new Worker(URL.createObjectURL(new Blob([OWNER], { type: "text/javascript" })));
+        await new Promise(resolve => {
+            owner.onmessage = ({ data }) => {
+                println(data);
+                if (data === "closing")
+                    resolve();
+            };
+        });
+
+        await waitForCondition(() => internals.workerAgentCount() === 0, 1200);
+        println(`agents after the owner closed: ${internals.workerAgentCount()}`);
+    });
+</script>

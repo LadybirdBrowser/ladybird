@@ -48,6 +48,8 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
     auto transport_or_error = worker_handle.create_transport();
     if (transport_or_error.is_error()) {
         dbgln("Unable to take up the transport of a worker: {}", transport_or_error.error());
+        if (dedicated_worker_thread_link)
+            dedicated_worker_thread_link->report_death_to_owner();
         return 1;
     }
 
