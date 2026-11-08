@@ -564,14 +564,15 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         // highlight overlay, painting it immediately below any positioned descendants.
         for (span, overlay) in overlays() {
             if Color(overlay.background_color).alpha() > 0 {
-                let highlight_rect = highlight_rect(recorder, block, span);
                 let converter = recorder.converter;
                 let previous = recorder.recorder.set_contrast_backdrop(highlight_backdrop);
-                recorder.recorder.fill_rect(
-                    converter.rounded_device_rect(highlight_rect),
-                    Color(overlay.background_color),
-                    ForceDarkRole::Selection,
-                );
+                for highlight_rect in highlight_rects(recorder, block, span) {
+                    recorder.recorder.fill_rect(
+                        converter.rounded_device_rect(highlight_rect),
+                        Color(overlay.background_color),
+                        ForceDarkRole::Selection,
+                    );
+                }
                 recorder.recorder.set_contrast_backdrop(previous);
             }
         }
@@ -589,14 +590,18 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     }
 }
 
-fn highlight_rect<O: Observer>(recorder: &PaintRecorder<'_, O>, block: NodeSlotId, span: &RenderSpan) -> CssPixelRect {
+fn highlight_rects<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
+    block: NodeSlotId,
+    span: &RenderSpan,
+) -> Vec<CssPixelRect> {
     let side = recorder.source.committed_side_data(block);
     let fragment = &side.fragments()[span.fragment_index as usize];
     let offsets = SelectionOffsets {
         start: span.start_code_unit,
         end: span.end_code_unit,
     };
-    text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets, || {
+    text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets, || {
         text_fragment::first_available_font(recorder.source, fragment)
     })
 }
@@ -767,13 +772,14 @@ fn paint_text_fragment<O: Observer>(
         orientation,
         glyph_bounding_rect,
     } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
-    let run_for_recording = GlyphRunForRecording {
-        font_smoothing: recorder
-            .source
-            .node_style_if_live(fragment.style_source)
-            .unwrap()
-            .inherited_text()
-            .font_smoothing,
+    let font_smoothing = recorder
+        .source
+        .node_style_if_live(fragment.style_source)
+        .unwrap()
+        .inherited_text()
+        .font_smoothing;
+    let run_for_recording = || GlyphRunForRecording {
+        font_smoothing,
         font_id: FontResourceId(font_id),
         glyphs: run
             .glyphs
@@ -788,7 +794,7 @@ fn paint_text_fragment<O: Observer>(
     if is_full_fragment {
         recorder.recorder.draw_glyph_run(
             baseline_start,
-            run_for_recording,
+            run_for_recording(),
             Color(span.text_color),
             fragment_device_rect,
             scale,
@@ -797,27 +803,30 @@ fn paint_text_fragment<O: Observer>(
             ForceDarkRole::Foreground,
         );
     } else {
-        let range_rect = text_fragment::rect_for_selection_offsets(
-            recorder.source,
-            fragment,
-            SelectionOffsets {
-                start: span.start_code_unit,
-                end: span.end_code_unit,
-            },
-            || text_fragment::first_available_font(recorder.source, fragment),
-        );
-        let span_rect = converter.rounded_device_rect(range_rect);
-        recorder.recorder.record_clipped_to(span_rect, |recorder| {
-            recorder.draw_glyph_run(
-                baseline_start,
-                run_for_recording,
-                Color(span.text_color),
-                fragment_device_rect,
-                scale,
-                orientation,
-                glyph_bounding_rect,
-                ForceDarkRole::Foreground,
-            );
+        let offsets = SelectionOffsets {
+            start: span.start_code_unit,
+            end: span.end_code_unit,
+        };
+        let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets, || {
+            text_fragment::first_available_font(recorder.source, fragment)
+        });
+        for range_rect in &range_rects {
+            let span_rect = converter.rounded_device_rect(*range_rect);
+            recorder.recorder.record_clipped_to(span_rect, |recorder| {
+                recorder.draw_glyph_run(
+                    baseline_start,
+                    run_for_recording(),
+                    Color(span.text_color),
+                    fragment_device_rect,
+                    scale,
+                    orientation,
+                    glyph_bounding_rect,
+                    ForceDarkRole::Foreground,
+                );
+            });
+        }
+        let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets, || {
+            text_fragment::first_available_font(recorder.source, fragment)
         });
         decoration_box.x = range_rect.x;
         decoration_box.width = range_rect.width;

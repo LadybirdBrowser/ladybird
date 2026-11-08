@@ -292,6 +292,69 @@ fn for_each_cluster_in_glyph_run(
     }
 }
 
+fn run_has_rtl_glyphs(run: &crate::layout::inline_content::GlyphRunRecord) -> bool {
+    run.glyphs.placed().any(|placed| placed.is_rtl)
+}
+
+/// The inline extents, relative to the fragment's start, of the glyphs that draw the code units `start..end`, in visual
+/// order. Glyphs that are next to each other on the line share an extent; a new one starts only where a glyph of other
+/// code units lies between them. A glyph that draws only part of the range contributes the part of its advance that
+/// the range covers, measured from its right edge when it's right-to-left.
+fn inline_extents_of_code_units(
+    run: &crate::layout::inline_content::GlyphRunRecord,
+    start: usize,
+    end: usize,
+) -> Vec<(f32, f32)> {
+    // Every glyph of a cluster reports the cluster's start; the cluster's length comes from the glyph that covers it.
+    let mut cluster_lengths = std::collections::HashMap::new();
+    for placed in run.glyphs.placed() {
+        if placed.glyph.length_in_code_units() > 0 {
+            cluster_lengths.insert(placed.cluster_start as usize, placed.glyph.length_in_code_units());
+        }
+    }
+    // Each glyph with an advance, as its left edge and the part of it the range covers, if any.
+    let mut glyphs: Vec<(f32, Option<(f32, f32)>)> = Vec::new();
+    for placed in run.glyphs.placed() {
+        let cluster_start = placed.cluster_start as usize;
+        let Some(&cluster_length) = cluster_lengths.get(&cluster_start) else {
+            continue;
+        };
+        if placed.glyph.advance <= 0.0 {
+            continue;
+        }
+        let left = placed.x;
+        let covered_start = start.max(cluster_start);
+        let covered_end = end.min(cluster_start + cluster_length);
+        let covered = (covered_start < covered_end).then(|| {
+            let mut from = (covered_start - cluster_start) as f32 / cluster_length as f32;
+            let mut to = (covered_end - cluster_start) as f32 / cluster_length as f32;
+            if placed.is_rtl {
+                (from, to) = (1.0 - to, 1.0 - from);
+            }
+            (left + placed.glyph.advance * from, left + placed.glyph.advance * to)
+        });
+        glyphs.push((left, covered));
+    }
+    glyphs.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut extents: Vec<(f32, f32)> = Vec::new();
+    let mut extending = false;
+    for (_, covered) in glyphs {
+        match covered {
+            Some((left, right)) if extending => {
+                let last = extents.last_mut().unwrap();
+                last.0 = last.0.min(left);
+                last.1 = last.1.max(right);
+            }
+            Some(extent) => {
+                extents.push(extent);
+                extending = true;
+            }
+            None => extending = false,
+        }
+    }
+    extents
+}
+
 /// Calls `callback` with each DOM offset (in UTF-16 code units) that the horizontal `fragment` renders, from its first
 /// offset through the one past its last, along with the document-absolute x coordinate where that offset's character
 /// starts (or, for the last one, where the fragment's text ends). The advances come from the fragment's shaped glyph
@@ -390,6 +453,23 @@ pub(crate) fn rect_for_selection_offsets(
         }
         pixel_offset = CssPixels::nearest_value_for_f32(offset_accumulator);
         pixel_width = CssPixels::nearest_value_for_f32(width_accumulator);
+        // Right-to-left glyphs are in visual order, so a range of code units is where their own glyphs are, not where
+        // an advance added up in glyph order would put it.
+        if let Some(run) = fragment
+            .glyph_run
+            .as_ref()
+            .filter(|run| horizontal && run_has_rtl_glyphs(run))
+        {
+            let extents = inline_extents_of_code_units(run, start_in_text, end_in_text);
+            if let (Some(first), Some(last)) = (extents.first(), extents.last()) {
+                pixel_offset = CssPixels::nearest_value_for_f32(first.0);
+                pixel_width = CssPixels::nearest_value_for_f32(last.1 - first.0);
+            } else if start_in_text == end_in_text
+                && let Some(x) = caret_inline_offset(fragment, start_in_text, true)
+            {
+                pixel_offset = CssPixels::nearest_value_for_f32(x);
+            }
+        }
     }
 
     if offsets.start > length || offsets.end > length {
@@ -433,6 +513,39 @@ pub(crate) fn rect_for_selection_offsets(
         }
     }
     rect
+}
+
+/// Like `rect_for_selection_offsets()`, but with one rect for each visually separate piece of the range: Code units
+/// that are adjacent in the text can be apart on the line when the fragment mixes directions.
+pub(crate) fn rects_for_selection_offsets(
+    layout_arena: &impl PaintRead,
+    fragment: &FragmentRecord,
+    offsets: SelectionOffsets,
+    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
+) -> Vec<CssPixelRect> {
+    let rect = rect_for_selection_offsets(layout_arena, fragment, offsets, first_available_font);
+    let length = fragment.length_in_code_units;
+    let Some(run) = fragment
+        .glyph_run
+        .as_ref()
+        .filter(|run| is_horizontal(fragment) && run_has_rtl_glyphs(run))
+    else {
+        return vec![rect];
+    };
+    let extents = inline_extents_of_code_units(run, offsets.start.min(length), offsets.end.min(length));
+    if extents.len() < 2 {
+        return vec![rect];
+    }
+    let x = absolute_rect(layout_arena, fragment).x;
+    extents
+        .into_iter()
+        .map(|(left, right)| {
+            let mut piece = rect;
+            piece.x = x + CssPixels::nearest_value_for_f32(left);
+            piece.width = CssPixels::nearest_value_for_f32(right - left);
+            piece
+        })
+        .collect()
 }
 
 pub(crate) fn whole_range_rect(
@@ -583,6 +696,19 @@ pub(crate) fn index_in_node_for_point(
     } else {
         (position.y - rect.y).to_float()
     };
+    if let Some(run) = fragment
+        .glyph_run
+        .as_ref()
+        .filter(|run| is_horizontal(fragment) && run_has_rtl_glyphs(run))
+        && let Some(offset) = rtl_offset_for_inline_position(layout_arena, fragment, run, relative_inline_offset)
+    {
+        return layout_arena.dom_offset_for_rendered_text_offset(
+            fragment.layout_node,
+            fragment.start + offset,
+            crate::layout::RenderedTextBoundary::End,
+        );
+    }
+
     if relative_inline_offset < 0.0 {
         return 0;
     }
@@ -641,4 +767,101 @@ pub(crate) fn index_in_node_for_point(
         fragment.start + tracker.resolve(),
         crate::layout::RenderedTextBoundary::End,
     )
+}
+
+/// The offset within `fragment` of the grapheme boundary nearest to the inline position `position` (relative to the
+/// fragment's start), found from the cluster drawn there — or the nearest one — rather than from advances added up in
+/// glyph order, which right-to-left glyphs don't follow. A position past the edge where the fragment's text ends falls
+/// among its trailing whitespace, a space's width at a time.
+fn rtl_offset_for_inline_position(
+    layout_arena: &impl PaintRead,
+    fragment: &FragmentRecord,
+    run: &crate::layout::inline_content::GlyphRunRecord,
+    position: f32,
+) -> Option<usize> {
+    // Each cluster's code units and the extent of all its glyphs, including those that cover no code units.
+    struct Cluster {
+        start: usize,
+        end: usize,
+        left: f32,
+        right: f32,
+        is_rtl: bool,
+    }
+    let mut clusters: Vec<Cluster> = Vec::new();
+    for placed in run.glyphs.placed() {
+        let start = placed.cluster_start as usize;
+        let (left, right) = (placed.x, placed.x + placed.glyph.advance.max(0.0));
+        if let Some(cluster) = clusters.iter_mut().find(|cluster| cluster.start == start) {
+            cluster.left = cluster.left.min(left);
+            cluster.right = cluster.right.max(right);
+            cluster.end = cluster.end.max(start + placed.glyph.length_in_code_units());
+            continue;
+        }
+        clusters.push(Cluster {
+            start,
+            end: start + placed.glyph.length_in_code_units(),
+            left,
+            right,
+            is_rtl: placed.is_rtl,
+        });
+    }
+    let length = fragment.length_in_code_units;
+    // A truncated fragment can keep glyphs of code units past its end.
+    clusters.retain(|cluster| cluster.end > cluster.start && cluster.start < length);
+
+    // Past the edge where the text ends, the position is in the trailing whitespace.
+    if fragment.trailing_whitespace_length_in_code_units > 0
+        && let Some(last) = clusters.iter().find(|cluster| cluster.end >= length)
+    {
+        let beyond = if last.is_rtl {
+            last.left - position
+        } else {
+            position - last.right
+        };
+        let space_width = run.font.glyph_width(' ' as u32);
+        if beyond > 0.0 && space_width > 0.0 {
+            let spaces =
+                ((beyond / space_width).round() as usize).min(fragment.trailing_whitespace_length_in_code_units);
+            return Some(length + spaces);
+        }
+    }
+
+    let distance = |cluster: &Cluster| {
+        if position < cluster.left {
+            cluster.left - position
+        } else {
+            (position - cluster.right).max(0.0)
+        }
+    };
+    let cluster = clusters.iter().min_by(|a, b| distance(a).total_cmp(&distance(b)))?;
+    let cluster_start = cluster.start;
+    let cluster_end = cluster.end.min(length);
+    let width = cluster.right - cluster.left;
+    let mut fraction = if width > 0.0 {
+        ((position - cluster.left) / width).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if cluster.is_rtl {
+        fraction = 1.0 - fraction;
+    }
+    let target = cluster_start as f32 + fraction * (cluster_end - cluster_start) as f32;
+
+    let mut boundaries = vec![cluster_start];
+    layout_arena.with_grapheme_segmenter(fragment.layout_node, |segmenter| {
+        let mut boundary = fragment.start + cluster_start;
+        while let Some(next) = segmenter.next_boundary(boundary, false) {
+            if next <= boundary || next > fragment.start + cluster_end {
+                break;
+            }
+            boundaries.push(next - fragment.start);
+            boundary = next;
+        }
+    });
+    if *boundaries.last().unwrap() != cluster_end {
+        boundaries.push(cluster_end);
+    }
+    boundaries
+        .into_iter()
+        .min_by(|a, b| (*a as f32 - target).abs().total_cmp(&(*b as f32 - target).abs()))
 }

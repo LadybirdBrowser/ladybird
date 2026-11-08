@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    p {
+        font-size: 20px;
+        width: 600px;
+        margin: 0;
+    }
+</style>
+<p id="text" dir="rtl">بوران سی و دومین</p>
+<script src="../include.js"></script>
+<script>
+    // Right-to-left glyphs are laid out right to left, so the first characters of the text are at the line's right end.
+    test(() => {
+        const node = document.getElementById("text").firstChild;
+        const length = node.length;
+        const rectOf = (start, end) => {
+            const range = document.createRange();
+            range.setStart(node, start);
+            range.setEnd(node, end);
+            return range.getBoundingClientRect();
+        };
+        const whole = rectOf(0, length);
+        const first = rectOf(0, 5);
+        const last = rectOf(length - 5, length);
+        println(`first word ends the line on the right: ${Math.abs(first.right - whole.right) < 1}`);
+        println(`first word is in the line's right half: ${first.left > whole.left + whole.width / 2}`);
+        println(`last word starts the line on the left: ${Math.abs(last.left - whole.left) < 1}`);
+        println(`last word is in the line's left half: ${last.right < whole.left + whole.width / 2}`);
+
+        const y = whole.top + whole.height / 2;
+        const offsetAt = x => document.caretPositionFromPoint(x, y).offset;
+        println(`offset at the line's right end: ${offsetAt(whole.right - 1)}`);
+        println(`offset at the line's left end: ${offsetAt(whole.left + 1) === length}`);
+        println(`offset just inside the first word's left edge: ${offsetAt(first.left + 1)}`);
+    });
+</script>
