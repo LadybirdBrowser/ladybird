@@ -270,12 +270,19 @@ void StyleSheetImport::fetch()
                 return;
             }
 
-            // FIXME: 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
-            //           Otherwise, let content type be the Content Type metadata of response.
-            auto content_type = "text/css"sv;
+            // 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
+            //    Otherwise, let content type be the Content Type metadata of response.
+            // NB: The Content Type metadata is read from the internal response, as an opaque response has no headers.
+            auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->unsafe_response()->header_list());
+            Optional<String> content_type;
+            if (document->in_quirks_mode() && response->is_cors_same_origin())
+                content_type = "text/css"_string;
+            else if (extracted_mime_type.has_value())
+                content_type = extracted_mime_type->essence();
 
             // 3. If content type is not "text/css", return.
-            if (content_type != "text/css"sv) {
+            // AD-HOC: A response without a valid Content-Type is used as CSS, as for a <link> style sheet.
+            if (content_type.has_value() && content_type != "text/css"sv) {
                 dbgln_if(CSS_LOADER_DEBUG, "StyleSheetImport: Rejecting loaded style sheet; content type isn't text/css; is: '{}'", content_type);
                 return;
             }
@@ -287,7 +294,6 @@ void StyleSheetImport::fetch()
             auto url = response->unsafe_response()->url().value();
 
             Optional<StringView> mime_type_charset;
-            auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             if (extracted_mime_type.has_value()) {
                 if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
                     mime_type_charset = charset->bytes_as_string_view();

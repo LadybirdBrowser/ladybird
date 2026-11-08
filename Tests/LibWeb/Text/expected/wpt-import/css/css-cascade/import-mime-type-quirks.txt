@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Same-origin @import with text/css
+Pass	Cross-origin @import with text/css
+Pass	Same-origin @import with wrong MIME type
+Pass	Cross-origin @import with wrong MIME type
+Pass	Cross-origin @import with wrong MIME type, with CORS
+Pass	Cross-origin redirect to same-origin @import with wrong MIME type
+Pass	Same-origin redirect to cross-origin @import with wrong MIME type

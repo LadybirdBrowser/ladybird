@@ -1,0 +1,85 @@
+<!-- No DOCTYPE: this test must run in quirks mode. -->
+<meta charset="utf-8">
+<title>@import: MIME type quirk in quirks mode</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#content-type">
+<link rel="author" title="Simon Pieters" href="mailto:zcorpan@gmail.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../common/get-host-info.sub.js"></script>
+<div id="log"></div>
+<script>
+assert_equals(document.compatMode, "BackCompat", "must be in quirks mode");
+
+const CSS_FILE = "/css/css-cascade/resources/quirks-mime-type.css";
+const SAME_ORIGIN = location.origin + CSS_FILE;
+const CROSS_ORIGIN = get_host_info().REMOTE_ORIGIN + CSS_FILE;
+const WRONG_MIME = "?pipe=header(Content-Type,text/plain)";
+const CORS = "|header(Access-Control-Allow-Origin,*)";
+
+function redirectTo(origin, target, enableCors) {
+  return origin + "/common/redirect.py?" + (enableCors ? "enable-cors&" : "") +
+    "location=" + encodeURIComponent(target);
+}
+
+// The style element fires load or error once the @import has settled; engines
+// disagree about which, so wait for either.
+function importStylesheet(href) {
+  return new Promise(resolve => {
+    const style = document.createElement("style");
+    style.textContent = `@import url("${href}");`;
+    style.onload = style.onerror = () => resolve(style);
+    document.head.appendChild(style);
+  });
+}
+
+// quirks-mime-type.css sets body { padding: 10px }.
+function sheetApplied() {
+  return getComputedStyle(document.body).paddingTop == "10px";
+}
+
+promise_test(async t => {
+  const style = await importStylesheet(SAME_ORIGIN);
+  t.add_cleanup(() => style.remove());
+  assert_true(sheetApplied(), "styles should apply");
+}, "Same-origin @import with text/css");
+
+promise_test(async t => {
+  const style = await importStylesheet(CROSS_ORIGIN);
+  t.add_cleanup(() => style.remove());
+  assert_true(sheetApplied(), "styles should apply");
+}, "Cross-origin @import with text/css");
+
+promise_test(async t => {
+  const style = await importStylesheet(SAME_ORIGIN + WRONG_MIME);
+  t.add_cleanup(() => style.remove());
+  assert_true(sheetApplied(), "styles should apply");
+}, "Same-origin @import with wrong MIME type");
+
+promise_test(async t => {
+  const style = await importStylesheet(CROSS_ORIGIN + WRONG_MIME);
+  t.add_cleanup(() => style.remove());
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Cross-origin @import with wrong MIME type");
+
+promise_test(async t => {
+  const style = await importStylesheet(CROSS_ORIGIN + WRONG_MIME + CORS);
+  t.add_cleanup(() => style.remove());
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Cross-origin @import with wrong MIME type, with CORS");
+
+// The response is same-origin with the document, but it is not CORS-same-origin,
+// so the quirk must not apply.
+promise_test(async t => {
+  const href = redirectTo(get_host_info().REMOTE_ORIGIN, SAME_ORIGIN + WRONG_MIME, false);
+  const style = await importStylesheet(href);
+  t.add_cleanup(() => style.remove());
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Cross-origin redirect to same-origin @import with wrong MIME type");
+
+promise_test(async t => {
+  const href = redirectTo(location.origin, CROSS_ORIGIN + WRONG_MIME, false);
+  const style = await importStylesheet(href);
+  t.add_cleanup(() => style.remove());
+  assert_false(sheetApplied(), "styles should not apply");
+}, "Same-origin redirect to cross-origin @import with wrong MIME type");
+</script>
