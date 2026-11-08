@@ -261,9 +261,26 @@ Optional<SystemFontMatch> match_code_point(u32 code_point, u16 weight, u16 width
     return match_of(font.Get());
 }
 
+// The family for a generic family, such as 'monospace'. DirectWrite has no families for the generic families, unlike
+// fontconfig, so this names the fonts that come with Windows for each of them.
+static StringView windows_family_for_generic_family(StringView family)
+{
+    if (family == "serif"sv)
+        return "Times New Roman"sv;
+    if (family == "sans-serif"sv)
+        return "Arial"sv;
+    if (family == "monospace"sv)
+        return "Consolas"sv;
+    if (family == "cursive"sv)
+        return "Comic Sans MS"sv;
+    if (family == "fantasy"sv)
+        return "Impact"sv;
+    return family;
+}
+
 Optional<FlyString> resolve_generic_family(StringView family, u16 weight, u8 slope)
 {
-    auto font = match_font_for_family(family, weight, FontWidth::Normal, slope);
+    auto font = match_font_for_family(windows_family_for_generic_family(family), weight, FontWidth::Normal, slope);
     if (!font)
         return {};
 
