@@ -3,6 +3,7 @@ members = [
     "AK/Rust",
     "Libraries/LibCompositing/Rust",
     "Libraries/LibCompress/Rust",
+    "Libraries/LibCrypto/Rust",
     "Libraries/LibGfx/Rust",
     "Libraries/LibHTTP/Rust",
     "Libraries/LibImageDecoders/Rust",
