@@ -415,10 +415,8 @@ bool crypto_aes_gcm_decrypt(ReadonlyBytes key, ReadonlyBytes ciphertext, Readonl
 {
     ::Crypto::Cipher::AESGCMCipher cipher(key);
     auto result = cipher.decrypt(ciphertext, iv, additional_data, tag);
-    if (result.is_error()) {
-        dbgln("FAILED: {}", result.error());
+    if (result.is_error())
         return false;
-    }
     receive(state, result.value());
     return true;
 }
