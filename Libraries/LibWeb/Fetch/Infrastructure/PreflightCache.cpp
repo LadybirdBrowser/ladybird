@@ -81,7 +81,12 @@ bool PreflightCache::is_a_method_cache_entry_match(Request const& request, ByteS
 PreflightCache::Entry* PreflightCache::method_cache_entry_match(Request const& request, ByteString const& method)
 {
     for (auto& entry : m_entries) {
-        if (!entry.method.has_value() || (entry.method != method && entry.method != "*"sv))
+        if (!entry.method.has_value())
+            continue;
+
+        // AD-HOC: Like a live preflight, a cached `*` covers any method only for requests which do not include credentials.
+        auto wildcard_matches = request.credentials_mode() != Request::CredentialsMode::Include && entry.method == "*"sv;
+        if (!(wildcard_matches || entry.method == method))
             continue;
         if (is_cache_entry_match(entry, request))
             return &entry;
