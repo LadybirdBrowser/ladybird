@@ -1,0 +1,9 @@
+Ladybird places the caret for a point inside an inline-block on the
+closest of the box’s own lines, and the other engines do the same. In
+Blink, LayoutBlock::PositionForPointIfOutsideAtomicInlineLevel() gives
+an edge only for a point outside the box, and otherwise InlineCursor::
+PositionForPointInInlineFormattingContext() finds the line. WebKit’s
+RenderBlock::positionForPoint() goes on to its own content the same way,
+through positionForPointWithInlineChildren(). And in Gecko, nsIFrame::
+GetContentOffsetsFromPoint() descends into the box’s content through
+GetSelectionClosestFrameForLine().
