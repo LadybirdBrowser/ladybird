@@ -164,10 +164,9 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
     });
     Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response = process_response;
-    // AD-HOC: Request holds its body's source and length, and requestObject its stream, which fetching reads for a
-    //         body without a source. Its reader is acquired here, not when fetching reads the stream, so that script
-    //         cannot lock the stream first.
-    if (auto body = request_object->body_impl(); body && !body->source().has_value())
+    // AD-HOC: Request holds its body's source and length, and requestObject its stream, which fetching reads. Its
+    //         reader is acquired here, not when fetching reads the stream, so that script cannot lock the stream first.
+    if (auto body = request_object->body_impl())
         fetch_algorithms_input.request_body_reader = Infrastructure::FetchAlgorithms::RequestBodyReader { *body, MUST(body->stream()->get_a_reader()) };
     controller_holder->set_controller(Fetching::fetch(realm, request, Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))));
 
