@@ -85,7 +85,7 @@ def rust_to_idl_value(
     name = idl_type.name
     attributes = {**idl_type.extended_attributes, **parameter_attributes}
     for integer_attribute in ("Clamp", "EnforceRange"):
-        if integer_attribute in attributes and (idl_type.nullable or name not in INTEGER_TYPES):
+        if integer_attribute in attributes and name not in INTEGER_TYPES:
             raise UnsupportedByRustBindings(
                 f"{what} has the type {idl_type} with [{integer_attribute}], which the Rust bindings only handle on "
                 "integer types"
@@ -238,6 +238,7 @@ class UnionMembers:
     """The members of a union by the kinds that the Rust bindings distinguish between when they convert a JS value to
     the union."""
 
+    object_type: Optional[IDLType] = None
     dictionary_type: Optional[IDLType] = None
     string_type: Optional[IDLType] = None
     numeric_type: Optional[IDLType] = None
@@ -267,6 +268,8 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
     for member_type in union_member_types(union_type, context):
         if runtime_union_type(member_type, context) == "BufferSource" and members.buffer_source_type is None:
             members.buffer_source_type = member_type
+        elif member_type.name == "object" and members.object_type is None:
+            members.object_type = member_type
         elif resolved_dictionary(member_type, context) is not None and members.dictionary_type is None:
             members.dictionary_type = member_type
         elif member_type.name in STRING_TYPES and members.string_type is None:
@@ -718,6 +721,15 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
             if value.is_nullish() || value.is_object() {{
                 return {dictionary_conversion};
             }}
+"""
+        )
+    if members.object_type is not None:
+        steps.append(
+            """            // 11. If V is an Object, then:
+            //     7. If types includes object, then return the IDL value that is a reference to the object V.
+            if value.is_object() {
+                return Ok(Self::Object(value.as_object()));
+            }
 """
         )
     numeric_type = members.numeric_type

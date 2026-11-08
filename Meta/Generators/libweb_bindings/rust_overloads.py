@@ -88,8 +88,7 @@ def type_or_flattened_member_matches(idl_type: IDLType, matches: Callable[[IDLTy
 
 
 def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolutionStep]:
-    """The sub-steps of step 12 of the algorithm that resolve_overload() runs, in its order, without the ones for
-    functions and for the type object, which check_type_at_distinguishing_index() keeps out."""
+    """The sub-steps of step 12 of the algorithm that resolve_overload() runs, in its order."""
 
     def is_dictionary(idl_type: IDLType) -> bool:
         return is_plain(idl_type) and context.dictionary(idl_type) is not None
@@ -102,6 +101,8 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
 
     def is_named(name: str) -> Callable[[IDLType], bool]:
         return lambda idl_type: is_plain(idl_type) and idl_type.name == name
+
+    is_object = is_named("object")
 
     def nullable_or_dictionary(idl_type: IDLType) -> bool:
         if idl_type.nullable or is_dictionary(idl_type):
@@ -120,6 +121,8 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
 
     def implemented_interface(idl_type: IDLType, _: Optionality) -> Optional[str]:
         """The condition under which the platform object that the argument is implements an interface of the type."""
+        if type_or_flattened_member_matches(idl_type, is_object):
+            return ALWAYS
         tests = []
         for member_type in type_and_flattened_members(idl_type):
             if not is_plain(member_type):
@@ -136,6 +139,8 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
     def typed_array_of_kind(idl_type: IDLType, _: Optionality) -> Optional[str]:
         """The condition under which the typed array that the argument is has the name of a typed array type of the
         type."""
+        if type_or_flattened_member_matches(idl_type, is_object):
+            return ALWAYS
         names = [
             member_type.name
             for member_type in type_and_flattened_members(idl_type)
@@ -163,26 +168,31 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
             lambda idl_type, _: when(nullable_or_dictionary(idl_type)),
         ),
         OverloadResolutionStep(
-            "The argument is a platform object, and an overload takes an interface that it implements there.",
+            "The argument is a platform object, and an overload takes object or an interface that it implements there.",
             "value.is_object() && value.as_object().is_platform_object()",
             implemented_interface,
         ),
         # NB: resolve_overload() takes a SharedArrayBuffer for an ArrayBuffer here, which the conversion of the
         #     argument then rejects.
         OverloadResolutionStep(
-            "The argument is an ArrayBuffer, and an overload takes one there.",
+            "The argument is an ArrayBuffer, and an overload takes that type or object there.",
             "value.is_object() && value.as_object().downcast::<ArrayBuffer>().is_some()",
-            with_members(is_named("ArrayBuffer")),
+            with_members(lambda idl_type: is_named("ArrayBuffer")(idl_type) or is_object(idl_type)),
         ),
         OverloadResolutionStep(
-            "The argument is a DataView, and an overload takes one there.",
+            "The argument is a DataView, and an overload takes that type or object there.",
             "value.is_object() && value.as_object().downcast::<DataView>().is_some()",
-            with_members(is_named("DataView")),
+            with_members(lambda idl_type: is_named("DataView")(idl_type) or is_object(idl_type)),
         ),
         OverloadResolutionStep(
-            "The argument is a typed array, and an overload takes one with its name there.",
+            "The argument is a typed array, and an overload takes a typed array with its name or object there.",
             "value.is_object() && value.as_object().downcast::<TypedArrayBase>().is_some()",
             typed_array_of_kind,
+        ),
+        OverloadResolutionStep(
+            "The argument is callable, and an overload takes object there.",
+            "value.is_function()",
+            with_members(is_object),
         ),
         # NB: resolve_overload() takes an argument whose @@iterator getter throws for one without the method, where
         #     the algorithm rethrows.
@@ -192,9 +202,9 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
             with_members(is_sequence),
         ),
         OverloadResolutionStep(
-            "The argument is an object, and an overload takes a dictionary there.",
+            "The argument is an object, and an overload takes a dictionary or object there.",
             "value.is_object()",
-            with_members(is_dictionary),
+            with_members(lambda idl_type: is_dictionary(idl_type) or is_object(idl_type)),
         ),
         OverloadResolutionStep(
             "The argument is a Boolean, and an overload takes a boolean there.",
@@ -241,7 +251,7 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
 
 def check_type_at_distinguishing_index(idl_type: IDLType, context: GenerationContext, what: str) -> None:
     """Rejects the types that the steps of resolve_overload() which are not written out here would take an argument
-    for: those for functions, and the type object, which every step for an object takes."""
+    for."""
     member_types = idl_type.flattened_member_types() if isinstance(idl_type, IDLUnionType) else [idl_type]
     for member_type in member_types:
         handled = (
@@ -253,7 +263,7 @@ def check_type_at_distinguishing_index(idl_type: IDLType, context: GenerationCon
                 or cpp_interface(member_type, context) is not None
                 or rust_interface(member_type, context) is not None
                 or member_type.name in STRING_TYPES | INTEGER_TYPES | FLOATING_POINT_TYPES | TYPED_ARRAY_NAMES
-                or member_type.name in ("boolean", "bigint", "any", "ArrayBuffer", "DataView")
+                or member_type.name in ("boolean", "bigint", "any", "object", "ArrayBuffer", "DataView")
             )
         )
         if not handled:
