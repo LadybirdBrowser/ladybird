@@ -2107,10 +2107,14 @@ void WebContentPage::did_change_background_color(Gfx::Color color)
 
 // NB: The system clipboard belongs to the user, so a page reaches it only right after the user's own input to it, as
 //     with a copy or paste shortcut, a click on a page control, or the browser's Paste command.
-void WebContentPage::did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item, String)
+void WebContentPage::did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem item, String, Optional<Web::HTML::CrossProcessId> writing_document_id)
 {
     if (!has_transient_user_activation())
         return;
+    if (writing_document_id.has_value()) {
+        if (auto document = hosted_document_with_id(*writing_document_id))
+            view().did_insert_clipboard_item_written_by(document->origin(), item);
+    }
     view().insert_clipboard_item(move(item));
 }
 
@@ -2455,6 +2459,25 @@ void WebContentPage::did_request_clipboard_entries_for_paste(u64 request_id)
             return;
         Vector<Web::Clipboard::SystemClipboardItem> items;
         if (!item.system_clipboard_representations.is_empty())
+            items.append(move(item));
+        page->async_retrieved_clipboard_entries(request_id, items);
+    });
+}
+
+// NB: Outside a paste, a page reads only data that its own origin wrote to the clipboard, which tells it nothing new.
+void WebContentPage::did_request_clipboard_entries(u64 request_id, Web::HTML::CrossProcessId reading_document_id)
+{
+    Vector<Web::Clipboard::SystemClipboardItem> items;
+    auto document = hosted_document_with_id(reading_document_id);
+    if (!document || !has_transient_user_activation()) {
+        async_retrieved_clipboard_entries(request_id, items);
+        return;
+    }
+    view().read_clipboard_item([page = NonnullRefPtr { *this }, request_id, origin = document->origin()](Web::Clipboard::SystemClipboardItem item) {
+        if (!page->is_open())
+            return;
+        Vector<Web::Clipboard::SystemClipboardItem> items;
+        if (auto view = page->traversable().view(); view.has_value() && view->is_clipboard_data_written_by(item, origin))
             items.append(move(item));
         page->async_retrieved_clipboard_entries(request_id, items);
     });

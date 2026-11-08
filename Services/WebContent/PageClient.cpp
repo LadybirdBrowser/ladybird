@@ -2143,14 +2143,19 @@ void PageClient::page_did_change_background_color(Gfx::Color color)
     client().async_did_change_background_color(m_id, color);
 }
 
-void PageClient::page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const& item, StringView presentation_style)
+void PageClient::page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const& item, StringView presentation_style, Optional<Web::HTML::CrossProcessId> writing_document_id)
 {
-    client().async_did_insert_clipboard_item(m_id, item, presentation_style);
+    client().async_did_insert_clipboard_item(m_id, item, presentation_style, writing_document_id);
 }
 
 void PageClient::page_did_request_clipboard_entries_for_paste(u64 request_id)
 {
     client().async_did_request_clipboard_entries_for_paste(m_id, request_id);
+}
+
+void PageClient::page_did_request_clipboard_entries(u64 request_id, Web::HTML::CrossProcessId reading_document_id)
+{
+    client().async_did_request_clipboard_entries(m_id, request_id, reading_document_id);
 }
 
 void PageClient::page_did_request_paste_from_clipboard_for_testing()

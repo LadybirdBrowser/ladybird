@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/Error.h>
@@ -2844,6 +2845,32 @@ void ViewImplementation::set_input_method_state(Badge<WebContentPage>, InputMeth
 void ViewImplementation::read_clipboard_item(Function<void(Web::Clipboard::SystemClipboardItem)> on_read) const
 {
     on_read(clipboard_item());
+}
+
+// NB: The tab remembers the last clipboard write by one of its pages, so a page reads back only what its origin wrote in
+//     the same tab.
+void ViewImplementation::did_insert_clipboard_item_written_by(URL::Origin writer, Web::Clipboard::SystemClipboardItem item)
+{
+    m_last_clipboard_write_by_a_page = ClipboardWrite { move(writer), move(item) };
+}
+
+// Whatever wrote to the clipboard since, a page learns nothing new from data that its origin wrote itself. So compare
+// the clipboard's data with that origin's write, rather than tracking every change to the clipboard.
+bool ViewImplementation::is_clipboard_data_written_by(Web::Clipboard::SystemClipboardItem const& item, URL::Origin const& origin) const
+{
+    if (!m_last_clipboard_write_by_a_page.has_value() || !m_last_clipboard_write_by_a_page->writer.is_same_origin(origin))
+        return false;
+
+    auto const& written_representations = m_last_clipboard_write_by_a_page->item.system_clipboard_representations;
+    auto was_written = [&](Web::Clipboard::SystemClipboardRepresentation const& representation) {
+        auto const* data = representation.data.get_pointer<ByteString>();
+        return data && any_of(written_representations, [&](Web::Clipboard::SystemClipboardRepresentation const& written) {
+            auto const* written_data = written.data.get_pointer<ByteString>();
+            return written.name == representation.name && written_data && *written_data == *data;
+        });
+    };
+
+    return !item.system_clipboard_representations.is_empty() && all_of(item.system_clipboard_representations, was_written);
 }
 
 Web::Clipboard::SystemClipboardItem ViewImplementation::clipboard_item() const
