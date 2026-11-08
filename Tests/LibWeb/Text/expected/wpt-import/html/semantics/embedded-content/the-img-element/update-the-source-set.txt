@@ -26,9 +26,9 @@ Pass	<picture><br><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><p></p><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><video><source srcset="data:,b"></video><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><span><source srcset="data:,b"></span><img src="data:,a" data-expect="data:,a"></picture>
-Pass	<picture><svg><source srcset="data:,b"></svg><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><svg><source srcset="data:,b"></source></svg><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><svg></svg><source srcset="data:,b"><img src="data:,a" data-expect="data:,b"></picture>
-Pass	<picture><svg><font></font><source srcset="data:,b"></svg><img src="data:,a" data-expect="data:,a"></picture>
+Pass	<picture><svg><font></font><source srcset="data:,b"></source></svg><img src="data:,a" data-expect="data:,a"></picture>
 Pass	<picture><svg><!--<font face> tag breaks out of svg--></svg><font face=""></font><source srcset="data:,b"><img src="data:,a" data-expect="data:,b"></picture>
 Pass	<picture><img src="data:,a"><img src="data:,b" data-expect="data:,b"></picture>
 Pass	<picture><source><img src="data:,a" data-expect="data:,a"></picture>

@@ -1,0 +1,33 @@
+html style: <style></svg><img></style>
+html script: <script></svg><img></script>
+html xmp: <xmp></svg><img></xmp>
+html iframe: <iframe></svg><img></iframe>
+html noembed: <noembed></svg><img></noembed>
+html noframes: <noframes></svg><img></noframes>
+html plaintext: <plaintext></svg><img></plaintext>
+html noscript: <noscript></svg><img></noscript>
+svg style: <style>&lt;/svg&gt;&lt;img&gt;</style>
+svg script: <script>&lt;/svg&gt;&lt;img&gt;</script>
+svg xmp: <xmp>&lt;/svg&gt;&lt;img&gt;</xmp>
+svg iframe: <iframe>&lt;/svg&gt;&lt;img&gt;</iframe>
+svg noembed: <noembed>&lt;/svg&gt;&lt;img&gt;</noembed>
+svg noframes: <noframes>&lt;/svg&gt;&lt;img&gt;</noframes>
+svg plaintext: <plaintext>&lt;/svg&gt;&lt;img&gt;</plaintext>
+svg noscript: <noscript>&lt;/svg&gt;&lt;img&gt;</noscript>
+math style: <style>&lt;/svg&gt;&lt;img&gt;</style>
+math script: <script>&lt;/svg&gt;&lt;img&gt;</script>
+math xmp: <xmp>&lt;/svg&gt;&lt;img&gt;</xmp>
+math iframe: <iframe>&lt;/svg&gt;&lt;img&gt;</iframe>
+math noembed: <noembed>&lt;/svg&gt;&lt;img&gt;</noembed>
+math noframes: <noframes>&lt;/svg&gt;&lt;img&gt;</noframes>
+math plaintext: <plaintext>&lt;/svg&gt;&lt;img&gt;</plaintext>
+math noscript: <noscript>&lt;/svg&gt;&lt;img&gt;</noscript>
+svg noscript round trip: <svg><noscript>&lt;/svg&gt;&lt;img&gt;</noscript></svg>, img count 0
+svg xmp round trip: <svg><xmp>&lt;/svg&gt;&lt;img&gt;</xmp></svg>, img count 0
+svg noembed round trip: <svg><noembed>&lt;/svg&gt;&lt;img&gt;</noembed></svg>, img count 0
+svg noframes round trip: <svg><noframes>&lt;/svg&gt;&lt;img&gt;</noframes></svg>, img count 0
+svg plaintext round trip: <svg><plaintext>&lt;/svg&gt;&lt;img&gt;</plaintext></svg>, img count 0
+svg style round trip: <svg><style>&lt;/svg&gt;&lt;img&gt;</style></svg>, img count 0
+svg link: <link>text</link>
+svg input: <input>text</input>
+svg basefont: <basefont>text</basefont>
