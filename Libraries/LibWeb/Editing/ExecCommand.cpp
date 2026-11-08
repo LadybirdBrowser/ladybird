@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/DOM/Text.h>
@@ -219,7 +220,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, 
     return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
 }
 
-WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type, GC::Ptr<StaticRange> deletion_range)
+WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value, DispatchInputEvent dispatch_input_event, Optional<Utf16FlyString> const& user_input_type, GC::Ptr<StaticRange> deletion_range, GC::Ptr<DocumentFragment> pasted_fragment)
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
@@ -308,7 +309,8 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         && range_before_command && is<DOM::Text>(*range_before_command->start_container())
         // INTEROP: An Apple-interchange-newline represents an intentional paragraph boundary, not a fragment-ending
         //          placeholder. Blink and WebKit preserve the destination paragraph's trailing break in this case.
-        && !value.contains(u"Apple-interchange-newline"sv);
+        && !(pasted_fragment ? pasted_fragment->get_elements_by_class_name(u"Apple-interchange-newline"sv)->length() > 0
+                             : value.contains(u"Apple-interchange-newline"sv));
     GC::Root<DOM::Node> paste_start_block;
     if (paste_started_in_text_node)
         paste_start_block = Editing::block_node_of_node(*range_before_command->start_container());
@@ -390,6 +392,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = [&] {
         TemporaryChange running_action { m_running_editing_command_action, true };
+        if (pasted_fragment) {
+            VERIFY(command_definition.command == Editing::CommandNames::insertHTML);
+            return Editing::insert_pasted_fragment(*this, *pasted_fragment);
+        }
         return command_definition.action(*this, value);
     }();
 

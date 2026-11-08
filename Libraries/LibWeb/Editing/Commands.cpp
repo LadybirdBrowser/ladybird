@@ -1559,7 +1559,7 @@ static Utf16String plain_text_of_fragment(DOM::DocumentFragment& fragment)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
-bool command_insert_html_action(DOM::Document& document, Utf16View value)
+static bool insert_html(DOM::Document& document, Variant<Utf16View, GC::Ref<DOM::DocumentFragment>> value)
 {
     // 1. Set value to the result of invoking get trusted types compliant string with TrustedHTML, this's relevant
     //    global object, value, "Document execCommand", and "script".
@@ -1575,17 +1575,26 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     if (!range->start_container()->is_editable_or_editing_host())
         return true;
 
+    // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
+    // NB: A user paste passes the fragment its sanitizer inspected, which is inserted as is.
+    auto create_fragment = [&](DOM::Range& range) -> GC::Ptr<DOM::DocumentFragment> {
+        return value.visit(
+            [&](Utf16View html) -> GC::Ptr<DOM::DocumentFragment> {
+                EditingHistory::ProxyMutationScope mutation_scope { *range.start_container() };
+                auto result = range.create_contextual_fragment(html.to_utf8_but_should_be_ported_to_utf16());
+                if (result.is_exception())
+                    return nullptr;
+                return result.release_value();
+            },
+            [](GC::Ref<DOM::DocumentFragment> fragment) -> GC::Ptr<DOM::DocumentFragment> { return fragment; });
+    };
+
     // NB: See the INTEROP note at plain_text_of_fragment(). Insert the lines as text, separated by line breaks.
     if (auto editing_host = range->start_container()->editing_host(); is<HTML::HTMLElement>(editing_host.ptr())
         && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
-        GC::Ptr<DOM::DocumentFragment> fragment;
-        {
-            EditingHistory::ProxyMutationScope mutation_scope { *range->start_container() };
-            auto result = range->create_contextual_fragment(value.to_utf8_but_should_be_ported_to_utf16());
-            if (result.is_exception())
-                return false;
-            fragment = result.release_value();
-        }
+        auto fragment = create_fragment(*range);
+        if (!fragment)
+            return false;
         auto text = plain_text_of_fragment(*fragment);
         auto lines = text.utf16_view().split_view(u'\n', SplitBehavior::KeepEmpty);
         for (size_t i = 0; i < lines.size(); ++i) {
@@ -1604,8 +1613,21 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     //          non-breaking space, just as it does when inserting text at the same boundary.
     canonicalize_whitespace(range->start());
     range = active_range(document);
-    replace_selection_with_fragment(document, value);
+    auto fragment = create_fragment(*range);
+    if (!fragment)
+        return false;
+    replace_selection_with_fragment(document, *fragment);
     return true;
+}
+
+bool command_insert_html_action(DOM::Document& document, Utf16View value)
+{
+    return insert_html(document, value);
+}
+
+bool insert_pasted_fragment(DOM::Document& document, DOM::DocumentFragment& fragment)
+{
+    return insert_html(document, GC::Ref { fragment });
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-insertimage-command

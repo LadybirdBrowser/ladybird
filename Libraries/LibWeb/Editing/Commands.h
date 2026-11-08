@@ -52,6 +52,7 @@ bool command_forward_delete_action(DOM::Document&, Utf16View);
 bool command_indent_action(DOM::Document&, Utf16View);
 bool command_insert_horizontal_rule_action(DOM::Document&, Utf16View);
 bool command_insert_html_action(DOM::Document&, Utf16View);
+bool insert_pasted_fragment(DOM::Document&, DOM::DocumentFragment&);
 bool command_insert_image_action(DOM::Document&, Utf16View);
 bool command_insert_linebreak_action(DOM::Document&, Utf16View);
 bool command_insert_ordered_list_action(DOM::Document&, Utf16View);

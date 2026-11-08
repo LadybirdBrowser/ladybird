@@ -68,15 +68,17 @@ void EditingHostManager::handle_insert_from_clipboard(Utf16FlyString const& inpu
         return;
     }
 
-    auto sanitized_html = Editing::sanitize_clipboard_html(*range, *html);
-    if (sanitized_html.is_exception() || sanitized_html.value().is_empty()) {
+    auto fragment = Editing::sanitize_clipboard_html(*range, *html);
+    if (fragment.is_exception() || !fragment.value()->has_children()) {
         handle_insert(input_type, plain_text);
         return;
     }
 
     // INTEROP: Rich editing hosts prefer text/html over text/plain when both clipboard representations are present.
     //          Run insertHTML as one user edit so its DOM mutations and final selection form one undo unit.
-    auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertHTML, false, sanitized_html.value(), Document::DispatchInputEvent::Yes, input_type);
+    // NB: insertHTML inserts the sanitized fragment itself. Serializing and reparsing it could produce a different
+    //     tree from the one the sanitizer inspected.
+    auto editing_result = m_document->exec_command_internal(Editing::CommandNames::insertHTML, false, {}, Document::DispatchInputEvent::Yes, input_type, nullptr, fragment.value());
     if (editing_result.is_exception())
         dbgln("handle_insert_from_clipboard(): editing resulted in exception: {}", editing_result.exception());
 }

@@ -1473,7 +1473,7 @@ Gfx::DoubleRect Range::bounding_client_rect()
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
 // NB: The steps after node, compliantString and compliantOptions have been determined.
-static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment_for_node(GC::Ref<Node> node, StringView string, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
+static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment_for_node(GC::Ref<Node> node, StringView string, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options, HTML::ParserScriptingMode scripting_mode)
 {
     // 3. Let element be null.
     GC::Ptr<Element> element = nullptr;
@@ -1499,7 +1499,7 @@ static WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment
     // 7. Return the result of invoking the fragment parsing algorithm steps given element, compliantString,
     //    compliantOptions, and Legacy.
     auto markup = Utf16String::from_utf8(string);
-    return Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *element }, markup.utf16_view(), HTML::ParserScriptingMode::Fragment, HTML::FragmentFastPath::Allow, trusted_options);
+    return Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *element }, markup.utf16_view(), scripting_mode, HTML::FragmentFastPath::Allow, trusted_options);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
@@ -1516,14 +1516,14 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     //       prevent scripts from executing when inserting the returned fragment.
     auto const [compliant_string, trusted_options] = TRY(HTML::get_trusted_type_compliant_input_for_legacy_sink(node, string, TrustedTypes::InjectionSink::Range_createContextualFragment, HTML::LegacySinkRunScripts::Yes));
 
-    return create_contextual_fragment_for_node(node, compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options);
+    return create_contextual_fragment_for_node(node, compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options, HTML::ParserScriptingMode::Fragment);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(StringView string, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> trusted_options)
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(StringView string, HTML::ParserScriptingMode scripting_mode)
 {
     // 1. Let node be this's start node.
-    return create_contextual_fragment_for_node(*start_container(), string, trusted_options);
+    return create_contextual_fragment_for_node(*start_container(), string, nullptr, scripting_mode);
 }
 
 }

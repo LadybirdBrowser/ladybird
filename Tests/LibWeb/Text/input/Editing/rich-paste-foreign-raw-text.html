@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">seed</div>
+<script>
+    asyncTest(async done => {
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        const editor = document.getElementById("editor");
+        window.pastedScriptRan = false;
+
+        editor.focus();
+        getSelection().selectAllChildren(editor);
+        editor.addEventListener("copy", e => {
+            e.preventDefault();
+            e.clipboardData.setData("text/plain", "plain");
+            e.clipboardData.setData("text/html", "<svg><noscript>&lt;/svg&gt;&lt;script&gt;pastedScriptRan = true&lt;/script&gt;&lt;img src=x onerror=&quot;pastedScriptRan = true&quot;&gt;</noscript></svg>");
+        }, { once: true });
+        internals.sendKey(editor, "C", platformControl);
+
+        getSelection().collapse(editor, 1);
+        const inserted = new Promise(resolve => editor.addEventListener("input", resolve, { once: true }));
+        internals.pasteFromClipboard();
+        println(`input type: ${(await inserted).inputType}`);
+
+        println(`editor: ${editor.innerHTML}`);
+        println(`script elements: ${editor.querySelectorAll("script").length}`);
+        println(`img elements: ${editor.querySelectorAll("img").length}`);
+        println(`pasted script ran: ${pastedScriptRan}`);
+        done();
+    });
+</script>
