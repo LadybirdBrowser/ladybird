@@ -1761,6 +1761,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "libcrypto_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+]
+
+[[package]]
 name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,10 @@
+[package]
+name = "libcrypto_rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+
+[lints]
+workspace = true
