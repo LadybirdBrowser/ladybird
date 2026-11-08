@@ -52,6 +52,17 @@ BENCHMARK_CASE(bench_bigint_fib100000)
     (void)res;
 }
 
+TEST_CASE(test_unsigned_bigint_clear_sensitive_data)
+{
+    auto value = MUST(Crypto::UnsignedBigInteger::from_base(16, "fedcba98765432100123456789abcdef"sv));
+    (void)value.hash();
+
+    value.clear_sensitive_data();
+
+    EXPECT(value.is_zero());
+    EXPECT_EQ(value.hash(), Crypto::UnsignedBigInteger(0).hash());
+}
+
 TEST_CASE(test_unsigned_bigint_addition_initialization)
 {
     Crypto::UnsignedBigInteger num1;

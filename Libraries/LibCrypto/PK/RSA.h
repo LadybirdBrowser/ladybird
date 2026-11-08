@@ -81,6 +81,8 @@ public:
     RSAPrivateKey() = default;
 
     UnsignedBigInteger const& modulus() const { return m_modulus; }
+    void clear_sensitive_data();
+
     UnsignedBigInteger const& private_exponent() const { return m_private_exponent; }
     UnsignedBigInteger const& public_exponent() const { return m_public_exponent; }
     UnsignedBigInteger const& prime1() const { return m_prime_1; }

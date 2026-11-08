@@ -77,6 +77,8 @@ public:
 
     ECPrivateKey() = default;
 
+    void clear_sensitive_data();
+
     UnsignedBigInteger const& d() const { return m_d; }
     ErrorOr<ByteBuffer> d_bytes() const
     {

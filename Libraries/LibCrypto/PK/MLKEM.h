@@ -43,6 +43,8 @@ public:
 
     MLKEMPrivateKey() = default;
 
+    void clear_sensitive_data();
+
     ByteBuffer const& seed() const { return m_seed; }
     ByteBuffer const& public_key() const { return m_public_key; }
     ByteBuffer const& private_key() const { return m_private_key; }

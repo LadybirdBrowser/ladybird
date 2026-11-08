@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Memory.h>
 #include <LibCrypto/PK/MLDSA.h>
 
 #include <LibCrypto/Curves/SECPxxxr1.h>
@@ -14,6 +15,12 @@
 #include <openssl/param_build.h>
 
 namespace Crypto::PK {
+
+void MLDSAPrivateKey::clear_sensitive_data()
+{
+    secure_zero(m_seed.data(), m_seed.size());
+    secure_zero(m_private_key.data(), m_private_key.size());
+}
 
 namespace {
 
