@@ -138,23 +138,6 @@ protected:
     AlgorithmMethods() = default;
 };
 
-class MLKEM : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<EncapsulatedBits> encapsulate(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> decapsulate(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<u32> get_shared_key_length(AlgorithmParams const&) const override;
-
-    virtual Optional<ReadonlySpan<KeyUsage>> public_key_usages() const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new MLKEM); }
-
-private:
-    MLKEM() = default;
-};
-
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-AeadParams
 // NOTE: The AeadParams dictionary is identical to the AesGcmParams

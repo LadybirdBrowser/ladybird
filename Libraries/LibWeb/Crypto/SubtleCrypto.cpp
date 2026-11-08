@@ -189,7 +189,7 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm*, AlgorithmId method_id, 
     auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
         switch (method_id) {
         case AlgorithmId::MLKEM:
-            return MLKEM::create();
+            VERIFY_NOT_REACHED();
         }
         VERIFY_NOT_REACHED();
     }();
