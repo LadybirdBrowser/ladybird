@@ -175,7 +175,9 @@ use index::LocalFeatureKey;
 use index::StyleAtomID;
 use input_types::ElementDeclarationKind;
 use input_types::ElementStyleInput;
+#[cfg(test)]
 use input_types::InputKey;
+#[cfg(test)]
 use input_types::InputValue;
 use input_types::PendingElementInputs;
 use input_types::StateFact;

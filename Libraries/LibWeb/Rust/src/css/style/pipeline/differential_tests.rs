@@ -321,7 +321,6 @@ impl Workload {
             let tag = atom(&mut engine, tag_name(node));
             engine.record_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::TagName),
-                InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Atom(tag)),
             );
             for _ in 0..rng.under(3) {
@@ -332,7 +331,6 @@ impl Workload {
                 classes[index].push(class);
                 engine.record_input(
                     InputKey::LocalFeature(node, LocalFeatureKey::Class(class_atoms[class])),
-                    InputValue::Feature(FeatureValue::Absent),
                     InputValue::Feature(FeatureValue::Present),
                 );
             }
@@ -415,7 +413,6 @@ impl Workload {
                 };
                 self.engine.record_input(
                     InputKey::LocalFeature(node, LocalFeatureKey::Class(self.class_atoms[class])),
-                    InputValue::Feature(old),
                     InputValue::Feature(new),
                 );
                 format!("toggle {node:?} class{class}: {old:?} -> {new:?}")
@@ -1504,7 +1501,6 @@ fn an_input_no_rule_tests_restyles_nothing_and_one_a_rule_tests_restyles() {
     // An id is tested as the value it had and the value it has.
     engine.record_input(
         InputKey::LocalFeature(nodes[1], LocalFeatureKey::Id),
-        InputValue::Feature(FeatureValue::Atom(unnamed)),
         InputValue::Feature(FeatureValue::Atom(named)),
     );
     run_style_update(&mut engine, nodes[0]);

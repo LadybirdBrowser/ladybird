@@ -72,7 +72,6 @@ fn native_declaration_publication_reuses_values_and_observes_live_mutation() {
 fn add_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalFeatureKey) {
     engine.record_input(
         InputKey::LocalFeature(node, feature),
-        InputValue::Feature(FeatureValue::Absent),
         InputValue::Feature(FeatureValue::Present),
     );
 }
@@ -80,7 +79,6 @@ fn add_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalFeatur
 fn set_atom_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalFeatureKey, atom: StyleAtomID) {
     engine.record_input(
         InputKey::LocalFeature(node, feature),
-        InputValue::Feature(FeatureValue::Absent),
         InputValue::Feature(FeatureValue::Atom(atom)),
     );
 }
@@ -606,10 +604,6 @@ fn a_departed_node_routes_from_retained_facts_without_being_published() {
     engine.record_input(
         InputKey::ElementStyleInput(nodes[3]),
         InputValue::ElementStyleInput {
-            reaction: 0,
-            inherited_style_groups: 0,
-        },
-        InputValue::ElementStyleInput {
             reaction: input_types::STYLE_REACTION_RECOMPUTE_STYLE,
             inherited_style_groups: 0,
         },
@@ -640,10 +634,6 @@ fn a_shadow_root_routes_without_being_published_as_a_style_output() {
 
     engine.record_input(
         InputKey::ElementStyleInput(shadow_root),
-        InputValue::ElementStyleInput {
-            reaction: 0,
-            inherited_style_groups: 0,
-        },
         InputValue::ElementStyleInput {
             reaction: input_types::STYLE_REACTION_RECOMPUTE_STYLE,
             inherited_style_groups: 0,

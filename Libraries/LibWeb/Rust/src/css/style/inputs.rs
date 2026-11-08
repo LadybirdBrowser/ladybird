@@ -426,21 +426,6 @@ impl RetainedState {
         &self.tested_attribute_names
     }
 
-    /// Apply an accepted input to the authoritative fact arrangement.
-    ///
-    /// A fact exists in the store exactly because a mutation published it, which is what lets the
-    /// evaluator distinguish "this element has no such class" from "nothing ever told me about this
-    /// element".
-    pub(super) fn apply_to_facts_without_settling(&mut self, key: InputKey, new: InputValue) {
-        match (key, new) {
-            #[cfg(test)]
-            (InputKey::LocalFeature(node, feature), InputValue::Feature(value)) => {
-                self.write_projection_for_test(|writes| writes.apply_feature(node, feature, value));
-            }
-            _ => {}
-        }
-    }
-
     /// Write the projection as a test's host, publishing the writes to it at once and counting them.
     #[cfg(test)]
     pub(super) fn write_projection_for_test<R>(&mut self, write: impl FnOnce(&mut ProjectionWrites<'_>) -> R) -> R {
@@ -2094,50 +2079,6 @@ impl StyleEngine {
         self.retained.projection.arrival_is_pending(node)
     }
 
-    /// Count one input, and note it for the next transaction where the projection holds no row
-    /// that says it: an element's facts and relations are written into the projection, whose
-    /// changes say them.
-    pub(super) fn record(&mut self, key: InputKey, old: InputValue, new: InputValue) {
-        let counters = &self.retained.counters;
-        counters.bump(Counter::RawMutationRecords);
-        if let Some(counter) = key.counter() {
-            counters.bump(counter);
-        }
-        match (key, new) {
-            (InputKey::TreeRelations(_), _) => {}
-            (InputKey::LocalFeature(node, _) | InputKey::State(node, _), _) => {
-                // Every fact of an arriving element is said by its arrival.
-                if self.node_arrival_is_pending(node) {
-                    counters.bump(Counter::ArrivingNodeFactsFolded);
-                }
-            }
-            (InputKey::ElementDeclaration(node, _), _) => {
-                if old != new {
-                    self.host.element_inputs.note_declaration(node);
-                }
-            }
-            #[cfg(test)]
-            (
-                InputKey::ElementStyleInput(node),
-                InputValue::ElementStyleInput {
-                    reaction,
-                    inherited_style_groups,
-                },
-            ) => self.host.element_inputs.note_style_input(
-                node,
-                ElementStyleInput {
-                    reaction,
-                    inherited_style_groups,
-                },
-            ),
-            #[cfg(test)]
-            (InputKey::ElementStyleInput(_), _) => unreachable!("an element style input carries its reaction"),
-            // A registration made through `CSS.registerProperty()` moves how the elements declaring
-            // or reading its name compute, which the transaction taking the registry in finds.
-            (InputKey::CustomPropertyRegistration(_), _) => self.host.program_staging.note_registration_change(),
-        }
-    }
-
     #[cfg(test)]
     pub(super) fn stage_first_child(&mut self, parent: StyleNodeID, child: Option<StyleNodeID>) {
         self.retained
@@ -2348,9 +2289,37 @@ impl StyleEngine {
         }
     }
 
-    pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue) {
-        self.record(key, old, new);
-        self.apply_to_facts_without_settling(key, new);
+    #[cfg(test)]
+    pub fn record_input(&mut self, key: InputKey, new: InputValue) {
+        let counters = &self.retained.counters;
+        counters.bump(Counter::RawMutationRecords);
+        if let Some(counter) = key.counter() {
+            counters.bump(counter);
+        }
+        match (key, new) {
+            (InputKey::LocalFeature(node, feature), InputValue::Feature(value)) => {
+                // Every fact of an arriving element is said by its arrival.
+                if self.node_arrival_is_pending(node) {
+                    self.retained.counters.bump(Counter::ArrivingNodeFactsFolded);
+                }
+                self.retained
+                    .write_projection_for_test(|writes| writes.apply_feature(node, feature, value));
+            }
+            (
+                InputKey::ElementStyleInput(node),
+                InputValue::ElementStyleInput {
+                    reaction,
+                    inherited_style_groups,
+                },
+            ) => self.host.element_inputs.note_style_input(
+                node,
+                ElementStyleInput {
+                    reaction,
+                    inherited_style_groups,
+                },
+            ),
+            _ => {}
+        }
     }
 
     /// Attach a compiled program at the end of a scope's sheet order.
@@ -2434,12 +2403,12 @@ impl StyleEngine {
 
     /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
     /// already represented by their `@property` rule's program input.
-    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID) {
-        self.record_input(
-            InputKey::CustomPropertyRegistration(name),
-            InputValue::Flag(false),
-            InputValue::Flag(true),
-        );
+    pub fn record_custom_property_registration_change(&mut self, _name: StyleAtomID) {
+        self.retained.counters.bump(Counter::RawMutationRecords);
+        self.retained.counters.bump(Counter::ProgramDeltas);
+        // A registration made through `CSS.registerProperty()` moves how the elements declaring
+        // or reading its name compute, which the transaction taking the registry in finds.
+        self.host.program_staging.note_registration_change();
     }
 
     /// Record the shadow parts an element exposes, each with the shadow host it is exposed to.

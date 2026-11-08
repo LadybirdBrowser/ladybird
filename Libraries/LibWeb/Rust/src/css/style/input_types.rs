@@ -15,9 +15,7 @@ use std::collections::BTreeSet;
 #[cfg(test)]
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
-use super::index::StyleAtomID;
 use super::instrumentation::Counter;
-use super::pipeline::rule_store::DeclarationBlockID;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
 
@@ -133,13 +131,10 @@ pub enum InputKey {
     TreeRelations(StyleNodeID),
     LocalFeature(StyleNodeID, LocalFeatureKey),
     State(StyleNodeID, StateFact),
-    ElementDeclaration(StyleNodeID, ElementDeclarationKind),
     /// A non-selector style input owned by the element changed. This is an edge-triggered action,
     /// not retained fact state; its value says only which reaction is pending. A test records one directly.
     #[cfg(test)]
     ElementStyleInput(StyleNodeID),
-    /// A registration made through `CSS.registerProperty()`, which has no stylesheet rule identity.
-    CustomPropertyRegistration(StyleAtomID),
 }
 
 pub const STYLE_REACTION_PUBLISHED_STYLE: u8 = 1 << 0;
@@ -167,26 +162,18 @@ impl InputKey {
             Self::TreeRelations(..) => Some(Counter::TreeDeltas),
             Self::LocalFeature(..) => Some(Counter::LocalFeatureDeltas),
             Self::State(..) => Some(Counter::StateDeltas),
-            Self::ElementDeclaration(..) => Some(Counter::ElementDeclarationDeltas),
             #[cfg(test)]
             Self::ElementStyleInput(..) => None,
-            Self::CustomPropertyRegistration(..) => Some(Counter::ProgramDeltas),
         }
     }
 }
 
-/// The value of an input on one side of a mutation.
+/// The new value of an input a test records directly.
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputValue {
-    /// A local fact, which the host writes into the projection rather than records; a test records one directly.
-    #[cfg(test)]
     Feature(FeatureValue),
-    /// `None` means no declaration block of that kind exists on that side.
-    ElementDeclaration(Option<DeclarationBlockID>),
-    #[cfg(test)]
     ElementStyleInput { reaction: u8, inherited_style_groups: u8 },
-    /// Whether a custom property registration is pending.
-    Flag(bool),
 }
 
 /// An element style input's pending reaction, and the inherited style groups it names.
