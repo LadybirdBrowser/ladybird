@@ -494,6 +494,20 @@ impl EcmascriptFunctionObject {
         );
     }
 
+    pub(crate) fn reify_lazy_property(&self, vm: &Vm, property_key: &PropertyKey) {
+        if self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
+            && (*property_key == vm.names.length || *property_key == vm.names.name)
+        {
+            self.reify_lazy_length_and_name(vm);
+        }
+
+        if self.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
+            && *property_key == vm.names.prototype
+        {
+            self.instantiate_lazy_prototype(vm);
+        }
+    }
+
     /// Gives the function all of the properties it makes lazily. This must happen before its shape changes in a way that
     /// insert_properties() cannot rebuild.
     pub(crate) fn reify_lazy_properties(&self, vm: &Vm) {
@@ -1383,20 +1397,7 @@ impl EcmascriptFunctionObject {
         vm: &Vm,
         property_key: &PropertyKey,
     ) -> ThrowCompletionOr<Option<PropertyDescriptor>> {
-        let function = as_ecmascript_function(object);
-
-        if function.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
-            && (*property_key == vm.names.length || *property_key == vm.names.name)
-        {
-            function.reify_length_and_name(vm);
-        }
-
-        if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
-            && *property_key == vm.names.prototype
-        {
-            function.instantiate_lazy_prototype(vm);
-        }
-
+        as_ecmascript_function(object).reify_lazy_property(vm, property_key);
         object.ordinary_get_own_property(vm, property_key)
     }
 
