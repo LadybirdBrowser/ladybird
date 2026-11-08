@@ -114,6 +114,7 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibWebCommon)
     add_subdirectory(LibWebView)
     add_subdirectory(UI)
+    add_subdirectory(WebContent)
 endif()
 
 if (ENABLE_CLANG_PLUGINS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
