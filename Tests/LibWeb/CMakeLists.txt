@@ -60,7 +60,6 @@ if (NOT WIN32)
         TestCSSSyntaxParser.cpp
         TestLengthAbsolutizeParity.cpp
         TestStylePropertyMetadataParity.cpp
-        TestStyleStructRef.cpp
     )
 endif()
 

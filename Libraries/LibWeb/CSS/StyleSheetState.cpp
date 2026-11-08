@@ -826,21 +826,6 @@ Parser::ParsingParams StyleSheetState::make_parsing_params() const
     return parsing_params;
 }
 
-StringView StyleSheetState::loading_state_name(LoadingState loading_state)
-{
-    switch (loading_state) {
-    case LoadingState::Unloaded:
-        return "Unloaded"sv;
-    case LoadingState::Loading:
-        return "Loading"sv;
-    case LoadingState::Loaded:
-        return "Loaded"sv;
-    case LoadingState::Error:
-        return "Error"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 CSSStyleSheet& StyleSheetState::cssom_sheet() const
 {
     if (!m_cssom_sheet)

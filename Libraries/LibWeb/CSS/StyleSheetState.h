@@ -69,7 +69,6 @@ public:
         Loaded,
         Error,
     };
-    static StringView loading_state_name(LoadingState);
 
     [[nodiscard]] static NonnullRefPtr<StyleSheetState> create(RustRuleList, GC::Ptr<DOM::Document>, RustMediaList, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy = {});
     static WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> create_constructed(DOM::Document const&, CSSStyleSheetOptions const& options = {});
@@ -150,7 +149,6 @@ public:
     bool constructed() const { return m_native_sheet.flag(RustStyleSheet::Flag::Constructed); }
 
     GC::Ptr<DOM::Document const> constructor_document() const { return m_constructor_document; }
-    GC::Ptr<DOM::Document> parsing_document() const { return m_parsing_document; }
     void set_constructor_document(GC::Ptr<DOM::Document const> constructor_document) { m_constructor_document = constructor_document; }
 
     bool disallow_modification() const { return m_native_sheet.flag(RustStyleSheet::Flag::DisallowModification); }

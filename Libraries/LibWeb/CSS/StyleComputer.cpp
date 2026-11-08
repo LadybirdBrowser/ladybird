@@ -106,33 +106,13 @@
 
 namespace Web::CSS {
 
-class Fnv1a64 {
-public:
-    void add(u64 value)
-    {
-        m_hash ^= value;
-        m_hash *= 0x100000001b3ull;
-    }
-
-    u64 value() const { return m_hash; }
-
-private:
-    u64 m_hash { 0xcbf29ce484222325ull };
-};
-
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), normal_line_height(Platform::FontPlugin::the().default_font(16)->pixel_metrics()))
-    , m_root_element_font_metrics(m_default_font_metrics)
+    , m_root_element_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics(), normal_line_height(Platform::FontPlugin::the().default_font(16)->pixel_metrics()))
     , m_style_engine(this)
 {
-}
-
-void StyleComputer::prepare_for_style_engine_transaction() const
-{
-    sweep_custom_property_environments();
 }
 
 void StyleComputer::begin_style_update() const
@@ -481,11 +461,6 @@ Optional<Utf16String> StyleComputer::user_agent_style_sheet_source(Utf16View nam
         return Utf16String::from_utf8(svg_stylesheet_source);
     return {};
 }
-
-struct ResolvedScope {
-    GC::Ptr<DOM::Element const> root;
-    size_t proximity { NumericLimits<size_t>::max() };
-};
 
 static RefPtr<CustomPropertyData const> inheritable_custom_property_data(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)
 {
@@ -1530,48 +1505,6 @@ CSSPixels StyleComputer::default_user_font_size()
 }
 
 // https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
-CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPixels default_font_size)
-{
-    // An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by the user agent. See
-    // § 2.5.1 Absolute Size Keyword Mapping Table.
-    // INTEROP: Other browsers share this keyword table for integral default sizes from 9px through 16px, so we use
-    //          it instead of the ratios from the spec's guideline table.
-    static constexpr Array<Array<u8, 8>, 8> font_size_table { {
-        { 9, 9, 9, 9, 11, 14, 18, 27 },
-        { 9, 9, 9, 10, 12, 15, 20, 30 },
-        { 9, 9, 10, 11, 13, 17, 22, 33 },
-        { 9, 9, 10, 12, 14, 18, 24, 36 },
-        { 9, 10, 12, 13, 16, 20, 26, 39 },
-        { 9, 10, 12, 14, 17, 21, 28, 42 },
-        { 9, 10, 13, 15, 18, 23, 30, 45 },
-        { 9, 10, 13, 16, 18, 24, 32, 48 },
-    } };
-    auto default_size = default_font_size.to_int();
-    if (default_size >= 9 && default_size <= 16 && default_font_size == CSSPixels(default_size))
-        return CSSPixels(font_size_table[default_size - 9][to_underlying(absolute_size)]);
-
-    switch (absolute_size) {
-    case AbsoluteSize::XxSmall:
-        return default_font_size * CSSPixels(3) / 5;
-    case AbsoluteSize::XSmall:
-        return default_font_size * CSSPixels(3) / 4;
-    case AbsoluteSize::Small:
-        return default_font_size * CSSPixels(8) / 9;
-    case AbsoluteSize::Medium:
-        return default_font_size;
-    case AbsoluteSize::Large:
-        return default_font_size * CSSPixels(6) / 5;
-    case AbsoluteSize::XLarge:
-        return default_font_size * CSSPixels(3) / 2;
-    case AbsoluteSize::XxLarge:
-        return default_font_size * 2;
-    case AbsoluteSize::XxxLarge:
-        return default_font_size * 3;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 ComputationContext StyleComputer::make_computation_context_for_property(PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto subject_inline_axis_is_horizontal = [&]() {
@@ -1642,7 +1575,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
 
         return {
             .length_resolution_context = {
-                .viewport_rect = viewport_rect(),
+                .viewport_rect = m_viewport_rect,
                 .font_metrics = line_height_font_metrics,
                 .root_font_metrics = is_document_element
                     ? line_height_font_metrics
@@ -1666,7 +1599,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
         };
         return {
             .length_resolution_context = {
-                .viewport_rect = viewport_rect(),
+                .viewport_rect = m_viewport_rect,
                 .font_metrics = font_metrics,
                 .root_font_metrics = is_document_element ? font_metrics : m_root_element_font_metrics,
                 .font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics(),
@@ -1714,7 +1647,7 @@ StyleRecordID StyleComputer::intern_document_style(Layout::BegunRead const& read
             document_supported_color_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
     }
     auto length_resolution_context = CSS::Length::ResolutionContext::for_document(document());
-    auto viewport_rect = this->viewport_rect();
+    auto viewport_rect = m_viewport_rect;
     ComputedValuesFFI::FfiDocumentLonghandInput const input {
         .color_scheme_input = {
             .preferred_color_scheme = static_cast<u8>(to_underlying(document().page().preferred_color_scheme())),
@@ -1819,7 +1752,7 @@ RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_styl
         return {};
     auto view = computed_style_record_view(style);
     // The engine holds the record only until the element's styles are next read or settled.
-    return ComputedValues::Builder { *view }.build();
+    return view->clone();
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const

@@ -225,8 +225,6 @@ public:
     StyleAtomID intern_atom(Utf16FlyString const&);
     // Counts the reclaims of this document's atoms, so a cache keyed by atoms can tell when one may have been reused.
     [[nodiscard]] u64 atom_generation() const;
-    // Moves a node's record to the environment its inherited custom-property data was refreshed
-    // to; the record the host holds for the new one, or null when nothing moved.
     // What a read of an element's style, or one of its pseudo-elements', made before the next style update asks of
     // the style engine, and the pseudo-element a demand may read.
     using RecordDemand = StyleEngineFFI::FfiRecordDemand;

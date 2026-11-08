@@ -113,10 +113,6 @@ static_assert(sizeof(ComputedValues::MiscInteractionValues) == sizeof(ComputedVa
 static_assert(alignof(ComputedValues::MiscInteractionValues) == alignof(ComputedValuesFFI::MiscInteractionValues));
 static_assert(to_underlying(ListStylePosition::Outside) == 1);
 
-static_assert(sizeof(TextIndentData) == sizeof(ComputedValuesFFI::ComputedTextIndent));
-static_assert(offsetof(TextIndentData, length_percentage) == offsetof(ComputedValuesFFI::ComputedTextIndent, length_percentage));
-static_assert(offsetof(TextIndentData, each_line) == offsetof(ComputedValuesFFI::ComputedTextIndent, each_line));
-static_assert(offsetof(TextIndentData, hanging) == offsetof(ComputedValuesFFI::ComputedTextIndent, hanging));
 static_assert(sizeof(ComputedValues::InheritedTextValues) == sizeof(ComputedValuesFFI::InheritedTextValues));
 static_assert(alignof(ComputedValues::InheritedTextValues) == alignof(ComputedValuesFFI::InheritedTextValues));
 static_assert(sizeof(ComputedValues::AnimationValues) == sizeof(ComputedValuesFFI::AnimationValues));
@@ -418,9 +414,21 @@ bool ComputedValues::is_property_important(PropertyID property_id) const
     return ComputedValuesFFI::rust_style_record_importance_bits(m_record.get())[index / 8] & (1 << (index % 8));
 }
 
-void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
+NonnullRefPtr<ComputedValues const> ComputedValues::clone() const
 {
-    m_values.m_animated_properties = value;
+    auto copy = adopt_ref(*new ComputedValues);
+    copy->m_inherited = m_inherited;
+    copy->m_noninherited = m_noninherited;
+    copy->m_record = m_record;
+    if (m_borrowed_base_values)
+        copy->m_base_values = m_borrowed_base_values->clone();
+    else
+        copy->m_base_values = m_base_values;
+    copy->m_animated_properties = m_animated_properties;
+    copy->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
+    copy->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    copy->m_in_display_none_subtree = m_in_display_none_subtree;
+    return copy;
 }
 
 RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID property_id, RustStyleValueHandle const& handle) const

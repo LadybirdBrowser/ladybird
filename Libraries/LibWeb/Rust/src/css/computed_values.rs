@@ -1568,17 +1568,6 @@ pub unsafe extern "C" fn rust_style_group_holds_default_values(group_index: usiz
     unsafe { GroupPayloadRef::new(group_index, payload) }.is_some_and(GroupPayloadRef::holds_the_defaults)
 }
 
-/// A new payload of the group at `group_index` holding the group's default values, with one
-/// reference for the caller.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_group_create_default(group_index: usize) -> *mut c_void {
-    let group = style_group(group_index);
-    let payload = allocate_payload(group, 1);
-    // SAFETY: The payload was just allocated with the layout of the group's type.
-    unsafe { default_construct(group, payload) };
-    payload
-}
-
 /// The bytes of the allocation of `payload`, a payload of the group at `group_index`. What the
 /// payload holds beyond its own size is not counted.
 pub(crate) fn group_payload_allocation_bytes(group_index: usize, payload: *const c_void) -> usize {
@@ -2872,16 +2861,7 @@ fn publish_group_payload<T: StyleGroupPayload>(group_index: usize, built: T) -> 
 }
 
 /// Allocates a new payload for `group_index` with a reference count of one,
-/// copy-constructed from `source`.
-///
-/// # Safety
-/// `source` must be a valid payload of the same group type.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *const c_void) -> *mut c_void {
-    unsafe { clone_group_payload(group_index, source) }
-}
-
-/// The source must be a live payload of the registered group type.
+/// copy-constructed from `source`, a live payload of the registered group type.
 pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_void) -> *mut c_void {
     let group = style_group(group_index);
     let payload = allocate_payload(group, 1);
@@ -7698,7 +7678,7 @@ mod tests {
         for group_index in 0..group_index::COUNT {
             let default = defaults.groups()[group_index].as_ptr();
             // SAFETY: The default payload is a live payload of its group.
-            let clone = unsafe { rust_style_group_clone(group_index, default) };
+            let clone = unsafe { clone_group_payload(group_index, default) };
             // SAFETY: The payloads are live defaults and clones of this group.
             assert!(unsafe { style_group_payloads_equal(group_index, default, clone) });
             refcount_of(clone, payload_align(style_group(group_index))).store(0, Ordering::Relaxed);
@@ -7708,7 +7688,7 @@ mod tests {
 
         let table_default = defaults.groups()[group_index::INHERITED_LIST_TABLE].as_ptr();
         // SAFETY: The default payload is a live payload of its group.
-        let changed_payload = unsafe { rust_style_group_clone(group_index::INHERITED_LIST_TABLE, table_default) };
+        let changed_payload = unsafe { clone_group_payload(group_index::INHERITED_LIST_TABLE, table_default) };
         // SAFETY: The clone is uniquely owned and a list and table group.
         unsafe { &mut *changed_payload.cast::<InheritedListTableValues>() }.border_spacing_horizontal = 17;
         // SAFETY: The payloads are live payloads of this group.

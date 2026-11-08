@@ -630,6 +630,14 @@ pub extern "C" fn rust_compute_font_width(absolutized_value: &StyleValueData) ->
     compute_font_width(absolutized_value).into()
 }
 
+/// The font size the `<absolute-size>` `keyword` maps to for a default font size of
+/// `default_font_size_raw`, both in raw CSS pixels. Any other keyword maps to the default size.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_absolute_size_font_mapping(keyword: u16, default_font_size_raw: i32) -> i32 {
+    absolute_size_font_mapping(keyword, CssPixels::from_raw(default_font_size_raw))
+        .map_or(default_font_size_raw, |size| size.raw_value())
+}
+
 /// https://drafts.csswg.org/css-fonts-4/#absolute-size-mapping
 /// An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
 /// the user agent. See 2.5.1 Absolute Size Keyword Mapping Table.

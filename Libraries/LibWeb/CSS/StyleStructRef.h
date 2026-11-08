@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-// A copy-on-write reference to a style value group struct.
+// A reference to a style value group struct.
 //
 // The payloads are owned by the Rust side of LibWeb (see computed_values.rs),
 // which defines each group's layout and lifecycle. Rust places an atomic
@@ -24,19 +24,13 @@ namespace Web::CSS {
 // boundary.
 //
 // Copying a StyleStructRef shares the underlying payload by bumping the
-// reference count instead of copying the struct. access() returns a mutable
-// reference to the payload, cloning it first if it is shared with anyone
-// else. A default-constructed ref is empty until a payload is borrowed,
-// adopted or assigned.
-//
-// NB: This models the same copy-on-write scheme as WebKit's DataRef and
-//     Blink's ComputedStyleBase groups, with Stylo's arrangement of the
-//     reference count header preceding the payload.
+// reference count instead of copying the struct. A default-constructed ref is
+// empty until a payload is borrowed or assigned.
 template<typename T>
 class StyleStructRef {
 public:
-    // NB: An empty reference is borrowed, so that it is filled by borrow(), adopt() or assignment before
-    //     its payload is read.
+    // NB: An empty reference is borrowed, so that it is filled by borrow() or assignment before its
+    //     payload is read.
     StyleStructRef() = default;
 
     StyleStructRef(StyleStructRef const& other)
@@ -65,32 +59,9 @@ public:
     T const& operator*() const { return *m_payload; }
     T const* operator->() const { return m_payload; }
 
-    // Returns a mutable reference to the payload, cloning it first if it is
-    // shared with anyone else.
-    T& access()
-    {
-        VERIFY(m_payload);
-        if (m_is_borrowed || refcount().load(AK::memory_order_acquire) != 1) {
-            auto* clone = clone_payload(m_payload);
-            deref();
-            m_payload = clone;
-            m_is_borrowed = false;
-        }
-        return *m_payload;
-    }
-
-    // Takes ownership of a payload built on the Rust side; the payload
-    // arrives already carrying this reference.
-    void adopt(void* payload)
-    {
-        deref();
-        m_payload = static_cast<T*>(payload);
-        m_is_borrowed = false;
-    }
-
-    // Borrows a payload retained by a live StyleRecord. Copying or mutating
-    // this reference first acquires its own payload, so the borrowed state
-    // never escapes the synchronous record view which created it.
+    // Borrows a payload retained by a live StyleRecord. Copying this reference
+    // first acquires its own payload, so the borrowed state never escapes the
+    // synchronous record view which created it.
     void borrow(void const* payload)
     {
         deref();
@@ -102,11 +73,6 @@ public:
 
     // Whether the payload holds the group's initial values.
     bool is_default() const { return ComputedValuesFFI::rust_style_group_holds_default_values(T::style_group_index, m_payload); }
-
-    bool operator==(StyleStructRef const& other) const
-    {
-        return m_payload == other.m_payload || *m_payload == *other.m_payload;
-    }
 
 private:
     // NB: Must match header_size() in computed_values.rs.
@@ -129,11 +95,6 @@ private:
             return;
         if (refcount().fetch_sub(1, AK::memory_order_acq_rel) == 1)
             ComputedValuesFFI::rust_style_group_free(T::style_group_index, m_payload);
-    }
-
-    static T* clone_payload(T const* source)
-    {
-        return static_cast<T*>(ComputedValuesFFI::rust_style_group_clone(T::style_group_index, source));
     }
 
     T* m_payload { nullptr };
