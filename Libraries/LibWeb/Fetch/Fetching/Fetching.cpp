@@ -1287,15 +1287,15 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     if (algorithms->process_response_consume_body()) {
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
-        auto process_body = GC::create_function(GC::Heap::the(), GC::captures(algorithms, response_view->record(), response_view), [](auto& algorithms, auto& response, auto& response_view, ByteBuffer bytes) {
-            if (auto body = response->body(); body.has_value()) {
+        auto process_body = GC::create_function(GC::Heap::the(), GC::captures(algorithms, internal_response, response_view), [](auto& algorithms, auto& internal_response, auto& response_view, ByteBuffer bytes) {
+            if (auto body = internal_response->body(); body.has_value()) {
                 if (auto source = body->source(); source.has_value()) {
                     algorithms->process_response_consume_body()->function()(response_view, *source);
                     return;
                 }
             }
             // A body the transport delivered as slices of one mapping keeps that mapping instead of the bytes read.
-            if (auto const& network_transport = response->network_transport(); network_transport.has_value()) {
+            if (auto const& network_transport = internal_response->network_transport(); network_transport.has_value()) {
                 if (auto whole_body = network_transport->body_channel->whole_body(); whole_body.has_value()) {
                     algorithms->process_response_consume_body()->function()(response_view, whole_body.release_value());
                     return;
