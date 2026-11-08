@@ -128,6 +128,9 @@ pub struct EcmascriptFunctionObjectWithRareData {
 pub mod ecmascript_function_flags {
     /// Set on all ECMAScript function objects, which keeps their flags from reading as a builtin.
     pub const IS_ECMASCRIPT_FUNCTION: u8 = 1 << 7;
+    /// The normal function may not have its "prototype" property yet, and acts as if it had it right after "length"
+    /// and "name". Until it gets it, its shape is a chain of transitions from the premade shape it started from, and
+    /// the function's own "length" and "name" are the first two properties of its shape, unless those are lazy too.
     pub const MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION: u8 = 1 << 0;
     pub const IS_METHOD: u8 = 1 << 1;
     /// The function does not have its "length" and "name" properties yet, and acts as if it had them, in front of the
