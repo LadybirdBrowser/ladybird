@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/HTML/Scripting/ScriptAbortHandle.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
 #include <WebContent/Worker/DedicatedWorkerThreadLink.h>
@@ -30,6 +31,7 @@ void DedicatedWorkerThreadLink::attach_worker_connection(ConnectionFromClient& c
 
     MutexLocker locker(m_mutex);
     m_worker_event_loop = Core::EventLoop::current_weak();
+    m_worker_script_abort_handle = connection.script_abort_handle();
     for (auto& task : m_tasks_posted_before_worker_attached)
         Core::deferred_invoke(run_on_attached_worker_connection(move(task)));
     m_tasks_posted_before_worker_attached.clear();
@@ -63,6 +65,21 @@ void DedicatedWorkerThreadLink::post_to_owner(Function<void()> function)
 {
     if (auto event_loop = m_owner_event_loop->take(); event_loop.is_alive())
         event_loop->deferred_invoke(move(function));
+}
+
+void DedicatedWorkerThreadLink::terminate()
+{
+    RefPtr<Web::HTML::ScriptAbortHandle> worker_script_abort_handle;
+    {
+        MutexLocker locker(m_mutex);
+        worker_script_abort_handle = m_worker_script_abort_handle;
+    }
+    if (worker_script_abort_handle)
+        worker_script_abort_handle->abort_script();
+
+    post_to_worker([](ConnectionFromClient& connection) {
+        connection.close_worker();
+    });
 }
 
 void DedicatedWorkerThreadLink::report_script_load_failure_to_owner()

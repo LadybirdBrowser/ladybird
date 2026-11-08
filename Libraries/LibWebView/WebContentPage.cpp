@@ -3357,6 +3357,12 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worke
     return { started_agent.agent_id, move(started_agent.thread_transport), started_agent.is_hosted_in_owner_process };
 }
 
+void WebContentPage::register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport)
+{
+    auto outside_settings = hosted_environment(request.outside_settings.id);
+    WorkerAgentManager::the().register_dedicated_worker(client(), m_id, outside_settings, move(request), move(worker_transport));
+}
+
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_request_storage_usage(Web::HTML::EnvironmentId environment_id)
 {
     auto canonical_key = canonical_storage_key(environment_id);

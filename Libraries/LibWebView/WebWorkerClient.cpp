@@ -66,13 +66,11 @@ void WebWorkerClient::die()
         ImageDecoderManager::the().process_did_release_decoder(child_id(), *m_image_decoder_client_generation);
 
     WorkerAgentManager::the().worker_thread_did_exit(*this);
-
-    // Otherwise nested workers we own would outlive us, in violation of the HTML spec.
-    WorkerAgentManager::the().remove_web_worker_owner(*this);
 }
 
 void WebWorkerClient::did_close_worker()
 {
+    forget_inside_settings_of_closing_worker();
     WorkerAgentManager::the().worker_did_close(m_agent_id);
 }
 
@@ -110,7 +108,7 @@ void WebWorkerClient::set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironme
     m_may_read_local_files = may_read_local_files;
 }
 
-void WebWorkerClient::forget_inside_settings_of_removed_agent()
+void WebWorkerClient::forget_inside_settings_of_closing_worker()
 {
     m_inside_settings = nullptr;
     m_script_blob_url = {};
@@ -257,16 +255,10 @@ void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadc
         WorkerAgentManager::the().post_broadcast_channel_message(move(message), *settings, *this, m_is_private);
 }
 
-Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)
+void WebWorkerClient::register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport)
 {
     auto outside_settings = hosted_environment(request.outside_settings.id);
-    auto started_agent = WorkerAgentManager::the().start_worker_agent(*this, outside_settings, move(request));
-    return { started_agent.agent_id, move(started_agent.thread_transport), started_agent.is_hosted_in_owner_process };
-}
-
-void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    WorkerAgentManager::the().close_worker_agent(*this, agent_id, owner_token);
+    WorkerAgentManager::the().register_dedicated_worker(*this, outside_settings, move(request), move(worker_transport));
 }
 
 }

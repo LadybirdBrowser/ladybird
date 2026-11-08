@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DedicatedWorkerThreadLink.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <WebContent/Worker/Forward.h>
@@ -38,6 +39,8 @@ public:
     void report_close_to_owner();
     void report_death_to_owner();
 
+    virtual void terminate() override;
+
     virtual void rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
     virtual void rtc_transform_teardown(u64 transform_id) override;
     virtual void rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) override;
@@ -54,6 +57,7 @@ private:
 
     Mutex m_mutex;
     RefPtr<Core::WeakEventLoopReference> m_worker_event_loop;
+    RefPtr<Web::HTML::ScriptAbortHandle> m_worker_script_abort_handle;
     Vector<WorkerConnectionTask> m_tasks_posted_before_worker_attached;
 
     ConnectionFromClient* m_worker_connection { nullptr };

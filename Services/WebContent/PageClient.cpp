@@ -2265,19 +2265,30 @@ void PageClient::reset_gamepad_access_for_testing()
 Web::PageClient::StartedWorkerAgent PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
     auto agent_type = request.agent_type;
-    auto owner_token = request.owner_token;
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::StartWorkerAgent>(m_id, move(request));
     if (!response) {
         dbgln("WebContent client disconnected during StartWorkerAgent. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
     }
 
-    // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
-    RefPtr<Web::HTML::DedicatedWorkerThreadLink> dedicated_worker_thread_link;
-    if (auto transport = response->take_thread_transport(); transport.has_value())
-        dedicated_worker_thread_link = WebWorker::start_worker_thread_for_owner(transport.release_value(), agent_type, owner_token);
+    // NB: The UI process notices a transport that nobody takes up, and tells the owners that their worker is gone.
+    if (auto transport = response->take_thread_transport(); transport.has_value()) {
+        if (auto result = WebWorker::start_worker_thread(transport.release_value(), agent_type); result.is_error())
+            dbgln("Unable to start a thread for a worker: {}", result.error());
+    }
 
-    return { response->agent_id(), response->is_hosted_in_caller_process(), move(dedicated_worker_thread_link) };
+    return { response->agent_id(), response->is_hosted_in_caller_process() };
+}
+
+RefPtr<Web::HTML::DedicatedWorkerThreadLink> PageClient::start_dedicated_worker(Web::HTML::WorkerAgentStartRequest&& request)
+{
+    auto started_thread = WebWorker::start_dedicated_worker_thread(request.owner_token);
+    if (started_thread.is_error()) {
+        dbgln("Unable to start a dedicated worker: {}", started_thread.error());
+        return {};
+    }
+    client().async_register_dedicated_worker(m_id, move(request), move(started_thread.value().browser_end_of_worker_connection));
+    return move(started_thread.value().link);
 }
 
 void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

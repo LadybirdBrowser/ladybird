@@ -322,4 +322,5 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     [NotRouted] start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id, Optional<IPC::TransportHandle> thread_transport, bool is_hosted_in_caller_process)
     [NotRouted] close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
+    [NotRouted] register_dedicated_worker(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) =|
 }

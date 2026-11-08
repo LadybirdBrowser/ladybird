@@ -50,8 +50,7 @@ public:
     virtual URL::BlobURLEntry::Token page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const&, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const&) override;
     virtual void page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const&, Vector<Utf16String> const& urls) override;
     virtual Optional<Web::FileAPI::SerializedBlobURLEntry> page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token) override;
-    virtual Web::PageClient::StartedWorkerAgent start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
-    virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
+    virtual RefPtr<Web::HTML::DedicatedWorkerThreadLink> start_dedicated_worker(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual bool supports_compositor() const override { return true; }
     virtual void ensure_compositor_host() override;
     virtual Web::Compositor::CompositorHost* compositor_host() override { return m_compositor_host.ptr(); }

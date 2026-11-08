@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRefPtr.h>
@@ -14,6 +15,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
 #include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 #include <WebContent/Worker/WorkerThread.h>
@@ -33,6 +35,8 @@ static WorkerThreads& worker_threads()
 
 static thread_local bool s_is_worker_thread { false };
 
+static Atomic<size_t, AK::MemoryOrder::memory_order_relaxed> s_worker_thread_count { 0 };
+
 bool is_worker_thread()
 {
     return s_is_worker_thread;
@@ -48,6 +52,7 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
     auto transport_or_error = worker_handle.create_transport();
     if (transport_or_error.is_error()) {
         dbgln("Unable to take up the transport of a worker: {}", transport_or_error.error());
+        --s_worker_thread_count;
         if (dedicated_worker_thread_link)
             dedicated_worker_thread_link->report_death_to_owner();
         return 1;
@@ -77,6 +82,7 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
         worker_threads().event_loops.remove_first_matching([&](auto const& reference) { return reference.ptr() == event_loop_reference.ptr(); });
     }
 
+    --s_worker_thread_count;
     client->shut_down_agent();
     return exit_code;
 }
@@ -88,7 +94,11 @@ static ErrorOr<void> start_thread(IPC::TransportHandle worker_handle, Web::HTML:
     }));
     thread->set_stack_size(JS::VM::MINIMUM_THREAD_STACK_SIZE);
 
-    TRY(thread->try_start());
+    ++s_worker_thread_count;
+    if (auto result = thread->try_start(); result.is_error()) {
+        --s_worker_thread_count;
+        return result.release_error();
+    }
 
     // NB: Nothing waits for a worker's thread: one that is stuck in a long builtin must not hold up anything else.
     thread->detach();
@@ -100,17 +110,15 @@ ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle, Web::HTML:
     return start_thread(move(worker_handle), agent_type, nullptr);
 }
 
-RefPtr<Web::HTML::DedicatedWorkerThreadLink> start_worker_thread_for_owner(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type, Web::HTML::WorkerAgentOwnerToken owner_token)
+ErrorOr<StartedDedicatedWorkerThread> start_dedicated_worker_thread(Web::HTML::WorkerAgentOwnerToken owner_token)
 {
-    RefPtr<DedicatedWorkerThreadLink> dedicated_worker_thread_link;
-    if (agent_type == Web::HTML::AgentType::DedicatedWorker)
-        dedicated_worker_thread_link = DedicatedWorkerThreadLink::create(owner_token);
+    if (s_worker_thread_count >= Web::HTML::maximum_worker_count)
+        return Error::from_string_literal("This process already runs as many workers as it may");
 
-    if (auto result = start_thread(move(worker_handle), agent_type, dedicated_worker_thread_link); result.is_error()) {
-        dbgln("Unable to start a thread for a worker: {}", result.error());
-        return nullptr;
-    }
-    return dedicated_worker_thread_link;
+    auto worker_connection = TRY(IPC::TransportHandle::create_pair());
+    auto link = DedicatedWorkerThreadLink::create(owner_token);
+    TRY(start_thread(move(worker_connection.first), Web::HTML::AgentType::DedicatedWorker, link));
+    return StartedDedicatedWorkerThread { move(link), move(worker_connection.second) };
 }
 
 void post_to_worker_threads(void (*function)())

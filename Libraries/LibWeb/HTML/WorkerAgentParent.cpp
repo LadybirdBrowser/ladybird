@@ -131,21 +131,25 @@ void WorkerAgentParent::start()
         .owner_token = m_owner_token,
     };
 
+    worker_agent_parents().set(m_owner_token, *this);
+    auto& page_client = Bindings::principal_host_defined_page(realm).client();
+
+    if (m_agent_type == AgentType::DedicatedWorker) {
+        m_dedicated_worker_thread_link = page_client.start_dedicated_worker(move(request));
+        if (!m_dedicated_worker_thread_link) {
+            dispatch_error_event();
+            forget_agent();
+        }
+        return;
+    }
+
     // NB: This blocking IPC call may launch another process.
     //    If spinning the event loop for this can cause other javascript to execute, we're in trouble.
-    worker_agent_parents().set(m_owner_token, *this);
-    auto started_agent = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
+    auto started_agent = page_client.start_worker_agent(move(request));
     m_agent_id = started_agent.agent_id;
-    m_dedicated_worker_thread_link = move(started_agent.dedicated_worker_thread_link);
-
     if (m_agent_id == 0) {
         dispatch_error_event();
         forget_agent();
-        return;
-    }
-    if (m_agent_type == AgentType::DedicatedWorker && !m_dedicated_worker_thread_link) {
-        dispatch_error_event();
-        terminate();
         return;
     }
 
@@ -205,6 +209,12 @@ void WorkerAgentParent::did_worker_agent_die(WorkerAgentOwnerToken owner_token)
 
 void WorkerAgentParent::terminate()
 {
+    if (auto dedicated_worker_thread_link = m_dedicated_worker_thread_link) {
+        forget_agent();
+        dedicated_worker_thread_link->terminate();
+        return;
+    }
+
     if (m_agent_id == 0)
         return;
 
@@ -290,7 +300,7 @@ void WorkerAgentParent::finalize()
     worker_agent_parents().remove(m_owner_token);
 
     if (!heap().is_collecting_everything())
-        VERIFY(m_agent_id == 0);
+        VERIFY(m_agent_id == 0 && !m_dedicated_worker_thread_link);
 }
 
 void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)

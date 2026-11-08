@@ -56,7 +56,7 @@ public:
 
     void set_inside_settings(NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject>, bool may_read_local_files);
     CanonicalWorkerEnvironmentSettingsObject const* inside_settings() const { return m_inside_settings.ptr(); }
-    void forget_inside_settings_of_removed_agent();
+    void forget_inside_settings_of_closing_worker();
     Optional<URL::Origin> const& top_level_origin() const { return m_top_level_origin; }
     bool may_read_local_files() const { return m_may_read_local_files; }
     void keep_script_blob_url_until_script_loads(BlobURLHandle handle) { m_script_blob_url = move(handle); }
@@ -78,8 +78,7 @@ public:
     virtual void did_release_image_decoder() override;
     virtual Messages::WebWorkerClient::RequestCompositorConnectionResponse request_compositor_connection() override;
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage) override;
-    virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
-    virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
+    virtual void register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) override;
 
 private:
     virtual void did_misbehave(StringView message_name, StringView reason) override;
