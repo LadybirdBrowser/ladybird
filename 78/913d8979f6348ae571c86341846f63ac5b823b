@@ -1,0 +1,6 @@
+Ladybird stops margins collapsing through a box only where placing the
+box introduced clearance, not wherever its clear isn’t none. Blink does
+the same: Its ApplyClearance() moves a box, and reports clearance, only
+where the box would otherwise sit above the clearance offset of the
+floats it clears. Gecko’s nsBlockFrame::ReflowBlockFrame() likewise
+treats a block with clearance only when it has floats to clear.
