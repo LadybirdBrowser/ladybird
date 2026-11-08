@@ -205,7 +205,7 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
 {
     auto session = m_session.strong_ref();
-    return session ? session->hsts_store->is_known_hsts_host(domain) : false;
+    return session ? session->hsts_store->is_known_hsts_host(domain) : true;
 }
 
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
