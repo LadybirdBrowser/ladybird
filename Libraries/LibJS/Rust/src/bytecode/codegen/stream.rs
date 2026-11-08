@@ -229,6 +229,15 @@ pub(super) struct OpenIterator {
     pub(super) is_async: bool,
 }
 
+/// The private environment of a class, while its elements are being evaluated.
+#[derive(Clone, Copy)]
+pub(super) struct ClassPrivateEnvironment {
+    /// Where exceptions go until the class is done, if the function has a handler for them.
+    pub(super) handler: Option<Handler>,
+    /// Where exceptions went before the private environment.
+    pub(super) outer_handler: Option<Handler>,
+}
+
 /// The environment of a scope, while its code is running.
 #[derive(Clone, Copy)]
 pub(super) struct ScopeEnvironment {
@@ -321,6 +330,8 @@ pub(super) enum Control {
     /// Everything that leaves disposes of the resources at this index of `disposals`.
     Disposal(u32),
     Iterator(OpenIterator),
+    /// Everything that leaves goes back to the private environment around a class.
+    PrivateEnvironment(ClassPrivateEnvironment),
 }
 
 #[derive(Clone, Copy)]
@@ -732,6 +743,12 @@ impl Generator<'_> {
                 Control::Iterator(iterator) => {
                     self.set_handler(iterator.outer_handler);
                     self.put_iterator_close(iterator);
+                }
+                Control::PrivateEnvironment(private_environment) => {
+                    if self.handler() != private_environment.outer_handler {
+                        self.set_handler(private_environment.outer_handler);
+                    }
+                    self.put(op::LeavePrivateEnvironment {});
                 }
                 Control::Disposal(disposal) => {
                     let finally = self.context.stream.disposals[disposal as usize].finally;

@@ -42,6 +42,7 @@ use super::operators::emit_to_primitive_property_key;
 use super::registers::ScopedOperand;
 use super::scope::ParameterShape;
 use super::scope::ScopeBindings;
+use super::stream::ClassPrivateEnvironment;
 use super::stream::Control;
 use super::stream::Handler;
 use super::stream::LoopKind;
@@ -286,7 +287,7 @@ impl Generator<'_> {
             };
             if let Some(name) = private_name_of(key) {
                 if !has_private_environment {
-                    self.put(op::CreatePrivateEnvironment {});
+                    self.enter_class_private_environment();
                     has_private_environment = true;
                 }
                 let identifier = intern_private_name(self, name);
@@ -333,6 +334,12 @@ impl Generator<'_> {
             elements: class_elements,
         });
 
+        let private_environment = has_private_environment.then(|| {
+            let Some(Control::PrivateEnvironment(private_environment)) = self.pop_control() else {
+                unreachable!("the private environment of a class is what is going on");
+            };
+            private_environment
+        });
         self.end_class_scope(environment);
         self.put(op::NewClass {
             dst,
@@ -345,13 +352,50 @@ impl Generator<'_> {
             element_keys_count: u32_from_usize(element_keys.len()),
             element_keys: &element_keys,
         });
-        if has_private_environment {
-            self.put(op::LeavePrivateEnvironment {});
+        if let Some(private_environment) = private_environment {
+            self.leave_class_private_environment(private_environment);
         }
         self.strict = saved_strict;
         self.release_held_registers(held);
         self.push_value(dst, first_temporary);
         Ok(())
+    }
+
+    /// The private names of a class come next, whose environment is current until the class is done.
+    fn enter_class_private_environment(&mut self) {
+        self.put(op::CreatePrivateEnvironment {});
+        let outer_handler = self.handler();
+        // NB: An exception that leaves the function takes the private environment with its execution context.
+        let handler = outer_handler.map(|_| Handler {
+            label: self.new_label(),
+            catches: false,
+        });
+        if handler.is_some() {
+            self.set_handler(handler);
+        }
+        let private_environment = ClassPrivateEnvironment { handler, outer_handler };
+        self.push_control(Control::PrivateEnvironment(private_environment));
+    }
+
+    /// The class is done, and the private environment around it is current again, also for exceptions.
+    fn leave_class_private_environment(&mut self, private_environment: ClassPrivateEnvironment) {
+        self.put(op::LeavePrivateEnvironment {});
+        let Some(handler) = private_environment.handler else {
+            return;
+        };
+        self.set_handler(private_environment.outer_handler);
+        let end_label = self.new_label();
+        self.jump(end_label);
+        self.bind_reachable_label(handler.label);
+        let error = self.temporary();
+        let value_feedback = self.next_value_feedback();
+        self.put(op::Catch {
+            value_feedback,
+            dst: error,
+        });
+        self.put(op::LeavePrivateEnvironment {});
+        self.put(op::Throw { src: error });
+        self.bind_label(end_label);
     }
 
     /// The key of an element of a class, which `NewClass` turns into a property key.
