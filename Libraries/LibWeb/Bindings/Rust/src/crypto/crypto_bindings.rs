@@ -326,7 +326,7 @@ pub(crate) fn array_buffer(vm: &Vm, realm: Gc<Realm>, bytes: &Bytes) -> Value {
     ))
 }
 
-fn crypto_key_from_value(vm: &Vm, value: Value) -> ThrowCompletionOr<Ref<CryptoKey>> {
+pub(super) fn crypto_key_from_value(vm: &Vm, value: Value) -> ThrowCompletionOr<Ref<CryptoKey>> {
     let key_object = value.to_object(vm)?;
     let Some(key) = implementation_if_wrapper::<CryptoKey>(key_object) else {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"CryptoKey"]);
