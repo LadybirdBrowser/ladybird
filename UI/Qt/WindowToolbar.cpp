@@ -700,6 +700,9 @@ public:
     void round_corners()
     {
 #if defined(AK_OS_MACOS)
+        // Asking for the native view would create the window's native window, even while the window is still being built.
+        if (!internalWinId())
+            return;
         if (m_expanded)
             round_appkit_view_corners(*this, ChromeStyle::LOCATION_EDIT_CORNER_RADIUS, Qt::transparent);
         else
@@ -708,6 +711,13 @@ public:
     }
 
 private:
+    virtual bool event(QEvent* event) override
+    {
+        if (event->type() == QEvent::WinIdChange)
+            round_corners();
+        return QWidget::event(event);
+    }
+
     virtual void paintEvent(QPaintEvent*) override
     {
         QPainter painter(this);
