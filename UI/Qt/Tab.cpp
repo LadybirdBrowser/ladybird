@@ -242,10 +242,6 @@ void Tab::initialize(Optional<u64> hub_view_id)
         update_hover_label();
     });
 
-    auto* focus_location_editor_action = new QAction("Edit Location", this);
-    focus_location_editor_action->setShortcuts({ QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
-    addAction(focus_location_editor_action);
-
     tab_layout->addWidget(m_view);
 
     // NB: A page can block many requests in a burst while it loads, so the open popover catches up with them at most
@@ -835,8 +831,6 @@ void Tab::initialize(Optional<u64> hub_view_id)
     view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {
         m_find_in_page->update_result_label(current_match_index, total_match_count);
     };
-
-    QObject::connect(focus_location_editor_action, &QAction::triggered, this, [this] { focus_location_editor(); });
 
     view().on_restore_window = [this]() {
         m_window->showNormal();

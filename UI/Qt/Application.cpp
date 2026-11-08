@@ -445,16 +445,51 @@ public:
         m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
         QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
 
+        m_open_location_action = make_action("Open &Location…");
+        m_open_location_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_L), QKeySequence(Qt::ALT | Qt::Key_D) });
+        QObject::connect(m_open_location_action, &QAction::triggered, this, []() {
+            if (auto* tab = Application::the().active_tab())
+                tab->focus_location_editor();
+        });
+
         m_open_settings_action = create_application_action(*m_application_widget, application.open_settings_page_action(), IncludeActionIcon::No);
         m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
 
         m_toggle_bookmark_bar_action = create_application_action(*m_application_widget, Application::bookmarks().toggle_bookmark_bar_action(), IncludeActionIcon::No);
+        m_toggle_sidebar_action = create_application_action(*m_application_widget, application.toggle_vertical_tabs_expanded_action(), IncludeActionIcon::No);
+
+        m_reload_action = create_application_action(*m_application_widget, application.reload_action(), IncludeActionIcon::No);
+        m_reload_bypassing_cache_action = create_application_action(*m_application_widget, application.reload_bypassing_cache_action(), IncludeActionIcon::No);
+
+        // NB: Esc only labels the item. The page view stops a load on Esc itself, after the node picker has had its
+        //     chance at the key, so it isn't a window-wide shortcut that would take Esc from every widget.
+        m_stop_action = make_action("&Stop");
+        m_stop_action->setShortcut(QKeySequence(Qt::Key_Escape));
+        m_stop_action->setShortcutContext(Qt::WidgetShortcut);
+        QObject::connect(m_stop_action, &QAction::triggered, this, []() {
+            if (auto* tab = Application::the().active_tab(); tab && tab->view().is_loading())
+                tab->view().stop_loading();
+        });
 
         m_find_in_page_action = make_action("&Find in Page…");
         m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
         QObject::connect(m_find_in_page_action, &QAction::triggered, this, []() {
             if (auto* window = Application::the().active_window_if_any())
                 window->show_find_in_page();
+        });
+
+        m_find_next_action = make_action("Find &Next");
+        m_find_next_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::FindNext));
+        QObject::connect(m_find_next_action, &QAction::triggered, this, []() {
+            if (auto* tab = Application::the().active_tab())
+                tab->find_next();
+        });
+
+        m_find_previous_action = make_action("Find Pre&vious");
+        m_find_previous_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious));
+        QObject::connect(m_find_previous_action, &QAction::triggered, this, []() {
+            if (auto* tab = Application::the().active_tab())
+                tab->find_previous();
         });
 
         m_zoom_in_action = create_application_action(*m_application_widget, application.zoom_in_action(), IncludeActionIcon::No);
@@ -610,6 +645,13 @@ private:
     QAction* m_open_settings_action { nullptr };
     QAction* m_open_downloads_action { nullptr };
     QAction* m_toggle_bookmark_bar_action { nullptr };
+    QAction* m_toggle_sidebar_action { nullptr };
+    QAction* m_open_location_action { nullptr };
+    QAction* m_reload_action { nullptr };
+    QAction* m_reload_bypassing_cache_action { nullptr };
+    QAction* m_stop_action { nullptr };
+    QAction* m_find_next_action { nullptr };
+    QAction* m_find_previous_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
     QAction* m_zoom_in_action { nullptr };
     QAction* m_zoom_out_action { nullptr };
@@ -2592,6 +2634,8 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
         file_menu->addAction(close_current_tab_action());
     file_menu->addSeparator();
     file_menu->addAction(open_file_action());
+    if (for_browser_window == ForBrowserWindow::Yes)
+        file_menu->addAction(open_location_action());
     file_menu->addAction(open_downloads_action());
     file_menu->addSeparator();
     file_menu->addAction(quit_action());
@@ -2609,6 +2653,8 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
     edit_menu->addSeparator();
     if (for_browser_window == ForBrowserWindow::Yes) {
         edit_menu->addAction(find_in_page_action());
+        edit_menu->addAction(find_next_action());
+        edit_menu->addAction(find_previous_action());
         edit_menu->addSeparator();
     }
     edit_menu->addAction(open_settings_action());
@@ -2618,6 +2664,22 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
         view_menu->addAction(open_next_tab_action());
         view_menu->addAction(open_previous_tab_action());
         view_menu->addAction(search_tabs_action());
+        view_menu->addSeparator();
+
+        view_menu->addAction(toggle_sidebar_action());
+        view_menu->addSeparator();
+
+        view_menu->addAction(reload_action());
+        view_menu->addAction(reload_bypassing_cache_action());
+        view_menu->addAction(stop_action());
+        // The menu stops the load of the tab it was opened over, so it's only enabled while that tab is loading.
+        QObject::connect(view_menu, &QMenu::aboutToShow, view_menu, [] {
+            auto* tab = Application::the().active_tab();
+            Application::the().stop_action()->setEnabled(tab && tab->view().is_loading());
+        });
+        view_menu->addSeparator();
+
+        view_menu->addAction(move_focus_action());
         view_menu->addSeparator();
 
         auto* zoom_menu = view_menu->addMenu("&Zoom");
@@ -2689,6 +2751,13 @@ DEFINE_APP_MENU_GETTER(QAction, open_file_action);
 DEFINE_APP_MENU_GETTER(QAction, open_settings_action);
 DEFINE_APP_MENU_GETTER(QAction, open_downloads_action);
 DEFINE_APP_MENU_GETTER(QAction, toggle_bookmark_bar_action);
+DEFINE_APP_MENU_GETTER(QAction, toggle_sidebar_action);
+DEFINE_APP_MENU_GETTER(QAction, open_location_action);
+DEFINE_APP_MENU_GETTER(QAction, reload_action);
+DEFINE_APP_MENU_GETTER(QAction, reload_bypassing_cache_action);
+DEFINE_APP_MENU_GETTER(QAction, stop_action);
+DEFINE_APP_MENU_GETTER(QAction, find_next_action);
+DEFINE_APP_MENU_GETTER(QAction, find_previous_action);
 DEFINE_APP_MENU_GETTER(QAction, find_in_page_action);
 DEFINE_APP_MENU_GETTER(QAction, zoom_in_action);
 DEFINE_APP_MENU_GETTER(QAction, zoom_out_action);

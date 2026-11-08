@@ -484,25 +484,17 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.open_settings_action());
     addAction(application.open_downloads_action());
     addAction(application.toggle_bookmark_bar_action());
+    addAction(application.toggle_sidebar_action());
+    addAction(application.open_location_action());
+    addAction(application.reload_action());
+    addAction(application.reload_bypassing_cache_action());
     addAction(application.find_in_page_action());
+    addAction(application.find_next_action());
+    addAction(application.find_previous_action());
     addAction(application.zoom_in_action());
     addAction(application.zoom_out_action());
     addAction(application.reset_zoom_action());
     addAction(application.quit_action());
-
-    for (auto const& shortcut : QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious)) {
-        new QShortcut(shortcut, this, [this]() {
-            if (m_current_tab)
-                m_current_tab->find_previous();
-        });
-    }
-
-    for (auto const& shortcut : QKeySequence::keyBindings(QKeySequence::StandardKey::FindNext)) {
-        new QShortcut(shortcut, this, [this]() {
-            if (m_current_tab)
-                m_current_tab->find_next();
-        });
-    }
 
     for (int i = 0; i < 8; ++i) {
         new QShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i]() {
