@@ -1,0 +1,8 @@
+When a transition starts, Ladybird applies the element’s new style to
+its layout node right away, which makes its anonymous descendants
+inherit the transition’s start value. Blink’s LayoutBlock::
+StyleDidChange() does the same, calling LayoutObject::
+PropagateStyleToAnonymousChildren(). So does WebKit’s RenderBlock::
+styleDidChange(), calling propagateStyleToAnonymousChildren() of its
+RenderElement. And Gecko’s RestyleManager::ProcessPostTraversal()
+calls nsIFrame::UpdateStyleOfOwnedAnonBoxes().
