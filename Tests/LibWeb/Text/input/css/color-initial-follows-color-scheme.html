@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    .dark { color-scheme: dark; }
+    .light { color-scheme: light; }
+</style>
+<div class="dark">
+    <div id="dark-initial" style="color: initial">x</div>
+    <div id="dark-canvastext" style="color: canvastext">x</div>
+    <div id="dark-light-initial" class="light" style="color: initial">x</div>
+</div>
+<div class="light">
+    <div id="light-initial" style="color: initial">x</div>
+    <div id="light-dark-initial" class="dark" style="color: initial">x</div>
+</div>
+<script src="../include.js"></script>
+<script>
+    // The initial value of color is canvastext, which resolves against the element's used color scheme.
+    test(() => {
+        for (const id of ["dark-initial", "dark-canvastext", "dark-light-initial", "light-initial", "light-dark-initial"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+    });
+</script>

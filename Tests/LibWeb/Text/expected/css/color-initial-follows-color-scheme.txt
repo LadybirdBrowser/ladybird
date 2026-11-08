@@ -1,0 +1,5 @@
+dark-initial: rgb(255, 255, 255)
+dark-canvastext: rgb(255, 255, 255)
+dark-light-initial: rgb(0, 0, 0)
+light-initial: rgb(0, 0, 0)
+light-dark-initial: rgb(255, 255, 255)
