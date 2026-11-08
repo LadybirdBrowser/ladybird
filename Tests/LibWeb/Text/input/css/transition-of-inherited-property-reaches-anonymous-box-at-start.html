@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    .container { transition: text-indent 300ms linear; font: 20px monospace; }
+    .container.indented { text-indent: 100px; }
+</style>
+<!-- The text of a flex container lays out in an anonymous block, which inherits text-indent from it. -->
+<div class="container" id="flex" style="display: flex">Text</div>
+<div class="container" id="block" style="display: block">Text</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await new Promise(requestAnimationFrame);
+        const textLeft = element => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return range.getBoundingClientRect().left;
+        };
+        for (const id of ["flex", "block"]) {
+            const element = document.getElementById(id);
+            const before = textLeft(element);
+            element.classList.add("indented");
+            // The transition starts at the before-change value, so the text hasn't moved yet.
+            println(`${id}: computed ${getComputedStyle(element).textIndent}, text moved by ${textLeft(element) - before}px`);
+        }
+    });
+</script>
