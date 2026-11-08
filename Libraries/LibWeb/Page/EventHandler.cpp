@@ -4433,6 +4433,32 @@ Optional<Editing::ContextMenuMisspelling> EventHandler::select_context_menu_miss
     return Editing::ContextMenuMisspelling { *text, marker->start, marker->end, move(word) };
 }
 
+// The word at `offset` in `hit_node`, whose layout node is `layout_text_node`. A word runs on through inline elements
+// into the text of other text nodes, as in super<span>cali</span>fragilistic.
+struct WordBoundaries {
+    GC::Ref<DOM::Text> start_node;
+    size_t start_offset;
+    GC::Ref<DOM::Text> end_node;
+    size_t end_offset;
+};
+
+static WordBoundaries word_boundaries_at(DOM::Document& document, DOM::Text& hit_node, Layout::TextNode const& layout_text_node, size_t offset)
+{
+    Layout::RustFFI::FfiDomTextRange range {};
+    if (Layout::RustFFI::layout_text_inline_word_range(layout_text_node.document_host(), Layout::Node::slot_id(&layout_text_node), offset, &range)) {
+        auto text_node = [&](u32 identity) {
+            return as_if<DOM::Text>(document.style_computer().node_for_style_node(CSS::StyleNodeID { identity }).ptr());
+        };
+        auto* start = text_node(range.start_text_node);
+        auto* end = text_node(range.end_text_node);
+        if (start && end && &start->root() == &end->root() && start->is_connected() && end->is_connected()
+            && range.start_offset <= start->length() && range.end_offset <= end->length() && end->is_following(*start))
+            return { *start, range.start_offset, *end, range.end_offset };
+    }
+    auto word_range = layout_text_node.word_range_at(offset);
+    return { hit_node, word_range.start, hit_node, word_range.start + word_range.length };
+}
+
 bool EventHandler::initiate_word_selection(Layout::BegunRead const& read, DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)
 {
     auto* boundary_node = as_if<DOM::Text>(caret_position.boundary_node().ptr());
@@ -4445,20 +4471,18 @@ bool EventHandler::initiate_word_selection(Layout::BegunRead const& read, DOM::D
     if (!hit_layout_text_node)
         return false;
 
-    auto word_range = hit_layout_text_node->word_range_at(hit_index);
-    auto previous_boundary = word_range.start;
-    auto next_boundary = word_range.start + word_range.length;
+    auto word = word_boundaries_at(document, hit_node, *hit_layout_text_node, hit_index);
 
     m_selection_mode = SelectionMode::Word;
-    m_selection_origin = DOM::Range::create(hit_node, previous_boundary, hit_node, next_boundary);
+    m_selection_origin = DOM::Range::create(word.start_node, word.start_offset, word.end_node, word.end_offset);
 
     if (auto* target = document.active_input_events_target(&hit_node)) {
         m_mouse_selection_target = target;
-        target->set_selection_anchor(hit_node, previous_boundary);
-        target->set_selection_focus(hit_node, next_boundary);
+        target->set_selection_anchor(word.start_node, word.start_offset);
+        target->set_selection_focus(word.end_node, word.end_offset);
     } else if (auto selection = document.get_selection()) {
         m_mouse_selection_target = nullptr;
-        set_user_selection(hit_node, previous_boundary, hit_node, next_boundary, selection, user_select);
+        set_user_selection(word.start_node, word.start_offset, word.end_node, word.end_offset, selection, user_select);
     }
 
     m_selection_mode = SelectionMode::Word;
@@ -4669,9 +4693,7 @@ void EventHandler::apply_mouse_selection(Layout::BegunRead const& read, CSSPixel
         auto const* text_layout_node = as_if<Layout::TextNode>(focus_boundary.node.bound_layout_node(read, *caret_position->arena));
         if (!text_layout_node)
             return;
-        auto word_range = text_layout_node->word_range_at(focus_index);
-        auto word_start = word_range.start;
-        auto word_end = word_range.start + word_range.length;
+        auto word = word_boundaries_at(document, as<DOM::Text>(*focus_node), *text_layout_node, focus_index);
 
         // Determine cursor position relative to anchor.
         auto position = m_selection_origin->compare_point(*focus_node, focus_index);
@@ -4680,12 +4702,14 @@ void EventHandler::apply_mouse_selection(Layout::BegunRead const& read, CSSPixel
                 // Cursor is before anchor: select from anchor end to current word start.
                 anchor_node = m_selection_origin->end_container();
                 anchor_offset = m_selection_origin->end_offset();
-                focus_index = word_start;
+                focus_node = word.start_node;
+                focus_index = word.start_offset;
             } else if (position.value() > 0) {
                 // Cursor is after anchor: select from anchor start to current word end.
                 anchor_node = m_selection_origin->start_container();
                 anchor_offset = m_selection_origin->start_offset();
-                focus_index = word_end;
+                focus_node = word.end_node;
+                focus_index = word.end_offset;
             } else {
                 // Cursor is within anchor: keep original word selected.
                 anchor_node = m_selection_origin->start_container();

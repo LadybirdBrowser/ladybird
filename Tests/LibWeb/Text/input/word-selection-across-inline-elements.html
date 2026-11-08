@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    body { font: 20px serif; }
+    .rainbow span:nth-child(odd) { color: red; }
+</style>
+<p id="split">super<span id="middle">califragilistic</span>expialidocious and more</p>
+<p id="rainbow" class="rainbow"><span>w</span><span>o</span><span>r</span><span>d</span> next</p>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const selectWordAt = (element) => {
+            const rect = element.getBoundingClientRect();
+            internals.click(rect.left + rect.width / 2, rect.top + rect.height / 2, 2);
+            return getSelection().toString();
+        };
+        println(`split word: ${selectWordAt(document.getElementById("middle"))}`);
+        println(`per-letter word: ${selectWordAt(document.querySelector("#rainbow span:nth-child(2)"))}`);
+    });
+</script>
