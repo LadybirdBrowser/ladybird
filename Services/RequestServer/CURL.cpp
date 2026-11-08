@@ -10,6 +10,7 @@
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/Resolver.h>
+#include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 #include <string.h>
@@ -105,6 +106,15 @@ CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[mayb
     if (curl_uses_openssl) {
         auto* context = static_cast<SSL_CTX*>(ssl_context);
         SSL_CTX_set_verify(context, SSL_CTX_get_verify_mode(context), verify_server_certificate_has_subject_alt_name);
+    }
+
+    // Offer only modern key exchange groups, with key shares for the two X25519 based groups. Some CDNs reject
+    // requests that have a browser User-Agent and the TLS fingerprint of a default OpenSSL client. OpenSSL older than
+    // 3.5 does not understand this syntax. It rejects the list and keeps its default groups.
+    if (curl_uses_openssl) {
+        char groups[] = "*X25519MLKEM768:*X25519:P-256:P-384";
+        if (SSL_CTX_set1_groups_list(static_cast<SSL_CTX*>(ssl_context), groups) != 1)
+            ERR_clear_error();
     }
 
 #ifdef AK_OS_MACOS
