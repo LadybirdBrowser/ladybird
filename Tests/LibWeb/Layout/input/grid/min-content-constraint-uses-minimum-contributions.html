@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: grid;
+    width: min-content;
+    grid-template-columns: auto;
+}
+.item {
+    background: green;
+}
+.box {
+    width: 60px;
+    height: 20px;
+}
+</style>
+<div class="grid"><div class="item" style="min-width: 50px"><div class="box"></div></div></div>
+<div class="grid"><div class="item" style="min-width: 150%"><div class="box"></div></div></div>
+<div class="grid"><div class="item" style="overflow: hidden"><div class="box"></div></div></div>
