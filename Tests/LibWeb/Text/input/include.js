@@ -240,17 +240,21 @@ function asyncTest(f) {
     };
     document.addEventListener("DOMContentLoaded", () => {
         Promise.resolve(f(done)).catch(error => {
-            println(`Caught error while running async test: ${error}`);
+            println(`Caught error while running async test: ${String(error)}`);
             done();
         });
     });
 }
 
 function promiseTest(f) {
+    const done = () => {
+        __preventMultipleTestFunctions();
+        __finishTest();
+    };
     document.addEventListener("DOMContentLoaded", () => {
-        f().then(() => {
-            __preventMultipleTestFunctions();
-            __finishTest();
+        f().then(done, error => {
+            println(`Caught error while running promise test: ${String(error)}`);
+            done();
         });
     });
 }

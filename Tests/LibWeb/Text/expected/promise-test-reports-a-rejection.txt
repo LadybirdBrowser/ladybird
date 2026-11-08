@@ -1,0 +1,2 @@
+Before the rejection
+Caught error while running promise test: Error: rejected on purpose
