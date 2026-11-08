@@ -804,6 +804,15 @@ impl RetainedState {
         self.tree.set_dom_paint_facts(node, facts);
     }
 
+    #[must_use]
+    pub fn element_frameset_layout(&self, node: StyleNodeID) -> Option<std::sync::Arc<super::tree::FrameSetLayout>> {
+        self.tree.frameset_layout(node)
+    }
+
+    pub fn set_element_frameset_layout(&mut self, node: StyleNodeID, layout: super::tree::FrameSetLayout) {
+        self.tree.set_frameset_layout(node, layout);
+    }
+
     /// The spans a row built for the element takes from its attributes.
     #[must_use]
     pub fn element_table_spans(&self, node: StyleNodeID) -> super::tree::TableSpans {
@@ -1357,6 +1366,7 @@ impl RetainedState {
                         | ElementBoxKind::Video
                         | ElementBoxKind::Canvas
                         | ElementBoxKind::NavigableContainerViewport
+                        | ElementBoxKind::Frame
                         | ElementBoxKind::TextArea
                         | ElementBoxKind::Image
                         | ElementBoxKind::SvgSvg

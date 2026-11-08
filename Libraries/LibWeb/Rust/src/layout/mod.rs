@@ -46,6 +46,7 @@ mod parallel_layout;
 mod pass_column;
 pub(crate) mod tree_shape;
 pub use libcompositing_rust::node_slot_id;
+pub(crate) mod frameset_formatting_context;
 mod partial_relayout;
 pub(crate) mod prepared_inline_content;
 pub(crate) mod quote_depth;

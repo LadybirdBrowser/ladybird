@@ -954,6 +954,8 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
                 element->set_style_node_id(identity);
                 style_computer.register_style_node(identity, *element);
                 Layout::publish_table_spans(*element);
+                if (auto* frameset = as_if<HTML::HTMLFrameSetElement>(*element))
+                    frameset->publish_layout_data();
                 if (element->is_size_query_container() || element->style_depends_on_size_container_query())
                     element->publish_size_container_query_facts();
             } else {

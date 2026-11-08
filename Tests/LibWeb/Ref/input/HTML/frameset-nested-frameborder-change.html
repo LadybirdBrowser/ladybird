@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/HTML/frameset-nested-frameborder-change-ref.html">
+<script>
+    addEventListener("load", () => {
+        requestAnimationFrame(() => {
+            document.querySelector("frameset frameset").setAttribute("frameborder", "0");
+            requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+        });
+    });
+</script>
+<frameset cols="*,*">
+    <frame frameborder="0">
+    <frameset frameborder="1">
+        <frame frameborder="0">
+    </frameset>
+</frameset>
+</html>

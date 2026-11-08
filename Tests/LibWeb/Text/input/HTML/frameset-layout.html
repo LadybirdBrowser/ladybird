@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../include.js"></script>
+<script>
+    function dump(node, depth = 0) {
+        const rect = node.getBoundingClientRect();
+        println(`${"  ".repeat(depth)}${node.localName} x=${rect.x} y=${rect.y} w=${rect.width} h=${rect.height}`);
+        for (const child of node.children)
+            dump(child, depth + 1);
+    }
+
+    function fill(frameset, count) {
+        frameset.replaceChildren();
+        for (let i = 0; i < count; ++i)
+            frameset.appendChild(document.createElement("frame"));
+    }
+
+    async function scenario(title, attributes, populate, restyle = false) {
+        const frameset = document.querySelector("frameset");
+        for (const name of ["cols", "rows", "frameborder", "border", "style"])
+            frameset.removeAttribute(name);
+        for (const [name, value] of Object.entries(attributes))
+            frameset.setAttribute(name, value);
+        populate(frameset);
+        await animationFrame();
+        if (restyle) {
+            frameset.style.color = "red";
+            await animationFrame();
+        }
+        println(`--- ${title}`);
+        dump(frameset);
+    }
+
+    promiseTest(async () => {
+        const noBorder = { frameborder: "0" };
+        await scenario("absolute, relative", { ...noBorder, cols: "100,*,2*" }, f => fill(f, 3));
+        await scenario("zero relative counts as one", { ...noBorder, cols: "0*,*" }, f => fill(f, 2));
+        await scenario("percentages grow to fill", { ...noBorder, cols: "10%,30%" }, f => fill(f, 2));
+        await scenario("absolutes shrink to fit", { ...noBorder, cols: "1000,3000" }, f => fill(f, 2));
+        await scenario("huge relative", { ...noBorder, cols: "4294967227*,*" }, f => fill(f, 2));
+        await scenario("trailing comma and fractions", { ...noBorder, rows: "25.5%,*," }, f => fill(f, 2));
+        await scenario("grid fills row by row", { ...noBorder, cols: "50%,*", rows: "50%,*" }, f => fill(f, 3));
+        await scenario("children beyond the grid have no size", { ...noBorder, cols: "*,*" }, f => fill(f, 3));
+        await scenario("default border", { cols: "*,*" }, f => fill(f, 2));
+        await scenario("border attribute", { cols: "*,*", rows: "*,*", border: "2" }, f => fill(f, 4));
+        await scenario("other children are not in the grid", { ...noBorder, cols: "*,*" }, f => {
+            fill(f, 2);
+            f.insertBefore(document.createElement("div"), f.lastChild);
+            f.insertBefore(document.createTextNode("text"), f.lastChild);
+        });
+        await scenario("nested frameset", { ...noBorder, cols: "200,*" }, f => {
+            fill(f, 1);
+            const nested = document.createElement("frameset");
+            nested.setAttribute("rows", "100,*");
+            fill(nested, 2);
+            f.appendChild(nested);
+        });
+        await scenario("nested frameset in a row", { ...noBorder, rows: "100,*" }, f => {
+            fill(f, 1);
+            const nested = document.createElement("frameset");
+            nested.setAttribute("rows", "50%,*");
+            fill(nested, 2);
+            f.appendChild(nested);
+        });
+        await scenario("own size and position are ignored", { ...noBorder, cols: "100,*", style: "position: absolute; left: 50px; width: 300px; height: 200px" }, f => fill(f, 2));
+        await scenario("float does not shrink", { ...noBorder, cols: "100,*", style: "float: left" }, f => fill(f, 2));
+        await scenario("writing mode after a restyle", { ...noBorder, cols: "100,*", style: "writing-mode: vertical-rl" }, f => fill(f, 2), true);
+        await scenario("display after a restyle", { ...noBorder, cols: "100,*", style: "display: inline" }, f => fill(f, 2), true);
+        await scenario("display none on a frame keeps its cell", { ...noBorder, cols: "*,*,*" }, f => {
+            fill(f, 3);
+            f.firstChild.style.display = "none";
+        });
+        await scenario("display none on the frameset is ignored", { ...noBorder, cols: "100,*", style: "display: none" }, f => fill(f, 2));
+        await scenario("padding and border on the frameset are ignored", { ...noBorder, cols: "100,*", style: "padding: 10px; border: 5px solid" }, f => fill(f, 2));
+        await scenario("min and max size on the frameset are ignored", { ...noBorder, rows: "100,*", style: "min-height: 1000px; max-width: 100px" }, f => fill(f, 2));
+        await scenario("unknown frameborder on the frameset is ignored", { cols: "*,*", frameborder: "true" }, f => fill(f, 2));
+        await scenario("negative border is 1 pixel", { cols: "*,*", border: "-5" }, f => fill(f, 2));
+        await scenario("padding and border on a frame shrink its viewport", { ...noBorder, cols: "100,*" }, f => {
+            fill(f, 2);
+            f.firstChild.style.cssText = "padding: 10px; border: 5px solid";
+        });
+        println(`first frame viewport width: ${document.querySelector("frame").contentWindow.innerWidth}`);
+    });
+</script>
+</head>
+<frameset></frameset>
+</html>

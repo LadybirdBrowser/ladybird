@@ -19,6 +19,8 @@ class WEB_API HTMLFrameElement final : public NavigableContainer {
 public:
     virtual ~HTMLFrameElement() override;
 
+    virtual CSS::ElementBoxKind box_kind() const override;
+
 private:
     HTMLFrameElement(DOM::Document&, DOM::QualifiedName);
 

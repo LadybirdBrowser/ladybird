@@ -119,6 +119,11 @@ pub(crate) enum LayoutChange {
     },
     /// A layout committed: the text find in page searches is mapped again.
     InvalidateSearchableText,
+    /// The frameset the row was built for published another layout: the row takes it, and lays out again where it
+    /// changed.
+    RestampFrameSetLayout {
+        node: NodeSlotId,
+    },
     /// The element the row was built for published other table spans: the row takes them, and lays out again where
     /// they changed.
     RestampTableSpans {
@@ -196,6 +201,7 @@ impl LayoutChange {
             | Self::HandOverOwnedProvider { .. }
             | Self::SetOwnedImageNaturalSize { .. }
             | Self::RestampTableSpans { .. }
+            | Self::RestampFrameSetLayout { .. }
             | Self::SetNodeNeedsCompositorAnimationFrame { .. }
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
@@ -303,6 +309,11 @@ impl LayoutChange {
                 }
             }
             Self::InvalidateSearchableText => arena.invalidate_searchable_text(),
+            Self::RestampFrameSetLayout { node } => {
+                if arena.slot_is_live(node) && arena.restamp_frameset_layout(node) {
+                    arena.set_needs_layout_update(node, true);
+                }
+            }
             Self::RestampTableSpans { node } => {
                 if arena.slot_is_live(node) && arena.restamp_table_spans(node) {
                     arena.set_needs_layout_update(node, true);
@@ -732,6 +743,11 @@ pub extern "C" fn render_state_set_owned_image_natural_size(
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_invalidate_searchable_text(host: &DocumentHost) {
     queue(host, LayoutChange::InvalidateSearchableText);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_restamp_frameset_layout(host: &DocumentHost, node: NodeSlotId) {
+    queue(host, LayoutChange::RestampFrameSetLayout { node });
 }
 
 #[unsafe(no_mangle)]

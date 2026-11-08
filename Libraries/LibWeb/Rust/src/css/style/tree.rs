@@ -285,6 +285,19 @@ impl ElementIdIndex {
     }
 }
 
+/// What a `<frameset>` gives layout and painting from its attributes and children.
+#[derive(Debug, PartialEq)]
+pub struct FrameSetLayout {
+    pub columns: Box<[super::bridge::FfiFrameSetDimension]>,
+    pub rows: Box<[super::bridge::FfiFrameSetDimension]>,
+    /// The border after each column.
+    pub column_borders: Box<[super::bridge::FfiFrameSetBorder]>,
+    /// The border after each row.
+    pub row_borders: Box<[super::bridge::FfiFrameSetBorder]>,
+    /// The thickness of the borders between tracks, in CSS pixels.
+    pub border_thickness: u32,
+}
+
 /// The spans a table cell or table column takes from its attributes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TableSpans {
@@ -344,6 +357,7 @@ pub struct HostTree {
     /// context's column handling reads. Every other element spans one of each, which is what the
     /// absence of an entry means.
     table_spans: crate::cow_map::CowMap<StyleNodeID, TableSpans>,
+    frameset_layouts: crate::cow_map::CowMap<StyleNodeID, std::sync::Arc<FrameSetLayout>>,
     /// The document's top layer, in the order its members were added. The order is the order their
     /// boxes are built in and belongs to the document, so no per-element fact can carry it.
     top_layer: crate::fork::ForkShared<Vec<StyleNodeID>>,
@@ -439,6 +453,7 @@ impl HostTree {
             + text_bytes
             + self.dom_paint_facts.heap_size()
             + self.table_spans.heap_size()
+            + self.frameset_layouts.heap_size()
             + vec_bytes(&self.top_layer)
     }
 
@@ -468,6 +483,7 @@ impl HostTree {
             text: TextRows::default(),
             dom_paint_facts: Default::default(),
             table_spans: Default::default(),
+            frameset_layouts: Default::default(),
             top_layer: Default::default(),
             dom_order_version: 0,
             dom_paint_facts_version: 0,
@@ -601,6 +617,7 @@ impl HostTree {
             self.live.set(index as usize, false);
             self.dom_paint_facts.remove(&node);
             self.table_spans.remove(&node);
+            self.frameset_layouts.remove(&node);
             self.top_layer.retain(|&member| member != node);
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
@@ -764,6 +781,15 @@ impl HostTree {
         node.element_index()
             .and_then(|index| self.elements.get(index as usize))
             .map_or(0, |row| row.unique_node_id.into())
+    }
+
+    #[must_use]
+    pub fn frameset_layout(&self, node: StyleNodeID) -> Option<std::sync::Arc<FrameSetLayout>> {
+        self.frameset_layouts.get(&node).cloned()
+    }
+
+    pub fn set_frameset_layout(&mut self, node: StyleNodeID, layout: FrameSetLayout) {
+        self.frameset_layouts.insert(node, std::sync::Arc::new(layout));
     }
 
     /// The spans a row built for the element takes from its attributes.

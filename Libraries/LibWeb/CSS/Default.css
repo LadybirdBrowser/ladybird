@@ -859,6 +859,33 @@ iframe {
     border: 2px inset;
 }
 
+/* INTEROP: Other browsers do not honor these properties on frameset and frame elements, even for display: none. */
+frameset, frame {
+    display: block !important;
+    position: static !important;
+    float: none !important;
+    writing-mode: horizontal-tb !important;
+    direction: ltr !important;
+}
+
+/* https://html.spec.whatwg.org/multipage/rendering.html#frames-and-framesets
+   User agents are expected to render frameset elements as a box with the height and width of the viewport
+   INTEROP: Other browsers do not let any of these properties change the size of that box, or paint its background. */
+frameset {
+    width: 100vw !important;
+    height: 100vh !important;
+    flex: none !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+    min-width: auto !important;
+    max-width: none !important;
+    min-height: auto !important;
+    max-height: none !important;
+    contain: none !important;
+    content-visibility: visible !important;
+}
+
 video {
     object-fit: contain;
 }

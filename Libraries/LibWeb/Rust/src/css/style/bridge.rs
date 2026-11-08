@@ -823,6 +823,9 @@ pub enum ElementBoxKind {
     InputRadioButton = 20,
     InputRange = 21,
     InputText = 22,
+    /// A `<frame>` whose parent is a `<frameset>`.
+    Frame = 23,
+    FrameSet = 24,
 }
 
 impl ElementBoxKind {
@@ -836,6 +839,32 @@ impl ElementBoxKind {
             Self::InputButton | Self::InputCheckBox | Self::InputRadioButton | Self::InputRange | Self::InputText
         )
     }
+}
+
+/// The unit of an entry in the parsed `cols` or `rows` of a `<frameset>`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiFrameSetDimensionUnit {
+    Percentage = 0,
+    Relative = 1,
+    Absolute = 2,
+}
+
+/// An entry in the parsed `cols` or `rows` of a `<frameset>`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FfiFrameSetDimension {
+    pub value: f64,
+    pub unit: FfiFrameSetDimensionUnit,
+}
+
+/// The border between a track of a `<frameset>` and the next track.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiFrameSetBorder {
+    pub is_drawn: bool,
+    /// The color of the border, as ARGB.
+    pub color: u32,
 }
 
 /// Which element the values of a replaced content input are of. See

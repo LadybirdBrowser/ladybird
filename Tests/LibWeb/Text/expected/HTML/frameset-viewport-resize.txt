@@ -1,0 +1,6 @@
+frameset x=0 y=0 w=400 h=300
+frame x=0 y=0 w=400 h=150
+frame x=0 y=150 w=400 h=150
+frameset x=0 y=0 w=400 h=500
+frame x=0 y=0 w=400 h=250
+frame x=0 y=250 w=400 h=250

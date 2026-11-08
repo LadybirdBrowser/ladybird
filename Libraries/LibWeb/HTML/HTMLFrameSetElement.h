@@ -21,12 +21,22 @@ class HTMLFrameSetElement final
 public:
     virtual ~HTMLFrameSetElement() override;
 
+    virtual CSS::ElementBoxKind box_kind() const override;
+
+    // Gives the style engine what layout and painting need from this element's attributes and children.
+    void publish_layout_data() const;
+    void layout_data_changed();
+
 private:
     HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_frameset_element() const override { return true; }
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
+
+    void own_layout_data_changed();
+    u32 frame_border_thickness() const;
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(Utf16FlyString const& event_name) override;

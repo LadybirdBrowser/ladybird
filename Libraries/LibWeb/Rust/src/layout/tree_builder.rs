@@ -248,7 +248,8 @@ fn node_kind_for_element_box_kind(box_kind: ElementBoxKind, display: FfiDisplay,
         ElementBoxKind::Audio => NodeKind::AudioBox,
         ElementBoxKind::Video => NodeKind::VideoBox,
         ElementBoxKind::Canvas => NodeKind::CanvasBox,
-        ElementBoxKind::NavigableContainerViewport => NodeKind::NavigableContainerViewport,
+        ElementBoxKind::NavigableContainerViewport | ElementBoxKind::Frame => NodeKind::NavigableContainerViewport,
+        ElementBoxKind::FrameSet => NodeKind::FrameSetBox,
         ElementBoxKind::TextArea => NodeKind::TextAreaBox,
         ElementBoxKind::Image => NodeKind::ImageBox,
         ElementBoxKind::SvgGraphics => NodeKind::SVGGraphicsBox,
@@ -1648,6 +1649,17 @@ fn update_layout_tree_for_dom_children(
     }
 }
 
+fn layout_parent_is_frameset(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> bool {
+    !parent.is_invalid() && host.data(parent).kind.get() == NodeKind::FrameSetBox
+}
+
+/// https://html.spec.whatwg.org/multipage/rendering.html#frames-and-framesets
+/// A frameset's grid holds only the frame and frameset elements that are its children.
+fn frameset_refuses_child(host: &TreeBuilderHost<'_>, parent: LayoutNode, child_box_kind: ElementBoxKind) -> bool {
+    layout_parent_is_frameset(host, parent)
+        && !matches!(child_box_kind, ElementBoxKind::Frame | ElementBoxKind::FrameSet)
+}
+
 /// A walk that keeps the box of a white space text's layout parent never gives the text a box or takes its box away
 /// where it sits: the anonymous wrappers around the text, and the boxes after it, would have to change with it, which
 /// only a build of the parent's child list gets right. Asks for that build when the text's box has to change, and
@@ -2813,7 +2825,13 @@ fn construct_principal_layout_node(
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
             true,
-            should_create_layout_node && display.is_none(),
+            should_create_layout_node
+                && (display.is_none()
+                    || frameset_refuses_child(
+                        host,
+                        update.state.current_parent(),
+                        host.arena().element_box_kind(update.style_node),
+                    )),
             display.is_contents(),
         );
         if generation == PrincipalBoxGenerationDecision::Suppress {
@@ -2905,6 +2923,9 @@ fn construct_principal_layout_node(
             layout_node = created;
             created_box = Some(host.created(created));
         } else if update.kind.is_text() {
+            if layout_parent_is_frameset(host, update.state.current_parent()) {
+                return PrincipalBoxConstruction::none();
+            }
             let text_is_ascii_whitespace = host.arena().text_is_ascii_whitespace(update.style_node);
             if text_is_ascii_whitespace
                 && !whitespace_text_needs_box(host, update.state.current_parent(), update.identity)
@@ -3747,6 +3768,9 @@ fn create_pseudo_element(
     // whether it gets a new one.
     host.arena_mut()
         .clear_pseudo_element_box(element_identity, generated_for_of(pseudo_element));
+    if host.arena().element_box_kind(Some(element_identity)) == ElementBoxKind::FrameSet {
+        return None;
+    }
     let facts = published_pseudo_element_facts(host, element_identity, pseudo_element);
     let decision = pseudo_element_decision(facts);
     if decision == FfiPseudoElementDecision::None {

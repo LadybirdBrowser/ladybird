@@ -1,0 +1,11 @@
+<!doctype html>
+<link rel=help href="https://bugzilla.mozilla.org/show_bug.cgi?id=1917361">
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const a = new Document()
+  const b = a.createElementNS("http://www.w3.org/1999/xhtml", "frame")
+  document.documentElement.appendChild(b)
+  try { b.contentWindow.history.replaceState(undefined, "𛵢") } catch (e) {}
+  b.contentWindow.history.go()
+})
+</script>

@@ -1,0 +1,108 @@
+--- absolute, relative
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=233 h=600
+  frame x=333 y=0 w=467 h=600
+--- zero relative counts as one
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=400 h=600
+  frame x=400 y=0 w=400 h=600
+--- percentages grow to fill
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=200 h=600
+  frame x=200 y=0 w=600 h=600
+--- absolutes shrink to fit
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=200 h=600
+  frame x=200 y=0 w=600 h=600
+--- huge relative
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=799 h=600
+  frame x=799 y=0 w=1 h=600
+--- trailing comma and fractions
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=800 h=153
+  frame x=0 y=153 w=800 h=447
+--- grid fills row by row
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=400 h=300
+  frame x=400 y=0 w=400 h=300
+  frame x=0 y=300 w=400 h=300
+--- children beyond the grid have no size
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=400 h=600
+  frame x=400 y=0 w=400 h=600
+  frame x=0 y=0 w=0 h=0
+--- default border
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=397 h=600
+  frame x=403 y=0 w=397 h=600
+--- border attribute
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=399 h=299
+  frame x=401 y=0 w=399 h=299
+  frame x=0 y=301 w=399 h=299
+  frame x=401 y=301 w=399 h=299
+--- other children are not in the grid
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=400 h=600
+  div x=0 y=0 w=0 h=0
+  frame x=400 y=0 w=400 h=600
+--- nested frameset
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=200 h=600
+  frameset x=200 y=0 w=600 h=600
+    frame x=200 y=0 w=600 h=100
+    frame x=200 y=100 w=600 h=500
+--- nested frameset in a row
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=800 h=100
+  frameset x=0 y=100 w=800 h=500
+    frame x=0 y=100 w=800 h=250
+    frame x=0 y=350 w=800 h=250
+--- own size and position are ignored
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- float does not shrink
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- writing mode after a restyle
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- display after a restyle
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- display none on a frame keeps its cell
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=266 h=600
+  frame x=266 y=0 w=266 h=600
+  frame x=532 y=0 w=268 h=600
+--- display none on the frameset is ignored
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- padding and border on the frameset are ignored
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+--- min and max size on the frameset are ignored
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=800 h=100
+  frame x=0 y=100 w=800 h=500
+--- unknown frameborder on the frameset is ignored
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=397 h=600
+  frame x=403 y=0 w=397 h=600
+--- negative border is 1 pixel
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=399 h=600
+  frame x=400 y=0 w=400 h=600
+--- padding and border on a frame shrink its viewport
+frameset x=0 y=0 w=800 h=600
+  frame x=0 y=0 w=100 h=600
+  frame x=100 y=0 w=700 h=600
+first frame viewport width: 70

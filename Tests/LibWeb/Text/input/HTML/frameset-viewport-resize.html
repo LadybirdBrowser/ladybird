@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="iframe" style="width: 400px; height: 300px" srcdoc='<frameset rows="*,*" frameborder="0"><frame><frame></frameset>'></iframe>
+<script>
+    function dump() {
+        for (const node of iframe.contentDocument.querySelectorAll("frameset, frame")) {
+            const rect = node.getBoundingClientRect();
+            println(`${node.localName} x=${rect.x} y=${rect.y} w=${rect.width} h=${rect.height}`);
+        }
+    }
+
+    promiseTest(async () => {
+        await new Promise(resolve => (iframe.onload = resolve));
+        await animationFrame();
+        dump();
+        iframe.style.height = "500px";
+        await animationFrame();
+        await animationFrame();
+        dump();
+    });
+</script>

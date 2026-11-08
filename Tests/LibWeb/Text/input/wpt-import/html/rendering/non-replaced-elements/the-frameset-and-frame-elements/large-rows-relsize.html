@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#frames-and-framesets">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1116832">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1353277">
+<script>
+window.onload = () => {
+  test(() => {
+    const frameSet = document.querySelector('frameset');
+    const frames = document.querySelectorAll('frame');
+    assert_less_than(frames[0].offsetHeight, frameSet.offsetHeight);
+    assert_greater_than(frames[0].offsetHeight, frames[1].offsetHeight);
+    assert_greater_than_equal(frames[1].offsetHeight, 0);
+  }, 'A large relative value should not produce weird sizes.');
+};
+</script>
+<frameset rows="4294967227*,*" frameborder="0">
+  <frame src="resources/green.html">
+  <frame src="resources/red.html">
+</frameset>

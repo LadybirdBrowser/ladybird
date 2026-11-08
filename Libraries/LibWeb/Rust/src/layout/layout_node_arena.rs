@@ -4206,6 +4206,9 @@ impl LayoutNodeArena {
             self.set_table_spans(slot, spans);
         }
         self.set_node_style_node(slot, style_node);
+        if kind == NodeKind::FrameSetBox {
+            self.restamp_frameset_layout(slot);
+        }
         self.refresh_has_scroll_offset_flag(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
         // A text row renders what the mirror publishes for its node, synced before layout.
@@ -4523,6 +4526,7 @@ impl LayoutNodeArena {
                     }
             }
             ReplacedPaintFacts::Video(_) => kind == NodeKind::VideoBox,
+            ReplacedPaintFacts::FrameSet(_) => kind == NodeKind::FrameSetBox,
         };
         if !shows {
             return;
@@ -5554,6 +5558,23 @@ impl LayoutNodeArena {
             .expect("a row whose spans are restamped is built for an element");
         let spans = self.with_style_store(|engine| engine.element_table_spans(element));
         self.set_table_spans(id, spans)
+    }
+
+    /// Gives a frameset's row what its element published, and answers whether that changed.
+    pub(crate) fn restamp_frameset_layout(&mut self, id: NodeSlotId) -> bool {
+        use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
+        let Some(element) = self.node_style_node(id) else {
+            return false;
+        };
+        let Some(layout) = self.with_style_store(|engine| engine.element_frameset_layout(element)) else {
+            return false;
+        };
+        let facts = ReplacedPaintFacts::FrameSet(layout);
+        if self.replaced_paint_facts.get(&id) == Some(&facts) {
+            return false;
+        }
+        self.set_replaced_paint_facts(super::tree_update_marks::MarkedBox::Row(id), facts);
+        true
     }
 
     /// Gives the row the spans its table cell or table column element has, and answers whether
