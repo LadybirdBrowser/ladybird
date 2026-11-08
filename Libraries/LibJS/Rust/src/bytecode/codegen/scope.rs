@@ -463,6 +463,7 @@ impl Generator<'_> {
                 && flags & (function_flag::MIGHT_NEED_ARGUMENTS | function_flag::USES_ARGUMENTS) != 0)
             || (!is_arrow
                 && flags & function_flag::ARGUMENTS_ACCESS != 0
+                && flags & function_flag::SIMPLE_PARAMETERS != 0
                 && index.parameter_count[row.0 as usize] != 0);
         self.capture_saved_lexical_environment_with_coordinates(needs_function_environment);
         self.end_head();
