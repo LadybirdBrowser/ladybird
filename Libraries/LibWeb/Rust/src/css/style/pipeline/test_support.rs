@@ -126,7 +126,6 @@ pub(super) fn relations(
 pub(super) fn add_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalFeatureKey) {
     engine.record_input(
         InputKey::LocalFeature(node, feature),
-        InputValue::Feature(FeatureValue::Absent),
         InputValue::Feature(FeatureValue::Present),
     );
 }
@@ -134,7 +133,6 @@ pub(super) fn add_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: 
 pub(super) fn remove_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalFeatureKey) {
     engine.record_input(
         InputKey::LocalFeature(node, feature),
-        InputValue::Feature(FeatureValue::Present),
         InputValue::Feature(FeatureValue::Absent),
     );
 }
@@ -147,7 +145,6 @@ pub(super) fn set_atom_feature(
 ) {
     engine.record_input(
         InputKey::LocalFeature(node, feature),
-        InputValue::Feature(FeatureValue::Absent),
         InputValue::Feature(FeatureValue::Atom(atom)),
     );
 }

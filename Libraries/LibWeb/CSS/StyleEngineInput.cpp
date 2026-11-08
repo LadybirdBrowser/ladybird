@@ -2691,7 +2691,6 @@ void record_element_declarations_changed(DOM::Element& element, ElementDeclarati
     // applies the delta.
     style_engine->record_element_declaration_delta({
         .node = element.style_node_id().value(),
-        .kind = kind,
         .old_block = had_declarations ? 1u : 0u,
         .new_block = has_declarations ? 1u : 0u,
     });

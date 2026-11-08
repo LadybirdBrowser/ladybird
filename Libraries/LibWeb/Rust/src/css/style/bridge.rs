@@ -46,10 +46,13 @@ use super::pipeline::rule_store::DeclarationBlockID;
 
 use super::StyleEngine;
 use super::input_types::ElementDeclarationKind;
+#[cfg(test)]
 use super::input_types::InputKey;
+#[cfg(test)]
 use super::input_types::InputValue;
 use super::input_types::StateFact;
 use super::input_types::TreeRelations;
+use super::instrumentation::Counter;
 use super::pipeline::rule_store::RuleID;
 use super::pipeline::rule_store::SheetID;
 use super::tree::StyleNodeID;
@@ -942,7 +945,6 @@ pub enum FfiElementDeclarationKind {
 #[repr(C)]
 pub struct FfiElementDeclarationDelta {
     pub node: u32,
-    pub kind: FfiElementDeclarationKind,
     pub old_block: u32,
     pub new_block: u32,
 }
@@ -1107,10 +1109,6 @@ impl StyleEngine {
             self.record_input(
                 InputKey::ElementStyleInput(node),
                 InputValue::ElementStyleInput {
-                    reaction: 0,
-                    inherited_style_groups: 0,
-                },
-                InputValue::ElementStyleInput {
                     reaction: input.reaction,
                     inherited_style_groups: input.inherited_style_groups,
                 },
@@ -1134,11 +1132,11 @@ impl StyleEngine {
             // host: the host says only that the node has one.
             let new_block =
                 (delta.new_block != 0).then(|| DeclarationBlockID::new(self.retained.next_declaration_block_version()));
-            self.record_input(
-                InputKey::ElementDeclaration(node, decode_element_declaration_kind(delta.kind)),
-                InputValue::ElementDeclaration(block(delta.old_block)),
-                InputValue::ElementDeclaration(new_block),
-            );
+            self.retained.counters.bump(Counter::RawMutationRecords);
+            self.retained.counters.bump(Counter::ElementDeclarationDeltas);
+            if block(delta.old_block) != new_block {
+                self.host.element_inputs.note_declaration(node);
+            }
         }
     }
 }
@@ -2054,7 +2052,6 @@ mod tests {
         }];
         let declarations = [FfiElementDeclarationDelta {
             node: nodes[1],
-            kind: FfiElementDeclarationKind::InlineStyle,
             old_block: 0,
             new_block: 7,
         }];
