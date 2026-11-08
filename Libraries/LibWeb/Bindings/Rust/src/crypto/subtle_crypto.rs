@@ -32,10 +32,10 @@ use crate::bindings::promise::{
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
-    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa,
+    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519,
     EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
     Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType,
-    RsaPss, RsassaPkcs1, Sha, normalized_key_usages, public_key_for_private_key,
+    RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -115,6 +115,10 @@ enum RegisteredAlgorithm {
     RsassaPkcs1(RsaParameterType),
     Ecdsa(EcParameterType),
     Ecdh(EcParameterType),
+    Ed25519,
+    Ed448(bool),
+    X25519(bool),
+    X448(bool),
     CShake,
 }
 
@@ -150,6 +154,10 @@ enum AlgorithmImplementation {
     RsassaPkcs1(RsassaPkcs1),
     Ecdsa(Ecdsa),
     Ecdh(Ecdh),
+    Ed25519(Ed25519),
+    Ed448(Ed448),
+    X25519(X25519),
+    X448(X448),
     CShake(CShakeParams),
 }
 
@@ -184,6 +192,10 @@ impl Deref for AlgorithmImplementation {
             Self::RsassaPkcs1(algorithm) => algorithm,
             Self::Ecdsa(algorithm) => algorithm,
             Self::Ecdh(algorithm) => algorithm,
+            Self::Ed25519(algorithm) => algorithm,
+            Self::Ed448(algorithm) => algorithm,
+            Self::X25519(algorithm) => algorithm,
+            Self::X448(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -430,6 +442,16 @@ pub(crate) fn normalize_an_algorithm(
         }
         RegisteredAlgorithm::Ecdh(parameter_type) => {
             AlgorithmImplementation::Ecdh(Ecdh::from_value(vm, realm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::Ed25519 => AlgorithmImplementation::Ed25519(Ed25519),
+        RegisteredAlgorithm::Ed448(has_parameters) => {
+            AlgorithmImplementation::Ed448(Ed448::from_value(vm, *algorithm, has_parameters)?)
+        }
+        RegisteredAlgorithm::X25519(has_parameters) => {
+            AlgorithmImplementation::X25519(X25519::from_value(vm, *algorithm, has_parameters)?)
+        }
+        RegisteredAlgorithm::X448(has_parameters) => {
+            AlgorithmImplementation::X448(X448::from_value(vm, *algorithm, has_parameters)?)
         }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
@@ -3283,25 +3305,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "X25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::EcdhKeyDeriveParams),
+            RegisteredAlgorithm::X25519(true),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "X25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X25519(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "X25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X25519(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "X25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X25519(false),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
@@ -3309,89 +3331,74 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "deriveBits",
             "X448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::EcdhKeyDeriveParams),
+            RegisteredAlgorithm::X448(true),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "X448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X448(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "X448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X448(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "X448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::X448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::X448(false),
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed25519-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "Ed25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "Ed25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
-        );
+        define_an_algorithm(&mut internal_object, "sign", "Ed25519", RegisteredAlgorithm::Ed25519);
+        define_an_algorithm(&mut internal_object, "verify", "Ed25519", RegisteredAlgorithm::Ed25519);
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "Ed25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed25519,
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "Ed25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed25519,
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "Ed25519",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED25519, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed25519,
         );
 
         // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "Ed448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::Ed448Params),
-        );
+        define_an_algorithm(&mut internal_object, "sign", "Ed448", RegisteredAlgorithm::Ed448(true));
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "Ed448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::Ed448Params),
+            RegisteredAlgorithm::Ed448(true),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "Ed448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed448(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "Ed448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed448(false),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "Ed448",
-            RegisteredAlgorithm::Cpp(AlgorithmId::ED448, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ed448(false),
         );
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
