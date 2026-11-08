@@ -9,7 +9,6 @@
 
 use core::ops::Deref;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::LazyLock;
 
 use ak::Utf16String;
@@ -31,11 +30,11 @@ use crate::bindings::promise::{
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
-    AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
-    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519,
-    EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
-    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, MlDsa, MlKem, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep,
-    RsaParameterType, RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
+    AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmMethods, AlgorithmParams, Argon2, Argon2Params,
+    Bytes, CShakeParams, ChaCha20Poly1305, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519, EncapsulatedKeyData,
+    ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams,
+    KmacKeyGenParams, KmacParams, MlDsa, MlKem, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType, RsaPss, RsassaPkcs1,
+    Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -88,8 +87,6 @@ pub(crate) enum KeyFormat {
 
 #[derive(Clone, Copy)]
 enum RegisteredAlgorithm {
-    #[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
-    Cpp(AlgorithmId, ParameterId),
     Sha,
     Hmac,
     HmacKeyGen,
@@ -131,7 +128,6 @@ type SupportedAlgorithmsMap = HashMap<&'static str, RegisteredAlgorithms>;
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 enum AlgorithmImplementation {
-    Cpp(#[gc(untraced)] Rc<CppAlgorithm>),
     Sha(Sha),
     Hmac(Hmac),
     HmacKeyGen(HmacKeyGenParams),
@@ -171,7 +167,6 @@ impl Deref for AlgorithmImplementation {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Cpp(algorithm) => algorithm.as_ref(),
             Self::Sha(algorithm) => algorithm,
             Self::Hmac(algorithm) => algorithm,
             Self::HmacKeyGen(algorithm) => algorithm,
@@ -375,15 +370,6 @@ pub(crate) fn normalize_an_algorithm(
     // 12. For each dictionary dictionary in dictionaries:
     //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
     let methods = match desired_type {
-        RegisteredAlgorithm::Cpp(method_id, parameter_id) => {
-            AlgorithmImplementation::Cpp(Rc::new(CppAlgorithm::from_value(
-                realm,
-                method_id,
-                parameter_id,
-                Value::from_object(*algorithm),
-                &algorithm_name,
-            )?))
-        }
         RegisteredAlgorithm::Sha => AlgorithmImplementation::Sha(Sha),
         RegisteredAlgorithm::Hmac => AlgorithmImplementation::Hmac(Hmac),
         RegisteredAlgorithm::HmacKeyGen => {
@@ -2569,7 +2555,7 @@ impl SubtleCrypto {
 
                     // 10. Let publicKey be a new CryptoKey representing the public key corresponding to the private key represented
                     //     by the [[handle]] internal slot of key.
-                    let public_key_data = public_key_for_private_key(key);
+                    let public_key_data = public_key_for_private_key(vm, key);
 
                     // 11. If an error occurred, then throw a OperationError.
                     if public_key_data.is_none() {

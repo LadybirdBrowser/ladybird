@@ -46,7 +46,6 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
     direct_headers = {
         "AnimationFrameProvider": "LibWeb/HTML/Window.h",
         "Element": "LibWeb/DOM/Element.h",
-        "SubtleCrypto": "LibWeb/Crypto/SubtleCrypto.h",
         "Window": "LibWeb/HTML/Window.h",
     }
     if name in direct_headers:

@@ -185,28 +185,12 @@ void CryptoKey::set_type(KeyType type)
     web_rust_crypto_key_set_type(this, to_underlying(type));
 }
 
-CryptoKey::InternalAlgorithmData CryptoKey::internal_algorithm() const
+CryptoKey::EcKeyAlgorithmData CryptoKey::ec_algorithm() const
 {
     CryptoKeyAlgorithmFields fields;
     web_rust_crypto_key_get_algorithm(this, &fields);
-    auto name = Utf16String::from_raw(fields.name);
-    switch (static_cast<SerializedKeyAlgorithmType>(fields.type)) {
-    case SerializedKeyAlgorithmType::Key:
-        return KeyAlgorithmData { move(name) };
-    case SerializedKeyAlgorithmType::Rsa:
-        return RsaKeyAlgorithmData { move(name), fields.modulus_length, MUST(ByteBuffer::copy(fields.public_exponent)) };
-    case SerializedKeyAlgorithmType::RsaHashed:
-        return RsaHashedKeyAlgorithmData { move(name), fields.modulus_length, MUST(ByteBuffer::copy(fields.public_exponent)), Utf16String::from_raw(fields.hash) };
-    case SerializedKeyAlgorithmType::Ec:
-        return EcKeyAlgorithmData { move(name), Utf16String::from_raw(fields.named_curve) };
-    case SerializedKeyAlgorithmType::Aes:
-        return AesKeyAlgorithmData { move(name), static_cast<u16>(fields.length) };
-    case SerializedKeyAlgorithmType::Hmac:
-        return HmacKeyAlgorithmData { move(name), Utf16String::from_raw(fields.hash), fields.length };
-    case SerializedKeyAlgorithmType::Kmac:
-        return KmacKeyAlgorithmData { move(name), fields.length };
-    }
-    VERIFY_NOT_REACHED();
+    VERIFY(fields.type == to_underlying(SerializedKeyAlgorithmType::Ec));
+    return { Utf16String::from_raw(fields.name), Utf16String::from_raw(fields.named_curve) };
 }
 
 Vector<KeyUsage> CryptoKey::internal_usages() const
