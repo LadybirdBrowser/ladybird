@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A window's tracks end when its document unloads, as its iframe navigates, even while another realm holds them.
+    asyncTest(async done => {
+        await internals.setPermission("microphone", "granted");
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        // getUserMedia() waits for its document to have focus.
+        iframe.contentWindow.focus();
+        const stream = await iframe.contentWindow.navigator.mediaDevices.getUserMedia({ audio: true });
+        const track = stream.getAudioTracks()[0];
+        println(`before the iframe navigates: ${track.readyState}`);
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "<p>The next document</p>";
+        await loaded;
+        println(`once it has navigated: ${track.readyState}`);
+        println(`a clone made after: ${track.clone().readyState}`);
+        done();
+    });
+</script>
