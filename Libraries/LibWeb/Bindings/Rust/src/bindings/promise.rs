@@ -27,6 +27,8 @@ unsafe extern "C" {
     /// the realm is on the stack, as HTML::queue_a_microtask() queues one without a document.
     fn web_bindings_queue_a_microtask(realm: *mut c_void, function: *mut c_void);
 
+    fn web_bindings_deferred_invoke(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
+
     /// Calls the steps with the VM and the cell in parallel: later, outside of any task, while an execution context of
     /// the realm is on the stack. The cell lives until then.
     fn web_bindings_run_in_parallel(
@@ -72,6 +74,7 @@ pub(crate) enum TaskSource {
     PostedMessage = 6,
     FileReading = 13,
     FontLoading = 19,
+    Crypto = 27,
     Storage = 29,
 }
 
@@ -577,6 +580,13 @@ pub(crate) unsafe extern "C" fn run_pending_steps(vm: *mut c_void, cell: *mut c_
     cell.0.take();
 }
 
+/// Defers steps to the event loop without pushing an execution context.
+pub(crate) fn deferred_invoke<C: Trace + Clone + 'static>(vm: &Vm, captures: C, steps: fn(&Vm, C)) {
+    let cell = pending_steps(vm, captures, steps);
+    // SAFETY: The cell is live.
+    unsafe { web_bindings_deferred_invoke(cell, run_pending_steps) };
+}
+
 /// Performs the steps with the captures in parallel, https://html.spec.whatwg.org/multipage/infrastructure.html#in-parallel,
 /// with an execution context of the realm on the stack.
 pub(crate) fn in_parallel<C: Trace + Copy + 'static>(vm: &Vm, realm: Gc<Realm>, captures: C, steps: fn(&Vm, C)) {
@@ -602,7 +612,7 @@ pub(crate) fn queue_a_task<C: Trace + Copy + 'static>(
 /// Queues a global task on the task source, given the global object, that performs the steps with the captures,
 /// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task. Unlike queue_a_task(), the steps run
 /// with no execution context of their own on the stack.
-pub(crate) fn queue_a_global_task<C: Trace + Copy + 'static>(
+pub(crate) fn queue_a_global_task<C: Trace + Clone + 'static>(
     vm: &Vm,
     global: Gc<Object>,
     task_source: TaskSource,
