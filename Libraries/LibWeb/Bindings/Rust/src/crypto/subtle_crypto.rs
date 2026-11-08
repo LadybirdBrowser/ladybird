@@ -34,7 +34,7 @@ use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
     Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa, Ed448, Ed25519,
     EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
-    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, MlDsa, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep,
+    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, MlDsa, MlKem, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep,
     RsaParameterType, RsaPss, RsassaPkcs1, Sha, X448, X25519, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
@@ -88,6 +88,7 @@ pub(crate) enum KeyFormat {
 
 #[derive(Clone, Copy)]
 enum RegisteredAlgorithm {
+    #[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
     Cpp(AlgorithmId, ParameterId),
     Sha,
     Hmac,
@@ -118,6 +119,7 @@ enum RegisteredAlgorithm {
     Ed25519,
     Ed448(bool),
     MlDsa(bool),
+    MlKem,
     X25519(bool),
     X448(bool),
     CShake,
@@ -158,6 +160,7 @@ enum AlgorithmImplementation {
     Ed25519(Ed25519),
     Ed448(Ed448),
     MlDsa(MlDsa),
+    MlKem(MlKem),
     X25519(X25519),
     X448(X448),
     CShake(CShakeParams),
@@ -197,6 +200,7 @@ impl Deref for AlgorithmImplementation {
             Self::Ed25519(algorithm) => algorithm,
             Self::Ed448(algorithm) => algorithm,
             Self::MlDsa(algorithm) => algorithm,
+            Self::MlKem(algorithm) => algorithm,
             Self::X25519(algorithm) => algorithm,
             Self::X448(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
@@ -453,6 +457,7 @@ pub(crate) fn normalize_an_algorithm(
         RegisteredAlgorithm::MlDsa(has_parameters) => {
             AlgorithmImplementation::MlDsa(MlDsa::from_value(vm, *algorithm, has_parameters)?)
         }
+        RegisteredAlgorithm::MlKem => AlgorithmImplementation::MlKem(MlKem),
         RegisteredAlgorithm::X25519(has_parameters) => {
             AlgorithmImplementation::X25519(X25519::from_value(vm, *algorithm, has_parameters)?)
         }
@@ -2019,9 +2024,11 @@ impl SubtleCrypto {
 
                     // 12. Let encapsulatedBits be the result of performing the encapsulate operation specified by the [[algorithm]]
                     //     internal slot of encapsulationKey using encapsulationKey.
-                    let maybe_encapsulated_bits = normalized_encapsulation_algorithm
-                        .methods
-                        .encapsulate(realm, encapsulation_key);
+                    let maybe_encapsulated_bits = normalized_encapsulation_algorithm.methods.encapsulate(
+                        realm,
+                        &normalized_encapsulation_algorithm.parameter,
+                        encapsulation_key,
+                    );
                     if let Err(error) = maybe_encapsulated_bits {
                         throw_in_this_context(error);
                         return;
@@ -2157,9 +2164,11 @@ impl SubtleCrypto {
 
                     // 10. Let encapsulatedBits be the result of performing the encapsulate operation specified by the [[algorithm]]
                     //     internal slot of encapsulationKey using encapsulationKey.
-                    let maybe_encapsulated_bits = normalized_encapsulation_algorithm
-                        .methods
-                        .encapsulate(realm, encapsulation_key);
+                    let maybe_encapsulated_bits = normalized_encapsulation_algorithm.methods.encapsulate(
+                        realm,
+                        &normalized_encapsulation_algorithm.parameter,
+                        encapsulation_key,
+                    );
                     if let Err(error) = maybe_encapsulated_bits {
                         throw_in_this_context(error);
                         return;
@@ -2300,10 +2309,12 @@ impl SubtleCrypto {
                     }
                     // 13. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
                     //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
-                    let maybe_decapsulated_bits =
-                        normalized_decapsulation_algorithm
-                            .methods
-                            .decapsulate(realm, decapsulation_key, &cipher_text);
+                    let maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods.decapsulate(
+                        realm,
+                        &normalized_decapsulation_algorithm.parameter,
+                        decapsulation_key,
+                        &cipher_text,
+                    );
                     if let Err(error) = maybe_decapsulated_bits {
                         throw_in_this_context(error);
                         return;
@@ -2435,10 +2446,12 @@ impl SubtleCrypto {
 
                     // 11. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
                     //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
-                    let maybe_decapsulated_bits =
-                        normalized_decapsulation_algorithm
-                            .methods
-                            .decapsulate(realm, decapsulation_key, &cipher_text);
+                    let maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods.decapsulate(
+                        realm,
+                        &normalized_decapsulation_algorithm.parameter,
+                        decapsulation_key,
+                        &cipher_text,
+                    );
                     if let Err(error) = maybe_decapsulated_bits {
                         throw_in_this_context(error);
                         return;
@@ -3433,41 +3446,16 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
 
         // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
         for name in ["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"] {
-            define_an_algorithm(
-                &mut internal_object,
-                "generateKey",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "importKey",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "exportKey",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "encapsulate",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
-            );
-            define_an_algorithm(
-                &mut internal_object,
-                "decapsulate",
-                name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
-            );
+            define_an_algorithm(&mut internal_object, "generateKey", name, RegisteredAlgorithm::MlKem);
+            define_an_algorithm(&mut internal_object, "importKey", name, RegisteredAlgorithm::MlKem);
+            define_an_algorithm(&mut internal_object, "exportKey", name, RegisteredAlgorithm::MlKem);
+            define_an_algorithm(&mut internal_object, "encapsulate", name, RegisteredAlgorithm::MlKem);
+            define_an_algorithm(&mut internal_object, "decapsulate", name, RegisteredAlgorithm::MlKem);
             define_an_algorithm(
                 &mut internal_object,
                 "get shared key length",
                 name,
-                RegisteredAlgorithm::Cpp(AlgorithmId::MlKem, ParameterId::AlgorithmParams),
+                RegisteredAlgorithm::MlKem,
             );
         }
 

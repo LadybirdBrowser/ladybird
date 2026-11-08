@@ -325,12 +325,14 @@ pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
+#[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
 pub(crate) enum AlgorithmId {
     MlKem = 1,
 }
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
+#[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
 pub(crate) enum ParameterId {
     AlgorithmParams,
 }
@@ -713,14 +715,25 @@ pub(crate) trait AlgorithmMethods: Trace {
         ))
     }
 
-    fn encapsulate(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>) -> WebIdlResult<EncapsulatedBitsData> {
+    fn encapsulate(
+        &self,
+        _realm: Gc<Realm>,
+        _params: &AlgorithmParams,
+        _key: Ref<CryptoKey>,
+    ) -> WebIdlResult<EncapsulatedBitsData> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("encapsulate is not supported"),
         ))
     }
 
-    fn decapsulate(&self, _realm: Gc<Realm>, _key: Ref<CryptoKey>, _data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decapsulate(
+        &self,
+        _realm: Gc<Realm>,
+        _params: &AlgorithmParams,
+        _key: Ref<CryptoKey>,
+        _data: &Bytes,
+    ) -> WebIdlResult<Bytes> {
         Err(Exception::Dom(
             "NotSupportedError",
             Utf16String::from_utf8("decalpsulate is not supported"),
@@ -1029,7 +1042,12 @@ impl AlgorithmMethods for CppAlgorithm {
         Ok(out.expect("LibWeb returns bytes"))
     }
 
-    fn encapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>) -> WebIdlResult<EncapsulatedBitsData> {
+    fn encapsulate(
+        &self,
+        realm: Gc<Realm>,
+        _params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+    ) -> WebIdlResult<EncapsulatedBitsData> {
         let (mut shared_key, mut ciphertext): (Option<Bytes>, Option<Bytes>) = (None, None);
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -1046,7 +1064,13 @@ impl AlgorithmMethods for CppAlgorithm {
         Ok(EncapsulatedBitsData { shared_key, ciphertext })
     }
 
-    fn decapsulate(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
+    fn decapsulate(
+        &self,
+        realm: Gc<Realm>,
+        _params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        data: &Bytes,
+    ) -> WebIdlResult<Bytes> {
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -14987,6 +15011,729 @@ impl AlgorithmMethods for MlDsa {
 
     fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
         Some(vec![KeyUsage::Verify])
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(i32)]
+enum MlKemSize {
+    MlKem512,
+    MlKem768,
+    MlKem1024,
+}
+
+const ML_KEM_512_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 1];
+const ML_KEM_768_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 2];
+const ML_KEM_1024_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 3];
+
+unsafe extern "C" {
+    fn web_crypto_mlkem_generate_key_pair(
+        size: MlKemSize,
+        seed: Span<'_, u8>,
+        public_key: &mut *mut c_void,
+        private_key: &mut *mut c_void,
+    ) -> usize;
+    fn web_crypto_mlkem_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
+    fn web_crypto_mlkem_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_mlkem_public_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes);
+    fn web_crypto_mlkem_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
+    fn web_crypto_mlkem_export_der(
+        key: *const c_void,
+        is_public: bool,
+        oid: Span<'_, u32>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_mlkem_encapsulate(
+        size: MlKemSize,
+        key: *const c_void,
+        shared_key: *mut c_void,
+        ciphertext: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+    fn web_crypto_mlkem_decapsulate(
+        size: MlKemSize,
+        key: *const c_void,
+        ciphertext: Span<'_, u8>,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> usize;
+}
+
+impl Asn1KeyInfo {
+    fn mlkem_private_key(&self) -> UninstalledKey {
+        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
+        // SAFETY: This object owns a live PrivateKeyInfo.
+        let key = unsafe { web_crypto_mlkem_key_info_read_private_key(self.key_info.as_ptr()) };
+        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an ML-KEM private key"))
+    }
+}
+
+fn mlkem_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
+    // SAFETY: The input bytes are lent for the call.
+    let key = unsafe { web_crypto_mlkem_read_public_key(Span::new(bytes)) };
+    // SAFETY: The service transfers ownership of the live key.
+    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an ML-KEM public key")) }
+}
+
+fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<NativeKeyPair, Utf16String> {
+    let mut public_key = null_mut();
+    let mut private_key = null_mut();
+    // SAFETY: The seed and output slots are lent for the call.
+    let error = unsafe { web_crypto_mlkem_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
+    if error != 0 {
+        // SAFETY: LibCrypto transfers ownership of the error message.
+        return Err(unsafe { Utf16String::from_raw_owned(error) });
+    }
+    Ok(NativeKeyPair {
+        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
+        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
+    })
+}
+
+fn mlkem_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle, OID and output slot are lent for the call.
+    if !unsafe {
+        web_crypto_mlkem_export_der(
+            key.handle().as_ptr(),
+            is_public,
+            Span::new(oid),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(out_of_memory(vm));
+    }
+    Ok(result.expect("LibCrypto returns the DER bytes"))
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct MlKem;
+
+impl AlgorithmMethods for MlKem {
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
+        //    "decapsulateBits", then throw a SyntaxError.
+        for &usage in usages {
+            if usage != KeyUsage::EncapsulateKey
+                && usage != KeyUsage::EncapsulateBits
+                && usage != KeyUsage::DecapsulateKey
+                && usage != KeyUsage::DecapsulateBits
+            {
+                return Err(dom_error("SyntaxError", b"Invalid key usage"));
+            }
+        }
+
+        // 2. Generate an ML-KEM key pair, as described in Section 7.1 of [FIPS-203], with the parameter set indicated
+        //    by the name member of normalizedAlgorithm.
+        let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+            MlKemSize::MlKem512
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+            MlKemSize::MlKem768
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+            MlKemSize::MlKem1024
+        } else {
+            unreachable!("the name identifies an ML-KEM parameter set")
+        };
+        let maybe_key_pair = mlkem_generate_key_pair(size, &[]);
+
+        // 3. If the key generation step fails, then throw an OperationError.
+        let key_pair = maybe_key_pair.map_err(|error| {
+            Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error]),
+            )
+        })?;
+
+        // 6. Let publicKey be a new CryptoKey representing the encapsulation key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 7. Set the [[type]] internal slot of publicKey to "public".
+        public_key.set_type(KeyType::Public);
+
+        // 4. Let algorithm be a new KeyAlgorithm object.
+        // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        // 8. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Key {
+            name: params.name.clone(),
+        });
+
+        // 9. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encapsulateKey",
+        //     "encapsulateBits" ].
+        public_key.set_usages(usage_intersection(
+            usages,
+            &[KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits],
+        ));
+
+        // 11. Let privateKey be a new CryptoKey representing the decapsulation key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 12. Set the [[type]] internal slot of privateKey to "private".
+        private_key.set_type(KeyType::Private);
+
+        // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Key {
+            name: params.name.clone(),
+        });
+
+        // 14. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decapsulateKey",
+        //     "decapsulateBits" ].
+        private_key.set_usages(usage_intersection(
+            usages,
+            &[KeyUsage::DecapsulateKey, KeyUsage::DecapsulateBits],
+        ));
+
+        // 16. Let result be a new CryptoKeyPair dictionary.
+        // 17. Set the publicKey attribute of result to be publicKey.
+        // 18. Set the privateKey attribute of result to be privateKey.
+        let result = CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        };
+
+        // 19. Return result.
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(result))
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        params: &AlgorithmParams,
+        format: KeyFormat,
+        key_data: ImportKeyData,
+        _: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let key;
+
+        // 1. Let keyData be the key data to be imported.
+        // 2. -> If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "encapsulateKey" or "encapsulateBits" then throw
+            //    a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
+            let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+                // Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1).
+                ML_KEM_512_OID
+            }
+            // If the name member of normalizedAlgorithm is "ML-KEM-768":
+            else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+                // Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2).
+                ML_KEM_768_OID
+            }
+            // If the name member of normalizedAlgorithm is "ML-KEM-1024":
+            else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+                // Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3).
+                ML_KEM_1024_OID
+            }
+            // Otherwise:
+            else {
+                // throw a NotSupportedError.
+                return Err(dom_error("NotSupportedError", b"Invalid key format"));
+            };
+
+            // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
+            //    to expectedOid, then throw a DataError.
+            if spki.identifier() != expected_oid {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+            if spki.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 7. Let publicKey be the ML-KEM public key identified by the subjectPublicKey field of spki.
+            let public_key = spki.raw_key();
+
+            // 8. Let key be a new CryptoKey that represents publicKey.
+            key = mlkem_read_public_key(cx.vm(), public_key);
+
+            // 9. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 10. Let algorithm be a new KeyAlgorithm.
+            // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 12. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //    -> If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::DecapsulateKey && usage != KeyUsage::DecapsulateBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. => If the name member of normalizedAlgorithm is "ML-KEM-512":
+            //       Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1).
+            //       Let asn1Structure be the ASN.1 ML-KEM-512-PrivateKey structure.
+            //    => If the name member of normalizedAlgorithm is "ML-KEM-768":
+            //       Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2).
+            //       Let asn1Structure be the ASN.1 ML-KEM-768-PrivateKey structure.
+            //    => If the name member of normalizedAlgorithm is "ML-KEM-1024":
+            //       Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3).
+            //       Let asn1Structure be the ASN.1 ML-KEM-1024-PrivateKey structure.
+            //    => Otherwise:
+            //       throw a NotSupportedError.
+            let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+                ML_KEM_512_OID
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+                ML_KEM_768_OID
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+                ML_KEM_1024_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
+            //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
+            if private_key_info.identifier() != expected_oid {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
+            //    privateKeyInfo is present, then throw a DataError.
+            if private_key_info.ec_parameters().is_some() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 7. Let mlKemPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
+            //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
+            //    true.
+            // NOTE: We already did this in parse_a_private_key_info
+            // 8. If an error occurred while parsing, then throw a DataError.
+            let ml_kem_private_key = private_key_info.mlkem_private_key();
+
+            // 9. Let key be a new CryptoKey that represents the ML-KEM private key identified by
+            //    mlKemPrivateKey.
+            key = ml_kem_private_key.install(cx.vm());
+
+            // 10. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 11. Let algorithm be a new KeyAlgorithm.
+            // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 13. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //    -> If format is "raw-public":
+        else if format == KeyFormat::RawPublic {
+            // 1. If usages contains an entry which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::EncapsulateKey && usage != KeyUsage::EncapsulateBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let data be keyData.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+
+            // 3. Let key be a new CryptoKey that represents the ML-KEM public key data in data.
+            key = mlkem_read_public_key(cx.vm(), data.as_slice());
+
+            // 4. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 5. Let algorithm be a new KeyAlgorithm object.
+            // 6. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 6. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        //    -> If format is "raw-seed":
+        else if format == KeyFormat::RawSeed {
+            // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::DecapsulateKey && usage != KeyUsage::DecapsulateBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let data be keyData.
+            let ImportKeyData::Bytes(data) = key_data else {
+                unreachable!("raw key data contains bytes")
+            };
+
+            // 3. If the length in bits of data is not 512 then throw a DataError.
+            if data.as_slice().len() * 8 != 512 {
+                return Err(dom_error("DataError", b"Invalid key format"));
+            }
+
+            // 4. Let privateKey be the result of performing the ML-KEM.KeyGen_internal function described in
+            //    Section 6.1 of [FIPS-203] with the parameter set indicated by the name member of
+            //    normalizedAlgorithm, using the first 256 bits of data as d and the last 256 bits of data as z.
+            let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+                MlKemSize::MlKem512
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+                MlKemSize::MlKem768
+            } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+                MlKemSize::MlKem1024
+            } else {
+                unreachable!("the name identifies an ML-KEM parameter set")
+            };
+            let maybe_key_pair = mlkem_generate_key_pair(size, data.as_slice());
+            let key_pair = maybe_key_pair.map_err(|error| {
+                Exception::Dom(
+                    "OperationError",
+                    libjs_rust::api::utf16_formatted("Key generation failed: {}", &[&error]),
+                )
+            })?;
+
+            // 5. Let key be a new CryptoKey that represents the ML-KEM private key identified by privateKey.
+            key = key_pair.private_key.install(cx.vm());
+
+            // 6. Set the [[type]] internal slot of key to "private"
+            key.set_type(KeyType::Private);
+
+            // 7. Let algorithm be a new KeyAlgorithm.
+            // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 9. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Key {
+                name: params.name.clone(),
+            });
+        }
+        // FIXME: -> If format is "jwk":
+        //    -> Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 3. Return key.
+        Ok(key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-export-key
+    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        let vm = cx.vm();
+
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
+        //    accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+        let handle = key.handle();
+
+        // 3. -> If format is "spki":
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //      * -> If the name member of keyAlgorithm is "ML-KEM-512":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
+            //        -> If the name member of keyAlgorithm is "ML-KEM-768":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
+            //        -> If the name member of keyAlgorithm is "ML-KEM-1024":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
+            //        -> Otherwise:
+            //           throw a NotSupportedError.
+            //    * Set the subjectPublicKey field to keyData.
+            let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+                ML_KEM_512_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+                ML_KEM_768_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+                ML_KEM_1024_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            let data = mlkem_export_der(vm, key, true, &algorithm_oid)?;
+
+            // 4. Let result be the result of DER-encoding data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+
+            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      * => If the name member of keyAlgorithm is "ML-KEM-512":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
+            //      * => If the name member of keyAlgorithm is "ML-KEM-768":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
+            //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
+            //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
+            //      * => Otherwise:
+            //           throw a NotSupportedError.
+            //    * Set the privateKey field as follows:
+            //      * => If the name member of keyAlgorithm is "ML-KEM-512":
+            //           Set the privateKey field to the result of DER-encoding a ML-KEM-512-PrivateKey
+            //           ASN.1 type that represents the ML-KEM private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => If the name member of keyAlgorithm is "ML-KEM-768":
+            //           Set the privateKey field to the result of DER-encoding a ML-KEM-65-PrivateKey
+            //           ASN.1 type that represents the ML-KEM private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
+            //           Set the privateKey field to the result of DER-encoding a ML-KEM-1024-PrivateKey
+            //           ASN.1 type that represents the ML-KEM private key seed represented by the
+            //           [[handle]] internal slot of key using the seed-only format (using a context-
+            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
+            //      * => Otherwise:
+            //           throw a NotSupportedError.
+            let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+                ML_KEM_512_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+                ML_KEM_768_OID
+            } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+                ML_KEM_1024_OID
+            } else {
+                return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+            };
+
+            let data = mlkem_export_der(vm, key, false, &algorithm_oid)?;
+
+            // 4. Let result be the result of DER-encoding data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "raw-public":
+        else if format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]] internal slot of key.
+            let mut data: Option<Bytes> = None;
+            // SAFETY: The handle and output slot are lent for the call.
+            unsafe {
+                web_crypto_mlkem_public_bytes(handle.as_ptr(), core::ptr::from_mut(&mut data).cast(), receive_bytes);
+            };
+            let data = data.expect("LibCrypto returns the public key bytes");
+
+            // 3. Let result be data.
+            ExportKeyResult::Bytes(data)
+        }
+        //   -> If format is "raw-seed":
+        else if format == KeyFormat::RawSeed {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            // 2. Let data be a byte sequence containing the concatenation of the d and z seed variables of the
+            //    key represented by the [[handle]] internal slot of key.
+            let mut seed = Span::new(&[]);
+            // SAFETY: The key owns the seed through the copy.
+            unsafe { web_crypto_mlkem_seed_bytes(handle.as_ptr(), &mut seed) };
+            let data = Bytes::new(copy_bytes(vm, seed.as_slice())?);
+
+            // 3. Let result be data.
+            ExportKeyResult::Bytes(data)
+        }
+        // FIXME:  -> If format is "jwk":
+        //   -> Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        };
+
+        // 4. Return result.
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits])
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate
+    fn encapsulate(
+        &self,
+        _: Gc<Realm>,
+        params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+    ) -> WebIdlResult<EncapsulatedBitsData> {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Invalid key type"));
+        }
+
+        // 2. Perform the encapsulation key check described in Section 7.2 of [FIPS-203] with the parameter set indicated
+        //    by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as the ek
+        //    input parameter.
+        // 3. If the encapsulation key check failed, return an OperationError.
+        // NOTE: Presumably done by OpenSSL for us
+
+        // 4. Let sharedKey and ciphertext be the outputs that result from performing the ML-KEM.Encaps function
+        //    described in Section 7.2 of [FIPS-203] with the parameter set indicated by the name member of algorithm,
+        //    using the key represented by the [[handle]] internal slot of key as the ek input parameter.
+        let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+            MlKemSize::MlKem512
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+            MlKemSize::MlKem768
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+            MlKemSize::MlKem1024
+        } else {
+            unreachable!("the name identifies an ML-KEM parameter set")
+        };
+        let mut shared_key: Option<Bytes> = None;
+        let mut ciphertext: Option<Bytes> = None;
+        // SAFETY: The handle and output slots are lent for the call.
+        let maybe_encapsulation = unsafe {
+            web_crypto_mlkem_encapsulate(
+                size,
+                key.handle().as_ptr(),
+                core::ptr::from_mut(&mut shared_key).cast(),
+                core::ptr::from_mut(&mut ciphertext).cast(),
+                receive_bytes,
+            )
+        };
+
+        // 5. If the ML-KEM.Encaps function returned an error, return an OperationError.
+        if maybe_encapsulation != 0 {
+            // SAFETY: LibCrypto transfers ownership of the error message.
+            let error = unsafe { Utf16String::from_raw_owned(maybe_encapsulation) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Key encapsulation failed: {}", &[&error]),
+            ));
+        }
+
+        // 6. Let result be a new EncapsulatedBits dictionary.
+        // 7. Set the sharedKey attribute of result to the result of creating an ArrayBuffer containing sharedKey.
+        // 8. Set the ciphertext attribute of result to the result of creating an ArrayBuffer containing ciphertext.
+        let result = EncapsulatedBitsData { shared_key, ciphertext };
+
+        // 9. Return result.
+        Ok(result)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-decapsulate
+    fn decapsulate(
+        &self,
+        _: Gc<Realm>,
+        params: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        ciphertext: &Bytes,
+    ) -> WebIdlResult<Bytes> {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Invalid key type"));
+        }
+
+        // 2. Perform the decapsulation input check described in Section 7.3 of [FIPS-203] with the parameter set
+        //    indicated by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as
+        //    the dk input parameter, and ciphertext as the c input parameter.
+        // 3. If the decapsulation key check failed, return an OperationError.
+        // NOTE: Presumably done by OpenSSL for us
+
+        // 4. Let sharedKey be the output that results from performing the ML-KEM.Decaps function described in Section
+        //    7.3 of [FIPS-203] with the parameter set indicated by the name member of algorithm, using the key
+        //    represented by the [[handle]] internal slot of key as the dk input parameter, and ciphertext as the c input
+        //    parameter.
+        let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
+            MlKemSize::MlKem512
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
+            MlKemSize::MlKem768
+        } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-1024")) {
+            MlKemSize::MlKem1024
+        } else {
+            unreachable!("the name identifies an ML-KEM parameter set")
+        };
+        let mut shared_key: Option<Bytes> = None;
+        // SAFETY: The handle, ciphertext and output slot are lent for the call.
+        let maybe_shared_key = unsafe {
+            web_crypto_mlkem_decapsulate(
+                size,
+                key.handle().as_ptr(),
+                Span::new(ciphertext.as_slice()),
+                core::ptr::from_mut(&mut shared_key).cast(),
+                receive_bytes,
+            )
+        };
+
+        if maybe_shared_key != 0 {
+            // SAFETY: LibCrypto transfers ownership of the error message.
+            let error = unsafe { Utf16String::from_raw_owned(maybe_shared_key) };
+            return Err(Exception::Dom(
+                "OperationError",
+                libjs_rust::api::utf16_formatted("Key decapsulation failed: {}", &[&error]),
+            ));
+        }
+
+        let shared_key = shared_key.expect("LibCrypto returns the shared key");
+
+        // 5. Return sharedKey.
+        Ok(shared_key)
+    }
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-get-shared-key-length
+    fn get_shared_key_length(&self, _: Gc<Realm>) -> WebIdlResult<u32> {
+        // 1. Return 256.
+        Ok(256)
     }
 }
 
