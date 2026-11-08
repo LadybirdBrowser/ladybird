@@ -504,10 +504,16 @@ void HubConnection::translator_target_languages(u64 request_id, String source_la
     });
 }
 
-void HubConnection::translator_create_session(u64 session_id, String source_language, String target_language)
+void HubConnection::translator_create_session(u64 session_id, String source_language, String target_language, bool prefer_higher_quality)
 {
     if (auto* translator = Application::the().translator())
-        m_translator_sessions.set(session_id, translator->create_session(source_language, target_language));
+        m_translator_sessions.set(session_id, translator->create_session(source_language, target_language, prefer_higher_quality));
+}
+
+void HubConnection::translator_choose_session_model_again(u64 session_id, bool prefer_higher_quality)
+{
+    if (auto session = m_translator_sessions.get(session_id); session.has_value())
+        Application::the().translator()->choose_session_model_again(*session, prefer_higher_quality);
 }
 
 void HubConnection::translator_close_session(u64 session_id)

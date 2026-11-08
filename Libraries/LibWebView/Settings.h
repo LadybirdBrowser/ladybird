@@ -223,6 +223,7 @@ struct WEBVIEW_API SettingsData {
     URL::URL m_new_tab_page_url;
     bool m_restore_previous_session { false };
     Vector<String> m_languages;
+    bool m_translation_prefers_higher_quality { false };
 
     Appearance m_appearance;
     ContentSettings m_content_settings;
@@ -296,6 +297,10 @@ public:
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
+
+    // Whether pages are translated with the platform's higher-quality models, rather than its faster ones.
+    bool translation_prefers_higher_quality() const { return m_translation_prefers_higher_quality; }
+    void set_translation_prefers_higher_quality(bool);
 
     static Appearance parse_appearance(JsonValue const&);
     Appearance const& appearance() const { return m_appearance; }

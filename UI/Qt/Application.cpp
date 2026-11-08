@@ -729,6 +729,13 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
 #    if defined(LADYBIRD_HAS_TRANSLATOR)
     m_translator = create_platform_translator();
+    // The Hub decides what to offer for each page, so it hears whenever a language's download starts or finishes.
+    if (m_translator) {
+        m_translator->on_languages_changed = [] {
+            if (auto* hub = HubConnection::the_if_connected())
+                hub->async_translator_languages_changed();
+        };
+    }
 #    endif
 #    if defined(AK_OS_MACOS)
     m_spell_checker = create_platform_spell_checker();

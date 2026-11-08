@@ -33,6 +33,10 @@
 struct WebView::Translator::TargetLanguage {
     String language;
     bool needs_download;
+    bool faster_after_download;
+    bool higher_quality_available;
+    bool downloading;
+    Vector<String> languages_to_download;
 }
 
 [ExistingCpp]
@@ -162,6 +166,8 @@ endpoint HubServer
     view_traverse_the_history_by_delta(u64 view_id, i32 delta) =|
     view_translate_to(u64 view_id, String target_language) =|
     view_show_original(u64 view_id) =|
+    view_download_translation_languages(u64 view_id, String target_language) =|
+    view_prefer_higher_quality_translation(u64 view_id, bool prefers_higher_quality) =|
     view_download_url(u64 view_id, URL::URL url, bool prompt_for_path, Optional<String> image_mime_type) =|
     view_inspect_context_menu_element(u64 view_id) =|
     view_replace_context_menu_misspelling(u64 view_id, Utf16String replacement) =|
@@ -194,6 +200,7 @@ endpoint HubServer
     translator_language_detected(u64 request_id, Optional<String> language) =|
     translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) =|
     translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) =|
+    translator_languages_changed() =|
     spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) =|
     spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) =|
     spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) =|

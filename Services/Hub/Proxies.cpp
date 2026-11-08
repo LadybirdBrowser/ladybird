@@ -309,12 +309,18 @@ void TranslatorInUI::did_get_target_languages(u64 request_id, Vector<TargetLangu
 }
 
 // NB: The Hub never waits for the UI, so it picks the session's ID itself.
-WebView::Translator::SessionId TranslatorInUI::create_session(String const& source_language, String const& target_language)
+WebView::Translator::SessionId TranslatorInUI::create_session(String const& source_language, String const& target_language, bool prefer_higher_quality)
 {
     auto session_id = m_next_session_id++;
     if (auto* ui = ConnectionFromUI::the())
-        ui->async_translator_create_session(session_id, source_language, target_language);
+        ui->async_translator_create_session(session_id, source_language, target_language, prefer_higher_quality);
     return session_id;
+}
+
+void TranslatorInUI::choose_session_model_again(SessionId session_id, bool prefer_higher_quality)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_translator_choose_session_model_again(session_id, prefer_higher_quality);
 }
 
 void TranslatorInUI::close_session(SessionId session_id)

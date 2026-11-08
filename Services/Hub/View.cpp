@@ -622,9 +622,18 @@ ViewState View::current_state() const
         auto& translation = const_cast<View&>(*this).page_translation();
         state.is_translated = translation.is_translated();
         state.translation_offered = translation.is_offered();
-        state.translation_languages = translation.offered_target_languages();
+        for (auto const& target : translation.target_languages()) {
+            state.translation_targets.append({
+                .language = target.language,
+                .needs_download = target.needs_download,
+                .faster_after_download = target.faster_after_download,
+                .higher_quality_available = target.higher_quality_available,
+                .downloading = target.downloading,
+                .languages_to_download = target.languages_to_download,
+            });
+        }
         state.translation_target_language = translation.target_language();
-        state.translation_needs_language_download = translation.needs_language_download();
+        state.translation_prefers_higher_quality = Application::settings().translation_prefers_higher_quality();
     }
     state.input_method_state = input_method_state();
     state.page_mute_state = page_mute_state();

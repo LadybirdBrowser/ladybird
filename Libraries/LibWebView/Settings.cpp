@@ -29,6 +29,7 @@ static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 static constexpr auto RESTORE_PREVIOUS_SESSION_KEY = "restorePreviousSession"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
+static constexpr auto TRANSLATION_PREFERS_HIGHER_QUALITY_KEY = "translationPrefersHigherQuality"sv;
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
@@ -390,6 +391,8 @@ void Settings::load_from_json(JsonValue const& json_value)
 
     if (auto languages = json.get(LANGUAGES_KEY); languages.has_value())
         m_languages = parse_json_languages(*languages);
+
+    m_translation_prefers_higher_quality = json.get_bool(TRANSLATION_PREFERS_HIGHER_QUALITY_KEY).value_or(false);
 
     if (auto appearance = json.get(APPEARANCE_KEY); appearance.has_value())
         m_appearance = parse_appearance(*appearance);
@@ -784,6 +787,7 @@ JsonValue Settings::serialize_json() const
     for (auto const& language : m_languages)
         languages.must_append(language);
     settings.set(LANGUAGES_KEY, move(languages));
+    settings.set(TRANSLATION_PREFERS_HIGHER_QUALITY_KEY, m_translation_prefers_higher_quality);
 
     JsonObject appearance;
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
@@ -1053,6 +1057,12 @@ void Settings::set_languages(Vector<String> languages)
 
     for (auto& observer : m_observers)
         observer.languages_changed();
+}
+
+void Settings::set_translation_prefers_higher_quality(bool translation_prefers_higher_quality)
+{
+    m_translation_prefers_higher_quality = translation_prefers_higher_quality;
+    persist_settings();
 }
 
 Appearance Settings::parse_appearance(JsonValue const& settings)

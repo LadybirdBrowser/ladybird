@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/HashMap.h>
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
 #    include <Hub/Application.h>
@@ -481,25 +482,36 @@ void RemoteView::create_translation_actions()
 
     m_translation_menu = Menu::create("Translation"sv);
     for (size_t index = 0; index < WebView::PageTranslation::MAXIMUM_OFFERED_LANGUAGES; ++index) {
-        auto action = Action::create_checkable("Translate"sv, ActionID::TranslateTo, [this, index] {
-            if (index < m_state.translation_languages.size())
-                HubConnection::the().async_view_translate_to(view_id(), m_state.translation_languages[index]);
+        auto translate_to_action = Action::create_checkable("Translate"sv, ActionID::TranslateTo, [this, index] {
+            if (index < m_state.translation_targets.size() && !m_state.translation_targets[index].needs_download)
+                HubConnection::the().async_view_translate_to(view_id(), m_state.translation_targets[index].language);
             // NB: The check mark shows the language the page is in, which activating an action doesn't change by itself.
             update_view_actions();
         });
-        m_translation_menu->add_action(action);
-        m_translate_to_actions.append(move(action));
+        translate_to_action->set_visible(false);
+        m_translation_menu->add_action(translate_to_action);
+        m_translate_to_actions.append(move(translate_to_action));
+
+        auto download_languages_action = Action::create("Download"sv, ActionID::DownloadTranslationLanguages, [this, index] {
+            if (index < m_state.translation_targets.size())
+                HubConnection::the().async_view_download_translation_languages(view_id(), m_state.translation_targets[index].language);
+        });
+        download_languages_action->set_visible(false);
+        m_translation_menu->add_action(download_languages_action);
+        m_download_languages_actions.append(move(download_languages_action));
     }
     m_show_original_action = Action::create("Show Original"sv, ActionID::ShowOriginal, [this] {
         HubConnection::the().async_view_show_original(view_id());
     });
     m_translation_menu->add_action(*m_show_original_action);
     m_translation_menu->add_separator();
-    m_download_languages_action = Action::create("Download Languages…"sv, ActionID::DownloadTranslationLanguages, [] {
-        if (auto* translator = Application::the().translator())
-            translator->open_language_download_settings();
+    m_prefer_higher_quality_action = Action::create_checkable("Use Higher-Quality Models"sv, ActionID::PreferHigherQualityTranslation, [this] {
+        HubConnection::the().async_view_prefer_higher_quality_translation(view_id(), !m_state.translation_prefers_higher_quality);
+        // NB: The check mark shows the saved choice, which the Hub sends back with the view's state.
+        update_view_actions();
     });
-    m_translation_menu->add_action(*m_download_languages_action);
+    m_prefer_higher_quality_action->set_visible(false);
+    m_translation_menu->add_action(*m_prefer_higher_quality_action);
     m_translation_menu->add_action(Action::create("Preferred Languages…"sv, ActionID::EditPreferredLanguages, [] {
         auto url = URL::about_settings();
         url.set_fragment("editLanguages"sv);
@@ -509,25 +521,71 @@ void RemoteView::create_translation_actions()
 
 void RemoteView::update_translation_actions()
 {
+    auto const& targets = m_state.translation_targets;
+    // The platform's settings run a download and don't say how far along it is — so the button pulses until it ends.
+    auto downloading = any_of(targets, [](auto const& target) { return target.downloading; });
     m_translate_action->set_visible(m_state.translation_offered);
     m_translate_action->set_engaged(m_state.is_translated);
-    m_translate_action->set_tooltip(m_state.is_translated ? "Showing translation"sv : "Translate this page"sv);
+    m_translate_action->set_busy(downloading);
+    if (m_state.is_translated)
+        m_translate_action->set_tooltip("Showing translation"sv);
+    else if (downloading)
+        m_translate_action->set_tooltip("Downloading a language to translate this page"sv);
+    else
+        m_translate_action->set_tooltip("Translate this page"sv);
 
     auto const& target_language = m_state.translation_target_language;
-    for (size_t slot = 0; slot < m_translate_to_actions.size(); ++slot) {
-        auto& action = m_translate_to_actions[slot];
-        if (slot >= m_state.translation_languages.size()) {
-            action->set_visible(false);
+    for (size_t index = 0; index < m_translate_to_actions.size(); ++index) {
+        auto& translate_to_action = m_translate_to_actions[index];
+        auto& download_languages_action = m_download_languages_actions[index];
+        if (index >= targets.size()) {
+            translate_to_action->set_visible(false);
+            download_languages_action->set_visible(false);
             continue;
         }
-        auto const& language = m_state.translation_languages[slot];
-        action->set_text(MUST(String::formatted("Translate to {}", language_display_name(language))));
-        action->set_checked(target_language.has_value() && WebView::is_same_language(*target_language, language));
-        action->set_visible(true);
+
+        auto const& target = targets[index];
+        auto name = language_display_name(target.language);
+        // The item names the languages to download, and the target when it isn't one of them: "Download Dutch to
+        // Translate to English…" for a Dutch page, but "Download Italian to Translate…" for an English one.
+        String download_names;
+        String download_target;
+        if (target.languages_to_download.is_empty()) {
+            download_names = "Languages"_string;
+            download_target = MUST(String::formatted(" to {}", name));
+        } else {
+            Vector<String> names;
+            for (auto const& language : target.languages_to_download)
+                names.append(language_display_name(language));
+            download_names = MUST(String::join(" and "sv, names));
+            if (!any_of(target.languages_to_download, [&](auto const& language) { return WebView::is_same_language(language, target.language); }))
+                download_target = MUST(String::formatted(" to {}", name));
+        }
+
+        translate_to_action->set_text(MUST(String::formatted("Translate to {}", name)));
+        translate_to_action->set_checked(target_language.has_value() && WebView::is_same_language(*target_language, target.language));
+        translate_to_action->set_visible(!target.needs_download);
+
+        if (target.needs_download && target.downloading)
+            download_languages_action->set_text(MUST(String::formatted("Downloading {} to Translate{}…", download_names, download_target)));
+        else if (target.needs_download)
+            download_languages_action->set_text(MUST(String::formatted("Download {} to Translate{}…", download_names, download_target)));
+        else if (target.downloading)
+            download_languages_action->set_text(MUST(String::formatted("Downloading {} for Faster Translation{}…", download_names, download_target)));
+        else
+            download_languages_action->set_text(MUST(String::formatted("Download {} for Faster Translation{}…", download_names, download_target)));
+        download_languages_action->set_enabled(!target.downloading);
+        download_languages_action->set_visible(target.needs_download || target.faster_after_download);
     }
 
     m_show_original_action->set_enabled(m_state.is_translated);
-    m_download_languages_action->set_visible(m_state.translation_needs_language_download);
+
+    auto* translator = Application::the().translator();
+    auto higher_quality_models_name = translator ? translator->higher_quality_models_name() : Optional<StringView> {};
+    if (higher_quality_models_name.has_value())
+        m_prefer_higher_quality_action->set_text(MUST(String::formatted("Use {} (Slower)", *higher_quality_models_name)));
+    m_prefer_higher_quality_action->set_checked(m_state.translation_prefers_higher_quality);
+    m_prefer_higher_quality_action->set_visible(higher_quality_models_name.has_value() && any_of(targets, [](auto const& target) { return target.higher_quality_available; }));
 }
 
 void RemoteView::update_view_actions()

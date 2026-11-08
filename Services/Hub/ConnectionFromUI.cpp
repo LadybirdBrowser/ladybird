@@ -322,6 +322,12 @@ void ConnectionFromUI::translator_translation_finished(u64 request_id, Optional<
         translator->did_translate(request_id, move(runs));
 }
 
+void ConnectionFromUI::translator_languages_changed()
+{
+    if (auto* translator = TranslatorInUI::the(); translator && translator->on_languages_changed)
+        translator->on_languages_changed();
+}
+
 void ConnectionFromUI::spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors)
 {
     if (auto* spell_checker = SpellCheckerInUI::the())
@@ -1007,6 +1013,18 @@ void ConnectionFromUI::view_show_original(u64 view_id)
 {
     if (auto* view = find_view(view_id); view && view->has_traversable())
         view->page_translation().show_original();
+}
+
+void ConnectionFromUI::view_download_translation_languages(u64 view_id, String target_language)
+{
+    if (auto* view = find_view(view_id); view && view->has_traversable())
+        view->page_translation().download_languages_for(target_language);
+}
+
+void ConnectionFromUI::view_prefer_higher_quality_translation(u64 view_id, bool prefers_higher_quality)
+{
+    if (auto* view = find_view(view_id); view && view->has_traversable())
+        view->page_translation().prefer_higher_quality_models(prefers_higher_quality);
 }
 
 void ConnectionFromUI::view_download_url(u64 view_id, URL::URL url, bool prompt_for_path, Optional<String> image_mime_type)

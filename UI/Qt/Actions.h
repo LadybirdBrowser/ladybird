@@ -109,6 +109,7 @@ enum class ActionID {
     TranslateTo,
     ShowOriginal,
     DownloadTranslationLanguages,
+    PreferHigherQualityTranslation,
     EditPreferredLanguages,
 
     ZoomIn,
@@ -187,6 +188,10 @@ public:
     bool engaged() const { return m_engaged; }
     void set_engaged(bool);
 
+    // Work the action started is under way, e.g. a download, which its button shows by pulsing.
+    bool busy() const { return m_busy; }
+    void set_busy(bool);
+
     bool is_checkable() const { return m_checked.has_value(); }
     bool checked() const { return *m_checked; }
     void set_checked(bool);
@@ -201,6 +206,7 @@ public:
         virtual void on_enabled_state_changed(Action&) { }
         virtual void on_visible_state_changed(Action&) { }
         virtual void on_engaged_state_changed(Action&) { }
+        virtual void on_busy_state_changed(Action&) { }
         virtual void on_checked_state_changed(Action&) { }
     };
 
@@ -229,6 +235,7 @@ private:
     bool m_enabled { true };
     bool m_visible { true };
     bool m_engaged { false };
+    bool m_busy { false };
     Optional<bool> m_checked;
 
     Function<void()> m_action;

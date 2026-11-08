@@ -32,6 +32,9 @@ void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int d
 
 QAction* create_application_action(QWidget& parent, Action&, IncludeActionIcon = IncludeActionIcon::Yes);
 
+// The property of a QAction that's true while its Action is busy.
+static constexpr auto BUSY_ACTION_PROPERTY = "LadybirdBusyAction";
+
 // A QAction that shows one Action at a time, such as the toolbar's for whichever tab is selected.
 class ActionBinding {
 public:

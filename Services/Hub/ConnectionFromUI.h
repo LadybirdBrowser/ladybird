@@ -123,6 +123,7 @@ private:
     virtual void translator_language_detected(u64 request_id, Optional<String> language) override;
     virtual void translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) override;
     virtual void translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) override;
+    virtual void translator_languages_changed() override;
     virtual void spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) override;
     virtual void spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) override;
     virtual void spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) override;
@@ -173,6 +174,8 @@ private:
     virtual void view_traverse_the_history_by_delta(u64 view_id, i32 delta) override;
     virtual void view_translate_to(u64 view_id, String target_language) override;
     virtual void view_show_original(u64 view_id) override;
+    virtual void view_download_translation_languages(u64 view_id, String target_language) override;
+    virtual void view_prefer_higher_quality_translation(u64 view_id, bool prefers_higher_quality) override;
     virtual void view_download_url(u64 view_id, URL::URL url, bool prompt_for_path, Optional<String> image_mime_type) override;
     virtual void view_inspect_context_menu_element(u64 view_id) override;
     virtual void view_replace_context_menu_misspelling(u64 view_id, Utf16String replacement) override;
