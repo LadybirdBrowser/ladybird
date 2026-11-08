@@ -225,6 +225,7 @@
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TextDirective.h>
+#include <LibWeb/HTML/VisibilityStateEntry.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -5784,6 +5785,19 @@ void Document::media_element_audio_play_state_changed(Badge<HTML::HTMLMediaEleme
         window->document_audio_play_state_changed({});
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#visibilitystateentry
+void Document::queue_a_new_visibility_state_entry(HTML::VisibilityState visibility_state, HighResolutionTime::DOMHighResTimeStamp timestamp)
+{
+    auto window = this->window();
+    if (!window)
+        return;
+
+    // https://w3c.github.io/performance-timeline/#dfn-queue-a-performanceentry
+    auto entry = HTML::VisibilityStateEntry::create(visibility_state, timestamp);
+    window->queue_performance_entry(entry);
+    window->add_performance_entry(entry, HTML::WindowOrWorkerGlobalScopeMixin::CheckIfPerformanceBufferIsFull::Yes);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
 void Document::update_the_visibility_state(HTML::VisibilityState visibility_state)
 {
@@ -5795,8 +5809,9 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     m_visibility_state = visibility_state;
     rendering_pending_document_changed(*this);
 
-    // FIXME: 3. Queue a new VisibilityStateEntry whose visibility state is visibilityState and whose timestamp is the current
+    // 3. Queue a new VisibilityStateEntry whose visibility state is visibilityState and whose timestamp is the current
     //    high resolution time given document's relevant global object.
+    queue_a_new_visibility_state_entry(visibility_state, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
 
     // FIXME: 4. Run the screen orientation change steps with document.
 
@@ -7837,7 +7852,8 @@ void Document::set_initial_visibility_state(HTML::VisibilityState visibility_sta
     if (auto window = this->window(); window && &window->associated_document() == this)
         window->document_visibility_state_changed({});
 
-    // TODO: 2. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is 0.
+    // 2. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is 0.
+    queue_a_new_visibility_state_entry(m_visibility_state, 0);
 
     // AD-HOC: Record the initial viewport and visual viewport state so that if the viewport changes before the
     //         first rendering update (e.g. in our fullscreen tests), change events are still fired.

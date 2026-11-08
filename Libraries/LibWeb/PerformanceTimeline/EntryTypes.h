@@ -22,7 +22,8 @@ namespace Web::PerformanceTimeline::EntryTypes {
     __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(measure, "measure")                                   \
     __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(navigation, "navigation")                             \
     __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(paint, "paint")                                       \
-    __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(resource, "resource")
+    __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(resource, "resource")                                 \
+    __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(visibility_state, "visibility-state")
 
 #define __ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPE(name, type) extern Utf16FlyString const& name;
 ENUMERATE_PERFORMANCE_TIMELINE_ENTRY_TYPES

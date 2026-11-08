@@ -819,6 +819,7 @@ class ValidityState;
 class VideoPlaybackQuality;
 class VideoTrack;
 class VideoTrackList;
+class VisibilityStateEntry;
 class Window;
 class WindowEnvironmentSettingsObject;
 class WindowProxy;

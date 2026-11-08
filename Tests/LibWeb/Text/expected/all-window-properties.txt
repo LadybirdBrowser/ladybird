@@ -619,6 +619,7 @@ VideoTrack
 VideoTrackList
 ViewTimeline
 ViewTransition
+VisibilityStateEntry
 VisualViewport
 WaveShaperNode
 WeakMap

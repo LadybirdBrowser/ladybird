@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function describe(entry) {
+        return `${entry.constructor.name} ${entry.entryType} ${entry.name} startTime>0=${entry.startTime > 0} duration=${entry.duration}`;
+    }
+
+    promiseTest(async () => {
+        println(`Supported: ${PerformanceObserver.supportedEntryTypes.includes("visibility-state")}`);
+
+        let entries = performance.getEntriesByType("visibility-state");
+        println(`Initial: ${entries.length} ${entries[0].name} startTime=${entries[0].startTime} duration=${entries[0].duration}`);
+        println(`toJSON: ${JSON.stringify(entries[0].toJSON())}`);
+
+        const observed = [];
+        let resolveObserved;
+        const observedBoth = new Promise(resolve => (resolveObserved = resolve));
+        const observer = new PerformanceObserver(list => {
+            for (const entry of list.getEntries())
+                observed.push(entry.name);
+            if (observed.length >= 2)
+                resolveObserved();
+        });
+        observer.observe({ type: "visibility-state" });
+
+        await setSystemVisibilityState("hidden");
+        await setSystemVisibilityState("visible");
+
+        entries = performance.getEntriesByType("visibility-state");
+        println(`After hiding and showing: ${entries.length}`);
+        for (const entry of entries.slice(1))
+            println(describe(entry));
+        println(`Ordered: ${entries[1].startTime <= entries[2].startTime}`);
+
+        await observedBoth;
+        println(`Observed: ${observed.join(", ")}`);
+        observer.disconnect();
+
+        await setSystemVisibilityState("hidden");
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve));
+        document.body.appendChild(iframe);
+        await loaded;
+        const iframeEntries = iframe.contentWindow.performance.getEntriesByType("visibility-state");
+        println(`Iframe created while hidden: ${iframeEntries.map(entry => `${entry.name}@${entry.startTime}`).join(", ")}`);
+        iframe.remove();
+        await setSystemVisibilityState("visible");
+    });
+</script>

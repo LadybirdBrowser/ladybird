@@ -1900,6 +1900,8 @@ private:
     bool update_is_fully_active() const;
     bool compute_is_fully_active() const;
 
+    void queue_a_new_visibility_state_entry(HTML::VisibilityState, HighResolutionTime::DOMHighResTimeStamp timestamp);
+
     // Records the document's viewport for the host to publish, or, given `committed`, commits the recording.
     Optional<Painting::DisplayListRecording> start_recording(Layout::BegunRead const&, HTML::PaintConfig, Painting::PaintCommandCacheMode, Optional<Compositor::FlightPresentation>&& committed);
 
