@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: grid;
+    width: max-content;
+}
+.item {
+    background: green;
+}
+.box {
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    vertical-align: top;
+}
+</style>
+<!-- A spanning item has a zero automatic minimum, so collapsed tracks stay empty. -->
+<div class="grid" style="grid-template-columns: 0fr 0fr"><div class="item" style="grid-column: span 2"><span class="box"></span><span class="box"></span></div></div>
+<!-- The automatic minimum holds the min-content size of a lone item. -->
+<div class="grid" style="grid-template-columns: 0fr"><div class="item"><span class="box"></span><span class="box"></span></div></div>
+<!-- A min-content maximum keeps the track at min-content. -->
+<div class="grid" style="grid-template-columns: minmax(auto, min-content)"><div class="item"><span class="box"></span><span class="box"></span></div></div>
