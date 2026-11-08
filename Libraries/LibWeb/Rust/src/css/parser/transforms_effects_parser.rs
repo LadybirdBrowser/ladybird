@@ -366,7 +366,7 @@ fn easing(
     let [x1, y1, x2, y2] = coordinates.map(|value| value.map_or_else(RetainedStyleValueData::none, retained));
     StyleValueData::Easing(StyleValueBox::new(EasingPayload {
         kind,
-        linear_stops: RetainedLinearEasingStopList::from_retained_elements(linear_stops),
+        linear_stops: RetainedLinearEasingStopList::from_vec(linear_stops),
         x1,
         y1,
         x2,

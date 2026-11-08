@@ -468,7 +468,7 @@ pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) ->
     Some(StyleValueData::Url(StyleValueBox::new(UrlPayload {
         url: RetainedString::from_utf16(url)?,
         url_type,
-        modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(modifiers),
+        modifiers: RetainedRequestUrlModifierList::from_vec(modifiers),
     })))
 }
 
@@ -1727,7 +1727,7 @@ fn parse_contain_intrinsic_size_shorthand(
     ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
         ShorthandPayload {
             shorthand_property: property,
-            sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+            sub_properties: RetainedPropertyIdList::from_vec(longhands.to_vec()),
             values: RetainedStyleValueDataList::from_retained_values(
                 expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
             ),
@@ -2958,7 +2958,7 @@ fn parse_color_scheme_property(_context: &ParseContext, values: &[ComponentValue
         return ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme(StyleValueBox::new(
             ColorSchemePayload {
                 schemes: CssStringList::from_strings(Vec::new()),
-                scheme_codes: RetainedByteList::from_bytes(Vec::new()),
+                scheme_codes: RetainedByteList::from_vec(Vec::new()),
                 only: false,
             },
         ))));
@@ -2997,7 +2997,7 @@ fn parse_color_scheme_property(_context: &ParseContext, values: &[ComponentValue
     ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme(StyleValueBox::new(
         ColorSchemePayload {
             schemes: CssStringList::from_strings(schemes),
-            scheme_codes: RetainedByteList::from_bytes(scheme_codes),
+            scheme_codes: RetainedByteList::from_vec(scheme_codes),
             only,
         },
     ))))
@@ -3091,7 +3091,7 @@ fn parse_counter_definitions_property(
     }
     ParseOutcome::Parsed(shared_style_value(StyleValueData::CounterDefinitions(
         StyleValueBox::new(CounterDefinitionsPayload {
-            counter_definitions: RetainedCounterDefinitionList::from_retained_elements(definitions),
+            counter_definitions: RetainedCounterDefinitionList::from_vec(definitions),
         }),
     )))
 }
@@ -4027,7 +4027,7 @@ fn parse_positional_value_list_shorthand(
     ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
         ShorthandPayload {
             shorthand_property: property,
-            sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+            sub_properties: RetainedPropertyIdList::from_vec(longhands.to_vec()),
             values: RetainedStyleValueDataList::from_retained_values(
                 expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
             ),
@@ -4093,7 +4093,7 @@ fn retained_shorthand_value(
 ) -> StyleValueData {
     StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
+        sub_properties: RetainedPropertyIdList::from_vec(sub_properties),
         values: RetainedStyleValueDataList::from_retained_values(values),
     }))
 }
@@ -4216,9 +4216,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
     ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
         ShorthandPayload {
             shorthand_property: property,
-            sub_properties: RetainedPropertyIdList::from_property_ids(
-                order.iter().map(|&index| longhands[index]).collect(),
-            ),
+            sub_properties: RetainedPropertyIdList::from_vec(order.iter().map(|&index| longhands[index]).collect()),
             values: RetainedStyleValueDataList::from_retained_values(
                 order
                     .into_iter()

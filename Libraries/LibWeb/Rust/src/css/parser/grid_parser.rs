@@ -845,7 +845,7 @@ fn grid_shorthand(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValu
     ParseOutcome::Parsed(StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(
         ShorthandPayload {
             shorthand_property: property,
-            sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
+            sub_properties: RetainedPropertyIdList::from_vec(sub_properties),
             values: RetainedStyleValueDataList::from_retained_values(
                 values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
             ),
@@ -965,7 +965,7 @@ fn initial_grid_values() -> [StyleValueData; 6] {
             })],
         ),
         StyleValueData::GridTemplateArea(StyleValueBox::new(GridTemplateAreaPayload {
-            grid_areas: RetainedGridAreaList::from_retained_elements(Vec::new()),
+            grid_areas: RetainedGridAreaList::from_vec(Vec::new()),
             row_count: 0,
             column_count: 0,
         })),
@@ -1312,7 +1312,7 @@ fn parse_grid_template_areas(_context: &ParseContext, values: &[ComponentValue])
         tokens.discard_whitespace();
         return tokens.is_empty().then(|| {
             StyleValueData::GridTemplateArea(StyleValueBox::new(GridTemplateAreaPayload {
-                grid_areas: RetainedGridAreaList::from_retained_elements(Vec::new()),
+                grid_areas: RetainedGridAreaList::from_vec(Vec::new()),
                 row_count: 0,
                 column_count: 0,
             }))
@@ -1378,7 +1378,7 @@ fn parse_grid_template_areas(_context: &ParseContext, values: &[ComponentValue])
     }
     Some(StyleValueData::GridTemplateArea(StyleValueBox::new(
         GridTemplateAreaPayload {
-            grid_areas: RetainedGridAreaList::from_retained_elements(areas),
+            grid_areas: RetainedGridAreaList::from_vec(areas),
             row_count: rows.len(),
             column_count: column_count.unwrap_or(0),
         },

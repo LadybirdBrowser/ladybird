@@ -74,7 +74,7 @@ fn serialize_a_css_declaration(list: &mut Vec<TextSink>, property: &StringUnits,
 fn shorthand_value(shorthand: u16, longhand_values: Vec<RetainedStyleValueData>) -> StyleValueArc {
     StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: shorthand,
-        sub_properties: RetainedPropertyIdList::from_property_ids(longhands_for_shorthand(shorthand).to_vec()),
+        sub_properties: RetainedPropertyIdList::from_vec(longhands_for_shorthand(shorthand).to_vec()),
         values: RetainedStyleValueDataList::from_retained_values(longhand_values),
     })))
 }

@@ -75,7 +75,7 @@ fn image_from_string(string: &[u16]) -> Option<StyleValueData> {
     Some(StyleValueData::Image(StyleValueBox::new(ImagePayload {
         url: RetainedString::from_utf16(string)?,
         url_type: 0,
-        url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+        url_modifiers: RetainedRequestUrlModifierList::from_vec(Vec::new()),
         resource_context: image_resource_context(),
     })))
 }
@@ -142,7 +142,7 @@ fn parse_image_set(context: &ParseContext, property: u16, arguments: &[Component
     }
     (!options.is_empty()).then(|| {
         StyleValueData::ImageSet(StyleValueBox::new(ImageSetPayload {
-            options: RetainedImageSetOptionList::from_retained_elements(options),
+            options: RetainedImageSetOptionList::from_vec(options),
         }))
     })
 }
@@ -287,7 +287,7 @@ fn parse_color_stop_list(
         }
         stops.push(retained_color_stop(hint, stop)?);
     }
-    Some((RetainedColorStopList::from_retained_elements(stops), color_syntax_value))
+    Some((RetainedColorStopList::from_vec(stops), color_syntax_value))
 }
 
 fn strip_ascii_prefix<'a>(value: &'a [u16], prefix: &[u8]) -> Option<&'a [u16]> {

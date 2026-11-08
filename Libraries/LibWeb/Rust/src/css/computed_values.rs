@@ -46,8 +46,8 @@ pub use crate::css::computed_value_types::{
 };
 use crate::css::computed_value_views::InlineLengthPercentage;
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+use crate::css::style_value::retained_list;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
-use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 use crate::css::table_group_builder::group_index;
 
 impl ComputedStyleValueHandle {
@@ -224,79 +224,15 @@ impl PartialEq for SurroundValues {
             && self.padding == other.padding
     }
 }
-impl RetainedTextDecorationLineList {
-    pub(crate) fn from_vec(values: Vec<u8>) -> Self {
-        let slice = values.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut u8;
-        Self { pointer, length }
-    }
-
-    pub(crate) fn as_slice(&self) -> &[u8] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-}
-
-impl Clone for RetainedTextDecorationLineList {
-    fn clone(&self) -> Self {
-        Self::from_vec(self.as_slice().to_vec())
-    }
-}
-
-impl Drop for RetainedTextDecorationLineList {
-    fn drop(&mut self) {
-        if !self.pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-    }
-}
-
-impl PartialEq for RetainedTextDecorationLineList {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_slice() == other.as_slice()
-    }
-}
-
-macro_rules! impl_retained_computed_list {
-    ($list:ident, $element:ty) => {
-        impl $list {
-            pub(crate) fn from_vec(values: Vec<$element>) -> Self {
-                let slice = values.into_boxed_slice();
-                let length = slice.len();
-                let pointer = Box::into_raw(slice) as *mut $element;
-                Self { pointer, length }
-            }
-
-            pub(crate) fn as_slice(&self) -> &[$element] {
-                if self.pointer.is_null() {
-                    return &[];
-                }
-                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-            }
-        }
-
-        impl Clone for $list {
-            fn clone(&self) -> Self {
-                Self::from_vec(self.as_slice().to_vec())
-            }
-        }
-
-        retained_list_drop!($list);
-        retained_list_partial_eq!($list, $element);
-    };
-}
-
-impl_retained_computed_list!(RetainedComputedFilterOperationList, ComputedFilterOperation);
-impl_retained_computed_list!(RetainedWillChangePropertyList, u16);
-impl_retained_computed_list!(
+retained_list!(RetainedTextDecorationLineList, u8);
+retained_list!(RetainedComputedFilterOperationList, ComputedFilterOperation);
+retained_list!(RetainedWillChangePropertyList, u16);
+retained_list!(
     RetainedComputedShadowList,
     crate::css::computed_value_types::ComputedShadow
 );
-impl_retained_computed_list!(RetainedComputedCursorList, ComputedCursor);
-impl_retained_computed_list!(RetainedComputedSvgDashList, ComputedSvgDash);
+retained_list!(RetainedComputedCursorList, ComputedCursor);
+retained_list!(RetainedComputedSvgDashList, ComputedSvgDash);
 impl_computed_payload_clone_and_eq!(InheritedTextValues {
     text_justify,
     line_break,
@@ -486,8 +422,8 @@ impl PartialEq for FontValues {
             && self.font_size_value == other.font_size_value
     }
 }
-impl_retained_computed_list!(RetainedPositionAreaList, u8);
-impl_retained_computed_list!(RetainedPositionTryFallbackList, ComputedPositionTryFallback);
+retained_list!(RetainedPositionAreaList, u8);
+retained_list!(RetainedPositionTryFallbackList, ComputedPositionTryFallback);
 impl_computed_payload_clone_and_eq!(EffectsValues {
     opacity => paint_only,
     filter,
@@ -518,67 +454,11 @@ impl_computed_payload_clone_and_eq!(InheritedUIValues {
     image_rendering,
 });
 
-impl RetainedComputedResolvedTransformList {
-    pub(crate) fn from_vec(values: Vec<ComputedResolvedTransform>) -> Self {
-        let slice = values.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut ComputedResolvedTransform;
-        Self { pointer, length }
-    }
+retained_list!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
 
-    pub(crate) fn as_slice(&self) -> &[ComputedResolvedTransform] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        // SAFETY: A non-null pointer/length pair always comes from
-        // from_vec's boxed slice.
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-}
-
-impl Clone for RetainedComputedResolvedTransformList {
-    fn clone(&self) -> Self {
-        Self::from_vec(self.as_slice().to_vec())
-    }
-}
-
-retained_list_drop!(RetainedComputedResolvedTransformList);
-retained_list_partial_eq!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
-
-macro_rules! impl_retained_grid_list {
-    ($list:ident, $element:ty) => {
-        impl $list {
-            pub(crate) fn from_vec(values: Vec<$element>) -> Self {
-                let slice = values.into_boxed_slice();
-                let length = slice.len();
-                let pointer = Box::into_raw(slice) as *mut $element;
-                Self { pointer, length }
-            }
-
-            pub(crate) fn as_slice(&self) -> &[$element] {
-                if self.pointer.is_null() {
-                    return &[];
-                }
-                // SAFETY: A non-null pointer/length pair always comes from
-                // from_vec's boxed slice.
-                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-            }
-        }
-
-        impl Clone for $list {
-            fn clone(&self) -> Self {
-                Self::from_vec(self.as_slice().to_vec())
-            }
-        }
-
-        retained_list_drop!($list);
-        retained_list_partial_eq!($list, $element);
-    };
-}
-
-impl_retained_grid_list!(RetainedGridTrackEntryList, ComputedGridTrackEntry);
-impl_retained_grid_list!(RetainedGridNameIndexList, u32);
-impl_retained_grid_list!(RetainedGridAreaList, ComputedGridArea);
+retained_list!(RetainedGridTrackEntryList, ComputedGridTrackEntry);
+retained_list!(RetainedGridNameIndexList, u32);
+retained_list!(RetainedGridAreaList, ComputedGridArea);
 
 const EMPTY_GRID_TRACK_LIST: ComputedGridTrackList = ComputedGridTrackList {
     is_subgrid: false,
@@ -622,7 +502,7 @@ impl GridValues {
 
     fn initial() -> Self {
         Self {
-            names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            names: RetainedUtf16FlyStringList::from_vec(Vec::new()),
             name_indices: RetainedGridNameIndexList::from_vec(Vec::new()),
             entries: RetainedGridTrackEntryList::from_vec(vec![Self::auto_track_entry(), Self::auto_track_entry()]),
             areas: RetainedGridAreaList::from_vec(Vec::new()),
@@ -664,7 +544,7 @@ impl GridValues {
         let mut names: Vec<RetainedUtf16FlyString> = self.names.as_slice().to_vec();
         names.push(name.clone());
         let index = (names.len() - 1) as u32;
-        self.names = RetainedUtf16FlyStringList::from_retained_strings(names);
+        self.names = RetainedUtf16FlyStringList::from_vec(names);
         index
     }
 }
@@ -6173,7 +6053,7 @@ impl BoxValues {
             is_size_container: false,
             is_inline_size_container: false,
             is_scroll_state_container: false,
-            container_name: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            container_name: RetainedUtf16FlyStringList::from_vec(Vec::new()),
         }
     }
 }
@@ -6300,9 +6180,9 @@ impl EffectsValues {
 impl AnchorValues {
     fn initial() -> Self {
         Self {
-            anchor_names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            anchor_names: RetainedUtf16FlyStringList::from_vec(Vec::new()),
             anchor_scope_all: false,
-            anchor_scope_names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            anchor_scope_names: RetainedUtf16FlyStringList::from_vec(Vec::new()),
             // PositionAnchor::Type::Normal.
             position_anchor_type: 0,
             position_anchor_name: RetainedUtf16FlyString::none(),
@@ -6342,7 +6222,7 @@ impl InheritedUIValues {
                 is_auto: true,
             },
             color_scheme: 0,
-            color_schemes: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            color_schemes: RetainedUtf16FlyStringList::from_vec(Vec::new()),
             image_rendering: crate::css::css_enums::image_rendering::AUTO,
             color_scheme_only: false,
         }

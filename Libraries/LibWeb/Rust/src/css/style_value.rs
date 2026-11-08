@@ -705,10 +705,46 @@ impl Clone for RetainedStyleValueDataList {
     }
 }
 
-/// Implements `Drop` for a `Retained*List` struct: releases the Rust-owned boxed slice,
-/// dropping each element (which releases the element's own retained references).
-macro_rules! retained_list_drop {
-    ($list:ident) => {
+/// Implements the shared behavior of a Rust-owned `{ pointer, length }` array of `$element`s:
+/// building it from a `Vec`, reading it as a slice, and cloning, comparing and releasing it.
+macro_rules! retained_list {
+    ($list:ident, $element:ty) => {
+        #[allow(dead_code, reason = "not every list is both built and read on the Rust side")]
+        impl $list {
+            pub(crate) fn from_vec(elements: Vec<$element>) -> Self {
+                if elements.is_empty() {
+                    return Self {
+                        pointer: std::ptr::null_mut(),
+                        length: 0,
+                    };
+                }
+                let slice = elements.into_boxed_slice();
+                let length = slice.len();
+                let pointer = Box::into_raw(slice) as *mut $element;
+                Self { pointer, length }
+            }
+
+            pub(crate) fn as_slice(&self) -> &[$element] {
+                if self.pointer.is_null() {
+                    return &[];
+                }
+                // SAFETY: A non-null pointer and its length always come from a boxed slice.
+                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
+            }
+        }
+
+        impl Clone for $list {
+            fn clone(&self) -> Self {
+                Self::from_vec(self.as_slice().to_vec())
+            }
+        }
+
+        impl PartialEq for $list {
+            fn eq(&self, other: &Self) -> bool {
+                self.as_slice() == other.as_slice()
+            }
+        }
+
         impl Drop for $list {
             fn drop(&mut self) {
                 if !self.pointer.is_null() {
@@ -716,51 +752,22 @@ macro_rules! retained_list_drop {
                 }
             }
         }
+
+        // SAFETY: The list owns its boxed slice and only exposes shared access to its elements.
+        unsafe impl Send for $list where $element: Send {}
+        unsafe impl Sync for $list where $element: Sync {}
     };
 }
-pub(crate) use retained_list_drop;
+pub(crate) use retained_list;
 
-/// Implements the shared behavior for a `Retained*List` struct whose `from_raw` input is an
-/// array of its own element type: `from_raw` copies `length` elements into a Rust-owned boxed
-/// slice, assuming ownership of the elements' retained references, and `Drop` releases them.
-macro_rules! retained_list {
-    ($list:ident, $element:ty) => {
-        impl $list {
-            /// Takes ownership of the elements' retained references.
-            ///
-            /// # Safety
-            /// `elements` must point to `length` valid elements whose retained references this
-            /// list may assume ownership of.
-            unsafe fn from_raw(elements: *const $element, length: usize) -> Self {
-                let slice: Box<[$element]> = (0..length)
-                    .map(|i| unsafe { std::ptr::read(elements.add(i)) })
-                    .collect();
-                let length = slice.len();
-                let pointer = Box::into_raw(slice) as *mut $element;
-                Self { pointer, length }
-            }
-        }
-        retained_list!($list, $element, native);
-    };
-    ($list:ident, $element:ty, native) => {
-        retained_list_drop!($list);
-        impl Clone for $list {
-            fn clone(&self) -> Self {
-                if self.pointer.is_null() {
-                    return Self {
-                        pointer: std::ptr::null_mut(),
-                        length: 0,
-                    };
-                }
-                let elements = unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-                    .to_vec()
-                    .into_boxed_slice();
-                let length = elements.len();
-                let pointer = Box::into_raw(elements).cast::<$element>();
-                Self { pointer, length }
-            }
-        }
-    };
+/// Moves `length` elements out of `elements`, taking over the retained references they hold.
+///
+/// # Safety
+/// `elements` must point to `length` valid elements whose references the caller may take over.
+unsafe fn read_elements<T>(elements: *const T, length: usize) -> Vec<T> {
+    (0..length)
+        .map(|i| unsafe { std::ptr::read(elements.add(i)) })
+        .collect()
 }
 
 /// A Rust-owned array of C++ PropertyID values (`enum class PropertyID : u16`, opaque to Rust).
@@ -771,22 +778,6 @@ pub struct RetainedPropertyIdList {
 }
 
 retained_list!(RetainedPropertyIdList, u16);
-
-impl RetainedPropertyIdList {
-    pub(crate) fn from_property_ids(property_ids: Vec<u16>) -> Self {
-        let slice = property_ids.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice).cast::<u16>();
-        Self { pointer, length }
-    }
-
-    pub(crate) fn as_slice(&self) -> &[u16] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-}
 
 /// Shared native URL text, independent of host strings and the atom table.
 #[repr(C)]
@@ -1047,16 +1038,9 @@ pub struct RetainedRequestUrlModifierList {
 }
 
 impl RetainedRequestUrlModifierList {
-    pub(crate) fn from_retained_modifiers(modifiers: Vec<RetainedRequestUrlModifier>) -> Self {
-        let slice = modifiers.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
-        Self { pointer, length }
-    }
-
     /// Copies and releases each modifier's leaked host string reference.
     unsafe fn from_raw(elements: *const FfiRequestUrlModifier, length: usize) -> Self {
-        let slice: Box<[RetainedRequestUrlModifier]> = (0..length)
+        let modifiers: Vec<RetainedRequestUrlModifier> = (0..length)
             .map(|i| {
                 let element = unsafe { &*elements.add(i) };
                 RetainedRequestUrlModifier {
@@ -1066,22 +1050,11 @@ impl RetainedRequestUrlModifierList {
                 }
             })
             .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
-        Self { pointer, length }
+        Self::from_vec(modifiers)
     }
 }
 
-retained_list_drop!(RetainedRequestUrlModifierList);
-
-impl Clone for RetainedRequestUrlModifierList {
-    fn clone(&self) -> Self {
-        let slice = self.as_slice().to_vec().into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
-        Self { pointer, length }
-    }
-}
+retained_list!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
 
 /// A Rust-owned array of bytes, used for lists of C++ u8 enum values.
 #[repr(C)]
@@ -1090,29 +1063,7 @@ pub struct RetainedByteList {
     length: usize,
 }
 
-retained_list_drop!(RetainedByteList);
-
-impl Clone for RetainedByteList {
-    fn clone(&self) -> Self {
-        Self::from_bytes(self.as_slice().to_vec())
-    }
-}
-
-impl RetainedByteList {
-    pub(crate) fn from_bytes(bytes: Vec<u8>) -> Self {
-        let slice = bytes.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice).cast::<u8>();
-        Self { pointer, length }
-    }
-
-    pub(crate) fn as_slice(&self) -> &[u8] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-}
+retained_list!(RetainedByteList, u8);
 
 /// A retained counter definition: the counter name, the reversed flag and an optional retained
 /// value (null when absent).
@@ -1169,17 +1120,11 @@ impl RetainedCounterDefinitionList {
                 }
             })
             .collect();
-        Self::from_retained_elements(elements)
+        Self::from_vec(elements)
     }
 }
 
-retained_list_drop!(RetainedCounterDefinitionList);
-
-impl Clone for RetainedCounterDefinitionList {
-    fn clone(&self) -> Self {
-        Self::from_retained_elements(self.as_slice().to_vec())
-    }
-}
+retained_list!(RetainedCounterDefinitionList, RetainedCounterDefinition);
 
 /// A retained image-set() option: the image, its resolution and an optional Rust-owned type string.
 #[repr(C)]
@@ -1198,13 +1143,7 @@ pub struct RetainedImageSetOptionList {
     length: usize,
 }
 
-retained_list_drop!(RetainedImageSetOptionList);
-
-impl Clone for RetainedImageSetOptionList {
-    fn clone(&self) -> Self {
-        Self::from_retained_elements(self.as_slice().to_vec())
-    }
-}
+retained_list!(RetainedImageSetOptionList, RetainedImageSetOption);
 
 /// A retained gradient color stop: an optional transition hint, then an optional color,
 /// position and second position (each null when absent).
@@ -1224,7 +1163,7 @@ pub struct RetainedColorStopList {
     length: usize,
 }
 
-retained_list!(RetainedColorStopList, RetainedColorStop, native);
+retained_list!(RetainedColorStopList, RetainedColorStop);
 
 impl RetainedCounterDefinition {
     pub(crate) fn value(&self) -> &RetainedStyleValueData {
@@ -1287,22 +1226,6 @@ impl RetainedLinearEasingStop {
     }
 }
 
-macro_rules! retained_list_as_slice {
-    ($list:ident, $element:ty) => {
-        impl $list {
-            pub(crate) fn as_slice(&self) -> &[$element] {
-                if self.pointer.is_null() {
-                    return &[];
-                }
-                unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-            }
-        }
-    };
-}
-retained_list_as_slice!(RetainedCounterDefinitionList, RetainedCounterDefinition);
-retained_list_as_slice!(RetainedImageSetOptionList, RetainedImageSetOption);
-retained_list_as_slice!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
-
 impl RetainedShapePoint {
     pub(crate) fn values(&self) -> [&RetainedStyleValueData; 2] {
         [&self.x, &self.y]
@@ -1310,35 +1233,6 @@ impl RetainedShapePoint {
 
     pub(crate) fn from_retained_values(x: RetainedStyleValueData, y: RetainedStyleValueData) -> Self {
         Self { x, y }
-    }
-}
-retained_list_as_slice!(RetainedShapePointList, RetainedShapePoint);
-retained_list_as_slice!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
-retained_list_as_slice!(RetainedGridAreaList, RetainedGridArea);
-
-macro_rules! retained_list_from_vec {
-    ($list:ident, $element:ty) => {
-        impl $list {
-            pub(crate) fn from_retained_elements(elements: Vec<$element>) -> Self {
-                let slice = elements.into_boxed_slice();
-                let length = slice.len();
-                let pointer = Box::into_raw(slice) as *mut $element;
-                Self { pointer, length }
-            }
-        }
-    };
-}
-retained_list_from_vec!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
-retained_list_from_vec!(RetainedImageSetOptionList, RetainedImageSetOption);
-retained_list_from_vec!(RetainedCounterDefinitionList, RetainedCounterDefinition);
-retained_list_from_vec!(RetainedColorStopList, RetainedColorStop);
-
-impl RetainedShapePointList {
-    pub(crate) fn from_retained_points(points: Vec<RetainedShapePoint>) -> Self {
-        let slice = points.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedShapePoint;
-        Self { pointer, length }
     }
 }
 
@@ -1381,15 +1275,6 @@ impl RetainedColorStop {
             position,
             second_position,
         }
-    }
-}
-
-impl RetainedColorStopList {
-    pub(crate) fn as_slice(&self) -> &[RetainedColorStop] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
     }
 }
 
@@ -1455,22 +1340,7 @@ pub struct RetainedGridAreaList {
     length: usize,
 }
 
-impl RetainedGridAreaList {
-    pub(crate) fn from_retained_elements(elements: Vec<RetainedGridArea>) -> Self {
-        let slice = elements.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
-        Self { pointer, length }
-    }
-}
-
-retained_list_drop!(RetainedGridAreaList);
-
-impl Clone for RetainedGridAreaList {
-    fn clone(&self) -> Self {
-        Self::from_retained_elements(self.as_slice().to_vec())
-    }
-}
+retained_list!(RetainedGridAreaList, RetainedGridArea);
 
 /// A retained linear() easing stop: the output value and an optional input (null when absent).
 #[repr(C)]
@@ -1497,7 +1367,7 @@ pub struct RetainedLinearEasingStopList {
     length: usize,
 }
 
-retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop, native);
+retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
 
 /// The kind of one grid track list entry.
 #[repr(u8)]
@@ -1661,7 +1531,7 @@ pub struct RetainedShapePointList {
     length: usize,
 }
 
-retained_list!(RetainedShapePointList, RetainedShapePoint, native);
+retained_list!(RetainedShapePointList, RetainedShapePoint);
 
 /// An accepted numeric range for one value type (the C++ `enum class ValueType : u8`, opaque
 /// to Rust).
@@ -1705,100 +1575,31 @@ impl RetainedNumericRangeList {
     }
 
     pub(crate) fn from_single_numeric_range(value_type: u8, min: f64, max: f64) -> Self {
-        let ranges = vec![RetainedNumericRangeByType { value_type, min, max }].into_boxed_slice();
-        let length = ranges.len();
-        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
-        Self { pointer, length }
+        Self::from_vec(vec![RetainedNumericRangeByType { value_type, min, max }])
     }
 
     pub(crate) fn from_numeric_ranges(ranges: impl IntoIterator<Item = (u8, f64, f64)>) -> Self {
-        let ranges = ranges
-            .into_iter()
-            .map(|(value_type, min, max)| RetainedNumericRangeByType { value_type, min, max })
-            .collect::<Vec<_>>();
-        if ranges.is_empty() {
-            return Self::empty();
-        }
-        let ranges = ranges.into_boxed_slice();
-        let length = ranges.len();
-        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
-        Self { pointer, length }
-    }
-
-    pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { ak::slice_from_raw_parts(self.pointer, self.length) }
-    }
-
-    pub(crate) fn clone_owned(&self) -> Self {
-        let ranges = self
-            .as_slice()
-            .iter()
-            .map(|range| RetainedNumericRangeByType {
-                value_type: range.value_type,
-                min: range.min,
-                max: range.max,
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        let length = ranges.len();
-        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
-        Self { pointer, length }
+        Self::from_vec(
+            ranges
+                .into_iter()
+                .map(|(value_type, min, max)| RetainedNumericRangeByType { value_type, min, max })
+                .collect(),
+        )
     }
 }
 
-macro_rules! retained_list_partial_eq {
-    ($list:ty, $element:ty) => {
-        impl PartialEq for $list {
-            fn eq(&self, other: &Self) -> bool {
-                let as_slice = |list: &Self| -> &[$element] {
-                    if list.pointer.is_null() {
-                        &[]
-                    } else {
-                        unsafe { ak::slice_from_raw_parts(list.pointer.cast::<$element>(), list.length) }
-                    }
-                };
-                as_slice(self) == as_slice(other)
-            }
-        }
-    };
+// SAFETY: The list owns its boxed slice and only exposes shared access to its elements.
+unsafe impl Send for RetainedStyleValueDataList where RetainedStyleValueData: Send {}
+unsafe impl Sync for RetainedStyleValueDataList where RetainedStyleValueData: Sync {}
+// SAFETY: As above.
+unsafe impl Send for RetainedGridTrackEntryList where RetainedGridTrackEntry: Send {}
+unsafe impl Sync for RetainedGridTrackEntryList where RetainedGridTrackEntry: Sync {}
+
+impl PartialEq for RetainedGridTrackEntryList {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
 }
-pub(crate) use retained_list_partial_eq;
-
-macro_rules! retained_list_send_sync {
-    ($list:ty, $element:ty) => {
-        // SAFETY: The list owns its boxed slice and only exposes shared access to its elements.
-        unsafe impl Send for $list where $element: Send {}
-        unsafe impl Sync for $list where $element: Sync {}
-    };
-}
-
-retained_list_send_sync!(RetainedStyleValueDataList, RetainedStyleValueData);
-retained_list_send_sync!(RetainedPropertyIdList, u16);
-retained_list_send_sync!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
-retained_list_send_sync!(RetainedByteList, u8);
-retained_list_send_sync!(RetainedCounterDefinitionList, RetainedCounterDefinition);
-retained_list_send_sync!(RetainedImageSetOptionList, RetainedImageSetOption);
-retained_list_send_sync!(RetainedColorStopList, RetainedColorStop);
-retained_list_send_sync!(RetainedGridAreaList, RetainedGridArea);
-retained_list_send_sync!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
-retained_list_send_sync!(RetainedGridTrackEntryList, RetainedGridTrackEntry);
-retained_list_send_sync!(RetainedShapePointList, RetainedShapePoint);
-retained_list_send_sync!(RetainedNumericRangeList, RetainedNumericRangeByType);
-
-retained_list_partial_eq!(RetainedPropertyIdList, u16);
-retained_list_partial_eq!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
-retained_list_partial_eq!(RetainedByteList, u8);
-retained_list_partial_eq!(RetainedCounterDefinitionList, RetainedCounterDefinition);
-retained_list_partial_eq!(RetainedImageSetOptionList, RetainedImageSetOption);
-retained_list_partial_eq!(RetainedColorStopList, RetainedColorStop);
-retained_list_partial_eq!(RetainedGridAreaList, RetainedGridArea);
-retained_list_partial_eq!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
-retained_list_partial_eq!(RetainedGridTrackEntryList, RetainedGridTrackEntry);
-retained_list_partial_eq!(RetainedShapePointList, RetainedShapePoint);
-retained_list_partial_eq!(RetainedNumericRangeList, RetainedNumericRangeByType);
 
 /// The shared leading fields of every color variant payload: the optional color type and the
 /// color syntax. Placing this first in each color payload lets C++ read it without knowing
@@ -1911,16 +1712,7 @@ pub struct ShapeCommands {
     length: usize,
 }
 
-retained_list!(ShapeCommands, ShapeCommand, native);
-retained_list_as_slice!(ShapeCommands, ShapeCommand);
-retained_list_from_vec!(ShapeCommands, ShapeCommand);
-retained_list_send_sync!(ShapeCommands, ShapeCommand);
-
-impl ShapeCommands {
-    pub(crate) fn new(commands: Vec<ShapeCommand>) -> Self {
-        Self::from_retained_elements(commands)
-    }
-}
+retained_list!(ShapeCommands, ShapeCommand);
 
 impl Default for ShapeCommands {
     fn default() -> Self {
@@ -1928,12 +1720,6 @@ impl Default for ShapeCommands {
             pointer: std::ptr::null_mut(),
             length: 0,
         }
-    }
-}
-
-impl PartialEq for ShapeCommands {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_slice() == other.as_slice()
     }
 }
 
@@ -4458,7 +4244,9 @@ pub unsafe extern "C" fn rust_style_value_create_shorthand(
     StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(
         ShorthandPayload {
             shorthand_property,
-            sub_properties: unsafe { RetainedPropertyIdList::from_raw(sub_properties, sub_property_count) },
+            sub_properties: RetainedPropertyIdList::from_vec(unsafe {
+                read_elements(sub_properties, sub_property_count)
+            }),
             values: unsafe { RetainedStyleValueDataList::from_retained_pointers(values, value_count) },
         },
     ))))
@@ -4609,7 +4397,9 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
             has_percentages_resolve_as,
             percentages_resolve_as,
             resolve_numbers_as_integers,
-            accepted_ranges: unsafe { RetainedNumericRangeList::from_raw(accepted_ranges, accepted_range_count) },
+            accepted_ranges: RetainedNumericRangeList::from_vec(unsafe {
+                read_elements(accepted_ranges, accepted_range_count)
+            }),
         },
     ))))
 }

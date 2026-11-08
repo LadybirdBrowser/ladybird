@@ -970,9 +970,7 @@ fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) 
                 second_position,
             ));
         }
-        Some(crate::css::style_value::RetainedColorStopList::from_retained_elements(
-            stops,
-        ))
+        Some(crate::css::style_value::RetainedColorStopList::from_vec(stops))
     };
     match value {
         StyleValueData::LinearGradient(linear_gradient_payload) => {
@@ -1330,7 +1328,7 @@ fn absolutize_basic_shape(
                     v3: v3.clone_retained(),
                     v4: v4.clone_retained(),
                     fill_rule: *fill_rule,
-                    points: crate::css::style_value::RetainedShapePointList::from_retained_points(absolutized_points),
+                    points: crate::css::style_value::RetainedShapePointList::from_vec(absolutized_points),
                     path: path.clone(),
                     commands: commands.clone(),
                 }),
@@ -1474,7 +1472,7 @@ fn absolutize_easing(
     Some(Absolutized::Changed(retain_new(StyleValueData::Easing(
         StyleValueBox::new(EasingPayload {
             kind: *kind,
-            linear_stops: crate::css::style_value::RetainedLinearEasingStopList::from_retained_elements(stops),
+            linear_stops: crate::css::style_value::RetainedLinearEasingStopList::from_vec(stops),
             x1,
             y1,
             x2,
@@ -2228,9 +2226,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             rebuild!(
                 changed,
                 StyleValueData::ImageSet(StyleValueBox::new(ImageSetPayload {
-                    options: crate::css::style_value::RetainedImageSetOptionList::from_retained_elements(
-                        absolutized_options
-                    ),
+                    options: crate::css::style_value::RetainedImageSetOptionList::from_vec(absolutized_options),
                 }))
             )
         }
@@ -2245,9 +2241,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             rebuild!(
                 changed,
                 StyleValueData::CounterDefinitions(StyleValueBox::new(CounterDefinitionsPayload {
-                    counter_definitions: crate::css::style_value::RetainedCounterDefinitionList::from_retained_elements(
-                        definitions
-                    ),
+                    counter_definitions: crate::css::style_value::RetainedCounterDefinitionList::from_vec(definitions),
                 }))
             )
         }
