@@ -1547,15 +1547,14 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
 
     // NB: The intensive tier paces chained timers by their wake-ups (see throttled_timer_delay()), so note when one
     //     runs while the document is hidden.
-    Function<void()> timer_callback;
+    Timer::Callback timer_callback = completion_step;
     if (throttling_class == TimerThrottlingClass::Chained) {
-        timer_callback = [this, completion_step] {
-            if (timers_are_throttled())
-                m_last_chained_timer_wake_up = HighResolutionTime::unsafe_shared_current_time();
-            completion_step->function()();
-        };
-    } else {
-        timer_callback = [completion_step] { completion_step->function()(); };
+        timer_callback = GC::create_function(GC::Heap::the(), GC::captures(this_impl(), completion_step), [](auto& global, auto& completion_step) {
+            auto& scope = relevant_window_or_worker_global_scope(global);
+            if (scope.timers_are_throttled())
+                scope.m_last_chained_timer_wake_up = HighResolutionTime::unsafe_shared_current_time();
+            (*completion_step)();
+        });
     }
 
     // NB: We deviate from the spec here slightly by reusing existing timers if a timer_key is provided.
@@ -1564,7 +1563,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
         auto result = m_timers.get(timer_key.value());
         if (result.has_value()) {
             existing_timer = result.value().ptr();
-            existing_timer->set_callback(move(timer_callback));
+            existing_timer->set_callback(timer_callback);
             existing_timer->set_throttling_class(throttling_class);
             existing_timer->set_deadline(deadline);
             // A throttled delay runs from now to the wake-up, so the timer restarts on it; unthrottled, a repeating
@@ -1586,7 +1585,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // completed. The task callback still calls run_timer_initialization_steps to update nesting
     // levels and potentially clamp the interval.
     auto repeating = repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No;
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(throttled_delay.value_or(timeout), move(timer_callback), timer_key.value(), repeating, throttling_class, deadline);
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(throttled_delay.value_or(timeout), timer_callback, timer_key.value(), repeating, throttling_class, deadline);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
