@@ -1,0 +1,8 @@
+Ladybird takes a button’s baselines from its content even where its
+overflow makes it a scroll container, and the other engines do the same.
+Blink’s HTMLButtonElement::AdjustStyle() sets the button’s style to
+ShouldIgnoreOverflowPropertyForInlineBlockBaseline(). WebKit’s
+RenderButton is a flex box, whose baselines always come from its
+content. And Gecko’s ButtonControlFrame is an nsBlockFrame, which takes
+its baseline from its lines. So in all three, a button sits on the line
+by its text, even with “overflow: hidden”.
