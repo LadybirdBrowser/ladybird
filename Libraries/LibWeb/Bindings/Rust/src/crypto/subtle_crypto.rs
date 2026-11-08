@@ -317,8 +317,8 @@ pub(crate) fn normalize_an_algorithm(
         ));
     };
 
-    // 2. Let initialAlg be the result of converting the ECMAScript object represented by alg to
-    // the IDL dictionary type Algorithm, as defined by [WebIDL].
+    // 2. Let initialAlg be the result of converting the ECMAScript object represented by alg to the IDL dictionary type
+    //    Algorithm, as defined by [WebIDL].
     // 3. If an error occurred, return the error and terminate this algorithm.
     // Note: We're not going to bother creating an Algorithm object, all we want is the name attribute so that we can
     //       fetch the actual algorithm factory from the registeredAlgorithms map.
@@ -362,13 +362,13 @@ pub(crate) fn normalize_an_algorithm(
         ));
     };
 
-    // 8. Let normalizedAlgorithm be the result of converting the ECMAScript object represented by alg
-    // to the IDL dictionary type desiredType, as defined by [WebIDL].
-    // 10. If an error occurred, return the error and terminate this algorithm.
-    // 11. Let dictionaries be a list consisting of the IDL dictionary type desiredType
-    // and all of desiredType's inherited dictionaries, in order from least to most derived.
-    // 12. For each dictionary dictionary in dictionaries:
-    //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
+    // 6. Let normalizedAlgorithm be the result of converting the ECMAScript object represented by alg to the IDL
+    //    dictionary type desiredType, as defined by [WebIDL].
+    // 8. If an error occurred, return the error and terminate this algorithm.
+    // 9. Let dictionaries be a list consisting of the IDL dictionary type desiredType and all of desiredType's
+    //    inherited dictionaries, in order from least to most derived.
+    // 10. For each dictionary dictionary in dictionaries:
+    // NB: The registered parameter converters normalize their own members.
     let methods = match desired_type {
         RegisteredAlgorithm::Sha => AlgorithmImplementation::Sha(Sha),
         RegisteredAlgorithm::Hmac => AlgorithmImplementation::Hmac(Hmac),
@@ -453,7 +453,7 @@ pub(crate) fn normalize_an_algorithm(
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
 
-    // 9. Set the name attribute of normalizedAlgorithm to algName.
+    // 7. Set the name attribute of normalizedAlgorithm to algName.
     let normalized_algorithm = NormalizedAlgorithmAndParameter {
         methods,
         parameter: AlgorithmParams { name: algorithm_name },
@@ -507,8 +507,9 @@ impl SubtleCrypto {
             (realm, normalized_algorithm.must(), promise, key, data),
             |vm, (realm, normalized_algorithm, promise, key, data)| {
                 with_temporary_execution_context(realm, || {
-                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-                    //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
+                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
+                    //    the crypto task source, given realm's global object, to reject promise with the returned
+                    //    error; and then terminate the algorithm.
                     let throw_in_this_context = |exception: Exception| {
                         let value = exception.throw(&CallContext::new(vm, realm)).value();
                         queue_a_global_task(
@@ -604,8 +605,9 @@ impl SubtleCrypto {
             (realm, normalized_algorithm.must(), promise, key, data),
             |vm, (realm, normalized_algorithm, promise, key, data)| {
                 with_temporary_execution_context(realm, || {
-                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-                    //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
+                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
+                    //    the crypto task source, given realm's global object, to reject promise with the returned
+                    //    error; and then terminate the algorithm.
                     let throw_in_this_context = |exception: Exception| {
                         let value = exception.throw(&CallContext::new(vm, realm)).value();
                         queue_a_global_task(
@@ -701,8 +703,9 @@ impl SubtleCrypto {
             (realm, normalized_algorithm.must(), promise, data_buffer),
             |vm, (realm, algorithm_object, promise, data_buffer)| {
                 with_temporary_execution_context(realm, || {
-                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the
-                    //    crypto task source, given realm's global object, to reject promise with the returned error and then terminate the algorithm.
+                    // 8. If the following steps or referenced procedures say to throw an error, queue a global task on
+                    //    the crypto task source, given realm's global object, to reject promise with the returned
+                    //    error; and then terminate the algorithm.
                     let throw_in_this_context = |exception: Exception| {
                         let value = exception.throw(&CallContext::new(vm, realm)).value();
                         queue_a_global_task(
@@ -770,20 +773,23 @@ impl SubtleCrypto {
             return Ok(create_rejected_promise_from_exception(vm, realm, error));
         }
 
-        // 4. Let promise be a new Promise.
+        // 4. Let realm be the relevant realm of this.
+        // 5. Let promise be a new Promise.
         let promise = create_promise(vm, realm);
 
-        // 5. Return promise and perform the remaining steps in parallel.
+        // 6. Return promise and perform the remaining steps in parallel.
         deferred_invoke(
             vm,
             (realm, normalized_algorithm.must(), promise, extractable, key_usages),
             |vm, (realm, normalized_algorithm, promise, extractable, key_usages)| {
                 with_temporary_execution_context_and_callbacks(realm, || {
-                    // 6. If the following steps or referenced procedures say to throw an error, reject promise with
-                    //    the returned error and then terminate the algorithm.
+                    // FIXME: 7. If the following steps or referenced procedures say to throw an error, queue a global
+                    //    task on the crypto task source, given realm's global object, to reject promise with the
+                    //    returned error; and then terminate the algorithm.
+                    // NB: Errors are rejected directly in the deferred invocation.
 
-                    // 7. Let result be the result of performing the generate key operation specified by normalizedAlgorithm
-                    //    using algorithm, extractable and usages.
+                    // 8. Let result be the result of performing the generate key operation specified by
+                    //    normalizedAlgorithm using algorithm, extractable and usages.
                     let result_or_error = normalized_algorithm.methods.generate_key(
                         &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
@@ -797,12 +803,10 @@ impl SubtleCrypto {
                     }
                     let result = result_or_error.must();
 
-                    // 8. If result is a CryptoKey object:
-                    //      If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-                    //    If result is a CryptoKeyPair object:
-                    //      If the [[usages]] internal slot of the privateKey attribute of result is the empty sequence, then throw a SyntaxError.
-                    // 9. Resolve promise with result.
                     match result {
+                        // 9. If result is a CryptoKey object:
+                        //    If the [[type]] internal slot of result is "secret" or "private" and usages is empty,
+                        //    then throw a SyntaxError.
                         CryptoKeyOrCryptoKeyPair::CryptoKey(key) => {
                             if (key.key_type() == KeyType::Secret || key.key_type() == KeyType::Private)
                                 && key_usages.is_empty()
@@ -816,8 +820,16 @@ impl SubtleCrypto {
                                 );
                                 return;
                             }
+                            // FIXME: 10. Queue a global task on the crypto task source, given realm's global object, to
+                            //    perform the remaining steps.
+                            // 11. Let result be the result of converting result to an ECMAScript Object in realm, as
+                            //    defined by [WebIDL].
+                            // 12. Resolve promise with result.
                             resolve_crypto_key_promise(vm, realm, promise, key);
                         }
+                        // 9. If result is a CryptoKeyPair object:
+                        //    If the [[usages]] internal slot of the privateKey attribute of result is the empty sequence,
+                        //    then throw a SyntaxError.
                         CryptoKeyOrCryptoKeyPair::CryptoKeyPair(key_pair) => {
                             if key_pair
                                 .private_key
@@ -834,11 +846,16 @@ impl SubtleCrypto {
                                 );
                                 return;
                             }
+                            // FIXME: 10. Queue a global task on the crypto task source, given realm's global object, to
+                            //    perform the remaining steps.
+                            // 11. Let result be the result of converting result to an ECMAScript Object in realm, as
+                            //    defined by [WebIDL].
                             let object = crypto_key_pair(vm, realm, &key_pair);
                             if let Err(error) = object {
                                 reject_promise_with_exception(vm, promise, error.into());
                                 return;
                             }
+                            // 12. Resolve promise with result.
                             resolve_promise(vm, promise, object.must());
                         }
                     }
@@ -1003,19 +1020,23 @@ impl SubtleCrypto {
         let (vm, realm) = (cx.vm(), cx.realm());
         // 1. Let format and key be the format and key parameters passed to the exportKey() method, respectively.
 
-        // 2. Let promise be a new Promise.
+        // 2. Let realm be the relevant realm of this.
+        // 3. Let promise be a new Promise.
         let promise = create_promise(vm, realm);
 
-        // 3. Return promise and perform the remaining steps in parallel.
+        // 4. Return promise and perform the remaining steps in parallel.
         deferred_invoke(
             vm,
             (realm, key, promise, format),
             |vm, (realm, key, promise, format)| {
                 with_temporary_execution_context_and_callbacks(realm, || {
-                    // 4.  If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+                    // FIXME: 5. If the following steps or referenced procedures say to throw an error, queue a global
+                    //    task on the crypto task source, given realm's global object, to reject promise with the
+                    //    returned error; and then terminate the algorithm.
+                    // NB: Errors are rejected directly in the deferred invocation.
 
-                    // 5. If the name member of the [[algorithm]] internal slot of key does not identify a registered algorithm that supports the export key operation,
-                    //    then throw a NotSupportedError.
+                    // 6. If the name member of the [[algorithm]] internal slot of key does not identify a registered
+                    //    algorithm that supports the export key operation, then throw a NotSupportedError.
                     // Note: Handled by the base AlgorithmMethods implementation
                     // FIXME: Stash the AlgorithmMethods on the KeyAlgorithm
                     let normalized_algorithm_or_error = normalize_an_algorithm(
@@ -1030,7 +1051,7 @@ impl SubtleCrypto {
                     }
                     let normalized_algorithm = normalized_algorithm_or_error.must();
 
-                    // 6. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
+                    // 7. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
                     if !key.is_extractable() {
                         reject_promise(
                             vm,
@@ -1042,7 +1063,8 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 7. Let result be the result of performing the export key operation specified by the [[algorithm]] internal slot of key using key and format.
+                    // 8. Let result be the result of performing the export key operation specified by the [[algorithm]]
+                    //    internal slot of key using key and format.
                     let result_or_error =
                         normalized_algorithm
                             .methods
@@ -1052,12 +1074,18 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 8. Resolve promise with result.
+                    // FIXME: 9. Queue a global task on the crypto task source, given realm's global object, to perform
+                    //    the remaining steps.
+                    // 10. If format is equal to the string "jwk":
+                    //     Let result be the result of converting result to an ECMAScript Object in realm, as defined by [WebIDL].
+                    // 10. Otherwise:
+                    //     Let result be the result of creating an ArrayBuffer in realm, containing result.
                     let result = export_key_result_to_js_value(vm, realm, result_or_error.must());
                     if let Err(error) = result {
                         reject_promise_with_exception(vm, promise, error);
                         return;
                     }
+                    // 11. Resolve promise with result.
                     resolve_promise(vm, promise, result.must());
                 });
             },
@@ -1299,18 +1327,23 @@ impl SubtleCrypto {
             return Ok(create_rejected_promise_from_exception(vm, realm, error));
         }
 
-        // 4. Let promise be a new Promise object.
+        // 4. Let realm be the relevant realm of this.
+        // 5. Let promise be a new Promise.
         let promise = create_promise(vm, realm);
 
-        // 5. Return promise and perform the remaining steps in parallel.
+        // 6. Return promise and perform the remaining steps in parallel.
         deferred_invoke(
             vm,
             (realm, normalized_algorithm.must(), promise, base_key, length_optional),
             |vm, (realm, normalized_algorithm, promise, base_key, length_optional)| {
                 with_temporary_execution_context_and_callbacks(realm, || {
-                    // 6. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+                    // FIXME: 7. If the following steps or referenced procedures say to throw an error, queue a global
+                    //    task on the crypto task source, given realm's global object, to reject promise with the
+                    //    returned error; and then terminate the algorithm.
+                    // NB: Errors are rejected directly in the deferred invocation.
 
-                    // 7. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
+                    // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the
+                    //    [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != base_key.algorithm_name() {
                         reject_promise(
                             vm,
@@ -1322,7 +1355,8 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 8. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveBits", then throw an InvalidAccessError.
+                    // 9. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveBits",
+                    //    then throw an InvalidAccessError.
                     if !base_key.internal_usages().contains(&KeyUsage::DeriveBits) {
                         reject_promise(
                             vm,
@@ -1334,7 +1368,8 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 9. Let result be the result of creating an ArrayBuffer containing the result of performing the derive bits operation specified by normalizedAlgorithm using baseKey, algorithm and length.
+                    // 10. Let bits be the result of performing the derive bits operation specified by
+                    //    normalizedAlgorithm using baseKey, algorithm and length.
                     let result = normalized_algorithm.methods.derive_bits(
                         &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
@@ -1346,7 +1381,10 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 10. Resolve promise with result.
+                    // FIXME: 11. Queue a global task on the crypto task source, given realm's global object, to perform
+                    //    the remaining steps.
+                    // 12. Let result be the result of creating an ArrayBuffer in realm, containing bits.
+                    // 13. Resolve promise with result.
                     resolve_promise(vm, promise, array_buffer(vm, realm, &result.must()));
                 });
             },
@@ -1393,10 +1431,11 @@ impl SubtleCrypto {
             return Ok(create_rejected_promise_from_exception(vm, realm, error));
         }
 
-        // 8. Let promise be a new Promise.
+        // 8. Let realm be the relevant realm of this.
+        // 9. Let promise be a new Promise.
         let promise = create_promise(vm, realm);
 
-        // 9. Return promise and perform the remaining steps in parallel.
+        // 10. Return promise and perform the remaining steps in parallel.
         deferred_invoke(
             vm,
             (
@@ -1421,9 +1460,13 @@ impl SubtleCrypto {
                 key_usages,
             )| {
                 with_temporary_execution_context_and_callbacks(realm, || {
-                    // 10. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
+                    // FIXME: 11. If the following steps or referenced procedures say to throw an error, queue a global
+                    //    task on the crypto task source, given realm's global object, to reject promise with the
+                    //    returned error; and then terminate the algorithm.
+                    // NB: Errors are rejected directly in the deferred invocation.
 
-                    // 11. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
+                    // 12. If the name member of normalizedAlgorithm is not equal to the name attribute of the
+                    //    [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
                     if normalized_algorithm.parameter.name != base_key.algorithm_name() {
                         reject_promise(
                             vm,
@@ -1435,7 +1478,8 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 12. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveKey", then throw an InvalidAccessError.
+                    // 13. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveKey",
+                    //    then throw an InvalidAccessError.
                     if !base_key.internal_usages().contains(&KeyUsage::DeriveKey) {
                         reject_promise(
                             vm,
@@ -1447,7 +1491,8 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 13. Let length be the result of performing the get key length algorithm specified by normalizedDerivedKeyAlgorithmLength using derivedKeyType.
+                    // 14. Let length be the result of performing the get key length algorithm specified by
+                    //    normalizedDerivedKeyAlgorithmLength using derivedKeyType.
                     let length_result = normalized_derived_key_algorithm_length
                         .methods
                         .get_key_length(realm, &normalized_derived_key_algorithm_length.parameter);
@@ -1458,7 +1503,8 @@ impl SubtleCrypto {
 
                     let length = length_result.must();
 
-                    // 14. Let secret be the result of performing the derive bits operation specified by normalizedAlgorithm using key, algorithm and length.
+                    // 15. Let secret be the result of performing the derive bits operation specified by
+                    //    normalizedAlgorithm using key, algorithm and length.
                     let secret = normalized_algorithm.methods.derive_bits(
                         &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
@@ -1470,7 +1516,9 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
+                    // 16. Let result be the result of performing the import key operation specified by
+                    //    normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType
+                    //    as algorithm and using extractable and usages.
                     let secret_bytes = secret.must();
                     let result_or_error = normalized_derived_key_algorithm_import.methods.import_key(
                         &CallContext::new(vm, realm),
@@ -1486,7 +1534,8 @@ impl SubtleCrypto {
                     }
                     let result = result_or_error.must();
 
-                    // 16. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
+                    // 17. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then
+                    //    throw a SyntaxError.
                     if (result.key_type() == KeyType::Secret || result.key_type() == KeyType::Private)
                         && key_usages.is_empty()
                     {
@@ -1500,13 +1549,17 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    // 17. Set the [[extractable]] internal slot of result to extractable.
+                    // 18. Set the [[extractable]] internal slot of result to extractable.
                     result.set_extractable(extractable);
 
-                    // 18. Set the [[usages]] internal slot of result to the normalized value of usages.
+                    // 19. Set the [[usages]] internal slot of result to the normalized value of usages.
                     result.set_usages(normalized_key_usages(&key_usages));
 
-                    // 19. Resolve promise with result.
+                    // FIXME: 20. Queue a global task on the crypto task source, given realm's global object, to perform
+                    //    the remaining steps.
+                    // 21. Let result be the result of converting result to an ECMAScript Object in realm, as defined by
+                    //    [WebIDL].
+                    // 22. Resolve promise with result.
                     resolve_crypto_key_promise(vm, realm, promise, result);
                 });
             },
@@ -2042,20 +2095,21 @@ impl SubtleCrypto {
                     }
                     let shared_key = maybe_shared_key.must();
 
-                    // 14. Set the [[extractable]] internal slot of sharedKey to extractable.
+                    // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
                     shared_key.set_extractable(extractable);
 
-                    // 15. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
+                    // 16. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
                     shared_key.set_usages(normalized_key_usages(&usages));
 
-                    // 16. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
-                    //     to the ciphertext field of encapsulatedBits.
+                    // 17. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and
+                    //    ciphertext set to the ciphertext field of encapsulatedBits.
                     let encapsulated_key = EncapsulatedKeyData {
                         shared_key,
                         ciphertext: encapsulated_bits.ciphertext,
                     };
 
-                    // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+                    // 18. Queue a global task on the crypto task source, given realm's global object, to perform the
+                    //    remaining steps.
                     queue_a_global_task(
                         vm,
                         realm.global_object(),
@@ -2063,7 +2117,8 @@ impl SubtleCrypto {
                         (realm, promise, encapsulated_key),
                         |vm, (realm, promise, encapsulated_key)| {
                             with_temporary_execution_context_and_callbacks(realm, || {
-                                // 18. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
+                                // 19. Let result be the result of converting encapsulatedKey to an ECMAScript Object in
+                                //    realm, as defined by [WebIDL].
                                 let maybe_result = encapsulated_key_value(vm, realm, &encapsulated_key);
                                 if let Err(error) = maybe_result {
                                     reject_promise(vm, promise, error.value());
@@ -2324,13 +2379,14 @@ impl SubtleCrypto {
                     }
                     let shared_key = maybe_shared_key.must();
 
-                    // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
+                    // 16. Set the [[extractable]] internal slot of sharedKey to extractable.
                     shared_key.set_extractable(extractable);
 
-                    // 16. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
+                    // 17. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
                     shared_key.set_usages(normalized_key_usages(&usages));
 
-                    // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+                    // 18. Queue a global task on the crypto task source, given realm's global object, to perform the
+                    //    remaining steps.
                     queue_a_global_task(
                         vm,
                         realm.global_object(),
@@ -2338,7 +2394,8 @@ impl SubtleCrypto {
                         (realm, promise, shared_key),
                         |vm, (realm, promise, shared_key)| {
                             with_temporary_execution_context_and_callbacks(realm, || {
-                                // 18. Let result be the result of converting sharedKey to an ECMAScript Object in realm, as defined by [WebIDL].
+                                // 19. Let result be the result of converting sharedKey to an ECMAScript Object in
+                                //    realm, as defined by [WebIDL].
                                 // 19. Resolve promise with result.
                                 resolve_crypto_key_promise(vm, realm, promise, shared_key);
                             });
@@ -2658,7 +2715,7 @@ impl SubtleCrypto {
             }
         }
 
-        // 4. If operation is "encapsulateKey" or "decapsulateKey":
+        // 3. If operation is "encapsulateKey" or "decapsulateKey":
         if matches!(op, "encapsulateKey" | "decapsulateKey") {
             // 1. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set
             //    to "get shared key length".

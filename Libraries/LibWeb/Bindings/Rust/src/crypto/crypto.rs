@@ -88,7 +88,8 @@ impl Crypto {
             ));
         }
 
-        // 2. If the byteLength of array is greater than 65536, throw a QuotaExceededError and terminate the algorithm.
+        // 2. Let byteLength be the byte length of array.
+        // 3. If byteLength is greater than 65536, throw a QuotaExceededError and terminate the algorithm.
         if typed_array_byte_length(&typed_array_record) > 65536 {
             let fields = QuotaExceededErrorFields {
                 dom_exception: DOMExceptionFields {
@@ -101,14 +102,16 @@ impl Crypto {
             return Err(Throw::new(Value::from_object(quota_exceeded_error::create(cx.realm(), &fields))).into());
         }
 
-        // 3. Overwrite all elements of array with cryptographically strong random values of the appropriate type.
+        // 4. Let bytes be a byte sequence of length byteLength.
         let extent = array_view.extent();
         let mut random_bytes = vec![0; extent.byte_length];
+        // 5. Fill bytes with cryptographically secure random bytes.
         // SAFETY: The span is writable for the call.
         unsafe { web_crypto_fill_with_random(SpanMut::new(&mut random_bytes)) };
+        // 6. Write bytes into array.
         extent.buffer.overwrite(extent.byte_offset, &random_bytes);
 
-        // 4. Return array.
+        // 7. Return array.
         Ok(array)
     }
 
