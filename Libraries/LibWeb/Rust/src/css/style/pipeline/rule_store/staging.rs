@@ -126,10 +126,8 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
 pub(in crate::css::style) struct ProgramStaging {
     rule_conditions: StagedField<RuleID, bool>,
     sheet_conditions: StagedField<SheetID, bool>,
-    sheet_enabled: StagedField<SheetID, bool>,
     rule_declarations: StagedField<RuleID, RuleDeclarations>,
     rule_versions: StagedField<RuleID, RuleVersion>,
-    rule_in_a_layer: StagedField<RuleID, bool>,
     rule_gated_by_container_query: StagedField<RuleID, bool>,
     rule_liveness: StagedField<RuleID, bool>,
     layer_orders: StagedField<TreeScopeID, HashMap<CascadeLayerID, u32>>,
@@ -148,10 +146,8 @@ impl ProgramStaging {
     pub(in crate::css::style) fn is_dirty(&self) -> bool {
         !self.rule_conditions.is_empty()
             || !self.sheet_conditions.is_empty()
-            || !self.sheet_enabled.is_empty()
             || !self.rule_declarations.is_empty()
             || !self.rule_versions.is_empty()
-            || !self.rule_in_a_layer.is_empty()
             || !self.rule_gated_by_container_query.is_empty()
             || !self.rule_liveness.is_empty()
             || !self.layer_orders.is_empty()
@@ -185,10 +181,8 @@ impl ProgramStaging {
     pub(in crate::css::style) fn clear(&mut self) {
         self.rule_conditions.clear();
         self.sheet_conditions.clear();
-        self.sheet_enabled.clear();
         self.rule_declarations.clear();
         self.rule_versions.clear();
-        self.rule_in_a_layer.clear();
         self.rule_gated_by_container_query.clear();
         self.rule_liveness.clear();
         self.layer_orders.clear();
@@ -372,22 +366,6 @@ impl StyleEngine {
         );
     }
 
-    #[cfg(test)]
-    pub(in crate::css::style) fn set_sheet_enabled(&mut self, sheet: SheetID, enabled: bool) {
-        let previous = self
-            .host
-            .program_staging
-            .sheet_enabled
-            .current(sheet, || self.retained.rules.sheet_is_enabled(sheet));
-        if previous == enabled {
-            return;
-        }
-        self.host
-            .program_staging
-            .sheet_enabled
-            .stage(sheet, || self.retained.rules.sheet_is_enabled(sheet), enabled);
-    }
-
     /// Begin rebuilding a sheet while retaining compatible style-rule identities by cascade
     /// position. The parsed CSSOM objects are new, but an unchanged semantic rule does not become a
     /// departure followed by an arrival merely because the whole sheet was reparsed.
@@ -488,7 +466,6 @@ impl StyleEngine {
 
         self.set_rule_conditions_hold(rule, true);
         self.stage_rule_declarations(rule, RuleDeclarations::default());
-        self.stage_rule_in_a_layer(rule, false);
         self.stage_rule_gated_by_container_query(rule, false);
         let mut version = RuleVersion::new(RuleKind::Style);
         version.declaration_block = declaration_block;
@@ -534,14 +511,6 @@ impl StyleEngine {
         );
     }
 
-    pub(in crate::css::style) fn stage_rule_in_a_layer(&mut self, rule: RuleID, in_a_layer: bool) {
-        self.host.program_staging.rule_in_a_layer.stage(
-            rule,
-            || self.retained.rules.rule_is_in_a_layer(rule),
-            in_a_layer,
-        );
-    }
-
     /// What the staged program changes of the committed one, which has yet to take it.
     fn staged_rule_changes(&self) -> RuleChanges {
         fn moved<K: Copy, V: PartialEq>(pairs: impl Iterator<Item = (K, V, V)>) -> impl Iterator<Item = K> {
@@ -554,7 +523,6 @@ impl StyleEngine {
         let attached = |rule: &RuleID| !program.sheet_scopes(program.rule_sheet(*rule)).is_empty();
         changes.rules_with_moved_contents = moved(staging.rule_declarations.pairs())
             .chain(moved(staging.rule_versions.pairs()))
-            .chain(moved(staging.rule_in_a_layer.pairs()))
             .chain(moved(staging.rule_gated_by_container_query.pairs()))
             .chain(moved(staging.rule_liveness.pairs()))
             .filter(attached)
@@ -569,9 +537,7 @@ impl StyleEngine {
         rules.dedup();
         changes.rules = rules;
 
-        changes.sheets = moved(staging.sheet_conditions.pairs())
-            .chain(moved(staging.sheet_enabled.pairs()))
-            .collect();
+        changes.sheets = moved(staging.sheet_conditions.pairs()).collect();
         for (scope, before, after) in staging.sheets_in_scope.pairs() {
             let kept_before = before.iter().filter(|sheet| after.contains(sheet));
             let kept_after = after.iter().filter(|sheet| before.contains(sheet));
@@ -607,17 +573,11 @@ impl StyleEngine {
             .add(Counter::CascadeTopologyDeltas, changes.reordered_scopes.len() as u64);
         let rule_conditions = self.host.program_staging.rule_conditions.take_dirty();
         let sheet_conditions = self.host.program_staging.sheet_conditions.take_dirty();
-        let sheet_enabled = self.host.program_staging.sheet_enabled.take_dirty();
-        if !rule_conditions.is_empty() || !sheet_conditions.is_empty() || !sheet_enabled.is_empty() {
-            for (rule, conditions_hold) in rule_conditions {
-                self.retained.rules.set_rule_conditions_hold(rule, conditions_hold);
-            }
-            for (sheet, conditions_hold) in sheet_conditions {
-                self.retained.rules.set_sheet_conditions_hold(sheet, conditions_hold);
-            }
-            for (sheet, enabled) in sheet_enabled {
-                self.retained.rules.set_sheet_enabled(sheet, enabled);
-            }
+        for (rule, conditions_hold) in rule_conditions {
+            self.retained.rules.set_rule_conditions_hold(rule, conditions_hold);
+        }
+        for (sheet, conditions_hold) in sheet_conditions {
+            self.retained.rules.set_sheet_conditions_hold(sheet, conditions_hold);
         }
 
         let declarations = self.host.program_staging.rule_declarations.take_dirty();
@@ -637,11 +597,7 @@ impl StyleEngine {
             }
         }
 
-        let in_a_layer = self.host.program_staging.rule_in_a_layer.take_dirty();
         let gated_by_container_query = self.host.program_staging.rule_gated_by_container_query.take_dirty();
-        for (rule, value) in in_a_layer {
-            self.retained.rules.set_rule_in_a_layer(rule, value);
-        }
         for (rule, value) in gated_by_container_query {
             self.retained.rules.set_rule_gated_by_container_query(rule, value);
         }
@@ -733,10 +689,6 @@ impl StyleEngine {
         }
         version.layer = layer;
         self.replace_rule_version(rule, version);
-    }
-
-    pub fn set_rule_in_a_layer(&mut self, rule: RuleID) {
-        self.stage_rule_in_a_layer(rule, true);
     }
 
     pub(in crate::css::style) fn append_rule(

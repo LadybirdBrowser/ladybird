@@ -11,7 +11,7 @@ pub use crate::css::cascaded_properties::CascadeOrigin;
 use crate::css::declaration_block::DeclarationEntry;
 use crate::css::style::cascade::CascadeOperator;
 use crate::css::style::index::StyleAtomID;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 define_id! {
     /// Semantic identity of a sheet, stable across edits to its contents.
@@ -148,7 +148,7 @@ impl RuleKind {
 ///
 /// A version holds its selector list by where it starts among the selectors of its sheet, which no
 /// other list of the sheet ever starts at: a version whose selectors did not change keeps them.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RuleVersion {
     pub kind: RuleKind,
     /// The name a rule declares, for the rules that reach their consumers by name rather than by
@@ -166,18 +166,6 @@ pub struct RuleVersion {
 const _: () = assert!(size_of::<RuleVersion>() == 24);
 
 impl RuleVersion {
-    fn identity(&self) -> impl Eq + Hash + std::fmt::Debug + '_ {
-        let Self {
-            kind,
-            declared_name,
-            selectors,
-            declaration_block,
-            layer,
-            scope,
-        } = self;
-        (kind, declared_name, selectors, declaration_block, layer, scope)
-    }
-
     #[must_use]
     pub const fn new(kind: RuleKind) -> Self {
         Self {
@@ -198,25 +186,5 @@ impl RuleVersion {
 
     pub fn set_declared_name(&mut self, name: StyleAtomID) {
         self.declared_name = name;
-    }
-}
-
-impl PartialEq for RuleVersion {
-    fn eq(&self, other: &Self) -> bool {
-        self.identity() == other.identity()
-    }
-}
-
-impl Eq for RuleVersion {}
-
-impl Hash for RuleVersion {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.identity().hash(state);
-    }
-}
-
-impl std::fmt::Debug for RuleVersion {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.identity().fmt(formatter)
     }
 }

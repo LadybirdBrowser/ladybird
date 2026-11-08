@@ -771,7 +771,6 @@ fn a_selector_edit_changes_its_rule() {
 fn rule_metadata_commits_at_the_transaction_barrier() {
     let (mut engine, _, rule) = authoring_engine();
     engine.set_rule_gated_by_container_query(rule);
-    engine.set_rule_in_a_layer(rule);
 
     assert!(!engine.rules.rule_is_gated_by_container_query(rule));
     assert!(engine.current_rule_is_gated_by_container_query(rule));
@@ -917,18 +916,6 @@ fn a_layer_order_change_reorders_its_scope() {
     assert!(engine.rules.scope_uses_document_sheets(TreeScopeID(1)));
     assert_eq!(transaction.rule_changes.reordered_scopes, vec![TreeScopeID::DOCUMENT]);
     assert_eq!(engine.counters().get(Counter::CascadeTopologyDeltas), 1);
-    engine.release_transaction(transaction);
-}
-
-#[test]
-fn disabling_a_sheet_is_an_activation_change() {
-    let (mut engine, sheet, _) = authoring_engine();
-    engine.set_sheet_enabled(sheet, false);
-    assert!(engine.rules.sheet_is_enabled(sheet));
-
-    let transaction = engine.take_transaction();
-    assert!(!engine.rules.sheet_is_enabled(sheet));
-    assert_eq!(transaction.rule_changes.sheets, vec![sheet]);
     engine.release_transaction(transaction);
 }
 
