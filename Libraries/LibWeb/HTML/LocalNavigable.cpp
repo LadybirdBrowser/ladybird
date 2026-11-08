@@ -4121,8 +4121,12 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     // 12. Let policyContainer be targetNavigable's active document's policy container.
     auto const& policy_container = active_document()->policy_container();
 
+    // AD-HOC: Get the target snapshot params. This is missing from the spec, see https://github.com/whatwg/html/issues/12563
+    auto target_snapshot_params = snapshot_target_snapshot_params(*this);
+
     // 13. Let finalSandboxFlags be policyContainer's CSP list's CSP-derived sandboxing flags.
-    auto final_sandbox_flags = policy_container->csp_list.csp_derived_sandboxing_flags();
+    // AD-HOC: Include targetSnapshotParams's sandboxing flags, as every other navigation does.
+    auto final_sandbox_flags = target_snapshot_params.sandboxing_flags | policy_container->csp_list.csp_derived_sandboxing_flags();
 
     // 14. Let coop be targetNavigable's active document's opener policy.
     auto const& coop = active_document()->opener_policy();
@@ -4136,9 +4140,6 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
         .origin = new_document_origin,
         .opener_policy = coop,
     };
-
-    // AD-HOC: Get the target snapshot params. This is missing from the spec, see https://github.com/whatwg/html/issues/12563
-    auto target_snapshot_params = snapshot_target_snapshot_params(*this);
 
     // 16. Let navigationParams be a new navigation params, with
     //     id: navigationId
