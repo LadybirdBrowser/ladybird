@@ -44,12 +44,18 @@ private:
 
 class TimerEvent final : public Event {
 public:
-    explicit TimerEvent()
+    explicit TimerEvent(u64 timer_generation)
         : Event(Event::Timer)
+        , m_timer_generation(timer_generation)
     {
     }
 
     ~TimerEvent() = default;
+
+    u64 timer_generation() const { return m_timer_generation; }
+
+private:
+    u64 m_timer_generation { 0 };
 };
 
 class NotifierActivationEvent final : public Event {

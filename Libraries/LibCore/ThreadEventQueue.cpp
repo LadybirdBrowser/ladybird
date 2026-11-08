@@ -25,8 +25,9 @@ struct ThreadEventQueue::Private {
         AK_MAKE_DEFAULT_MOVABLE(QueuedEvent);
 
     public:
-        QueuedEvent(RefPtr<EventReceiver> const& receiver, Event::Type event_type)
+        QueuedEvent(RefPtr<EventReceiver> const& receiver, Event::Type event_type, u64 timer_generation = 0)
             : receiver(receiver)
+            , timer_generation(timer_generation)
             , event_type(event_type)
         {
         }
@@ -40,6 +41,7 @@ struct ThreadEventQueue::Private {
         ~QueuedEvent() = default;
 
         WeakPtr<EventReceiver> receiver;
+        u64 timer_generation { 0 };
         Function<void()> m_invokee;
         u8 event_type { Event::Type::Invalid };
     };
@@ -103,6 +105,15 @@ void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Ty
     Core::EventLoopManager::the().did_post_event();
 }
 
+void ThreadEventQueue::post_timer_event(Core::EventReceiver* receiver, u64 timer_generation)
+{
+    {
+        MutexLocker lock(m_private->mutex);
+        m_private->queued_events.empend(receiver, Event::Type::Timer, timer_generation);
+    }
+    Core::EventLoopManager::the().did_post_event();
+}
+
 void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
 {
     {
@@ -124,7 +135,7 @@ size_t ThreadEventQueue::process()
         if (auto receiver = queued_event.receiver.strong_ref()) {
             switch (queued_event.event_type) {
             case Event::Type::Timer: {
-                TimerEvent timer_event;
+                TimerEvent timer_event { queued_event.timer_generation };
                 receiver->dispatch_event(timer_event);
                 break;
             }

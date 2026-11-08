@@ -381,9 +381,9 @@ void EventLoopImplementationQt::set_main_loop()
     event_loop_manager.set_main_loop_signal_notifiers({});
 }
 
-static void qt_timer_fired(Core::EventReceiver& object)
+static void qt_timer_fired(Core::EventReceiver& object, u64 timer_generation)
 {
-    Core::TimerEvent event;
+    Core::TimerEvent event { timer_generation };
     object.dispatch_event(event);
 }
 
@@ -394,11 +394,11 @@ intptr_t EventLoopManagerQt::register_timer(Core::EventReceiver& object, AK::Dur
     timer->setInterval(AK::clamp_to<int>(interval.to_ceiled_milliseconds()));
     timer->setSingleShot(!should_reload);
     auto weak_object = object.make_weak_ptr();
-    QObject::connect(timer, &QTimer::timeout, [weak_object = move(weak_object)] {
+    QObject::connect(timer, &QTimer::timeout, [weak_object = move(weak_object), timer_generation = object.timer_generation()] {
         auto object = weak_object.strong_ref();
         if (!object)
             return;
-        qt_timer_fired(*object);
+        qt_timer_fired(*object, timer_generation);
     });
     timer->start();
     return bit_cast<intptr_t>(timer);

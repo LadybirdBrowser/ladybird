@@ -112,6 +112,72 @@ TEST_CASE(single_shot_timer_fires_once)
     EXPECT_EQ(count, 1);
 }
 
+// The Timer event a single-shot timer posts can wait in the queue behind another event whose handler pumps the loop
+// again, e.g. through spin_until(). The timer fires again in that nested pump, and its handler runs there. If the
+// handler restarts the timer, the event still waiting in the queue is for the registration before the restart, and must
+// not fire the restarted timer early.
+TEST_CASE(single_shot_timer_fires_once_across_nested_pump)
+{
+    Core::EventLoop loop;
+    int count = 0;
+    RefPtr<Core::Timer> timer;
+    timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [&] {
+        ++count;
+        timer->restart(AK::Duration::from_seconds(10));
+    });
+    timer->start();
+    // The pumping event queues itself again until the timer has fired, so the timer's event lands in a batch behind it
+    // even where the timer's expiry reaches the loop only after a few polls.
+    IGNORE_USE_IN_ESCAPING_LAMBDA Function<void()> pump_nested;
+    pump_nested = [&] {
+        for (int i = 0; i < 4; ++i)
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        if (count == 0)
+            Core::deferred_invoke([&] { pump_nested(); });
+    };
+    Core::deferred_invoke([&] { pump_nested(); });
+    while (count == 0)
+        loop.pump(Core::EventLoop::WaitMode::WaitForEvents);
+    for (int i = 0; i < 4; ++i)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(count, 1);
+    timer->stop();
+}
+
+// A single-shot timer whose Timer event waits in the queue behind an event whose handler spins the loop until the
+// timer's handler has run fires again in that nested loop, so the spin ends.
+TEST_CASE(single_shot_timer_fires_in_a_nested_pump_while_its_event_waits)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop loop;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool fired = false;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [&] { fired = true; });
+    timer->start();
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool spin_ended = false;
+    Core::deferred_invoke([&] {
+        auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(1);
+        while (!fired && MonotonicTime::now() < deadline)
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        spin_ended = fired;
+    });
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(spin_ended);
+}
+
+// A timer made repeating after it started as a single-shot one keeps firing.
+TEST_CASE(single_shot_timer_made_repeating_keeps_firing)
+{
+    Core::EventLoop loop;
+    int count = 0;
+    auto timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [&] {
+        if (++count == 3)
+            loop.quit(0);
+    });
+    timer->start();
+    timer->set_single_shot(false);
+    loop.exec();
+    EXPECT_EQ(count, 3);
+}
+
 TEST_CASE(zero_interval_repeating_timer)
 {
     Core::EventLoop loop;

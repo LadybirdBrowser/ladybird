@@ -56,6 +56,8 @@ public:
     void stop_timer();
     bool has_timer() const { return m_timer_id; }
 
+    u64 timer_generation() const { return m_timer_generation; }
+
     void deferred_invoke(Function<void()>);
 
     void dispatch_event(Core::Event&);
@@ -69,6 +71,7 @@ protected:
 
 private:
     intptr_t m_timer_id { 0 };
+    u64 m_timer_generation { 0 };
 };
 
 }

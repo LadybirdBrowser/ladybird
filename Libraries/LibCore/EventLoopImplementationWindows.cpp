@@ -191,12 +191,13 @@ public:
             }
         }
 
-        ThreadEventQueue::current().post_event(strong_owner, Event::Type::Timer);
+        ThreadEventQueue::current().post_timer_event(strong_owner, generation);
     }
 
     AK::Duration interval;
     bool should_reload { false };
     WeakPtr<EventReceiver> owner;
+    u64 generation { 0 };
 };
 
 // The Ancillary Function Driver's poll request, which select() and WSAPoll() are built on, is not in the Windows SDK.
@@ -863,6 +864,7 @@ intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, AK::Dura
 
     auto timer = make<EventLoopTimer>();
     timer->owner = object.make_weak_ptr();
+    timer->generation = object.timer_generation();
     timer->interval = interval;
     timer->should_reload = should_reload;
     timer->reload(MonotonicTime::now());
