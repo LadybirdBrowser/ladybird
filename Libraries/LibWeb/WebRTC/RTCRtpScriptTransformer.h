@@ -23,7 +23,7 @@ public:
     // The "writeEncodedData" algorithm. Spec: the writable's write algorithm runs
     // writeEncodedData(transformer, frame) which "hands the frame to the next stage
     // of the pipeline" — i.e. to [[frameSource]] (the encoder/depacketizer) for
-    // continued processing. The callback lets the worker route the frame back to the parent over IPC.
+    // continued processing. The callback lets the worker route the frame back to the parent.
     using WriteEncodedDataAlgorithm = GC::Function<void(JS::Value frame)>;
 
     static WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransformer>> create(JS::Realm&, JS::Value options);

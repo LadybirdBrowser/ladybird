@@ -39,6 +39,7 @@
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWeb/WebRTC/RTCTransformEvent.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 #include <WebContent/Worker/PageHost.h>
 #include <WebContent/Worker/WorkerHost.h>
 #include <WebContent/Worker/WorkerThread.h>
@@ -249,9 +250,10 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RefPtr<DedicatedWorkerThreadLink> dedicated_worker_thread_link)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
+    , m_dedicated_worker_thread_link(move(dedicated_worker_thread_link))
     , m_script_abort_handle(Web::HTML::surrounding_agent().script_abort_handle())
 {
     // The UI process started this worker agent, and die() ends it. So, once the UI process has closed the connection —
@@ -360,9 +362,7 @@ void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannel
 
 void ConnectionFromClient::rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
 {
-    if (!m_worker_host)
-        return;
-    if (!m_worker_host->script_has_run()) {
+    if (!m_worker_host || !m_worker_host->script_has_run()) {
         // Wait for the worker script to install onrtctransform so the event is not dropped.
         m_pending_transform_inits.set(transform_id, move(options_record));
         return;
@@ -408,9 +408,7 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
     auto transformer = transformer_or_err.release_value();
     m_transformers.set(transform_id, GC::make_root(transformer));
 
-    // Return transformed frames to the parent over IPC. Capturing `this` is safe because
-    // the connection outlives the heap the transformer is in.
-    auto write_encoded_data = GC::create_function(realm.heap(), [this, transform_id](JS::Value chunk) {
+    auto write_encoded_data = GC::create_function(realm.heap(), [link = NonnullRefPtr { *m_dedicated_worker_thread_link }, transform_id](JS::Value chunk) {
         auto* frame = chunk.is_object() ? Web::Bindings::impl_from<Web::WebRTC::RTCEncodedAudioFrame>(&chunk.as_object()) : nullptr;
         if (!frame) {
             dbgln_if(WEBRTC_DEBUG, "worker: write algorithm got non-frame value (chunk_is_object={}, class={}) for id={}",
@@ -427,7 +425,9 @@ void ConnectionFromClient::run_transform_init(u64 transform_id, Web::HTML::Seria
         u8 payload_type = metadata.payload_type.value_or(0);
         u32 rtp_timestamp = metadata.rtp_timestamp.value_or(0);
         u16 sequence_number = static_cast<u16>(metadata.sequence_number.value_or(0));
-        async_rtc_transform_encoded_audio_frame_written(transform_id, bytes.bytes(), ssrc, payload_type, rtp_timestamp, sequence_number);
+        link->post_to_owner([owner_token = link->owner_token(), transform_id, payload = move(bytes), ssrc, payload_type, rtp_timestamp, sequence_number]() mutable {
+            Web::HTML::WorkerAgentParent::did_write_rtc_transform_encoded_audio_frame(owner_token, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
+        });
     });
     transformer->set_write_encoded_data_algorithm(write_encoded_data);
 

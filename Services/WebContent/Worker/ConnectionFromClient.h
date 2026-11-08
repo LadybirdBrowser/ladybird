@@ -57,8 +57,12 @@ public:
     // Asks the Browser to connect this worker to the ImageDecoder of its process.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_image_decoder_transport();
 
+    void rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record);
+    void rtc_transform_teardown(u64 transform_id);
+    void rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
+
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<DedicatedWorkerThreadLink>);
 
     Web::Page& page();
     Web::Page const& page() const;
@@ -80,9 +84,6 @@ private:
     virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
-    virtual void rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record) override;
-    virtual void rtc_transform_teardown(u64 transform_id) override;
-    virtual void rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number) override;
 
     GC::Root<PageHost> m_page_host;
 
@@ -96,6 +97,7 @@ private:
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };
 
+    RefPtr<DedicatedWorkerThreadLink> m_dedicated_worker_thread_link;
     HashMap<u64, GC::Root<Web::WebRTC::RTCRtpScriptTransformer>> m_transformers;
     HashMap<u64, Web::HTML::SerializedTransferRecord> m_pending_transform_inits;
 

@@ -248,9 +248,4 @@ void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web:
     WorkerAgentManager::the().close_worker_agent(*this, agent_id, owner_token);
 }
 
-void WebWorkerClient::rtc_transform_encoded_audio_frame_written(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
-{
-    WorkerAgentManager::the().worker_did_write_rtc_transform_encoded_audio_frame(m_agent_id, transform_id, move(payload), ssrc, payload_type, rtp_timestamp, sequence_number);
-}
-
 }

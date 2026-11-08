@@ -64,7 +64,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCRtpScriptTransform>> RTCRtpScriptTransform::const
     //    8.2. Create an RTCRtpScriptTransformer with the deserialized options.
     //    8.3. Fire an event named rtctransform using RTCTransformEvent on the transformer's
     //         relevant global object.
-    // IPC delivers serializedOptions verbatim to ConnectionFromClient::rtc_transform_init,
+    // The worker's thread gets serializedOptions verbatim in ConnectionFromClient::rtc_transform_init,
     // which runs steps 8.1–8.3 in the worker's realm.
     static u64 next_transform_id = 1;
     transform->m_transform_id = next_transform_id++;

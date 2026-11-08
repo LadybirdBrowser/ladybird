@@ -15,6 +15,7 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
+#include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 #include <WebContent/Worker/WorkerThread.h>
 
 namespace WebWorker {
@@ -37,7 +38,7 @@ bool is_worker_thread()
     return s_is_worker_thread;
 }
 
-static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web::HTML::AgentType agent_type)
+static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web::HTML::AgentType agent_type, RefPtr<DedicatedWorkerThreadLink> const& dedicated_worker_thread_link)
 {
     s_is_worker_thread = true;
 
@@ -59,10 +60,15 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
         worker_threads().event_loops.append(event_loop_reference);
     }
 
-    auto client = ConnectionFromClient::construct(transport_or_error.release_value());
+    auto client = ConnectionFromClient::construct(transport_or_error.release_value(), dedicated_worker_thread_link);
     client->set_up_agent_services();
+    if (dedicated_worker_thread_link)
+        dedicated_worker_thread_link->attach_worker_connection(*client);
 
     auto exit_code = event_loop.exec();
+
+    if (dedicated_worker_thread_link)
+        dedicated_worker_thread_link->detach_worker_connection();
 
     {
         MutexLocker locker(worker_threads().mutex);
@@ -73,10 +79,10 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
     return exit_code;
 }
 
-ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type)
+static ErrorOr<void> start_thread(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type, RefPtr<DedicatedWorkerThreadLink> dedicated_worker_thread_link)
 {
-    auto thread = TRY(Threading::Thread::try_create("WebWorker"sv, [worker_handle = move(worker_handle), agent_type] {
-        return run_worker_thread(worker_handle, agent_type);
+    auto thread = TRY(Threading::Thread::try_create("WebWorker"sv, [worker_handle = move(worker_handle), agent_type, dedicated_worker_thread_link = move(dedicated_worker_thread_link)] {
+        return run_worker_thread(worker_handle, agent_type, dedicated_worker_thread_link);
     }));
     thread->set_stack_size(JS::VM::MINIMUM_THREAD_STACK_SIZE);
 
@@ -85,6 +91,24 @@ ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle, Web::HTML:
     // NB: Nothing waits for a worker's thread: one that is stuck in a long builtin must not hold up anything else.
     thread->detach();
     return {};
+}
+
+ErrorOr<void> start_worker_thread(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type)
+{
+    return start_thread(move(worker_handle), agent_type, nullptr);
+}
+
+RefPtr<Web::HTML::DedicatedWorkerThreadLink> start_worker_thread_for_owner(IPC::TransportHandle worker_handle, Web::HTML::AgentType agent_type, Web::HTML::WorkerAgentOwnerToken owner_token)
+{
+    RefPtr<DedicatedWorkerThreadLink> dedicated_worker_thread_link;
+    if (agent_type == Web::HTML::AgentType::DedicatedWorker)
+        dedicated_worker_thread_link = DedicatedWorkerThreadLink::create(owner_token);
+
+    if (auto result = start_thread(move(worker_handle), agent_type, dedicated_worker_thread_link); result.is_error()) {
+        dbgln("Unable to start a thread for a worker: {}", result.error());
+        return nullptr;
+    }
+    return dedicated_worker_thread_link;
 }
 
 void post_to_worker_threads(void (*function)())

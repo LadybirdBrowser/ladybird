@@ -9,6 +9,7 @@
 namespace WebWorker {
 
 class ConnectionFromClient;
+class DedicatedWorkerThreadLink;
 class PageHost;
 class WorkerHost;
 

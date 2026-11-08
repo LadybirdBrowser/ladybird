@@ -2265,6 +2265,7 @@ void PageClient::reset_gamepad_access_for_testing()
 Web::PageClient::StartedWorkerAgent PageClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
     auto agent_type = request.agent_type;
+    auto owner_token = request.owner_token;
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::StartWorkerAgent>(m_id, move(request));
     if (!response) {
         dbgln("WebContent client disconnected during StartWorkerAgent. Exiting peacefully.");
@@ -2272,32 +2273,16 @@ Web::PageClient::StartedWorkerAgent PageClient::start_worker_agent(Web::HTML::Wo
     }
 
     // NB: The UI process notices a transport that nobody takes up, and tells the owner that its worker is gone.
-    if (auto transport = response->take_thread_transport(); transport.has_value()) {
-        if (auto result = WebWorker::start_worker_thread(transport.release_value(), agent_type); result.is_error())
-            dbgln("Unable to start a thread for a worker: {}", result.error());
-    }
+    RefPtr<Web::HTML::DedicatedWorkerThreadLink> dedicated_worker_thread_link;
+    if (auto transport = response->take_thread_transport(); transport.has_value())
+        dedicated_worker_thread_link = WebWorker::start_worker_thread_for_owner(transport.release_value(), agent_type, owner_token);
 
-    return { response->agent_id(), response->is_hosted_in_caller_process() };
+    return { response->agent_id(), response->is_hosted_in_caller_process(), move(dedicated_worker_thread_link) };
 }
 
 void PageClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     client().async_close_worker_agent(m_id, agent_id, owner_token);
-}
-
-void PageClient::rtc_transform_init(Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
-{
-    client().async_rtc_transform_init(m_id, agent_id, transform_id, move(options_record));
-}
-
-void PageClient::rtc_transform_teardown(Web::HTML::WorkerAgentId agent_id, u64 transform_id)
-{
-    client().async_rtc_transform_teardown(m_id, agent_id, transform_id);
-}
-
-void PageClient::rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
-{
-    client().async_rtc_transform_encoded_audio_frame(m_id, agent_id, transform_id, payload.bytes(), ssrc, payload_type, rtp_timestamp, sequence_number);
 }
 
 void PageClient::page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<Utf16FlyString> const& attribute_name)
