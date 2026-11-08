@@ -341,7 +341,7 @@ impl StyleEngine {
     /// Have `rule` declare `block`, making the block's cascade data where no engine of the
     /// process published the block before, and naming its custom properties in the engine's
     /// atoms.
-    pub(super) fn publish_block_declarations(&mut self, rule: RuleID, block: &SharedDeclarationBlock) {
+    pub(crate) fn publish_block_declarations(&mut self, rule: RuleID, block: &SharedDeclarationBlock) {
         let custom_names: Vec<_> = block
             .custom_properties()
             .iter()

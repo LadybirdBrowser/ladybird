@@ -12,8 +12,7 @@
 
 use super::StyleEngine;
 use super::bridge::{
-    BoundScopeChain, FfiCascadeOrigin, intern_native_text, publish_rule_declarations, publish_style_rule,
-    publish_style_rule_selectors,
+    BoundScopeChain, FfiCascadeOrigin, intern_native_text, publish_style_rule, publish_style_rule_selectors,
 };
 use super::pipeline::rule_store::{CascadeLayerID, RuleDeclarations, RuleID, RuleKind, SheetID};
 use super::tree::TreeScopeID;
@@ -142,10 +141,11 @@ impl CompiledRule {
         let rule = match &self.kind {
             CompiledRuleKind::Style { selectors, .. } => {
                 let id = publish_style_rule(engine, sheet, before, &selectors.selectors.selectors, &selectors.scope);
-                if let Some(declarations) = &self.declarations {
-                    publish_rule_declarations(engine, id, declarations);
+                let rule = id.checked_sub(1).map(RuleID);
+                if let (Some(rule), Some(declarations)) = (rule, &self.declarations) {
+                    engine.publish_block_declarations(rule, declarations);
                 }
-                id.checked_sub(1).map(RuleID)
+                rule
             }
             CompiledRuleKind::Named { kind, name } => {
                 let name = intern_native_text(engine, name);
@@ -302,7 +302,7 @@ pub(crate) fn publish_native_rule_declarations(
     engine.record_rule_declarations_changed(rule, version);
     match &declarations {
         Some(declarations) => {
-            publish_rule_declarations(engine, rule.0 + 1, declarations);
+            engine.publish_block_declarations(rule, declarations);
         }
         None => engine.stage_rule_declarations(rule, RuleDeclarations::default()),
     }
