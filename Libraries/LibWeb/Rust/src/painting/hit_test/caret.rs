@@ -494,6 +494,7 @@ impl HitTestList {
         mode: CaretPositionMode,
         scope: FfiNodeIdentity,
         respect_clip: bool,
+        block_container: NodeSlotId,
     ) -> ClosestLine {
         debug_assert!(self.caret_lines_built);
         let rows = arena;
@@ -519,6 +520,9 @@ impl HitTestList {
 
         for line_index in 0..self.caret_lines.len() {
             if !scope.is_none() && !self.line_in_scope(scopes, arena, line_index, scope) {
+                continue;
+            }
+            if !block_container.is_invalid() && self.caret_lines[line_index].block_container != block_container {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
@@ -939,14 +943,40 @@ impl HitTestList {
         if let Some(item) = topmost_item {
             let matches_hit_item = topmost_hit_item
                 .is_some_and(|hit| hit.index == item.index && self.item_is_direct_caret_target(arena, item.index));
-            if (constrained || topmost_hit_item.is_none() || matches_hit_item)
-                && let Some(caret) = self.caret_at_item(arena, item.index, item.local_point, CaretPositionType::Closest)
-            {
-                return Some(caret.with_debug_rect_in_viewport(
-                    tree,
-                    callbacks,
-                    self.items[item.index].context.spatial,
-                ));
+            if constrained || topmost_hit_item.is_none() || matches_hit_item {
+                // NB: A point inside an inline-block resolves to a position in the box's own lines, if it has any, as
+                //     a point over any other block container's content does, rather than to a boundary beside the
+                //     whole box.
+                if self.items[item.index].kind == HitTestItemKind::Box {
+                    let inner_line = self.find_closest_line(
+                        scopes,
+                        arena,
+                        tree,
+                        callbacks,
+                        point,
+                        mode,
+                        FfiNodeIdentity::default(),
+                        !constrained,
+                        self.items[item.index].paintable,
+                    );
+                    if let Some(line_index) = inner_line.index
+                        && let Some(caret) = self.caret_at_line(arena, line_index, inner_line.local_point, mode)
+                    {
+                        return Some(caret.with_debug_rect_in_viewport(
+                            tree,
+                            callbacks,
+                            self.caret_lines[line_index].context.spatial,
+                        ));
+                    }
+                }
+                if let Some(caret) = self.caret_at_item(arena, item.index, item.local_point, CaretPositionType::Closest)
+                {
+                    return Some(caret.with_debug_rect_in_viewport(
+                        tree,
+                        callbacks,
+                        self.items[item.index].context.spatial,
+                    ));
+                }
             }
         }
 
@@ -966,8 +996,19 @@ impl HitTestList {
         // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
         // a selection outside a textarea), so it transforms points without rejecting them against clips.
         let respect_clip = !constrained;
-        let find_closest_line =
-            |scope| self.find_closest_line(scopes, arena, tree, callbacks, point, mode, scope, respect_clip);
+        let find_closest_line = |scope| {
+            self.find_closest_line(
+                scopes,
+                arena,
+                tree,
+                callbacks,
+                point,
+                mode,
+                scope,
+                respect_clip,
+                NodeSlotId::INVALID,
+            )
+        };
         let mut closest_line = find_closest_line(line_scope);
         let closest_line_in_scope = closest_line;
         let point_is_in_column_of_closest_line = closest_line.index.is_some()

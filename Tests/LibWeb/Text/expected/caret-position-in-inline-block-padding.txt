@@ -1,0 +1,4 @@
+inner box, left padding: "bar"@0
+inner box, right padding: "bar"@3
+outer box, padding above its line: "foo "@0
+dragged from "foo" into the inner box's left padding: "foo "
