@@ -201,8 +201,6 @@ endpoint HubServer
     cancel_download(u64 id) =|
     pause_download(u64 id) =|
     resume_download(u64 id) =|
-    open_download(u64 id) =|
-    show_download_in_folder(u64 id) =|
     prune_inactive_downloads(WebView::IsPrivate is_private) =|
     pause_active_downloads() =|
     cancel_unresumable_downloads() =|

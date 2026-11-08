@@ -231,20 +231,6 @@ void ConnectionFromUI::resume_download(u64 id)
     Application::the().file_downloader().resume_download(id);
 }
 
-void ConnectionFromUI::open_download(u64 id)
-{
-    auto& application = static_cast<WebView::Application&>(Application::the());
-    if (auto download = application.file_downloader().download(id); download.has_value())
-        application.open_download(*download);
-}
-
-void ConnectionFromUI::show_download_in_folder(u64 id)
-{
-    auto& application = static_cast<WebView::Application&>(Application::the());
-    if (auto download = application.file_downloader().download(id); download.has_value())
-        application.show_download_in_folder(*download);
-}
-
 void ConnectionFromUI::prune_inactive_downloads(WebView::IsPrivate is_private)
 {
     (void)Application::the().file_downloader().prune_inactive_downloads(is_private);

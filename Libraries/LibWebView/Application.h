@@ -308,10 +308,6 @@ public:
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
-    ErrorOr<String> download_file_path_for_frontend_action(FileDownloader::Download const&) const;
-    ErrorOr<String> download_directory_path_for_frontend_action(FileDownloader::Download const&) const;
-    virtual void open_download(FileDownloader::Download const&) const;
-    virtual void show_download_in_folder(FileDownloader::Download const&) const;
 
     // FIXME: We should implement UI-agnostic platform APIs to interact with the system clipboard.
     enum class ClipboardType : u8 {

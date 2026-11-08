@@ -11,12 +11,11 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibWebView/Export.h>
 #include <LibWebView/FileDownloader.h>
 
-namespace WebView {
+namespace Ladybird {
 
-struct WEBVIEW_API DownloadsButtonState {
+struct DownloadsButtonState {
     bool has_downloads { false };
     size_t active_download_count { 0 };
     size_t paused_download_count { 0 };
@@ -26,9 +25,9 @@ struct WEBVIEW_API DownloadsButtonState {
     String tooltip;
 };
 
-WEBVIEW_API String download_status_text(FileDownloader::Download const&);
-WEBVIEW_API String download_time_remaining_text(AK::Duration time_remaining);
-WEBVIEW_API Vector<FileDownloader::Download const*> recent_downloads_for_popover(ReadonlySpan<FileDownloader::Download>);
-WEBVIEW_API DownloadsButtonState downloads_button_state(ReadonlySpan<FileDownloader::Download>);
+String download_status_text(WebView::FileDownloader::Download const&);
+String download_time_remaining_text(AK::Duration time_remaining);
+Vector<WebView::FileDownloader::Download const*> recent_downloads_for_popover(ReadonlySpan<WebView::FileDownloader::Download>);
+DownloadsButtonState downloads_button_state(ReadonlySpan<WebView::FileDownloader::Download>);
 
 }
