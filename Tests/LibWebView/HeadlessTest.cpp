@@ -12,6 +12,8 @@
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGamepad/SDLGamepadSource.h>
+#include <LibWebView/GamepadManager.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -20,6 +22,7 @@ namespace Test {
 HeadlessApplication::HeadlessApplication(Optional<ByteString> ladybird_binary_path)
     : WebView::Application(move(ladybird_binary_path))
 {
+    WebView::GamepadManager::the().set_source(make<Gamepad::SDLGamepadSource>(Gamepad::IgnoreSystemGamepads::Yes));
 }
 
 void HeadlessApplication::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)

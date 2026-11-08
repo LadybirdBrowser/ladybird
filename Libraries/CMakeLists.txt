@@ -45,6 +45,7 @@ if (ENABLE_GUI_TARGETS)
     add_subdirectory(LibCompositing)
     add_subdirectory(LibWeb)
     add_subdirectory(LibWebView)
+    add_subdirectory(LibGamepad)
 endif()
 
 # FIXME: Increase support for building targets on Windows

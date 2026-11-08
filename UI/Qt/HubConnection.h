@@ -11,6 +11,7 @@
 #include <Hub/HubServerEndpoint.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebView/GamepadSource.h>
 #include <LibWebView/SpellChecker.h>
 
 namespace Ladybird {
@@ -58,6 +59,8 @@ private:
     WebView::SpellChecker::DocumentTag spell_document_tag(WebView::SpellChecker&, i64 document_tag);
     HashMap<i64, WebView::SpellChecker::DocumentTag> m_spell_document_tags;
 
+    OwnPtr<WebView::GamepadSource> m_gamepad_source;
+
     // The Hub owns the settings. The settings here are its last word, plus the changes it has yet to confirm.
     struct SettingsChange {
         u64 id { 0 };
@@ -96,6 +99,10 @@ private:
     virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
     virtual void translator_open_language_download_settings() override;
     virtual void microphone_request_authorization() override;
+    virtual void gamepad_start(bool ignore_system_gamepads) override;
+    virtual void gamepad_set_polling(bool polling) override;
+    virtual void gamepad_rumble(u32 handle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms) override;
+    virtual void gamepad_rumble_triggers(u32 handle, u16 left_magnitude, u16 right_magnitude, u32 duration_ms) override;
     virtual void spell_checker_close_document(i64 document_tag) override;
     virtual void spell_checker_check(u64 request_id, i64 document_tag, Utf16String text) override;
     virtual void spell_checker_guesses(u64 request_id, i64 document_tag, Utf16String word) override;

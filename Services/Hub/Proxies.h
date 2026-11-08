@@ -12,6 +12,7 @@
 #include <Hub/View.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibWebView/ExternalURLHandler.h>
+#include <LibWebView/GamepadSource.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
@@ -116,6 +117,22 @@ private:
 
     WebView::MicrophoneAuthorization m_authorization;
     Vector<Function<void(WebView::MicrophoneAuthorization)>> m_pending_requests;
+};
+
+class GamepadSourceInUI final : public WebView::GamepadSource {
+public:
+    GamepadSourceInUI();
+    virtual ~GamepadSourceInUI() override;
+
+    static GamepadSourceInUI* the();
+
+private:
+    virtual bool start() override;
+    virtual void set_polling(bool) override;
+    // NB: The UI reports what changes as it sees it.
+    virtual void poll() override { }
+    virtual void rumble(Web::Gamepad::GamepadHandle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms) override;
+    virtual void rumble_triggers(Web::Gamepad::GamepadHandle, u16 left_magnitude, u16 right_magnitude, u32 duration_ms) override;
 };
 
 class TranslatorInUI final : public WebView::Translator {

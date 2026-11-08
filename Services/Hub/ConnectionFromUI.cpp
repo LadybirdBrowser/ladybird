@@ -13,6 +13,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReportStore.h>
+#include <LibWebView/GamepadManager.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/ProcessSnapshot.h>
@@ -29,6 +30,8 @@ ConnectionFromUI::ConnectionFromUI(NonnullOwnPtr<IPC::Transport> transport)
 {
     s_the = this;
 
+    // NB: The UI reads the gamepads.
+    WebView::GamepadManager::the().set_source(make<GamepadSourceInUI>());
     Application::settings().on_persist = [this](JsonValue const& settings) {
         async_settings_changed(settings.serialized().to_byte_string(), m_last_applied_settings_change_id);
     };
@@ -292,6 +295,24 @@ void ConnectionFromUI::microphone_authorization_changed(WebView::MicrophoneAutho
 {
     if (auto* authorizer = MicrophoneAuthorizerInUI::the())
         authorizer->did_change_authorization(authorization);
+}
+
+void ConnectionFromUI::gamepad_connected(Web::Gamepad::GamepadDescription description, Web::Gamepad::GamepadState state)
+{
+    if (auto* source = GamepadSourceInUI::the(); source && source->on_gamepad_connected)
+        source->on_gamepad_connected(move(description), move(state));
+}
+
+void ConnectionFromUI::gamepad_disconnected(u32 handle)
+{
+    if (auto* source = GamepadSourceInUI::the(); source && source->on_gamepad_disconnected)
+        source->on_gamepad_disconnected(handle);
+}
+
+void ConnectionFromUI::gamepad_states_changed(Vector<Web::Gamepad::GamepadState> states)
+{
+    if (auto* source = GamepadSourceInUI::the(); source && source->on_gamepad_states_changed)
+        source->on_gamepad_states_changed(move(states));
 }
 
 void ConnectionFromUI::translator_language_detected(u64 request_id, Optional<String> language)

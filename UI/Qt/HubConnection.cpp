@@ -6,6 +6,7 @@
 
 #include <AK/JsonValue.h>
 #include <LibCore/Process.h>
+#include <LibGamepad/SDLGamepadSource.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <UI/Qt/Application.h>
@@ -540,6 +541,43 @@ void HubConnection::microphone_request_authorization()
     authorizer->request_authorization([this](WebView::MicrophoneAuthorization authorization) {
         async_microphone_authorization_changed(authorization);
     });
+}
+
+// NB: The gamepads are read here, as the Hub links no platform input library. The Hub decides which pages learn of them.
+void HubConnection::gamepad_start(bool ignore_system_gamepads)
+{
+    if (m_gamepad_source)
+        return;
+    m_gamepad_source = make<Gamepad::SDLGamepadSource>(ignore_system_gamepads ? Gamepad::IgnoreSystemGamepads::Yes : Gamepad::IgnoreSystemGamepads::No);
+    m_gamepad_source->on_gamepad_connected = [this](auto description, auto state) {
+        async_gamepad_connected(description, state);
+    };
+    m_gamepad_source->on_gamepad_disconnected = [this](auto handle) {
+        async_gamepad_disconnected(handle);
+    };
+    m_gamepad_source->on_gamepad_states_changed = [this](auto states) {
+        if (!states.is_empty())
+            async_gamepad_states_changed(states);
+    };
+    m_gamepad_source->start();
+}
+
+void HubConnection::gamepad_set_polling(bool polling)
+{
+    if (m_gamepad_source)
+        m_gamepad_source->set_polling(polling);
+}
+
+void HubConnection::gamepad_rumble(u32 handle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms)
+{
+    if (m_gamepad_source)
+        m_gamepad_source->rumble(handle, low_frequency_magnitude, high_frequency_magnitude, duration_ms);
+}
+
+void HubConnection::gamepad_rumble_triggers(u32 handle, u16 left_magnitude, u16 right_magnitude, u32 duration_ms)
+{
+    if (m_gamepad_source)
+        m_gamepad_source->rumble_triggers(handle, left_magnitude, right_magnitude, duration_ms);
 }
 
 // The Hub picks its own tag for each document, and the platform gets a tag of its own the first time one is used.

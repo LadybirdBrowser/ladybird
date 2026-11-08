@@ -18,7 +18,7 @@ add_executable(test-web ${SOURCES})
 target_compile_definitions(test-web PRIVATE HAS_PDFJS=$<BOOL:${PDFJS_FOUND}>)
 target_compile_definitions(test-web PRIVATE LADYBIRD_PYTHON_EXECUTABLE="${LADYBIRD_TEST_PYTHON}")
 add_dependencies(test-web ladybird_build_resource_files ladybird_python_environment ${ladybird_helper_processes})
-target_link_libraries(test-web PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
+target_link_libraries(test-web PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibGamepad LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
 
 if (APPLE)
     target_compile_definitions(test-web PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")

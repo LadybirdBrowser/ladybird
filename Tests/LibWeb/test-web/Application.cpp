@@ -13,7 +13,9 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibGamepad/SDLGamepadSource.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebView/GamepadManager.h>
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/TestSpellChecker.h>
@@ -36,6 +38,7 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
     set_spell_checker(make<WebView::TestSpellChecker>());
     set_translator(make<WebView::TestTranslator>());
+    WebView::GamepadManager::the().set_source(make<Gamepad::SDLGamepadSource>(Gamepad::IgnoreSystemGamepads::Yes));
 }
 
 Application::~Application()
