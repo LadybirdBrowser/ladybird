@@ -97,6 +97,7 @@ public:
     // NB: Given this navigable's container, whose state another process can report.
     PermissionsPolicy::PermissionsPolicy create_a_permissions_policy_from_a_response(URL::Origin const&, HTTP::HeaderList const& response_header_list) const;
     Optional<Utf16FlyString> container_local_name() const { return container_state().local_name; }
+    Optional<Utf16FlyString> container_name() const;
     ReferrerPolicy::ReferrerPolicy container_iframe_referrer_policy() const { return container_state().iframe_referrer_policy; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;

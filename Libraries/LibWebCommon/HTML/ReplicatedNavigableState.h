@@ -47,6 +47,10 @@ struct ReplicatedContainerState {
     // The container's local name, which navigate makes its request's destination and initiator type.
     Optional<Utf16FlyString> local_name;
 
+    // The container's name content attribute, which lets a cross-origin child whose target name matches it be found by
+    // that name on its parent's window.
+    Optional<Utf16FlyString> name {};
+
     // https://html.spec.whatwg.org/multipage/browsers.html#determining-the-iframe-element-referrer-policy
     ReferrerPolicy::ReferrerPolicy iframe_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
 

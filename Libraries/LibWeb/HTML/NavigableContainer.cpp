@@ -635,6 +635,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     state.document_embedder_policy = document().policy_container()->embedder_policy;
     state.document_permissions_policy = document().permissions_policy();
     state.local_name = local_name();
+    state.name = name();
     state.iframe_referrer_policy = determine_iframe_element_referrer_policy(*this);
     state.container_policy = process_permissions_policy_attributes();
     auto document_policy_container = document().policy_container();

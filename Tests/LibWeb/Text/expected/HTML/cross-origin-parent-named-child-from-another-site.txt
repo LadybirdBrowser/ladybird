@@ -1,0 +1,4 @@
+named-before-insertion: found
+named-after-insertion: SecurityError
+named-by-itself: SecurityError
+After renaming the container: named-before-insertion: SecurityError
