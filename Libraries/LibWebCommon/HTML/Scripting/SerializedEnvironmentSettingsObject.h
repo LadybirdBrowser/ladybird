@@ -25,6 +25,7 @@ enum class CanUseCrossOriginIsolatedAPIs : u8 {
 
 struct SerializedDocument {
     URL::URL url;
+    URL::Origin site_for_cookies { URL::Origin::create_opaque() };
     bool relevant_settings_object_is_secure_context { false };
     SerializedPolicyContainer relevant_settings_object_policy_container;
 };
@@ -37,6 +38,7 @@ struct SerializedWindow {
 };
 
 struct SerializedWorkerGlobalScope {
+    URL::Origin site_for_cookies { URL::Origin::create_opaque() };
     bool relevant_settings_object_is_secure_context { false };
     SerializedPolicyContainer relevant_settings_object_policy_container;
 

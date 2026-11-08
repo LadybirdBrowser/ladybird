@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script>
+  if (window.opener)
+    window.opener.postMessage({ type: 'COOKIES_SET', cookies: document.cookie }, '*');
+  if (window.parent !== window)
+    window.parent.postMessage({ type: 'FRAME_COOKIES_SET', cookies: document.cookie }, '*');
+</script>

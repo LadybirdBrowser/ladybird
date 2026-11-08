@@ -29,6 +29,19 @@ enum class Source : u8 {
     Http,
 };
 
+enum class SameSiteStatus : u8 {
+    CrossSite,
+    SameSite,
+};
+
+struct SameSiteContext {
+    SameSiteStatus status { SameSiteStatus::CrossSite };
+    bool is_top_level_navigation { false };
+    bool is_safe_method { false };
+
+    static SameSiteContext same_site() { return { .status = SameSiteStatus::SameSite }; }
+};
+
 struct Cookie {
     String creation_time_to_string() const;
     String last_access_time_to_string() const;
@@ -74,7 +87,8 @@ bool domain_matches(StringView string, StringView domain_string);
 bool path_matches(StringView request_path, StringView cookie_path);
 String default_path(URL::URL const&);
 
-bool cookie_matches_url(Cookie const&, URL::URL const&, String const& retrieval_host_canonical, Optional<Source> = {});
+bool cookie_matches_url(Cookie const&, URL::URL const&, String const& retrieval_host_canonical, Source, SameSiteContext);
+SameSiteContext non_http_same_site_context(PartitionContext const&);
 
 }
 
@@ -85,6 +99,11 @@ ErrorOr<void> encode(Encoder&, HTTP::Cookie::Cookie const&);
 
 template<>
 ErrorOr<HTTP::Cookie::Cookie> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, HTTP::Cookie::SameSiteContext const&);
+template<>
+ErrorOr<HTTP::Cookie::SameSiteContext> decode(Decoder&);
 
 template<>
 ErrorOr<void> encode(Encoder&, HTTP::Cookie::PartitionContext const&);

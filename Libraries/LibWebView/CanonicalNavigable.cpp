@@ -1320,6 +1320,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .target_name = target_name(),
         .active_document_url = active_document_url(),
         .active_document_origin = active_document().origin(),
+        .active_document_sandboxing_flag_set = active_document().active_sandboxing_flag_set(),
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
         .top_level_creation_url = active_document().relevant_global_object().relevant_settings_object().top_level_creation_url().value(),
         .top_level_origin = traversable.active_document().origin(),

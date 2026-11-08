@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Same-host top-level form GETs are strictly same-site
+Pass	Subdomain top-level form GETs are strictly same-site
+Pass	Cross-site top-level form GETs are laxly same-site
+Pass	Same-host redirecting to same-host top-level form GETs are strictly same-site
+Pass	Subdomain redirecting to same-host top-level form GETs are strictly same-site
+Pass	Cross-site redirecting to same-host top-level form GETs are laxly same-site
+Pass	Same-host redirecting to subdomain top-level form GETs are strictly same-site
+Pass	Subdomain redirecting to subdomain top-level form GETs are strictly same-site
+Pass	Cross-site redirecting to subdomain top-level form GETs are laxly same-site
+Pass	Same-host redirecting to cross-site top-level form GETs are laxly same-site
+Pass	Subdomain redirecting to cross-site top-level form GETs are laxly same-site
+Pass	Cross-site redirecting to cross-site top-level form GETs are laxly same-site

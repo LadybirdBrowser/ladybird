@@ -152,7 +152,7 @@ String default_path(URL::URL const& url)
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-bool cookie_matches_url(Cookie const& cookie, URL::URL const& url, String const& retrieval_host_canonical, Optional<Source> source)
+bool cookie_matches_url(Cookie const& cookie, URL::URL const& url, String const& retrieval_host_canonical, Source source, SameSiteContext same_site_context)
 {
     // * Either:
     //     - The cookie's host-only-flag is true and retrieval-host-canonical is identical to the cookie's domain.
@@ -180,15 +180,37 @@ bool cookie_matches_url(Cookie const& cookie, URL::URL const& url, String const&
     if (cookie.http_only && (source != Source::Http))
         return false;
 
-    // FIXME: * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
-    //          exclude the cookie unless all of the following conditions are met:
-    //            * The retrieval's type is "HTTP".
-    //            * The same-site-flag is "Lax" or "Default".
-    //            * The HTTP request associated with the retrieval uses a "safe" method.
-    //            * The target browsing context of the HTTP request associated with the retrieval is the active browsing context
-    //              or a top-level traversable.
+    // * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
+    //   exclude the cookie unless all of the following conditions are met:
+    if (cookie.same_site != SameSite::None && same_site_context.status == SameSiteStatus::CrossSite) {
+        // * The retrieval's type is "HTTP".
+        if (source != Source::Http)
+            return false;
+
+        // * The same-site-flag is "Lax" or "Default".
+        if (cookie.same_site != SameSite::Lax && cookie.same_site != SameSite::Default)
+            return false;
+
+        // * The HTTP request associated with the retrieval uses a "safe" method.
+        if (!same_site_context.is_safe_method)
+            return false;
+
+        // * The target browsing context of the HTTP request associated with the retrieval is the active browsing
+        //   context or a top-level traversable.
+        if (!same_site_context.is_top_level_navigation)
+            return false;
+    }
 
     return true;
+}
+
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.2
+SameSiteContext non_http_same_site_context(PartitionContext const& context)
+{
+    // The retrieval's same-site status is "same-site" if the Document's "site for cookies" is same-site with the
+    // top-level origin as defined in Section 5.2.1 (otherwise it is "cross-site").
+    // NB: A context's site for cookies is the top-level origin exactly when it has no cross-site ancestor.
+    return { .status = context.has_cross_site_ancestor ? SameSiteStatus::CrossSite : SameSiteStatus::SameSite };
 }
 
 }
@@ -231,6 +253,25 @@ ErrorOr<HTTP::Cookie::Cookie> IPC::decode(Decoder& decoder)
     auto partition_key = TRY(decoder.decode<Utf16String>());
 
     return HTTP::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent, move(partition_key) };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, HTTP::Cookie::SameSiteContext const& context)
+{
+    TRY(encoder.encode(context.status));
+    TRY(encoder.encode(context.is_top_level_navigation));
+    TRY(encoder.encode(context.is_safe_method));
+    return {};
+}
+
+template<>
+ErrorOr<HTTP::Cookie::SameSiteContext> IPC::decode(Decoder& decoder)
+{
+    return HTTP::Cookie::SameSiteContext {
+        .status = TRY(decoder.decode<HTTP::Cookie::SameSiteStatus>()),
+        .is_top_level_navigation = TRY(decoder.decode<bool>()),
+        .is_safe_method = TRY(decoder.decode<bool>()),
+    };
 }
 
 template<>

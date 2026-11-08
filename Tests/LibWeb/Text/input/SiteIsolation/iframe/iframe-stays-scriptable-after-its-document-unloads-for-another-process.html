@@ -19,7 +19,7 @@
         };
         const firstUrl = await remoteUrl(
             "first",
-            `<!DOCTYPE html><script>document.cookie = "loaded=1; path=/";<\/script>`
+            `<!DOCTYPE html><script>document.cookie = "loaded=1; path=/; SameSite=None; Secure";<\/script>`
         );
         const secondUrl = await remoteUrl("second", "<!DOCTYPE html>second");
 

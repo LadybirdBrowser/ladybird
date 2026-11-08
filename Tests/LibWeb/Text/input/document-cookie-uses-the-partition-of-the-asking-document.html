@@ -24,7 +24,7 @@
 
         const frameURL = await htmlEcho(
             "frame",
-            `document.cookie = "frame=1; path=/";
+            `document.cookie = "frame=1; path=/; SameSite=None; Secure";
             window.addEventListener("message", () => parent.postMessage({ frame: document.cookie }, "*"));
             parent.postMessage("frame-ready", "*");`
         );

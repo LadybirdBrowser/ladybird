@@ -970,7 +970,7 @@ void Application::start_next_content_blocker_list_update()
         return;
     }
     m_content_blocker_list_update_request = client.value()->start_request(
-        "GET"sv, update.url, *request_headers, {}, HTTP::CacheMode::NoStore,
+        "GET"sv, update.url, {}, *request_headers, {}, HTTP::CacheMode::NoStore,
         HTTP::Cookie::IncludeCredentials::No);
     if (!m_content_blocker_list_update_request) {
         warnln("Unable to start update request for {}", update.name);
@@ -2155,21 +2155,21 @@ ErrorOr<void> Application::launch_request_server()
 
 void Application::configure_request_server_control_client(Requests::RequestControlClient& control_client)
 {
-    control_client.on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
+    control_client.on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, HTTP::Cookie::SameSiteContext same_site_context, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return;
 
         if (the().request_server_client_may_use_cookies_in(client_id, url, partition_context)) {
             for (auto const& cookie : cookies)
-                session->cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, partition_context);
+                session->cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, partition_context, same_site_context);
         }
 
         if (hsts_policy.has_value() && url.host().has_value() && url.host()->is_domain())
             session->hsts_store->store_policy(url.host()->get<String>(), *hsts_policy);
     };
 
-    control_client.on_retrieve_http_cookie = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context) -> String {
+    control_client.on_retrieve_http_cookie = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, HTTP::Cookie::SameSiteContext same_site_context) -> String {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return {};
@@ -2177,9 +2177,9 @@ void Application::configure_request_server_control_client(Requests::RequestContr
             return {};
         auto& cookie_jar = *session->cookie_jar;
         if constexpr (!REQUESTSERVER_WIRE_DEBUG)
-            return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context);
+            return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context, same_site_context);
         auto started_at = MonotonicTime::now();
-        auto cookie = cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context);
+        auto cookie = cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context, same_site_context);
         auto elapsed_ms = (MonotonicTime::now() - started_at).to_milliseconds();
         if (elapsed_ms > 5) {
             dbgln("UI wire-cookie: get_cookie({}) took {} ms ({} bytes returned)",

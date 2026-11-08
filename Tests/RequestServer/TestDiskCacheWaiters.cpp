@@ -249,7 +249,7 @@ public:
             { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv },
         };
 
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0, HTTP::Cookie::SameSiteContext {});
         auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
         VERIFY(!response);
     }

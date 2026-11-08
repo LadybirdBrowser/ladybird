@@ -381,7 +381,7 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine
         deliver_current_result();
         return;
     }
-    m_request = client.value()->start_request("GET"sv, *url);
+    m_request = client.value()->start_request("GET"sv, *url, HTTP::Cookie::SameSiteContext::same_site());
 
     m_request->set_buffered_request_finished_callback(
         [this, query_id, engine, query = move(query)](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CacheState, Core::ImmutableBytes payload) {

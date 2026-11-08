@@ -11876,6 +11876,53 @@ GC::Ptr<DOM::Document> Document::container_document() const
     return node_navigable->container_document();
 }
 
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#document-requests
+URL::Origin Document::site_for_cookies() const
+{
+    // Note: This algorithm only applies when the entire chain of documents from top-document to document are all active.
+    auto document_navigable = navigable();
+
+    // NB: A pending document can fetch Link header preloads before activation.
+    if (!document_navigable)
+        document_navigable = navigable_awaiting_activation();
+    if (!document_navigable)
+        return URL::Origin::create_opaque();
+
+    // NB: Ancestors may be hosted by another process, so their documents are read through their navigables. This
+    //     document is read directly, since it may not be its navigable's active document yet.
+    auto origin_for_cookies = [&](HTML::Navigable const& navigable) -> Optional<URL::Origin> {
+        if (&navigable == document_navigable.ptr())
+            return has_flag(active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedOrigin) ? url().origin() : origin();
+        if (has_flag(navigable.active_document_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedOrigin))
+            return navigable.active_document_url().map([](auto const& url) { return url.origin(); });
+        return navigable.active_document_origin();
+    };
+
+    // 1. Let top-document be the active document in document's navigable's top-level traversable.
+    auto top_document_navigable = document_navigable->top_level_traversable();
+
+    // 2. Let top-origin be the origin of top-document's URI if top-document's sandboxed origin browsing context flag
+    //    is set, and top-document's origin otherwise.
+    auto top_origin = origin_for_cookies(top_document_navigable);
+    if (!top_origin.has_value())
+        return URL::Origin::create_opaque();
+
+    // 3. Let documents be a list consisting of the active documents of document's inclusive ancestor navigables.
+    // 4. For each item in documents:
+    for (GC::Ptr<HTML::Navigable> item = document_navigable; item; item = item->parent()) {
+        // 1. Let origin be the origin of item's URI if item's sandboxed origin browsing context flag is set, and
+        //    item's origin otherwise.
+        auto origin = origin_for_cookies(*item);
+
+        // 2. If origin is not same-site with top-origin, return an origin set to an opaque origin.
+        if (!origin.has_value() || !origin->is_same_site(*top_origin))
+            return URL::Origin::create_opaque();
+    }
+
+    // 5. Return top-origin.
+    return top_origin.release_value();
+}
+
 GC::Ptr<HTML::LocalNavigable> Document::navigable() const
 {
     return m_navigable.ptr();

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../cookies/resources/cookie-helper.sub.js"></script>
+<script>
+  // Asserts that cookies are present or not present (according to `expectation`)
+  // in the cookie string `cookies` with the correct names and value.
+  function assert_cookies_present(cookies, value, expected_cookie_names, expectation) {
+    for (name of expected_cookie_names) {
+      let re = new RegExp("(?:^|; )" + name + "=" + value + "(?:$|;)");
+      let assertion = expectation ? assert_true : assert_false;
+      assertion(re.test(cookies), "`" + name + "=" + value + "` in cookies");
+    }
+  }
+
+  // Navigate from ORIGIN to |origin_to|, expecting the navigation to set SameSite
+  // cookies on |origin_to|.
+  function navigate_test(method, origin_to, title) {
+    promise_test(async function(t) {
+      // The cookies don't need to be cleared on each run because |value| is
+      // a new random value on each run, so on each run we are overwriting and
+      // checking for a cookie with a different random value.
+      let value = "" + Math.random();
+      let url_from = SECURE_ORIGIN + "/cookies/samesite/resources/navigate.html";
+      let url_to = origin_to + "/cookies/resources/setSameSite.py?" + value;
+      var w = window.open(url_from);
+      await wait_for_message('READY', SECURE_ORIGIN);
+      assert_equals(SECURE_ORIGIN, window.origin);
+      assert_equals(SECURE_ORIGIN, w.origin);
+      let command = (method === "POST") ? "post-form" : "navigate";
+      w.postMessage({ type: command, url: url_to }, "*");
+      let message = await wait_for_message('COOKIES_SET', origin_to);
+      let samesite_cookie_names = ['samesite_strict', 'samesite_lax', 'samesite_none', 'samesite_unspecified'];
+      assert_cookies_present(message.data.cookies, value, samesite_cookie_names, true);
+      w.close();
+    }, title);
+  }
+
+  // Opens a page on origin SECURE_ORIGIN containing an iframe on `iframe_origin_from`,
+  // then navigates that iframe to `iframe_origin_to`. Expects that navigation to set
+  // some subset of SameSite cookies.
+  function navigate_iframe_test(iframe_origin_from, iframe_origin_to, cross_site, title) {
+    promise_test(async function(t) {
+      // The cookies don't need to be cleared on each run because |value| is
+      // a new random value on each run, so on each run we are overwriting and
+      // checking for a cookie with a different random value.
+      let value = "" + Math.random();
+      let parent_url = SECURE_ORIGIN + "/cookies/samesite/resources/navigate-iframe.html";
+      let iframe_url_from = iframe_origin_from + "/cookies/samesite/resources/navigate.html";
+      let iframe_url_to = iframe_origin_to + "/cookies/resources/setSameSite.py?" + value;
+      var w = window.open(parent_url);
+      await wait_for_message('LOADED', SECURE_ORIGIN);
+      assert_equals(SECURE_ORIGIN, window.origin);
+      assert_equals(SECURE_ORIGIN, w.origin);
+      // Navigate the frame to its starting location.
+      w.postMessage({ type: 'initialize-iframe', url: iframe_url_from }, '*');
+      await wait_for_message('FRAME_READY', SECURE_ORIGIN);
+      // Have the frame navigate itself, possibly cross-site.
+      w.postMessage({ type: 'navigate-iframe', url: iframe_url_to }, '*');
+      let message = await wait_for_message('FRAME_COOKIES_SET', SECURE_ORIGIN);
+      // Check for the proper cookies.
+      let samesite_none_cookies = ['samesite_none'];
+      let samesite_cookies = ['samesite_strict', 'samesite_lax', 'samesite_unspecified'];
+      assert_cookies_present(message.data.cookies, value, samesite_none_cookies, true);
+      assert_cookies_present(message.data.cookies, value, samesite_cookies, !cross_site);
+      w.close();
+    }, title);
+  }
+
+  navigate_test("GET", SECURE_ORIGIN, "Same-site top-level navigation should be able to set SameSite=* cookies.");
+  navigate_test("GET", SECURE_CROSS_SITE_ORIGIN, "Cross-site top-level navigation should be able to set SameSite=* cookies.");
+  navigate_test("POST", SECURE_ORIGIN, "Same-site top-level POST should be able to set SameSite=* cookies.");
+  navigate_test("POST", SECURE_CROSS_SITE_ORIGIN, "Cross-site top-level POST should be able to set SameSite=* cookies.");
+
+  navigate_iframe_test(SECURE_ORIGIN, SECURE_ORIGIN, false, "Same-site to same-site iframe navigation should be able to set SameSite=* cookies.");
+  navigate_iframe_test(SECURE_CROSS_SITE_ORIGIN, SECURE_ORIGIN, true, "Cross-site to same-site iframe navigation should only be able to set SameSite=None cookies.");
+  navigate_iframe_test(SECURE_ORIGIN, SECURE_CROSS_SITE_ORIGIN, true, "Same-site to cross-site-site iframe navigation should only be able to set SameSite=None cookies.");
+  navigate_iframe_test(SECURE_CROSS_SITE_ORIGIN, SECURE_CROSS_SITE_ORIGIN, true, "Cross-site to cross-site iframe navigation should only be able to set SameSite=None cookies.");
+</script>

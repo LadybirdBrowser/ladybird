@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibDatabase/Forward.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -40,6 +41,7 @@ struct WEBVIEW_API DownloadRecord {
     bool can_restart_from_zero { false };
     // Whether the user chose to replace a file at the destination.
     bool may_replace_destination { false };
+    HTTP::Cookie::SameSiteContext same_site_context { HTTP::Cookie::SameSiteContext::same_site() };
 };
 
 class WEBVIEW_API DownloadStore {

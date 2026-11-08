@@ -153,7 +153,7 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
     HTTP::Cookie::PartitionContext partition_context { top_level_site.release_value(), m_inside_settings->has_cross_site_ancestor() };
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
-        cookie.cookie = session->cookie_jar->get_cookie(url, source, partition_context);
+        cookie.cookie = session->cookie_jar->get_cookie(url, source, partition_context, HTTP::Cookie::non_http_same_site_context(partition_context));
     return cookie;
 }
 

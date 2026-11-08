@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+8 Pass
+4 Fail
+Pass	Same-host fetches are strictly same-site
+Pass	Subdomain fetches are strictly same-site
+Fail	Cross-site fetches are cross-site
+Pass	Same-host redirecting to same-host fetches are strictly same-site
+Pass	Subdomain redirecting to same-host fetches are strictly same-site
+Pass	Cross-site redirecting to same-host fetches are cross-site
+Pass	Same-host redirecting to subdomain fetches are strictly same-site
+Pass	Subdomain redirecting to subdomain fetches are strictly same-site
+Pass	Cross-site redirecting to subdomain fetches are cross-site
+Fail	Same-host redirecting to cross-site fetches are cross-site
+Fail	Subdomain redirecting to cross-site fetches are cross-site
+Fail	Cross-site redirecting to cross-site fetches are cross-site

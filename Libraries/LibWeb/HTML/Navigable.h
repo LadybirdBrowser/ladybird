@@ -71,6 +71,7 @@ public:
     virtual Optional<u64> browsing_context_group_id() const = 0;
     virtual Optional<URL::URL> active_document_url() const = 0;
     virtual Optional<URL::Origin> active_document_origin() const = 0;
+    virtual SandboxingFlagSet active_document_sandboxing_flag_set() const = 0;
     virtual bool active_document_is_fully_active() const = 0;
     virtual bool active_document_is_completely_loaded() const = 0;
     virtual bool active_document_is(DOM::Document const&) const = 0;

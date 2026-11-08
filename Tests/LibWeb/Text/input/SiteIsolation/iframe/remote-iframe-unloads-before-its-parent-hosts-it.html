@@ -11,8 +11,8 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
-                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
-                    document.cookie = "loaded=1; path=/";
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/; SameSite=None; Secure"; });
+                    document.cookie = "loaded=1; path=/; SameSite=None; Secure";
                 <\/script>`,
             })
         );

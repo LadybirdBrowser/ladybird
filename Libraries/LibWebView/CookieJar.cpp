@@ -190,11 +190,11 @@ CookieJar::~CookieJar()
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context)
+String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context, HTTP::Cookie::SameSiteContext same_site_context)
 {
     m_transient_storage.purge_expired_cookies();
 
-    auto cookie_list = get_matching_cookies(url, source, partition_key_for(url, context));
+    auto cookie_list = get_matching_cookies(url, source, partition_key_for(url, context), same_site_context);
 
     // 6. Serialize the cookie-list into a cookie-string by processing each cookie in the cookie-list in order:
     StringBuilder builder;
@@ -218,7 +218,7 @@ String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source, O
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.7
-void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context)
+void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context, HTTP::Cookie::SameSiteContext same_site_context)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
@@ -411,18 +411,26 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
 
     // 18. If the cookie's same-site-flag is not "None":
     if (cookie.same_site != HTTP::Cookie::SameSite::None) {
-        // FIXME: 1. If the cookie was received from a "non-HTTP" API, and the API was called from a navigable's active document
-        //           whose "site for cookies" is not same-site with the top-level origin, then abort this algorithm and ignore
-        //           the newly created cookie entirely.
+        // 1. If the cookie was received from a "non-HTTP" API, and the API was called from a navigable's active
+        //    document whose "site for cookies" is not same-site with the top-level origin, then abort this algorithm
+        //    and ignore the newly created cookie entirely.
+        if (source == HTTP::Cookie::Source::NonHttp && same_site_context.status == HTTP::Cookie::SameSiteStatus::CrossSite)
+            return;
 
-        // FIXME: 2. If the cookie was received from a "same-site" request (as defined in Section 5.2), skip the remaining
-        //           substeps and continue processing the cookie.
+        // 2. If the cookie was received from a "same-site" request (as defined in Section 5.2), skip the remaining
+        //    substeps and continue processing the cookie.
+        // AD-HOC: A same-site non-HTTP write also continues here.
 
-        // FIXME: 3. If the cookie was received from a request which is navigating a top-level traversable [HTML] (e.g. if the
-        //           request's "reserved client" is either null or an environment whose "target browsing context"'s navigable
-        //           is a top-level traversable), skip the remaining substeps and continue processing the cookie.
+        // 3. If the cookie was received from a request which is navigating a top-level traversable [HTML] (e.g. if
+        //    the request's "reserved client" is either null or an environment whose "target browsing context"'s
+        //    navigable is a top-level traversable), skip the remaining substeps and continue processing the cookie.
 
-        // FIXME: 4. Abort this algorithm and ignore the newly created cookie entirely.
+        // Note: Top-level navigations can create a cookie with any SameSite value, even if the new cookie wouldn't
+        // have been sent along with the request had it already existed prior to the navigation.
+
+        // 4. Abort this algorithm and ignore the newly created cookie entirely.
+        if (same_site_context.status == HTTP::Cookie::SameSiteStatus::CrossSite && !same_site_context.is_top_level_navigation)
+            return;
     }
 
     // 19. If the cookie's "same-site-flag" is "None", abort this algorithm and ignore the cookie entirely unless the
@@ -535,9 +543,9 @@ ErrorOr<void> CookieJar::set_cookie_from_devtools(URL::URL const& url, Optional<
     auto parsed_cookie = TRY(HTTP::Cookie::parse_cookie(cookie));
     // NB: DevTools edits a cookie in its own partition.
     if (cookie.partition_key.is_empty())
-        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, {});
+        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site());
     else
-        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, HTTP::Cookie::PartitionContext { cookie.partition_key, true });
+        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, HTTP::Cookie::PartitionContext { cookie.partition_key, true }, HTTP::Cookie::SameSiteContext::same_site());
 
     if (old_key.has_value() && *old_key != new_key)
         delete_cookie(*old_key);
@@ -602,17 +610,17 @@ Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const
 {
     // NB: WebDriver drives top-level documents, which use first-party cookies. Tests may look at cookies from the
     //     context of another top-level site.
-    return get_matching_cookies(url, HTTP::Cookie::Source::Http, partition_key_for(url, context), MatchingCookiesSpecMode::WebDriver);
+    return get_matching_cookies(url, HTTP::Cookie::Source::Http, partition_key_for(url, context), HTTP::Cookie::SameSiteContext::same_site(), MatchingCookiesSpecMode::WebDriver);
 }
 
-Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context)
+Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context, HTTP::Cookie::SameSiteContext same_site_context)
 {
-    return get_matching_cookies(url, HTTP::Cookie::Source::NonHttp, partition_key_for(url, context), MatchingCookiesSpecMode::RFC6265);
+    return get_matching_cookies(url, HTTP::Cookie::Source::NonHttp, partition_key_for(url, context), same_site_context);
 }
 
 Optional<HTTP::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
 {
-    auto cookie_list = get_matching_cookies(url, HTTP::Cookie::Source::Http, {}, MatchingCookiesSpecMode::WebDriver);
+    auto cookie_list = get_matching_cookies(url, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site(), MatchingCookiesSpecMode::WebDriver);
 
     for (auto const& cookie : cookie_list) {
         if (cookie.name == name)
@@ -646,7 +654,7 @@ Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTim
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, MatchingCookiesSpecMode mode)
+Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, HTTP::Cookie::SameSiteContext same_site_context, MatchingCookiesSpecMode mode)
 {
     auto now = UnixDateTime::now();
 
@@ -663,7 +671,7 @@ Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url
     m_transient_storage.for_each_cookie([&](HTTP::Cookie::Cookie& cookie) {
         if (cookie.partition_key != partition_key)
             return;
-        if (!HTTP::Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical, source))
+        if (!HTTP::Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical, source, same_site_context))
             return;
 
         // NOTE: The WebDriver spec expects only step 1 above to be executed to match cookies.
@@ -820,7 +828,7 @@ void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan
 
             // NB: Changes go to the view's top-level document, a first-party context for its URL, which never sees the
             //     cookies set in third-party contexts.
-            if (cookie.value.partition_key.is_empty() && HTTP::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical))
+            if (cookie.value.partition_key.is_empty() && HTTP::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical, HTTP::Cookie::Source::NonHttp, HTTP::Cookie::SameSiteContext::same_site()))
                 page_cookies.append(cookie.value);
 
             if (cookie.value.host_only) {

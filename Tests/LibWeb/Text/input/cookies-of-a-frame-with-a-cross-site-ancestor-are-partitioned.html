@@ -25,7 +25,7 @@
             site,
             "inner",
             `<script>
-                document.cookie = "nested=1; path=/";
+                document.cookie = "nested=1; path=/; SameSite=None; Secure";
                 top.opener.postMessage({ inner: document.cookie }, "*");
             <\/script>`
         );

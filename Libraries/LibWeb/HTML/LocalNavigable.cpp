@@ -239,6 +239,7 @@ public:
     Optional<StorageSerializationRecord> classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
+    Optional<HTTP::Cookie::SameSiteStatus> navigation_same_site_status;
 
 private:
     virtual void visit_edges(Cell::Visitor& visitor) override
@@ -616,7 +617,8 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         for (auto const& received : response->release_body_for_transfer())
             initial_data.append(received.bytes());
 
-        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), lease->source_client_id, lease->source_request_id, move(initial_data),
+        auto same_site_context = navigation_params->request ? navigation_params->request->same_site_context() : HTTP::Cookie::SameSiteContext {};
+        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), same_site_context, lease->source_client_id, lease->source_request_id, move(initial_data),
             move(network_response));
         if (!download_id.has_value()) {
             stop_response_body_delivery(*navigation_params);
@@ -637,6 +639,8 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHi
 {
     if (replacement_document_state)
         entry->set_document_state(replacement_document_state);
+    if (navigation_same_site_status.has_value())
+        entry->document_state()->set_navigation_same_site_status(*navigation_same_site_status);
     if (redirected_url.has_value()) {
         // https://wicg.github.io/scroll-to-text-fragment/#extracting-the-fragment-directive
         // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
@@ -1005,6 +1009,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     output->redirect_replaced_fragment = result.redirect_replaced_fragment;
     output->classic_history_api_state = move(result.classic_history_api_state);
     output->resource_cleared = result.resource_cleared;
+    output->navigation_same_site_status = result.navigation_same_site_status;
     output->inline_content_origin = move(result.inline_content_origin);
     output->document_id = result.document_id;
 
@@ -1461,6 +1466,13 @@ Optional<URL::Origin> LocalNavigable::active_document_origin() const
     return m_active_document->origin();
 }
 
+SandboxingFlagSet LocalNavigable::active_document_sandboxing_flag_set() const
+{
+    if (!m_active_document)
+        return {};
+    return m_active_document->active_sandboxing_flag_set();
+}
+
 Vector<GC::Root<Navigable>> LocalNavigable::active_document_inclusive_descendant_navigables()
 {
     // AD-HOC: Skip a navigable that doesn't have an active document.
@@ -1539,6 +1551,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .target_name = target_name(),
         .active_document_url = m_active_document->url(),
         .active_document_origin = m_active_document->origin(),
+        .active_document_sandboxing_flag_set = m_active_document->active_sandboxing_flag_set(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
@@ -2681,6 +2694,8 @@ static void create_navigation_params_by_fetching(
     // 7. If entry's document state's reload pending is true, then set request's reload-navigation flag.
     if (document_state.reload_pending) {
         request->set_reload_navigation(true);
+        if (user_involvement == UserNavigationInvolvement::BrowserUI)
+            request->set_reloaded_document_same_site_status(document_state.navigation_same_site_status);
 
         // AD-HOC: The specs don't define HTTP cache behavior for reloads. But every major engine forces at least re-
         //         validation of the reloaded document rather than serving it straight from cache. Use the "no-cache"
@@ -2851,6 +2866,9 @@ static void create_navigation_params_by_fetching(
         VERIFY(!state_holder->location_url.value().has_value());
         VERIFY(!state_holder->response->is_network_error());
 
+        if (Fetch::Infrastructure::is_http_or_https_scheme(state_holder->request->current_url().scheme()))
+            result->navigation_same_site_status = state_holder->request->same_site_status();
+
         // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
         //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
         RefPtr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
@@ -3000,6 +3018,7 @@ static void create_navigation_population_result(Window& window, GC::Ref<Internal
             .classic_history_api_state = move(result->classic_history_api_state),
             .replacement_document_state = move(replacement_document_state),
             .resource_cleared = result->resource_cleared,
+            .navigation_same_site_status = result->navigation_same_site_status,
         });
     }));
 }
@@ -4292,6 +4311,7 @@ void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastru
     document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
     // NB: Not one of the spec's document state fields. The entry keeps its URL, so it keeps what its fetch recorded.
     document_state->set_user_agent_initiated(old_doc_state->user_agent_initiated());
+    document_state->set_navigation_same_site_status(old_doc_state->navigation_same_site_status());
     document_state->set_document_id(new_document->unique_id());
 
     // 12. Let historyEntry be a new session history entry, with

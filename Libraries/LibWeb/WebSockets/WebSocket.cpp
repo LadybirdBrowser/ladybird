@@ -243,7 +243,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     if (!request_client)
         return Error::from_string_literal("RequestServer is currently unavailable");
 
-    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers);
+    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers, { .status = request->same_site_status(), .is_safe_method = true });
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();

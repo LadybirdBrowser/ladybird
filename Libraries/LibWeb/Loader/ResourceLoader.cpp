@@ -633,7 +633,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     //     requests are attributed through the worker's browser-level owners.
     auto originating_page_id = request.page() && request.page()->has_top_level_traversable() ? request.page()->client().id().value() : 0;
     auto headers = headers_with_normalized_values(request.headers());
-    auto protocol_request = request_client->start_request(request.method(), request.url().value(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
+    auto protocol_request = request_client->start_request(request.method(), request.url().value(), request.same_site_context(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

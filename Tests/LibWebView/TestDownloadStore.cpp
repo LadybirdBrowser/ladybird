@@ -35,6 +35,7 @@ static WebView::DownloadRecord example_download(i64 id = 7)
         .created_time = UnixDateTime::from_seconds_since_epoch(1000),
         .can_restart_from_zero = true,
         .may_replace_destination = true,
+        .same_site_context = { .status = HTTP::Cookie::SameSiteStatus::CrossSite, .is_top_level_navigation = true, .is_safe_method = true },
     };
 }
 
@@ -60,6 +61,9 @@ TEST_CASE(downloads_round_trip)
     EXPECT_EQ(download.created_time, UnixDateTime::from_seconds_since_epoch(1000));
     EXPECT(download.can_restart_from_zero);
     EXPECT(download.may_replace_destination);
+    EXPECT_EQ(download.same_site_context.status, HTTP::Cookie::SameSiteStatus::CrossSite);
+    EXPECT(download.same_site_context.is_top_level_navigation);
+    EXPECT(download.same_site_context.is_safe_method);
 
     EXPECT_EQ(download.segments.size(), 2u);
     EXPECT_EQ(download.segments[0].start_offset, 0u);

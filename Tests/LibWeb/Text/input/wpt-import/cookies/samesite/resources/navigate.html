@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/cookies/resources/cookie-helper.sub.js"></script>
+<script>
+  window.addEventListener('load', function() {
+    if (window.opener)
+      window.opener.postMessage({ type: 'READY' }, '*');
+    if (window.parent !== window)
+      window.parent.postMessage({ type: 'FRAME_READY' }, '*');
+  });
+
+  window.addEventListener('message', function(e) {
+    if (e.data.type === "navigate") {
+      window.location = e.data.url;
+    }
+
+    if (e.data.type === "post-form") {
+      var f = document.createElement('form');
+      f.action = e.data.url;
+      f.method = "POST";
+      document.body.appendChild(f);
+      f.submit();
+    }
+  });
+</script>

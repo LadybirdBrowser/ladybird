@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Same-site top-level navigation should be able to set SameSite=* cookies.
+Pass	Cross-site top-level navigation should be able to set SameSite=* cookies.
+Pass	Same-site top-level POST should be able to set SameSite=* cookies.
+Pass	Cross-site top-level POST should be able to set SameSite=* cookies.
+Pass	Same-site to same-site iframe navigation should be able to set SameSite=* cookies.
+Pass	Cross-site to same-site iframe navigation should only be able to set SameSite=None cookies.
+Pass	Same-site to cross-site-site iframe navigation should only be able to set SameSite=None cookies.
+Pass	Cross-site to cross-site iframe navigation should only be able to set SameSite=None cookies.

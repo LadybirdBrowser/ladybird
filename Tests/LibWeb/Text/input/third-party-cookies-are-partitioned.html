@@ -23,7 +23,7 @@
         const setFrameCookieURL = onCookieSite(
             await server.createEcho("GET", `/partitioned-cookies/${runId}/set-frame-cookie`, {
                 status: 200,
-                headers: { "Set-Cookie": "frame=1; Path=/", "Cache-Control": "no-store" },
+                headers: { "Set-Cookie": "frame=1; Path=/; SameSite=None; Secure", "Cache-Control": "no-store" },
             })
         );
         const setTopLevelCookieURL = onCookieSite(

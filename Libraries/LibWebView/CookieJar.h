@@ -46,15 +46,15 @@ public:
 
     // A context of nothing stands for a first-party context, as for the UI process's own requests. A third-party context
     // only uses the cookies set in a third-party context under the same top-level site. See HTTP::Cookie::PartitionContext.
-    String get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&);
-    void set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&);
+    String get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&, HTTP::Cookie::SameSiteContext);
+    void set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&, HTTP::Cookie::SameSiteContext);
     void update_cookie(HTTP::Cookie::Cookie);
     ErrorOr<void> set_cookie_from_devtools(URL::URL const&, Optional<CookieStorageKey> old_key, HTTP::Cookie::Cookie);
     bool delete_cookie(CookieStorageKey const&);
     void dump_cookies();
     Vector<HTTP::Cookie::Cookie> get_all_cookies();
     Vector<HTTP::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& = {});
-    Vector<HTTP::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const&);
+    Vector<HTTP::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const&, HTTP::Cookie::SameSiteContext);
     Optional<HTTP::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
     void delete_all_cookies(URL::URL const&);
@@ -131,7 +131,7 @@ private:
         WebDriver,
     };
 
-    Vector<HTTP::Cookie::Cookie> get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
+    Vector<HTTP::Cookie::Cookie> get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, HTTP::Cookie::SameSiteContext, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;

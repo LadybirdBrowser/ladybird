@@ -1,0 +1,1 @@
+Reload sends the SameSite=Strict cookie: true

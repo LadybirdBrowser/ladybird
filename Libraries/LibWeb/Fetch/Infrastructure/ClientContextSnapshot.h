@@ -50,6 +50,7 @@ struct ClientContext {
     };
 
     URL::Origin origin;
+    URL::Origin site_for_cookies;
     URL::URL creation_url;
     Optional<URL::URL> top_level_creation_url;
     Optional<URL::Origin> top_level_origin;

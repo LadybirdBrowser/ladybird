@@ -121,9 +121,16 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
         global_kind = Context::GlobalKind::Worker;
     auto navigable = window ? window->navigable() : nullptr;
     auto document = client.responsible_document();
+    auto const* worker = Bindings::worker_global_scope_from_global_object(global);
+    auto site_for_cookies = URL::Origin::create_opaque();
+    if (document)
+        site_for_cookies = document->site_for_cookies();
+    else if (worker)
+        site_for_cookies = worker->site_for_cookies();
 
     return make_ref_counted<Infrastructure::ClientContextSnapshot>(Context {
         .origin = client.origin(),
+        .site_for_cookies = move(site_for_cookies),
         .creation_url = client.creation_url,
         .top_level_creation_url = client.top_level_creation_url,
         .top_level_origin = client.top_level_origin,
@@ -155,6 +162,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
     // NB: A client another process hosts is never treated as loading bypassing the HTTP cache.
     return make_ref_counted<Infrastructure::ClientContextSnapshot>(Context {
         .origin = settings.origin,
+        .site_for_cookies = window ? window->associated_document.site_for_cookies : settings.global.get<HTML::SerializedWorkerGlobalScope>().site_for_cookies,
         .creation_url = settings.creation_url,
         .top_level_creation_url = settings.top_level_creation_url,
         .top_level_origin = settings.top_level_origin,

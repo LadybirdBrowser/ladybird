@@ -217,6 +217,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryDocumentSta
     TRY(encoder.encode(document_state.origin));
     TRY(encoder.encode(document_state.about_base_url));
     TRY(encoder.encode(document_state.resource));
+    TRY(encoder.encode(document_state.navigation_same_site_status));
     TRY(encoder.encode(document_state.reload_pending));
     TRY(encoder.encode(document_state.reload_bypasses_cache));
     TRY(encoder.encode(document_state.ever_populated));
@@ -236,6 +237,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto origin = TRY(decoder.decode<Optional<URL::Origin>>());
     auto about_base_url = TRY(decoder.decode<Optional<URL::URL>>());
     auto resource = TRY(decoder.decode<Web::HTML::DocumentResource>());
+    auto navigation_same_site_status = TRY(decoder.decode<HTTP::Cookie::SameSiteStatus>());
     auto reload_pending = TRY(decoder.decode<bool>());
     auto reload_bypasses_cache = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
@@ -251,6 +253,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
         .origin = move(origin),
         .about_base_url = move(about_base_url),
         .resource = move(resource),
+        .navigation_same_site_status = navigation_same_site_status,
         .reload_pending = reload_pending,
         .reload_bypasses_cache = reload_bypasses_cache,
         .ever_populated = ever_populated,

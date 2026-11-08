@@ -84,6 +84,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.target_name));
     TRY(encoder.encode(state.active_document_url));
     TRY(encoder.encode(state.active_document_origin));
+    TRY(encoder.encode(state.active_document_sandboxing_flag_set));
     TRY(encoder.encode(state.active_document_is_fully_active));
     TRY(encoder.encode(state.top_level_creation_url));
     TRY(encoder.encode(state.top_level_origin));
@@ -111,6 +112,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .target_name = TRY(decoder.decode<Utf16String>()),
         .active_document_url = TRY(decoder.decode<URL::URL>()),
         .active_document_origin = TRY(decoder.decode<URL::Origin>()),
+        .active_document_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .active_document_is_fully_active = TRY(decoder.decode<bool>()),
         .top_level_creation_url = TRY(decoder.decode<URL::URL>()),
         .top_level_origin = TRY(decoder.decode<URL::Origin>()),

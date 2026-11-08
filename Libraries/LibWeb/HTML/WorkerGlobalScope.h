@@ -141,6 +141,8 @@ public:
     [[nodiscard]] bool check_embedder_policy(EmbedderPolicy const& owner_policy) const;
     [[nodiscard]] ContentSecurityPolicy::Directives::Directive::Result run_csp_initialization() const;
 
+    URL::Origin site_for_cookies() const;
+
     auto& owner_set() { return m_owner_set; }
     auto const& owner_set() const { return m_owner_set; }
 

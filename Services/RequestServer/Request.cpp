@@ -438,11 +438,12 @@ NonnullOwnPtr<Request> Request::fetch(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
+    HTTP::Cookie::SameSiteContext same_site_context,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease,
     Optional<u32> address_selection_hint,
     bool notify_on_cache_miss)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, move(network_isolation_key), cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(transfer_lease) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, move(network_isolation_key), cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, same_site_context, move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
     request->m_notify_on_cache_miss = notify_on_cache_miss;
     request->process();
@@ -475,12 +476,13 @@ NonnullOwnPtr<Request> Request::revalidate(
     ByteString method,
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
-    HTTP::Cookie::IncludeCredentials include_credentials)
+    HTTP::Cookie::IncludeCredentials include_credentials,
+    HTTP::Cookie::SameSiteContext same_site_context)
 {
     // Revalidation headers must not leak into the initiating request.
     request_headers = HTTP::HeaderList::create(request_headers->headers());
 
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, same_site_context });
     request->process();
 
     return request;
@@ -500,6 +502,7 @@ Request::Request(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
+    HTTP::Cookie::SameSiteContext same_site_context,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease)
     : m_request_id(request_id)
     , m_type(type)
@@ -515,6 +518,7 @@ Request::Request(
     , m_request_headers(move(request_headers))
     , m_request_body(move(request_body))
     , m_include_credentials(include_credentials)
+    , m_same_site_context(same_site_context)
     , m_response_headers(HTTP::HeaderList::create())
     , m_transfer_lease(move(transfer_lease))
 {
@@ -568,7 +572,7 @@ NonnullOwnPtr<Request> Request::import(
     Requests::ExportedRequest exported,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Imported, disk_cache, move(exported.network_isolation_key), HTTP::CacheMode::Default, client, nullptr, resolver, move(exported.url), move(exported.method), HTTP::HeaderList::create(move(exported.request_headers)), ByteBuffer {}, HTTP::Cookie::IncludeCredentials::No, move(transfer_lease) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Imported, disk_cache, move(exported.network_isolation_key), HTTP::CacheMode::Default, client, nullptr, resolver, move(exported.url), move(exported.method), HTTP::HeaderList::create(move(exported.request_headers)), ByteBuffer {}, HTTP::Cookie::IncludeCredentials::No, {}, move(transfer_lease) });
     request->m_request_start_time = exported.request_start_time;
     request->m_status_code = exported.status_code;
     request->m_reason_phrase = move(exported.reason_phrase);
@@ -705,7 +709,7 @@ void Request::request_response_storage(ControlConnectionFromClient& connection)
     static u64 s_next_response_storage_request_id = 0;
     m_response_storage_request_id = s_next_response_storage_request_id++;
 
-    connection.async_store_response_cookies_and_hsts_policy(m_client->client_id(), m_request_id, *m_response_storage_request_id, m_url, cookie_partition_context(), m_pending_response_storage->cookies, m_pending_response_storage->hsts_policy);
+    connection.async_store_response_cookies_and_hsts_policy(m_client->client_id(), m_request_id, *m_response_storage_request_id, m_url, cookie_partition_context(), m_same_site_context, m_pending_response_storage->cookies, m_pending_response_storage->hsts_policy);
 }
 
 bool Request::notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id)
@@ -1028,7 +1032,7 @@ void Request::handle_initial_state()
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client->start_revalidation_request({}, *m_network_isolation_key, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
+                            m_client->start_revalidation_request({}, *m_network_isolation_key, m_method, m_url, m_request_headers, m_request_body, m_include_credentials, m_same_site_context);
 
                         if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
@@ -1358,7 +1362,7 @@ void Request::handle_retrieve_cookie_state()
         static u64 s_next_cookie_request_id = 0;
         m_cookie_request_id = s_next_cookie_request_id++;
         mark_lifecycle_event(this, &WireStats::cookie_started_at);
-        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, *m_cookie_request_id, m_url, cookie_partition_context());
+        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, *m_cookie_request_id, m_url, cookie_partition_context(), m_same_site_context);
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
         transition_to_state(State::Error);

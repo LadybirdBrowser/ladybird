@@ -291,7 +291,7 @@ bool ConnectionFromClient::is_live_request_id(u64 request_id) const
     return m_active_requests.contains(request_id) || m_request_transfer_leases.contains({ client_id(), request_id });
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -343,7 +343,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     auto transfer_lease = create_transfer_lease
         ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
-    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, transfer_lease, address_selection_hint, notify_on_cache_miss);
+    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, same_site_context, transfer_lease, address_selection_hint, notify_on_cache_miss);
     request->set_performance_origin(originating_process_id, originating_page_id);
     m_active_requests.set(request_id, move(request));
 
@@ -430,14 +430,14 @@ void ConnectionFromClient::release_request_transfer_lease(int source_client_id, 
     }
 }
 
-void ConnectionFromClient::start_revalidation_request(Badge<Request>, HTTP::NetworkIsolationKey network_isolation_key, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials)
+void ConnectionFromClient::start_revalidation_request(Badge<Request>, HTTP::NetworkIsolationKey network_isolation_key, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials, HTTP::Cookie::SameSiteContext same_site_context)
 {
     note_event_tick("ipc-start-revalidation"sv);
     auto request_id = m_next_revalidation_request_id++;
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
 
-    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials);
+    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, same_site_context);
     m_active_revalidation_requests.set(request_id, move(request));
 }
 
@@ -847,7 +847,7 @@ size_t ConnectionFromClient::total_websocket_count() const
     return count;
 }
 
-void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
+void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, HTTP::Cookie::SameSiteContext same_site_context)
 {
     if (m_pending_websockets.contains(websocket_id) || m_websockets.contains(websocket_id)) {
         did_misbehave("reused live WebSocket ID");
@@ -916,7 +916,7 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Opt
     Optional<HTTP::Cookie::PartitionContext> partition_context;
     if (network_isolation_key.has_value())
         partition_context = HTTP::Cookie::PartitionContext { network_isolation_key->top_level_site, network_isolation_key->has_cross_site_ancestor };
-    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url, move(partition_context));
+    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url, move(partition_context), same_site_context);
 }
 
 bool ConnectionFromClient::websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie)
