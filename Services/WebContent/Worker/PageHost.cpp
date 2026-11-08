@@ -100,20 +100,22 @@ Optional<Web::Permissions::PermissionSnapshot> PageHost::page_did_request_permis
     return response->take_snapshot();
 }
 
-// NB: The sync requests here fail once the worker is terminated or the UI process is gone. The script that made one no
-//     longer runs by then, so what it gets back here does not matter, but it has to get something.
+bool PageHost::page_did_is_known_hsts_host(String const& domain)
+{
+    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidIsKnownHstsHost>(domain);
+    if (!response)
+        return true;
+    return response->result();
+}
+
+// NB: The sync requests below fail once the worker is terminated or loses its connection, and the empty answers they
+//     fall back to grant nothing.
 HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const& url, HTTP::Cookie::Source source)
 {
     auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidRequestCookie>(url, source);
     if (!response)
         return {};
     return response->take_cookie();
-}
-
-bool PageHost::page_did_is_known_hsts_host(String const& domain)
-{
-    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidIsKnownHstsHost>(domain);
-    return response && response->result();
 }
 
 void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno)
