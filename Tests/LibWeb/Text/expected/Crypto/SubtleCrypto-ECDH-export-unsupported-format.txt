@@ -1,0 +1,6 @@
+public key, raw-private: NotSupportedError
+public key, raw-seed: NotSupportedError
+public key, raw-secret: NotSupportedError
+private key, raw-private: NotSupportedError
+private key, raw-seed: NotSupportedError
+private key, raw-secret: NotSupportedError
