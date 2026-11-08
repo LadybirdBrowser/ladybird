@@ -584,11 +584,7 @@ pub extern "C" fn style_engine_stage_element_arrival_rows(
                 continue;
             };
             let relations = row.has_relations.then(|| row.relations.decode());
-            writes.record_element_arrival(
-                node,
-                &super::bridge::element_arrival_facts(arrival, row_atoms),
-                relations,
-            );
+            writes.record_element_arrival(node, arrival, row_atoms, relations);
             if arrival.associated_pseudo_kind_plus_one != 0 {
                 unpublished.backing_elements.push(node);
             }

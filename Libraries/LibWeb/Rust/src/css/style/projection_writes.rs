@@ -13,6 +13,7 @@
 //! about its elements' facts and relations.
 
 use super::bridge::ElementBoxKind;
+use super::bridge::FfiElementArrival;
 use super::index::AttributeFact;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
@@ -29,29 +30,6 @@ use super::tree::StyleNodeID;
 /// The host's writer of a document's projection, with what its writes mean.
 pub(in crate::css::style) struct ProjectionWrites<'a> {
     pub(in crate::css::style) projection: &'a mut ProjectionWriter,
-}
-
-/// What one element arrives with beside its tree relations, every fact of it its selectors test.
-pub(in crate::css::style) struct ElementArrivalFacts<'a> {
-    pub(in crate::css::style) tag: StyleAtomID,
-    pub(in crate::css::style) folded_tag: StyleAtomID,
-    pub(in crate::css::style) namespace: StyleAtomID,
-    pub(in crate::css::style) id: StyleAtomID,
-    pub(in crate::css::style) language: StyleAtomID,
-    pub(in crate::css::style) directionality: StyleAtomID,
-    pub(in crate::css::style) heading_level: u8,
-    pub(in crate::css::style) backing_pseudo_kind_plus_one: u8,
-    pub(in crate::css::style) is_slot: bool,
-    pub(in crate::css::style) has_text_content: bool,
-    pub(in crate::css::style) states: StateSet,
-    /// What the host publishes of the element beside the facts its selectors test.
-    pub(in crate::css::style) adjustment_facts: u32,
-    pub(in crate::css::style) construction_facts: u32,
-    pub(in crate::css::style) box_kind: ElementBoxKind,
-    /// The element's custom states, then its classes, then its attributes as name and value atom pairs.
-    pub(in crate::css::style) atoms: &'a [u32],
-    pub(in crate::css::style) custom_state_count: usize,
-    pub(in crate::css::style) class_count: usize,
 }
 
 impl ProjectionWrites<'_> {
@@ -203,54 +181,51 @@ impl ProjectionWrites<'_> {
     pub(in crate::css::style) fn record_element_arrival(
         &mut self,
         node: StyleNodeID,
-        arrival: &ElementArrivalFacts<'_>,
+        arrival: &FfiElementArrival,
+        atoms: &[u32],
         relations: Option<TreeRelations>,
     ) {
         if relations.is_some() {
             self.stage_tree_neighbors(node, None, relations);
             self.count(InputKey::TreeRelations(node));
         }
-        let (custom_states, rest) = arrival.atoms.split_at(arrival.custom_state_count);
-        let (classes, attributes) = rest.split_at(arrival.class_count);
-        let custom_states = StyleAtomID::slice_of_raw(custom_states);
-        let classes = StyleAtomID::slice_of_raw(classes);
-        let attributes = AttributeFact::slice_of_raw(attributes.as_chunks::<2>().0);
+        // NB: The atoms are the element's custom states, then its classes, then its attributes as name and value pairs.
+        let (custom_states, rest) = atoms.split_at(arrival.custom_state_count as usize);
+        let (classes, attributes) = rest.split_at(arrival.class_count as usize);
+        let facts = ArrivalFacts {
+            relations,
+            tag: StyleAtomID(arrival.tag_atom),
+            folded_tag: StyleAtomID(arrival.folded_tag_atom),
+            namespace: StyleAtomID(arrival.namespace_atom),
+            id: StyleAtomID(arrival.id_atom),
+            language: StyleAtomID(arrival.language_atom),
+            directionality: StyleAtomID(arrival.directionality_atom),
+            heading_level: arrival.heading_level,
+            is_slot: arrival.is_slot,
+            has_text_content: arrival.has_text_content,
+            states: StateSet(arrival.states),
+            classes: StyleAtomID::slice_of_raw(classes),
+            attributes: AttributeFact::slice_of_raw(attributes.as_chunks::<2>().0),
+            custom_states: StyleAtomID::slice_of_raw(custom_states),
+        };
         // NB: Each fact the arrival carries counts as a delta folded onto it, as each was once published apiece.
         let folded = 2
-            + u64::from(!arrival.id.is_none())
-            + u64::from(!arrival.language.is_none())
-            + u64::from(!arrival.directionality.is_none())
-            + u64::from(arrival.heading_level != 0)
-            + u64::from(arrival.folded_tag != arrival.tag)
-            + (custom_states.len() + classes.len() + attributes.len()) as u64
-            + u64::from(arrival.states.0.count_ones());
+            + u64::from(!facts.id.is_none())
+            + u64::from(!facts.language.is_none())
+            + u64::from(!facts.directionality.is_none())
+            + u64::from(facts.heading_level != 0)
+            + u64::from(facts.folded_tag != facts.tag)
+            + (facts.custom_states.len() + facts.classes.len() + facts.attributes.len()) as u64
+            + u64::from(facts.states.0.count_ones());
         self.projection.counters.add(Counter::ArrivingNodeFactsFolded, folded);
         self.projection.counters.add(Counter::RawMutationRecords, folded);
         self.projection.counters.add(Counter::LocalFeatureDeltas, folded);
-        self.projection.write_arrival_facts(
-            node,
-            &ArrivalFacts {
-                relations,
-                tag: arrival.tag,
-                folded_tag: arrival.folded_tag,
-                namespace: arrival.namespace,
-                id: arrival.id,
-                language: arrival.language,
-                directionality: arrival.directionality,
-                heading_level: arrival.heading_level,
-                is_slot: arrival.is_slot,
-                has_text_content: arrival.has_text_content,
-                states: arrival.states,
-                classes,
-                attributes,
-                custom_states,
-            },
-        );
+        self.projection.write_arrival_facts(node, &facts);
         self.projection.edit_host_facts(node, |set| {
             set.adjustment_facts = arrival.adjustment_facts;
             set.construction_facts = arrival.construction_facts;
             set.box_kind = arrival.box_kind;
-            set.associated_pseudo_kind_plus_one = arrival.backing_pseudo_kind_plus_one;
+            set.associated_pseudo_kind_plus_one = arrival.associated_pseudo_kind_plus_one;
         });
     }
 
