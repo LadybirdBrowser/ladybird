@@ -112,8 +112,9 @@ public:
     virtual Settings& autocomplete_settings() = 0;
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback) const = 0;
 
-    // Returns a function that cancels the request. on_response is never called after that.
-    virtual Function<void()> fetch_remote_suggestions(URL::URL const&, IsPrivate, Function<void(RemoteResponse)> on_response) = 0;
+    // Fetches the engine's suggestions for the query. Returns a function that cancels the request. on_response is never
+    // called after that.
+    virtual Function<void()> fetch_remote_suggestions(SearchEngine const&, String const& query, IsPrivate, Function<void(RemoteResponse)> on_response) = 0;
 };
 
 class WEBVIEW_API Autocomplete : public Weakable<Autocomplete>

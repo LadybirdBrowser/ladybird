@@ -104,7 +104,7 @@ public:
     // The location bars make their suggestions from the history, and from the search engine through the Hub.
     virtual WebView::AutocompleteService& autocomplete_service() override { return *m_autocomplete_service; }
     virtual WebView::Settings& autocomplete_settings() override { return *m_settings; }
-    virtual Function<void()> fetch_remote_suggestions(URL::URL const&, WebView::IsPrivate, Function<void(RemoteResponse)>) override;
+    virtual Function<void()> fetch_remote_suggestions(WebView::SearchEngine const&, String const& query, WebView::IsPrivate, Function<void(RemoteResponse)>) override;
 
     static WebUIPages& web_ui_pages() { return *s_the->m_web_ui_pages; }
     String const& command_line() const { return m_command_line; }

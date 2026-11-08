@@ -89,6 +89,8 @@ public:
     using PostFunction = Function<Function<void()>(URL::URL const&, Vector<HTTP::Header>, ByteString body, Function<void(PostResponse)>)>;
     // A process with no RequestServer of its own posts its reports through this.
     static void set_post_function(PostFunction);
+    // Whether the URL is one that reports are posted to.
+    static bool is_report_server_url(URL::URL const&);
 
     virtual ~ReportSubmission();
 

@@ -5,6 +5,7 @@
  */
 
 #include <AK/Utf8View.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWebView/SearchEngine.h>
 
@@ -43,6 +44,13 @@ String SearchEngine::format_search_query_for_display(StringView query) const
 String SearchEngine::format_search_query_for_navigation(StringView query) const
 {
     return MUST(query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All));
+}
+
+Optional<URL::URL> SearchEngine::suggestions_url_for_query(StringView query) const
+{
+    if (!suggestions.has_value())
+        return {};
+    return URL::Parser::basic_parse(MUST(suggestions->query_url.replace("%s"sv, URL::percent_encode(query), ReplaceMode::All)));
 }
 
 }

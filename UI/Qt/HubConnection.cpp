@@ -68,11 +68,19 @@ void HubConnection::crash_reports_changed()
 #endif
 }
 
-u64 HubConnection::start_request(ByteString method, URL::URL const& url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private, Function<void(RequestResponse)> on_response)
+u64 HubConnection::fetch_search_suggestions(String engine_name, String query, WebView::IsPrivate is_private, Function<void(RequestResponse)> on_response)
 {
     auto request_id = m_next_request_id++;
     m_requests.set(request_id, move(on_response));
-    async_start_request(request_id, move(method), url, move(headers), move(body), cache_mode, include_credentials, is_private);
+    async_fetch_search_suggestions(request_id, move(engine_name), move(query), is_private);
+    return request_id;
+}
+
+u64 HubConnection::post_report(URL::URL const& url, Vector<HTTP::Header> headers, ByteString body, Function<void(RequestResponse)> on_response)
+{
+    auto request_id = m_next_request_id++;
+    m_requests.set(request_id, move(on_response));
+    async_post_report(request_id, url, move(headers), move(body));
     return request_id;
 }
 

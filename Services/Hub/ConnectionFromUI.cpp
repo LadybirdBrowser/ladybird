@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
@@ -17,6 +19,8 @@
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PageTranslation.h>
 #include <LibWebView/ProcessSnapshot.h>
+#include <LibWebView/ReportSubmission.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/WebCompatReport.h>
 #include <LibWebView/WebUI/ApplicationWebUI.h>
@@ -585,21 +589,59 @@ void ConnectionFromUI::ui_did_start()
     Application::the().ui_did_start();
 }
 
-void ConnectionFromUI::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> headers, ByteString body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private)
+// NB: The UI makes no requests of its own choosing. It names a search engine and a query, and the Hub makes the request
+//     for that engine's suggestions, as the UI's own settings say.
+void ConnectionFromUI::fetch_search_suggestions(u64 request_id, String engine_name, String query, WebView::IsPrivate is_private)
+{
+    Optional<URL::URL> url;
+    if (auto engine = Application::settings().find_search_engine_by_name(engine_name); engine.has_value())
+        url = engine->suggestions_url_for_query(query);
+    if (!url.has_value()) {
+        async_request_finished(request_id, true, {}, {}, {});
+        return;
+    }
+    static constexpr Array response_header_names { "Content-Type"sv };
+    start_request(request_id, "GET"sv, *url, *HTTP::HeaderList::create(), {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, is_private, response_header_names);
+}
+
+// NB: A report goes only to the report server, with no credentials, and with only the headers that reports carry.
+void ConnectionFromUI::post_report(u64 request_id, URL::URL url, Vector<HTTP::Header> headers, ByteString body)
+{
+    if (!WebView::ReportSubmission::is_report_server_url(url)) {
+        async_request_finished(request_id, true, {}, {}, {});
+        return;
+    }
+    static constexpr Array report_header_names { "Content-Type"sv, "X-Ladybird-Challenge"sv, "X-Ladybird-Nonce"sv };
+    auto request_headers = HTTP::HeaderList::create();
+    for (auto& header : headers) {
+        if (any_of(report_header_names, [&](auto name) { return header.name.equals_ignoring_ascii_case(name); }))
+            request_headers->append(move(header));
+    }
+    static constexpr Array response_header_names { "Retry-After"sv };
+    start_request(request_id, "POST"sv, url, *request_headers, body, HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::No, WebView::IsPrivate::No, response_header_names);
+}
+
+void ConnectionFromUI::start_request(u64 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderList const& headers, ByteString const& body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, WebView::IsPrivate is_private, ReadonlySpan<StringView> response_header_names)
 {
     RefPtr<Requests::Request> request;
     if (auto client = WebView::Application::request_server_client(is_private); !client.is_error())
-        request = client.value()->start_request(method, url, HTTP::Cookie::SameSiteContext::same_site(), *HTTP::HeaderList::create(move(headers)), body.bytes(), cache_mode, include_credentials);
+        request = client.value()->start_request(method, url, HTTP::Cookie::SameSiteContext::same_site(), headers, body.bytes(), cache_mode, include_credentials);
     if (!request) {
         async_request_finished(request_id, true, {}, {}, {});
         return;
     }
 
     request->set_buffered_request_finished_callback(
-        [this, request_id](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
+        [this, request_id, response_header_names](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error,
             HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const&,
             Requests::CacheState, Core::ImmutableBytes payload) {
-            async_request_finished(request_id, network_error.has_value(), response_code, response_headers.headers(), ByteString::copy(payload.bytes()));
+            // NB: The UI gets only the headers that the response is read for.
+            Vector<HTTP::Header> headers_for_ui;
+            for (auto name : response_header_names) {
+                if (auto value = response_headers.get(name); value.has_value())
+                    headers_for_ui.append({ name, value.release_value() });
+            }
+            async_request_finished(request_id, network_error.has_value(), response_code, move(headers_for_ui), ByteString::copy(payload.bytes()));
 
             // A request cannot be destroyed from inside its own callback.
             Core::deferred_invoke([this, request_id] {
