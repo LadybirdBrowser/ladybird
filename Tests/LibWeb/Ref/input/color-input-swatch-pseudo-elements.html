@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/color-input-swatch-pseudo-elements-ref.html">
+<style>
+    input {
+        display: block;
+        width: 60px;
+        height: 30px;
+        margin: 0 0 10px;
+        padding: 0;
+        border: none;
+    }
+    .webkit::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+    .webkit::-webkit-color-swatch {
+        border: 0;
+    }
+    .standard::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+    .standard::color-swatch {
+        border: 0;
+    }
+    .moz::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+    .moz::-moz-color-swatch {
+        border: 0;
+    }
+</style>
+<input class="webkit" type="color" value="#00ff00">
+<input class="standard" type="color" value="#00ff00">
+<input class="moz" type="color" value="#00ff00">

@@ -860,8 +860,7 @@ pub(super) mod pseudo_kind {
     pub(in crate::css::style) const SELECTION: u8 = 8;
     pub(in crate::css::style) const SPELLING_ERROR: u8 = 9;
     pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 11;
-    pub(in crate::css::style) const HIGHLIGHT: u8 = 17;
-    const _: () = assert!(HIGHLIGHT as u16 == crate::css::selector::PseudoElementType::Highlight as u16);
+    pub(in crate::css::style) const HIGHLIGHT: u8 = crate::css::selector::PseudoElementType::Highlight as u8;
 
     /// https://drafts.csswg.org/css-pseudo-4/#highlight-pseudos
     pub(in crate::css::style) const fn is_highlight(kind: u8) -> bool {
