@@ -180,6 +180,8 @@ class DefinitionUsage:
         dictionary = self.context.dictionaries.get(idl_type.name)
         if dictionary is None:
             return
+        from_js = from_js or "GenerateFromJSON" in dictionary.extended_attributes
+        to_js = to_js or "GenerateToValue" in dictionary.extended_attributes
         directions = self.rust_dictionaries.setdefault(dictionary.name, ConversionDirections())
         if (directions.from_js or not from_js) and (directions.to_js or not to_js):
             return

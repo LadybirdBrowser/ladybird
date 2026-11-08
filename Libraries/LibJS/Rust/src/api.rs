@@ -68,6 +68,7 @@ pub use crate::runtime::iterator::{
     IteratorHint, IteratorRecord, create_iterator_result_object, get_iterator, get_iterator_from_method_impl,
     iterator_complete, iterator_next, iterator_step_value, iterator_to_list, iterator_value,
 };
+pub use crate::runtime::json_object::JSONObject;
 pub use crate::runtime::map::Map;
 pub use crate::runtime::map_iterator::MapIterator;
 pub use crate::runtime::module::Module;
@@ -96,6 +97,6 @@ pub use crate::runtime::typed_array::{
     typed_array_byte_length, typed_array_length,
 };
 pub use crate::runtime::value::{number_to_string, same_value};
-pub use crate::utf16::{Utf16Display, to_well_formed};
+pub use crate::utf16::{Utf16Display, Utf16View, to_well_formed};
 /// Derives Trace for a type of the embedder, which marks the type `#[gc(crate = libjs_rust)]`.
 pub use libjs_runtime_macros::Trace;

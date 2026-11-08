@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibWeb/Bindings/NewGlobalObject.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -16,6 +17,14 @@ JS::Completion throw_copy_of_error_in_current_realm(JS::VM& vm, JS::Value error)
     auto& realm = *vm.current_realm();
     auto serialized_error = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return HTML::structured_serialize(vm, error); }));
     return JS::throw_completion(TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return HTML::structured_deserialize(vm, serialized_error, realm); })));
+}
+
+extern "C" JSCompletion web_bindings_throw_copy_of_error_in_current_realm(JSVM*, JSValue);
+
+JSCompletion web_bindings_throw_copy_of_error_in_current_realm(JSVM* vm, JSValue error)
+{
+    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> {
+        throw_copy_of_error_in_current_realm(JS::HostABI::vm_from_abi(vm), JS::HostABI::value_from_abi(error)) });
 }
 
 JS::ThrowCompletionOr<Utf16String> serialize_to_json_in_a_new_global_object(JS::VM& vm, Function<JS::Value(JS::Realm&)> const& create_value)
