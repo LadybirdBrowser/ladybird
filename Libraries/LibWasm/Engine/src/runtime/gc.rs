@@ -9,8 +9,8 @@
 //! References in the any hierarchy are encoded so that their kind shows in their low bits: zero is null, an i31 has
 //! bit 0 set (its value is in the bits above), a host value converted from an externref has bits 1:0 equal to 0b10,
 //! and GC objects and exceptions are the addresses of their cells. Converting between externref and anyref keeps the
-//! bits. An embedder's host values should be the addresses of its cells with bit 1 set, so that the collector keeps
-//! them alive; other host values are never followed.
+//! bits. An embedder's host values must be the addresses of its cells with bit 1 set, which the collector follows as
+//! it does any other cell.
 
 use super::heap::{
     CELL_HEADER_SIZE, CellType, Heap, TRACE_FUNCTION, TRACE_NONE, TRACE_REFERENCE, Visitor, forget_host_object,

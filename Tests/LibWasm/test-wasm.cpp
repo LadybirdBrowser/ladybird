@@ -9,6 +9,8 @@
 #include <AK/NeverDestroyed.h>
 #include <LibCore/File.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/Heap.h>
+#include <LibGC/Root.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
@@ -68,18 +70,41 @@ namespace {
 
 static constexpr JSHostClass web_assembly_module_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WebAssemblyModule"sv, nullptr, nullptr, nullptr, 0);
 
-// Host references (`ref.extern n` in the spec tests) are encoded so that they are never null, and never look like a
-// pointer or an i31 reference.
+// The value of a host reference (`ref.extern n` in the spec tests). A host reference is the address of a cell with bit
+// 1 set, which the garbage collector follows.
+class HostValue final : public GC::Cell {
+    GC_CELL(HostValue, GC::Cell);
+    GC_DECLARE_ALLOCATOR(HostValue);
+
+public:
+    explicit HostValue(u64 value)
+        : value(value)
+    {
+    }
+
+    u64 value { 0 };
+};
+
+GC_DEFINE_ALLOCATOR(HostValue);
+
+// NB: Each value has one cell, so that equal values are equal references. The cells live until the store is reset.
+static HashMap<u64, GC::Root<HostValue>>& host_values()
+{
+    static NeverDestroyed<HashMap<u64, GC::Root<HostValue>>> host_values;
+    return *host_values;
+}
+
 static u64 host_reference_bits(u64 value)
 {
-    return (value << 2) | 2;
+    auto& cell = host_values().ensure(value, [&] { return GC::make_root(GC::Heap::the().allocate<HostValue>(value)); });
+    return bit_cast<FlatPtr>(cell.ptr()) | 2;
 }
 
 static Optional<u64> host_reference_value(u64 bits)
 {
     if ((bits & 3) != 2)
         return {};
-    return bits >> 2;
+    return bit_cast<HostValue*>(static_cast<FlatPtr>(bits & ~u64(3)))->value;
 }
 
 struct ImportName {
@@ -123,6 +148,7 @@ public:
     {
         s_spec_test_namespace.clear();
         roots().clear();
+        host_values().clear();
         delete s_store;
         s_store = nullptr;
     }
