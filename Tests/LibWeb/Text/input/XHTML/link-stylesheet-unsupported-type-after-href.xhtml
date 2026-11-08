@@ -1,0 +1,20 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<link rel="stylesheet" href="data:text/css,%23type-after-href%20%7B%20color%3A%20rgb(255%2C%200%2C%200)%3B%20%7D" type="text/plain"/>
+<link rel="stylesheet" type="text/plain" href="data:text/css,%23type-before-href%20%7B%20color%3A%20rgb(255%2C%200%2C%200)%3B%20%7D"/>
+</head>
+<body>
+<div id="type-after-href"></div>
+<div id="type-before-href"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            for (const id of ["type-after-href", "type-before-href"])
+                println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+            done();
+        });
+    });
+</script>
+</body>
+</html>

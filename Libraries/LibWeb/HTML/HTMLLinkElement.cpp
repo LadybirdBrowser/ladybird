@@ -229,22 +229,20 @@ bool HTMLLinkElement::has_icon_keyword() const
     return m_relationship & Relationship::Icon;
 }
 
+static bool is_supported_style_sheet_type_attribute(Optional<Utf16String> const& type)
+{
+    // The default type for resources given by the stylesheet keyword is text/css.
+    if (!type.has_value())
+        return true;
+    auto mime_type = MimeSniff::MimeType::parse(type->utf16_view());
+    return mime_type.has_value() && mime_type->essence() == "text/css"sv;
+}
+
 void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);
     if (!namespace_.has_value() && name == AttributeNames::blocking && m_blocking)
         m_blocking->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
-
-    // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
-    if (name == HTML::AttributeNames::type) {
-        if (value.has_value())
-            m_mime_type = value->to_ascii_lowercase();
-        else {
-            m_mime_type = {};
-        }
-
-        return;
-    }
 
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     auto old_relationship = m_relationship;
@@ -353,8 +351,12 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
                 // - When the disabled attribute of the link element of an external resource link that is already browsing-context connected is set, changed, or removed.
                 name == AttributeNames::disabled
 
-                // FIXME: - When the type attribute of the link element of an external resource link that is already browsing-context connected is set or changed to a value that does not or no longer matches the Content-Type metadata of the previous obtained external resource, if any.
-                // FIXME: - When the type attribute of the link element of an external resource link that is already browsing-context connected, but was previously not obtained due to the type attribute specifying an unsupported type, is removed or changed.
+                // - When the type attribute of the link element of an external resource link that is already browsing-context connected is set or changed to a value that does not or no longer matches the Content-Type metadata of the previous obtained external resource, if any.
+                // - When the type attribute of the link element of an external resource link that is already browsing-context connected, but was previously not obtained due to the type attribute specifying an unsupported type, is removed or changed.
+                // NB: Only the Content-Type metadata decides whether the resource applies, so a change between two
+                //     supported types needs no new fetch.
+                || (!namespace_.has_value() && name == AttributeNames::type && old_value != value
+                    && !(is_supported_style_sheet_type_attribute(old_value) && is_supported_style_sheet_type_attribute(value)))
 
                 // AD-HOC: When the link element's type becomes a stylesheet
                 || !(old_relationship & Relationship::Stylesheet);
@@ -904,6 +906,19 @@ bool HTMLLinkElement::icon_linked_resource_fetch_setup_steps(Fetch::Infrastructu
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:linked-resource-fetch-setup-steps
 bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request& request)
 {
+    // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute
+    // If the type attribute is present, then the user agent must assume that the resource is of the given type (even
+    // if that is not a valid MIME type string, e.g. the empty string). [...] If the UA does not support the given MIME
+    // type for the given link relationship, then the UA should not fetch and process the linked resource
+    if (!is_supported_style_sheet_type_attribute(get_attribute_ns({}, AttributeNames::type))) {
+        // AD-HOC: The style sheet of an earlier fetch no longer applies.
+        if (m_loaded_style_sheet) {
+            document_or_shadow_root_style_scope().remove_a_css_style_sheet(*m_loaded_style_sheet);
+            m_loaded_style_sheet = nullptr;
+        }
+        return false;
+    }
+
     // 1. If el's disabled attribute is set, then return false.
     if (has_attribute(AttributeNames::disabled))
         return false;
@@ -1467,12 +1482,9 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     auto fetch_generation = m_current_fetch_generation;
 
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
-    auto mime_type_string = m_mime_type;
     Optional<StringView> mime_type_charset;
     auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
     if (extracted_mime_type.has_value()) {
-        if (!mime_type_string.has_value())
-            mime_type_string = Utf16String::from_ascii_without_validation(extracted_mime_type->essence().bytes());
         if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
             mime_type_charset = charset->bytes_as_string_view();
     }
@@ -1483,7 +1495,8 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     auto resource_url = response.url();
     auto assume_css_in_quirks_mode = document().in_quirks_mode() && resource_url.has_value()
         && document().origin().is_same_origin(resource_url->origin());
-    if (mime_type_string.has_value() && mime_type_string != u"text/css"sv && !assume_css_in_quirks_mode)
+    // AD-HOC: A response without a valid Content-Type is used as CSS, matching other engines.
+    if (extracted_mime_type.has_value() && extracted_mime_type->essence() != "text/css"sv && !assume_css_in_quirks_mode)
         success = false;
 
     // 2. If el no longer creates an external resource link that contributes to the styling processing model, or

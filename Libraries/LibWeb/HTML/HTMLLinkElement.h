@@ -245,8 +245,6 @@ private:
 
     bool m_was_enabled_when_created_by_parser { false };
 
-    Optional<Utf16String> m_mime_type;
-
     SourceSet m_source_set;
 
     GC::Weak<DOM::Document> m_parser_document;

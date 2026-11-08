@@ -1,0 +1,2 @@
+type-after-href: rgb(0, 0, 0)
+type-before-href: rgb(0, 0, 0)

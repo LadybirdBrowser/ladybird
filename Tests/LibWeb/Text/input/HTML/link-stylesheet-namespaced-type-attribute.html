@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="probe"></div>
+<script>
+    function loadStyleSheet(link) {
+        return new Promise(resolve => {
+            link.onload = () => resolve("load");
+            link.onerror = () => resolve("error");
+        });
+    }
+
+    function probeColor() {
+        return getComputedStyle(document.getElementById("probe")).color;
+    }
+
+    promiseTest(async () => {
+        let loads = 0;
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "data:text/css,%23probe { color: rgb(0, 128, 0); }";
+        let event = loadStyleSheet(link);
+        document.head.appendChild(link);
+        await event;
+        link.addEventListener("load", () => ++loads);
+        const sheet = link.sheet;
+        sheet.insertRule("#probe { background-color: rgb(0, 0, 255); }", 1);
+
+        link.setAttributeNS("urn:test", "test:type", "text/plain");
+        link.setAttributeNS("urn:other", "type", "text/plain");
+
+        const sentinel = document.createElement("link");
+        sentinel.rel = "stylesheet";
+        sentinel.href = "data:text/css,";
+        event = loadStyleSheet(sentinel);
+        document.head.appendChild(sentinel);
+        await event;
+        println(`Namespaced type attributes: same sheet ${link.sheet === sheet}, loads ${loads}, rules ${link.sheet?.cssRules.length}`);
+
+        event = loadStyleSheet(link);
+        link.href = "data:text/css,%23probe { color: rgb(0, 0, 128); }";
+        println(`New href: ${await event}, color ${probeColor()}`);
+    });
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="probe"></div>
+<script>
+    function nextLoadOrError(link) {
+        return new Promise(resolve => {
+            link.onload = () => resolve("load");
+            link.onerror = () => resolve("error");
+        });
+    }
+
+    function probeColor() {
+        return getComputedStyle(document.getElementById("probe")).color;
+    }
+
+    promiseTest(async () => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "data:text/css,%23probe { color: rgb(0, 128, 0); }";
+        let event = nextLoadOrError(link);
+        document.head.appendChild(link);
+        println(`Inserted: ${await event}, sheet ${link.sheet !== null}, color ${probeColor()}`);
+
+        link.type = "text/plain";
+        println(`type="text/plain": sheet ${link.sheet !== null}, color ${probeColor()}`);
+
+        event = nextLoadOrError(link);
+        link.removeAttribute("type");
+        println(`type removed: ${await event}, sheet ${link.sheet !== null}, color ${probeColor()}`);
+    });
+</script>

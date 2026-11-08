@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="probe"></div>
+<script>
+    function loadStyleSheet(url, type) {
+        return new Promise(resolve => {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.type = type;
+            link.href = url;
+            link.onload = () => resolve({ link, event: "load" });
+            link.onerror = () => resolve({ link, event: "error" });
+            document.head.appendChild(link);
+        });
+    }
+
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const responses = [
+            { contentType: "text/plain", type: "text/css" },
+            { contentType: "text/css", type: "text/css" },
+            { contentType: "text/css", type: "text/css; charset=utf-8" },
+        ];
+        const probe = document.getElementById("probe");
+        for (const [index, { contentType, type }] of responses.entries()) {
+            const url = await server.createEcho("GET", `/link-stylesheet-type-does-not-override-content-type-${index}`, {
+                status: 200,
+                headers: { "Content-Type": contentType },
+                body: `#probe { --applied: "${contentType}"; }`,
+            });
+            const { link, event } = await loadStyleSheet(url, type);
+            const applied = getComputedStyle(probe).getPropertyValue("--applied") || "nothing";
+            println(`type="${type}", Content-Type: ${contentType} -> ${event}, applied ${applied}`);
+            link.remove();
+        }
+    });
+</script>
