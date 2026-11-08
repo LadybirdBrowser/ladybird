@@ -14,24 +14,11 @@ namespace Web::Crypto {
 
 extern "C" {
 Crypto* web_rust_crypto_create(JSVM*);
-void web_crypto_fill_with_random(Bytes);
-void web_crypto_generate_random_uuid(void*, void (*)(void*, ReadonlyBytes));
 }
 
 GC::Ref<Crypto> Crypto::create()
 {
     return *web_rust_crypto_create(JS::HostABI::vm_to_abi(JS::VM::the()));
-}
-
-void web_crypto_fill_with_random(Bytes bytes)
-{
-    fill_with_random(bytes);
-}
-
-void web_crypto_generate_random_uuid(void* state, void (*receive)(void*, ReadonlyBytes))
-{
-    auto uuid = generate_random_uuid();
-    receive(state, uuid.bytes());
 }
 
 String generate_random_uuid()

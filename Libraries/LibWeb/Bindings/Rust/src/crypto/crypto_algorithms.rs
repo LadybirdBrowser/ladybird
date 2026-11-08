@@ -9,12 +9,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::ffi::c_void;
-use core::ptr::{NonNull, null_mut};
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use ak::{Span, SpanMut, Utf16String, Utf16StringUnits};
+use ak::{Utf16String, Utf16StringUnits};
+use libcrypto_rust::{
+    Argon2Inputs, Argon2Type, Asn1Structure, Asn1Value, BackendError, Base64DecodeError, CShakeKind, EcCurve, EcError,
+    KeyHandle, KeyInfo, KeyPair, KmacKind, MlDsaSize, MlKemSize, OkpCurve, RsaJwkInteger, ShaHashKind,
+};
 use libjs_rust::api::{
     ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
 };
@@ -25,7 +27,6 @@ use crate::bindings::conversions::{
 };
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::crypto::crypto::web_crypto_fill_with_random;
 use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, crypto_key_from_value};
 use crate::crypto::crypto_key::{CryptoKey, InternalAlgorithmData, KEY_USAGES, KeyType, KeyUsage};
 use crate::crypto::subtle_crypto::{
@@ -100,107 +101,24 @@ pub(crate) fn normalized_key_usages(usages: &[KeyUsage]) -> Vec<KeyUsage> {
     )
 }
 
-#[derive(PartialEq, Eq)]
-#[repr(u8)]
-enum Base64DecodeResult {
-    #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
-    Success,
-    #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
-    OutOfMemory,
-    InvalidBase64,
-    NonAscii,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-enum Asn1Structure {
-    SubjectPublicKeyInfo,
-    PrivateKeyInfo,
-    OctetString,
-}
-
-unsafe extern "C" {
-    fn web_crypto_encode_base64url(bytes: Span<'_, u8>, receive: ReceiveBytes, state: *mut c_void) -> i32;
-    fn web_crypto_decode_base64url(
-        raw: usize,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-        error_message: &mut usize,
-    ) -> Base64DecodeResult;
-    fn web_crypto_decode_asn1_structure(
-        data: Span<'_, u8>,
-        structure: Asn1Structure,
-        out: *mut c_void,
-        all_consumed: &mut bool,
-    ) -> usize;
-}
-
-unsafe extern "C" fn receive_base64url_string(state: *mut c_void, bytes: Span<'_, u8>) {
-    // SAFETY: The state is the caller's slot, and the service lends the bytes.
-    unsafe { *state.cast::<Option<Utf16String>>() = Some(Utf16String::from_ascii(bytes.as_slice())) };
-}
-
 // https://www.rfc-editor.org/rfc/rfc7518#section-2
 fn base64_url_bytes_encode(bytes: &[u8]) -> Result<Utf16String, i32> {
-    let mut encoded = None;
-    // SAFETY: The input and the output slot live for the call.
-    let error = unsafe {
-        web_crypto_encode_base64url(
-            Span::new(bytes),
-            receive_base64url_string,
-            core::ptr::from_mut(&mut encoded).cast(),
-        )
-    };
-    if error != 0 {
-        return Err(error);
-    }
-    Ok(encoded.expect("LibWeb returns the base64url string"))
-}
-
-unsafe fn decode_base64url(
-    base64_url_string: &Utf16String,
-    state: *mut c_void,
-    receive: ReceiveBytes,
-    error_message: &mut usize,
-) -> Base64DecodeResult {
-    let is_ascii = match base64_url_string.as_units() {
-        Utf16StringUnits::Ascii(_) => true,
-        Utf16StringUnits::Latin1(units) => units.is_ascii(),
-        Utf16StringUnits::Utf16(units) => units.iter().all(|&unit| unit <= 0x7f),
-    };
-    if !is_ascii {
-        return Base64DecodeResult::NonAscii;
-    }
-
-    // SAFETY: The caller supplies a receiver and a live output slot.
-    let result =
-        unsafe { web_crypto_decode_base64url(base64_url_string.raw_identity(), state, receive, error_message) };
-    if result == Base64DecodeResult::InvalidBase64 {
-        // SAFETY: The decoder hands over an owned diagnostic string.
-        let detail = unsafe { Utf16String::from_raw_owned(*error_message) };
-        *error_message = libjs_rust::api::utf16_formatted("base64 decode: {}", &[&detail]).into_raw();
-    }
-    result
+    libcrypto_rust::encode_base64url(bytes)
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
-unsafe fn parse_an_asn1_structure(
-    data: Span<'_, u8>,
+fn parse_an_asn1_structure(
+    data: &[u8],
     structure: Asn1Structure,
     exact_data: bool,
-    out: *mut c_void,
-) -> Result<(), Utf16String> {
+) -> Result<Asn1Value<'_>, Utf16String> {
     // 1. Let data be a sequence of bytes to be parsed.
     // 2. Let structure be the ASN.1 structure to be parsed.
     // 3. Let exactData be an optional boolean value. If it is not supplied, let it be initialized to true.
 
     // 4. Parse data according to the Distinguished Encoding Rules of [X690], using structure as the ASN.1 structure to be decoded.
-    let mut all_consumed = false;
-    // SAFETY: The caller passes a live native value of the specified structure.
-    let error = unsafe { web_crypto_decode_asn1_structure(data, structure, out, &mut all_consumed) };
-    if error != 0 {
-        // SAFETY: The decoder hands over an owned diagnostic string.
-        let detail = unsafe { Utf16String::from_raw_owned(error) };
+    let parsed = libcrypto_rust::decode_asn1_structure(data, structure);
+    if let Err(detail) = parsed {
         let message = match structure {
             Asn1Structure::SubjectPublicKeyInfo => "Error parsing subjectPublicKeyInfo: {}",
             Asn1Structure::PrivateKeyInfo => "Error parsing privateKeyInfo: {}",
@@ -208,6 +126,8 @@ unsafe fn parse_an_asn1_structure(
         };
         return Err(libjs_rust::api::utf16_formatted(message, &[&detail]));
     }
+
+    let (value, all_consumed) = parsed.expect("the ASN.1 structure was parsed");
 
     // 5. If exactData was specified, and all of the bytes of data were not consumed during the parsing phase, then throw a DataError.
     if exact_data && !all_consumed {
@@ -217,25 +137,29 @@ unsafe fn parse_an_asn1_structure(
     }
 
     // 6. Return the parsed ASN.1 structure.
-    Ok(())
+    Ok(value)
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-a-spki
-unsafe fn parse_a_subject_public_key_info(data: Span<'_, u8>, out: *mut c_void) -> Result<(), Utf16String> {
+fn parse_a_subject_public_key_info(data: &[u8]) -> Result<KeyInfo, Utf16String> {
     // When this specification says to parse a subjectPublicKeyInfo, the user agent must parse an ASN.1 structure,
     // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of subjectPublicKeyInfo,
     // as specified in [RFC5280], and exactData set to true.
-    // SAFETY: The caller passes a live native SubjectPublicKey.
-    unsafe { parse_an_asn1_structure(data, Asn1Structure::SubjectPublicKeyInfo, true, out) }
+    let Asn1Value::KeyInfo(key_info) = parse_an_asn1_structure(data, Asn1Structure::SubjectPublicKeyInfo, true)? else {
+        unreachable!("the ASN.1 structure is key info")
+    };
+    Ok(key_info)
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-a-privateKeyInfo
-unsafe fn parse_a_private_key_info(data: Span<'_, u8>, out: *mut c_void) -> Result<(), Utf16String> {
+fn parse_a_private_key_info(data: &[u8]) -> Result<KeyInfo, Utf16String> {
     // When this specification says to parse a PrivateKeyInfo, the user agent must parse an ASN.1 structure
     // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of PrivateKeyInfo,
     // as specified in [RFC5208], and exactData set to true.
-    // SAFETY: The caller passes a live native PrivateKey.
-    unsafe { parse_an_asn1_structure(data, Asn1Structure::PrivateKeyInfo, true, out) }
+    let Asn1Value::KeyInfo(key_info) = parse_an_asn1_structure(data, Asn1Structure::PrivateKeyInfo, true)? else {
+        unreachable!("the ASN.1 structure is key info")
+    };
+    Ok(key_info)
 }
 
 #[derive(Clone, Trace)]
@@ -276,18 +200,6 @@ pub(crate) struct EncapsulatedBitsData {
 pub(crate) struct EncapsulatedKeyData {
     pub(crate) shared_key: Ref<CryptoKey>,
     pub(crate) ciphertext: Option<Bytes>,
-}
-
-type ReceiveBytes = unsafe extern "C" fn(*mut c_void, Span<'_, u8>);
-
-fn receive_native_bytes<T>(call: impl FnOnce(*mut c_void, ReceiveBytes) -> T) -> (T, Option<Bytes>) {
-    let mut bytes: Option<Bytes> = None;
-    let status = call(core::ptr::from_mut(&mut bytes).cast(), receive_bytes);
-    (status, bytes)
-}
-
-unsafe extern "C" {
-    fn web_crypto_public_key_for_private_key(key: *const c_void, name: usize, named_curve: usize) -> *mut c_void;
 }
 
 pub(crate) trait AlgorithmMethods: Trace {
@@ -482,56 +394,6 @@ pub(crate) trait AlgorithmMethods: Trace {
     }
 }
 
-#[repr(i32)]
-enum ShaHashKind {
-    Sha1 = 4,
-    Sha256,
-    Sha384,
-    Sha512,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-}
-
-#[repr(i32)]
-enum CShakeKind {
-    CShake128,
-    CShake256,
-}
-
-#[repr(C)]
-struct OptionalBytes<'a> {
-    has_value: bool,
-    bytes: Span<'a, u8>,
-}
-
-impl<'a> From<Option<&'a Bytes>> for OptionalBytes<'a> {
-    fn from(value: Option<&'a Bytes>) -> Self {
-        Self {
-            has_value: value.is_some(),
-            bytes: Span::new(value.map_or(&[], Bytes::as_slice)),
-        }
-    }
-}
-
-unsafe extern "C" {
-    fn web_crypto_sha_digest(kind: ShaHashKind, data: Span<'_, u8>, state: *mut c_void, receive: ReceiveBytes) -> bool;
-    fn web_crypto_cshake_validate_parameters(
-        output_length: u32,
-        customization: OptionalBytes<'_>,
-        function_name: OptionalBytes<'_>,
-    ) -> usize;
-    fn web_crypto_cshake_digest(
-        kind: CShakeKind,
-        data: Span<'_, u8>,
-        output_length: u32,
-        customization: OptionalBytes<'_>,
-        function_name: OptionalBytes<'_>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-}
-
 fn get_optional_buffer_source(vm: &Vm, object: Gc<Object>, name: &PropertyKey) -> WebIdlResult<Option<Bytes>> {
     if !object.has_property(vm, name)? {
         return Ok(None);
@@ -636,12 +498,9 @@ impl AlgorithmMethods for Sha {
             ));
         };
 
-        // SAFETY: The input and the output slot live for the call.
-        let (success, result_buffer) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_sha_digest(hash_kind, Span::new(data.as_slice()), state, receive)
-        });
+        let result_buffer = libcrypto_rust::sha_digest(hash_kind, data.as_slice()).map(Bytes::new);
         // 2. If performing the operation results in an error, then throw an OperationError.
-        if !success {
+        if result_buffer.is_err() {
             return Err(Exception::Dom(
                 "OperationError",
                 Utf16String::from_utf8("Failed to create result buffer"),
@@ -660,17 +519,13 @@ impl AlgorithmMethods for CShakeParams {
     fn validate_digest_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
         // NB: Step 5 throws an OperationError for the parameters that our cSHAKE does not support.
         let normalized_algorithm = self;
-        // SAFETY: The parameters live for the call.
-        let result = unsafe {
-            web_crypto_cshake_validate_parameters(
-                normalized_algorithm.output_length,
-                normalized_algorithm.customization.as_ref().into(),
-                normalized_algorithm.function_name.as_ref().into(),
-            )
-        };
-        if result != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(result) };
+
+        let result = libcrypto_rust::cshake_validate_parameters(
+            normalized_algorithm.output_length,
+            normalized_algorithm.customization.as_ref().map(Bytes::as_slice),
+            normalized_algorithm.function_name.as_ref().map(Bytes::as_slice),
+        );
+        if let Err(detail) = result {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Hash function failed: {}", &[&detail]),
@@ -711,23 +566,17 @@ impl AlgorithmMethods for CShakeParams {
             unreachable!("the algorithm is cSHAKE128 or cSHAKE256");
         };
 
-        // SAFETY: The input and the output slot live for the call.
-        let (maybe_result, result) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_cshake_digest(
-                kind,
-                Span::new(data.as_slice()),
-                output_length,
-                customization.into(),
-                function_name.into(),
-                state,
-                receive,
-            )
-        });
+        let result = libcrypto_rust::cshake_digest(
+            kind,
+            data.as_slice(),
+            output_length,
+            customization.map(Bytes::as_slice),
+            function_name.map(Bytes::as_slice),
+        )
+        .map(Bytes::new);
 
         // 5. If performing the operation results in an error, then throw an OperationError.
-        if maybe_result != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_result) };
+        if let Err(detail) = result {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Hash function failed: {}", &[&detail]),
@@ -752,28 +601,16 @@ fn parse_jwk_symmetric_key(vm: &Vm, jwk: &JsonWebKey) -> WebIdlResult<Bytes> {
 }
 
 fn base64_url_bytes_decode(vm: &Vm, base64_url_string: &Utf16String) -> WebIdlResult<Bytes> {
-    let mut result: Option<Bytes> = None;
-    let mut error_message = 0;
-    // SAFETY: The receiver borrows the decoded bytes for the call.
-    let status = unsafe {
-        decode_base64url(
-            base64_url_string,
-            core::ptr::from_mut(&mut result).cast(),
-            receive_bytes,
-            &mut error_message,
-        )
-    };
-    match status {
-        Base64DecodeResult::Success => Ok(result.expect("LibWeb returns the decoded bytes")),
-        Base64DecodeResult::OutOfMemory => vm
+    match libcrypto_rust::decode_base64url(base64_url_string) {
+        Ok(bytes) => Ok(Bytes::new(bytes)),
+        Err(Base64DecodeError::OutOfMemory) => vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
             .map_err(Into::into),
-        Base64DecodeResult::NonAscii => Err(dom_error("DataError", b"base64 decode: invalid base64url")),
-        Base64DecodeResult::InvalidBase64 => {
-            // SAFETY: The decoder hands over an owned diagnostic string.
-            let message = unsafe { Utf16String::from_raw_owned(error_message) };
-            Err(Exception::Dom("DataError", message))
-        }
+        Err(Base64DecodeError::NonAscii) => Err(dom_error("DataError", b"base64 decode: invalid base64url")),
+        Err(Base64DecodeError::InvalidBase64(detail)) => Err(Exception::Dom(
+            "DataError",
+            libjs_rust::api::utf16_formatted("base64 decode: {}", &[&detail]),
+        )),
     }
 }
 
@@ -882,8 +719,8 @@ fn generate_random_key(vm: &Vm, size_in_bits: u32) -> WebIdlResult<Vec<u8>> {
             .map_err(Into::into);
     }
     key_buffer.resize(length_in_bytes, 0);
-    // SAFETY: The service writes the bytes during this call.
-    unsafe { web_crypto_fill_with_random(SpanMut::new(&mut key_buffer)) };
+
+    libcrypto_rust::fill_with_random(&mut key_buffer);
     keep_first_bits(&mut key_buffer, size_in_bits);
     Ok(key_buffer)
 }
@@ -906,35 +743,6 @@ fn validate_kmac_key_length(length_in_bits: u32) -> WebIdlResult<()> {
     Ok(())
 }
 
-#[repr(i32)]
-#[derive(Clone, Copy)]
-enum KmacKind {
-    Kmac128,
-    Kmac256,
-}
-
-unsafe extern "C" {
-    fn web_crypto_hmac_sign(
-        kind: ShaHashKind,
-        key: Span<'_, u8>,
-        message: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    );
-    fn web_crypto_timing_safe_compare(left: Span<'_, u8>, right: Span<'_, u8>) -> bool;
-    fn web_crypto_kmac_default_key_length(kind: KmacKind) -> u32;
-    fn web_crypto_kmac_validate_parameters(output_length: u32, customization: OptionalBytes<'_>) -> bool;
-    fn web_crypto_kmac_sign(
-        kind: KmacKind,
-        key: Span<'_, u8>,
-        message: Span<'_, u8>,
-        output_length: u32,
-        customization: OptionalBytes<'_>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-}
-
 fn hmac_calculate_message_digest(hash_name: &Utf16String, key: &[u8], message: &[u8]) -> WebIdlResult<Bytes> {
     let hash_kind = if matches!(hash_name.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
         ShaHashKind::Sha1
@@ -951,11 +759,8 @@ fn hmac_calculate_message_digest(hash_name: &Utf16String, key: &[u8], message: &
         ));
     };
 
-    // SAFETY: The input and output are lent for the duration of the call.
-    let ((), mac) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_hmac_sign(hash_kind, Span::new(key), Span::new(message), state, receive);
-    });
-    Ok(mac.expect("LibCrypto returns a MAC"))
+    let mac = Bytes::new(libcrypto_rust::hmac_sign(hash_kind, key, message));
+    Ok(mac)
 }
 
 fn hmac_hash_block_size(hash: &HashAlgorithmIdentifier) -> WebIdlResult<u32> {
@@ -999,19 +804,15 @@ fn kmac_calculate_mac(
         return Err(dom_error("OperationError", b"Unsupported KMAC algorithm"));
     };
 
-    // SAFETY: The input and output are lent for the duration of the call.
-    let (success, mac) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_kmac_sign(
-            kind,
-            Span::new(key),
-            Span::new(message),
-            output_length_bits,
-            customization.into(),
-            state,
-            receive,
-        )
-    });
-    if !success {
+    let mac = libcrypto_rust::kmac_sign(
+        kind,
+        key,
+        message,
+        output_length_bits,
+        customization.map(Bytes::as_slice),
+    )
+    .map(Bytes::new);
+    if mac.is_err() {
         return Err(dom_error("OperationError", b"KMAC operation failed"));
     }
     Ok(mac.expect("LibCrypto returns a MAC"))
@@ -1107,9 +908,9 @@ impl AlgorithmMethods for Hmac {
 
         // 2. Return true if mac is equal to signature and false otherwise. This comparison must be performed in
         //    constant-time.
-        // SAFETY: The input bytes live for the duration of the comparison.
+
         Ok(mac.as_slice().len() == signature.as_slice().len()
-            && unsafe { web_crypto_timing_safe_compare(Span::new(mac.as_slice()), Span::new(signature.as_slice())) })
+            && libcrypto_rust::timing_safe_compare(mac.as_slice(), signature.as_slice()))
     }
 
     // https://w3c.github.io/webcrypto/#hmac-operations-export-key
@@ -1620,13 +1421,11 @@ impl AlgorithmMethods for KmacParams {
     fn validate_sign_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
         // NB: Step 2 fails for the output lengths and customizations that our KMAC does not support.
         let normalized_algorithm = self;
-        // SAFETY: The parameters are lent for the call.
-        let result = unsafe {
-            web_crypto_kmac_validate_parameters(
-                normalized_algorithm.output_length,
-                normalized_algorithm.customization.as_ref().into(),
-            )
-        };
+
+        let result = libcrypto_rust::kmac_validate_parameters(
+            normalized_algorithm.output_length,
+            normalized_algorithm.customization.as_ref().map(Bytes::as_slice),
+        );
         if !result {
             return Err(dom_error("OperationError", b"KMAC operation failed"));
         }
@@ -1678,13 +1477,11 @@ impl AlgorithmMethods for KmacParams {
     fn validate_verify_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
         // NB: Step 2 fails for the output lengths and customizations that our KMAC does not support.
         let normalized_algorithm = self;
-        // SAFETY: The parameters are lent for the call.
-        let result = unsafe {
-            web_crypto_kmac_validate_parameters(
-                normalized_algorithm.output_length,
-                normalized_algorithm.customization.as_ref().into(),
-            )
-        };
+
+        let result = libcrypto_rust::kmac_validate_parameters(
+            normalized_algorithm.output_length,
+            normalized_algorithm.customization.as_ref().map(Bytes::as_slice),
+        );
         if !result {
             return Err(dom_error("OperationError", b"KMAC operation failed"));
         }
@@ -1732,9 +1529,9 @@ impl AlgorithmMethods for KmacParams {
         // 4. Let computedMac be the Keccak encoding of mac.
         // 5. Return true if computedMac is equal to signature and false otherwise. This comparison must be performed in
         //    constant-time.
-        // SAFETY: The input bytes live for the duration of the comparison.
+
         Ok(mac.as_slice().len() == signature.as_slice().len()
-            && unsafe { web_crypto_timing_safe_compare(Span::new(mac.as_slice()), Span::new(signature.as_slice())) })
+            && libcrypto_rust::timing_safe_compare(mac.as_slice(), signature.as_slice()))
     }
 }
 
@@ -1782,8 +1579,8 @@ impl AlgorithmMethods for KmacKeyGenParams {
             let Some(kind) = kmac_kind_from_algorithm_name(&algorithm.name) else {
                 return Err(dom_error("OperationError", b"Unsupported KMAC algorithm"));
             };
-            // SAFETY: The enum variant names a LibCrypto KMAC algorithm.
-            unsafe { web_crypto_kmac_default_key_length(kind) }
+
+            libcrypto_rust::kmac_default_key_length(kind)
         };
 
         validate_kmac_key_length(length)?;
@@ -2009,8 +1806,8 @@ impl AlgorithmMethods for KmacImportParams {
             let Some(kind) = kmac_kind_from_algorithm_name(&algorithm.name) else {
                 return Err(dom_error("OperationError", b"Unsupported KMAC algorithm"));
             };
-            // SAFETY: The enum variant names a LibCrypto KMAC algorithm.
-            unsafe { web_crypto_kmac_default_key_length(kind) }
+
+            libcrypto_rust::kmac_default_key_length(kind)
         };
 
         // 2. Return length.
@@ -2227,55 +2024,6 @@ impl Argon2Params {
     }
 }
 
-#[repr(i32)]
-enum Argon2Type {
-    Argon2d,
-    Argon2i,
-    Argon2id,
-}
-
-#[repr(C)]
-struct Argon2Inputs<'a> {
-    message: Span<'a, u8>,
-    nonce: Span<'a, u8>,
-    parallelism: u32,
-    memory: u32,
-    passes: u32,
-    version: u32,
-    secret_value: OptionalBytes<'a>,
-    associated_data: OptionalBytes<'a>,
-    tag_length: u32,
-}
-
-unsafe extern "C" {
-    fn web_crypto_hash_digest_size(kind: ShaHashKind) -> usize;
-    fn web_crypto_hkdf_derive_key(
-        kind: ShaHashKind,
-        salt: Span<'_, u8>,
-        key: Span<'_, u8>,
-        info: Span<'_, u8>,
-        length: u32,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_pbkdf2_derive_key(
-        kind: ShaHashKind,
-        password: Span<'_, u8>,
-        salt: Span<'_, u8>,
-        iterations: u32,
-        length: u32,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_argon2_validate_parameters(nonce: Span<'_, u8>) -> usize;
-    fn web_crypto_argon2_derive_key(
-        kind: Argon2Type,
-        inputs: &Argon2Inputs<'_>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-}
-
 fn sha_hash_kind(hash_algorithm: &Utf16String) -> Result<ShaHashKind, Utf16String> {
     if matches!(hash_algorithm.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
         return Ok(ShaHashKind::Sha1);
@@ -2385,8 +2133,8 @@ impl AlgorithmMethods for HkdfParams {
         //    normalizedAlgorithm.
         let hash_kind = sha_hash_kind(&normalized_algorithm.hash.name)
             .map_err(|message| Exception::Dom("NotSupportedError", message))?;
-        // SAFETY: The hash kind is one of the native SHA algorithms.
-        let hash_length = unsafe { web_crypto_hash_digest_size(hash_kind) } * 8;
+
+        let hash_length = libcrypto_rust::hash_digest_size(hash_kind) * 8;
 
         // 3. If length is greater than 255 * hashLength, then throw an OperationError.
         if length as usize > 255 * hash_length {
@@ -2435,21 +2183,17 @@ impl AlgorithmMethods for HkdfParams {
             return Ok(Bytes::new(Vec::new()));
         }
 
-        // SAFETY: The inputs and output are lent for this call.
-        let (success, result) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_hkdf_derive_key(
-                hash_kind,
-                Span::new(normalized_algorithm.salt.as_slice()),
-                Span::new(key_derivation_key),
-                Span::new(normalized_algorithm.info.as_slice()),
-                length / 8,
-                state,
-                receive,
-            )
-        });
+        let result = libcrypto_rust::hkdf_derive_key(
+            hash_kind,
+            normalized_algorithm.salt.as_slice(),
+            key_derivation_key,
+            normalized_algorithm.info.as_slice(),
+            length / 8,
+        )
+        .map(Bytes::new);
 
         // 6. If the key derivation operation fails, then throw an OperationError.
-        if !success {
+        if result.is_err() {
             return Err(dom_error("OperationError", b"Failed to derive key"));
         }
 
@@ -2523,21 +2267,17 @@ impl AlgorithmMethods for Pbkdf2Params {
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
 
-        // SAFETY: The inputs and output are lent for this call.
-        let (success, result) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_pbkdf2_derive_key(
-                hash_kind,
-                Span::new(password),
-                Span::new(salt.as_slice()),
-                iterations,
-                derived_key_length_bytes,
-                state,
-                receive,
-            )
-        });
+        let result = libcrypto_rust::pbkdf2_derive_key(
+            hash_kind,
+            password,
+            salt.as_slice(),
+            iterations,
+            derived_key_length_bytes,
+        )
+        .map(Bytes::new);
 
         // 6. If the key derivation operation fails, then throw an OperationError.
-        if !success {
+        if result.is_err() {
             return Err(dom_error("OperationError", b"Failed to derive key"));
         }
 
@@ -2705,11 +2445,8 @@ impl AlgorithmMethods for Argon2Params {
         }
 
         // NB: Our Argon2 rejects short nonces.
-        // SAFETY: The nonce is lent to the validation service.
-        let result = unsafe { web_crypto_argon2_validate_parameters(Span::new(normalized_algorithm.nonce.as_slice())) };
-        if result != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(result) };
+        let result = libcrypto_rust::argon2_validate_parameters(normalized_algorithm.nonce.as_slice());
+        if let Err(detail) = result {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Hashing function failed: {}", &[&detail]),
@@ -2761,25 +2498,21 @@ impl AlgorithmMethods for Argon2Params {
         //    v, secretValue (if present) as the secret value, K, associatedData (if present) as the associated data, X, type
         //    as the type, y, and length divided by 8 as the tag length, T.
         let inputs = Argon2Inputs {
-            message: Span::new(key.byte_handle_bytes()),
-            nonce: Span::new(normalized_algorithm.nonce.as_slice()),
+            password: key.byte_handle_bytes(),
+            nonce: normalized_algorithm.nonce.as_slice(),
             parallelism: normalized_algorithm.parallelism,
             memory: normalized_algorithm.memory,
             passes: normalized_algorithm.passes,
             version: 0x13,
-            secret_value: secret_value.into(),
-            associated_data: associated_data.into(),
+            secret_value: secret_value.map(Bytes::as_slice),
+            associated_data: associated_data.map(Bytes::as_slice),
             tag_length: length.expect("validation requires a length") / 8,
         };
-        // SAFETY: The inputs and output are lent for this call.
-        let (maybe_result, result) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_argon2_derive_key(kind, &inputs, state, receive)
-        });
+
+        let result = libcrypto_rust::argon2_derive_key(kind, &inputs).map(Bytes::new);
 
         // 10. If the key derivation operation fails, then throw an OperationError.
-        if maybe_result != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_result) };
+        if let Err(detail) = result {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Hashing function failed: {}", &[&detail]),
@@ -2947,60 +2680,6 @@ impl AesParameters {
     }
 }
 
-unsafe extern "C" {
-    fn web_crypto_aes_cbc_cipher(
-        encrypt: bool,
-        key: Span<'_, u8>,
-        input: Span<'_, u8>,
-        iv: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_aes_ctr_cipher(
-        encrypt: bool,
-        key: Span<'_, u8>,
-        input: Span<'_, u8>,
-        counter: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_aes_kw_cipher(
-        wrap: bool,
-        key: Span<'_, u8>,
-        input: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_aes_gcm_encrypt(
-        key: Span<'_, u8>,
-        plaintext: Span<'_, u8>,
-        iv: Span<'_, u8>,
-        additional_data: Span<'_, u8>,
-        tag_length: usize,
-        ciphertext: *mut c_void,
-        tag: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_aes_gcm_decrypt(
-        key: Span<'_, u8>,
-        ciphertext: Span<'_, u8>,
-        iv: Span<'_, u8>,
-        additional_data: Span<'_, u8>,
-        tag: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_aes_ocb_cipher(
-        encrypt: bool,
-        key: Span<'_, u8>,
-        input: Span<'_, u8>,
-        iv: Span<'_, u8>,
-        additional_data: Span<'_, u8>,
-        tag_length: usize,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-}
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct AesCbc {
@@ -3044,18 +2723,14 @@ impl AlgorithmMethods for AesCbc {
         // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of
         //    [NIST-SP800-38A] using AES as the block cipher, the iv member of normalizedAlgorithm as the IV input
         //    parameter and paddedPlaintext as the input plaintext.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_cbc_cipher(
-                true,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(plaintext.as_slice()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_ciphertext {
+        let ciphertext = libcrypto_rust::aes_cbc_cipher(
+            true,
+            key.byte_handle_bytes(),
+            plaintext.as_slice(),
+            normalized_algorithm.iv.as_slice(),
+        )
+        .map(Bytes::new);
+        if ciphertext.is_err() {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
 
@@ -3098,18 +2773,14 @@ impl AlgorithmMethods for AesCbc {
         // 4. Let p be the value of the last octet of paddedPlaintext.
         // 5. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
         // 6. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_cbc_cipher(
-                false,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(ciphertext.as_slice()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_plaintext {
+        let plaintext = libcrypto_rust::aes_cbc_cipher(
+            false,
+            key.byte_handle_bytes(),
+            ciphertext.as_slice(),
+            normalized_algorithm.iv.as_slice(),
+        )
+        .map(Bytes::new);
+        if plaintext.is_err() {
             return Err(dom_error("OperationError", b"Failed to decrypt"));
         }
 
@@ -3851,18 +3522,10 @@ impl AlgorithmMethods for AesCtr {
         //    value of the counter block, the length member of normalizedAlgorithm as the input parameter m to the
         //    standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A] and plaintext as
         //    the input plaintext.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_ctr_cipher(
-                true,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(plaintext.as_slice()),
-                Span::new(counter.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_ciphertext {
+        let ciphertext =
+            libcrypto_rust::aes_ctr_cipher(true, key.byte_handle_bytes(), plaintext.as_slice(), counter.as_slice())
+                .map(Bytes::new);
+        if ciphertext.is_err() {
             return Err(dom_error("OperationError", b"Encryption failed"));
         }
 
@@ -3904,18 +3567,14 @@ impl AlgorithmMethods for AesCtr {
         //    value of the counter block, the length member of normalizedAlgorithm as the input parameter m to the
         //    standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A] and ciphertext as
         //    the input ciphertext.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_ctr_cipher(
-                false,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(ciphertext.as_slice()),
-                Span::new(counter.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_plaintext {
+        let plaintext = libcrypto_rust::aes_ctr_cipher(
+            false,
+            key.byte_handle_bytes(),
+            ciphertext.as_slice(),
+            counter.as_slice(),
+        )
+        .map(Bytes::new);
+        if plaintext.is_err() {
             return Err(dom_error("OperationError", b"Decryption failed"));
         }
 
@@ -4268,36 +3927,25 @@ impl AlgorithmMethods for AesGcm {
         //    Section 7.1 of [NIST-SP800-38D] using AES as the block cipher, the iv member of normalizedAlgorithm as the
         //    IV input parameter, additionalData as the A input parameter, tagLength as the t pre-requisite and
         //    plaintext as the input plaintext.
-        let mut ciphertext: Option<Bytes> = None;
-        let mut tag: Option<Bytes> = None;
-        // SAFETY: The inputs and output slots live for the call.
-        let maybe_encrypted = unsafe {
-            web_crypto_aes_gcm_encrypt(
-                Span::new(key.byte_handle_bytes()),
-                Span::new(plaintext.as_slice()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(additional_data),
-                tag_length / 8,
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                core::ptr::from_mut(&mut tag).cast(),
-                receive_bytes,
-            )
-        };
-        if !maybe_encrypted {
+        let encrypted = libcrypto_rust::aes_gcm_encrypt(
+            key.byte_handle_bytes(),
+            plaintext.as_slice(),
+            normalized_algorithm.iv.as_slice(),
+            additional_data,
+            tag_length / 8,
+        );
+        let Ok((mut ciphertext, tag)) = encrypted else {
             return Err(dom_error("OperationError", b"Encryption failed"));
-        }
-
-        let mut ciphertext = Rc::unwrap_or_clone(ciphertext.expect("LibCrypto returns ciphertext").0);
-        let tag = tag.expect("LibCrypto returns an authentication tag");
+        };
 
         // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
-        if ciphertext.try_reserve_exact(tag.as_slice().len()).is_err() {
+        if ciphertext.try_reserve_exact(tag.len()).is_err() {
             return cx
                 .vm()
                 .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
                 .map_err(Into::into);
         }
-        ciphertext.extend_from_slice(tag.as_slice());
+        ciphertext.extend_from_slice(&tag);
 
         // 8. Return ciphertext.
         Ok(Bytes::new(ciphertext))
@@ -4380,20 +4028,16 @@ impl AlgorithmMethods for AesGcm {
         //    input parameter, tagLength as the t pre-requisite, actualCiphertext as the input ciphertext, C and tag as
         //    the authentication tag, T.
         // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
-        // SAFETY: The inputs and output slot live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_gcm_decrypt(
-                Span::new(key.byte_handle_bytes()),
-                Span::new(&actual_ciphertext),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(additional_data),
-                Span::new(&tag),
-                state,
-                receive,
-            )
-        });
+        let plaintext = libcrypto_rust::aes_gcm_decrypt(
+            key.byte_handle_bytes(),
+            &actual_ciphertext,
+            normalized_algorithm.iv.as_slice(),
+            additional_data,
+            &tag,
+        )
+        .map(Bytes::new);
 
-        if !maybe_plaintext {
+        if plaintext.is_err() {
             return Err(dom_error("OperationError", b"Decryption failed"));
         }
 
@@ -4836,17 +4480,9 @@ impl AlgorithmMethods for AesKw {
 
         // 2. Let ciphertext be the result of performing the Key Wrap operation described in Section 2.2.1 of [RFC3394]
         //    with plaintext as the plaintext to be wrapped and using the default Initial Value defined in Section 2.2.3.1 of the same document.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_kw_cipher(
-                true,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(plaintext.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_ciphertext {
+        let ciphertext =
+            libcrypto_rust::aes_kw_cipher(true, key.byte_handle_bytes(), plaintext.as_slice()).map(Bytes::new);
+        if ciphertext.is_err() {
             return Err(dom_error("OperationError", b"Key wrap failed"));
         }
 
@@ -4865,17 +4501,9 @@ impl AlgorithmMethods for AesKw {
         //    with ciphertext as the input ciphertext and using the default Initial Value defined in Section 2.2.3.1 of
         //    the same document.
         // 2. If the Key Unwrap operation returns an error, then throw an OperationError.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_kw_cipher(
-                false,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(ciphertext.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_plaintext {
+        let plaintext =
+            libcrypto_rust::aes_kw_cipher(false, key.byte_handle_bytes(), ciphertext.as_slice()).map(Bytes::new);
+        if plaintext.is_err() {
             return Err(dom_error("OperationError", b"Key unwrap failed"));
         }
 
@@ -4953,23 +4581,17 @@ impl AlgorithmMethods for AesOcb {
         //    additionalData as the A input parameter,
         //    plaintext as the P input parameter,
         //    and tagLength as the TAGLEN global parameter.
-        // SAFETY: The inputs and output slot live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_ocb_cipher(
-                true,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(plaintext.as_slice()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(additional_data),
-                tag_length,
-                state,
-                receive,
-            )
-        });
+        let ciphertext = libcrypto_rust::aes_ocb_cipher(
+            true,
+            key.byte_handle_bytes(),
+            plaintext.as_slice(),
+            normalized_algorithm.iv.as_slice(),
+            additional_data,
+            tag_length,
+        )
+        .map(Bytes::new);
 
-        if maybe_ciphertext != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_ciphertext) };
+        if let Err(detail) = ciphertext {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Encryption failed: {}", &[&detail]),
@@ -5039,19 +4661,15 @@ impl AlgorithmMethods for AesOcb {
         //    additionalData as the A input parameter,
         //    ciphertext as the C input parameter,
         //    and tagLength as the TAGLEN global parameter.
-        // SAFETY: The inputs and output slot live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_aes_ocb_cipher(
-                false,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(ciphertext.as_slice()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(additional_data),
-                tag_length,
-                state,
-                receive,
-            )
-        });
+        let plaintext = libcrypto_rust::aes_ocb_cipher(
+            false,
+            key.byte_handle_bytes(),
+            ciphertext.as_slice(),
+            normalized_algorithm.iv.as_slice(),
+            additional_data,
+            tag_length,
+        )
+        .map(Bytes::new);
 
         // 5. Perform the OCB-DECRYPT function described in Section 4.3 of [RFC7253] using AES as the block cipher,
         //    using the key represented by [[handle]] internal slot of key as the K input parameter, the iv member of
@@ -5061,9 +4679,7 @@ impl AlgorithmMethods for AesOcb {
         //       throw an OperationError
         //    Otherwise:
         //       Let plaintext be the output P of OCB-DECRYPT.
-        if maybe_plaintext != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_plaintext) };
+        if let Err(detail) = plaintext {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Decryption failed: {}", &[&detail]),
@@ -5435,18 +5051,6 @@ impl ChaCha20Poly1305 {
     }
 }
 
-unsafe extern "C" {
-    fn web_crypto_chacha20_poly1305_cipher(
-        encrypt: bool,
-        key: Span<'_, u8>,
-        iv: Span<'_, u8>,
-        input: Span<'_, u8>,
-        additional_data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-}
-
 impl AlgorithmMethods for ChaCha20Poly1305 {
     // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
     fn validate_encrypt_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
@@ -5482,22 +5086,16 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         //    described in Section 2.8 of [RFC8439], using the key represented by [[handle]] internal slot of key as the
         //    key input parameter, the iv member of normalizedAlgorithm as the nonce input parameter, plaintext as the
         //    plaintext input parameter, and additionalData as the additional authenticated data (AAD) input parameter.
-        // SAFETY: The inputs and output slot live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_chacha20_poly1305_cipher(
-                true,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(plaintext.as_slice()),
-                Span::new(additional_data),
-                state,
-                receive,
-            )
-        });
+        let ciphertext = libcrypto_rust::chacha20_poly1305_cipher(
+            true,
+            key.byte_handle_bytes(),
+            normalized_algorithm.iv.as_slice(),
+            plaintext.as_slice(),
+            additional_data,
+        )
+        .map(Bytes::new);
 
-        if maybe_ciphertext != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_ciphertext) };
+        if let Err(detail) = ciphertext {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Encryption failed: {}", &[&detail]),
@@ -5547,26 +5145,20 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         //    represented by [[handle]] internal slot of key as the key input parameter, the iv member of normalizedAlgorithm
         //    as the nonce input parameter, ciphertext as the ciphertext input parameter, and additionalData as the additional
         //    authenticated data (AAD) input parameter.
-        // SAFETY: The inputs and output slot live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_chacha20_poly1305_cipher(
-                false,
-                Span::new(key.byte_handle_bytes()),
-                Span::new(normalized_algorithm.iv.as_slice()),
-                Span::new(ciphertext.as_slice()),
-                Span::new(additional_data),
-                state,
-                receive,
-            )
-        });
+        let plaintext = libcrypto_rust::chacha20_poly1305_cipher(
+            false,
+            key.byte_handle_bytes(),
+            normalized_algorithm.iv.as_slice(),
+            ciphertext.as_slice(),
+            additional_data,
+        )
+        .map(Bytes::new);
 
         // If the result of the algorithm is the indication of authentication failure:
         //       throw an OperationError
         //    Otherwise:
         //       Let plaintext be the resulting plaintext.
-        if maybe_plaintext != 0 {
-            // SAFETY: LibCrypto transfers an ownership reference.
-            let detail = unsafe { Utf16String::from_raw_owned(maybe_plaintext) };
+        if let Err(detail) = plaintext {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Decryption failed: {}", &[&detail]),
@@ -5972,194 +5564,13 @@ impl RsaParameters {
     }
 }
 
-#[repr(u8)]
-enum RsaJwkInteger {
-    Modulus,
-    PublicExponent,
-    PrivateExponent,
-    Prime1,
-    Prime2,
-    Exponent1,
-    Exponent2,
-    Coefficient,
-}
-
-unsafe extern "C" {
-    fn web_crypto_asn1_allocate_key_info(structure: Asn1Structure) -> *mut c_void;
-    fn web_crypto_asn1_delete_key_info(structure: Asn1Structure, key_info: *mut c_void);
-    fn web_crypto_rsa_key_info_has_encryption_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
-    fn web_crypto_rsa_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
-    fn web_crypto_delete_uninstalled_key(key: *mut c_void);
-    fn web_crypto_rsa_key_is_valid(key: *const c_void, valid: &mut bool) -> bool;
-    fn web_crypto_rsa_validate_public_exponent(exponent: Span<'_, u8>, modulus_length: u32) -> bool;
-    fn web_crypto_rsa_validate_modulus_length(modulus_length: u32) -> bool;
-    fn web_crypto_rsa_generate_key_pair(
-        modulus_length: u32,
-        exponent: Span<'_, u8>,
-        public_key: &mut *mut c_void,
-        private_key: &mut *mut c_void,
-    ) -> bool;
-    fn web_crypto_rsa_export_public_exponent(exponent: Span<'_, u8>, state: *mut c_void, receive: ReceiveBytes)
-    -> bool;
-    fn web_crypto_rsa_read_key_metadata(
-        key: *const c_void,
-        modulus_length: &mut u32,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_key_from_jwk_components(is_private: bool, components: Span<'_, Span<'_, u8>>) -> *mut c_void;
-    fn web_crypto_rsa_export_der(
-        key: *const c_void,
-        is_public: bool,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_export_jwk_integer(
-        key: *const c_void,
-        component: RsaJwkInteger,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_oaep_cipher(
-        encrypt: bool,
-        hash_kind: ShaHashKind,
-        key: *const c_void,
-        label: Span<'_, u8>,
-        input: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_pss_sign(
-        hash_kind: ShaHashKind,
-        key: *const c_void,
-        salt_length: u32,
-        message: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_pss_verify(
-        hash_kind: ShaHashKind,
-        key: *const c_void,
-        salt_length: u32,
-        message: Span<'_, u8>,
-        signature: Span<'_, u8>,
-        verified: &mut bool,
-    ) -> bool;
-    fn web_crypto_rsa_pkcs1_sign(
-        hash_kind: ShaHashKind,
-        key: *const c_void,
-        message: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_rsa_pkcs1_verify(
-        hash_kind: ShaHashKind,
-        key: *const c_void,
-        message: Span<'_, u8>,
-        signature: Span<'_, u8>,
-        verified: &mut bool,
-    ) -> bool;
-}
-
-struct Asn1KeyInfo {
-    structure: Asn1Structure,
-    key_info: NonNull<c_void>,
-}
-
-impl Asn1KeyInfo {
-    fn parse(data: &Bytes, structure: Asn1Structure) -> WebIdlResult<Self> {
-        // SAFETY: The structure is either SubjectPublicKeyInfo or PrivateKeyInfo.
-        let key_info = unsafe { web_crypto_asn1_allocate_key_info(structure) };
-        let key_info = Self {
-            structure,
-            key_info: NonNull::new(key_info).expect("LibCrypto returns the key info"),
-        };
-        // SAFETY: The data and the native structure live for the call.
-        unsafe {
-            match structure {
-                Asn1Structure::SubjectPublicKeyInfo => {
-                    parse_a_subject_public_key_info(Span::new(data.as_slice()), key_info.key_info.as_ptr())
-                }
-                Asn1Structure::PrivateKeyInfo => {
-                    parse_a_private_key_info(Span::new(data.as_slice()), key_info.key_info.as_ptr())
-                }
-                Asn1Structure::OctetString => unreachable!("octet strings are not key info"),
-            }
-        }
-        .map_err(|message| Exception::Dom("DataError", message))?;
-        Ok(key_info)
-    }
-
-    fn has_rsa_encryption_oid(&self) -> bool {
-        // SAFETY: This object owns the live structure.
-        unsafe { web_crypto_rsa_key_info_has_encryption_oid(self.structure, self.key_info.as_ptr()) }
-    }
-
-    fn rsa_key(&self) -> UninstalledKey {
-        // SAFETY: This object owns the live structure.
-        let key = unsafe { web_crypto_rsa_key_info_read_key(self.structure, self.key_info.as_ptr()) };
-        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an RSA key"))
-    }
-}
-
-impl Drop for Asn1KeyInfo {
-    fn drop(&mut self) {
-        // SAFETY: This object owns the native structure.
-        unsafe { web_crypto_asn1_delete_key_info(self.structure, self.key_info.as_ptr()) };
-    }
-}
-
-struct UninstalledKey(NonNull<c_void>);
-
-impl Drop for UninstalledKey {
-    fn drop(&mut self) {
-        // SAFETY: This object owns the native RSA key.
-        unsafe { web_crypto_delete_uninstalled_key(self.0.as_ptr()) };
-    }
-}
-
-impl UninstalledKey {
-    fn is_valid(&self) -> Result<bool, ()> {
-        let mut valid = false;
-        // SAFETY: This object owns the native key and the output is writable.
-        let success = unsafe { web_crypto_rsa_key_is_valid(self.0.as_ptr(), &mut valid) };
-        if !success {
-            return Err(());
-        }
-        Ok(valid)
-    }
-
-    fn install(self, vm: &Vm) -> Ref<CryptoKey> {
-        let key = core::mem::ManuallyDrop::new(self).0;
-        // SAFETY: Ownership of the live key is transferred.
-        unsafe { CryptoKey::create_with_handle(vm, key) }
-    }
-}
-
-struct NativeKeyPair {
-    public_key: UninstalledKey,
-    private_key: UninstalledKey,
-}
-
-fn rsa_generate_key_pair(modulus_length: u32, exponent: &Bytes) -> Result<NativeKeyPair, ()> {
-    let mut public_key = null_mut();
-    let mut private_key = null_mut();
-    // SAFETY: The exponent and the output slots are lent for the call.
-    let success = unsafe {
-        web_crypto_rsa_generate_key_pair(
-            modulus_length,
-            Span::new(exponent.as_slice()),
-            &mut public_key,
-            &mut private_key,
-        )
+fn parse_key_info(data: &Bytes, structure: Asn1Structure) -> WebIdlResult<KeyInfo> {
+    let parsed = match structure {
+        Asn1Structure::SubjectPublicKeyInfo => parse_a_subject_public_key_info(data.as_slice()),
+        Asn1Structure::PrivateKeyInfo => parse_a_private_key_info(data.as_slice()),
+        Asn1Structure::OctetString => unreachable!("octet strings are not key info"),
     };
-    if !success {
-        return Err(());
-    }
-    Ok(NativeKeyPair {
-        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
-        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
-    })
+    parsed.map_err(|message| Exception::Dom("DataError", message))
 }
 
 // https://w3c.github.io/webcrypto/#dfn-validate-rsa-key-generation-parameters
@@ -6174,16 +5585,14 @@ fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams
     // 3. If modulusLength is less than 4, or if publicExponent is less than 3, is even, or is greater than or equal to
     //    2^modulusLength - 1, then throw an OperationError.
     // NOTE: publicExponent + 1 has more than modulusLength bits exactly when publicExponent >= 2^modulusLength - 1.
-    // SAFETY: The exponent bytes live for the call.
-    if modulus_length < 4
-        || !unsafe { web_crypto_rsa_validate_public_exponent(Span::new(public_exponent.as_slice()), modulus_length) }
-    {
+
+    if modulus_length < 4 || !libcrypto_rust::rsa_validate_public_exponent(public_exponent.as_slice(), modulus_length) {
         return Err(dom_error("OperationError", b"Invalid RSA key generation parameters"));
     }
 
     // NB: Generating the key pair fails for the moduli that our RSA does not support.
-    // SAFETY: This call takes no pointers.
-    if !unsafe { web_crypto_rsa_validate_modulus_length(modulus_length) } {
+
+    if !libcrypto_rust::rsa_validate_modulus_length(modulus_length) {
         return Err(dom_error(
             "OperationError",
             b"RSA modulus length must be at least 512 bits",
@@ -6193,11 +5602,8 @@ fn validate_rsa_key_generation_parameters(normalized_algorithm: &RsaKeyGenParams
 }
 
 fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
-    // SAFETY: The exponent and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_rsa_export_public_exponent(Span::new(exponent.as_slice()), state, receive)
-    });
-    if !success {
+    let result = libcrypto_rust::rsa_export_public_exponent(exponent.as_slice()).map(Bytes::new);
+    if result.is_err() {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
             .map_err(Into::into);
@@ -6206,23 +5612,10 @@ fn export_public_exponent(vm: &Vm, exponent: &Bytes) -> WebIdlResult<Vec<u8>> {
 }
 
 fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)> {
-    let mut modulus_length = 0;
-    // SAFETY: The key handle and the output slots are lent for the call.
-    let (success, exponent) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_rsa_read_key_metadata(key.handle().as_ptr(), &mut modulus_length, state, receive)
-    });
-    if !success {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
-    }
-    Ok((
-        modulus_length,
-        Rc::unwrap_or_clone(exponent.expect("LibCrypto returns the exponent").0),
-    ))
+    libcrypto_rust::rsa_read_key_metadata(key.handle()).map_err(|_| out_of_memory(vm))
 }
 
-fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledKey> {
+fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<KeyHandle> {
     let decode = |component: &Option<Utf16String>| {
         base64_url_bytes_decode(vm, component.as_ref().expect("the RSA JWK contains the component"))
     };
@@ -6243,18 +5636,13 @@ fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResul
         let n = decode(&jwk.n)?;
         vec![n, e]
     };
-    let components: Vec<_> = components.iter().map(|bytes| Span::new(bytes.as_slice())).collect();
-    // SAFETY: The decoded bytes are lent for the call.
-    let key = unsafe { web_crypto_rsa_key_from_jwk_components(is_private, Span::new(&components)) };
-    Ok(UninstalledKey(NonNull::new(key).expect("LibCrypto returns an RSA key")))
+    let components: Vec<_> = components.iter().map(Bytes::as_slice).collect();
+    Ok(libcrypto_rust::rsa_key_from_components(is_private, &components).expect("LibCrypto returns an RSA key"))
 }
 
 fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
-    // SAFETY: The key handle and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_rsa_export_der(key.handle().as_ptr(), is_public, state, receive)
-    });
-    if !success {
+    let result = libcrypto_rust::rsa_export_der(key.handle(), is_public).map(Bytes::new);
+    if result.is_err() {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
             .map_err(Into::into);
@@ -6263,11 +5651,8 @@ fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult
 }
 
 fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
-    // SAFETY: The key handle and the output slot are lent for the call.
-    let (success, bytes) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_rsa_export_jwk_integer(key.handle().as_ptr(), component, state, receive)
-    });
-    if !success {
+    let bytes = libcrypto_rust::rsa_export_jwk_integer(key.handle(), component).map(Bytes::new);
+    if bytes.is_err() {
         return Err(out_of_memory(vm));
     }
     let bytes = bytes.expect("LibCrypto returns the exported integer");
@@ -6350,19 +5735,10 @@ impl AlgorithmMethods for RsaOaep {
         };
 
         // 5. Let ciphertext be the value C that results from performing the operation.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_ciphertext, ciphertext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_rsa_oaep_cipher(
-                true,
-                hash_kind,
-                key.handle().as_ptr(),
-                Span::new(label.as_slice()),
-                Span::new(plaintext.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_ciphertext {
+        let ciphertext =
+            libcrypto_rust::rsa_oaep_cipher(true, hash_kind, key.handle(), label.as_slice(), plaintext.as_slice())
+                .map(Bytes::new);
+        if ciphertext.is_err() {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
 
@@ -6414,19 +5790,10 @@ impl AlgorithmMethods for RsaOaep {
         };
 
         // 5. Let plaintext the value M that results from performing the operation.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_plaintext, plaintext) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_rsa_oaep_cipher(
-                false,
-                hash_kind,
-                key.handle().as_ptr(),
-                Span::new(label.as_slice()),
-                Span::new(ciphertext.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_plaintext {
+        let plaintext =
+            libcrypto_rust::rsa_oaep_cipher(false, hash_kind, key.handle(), label.as_slice(), ciphertext.as_slice())
+                .map(Bytes::new);
+        if plaintext.is_err() {
             return Err(dom_error("OperationError", b"Failed to encrypt"));
         }
 
@@ -6475,9 +5842,9 @@ impl AlgorithmMethods for RsaOaep {
         // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
         //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
         // 4. If performing the operation results in an error, then throw an OperationError.
-        let maybe_key_pair = rsa_generate_key_pair(
+        let maybe_key_pair = libcrypto_rust::rsa_generate_key_pair(
             normalized_algorithm.key_gen.modulus_length,
-            &normalized_algorithm.key_gen.public_exponent,
+            normalized_algorithm.key_gen.public_exponent.as_slice(),
         );
         let Ok(key_pair) = maybe_key_pair else {
             return Err(dom_error("OperationError", b"Failed generating RSA key pair"));
@@ -6487,7 +5854,7 @@ impl AlgorithmMethods for RsaOaep {
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 11. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -6522,7 +5889,7 @@ impl AlgorithmMethods for RsaOaep {
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Encrypt, KeyUsage::WrapKey]));
 
         // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 16. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -6589,7 +5956,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -6608,7 +5975,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
-            let maybe_valid = public_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -6617,7 +5984,7 @@ impl AlgorithmMethods for RsaOaep {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
-            key = public_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), public_key);
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -6640,7 +6007,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -6659,7 +6026,7 @@ impl AlgorithmMethods for RsaOaep {
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
-            let maybe_valid = rsa_private_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&rsa_private_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -6668,7 +6035,7 @@ impl AlgorithmMethods for RsaOaep {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
-            key = rsa_private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), rsa_private_key);
 
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -6797,7 +6164,7 @@ impl AlgorithmMethods for RsaOaep {
                 let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
-                let maybe_valid = private_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -6806,7 +6173,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 4. Let key be a new CryptoKey representing privateKey.
-                key = private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 5. Set the [[type]] internal slot of key to "private"
                 key.set_type(KeyType::Private);
@@ -6822,7 +6189,7 @@ impl AlgorithmMethods for RsaOaep {
                 let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-                let maybe_valid = public_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -6831,7 +6198,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 4. Let key be a new CryptoKey representing publicKey.
-                key = public_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), public_key);
 
                 // 5. Set the [[type]] internal slot of key to "public"
                 key.set_type(KeyType::Public);
@@ -7074,9 +6441,9 @@ impl AlgorithmMethods for RsaPss {
         // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
         //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
         // 4. If performing the operation results in an error, then throw an OperationError.
-        let maybe_key_pair = rsa_generate_key_pair(
+        let maybe_key_pair = libcrypto_rust::rsa_generate_key_pair(
             normalized_algorithm.key_gen.modulus_length,
-            &normalized_algorithm.key_gen.public_exponent,
+            normalized_algorithm.key_gen.public_exponent.as_slice(),
         );
         let Ok(key_pair) = maybe_key_pair else {
             return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
@@ -7086,7 +6453,7 @@ impl AlgorithmMethods for RsaPss {
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 11. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -7121,7 +6488,7 @@ impl AlgorithmMethods for RsaPss {
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
 
         // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 16. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -7190,18 +6557,10 @@ impl AlgorithmMethods for RsaPss {
         };
 
         // 4. Let signature be the signature, S, that results from performing the operation.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_rsa_pss_sign(
-                hash_kind,
-                key.handle().as_ptr(),
-                pss_params.salt_length,
-                Span::new(message.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_signature {
+        let signature =
+            libcrypto_rust::rsa_pss_sign(hash_kind, key.handle(), pss_params.salt_length, message.as_slice())
+                .map(Bytes::new);
+        if signature.is_err() {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
@@ -7255,23 +6614,18 @@ impl AlgorithmMethods for RsaPss {
         };
 
         // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
-        let mut verified = false;
-        // SAFETY: The input and output slots live for the call.
-        let maybe_verification = unsafe {
-            web_crypto_rsa_pss_verify(
-                hash_kind,
-                key.handle().as_ptr(),
-                pss_params.salt_length,
-                Span::new(message.as_slice()),
-                Span::new(signature.as_slice()),
-                &mut verified,
-            )
-        };
-        if !maybe_verification {
+        let verified = libcrypto_rust::rsa_pss_verify(
+            hash_kind,
+            key.handle(),
+            pss_params.salt_length,
+            message.as_slice(),
+            signature.as_slice(),
+        );
+        if verified.is_err() {
             return Err(dom_error("OperationError", b"Failed to verify message"));
         }
 
-        Ok(verified)
+        Ok(verified.expect("LibCrypto returns the verification result"))
     }
 
     // https://w3c.github.io/webcrypto/#rsa-pss-operations-import-key
@@ -7309,7 +6663,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -7328,7 +6682,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
-            let maybe_valid = public_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -7337,7 +6691,7 @@ impl AlgorithmMethods for RsaPss {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
-            key = public_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), public_key);
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -7360,7 +6714,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -7379,7 +6733,7 @@ impl AlgorithmMethods for RsaPss {
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
-            let maybe_valid = rsa_private_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&rsa_private_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -7388,7 +6742,7 @@ impl AlgorithmMethods for RsaPss {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
-            key = rsa_private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), rsa_private_key);
 
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -7516,7 +6870,7 @@ impl AlgorithmMethods for RsaPss {
                 let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
-                let maybe_valid = private_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -7525,7 +6879,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 4. Let key be a new CryptoKey representing privateKey.
-                key = private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 5. Set the [[type]] internal slot of key to "private"
                 key.set_type(KeyType::Private);
@@ -7541,7 +6895,7 @@ impl AlgorithmMethods for RsaPss {
                 let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-                let maybe_valid = public_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -7550,7 +6904,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 4. Let key be a new CryptoKey representing publicKey.
-                key = public_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), public_key);
 
                 // 5. Set the [[type]] internal slot of key to "public"
                 key.set_type(KeyType::Public);
@@ -7793,9 +7147,9 @@ impl AlgorithmMethods for RsassaPkcs1 {
         //    attribute of normalizedAlgorithm and RSA public exponent equal to the publicExponent attribute of
         //    normalizedAlgorithm.
         // 4. If generation of the key pair fails, then throw an OperationError.
-        let maybe_key_pair = rsa_generate_key_pair(
+        let maybe_key_pair = libcrypto_rust::rsa_generate_key_pair(
             normalized_algorithm.key_gen.modulus_length,
-            &normalized_algorithm.key_gen.public_exponent,
+            normalized_algorithm.key_gen.public_exponent.as_slice(),
         );
         let Ok(key_pair) = maybe_key_pair else {
             return Err(dom_error("OperationError", b"Failed to generate RSA key pair"));
@@ -7805,7 +7159,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         let hash_name = normalized_algorithm.hash.name.clone();
 
         // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 11. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -7841,7 +7195,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
 
         // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 16. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -7906,17 +7260,8 @@ impl AlgorithmMethods for RsassaPkcs1 {
         };
 
         // 4. Let signature be the value S that results from performing the operation.
-        // SAFETY: The input and output slots live for the call.
-        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_rsa_pkcs1_sign(
-                hash_kind,
-                key.handle().as_ptr(),
-                Span::new(message.as_slice()),
-                state,
-                receive,
-            )
-        });
-        if !maybe_signature {
+        let signature = libcrypto_rust::rsa_pkcs1_sign(hash_kind, key.handle(), message.as_slice()).map(Bytes::new);
+        if signature.is_err() {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
@@ -7967,23 +7312,14 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
         // 3. Let result be a boolean with value true if the result of the operation was "valid signature" and the value
         //    false otherwise.
-        let mut verified = false;
-        // SAFETY: The input and output slots live for the call.
-        let maybe_verification = unsafe {
-            web_crypto_rsa_pkcs1_verify(
-                hash_kind,
-                key.handle().as_ptr(),
-                Span::new(message.as_slice()),
-                Span::new(signature.as_slice()),
-                &mut verified,
-            )
-        };
-        if !maybe_verification {
+        let verified =
+            libcrypto_rust::rsa_pkcs1_verify(hash_kind, key.handle(), message.as_slice(), signature.as_slice());
+        if verified.is_err() {
             return Err(dom_error("OperationError", b"Failed to verify message"));
         }
 
         // 4. Return result.
-        Ok(verified)
+        Ok(verified.expect("LibCrypto returns the verification result"))
     }
 
     // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-import-key
@@ -8021,7 +7357,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -8040,7 +7376,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 6. If an error occurred while parsing, or it can be determined that publicKey is not
             //    a valid public key according to [RFC3447], then throw a DataError.
-            let maybe_valid = public_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -8049,7 +7385,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
-            key = public_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), public_key);
 
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
@@ -8072,7 +7408,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
             // 3. If an error occurred while parsing, then throw a DataError.
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
@@ -8091,7 +7427,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 6. If an error occurred while parsing, or if rsaPrivateKey is not
             //    a valid RSA private key according to [RFC3447], then throw a DataError.
-            let maybe_valid = rsa_private_key.is_valid();
+            let maybe_valid = libcrypto_rust::rsa_key_is_valid(&rsa_private_key);
             let Ok(maybe_valid) = maybe_valid else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -8100,7 +7436,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             }
 
             // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
-            key = rsa_private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), rsa_private_key);
 
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -8230,7 +7566,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey is not a valid RSA private key according to [RFC3447], then throw a DataError.
-                let maybe_valid = private_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&private_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -8239,7 +7575,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
 
                 // 4. Let key be a new CryptoKey object that represents privateKey.
-                key = private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 5. Set the [[type]] internal slot of key to "private"
                 key.set_type(KeyType::Private);
@@ -8255,7 +7591,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
-                let maybe_valid = public_key.is_valid();
+                let maybe_valid = libcrypto_rust::rsa_key_is_valid(&public_key);
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
                 };
@@ -8264,7 +7600,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
 
                 // 4. Let key be a new CryptoKey representing publicKey.
-                key = public_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), public_key);
 
                 // 5. Set the [[type]] internal slot of key to "public"
                 key.set_type(KeyType::Public);
@@ -8542,25 +7878,15 @@ impl EcParameters {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
-enum EcCurve {
-    P256,
-    P384,
-    P521,
-}
-
-impl EcCurve {
-    fn from_name(named_curve: &Utf16String) -> Option<Self> {
-        if *named_curve == Utf16String::from_ascii(b"P-256") {
-            Some(Self::P256)
-        } else if *named_curve == Utf16String::from_ascii(b"P-384") {
-            Some(Self::P384)
-        } else if *named_curve == Utf16String::from_ascii(b"P-521") {
-            Some(Self::P521)
-        } else {
-            None
-        }
+fn ec_curve_from_name(named_curve: &Utf16String) -> Option<EcCurve> {
+    if *named_curve == Utf16String::from_ascii(b"P-256") {
+        Some(EcCurve::P256)
+    } else if *named_curve == Utf16String::from_ascii(b"P-384") {
+        Some(EcCurve::P384)
+    } else if *named_curve == Utf16String::from_ascii(b"P-521") {
+        Some(EcCurve::P521)
+    } else {
+        None
     }
 }
 
@@ -8568,194 +7894,39 @@ const SECP256R1_OID: [u32; 7] = [1, 2, 840, 10045, 3, 1, 7];
 const SECP384R1_OID: [u32; 5] = [1, 3, 132, 0, 34];
 const SECP521R1_OID: [u32; 5] = [1, 3, 132, 0, 35];
 
-unsafe extern "C" {
-    fn web_crypto_ec_generate_key_pair(
-        curve: EcCurve,
-        public_key: &mut *mut c_void,
-        private_key: &mut *mut c_void,
-    ) -> bool;
-    fn web_crypto_ec_sign(
-        curve: EcCurve,
-        key: *const c_void,
-        digest: Span<'_, u8>,
-        error: &mut usize,
-        r: *mut c_void,
-        s: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> u8;
-    fn web_crypto_ec_verify(
-        curve: EcCurve,
-        key: *const c_void,
-        digest: Span<'_, u8>,
-        r: Span<'_, u8>,
-        s: Span<'_, u8>,
-        verified: &mut bool,
-    ) -> usize;
-    fn web_crypto_ec_public_key_scalar_size(key: *const c_void) -> usize;
-    fn web_crypto_ec_compute_coordinate(
-        curve: EcCurve,
-        key: *const c_void,
-        public_key: *const c_void,
-        error: &mut usize,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> u8;
-    fn web_crypto_ec_key_info_has_public_key_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
-    fn web_crypto_ec_key_info_parameters(
-        structure: Asn1Structure,
-        key_info: *const c_void,
-        parameters: &mut Span<'_, u32>,
-    ) -> bool;
-    fn web_crypto_ec_private_key_info_parameters_match(key_info: *const c_void) -> bool;
-    fn web_crypto_ec_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
-    fn web_crypto_ec_key_from_coordinates(
-        x: Span<'_, u8>,
-        y: Span<'_, u8>,
-        coord_size: usize,
-        d: OptionalBytes<'_>,
-    ) -> *mut c_void;
-    fn web_crypto_ec_parse_raw_public_key(bytes: Span<'_, u8>) -> *mut c_void;
-    fn web_crypto_ec_key_is_valid(curve: EcCurve, key: *const c_void, valid: &mut bool) -> bool;
-    fn web_crypto_ec_export_der(
-        curve: EcCurve,
-        key: *const c_void,
-        is_public: bool,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_ec_export_uncompressed(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
-    fn web_crypto_ec_export_public_coordinates(
-        curve: EcCurve,
-        key: *const c_void,
-        x: *mut c_void,
-        y: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_ec_export_private_scalar(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
-}
-
-impl Asn1KeyInfo {
-    fn has_ec_public_key_oid(&self) -> bool {
-        // SAFETY: This object owns the live structure.
-        unsafe { web_crypto_ec_key_info_has_public_key_oid(self.structure, self.key_info.as_ptr()) }
-    }
-
-    fn ec_parameters(&self) -> Option<&[u32]> {
-        let mut parameters = Span::new(&[]);
-        // SAFETY: This object owns the live structure and the parameters borrow from it.
-        if unsafe { web_crypto_ec_key_info_parameters(self.structure, self.key_info.as_ptr(), &mut parameters) } {
-            Some(parameters.as_slice())
-        } else {
-            None
-        }
-    }
-
-    fn ec_private_key_parameters_match(&self) -> bool {
-        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
-        // SAFETY: This object owns the live private key info.
-        unsafe { web_crypto_ec_private_key_info_parameters_match(self.key_info.as_ptr()) }
-    }
-
-    fn ec_key(&self) -> UninstalledKey {
-        // SAFETY: This object owns the live structure.
-        let key = unsafe { web_crypto_ec_key_info_read_key(self.structure, self.key_info.as_ptr()) };
-        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an EC key"))
-    }
-}
-
-fn ec_generate_key_pair(curve: EcCurve) -> Result<NativeKeyPair, ()> {
-    let mut public_key = null_mut();
-    let mut private_key = null_mut();
-    // SAFETY: The output slots are lent for the call.
-    if !unsafe { web_crypto_ec_generate_key_pair(curve, &mut public_key, &mut private_key) } {
-        return Err(());
-    }
-    Ok(NativeKeyPair {
-        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
-        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
-    })
-}
-
 fn ec_key_from_coordinates(vm: &Vm, x: &Bytes, y: &Bytes, coord_size: usize, d: Option<&Bytes>) -> Ref<CryptoKey> {
-    // SAFETY: The input bytes are lent for the call.
-    let key = unsafe {
-        web_crypto_ec_key_from_coordinates(Span::new(x.as_slice()), Span::new(y.as_slice()), coord_size, d.into())
-    };
-    // SAFETY: The service transfers ownership of the live key.
-    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an EC key")) }
+    CryptoKey::create(
+        vm,
+        libcrypto_rust::ec_key_from_coordinates(x.as_slice(), y.as_slice(), coord_size, d.map(Bytes::as_slice)),
+    )
 }
 
 fn ec_parse_raw_public_key(vm: &Vm, key_bytes: &Bytes) -> WebIdlResult<Ref<CryptoKey>> {
-    // SAFETY: The input bytes are lent for the call.
-    let key = unsafe { web_crypto_ec_parse_raw_public_key(Span::new(key_bytes.as_slice())) };
-    let Some(key) = NonNull::new(key) else {
+    let Some(key) = libcrypto_rust::ec_parse_raw_public_key(key_bytes.as_slice()) else {
         return Err(dom_error("DataError", b"Failed to parse key"));
     };
-    // SAFETY: The service transfers ownership of the live key.
-    Ok(unsafe { CryptoKey::create_with_handle(vm, key) })
+    Ok(CryptoKey::create(vm, key))
 }
 
-fn ec_key_is_valid(curve: EcCurve, key: Ref<CryptoKey>) -> Result<bool, ()> {
-    let mut valid = false;
-    // SAFETY: The key handle is live and the output is writable.
-    if !unsafe { web_crypto_ec_key_is_valid(curve, key.handle().as_ptr(), &mut valid) } {
-        return Err(());
-    }
-    Ok(valid)
+fn ec_key_is_valid(curve: EcCurve, key: Ref<CryptoKey>) -> Result<bool, BackendError> {
+    libcrypto_rust::ec_key_is_valid(curve, key.handle())
 }
 
-fn ec_export_der(curve: EcCurve, key: Ref<CryptoKey>, is_public: bool) -> Result<Bytes, ()> {
-    // SAFETY: The key handle and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_ec_export_der(curve, key.handle().as_ptr(), is_public, state, receive)
-    });
-    if !success {
-        return Err(());
-    }
-    Ok(result.expect("LibCrypto returns the DER bytes"))
+fn ec_export_der(curve: EcCurve, key: Ref<CryptoKey>, is_public: bool) -> Result<Bytes, BackendError> {
+    libcrypto_rust::ec_export_der(curve, key.handle(), is_public).map(Bytes::new)
 }
 
-fn ec_export_uncompressed(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
-    // SAFETY: The key handle and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_ec_export_uncompressed(key.handle().as_ptr(), state, receive)
-    });
-    if !success {
-        return Err(());
-    }
-    Ok(result.expect("LibCrypto returns the encoded bytes"))
+fn ec_export_uncompressed(key: Ref<CryptoKey>) -> Result<Bytes, BackendError> {
+    libcrypto_rust::ec_export_uncompressed(key.handle()).map(Bytes::new)
 }
 
-fn ec_export_public_coordinates(curve: EcCurve, key: Ref<CryptoKey>) -> Result<(Bytes, Bytes), ()> {
-    let mut x: Option<Bytes> = None;
-    let mut y: Option<Bytes> = None;
-    // SAFETY: The key handle and the output slots are lent for the call.
-    if !unsafe {
-        web_crypto_ec_export_public_coordinates(
-            curve,
-            key.handle().as_ptr(),
-            core::ptr::from_mut(&mut x).cast(),
-            core::ptr::from_mut(&mut y).cast(),
-            receive_bytes,
-        )
-    } {
-        return Err(());
-    }
-    Ok((
-        x.expect("LibCrypto returns an x coordinate"),
-        y.expect("LibCrypto returns a y coordinate"),
-    ))
+fn ec_export_public_coordinates(curve: EcCurve, key: Ref<CryptoKey>) -> Result<(Bytes, Bytes), BackendError> {
+    let (x, y) = libcrypto_rust::ec_export_public_coordinates(curve, key.handle())?;
+    Ok((Bytes::new(x), Bytes::new(y)))
 }
 
-fn ec_export_private_scalar(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
-    // SAFETY: The key handle and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_ec_export_private_scalar(key.handle().as_ptr(), state, receive)
-    });
-    if !success {
-        return Err(());
-    }
-    Ok(result.expect("LibCrypto returns the private scalar"))
+fn ec_export_private_scalar(key: Ref<CryptoKey>) -> Result<Bytes, BackendError> {
+    libcrypto_rust::ec_export_private_scalar(key.handle()).map(Bytes::new)
 }
 
 fn copy_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
@@ -8795,7 +7966,7 @@ impl AlgorithmMethods for Ecdsa {
         let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
             unreachable!("the operation uses EC KeyGen parameters")
         };
-        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+        if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only 'P-256', 'P-384' and 'P-521' is supported",
@@ -8835,18 +8006,18 @@ impl AlgorithmMethods for Ecdsa {
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
         // Otherwise: throw a NotSupportedError
         // 3. If performing the key generation operation results in an error, then throw an OperationError.
-        let Some(curve) = EcCurve::from_name(&normalized_algorithm.named_curve) else {
+        let Some(curve) = ec_curve_from_name(&normalized_algorithm.named_curve) else {
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only 'P-256', 'P-384' and 'P-521' is supported",
             ));
         };
-        let Ok(key_pair) = ec_generate_key_pair(curve) else {
+        let Ok(key_pair) = libcrypto_rust::ec_generate_key_pair(curve) else {
             return Err(dom_error("OperationError", b"Failed to create valid crypto instance"));
         };
 
         // 7. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 8. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -8867,7 +8038,7 @@ impl AlgorithmMethods for Ecdsa {
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
 
         // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 13. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -8923,11 +8094,9 @@ impl AlgorithmMethods for Ecdsa {
         // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
-        // SAFETY: The input and output slot live for the call.
-        let (success, digest) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_sha_digest(hash_kind, Span::new(message.as_slice()), state, receive)
-        });
-        if !success {
+
+        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice()).map(Bytes::new);
+        if digest.is_err() {
             return cx
                 .vm()
                 .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -8948,7 +8117,7 @@ impl AlgorithmMethods for Ecdsa {
         let result;
 
         // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
-        if let Some(curve) = EcCurve::from_name(named_curve) {
+        if let Some(curve) = ec_curve_from_name(named_curve) {
             let coord_size = match curve {
                 EcCurve::P256 => 32,
                 EcCurve::P384 => 48,
@@ -8958,32 +8127,17 @@ impl AlgorithmMethods for Ecdsa {
             // 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4.2, with M as the message,
             //    using params as the EC domain parameters, and with d as the private key.
             // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
-            let mut error = 0;
-            let mut r_bytes: Option<Bytes> = None;
-            let mut s_bytes: Option<Bytes> = None;
-            // SAFETY: The key handle, digest and output slots live for the call.
-            let maybe_signature = unsafe {
-                web_crypto_ec_sign(
-                    curve,
-                    d.as_ptr(),
-                    Span::new(m.as_slice()),
-                    &mut error,
-                    core::ptr::from_mut(&mut r_bytes).cast(),
-                    core::ptr::from_mut(&mut s_bytes).cast(),
-                    receive_bytes,
-                )
-            };
-            if maybe_signature == 1 {
-                // SAFETY: LibCrypto transfers ownership of the error message.
-                let message = unsafe { Utf16String::from_raw_owned(error) };
+            let signature = libcrypto_rust::ec_sign(curve, d, m.as_slice());
+            if let Err(EcError::Operation(message)) = signature {
                 return Err(Exception::Dom("OperationError", message));
             }
-            if maybe_signature == 2 {
+            if matches!(signature, Err(EcError::CoordinateEncoding)) {
                 return cx
                     .vm()
                     .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
                     .map_err(Into::into);
             }
+            let (r_bytes, s_bytes) = signature.expect("LibCrypto returns the signature");
 
             // 3. Let result be an empty byte sequence.
             let mut result_bytes = Vec::new();
@@ -8997,12 +8151,10 @@ impl AlgorithmMethods for Ecdsa {
 
             // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
             // 5. Convert r to a byte sequence of length n and append it to result.
-            let r_bytes = r_bytes.expect("LibCrypto returns the signature component");
             assert!(r_bytes.as_slice().len() <= coord_size);
             result_bytes[..r_bytes.as_slice().len()].copy_from_slice(r_bytes.as_slice());
 
             // 6. Convert s to a byte sequence of length n and append it to result.
-            let s_bytes = s_bytes.expect("LibCrypto returns the signature component");
             assert!(s_bytes.as_slice().len() <= coord_size);
             result_bytes[coord_size..coord_size + s_bytes.as_slice().len()].copy_from_slice(s_bytes.as_slice());
             result = Bytes::new(result_bytes);
@@ -9052,11 +8204,9 @@ impl AlgorithmMethods for Ecdsa {
         // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
         let hash_kind =
             sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
-        // SAFETY: The input and output slot live for the call.
-        let (success, digest) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_sha_digest(hash_kind, Span::new(message.as_slice()), state, receive)
-        });
-        if !success {
+
+        let digest = libcrypto_rust::sha_digest(hash_kind, message.as_slice()).map(Bytes::new);
+        if digest.is_err() {
             return cx
                 .vm()
                 .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
@@ -9075,13 +8225,12 @@ impl AlgorithmMethods for Ecdsa {
             unreachable!("the key has an EC algorithm")
         };
 
-        let mut result = false;
+        let result;
 
-        if let Some(curve) = EcCurve::from_name(named_curve) {
+        if let Some(curve) = ec_curve_from_name(named_curve) {
             // 1. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the
             //    base point of the elliptic curve identified by params.
-            // SAFETY: Q is a live EC public key handle.
-            let n = unsafe { web_crypto_ec_public_key_scalar_size(q.as_ptr()) };
+            let n = libcrypto_rust::ec_public_key_scalar_size(q);
 
             // 2. If signature does not have a length of n * 2 bytes, then return false.
             if signature.as_slice().len() != n * 2 {
@@ -9096,22 +8245,11 @@ impl AlgorithmMethods for Ecdsa {
 
             // 5. Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.4.3, with M as the received
             //    message, (r, s) as the signature and using params as the EC domain parameters, and Q as the public key.
-            // SAFETY: The inputs and output slot live for the call.
-            let maybe_result = unsafe {
-                web_crypto_ec_verify(
-                    curve,
-                    q.as_ptr(),
-                    Span::new(m.as_slice()),
-                    Span::new(r),
-                    Span::new(s),
-                    &mut result,
-                )
-            };
-            if maybe_result != 0 {
-                // SAFETY: LibCrypto transfers ownership of the error message.
-                let message = unsafe { Utf16String::from_raw_owned(maybe_result) };
+            let verification = libcrypto_rust::ec_verify(curve, q, m.as_slice(), r, s);
+            if let Err(message) = verification {
                 return Err(Exception::Dom("OperationError", message));
             }
+            result = verification.expect("LibCrypto returns the verification result");
         } else {
             // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
             // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
@@ -9132,7 +8270,7 @@ impl AlgorithmMethods for Ecdsa {
         // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a
         //    value specified in an applicable specification that specifies the use of that value with ECDSA, then throw
         //    a NotSupportedError.
-        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+        if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(Exception::Dom(
                 "NotSupportedError",
                 libjs_rust::api::utf16_formatted("Unsupported named curve '{}'", &[&normalized_algorithm.named_curve]),
@@ -9185,7 +8323,7 @@ impl AlgorithmMethods for Ecdsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -9233,7 +8371,7 @@ impl AlgorithmMethods for Ecdsa {
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
                 // 4. Let key be a new CryptoKey that represents publicKey.
                 // NOTE: We already did this in parse_a_subject_public_key_info
-                key = public_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), public_key);
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
@@ -9248,7 +8386,7 @@ impl AlgorithmMethods for Ecdsa {
 
             // 12. If the public key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -9285,7 +8423,7 @@ impl AlgorithmMethods for Ecdsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -9337,13 +8475,13 @@ impl AlgorithmMethods for Ecdsa {
                 //    type defined in [RFC5480], or does not contain the same object identifier as the parameters field
                 //    of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo, then throw a
                 //    DataError.
-                if !private_key_info.ec_private_key_parameters_match() {
+                if !private_key_info.ec_private_parameters_match() {
                     return Err(dom_error("DataError", b"Invalid algorithm parameters"));
                 }
 
                 // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
                 //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
-                key = ec_private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), ec_private_key);
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format,
@@ -9359,7 +8497,7 @@ impl AlgorithmMethods for Ecdsa {
 
             // 12. If the private key value is not a valid point on the Elliptic Curve identified by the namedCurve
             //     member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -9446,7 +8584,7 @@ impl AlgorithmMethods for Ecdsa {
             }
 
             // 9. If namedCurve is equal to "P-256", "P-384" or "P-521":
-            if EcCurve::from_name(&named_curve).is_some() {
+            if ec_curve_from_name(&named_curve).is_some() {
                 // 1. Let algNamedCurve be a string whose initial value is undefined.
                 let mut alg_named_curve = Utf16String::default();
 
@@ -9480,7 +8618,7 @@ impl AlgorithmMethods for Ecdsa {
                     return Err(dom_error("DataError", b"Invalid algorithm"));
                 }
 
-                let coord_size = match EcCurve::from_name(&named_curve).expect("the named curve is supported") {
+                let coord_size = match ec_curve_from_name(&named_curve).expect("the named curve is supported") {
                     EcCurve::P256 => 32,
                     EcCurve::P384 => 48,
                     EcCurve::P521 => 66,
@@ -9544,7 +8682,7 @@ impl AlgorithmMethods for Ecdsa {
 
             // 10. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -9566,7 +8704,7 @@ impl AlgorithmMethods for Ecdsa {
         // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
         else if key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic {
             // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
-            if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -9581,7 +8719,7 @@ impl AlgorithmMethods for Ecdsa {
             }
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
-            if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
+            if ec_curve_from_name(&normalized_algorithm.named_curve).is_some() {
                 // 1. Let Q be the elliptic curve point on the curve identified by the namedCurve member of
                 //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
                 //    [SEC1] on keyData. The uncompressed point format MUST be supported.
@@ -9654,7 +8792,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
                 //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.2 of
                 //    [RFC5480] and using the uncompressed form. and keyData.
@@ -9711,7 +8849,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
                 //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
                 //    slot of key and that conforms to the following:
@@ -9762,7 +8900,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
                 if *named_curve == Utf16String::from_ascii(b"P-256") {
                     // Set the crv attribute of jwk to "P-256"
@@ -9784,7 +8922,7 @@ impl AlgorithmMethods for Ecdsa {
                 // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
-                    .map_err(|()| dom_error("DataError", b"Failed to encode public key"))?;
+                    .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
                 jwk.x = Some(
                     base64_url_bytes_encode(x_bytes.as_slice())
                         .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
@@ -9798,7 +8936,7 @@ impl AlgorithmMethods for Ecdsa {
                 if key.key_type() == KeyType::Private {
                     // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                     let d_bytes = ec_export_private_scalar(key)
-                        .map_err(|()| dom_error("DataError", b"Failed to encode private key"))?;
+                        .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?;
                     jwk.d = Some(
                         base64_url_bytes_encode(d_bytes.as_slice())
                             .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
@@ -9840,7 +8978,7 @@ impl AlgorithmMethods for Ecdsa {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            let data = if EcCurve::from_name(named_curve).is_some() {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
                 //    "P-521":
                 //    Let data be a byte sequence representing the Elliptic Curve point Q represented by the [[handle]]
@@ -9903,7 +9041,7 @@ impl AlgorithmMethods for Ecdh {
         let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
             unreachable!("the operation uses EC KeyGen parameters")
         };
-        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+        if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only 'P-256', 'P-384' and 'P-521' is supported",
@@ -9944,18 +9082,18 @@ impl AlgorithmMethods for Ecdh {
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
         // Otherwise: throw a NotSupportedError
         // 3. If performing the operation results in an error, then throw a OperationError.
-        let Some(curve) = EcCurve::from_name(&normalized_algorithm.named_curve) else {
+        let Some(curve) = ec_curve_from_name(&normalized_algorithm.named_curve) else {
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only 'P-256', 'P-384' and 'P-521' is supported",
             ));
         };
-        let Ok(key_pair) = ec_generate_key_pair(curve) else {
+        let Ok(key_pair) = libcrypto_rust::ec_generate_key_pair(curve) else {
             return Err(dom_error("OperationError", b"Failed to create valid crypto instance"));
         };
 
         // 7. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 8. Set the [[type]] internal slot of publicKey to "public"
         public_key.set_type(KeyType::Public);
@@ -9976,7 +9114,7 @@ impl AlgorithmMethods for Ecdh {
         public_key.set_usages(Vec::new());
 
         // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 13. Set the [[type]] internal slot of privateKey to "private"
         private_key.set_type(KeyType::Private);
@@ -10033,8 +9171,7 @@ impl AlgorithmMethods for Ecdh {
 
         // 4. Let maximumLength be the length in bits of the output of the field element to octet string conversion
         //    defined in Section 6.2 of [RFC6090] for the EC domain parameters associated with publicKey.
-        // SAFETY: The public key has a live EC public key handle.
-        let maximum_length = unsafe { web_crypto_ec_public_key_scalar_size(public_key.handle().as_ptr()) } * 8;
+        let maximum_length = libcrypto_rust::ec_public_key_scalar_size(public_key.handle()) * 8;
 
         // 5. If length is not null and is greater than maximumLength, then throw an OperationError.
         if length_optional.is_some_and(|length| length as usize > maximum_length) {
@@ -10093,43 +9230,30 @@ impl AlgorithmMethods for Ecdh {
 
         // 9. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
         // 10. If performing the operation results in an error, then throw a OperationError.
-        if let Some(curve) = EcCurve::from_name(named_curve) {
+        if let Some(curve) = ec_curve_from_name(named_curve) {
             // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
             //    with key as the EC private key d and the EC public key represented
             //    by the [[handle]] internal slot of publicKey as the EC public key.
             // 2. Let secret be a byte sequence containing the result of applying the field element to octet string
             //    conversion defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
             // NOTE: Remove the prefix from the uncompressed point
-            let mut error = 0;
-            // SAFETY: The key handles and output slots live for the call.
-            let (status, secret_data) = receive_native_bytes(|state, receive| unsafe {
-                web_crypto_ec_compute_coordinate(
-                    curve,
-                    key.handle().as_ptr(),
-                    public_key.handle().as_ptr(),
-                    &mut error,
-                    state,
-                    receive,
-                )
-            });
-            if status == 1 {
-                // SAFETY: LibCrypto transfers ownership of the error message.
-                let detail = unsafe { Utf16String::from_raw_owned(error) };
+            let secret_data = libcrypto_rust::ec_compute_coordinate(curve, key.handle(), public_key.handle());
+            if let Err(EcError::Operation(detail)) = secret_data {
                 return Err(Exception::Dom(
                     "OperationError",
                     libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail]),
                 ));
             }
-            if status == 2 {
+            if matches!(secret_data, Err(EcError::CoordinateEncoding)) {
                 return Err(dom_error("OperationError", b"Failed to convert secret"));
             }
             let secret_data = secret_data.expect("LibCrypto returns the uncompressed point");
-            assert_eq!(secret_data.as_slice()[0], 0x04);
+            assert_eq!(secret_data[0], 0x04);
 
             // NOTE: Use the x-coordinate as shared secret. RFC6090 section 4.2:
             //   In the ECDH key exchange protocol, after the element g^(j*k) has been
             //   computed, the x-coordinate of that value can be used as the shared secret.
-            secret = copy_bytes(cx.vm(), &secret_data.as_slice()[1..=secret_data.as_slice().len() / 2])?;
+            secret = copy_bytes(cx.vm(), &secret_data[1..=secret_data.len() / 2])?;
         } else {
             // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
             // in an applicable specification that specifies the use of that value with ECDH:
@@ -10174,7 +9298,7 @@ impl AlgorithmMethods for Ecdh {
         // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a
         //    value specified in an applicable specification that specifies the use of that value with ECDH, then throw
         //    a NotSupportedError.
-        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+        if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(Exception::Dom(
                 "NotSupportedError",
                 libjs_rust::api::utf16_formatted("Unsupported named curve '{}'", &[&normalized_algorithm.named_curve]),
@@ -10222,7 +9346,7 @@ impl AlgorithmMethods for Ecdh {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
@@ -10270,7 +9394,7 @@ impl AlgorithmMethods for Ecdh {
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
                 // 4. Let key be a new CryptoKey that represents publicKey.
                 // NOTE: We already did this in parse_a_subject_public_key_info
-                key = public_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), public_key);
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
@@ -10285,7 +9409,7 @@ impl AlgorithmMethods for Ecdh {
 
             // 12. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -10322,7 +9446,7 @@ impl AlgorithmMethods for Ecdh {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
             //    privateKeyInfo is not equal to the id-ecPublicKey object identifier defined in [RFC5480], throw a
@@ -10375,13 +9499,13 @@ impl AlgorithmMethods for Ecdh {
                 //    of the namedCurve ASN.1 type defined in [RFC5480], or does not contain
                 //    the same object identifier as the parameters field of the privateKeyAlgorithm
                 //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
-                if !private_key_info.ec_private_key_parameters_match() {
+                if !private_key_info.ec_private_parameters_match() {
                     return Err(dom_error("DataError", b"Invalid algorithm parameters"));
                 }
 
                 // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
                 //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
-                key = ec_private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), ec_private_key);
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format,
@@ -10397,7 +9521,7 @@ impl AlgorithmMethods for Ecdh {
 
             // 12. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -10479,8 +9603,8 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 10. If namedCurve is "P-256", "P-384" or "P-521":
-            if EcCurve::from_name(&named_curve).is_some() {
-                let coord_size = match EcCurve::from_name(&named_curve).expect("the named curve is supported") {
+            if ec_curve_from_name(&named_curve).is_some() {
+                let coord_size = match ec_curve_from_name(&named_curve).expect("the named curve is supported") {
                     EcCurve::P256 => 32,
                     EcCurve::P384 => 48,
                     EcCurve::P521 => 66,
@@ -10544,7 +9668,7 @@ impl AlgorithmMethods for Ecdh {
 
             // 11. If the key value is not a valid point on the Elliptic Curve identified
             //     by the namedCurve member of normalizedAlgorithm throw a DataError.
-            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let curve = ec_curve_from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
             };
@@ -10566,7 +9690,7 @@ impl AlgorithmMethods for Ecdh {
         // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
         else if key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic {
             // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
-            if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            if ec_curve_from_name(&normalized_algorithm.named_curve).is_none() {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -10576,7 +9700,7 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
-            if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
+            if ec_curve_from_name(&normalized_algorithm.named_curve).is_some() {
                 // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve member of
                 //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
                 //    [SEC1] to keyData. The uncompressed point format MUST be supported.
@@ -10650,7 +9774,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
                 //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.3.3 of
                 //    [SEC1] and using the uncompressed form.
@@ -10707,7 +9831,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
                 //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
                 //    slot of key and that conforms to the following:
@@ -10758,7 +9882,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            if let Some(curve) = EcCurve::from_name(named_curve) {
+            if let Some(curve) = ec_curve_from_name(named_curve) {
                 // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
                 if *named_curve == Utf16String::from_ascii(b"P-256") {
                     // Set the crv attribute of jwk to "P-256"
@@ -10780,7 +9904,7 @@ impl AlgorithmMethods for Ecdh {
                 // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                 // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
                 let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
-                    .map_err(|()| dom_error("DataError", b"Failed to encode public key"))?;
+                    .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?;
                 jwk.x = Some(
                     base64_url_bytes_encode(x_bytes.as_slice())
                         .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
@@ -10794,7 +9918,7 @@ impl AlgorithmMethods for Ecdh {
                 if key.key_type() == KeyType::Private {
                     // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
                     let d_bytes = ec_export_private_scalar(key)
-                        .map_err(|()| dom_error("DataError", b"Failed to encode private key"))?;
+                        .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?;
                     jwk.d = Some(
                         base64_url_bytes_encode(d_bytes.as_slice())
                             .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
@@ -10836,7 +9960,7 @@ impl AlgorithmMethods for Ecdh {
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
-            let data = if EcCurve::from_name(named_curve).is_some() {
+            let data = if ec_curve_from_name(named_curve).is_some() {
                 // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
                 //    "P-521":
                 //    Let data be the byte sequence that represents the Elliptic Curve public key represented by the
@@ -10891,122 +10015,34 @@ impl Ed448Params {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
-enum OkpCurve {
-    Ed25519,
-    Ed448,
-    X25519,
-    X448,
-}
-
-unsafe extern "C" {
-    fn web_crypto_okp_generate_private_key(curve: OkpCurve, state: *mut c_void, receive: ReceiveBytes) -> bool;
-    fn web_crypto_okp_generate_public_key(
-        curve: OkpCurve,
-        private_key: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_okp_compute_coordinate(
-        curve: OkpCurve,
-        private_key: Span<'_, u8>,
-        public_key: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_okp_sign(
-        curve: OkpCurve,
-        private_key: Span<'_, u8>,
-        message: Span<'_, u8>,
-        context: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_okp_verify(
-        curve: OkpCurve,
-        public_key: Span<'_, u8>,
-        signature: Span<'_, u8>,
-        message: Span<'_, u8>,
-        context: Span<'_, u8>,
-        verified: &mut bool,
-    ) -> usize;
-    fn web_crypto_okp_key_info_has_oid(curve: OkpCurve, structure: Asn1Structure, key_info: *const c_void) -> bool;
-    fn web_crypto_asn1_key_info_raw_key(structure: Asn1Structure, key_info: *const c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_asn1_octet_string_bytes(string: *const c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_okp_export_der(
-        curve: OkpCurve,
-        is_public: bool,
-        key: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-}
-
-impl Asn1KeyInfo {
-    fn has_okp_oid(&self, curve: OkpCurve) -> bool {
-        // SAFETY: This object owns the live structure.
-        unsafe { web_crypto_okp_key_info_has_oid(curve, self.structure, self.key_info.as_ptr()) }
-    }
-
-    fn raw_key(&self) -> &[u8] {
-        let mut bytes = Span::new(&[]);
-        // SAFETY: This object owns the structure that the bytes borrow from.
-        unsafe { web_crypto_asn1_key_info_raw_key(self.structure, self.key_info.as_ptr(), &mut bytes) };
-        bytes.as_slice()
-    }
-}
-
 fn parse_octet_string(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
-    // SAFETY: The service allocates an empty native StringView.
-    let string = unsafe { web_crypto_asn1_allocate_key_info(Asn1Structure::OctetString) };
-    let string = Asn1KeyInfo {
-        structure: Asn1Structure::OctetString,
-        key_info: NonNull::new(string).expect("LibCrypto returns an ASN.1 view"),
+    let Asn1Value::OctetString(octets) = parse_an_asn1_structure(bytes, Asn1Structure::OctetString, true)
+        .map_err(|message| Exception::Dom("DataError", message))?
+    else {
+        unreachable!("the ASN.1 structure is an octet string")
     };
-    // SAFETY: The bytes and the native StringView live for the call.
-    unsafe {
-        parse_an_asn1_structure(
-            Span::new(bytes),
-            Asn1Structure::OctetString,
-            true,
-            string.key_info.as_ptr(),
-        )
-    }
-    .map_err(|message| Exception::Dom("DataError", message))?;
-    let mut octets = Span::new(&[]);
-    // SAFETY: The StringView borrows from the input bytes for the duration of the copy.
-    unsafe { web_crypto_asn1_octet_string_bytes(string.key_info.as_ptr(), &mut octets) };
-    copy_bytes(vm, octets.as_slice())
+    copy_bytes(vm, octets)
 }
 
 fn okp_generate_private_key(curve: OkpCurve) -> Result<Bytes, ()> {
-    // SAFETY: The output slot is lent for the call.
-    let (success, key) =
-        receive_native_bytes(|state, receive| unsafe { web_crypto_okp_generate_private_key(curve, state, receive) });
-    if !success {
+    let key = libcrypto_rust::okp_generate_private_key(curve).map(Bytes::new);
+    if key.is_err() {
         return Err(());
     }
     Ok(key.expect("LibCrypto returns the private key"))
 }
 
 fn okp_generate_public_key(curve: OkpCurve, private_key: &[u8]) -> Result<Bytes, ()> {
-    // SAFETY: The private key and output slot are lent for the call.
-    let (success, key) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_okp_generate_public_key(curve, Span::new(private_key), state, receive)
-    });
-    if !success {
+    let key = libcrypto_rust::okp_generate_public_key(curve, private_key).map(Bytes::new);
+    if key.is_err() {
         return Err(());
     }
     Ok(key.expect("LibCrypto returns the public key"))
 }
 
 fn okp_export_der(vm: &Vm, curve: OkpCurve, is_public: bool, key: &[u8]) -> WebIdlResult<Bytes> {
-    // SAFETY: The key and the output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_okp_export_der(curve, is_public, Span::new(key), state, receive)
-    });
-    if !success {
+    let result = libcrypto_rust::okp_export_der(curve, is_public, key).map(Bytes::new);
+    if result.is_err() {
         return vm
             .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
             .map_err(Into::into);
@@ -11144,7 +10180,7 @@ impl AlgorithmMethods for Ed25519 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
@@ -11190,7 +10226,7 @@ impl AlgorithmMethods for Ed25519 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
             //    of privateKeyInfo is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
@@ -11564,18 +10600,9 @@ impl AlgorithmMethods for Ed25519 {
             return Err(dom_error("OperationError", b"Failed to generate public key"));
         }
 
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_okp_sign(
-                OkpCurve::Ed25519,
-                Span::new(key.okp_handle_bytes()),
-                Span::new(message.as_slice()),
-                Span::new(&[]),
-                state,
-                receive,
-            )
-        });
-        if !maybe_signature {
+        let signature = libcrypto_rust::okp_sign(OkpCurve::Ed25519, key.okp_handle_bytes(), message.as_slice(), &[])
+            .map(Bytes::new);
+        if signature.is_err() {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
@@ -11608,26 +10635,19 @@ impl AlgorithmMethods for Ed25519 {
         // with message as M, using the Ed25519 public key associated with key.
 
         // 5. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
-        let mut verified = false;
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_verified = unsafe {
-            web_crypto_okp_verify(
-                OkpCurve::Ed25519,
-                Span::new(key.okp_handle_bytes()),
-                Span::new(signature.as_slice()),
-                Span::new(message.as_slice()),
-                Span::new(&[]),
-                &mut verified,
-            )
-        };
-        if maybe_verified != 0 {
-            // SAFETY: LibCrypto transfers ownership of the error message.
-            let error = unsafe { Utf16String::from_raw_owned(maybe_verified) };
+        let verified = libcrypto_rust::okp_verify(
+            OkpCurve::Ed25519,
+            key.okp_handle_bytes(),
+            signature.as_slice(),
+            message.as_slice(),
+            &[],
+        );
+        if let Err(error) = verified {
             return Err(Exception::Dom("OperationError", error));
         }
 
         // 6. Return result.
-        Ok(verified)
+        Ok(verified.expect("LibCrypto returns the verification result"))
     }
 }
 
@@ -11761,7 +10781,7 @@ impl AlgorithmMethods for Ed448 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
@@ -11808,7 +10828,7 @@ impl AlgorithmMethods for Ed448 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
             //    of privateKeyInfo is not equal to the id-Ed448 object identifier defined in [RFC8410], then throw a DataError.
@@ -12185,18 +11205,9 @@ impl AlgorithmMethods for Ed448 {
 
         // 4. Perform the Ed448 signing process, as specified in [RFC8032], Section 5.2.6,
         //    with message as M and context as C, using the Ed448 private key associated with key.
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let (maybe_signature, signature) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_okp_sign(
-                OkpCurve::Ed448,
-                Span::new(key.okp_handle_bytes()),
-                Span::new(message.as_slice()),
-                Span::new(context),
-                state,
-                receive,
-            )
-        });
-        if !maybe_signature {
+        let signature = libcrypto_rust::okp_sign(OkpCurve::Ed448, key.okp_handle_bytes(), message.as_slice(), context)
+            .map(Bytes::new);
+        if signature.is_err() {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
@@ -12240,28 +11251,21 @@ impl AlgorithmMethods for Ed448 {
         // 6. Perform the Ed448 verification steps, as specified in [RFC8032], Section 5.2.7, using
         //    the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
         //    with message as M and context as C, using the Ed448 public key associated with key.
-        let mut verified = false;
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let maybe_verified = unsafe {
-            web_crypto_okp_verify(
-                OkpCurve::Ed448,
-                Span::new(key.okp_handle_bytes()),
-                Span::new(signature.as_slice()),
-                Span::new(message.as_slice()),
-                Span::new(context),
-                &mut verified,
-            )
-        };
-        if maybe_verified != 0 {
-            // SAFETY: LibCrypto transfers ownership of the error message.
-            let error = unsafe { Utf16String::from_raw_owned(maybe_verified) };
+        let verified = libcrypto_rust::okp_verify(
+            OkpCurve::Ed448,
+            key.okp_handle_bytes(),
+            signature.as_slice(),
+            message.as_slice(),
+            context,
+        );
+        if let Err(error) = verified {
             return Err(Exception::Dom("OperationError", error));
         }
 
         // 7. Let result be a boolean with the value true if the signature is valid
         //    and the value false otherwise.
         // 8. Return result.
-        Ok(verified)
+        Ok(verified.expect("LibCrypto returns the verification result"))
     }
 }
 
@@ -12351,17 +11355,9 @@ impl AlgorithmMethods for X25519 {
         let private_key = key.okp_handle_bytes();
         let public_key_data = public_key.okp_handle_bytes();
 
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let (maybe_secret, secret) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_okp_compute_coordinate(
-                OkpCurve::X25519,
-                Span::new(private_key),
-                Span::new(public_key_data),
-                state,
-                receive,
-            )
-        });
-        if !maybe_secret {
+        let secret =
+            libcrypto_rust::okp_compute_coordinate(OkpCurve::X25519, private_key, public_key_data).map(Bytes::new);
+        if secret.is_err() {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         }
 
@@ -12515,7 +11511,7 @@ impl AlgorithmMethods for X25519 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
             //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
@@ -12561,7 +11557,7 @@ impl AlgorithmMethods for X25519 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
             //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
@@ -12959,17 +11955,9 @@ impl AlgorithmMethods for X448 {
         let private_key = key.okp_handle_bytes();
         let public_key_data = public_key.okp_handle_bytes();
 
-        // SAFETY: The input bytes and output slot are lent for the call.
-        let (maybe_secret, secret) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_okp_compute_coordinate(
-                OkpCurve::X448,
-                Span::new(private_key),
-                Span::new(public_key_data),
-                state,
-                receive,
-            )
-        });
-        if !maybe_secret {
+        let secret =
+            libcrypto_rust::okp_compute_coordinate(OkpCurve::X448, private_key, public_key_data).map(Bytes::new);
+        if secret.is_err() {
             return Err(dom_error("OperationError", b"Failed to compute secret"));
         }
 
@@ -13231,7 +12219,7 @@ impl AlgorithmMethods for X448 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
             if !spki.has_okp_oid(OkpCurve::X448) {
@@ -13279,7 +12267,7 @@ impl AlgorithmMethods for X448 {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
             if !private_key_info.has_okp_oid(OkpCurve::X448) {
@@ -13507,112 +12495,30 @@ impl AlgorithmMethods for X448 {
 
 type ContextParams = Ed448Params;
 
-#[derive(Clone, Copy)]
-#[repr(i32)]
-enum MlDsaSize {
-    MlDsa44,
-    MlDsa65,
-    MlDsa87,
-}
-
 const ML_DSA_44_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 17];
 const ML_DSA_65_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 18];
 const ML_DSA_87_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 3, 19];
 
-unsafe extern "C" {
-    fn web_crypto_mldsa_sign(
-        size: MlDsaSize,
-        key: *const c_void,
-        message: Span<'_, u8>,
-        context: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_mldsa_verify(
-        size: MlDsaSize,
-        key: *const c_void,
-        message: Span<'_, u8>,
-        signature: Span<'_, u8>,
-        context: Span<'_, u8>,
-        verified: &mut bool,
-    ) -> bool;
-    fn web_crypto_mldsa_generate_key_pair(
-        size: MlDsaSize,
-        seed: Span<'_, u8>,
-        public_key: &mut *mut c_void,
-        private_key: &mut *mut c_void,
-    ) -> usize;
-    fn web_crypto_asn1_key_info_identifier(structure: Asn1Structure, key_info: *const c_void, oid: &mut Span<'_, u32>);
-    fn web_crypto_mldsa_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
-    fn web_crypto_mldsa_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
-    fn web_crypto_mldsa_public_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_mldsa_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_mldsa_export_der(
-        key: *const c_void,
-        is_public: bool,
-        oid: Span<'_, u32>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-}
-
-impl Asn1KeyInfo {
-    fn identifier(&self) -> &[u32] {
-        let mut oid = Span::new(&[]);
-        // SAFETY: This object owns the structure that the identifier borrows from.
-        unsafe { web_crypto_asn1_key_info_identifier(self.structure, self.key_info.as_ptr(), &mut oid) };
-        oid.as_slice()
-    }
-
-    fn mldsa_private_key(&self) -> UninstalledKey {
-        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
-        // SAFETY: This object owns a live PrivateKeyInfo.
-        let key = unsafe { web_crypto_mldsa_key_info_read_private_key(self.key_info.as_ptr()) };
-        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an ML-DSA private key"))
-    }
-}
-
 fn mldsa_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
-    // SAFETY: The input bytes are lent for the call.
-    let key = unsafe { web_crypto_mldsa_read_public_key(Span::new(bytes)) };
-    // SAFETY: The service transfers ownership of the live key.
-    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an ML-DSA public key")) }
+    CryptoKey::create(vm, libcrypto_rust::mldsa_read_public_key(bytes))
 }
 
-fn mldsa_generate_key_pair(size: MlDsaSize, seed: &[u8]) -> Result<NativeKeyPair, Utf16String> {
-    let mut public_key = null_mut();
-    let mut private_key = null_mut();
-    // SAFETY: The seed and output slots are lent for the call.
-    let error = unsafe { web_crypto_mldsa_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
-    if error != 0 {
-        // SAFETY: LibCrypto transfers ownership of the error message.
-        return Err(unsafe { Utf16String::from_raw_owned(error) });
-    }
-    Ok(NativeKeyPair {
-        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
-        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
-    })
-}
-
-fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result<NativeKeyPair, Utf16String> {
+fn generate_mldsa_key_pair_from_seed(name: &Utf16String, seed: &Bytes) -> Result<KeyPair, Utf16String> {
     if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
-        return mldsa_generate_key_pair(MlDsaSize::MlDsa44, seed.as_slice());
+        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa44, seed.as_slice());
     }
     if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
-        return mldsa_generate_key_pair(MlDsaSize::MlDsa65, seed.as_slice());
+        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa65, seed.as_slice());
     }
     if matches!(name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
-        return mldsa_generate_key_pair(MlDsaSize::MlDsa87, seed.as_slice());
+        return libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa87, seed.as_slice());
     }
     unreachable!("the name identifies an ML-DSA parameter set")
 }
 
 fn mldsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
-    // SAFETY: The key handle, OID and output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_mldsa_export_der(key.handle().as_ptr(), is_public, Span::new(oid), state, receive)
-    });
-    if !success {
+    let result = libcrypto_rust::mldsa_export_der(key.handle(), is_public, oid).map(Bytes::new);
+    if result.is_err() {
         return Err(out_of_memory(vm));
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
@@ -13687,20 +12593,11 @@ impl AlgorithmMethods for MlDsa {
         } else {
             unreachable!("the name identifies an ML-DSA parameter set")
         };
-        // SAFETY: The key, input bytes and output slot are lent for the call.
-        let (maybe_result, signature) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_mldsa_sign(
-                size,
-                key.handle().as_ptr(),
-                Span::new(message.as_slice()),
-                Span::new(context),
-                state,
-                receive,
-            )
-        });
+
+        let signature = libcrypto_rust::mldsa_sign(size, key.handle(), message.as_slice(), context).map(Bytes::new);
 
         // 5. If the ML-DSA.Sign algorithm returned an error, throw an OperationError.
-        if !maybe_result {
+        if signature.is_err() {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
@@ -13760,26 +12657,16 @@ impl AlgorithmMethods for MlDsa {
         } else {
             unreachable!("the name identifies an ML-DSA parameter set")
         };
-        let mut verified = false;
-        // SAFETY: The key, input bytes and output slot are lent for the call.
-        let maybe_result = unsafe {
-            web_crypto_mldsa_verify(
-                size,
-                key.handle().as_ptr(),
-                Span::new(message.as_slice()),
-                Span::new(signature.as_slice()),
-                Span::new(context),
-                &mut verified,
-            )
-        };
+        let verified =
+            libcrypto_rust::mldsa_verify(size, key.handle(), message.as_slice(), signature.as_slice(), context);
 
         // 5. If the ML-DSA.Verify algorithm returned an error, throw an OperationError.
-        if !maybe_result {
+        if verified.is_err() {
             return Err(dom_error("OperationError", b"Failed to verify message"));
         }
 
         // 6. Return result.
-        Ok(verified)
+        Ok(verified.expect("LibCrypto returns the verification result"))
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
@@ -13803,11 +12690,11 @@ impl AlgorithmMethods for MlDsa {
         // 2. Generate an ML-DSA key pair, as described in Section 5.1 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm.
         // Note: In order to be able to export the seed ξ, it needs to be stored as part of the generated key material.
         let maybe_key_pair = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
-            mldsa_generate_key_pair(MlDsaSize::MlDsa44, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa44, &[])
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
-            mldsa_generate_key_pair(MlDsaSize::MlDsa65, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa65, &[])
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-87")) {
-            mldsa_generate_key_pair(MlDsaSize::MlDsa87, &[])
+            libcrypto_rust::mldsa_generate_key_pair(MlDsaSize::MlDsa87, &[])
         } else {
             unreachable!("the name identifies an ML-DSA parameter set")
         };
@@ -13818,7 +12705,7 @@ impl AlgorithmMethods for MlDsa {
         };
 
         // 6. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 7. Set the [[type]] internal slot of publicKey to "public".
         public_key.set_type(KeyType::Public);
@@ -13837,7 +12724,7 @@ impl AlgorithmMethods for MlDsa {
         public_key.set_usages(usage_intersection(usages, &[KeyUsage::Verify]));
 
         // 11. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 12. Set the [[type]] internal slot of privateKey to "private".
         private_key.set_type(KeyType::Private);
@@ -13895,7 +12782,7 @@ impl AlgorithmMethods for MlDsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
             let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
@@ -13920,7 +12807,7 @@ impl AlgorithmMethods for MlDsa {
 
             // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
             //    to expectedOid, then throw a DataError.
-            if spki.identifier() != expected_oid {
+            if spki.oid() != expected_oid {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -13962,7 +12849,7 @@ impl AlgorithmMethods for MlDsa {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
             //    Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17). Let asn1Structure be the ASN.1
@@ -13987,7 +12874,7 @@ impl AlgorithmMethods for MlDsa {
 
             // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
             //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
-            if private_key_info.identifier() != expected_oid {
+            if private_key_info.oid() != expected_oid {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -14011,7 +12898,7 @@ impl AlgorithmMethods for MlDsa {
             let ml_dsa_private_key = private_key_info.mldsa_private_key();
 
             // 11. Let key be a new CryptoKey that represents the ML-DSA private key identified by mlDsaPrivateKey.
-            key = ml_dsa_private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), ml_dsa_private_key);
 
             // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -14085,7 +12972,7 @@ impl AlgorithmMethods for MlDsa {
             let private_key = key_pair.private_key;
 
             // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
-            key = private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), private_key);
 
             // 6. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -14162,11 +13049,11 @@ impl AlgorithmMethods for MlDsa {
                         libjs_rust::api::utf16_formatted("Invalid seed: {}", &[&error]),
                     )
                 })?;
-                let NativeKeyPair {
+                let KeyPair {
                     public_key,
                     private_key,
                 } = key_pair;
-                key = private_key.install(cx.vm());
+                key = CryptoKey::create(cx.vm(), private_key);
 
                 // 3. Set the [[type]] internal slot of key to "private".
                 key.set_type(KeyType::Private);
@@ -14178,10 +13065,8 @@ impl AlgorithmMethods for MlDsa {
                 };
 
                 let pub_decoded = base64_url_bytes_decode(cx.vm(), public_bytes);
-                let mut expected = Span::new(&[]);
-                // SAFETY: The native candidate owns the bytes through the comparison.
-                unsafe { web_crypto_mldsa_public_bytes(public_key.0.as_ptr(), &mut expected) };
-                if !pub_decoded.is_ok_and(|bytes| bytes.as_slice() == expected.as_slice()) {
+                let expected = libcrypto_rust::mldsa_public_bytes(&public_key);
+                if !pub_decoded.is_ok_and(|bytes| bytes.as_slice() == expected) {
                     return Err(dom_error("DataError", b"JsonWebKey public key does not match"));
                 }
             }
@@ -14333,10 +13218,8 @@ impl AlgorithmMethods for MlDsa {
             }
 
             // 2. Let data be a byte sequence containing the ML-DSA public key represented by the [[handle]] internal slot of key.
-            let mut bytes = Span::new(&[]);
-            // SAFETY: The key owns the bytes through the copy.
-            unsafe { web_crypto_mldsa_public_bytes(handle.as_ptr(), &mut bytes) };
-            let data = Bytes::new(copy_bytes(vm, bytes.as_slice())?);
+            let bytes = libcrypto_rust::mldsa_public_bytes(handle);
+            let data = Bytes::new(copy_bytes(vm, bytes)?);
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -14351,10 +13234,8 @@ impl AlgorithmMethods for MlDsa {
             // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
             // Note: The ξ value is the seed from which the key was generated or imported, as used by
             //       ML-DSA.KeyGen_internal in Section 6.1 of [FIPS-204].
-            let mut bytes = Span::new(&[]);
-            // SAFETY: The key owns the bytes through the copy.
-            unsafe { web_crypto_mldsa_seed_bytes(handle.as_ptr(), &mut bytes) };
-            let data = Bytes::new(copy_bytes(vm, bytes.as_slice())?);
+            let bytes = libcrypto_rust::mldsa_seed_bytes(handle);
+            let data = Bytes::new(copy_bytes(vm, bytes)?);
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -14373,18 +13254,14 @@ impl AlgorithmMethods for MlDsa {
             jwk.alg = Some(key.algorithm_name());
 
             // 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
-            let mut public_bytes = Span::new(&[]);
-            // SAFETY: The key owns the bytes through the encoding.
-            unsafe { web_crypto_mldsa_public_bytes(handle.as_ptr(), &mut public_bytes) };
-            jwk.r#pub = Some(encode_jwk_bytes(vm, public_bytes.as_slice())?);
+            let public_bytes = libcrypto_rust::mldsa_public_bytes(handle);
+            jwk.r#pub = Some(encode_jwk_bytes(vm, public_bytes)?);
 
             // 6. -> If the [[type]] internal slot of key is "private":
             //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
             if key.key_type() == KeyType::Private {
-                let mut seed = Span::new(&[]);
-                // SAFETY: The key owns the seed through the encoding.
-                unsafe { web_crypto_mldsa_seed_bytes(handle.as_ptr(), &mut seed) };
-                jwk.r#priv = Some(encode_jwk_bytes(vm, seed.as_slice())?);
+                let seed = libcrypto_rust::mldsa_seed_bytes(handle);
+                jwk.r#priv = Some(encode_jwk_bytes(vm, seed)?);
             }
 
             // 7. Set the key_ops attribute of jwk to the usages attribute of key.
@@ -14416,89 +13293,17 @@ impl AlgorithmMethods for MlDsa {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(i32)]
-enum MlKemSize {
-    MlKem512,
-    MlKem768,
-    MlKem1024,
-}
-
 const ML_KEM_512_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 1];
 const ML_KEM_768_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 2];
 const ML_KEM_1024_OID: [u32; 9] = [2, 16, 840, 1, 101, 3, 4, 4, 3];
 
-unsafe extern "C" {
-    fn web_crypto_mlkem_generate_key_pair(
-        size: MlKemSize,
-        seed: Span<'_, u8>,
-        public_key: &mut *mut c_void,
-        private_key: &mut *mut c_void,
-    ) -> usize;
-    fn web_crypto_mlkem_key_info_read_private_key(key_info: *const c_void) -> *mut c_void;
-    fn web_crypto_mlkem_read_public_key(bytes: Span<'_, u8>) -> *mut c_void;
-    fn web_crypto_mlkem_public_bytes(key: *const c_void, state: *mut c_void, receive: ReceiveBytes);
-    fn web_crypto_mlkem_seed_bytes(key: *const c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_mlkem_export_der(
-        key: *const c_void,
-        is_public: bool,
-        oid: Span<'_, u32>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> bool;
-    fn web_crypto_mlkem_encapsulate(
-        size: MlKemSize,
-        key: *const c_void,
-        shared_key: *mut c_void,
-        ciphertext: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-    fn web_crypto_mlkem_decapsulate(
-        size: MlKemSize,
-        key: *const c_void,
-        ciphertext: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> usize;
-}
-
-impl Asn1KeyInfo {
-    fn mlkem_private_key(&self) -> UninstalledKey {
-        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
-        // SAFETY: This object owns a live PrivateKeyInfo.
-        let key = unsafe { web_crypto_mlkem_key_info_read_private_key(self.key_info.as_ptr()) };
-        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an ML-KEM private key"))
-    }
-}
-
 fn mlkem_read_public_key(vm: &Vm, bytes: &[u8]) -> Ref<CryptoKey> {
-    // SAFETY: The input bytes are lent for the call.
-    let key = unsafe { web_crypto_mlkem_read_public_key(Span::new(bytes)) };
-    // SAFETY: The service transfers ownership of the live key.
-    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an ML-KEM public key")) }
-}
-
-fn mlkem_generate_key_pair(size: MlKemSize, seed: &[u8]) -> Result<NativeKeyPair, Utf16String> {
-    let mut public_key = null_mut();
-    let mut private_key = null_mut();
-    // SAFETY: The seed and output slots are lent for the call.
-    let error = unsafe { web_crypto_mlkem_generate_key_pair(size, Span::new(seed), &mut public_key, &mut private_key) };
-    if error != 0 {
-        // SAFETY: LibCrypto transfers ownership of the error message.
-        return Err(unsafe { Utf16String::from_raw_owned(error) });
-    }
-    Ok(NativeKeyPair {
-        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
-        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
-    })
+    CryptoKey::create(vm, libcrypto_rust::mlkem_read_public_key(bytes))
 }
 
 fn mlkem_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool, oid: &[u32]) -> WebIdlResult<Bytes> {
-    // SAFETY: The key handle, OID and output slot are lent for the call.
-    let (success, result) = receive_native_bytes(|state, receive| unsafe {
-        web_crypto_mlkem_export_der(key.handle().as_ptr(), is_public, Span::new(oid), state, receive)
-    });
-    if !success {
+    let result = libcrypto_rust::mlkem_export_der(key.handle(), is_public, oid).map(Bytes::new);
+    if result.is_err() {
         return Err(out_of_memory(vm));
     }
     Ok(result.expect("LibCrypto returns the DER bytes"))
@@ -14542,7 +13347,7 @@ impl AlgorithmMethods for MlKem {
         } else {
             unreachable!("the name identifies an ML-KEM parameter set")
         };
-        let maybe_key_pair = mlkem_generate_key_pair(size, &[]);
+        let maybe_key_pair = libcrypto_rust::mlkem_generate_key_pair(size, &[]);
 
         // 3. If the key generation step fails, then throw an OperationError.
         let key_pair = maybe_key_pair.map_err(|error| {
@@ -14553,7 +13358,7 @@ impl AlgorithmMethods for MlKem {
         })?;
 
         // 6. Let publicKey be a new CryptoKey representing the encapsulation key of the generated key pair.
-        let public_key = key_pair.public_key.install(cx.vm());
+        let public_key = CryptoKey::create(cx.vm(), key_pair.public_key);
 
         // 7. Set the [[type]] internal slot of publicKey to "public".
         public_key.set_type(KeyType::Public);
@@ -14576,7 +13381,7 @@ impl AlgorithmMethods for MlKem {
         ));
 
         // 11. Let privateKey be a new CryptoKey representing the decapsulation key of the generated key pair.
-        let private_key = key_pair.private_key.install(cx.vm());
+        let private_key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
         // 12. Set the [[type]] internal slot of privateKey to "private".
         private_key.set_type(KeyType::Private);
@@ -14639,7 +13444,7 @@ impl AlgorithmMethods for MlKem {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+            let spki = parse_key_info(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
             let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
@@ -14664,7 +13469,7 @@ impl AlgorithmMethods for MlKem {
 
             // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
             //    to expectedOid, then throw a DataError.
-            if spki.identifier() != expected_oid {
+            if spki.oid() != expected_oid {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -14706,7 +13511,7 @@ impl AlgorithmMethods for MlKem {
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
-            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+            let private_key_info = parse_key_info(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
             // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
             //    Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1). Let asn1Structure be the ASN.1
@@ -14731,7 +13536,7 @@ impl AlgorithmMethods for MlKem {
 
             // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
             //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
-            if private_key_info.identifier() != expected_oid {
+            if private_key_info.oid() != expected_oid {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -14755,7 +13560,7 @@ impl AlgorithmMethods for MlKem {
             let ml_kem_private_key = private_key_info.mlkem_private_key();
 
             // 11. Let key be a new CryptoKey that represents the ML-KEM private key identified by mlKemPrivateKey.
-            key = ml_kem_private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), ml_kem_private_key);
 
             // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -14831,7 +13636,7 @@ impl AlgorithmMethods for MlKem {
             } else {
                 unreachable!("the name identifies an ML-KEM parameter set")
             };
-            let maybe_key_pair = mlkem_generate_key_pair(size, data.as_slice());
+            let maybe_key_pair = libcrypto_rust::mlkem_generate_key_pair(size, data.as_slice());
             let key_pair = maybe_key_pair.map_err(|error| {
                 Exception::Dom(
                     "OperationError",
@@ -14840,7 +13645,7 @@ impl AlgorithmMethods for MlKem {
             })?;
 
             // 5. Let key be a new CryptoKey that represents the ML-KEM private key identified by privateKey.
-            key = key_pair.private_key.install(cx.vm());
+            key = CryptoKey::create(cx.vm(), key_pair.private_key);
 
             // 6. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
@@ -15014,11 +13819,7 @@ impl AlgorithmMethods for MlKem {
             }
 
             // 2. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]] internal slot of key.
-            // SAFETY: The handle and output slot are lent for the call.
-            let ((), data) = receive_native_bytes(|state, receive| unsafe {
-                web_crypto_mlkem_public_bytes(handle.as_ptr(), state, receive);
-            });
-            let data = data.expect("LibCrypto returns the public key bytes");
+            let data = Bytes::new(libcrypto_rust::mlkem_public_bytes(handle));
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -15034,10 +13835,8 @@ impl AlgorithmMethods for MlKem {
             //    key represented by the [[handle]] internal slot of key.
             // Note: The d and z values are the seed from which the key was generated or imported, as used by
             //       ML-KEM.KeyGen_internal in Section 6.1 of [FIPS-203].
-            let mut seed = Span::new(&[]);
-            // SAFETY: The key owns the seed through the copy.
-            unsafe { web_crypto_mlkem_seed_bytes(handle.as_ptr(), &mut seed) };
-            let data = Bytes::new(copy_bytes(vm, seed.as_slice())?);
+            let seed = libcrypto_rust::mlkem_seed_bytes(handle);
+            let data = Bytes::new(copy_bytes(vm, seed)?);
 
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
@@ -15102,23 +13901,10 @@ impl AlgorithmMethods for MlKem {
         } else {
             unreachable!("the name identifies an ML-KEM parameter set")
         };
-        let mut shared_key: Option<Bytes> = None;
-        let mut ciphertext: Option<Bytes> = None;
-        // SAFETY: The handle and output slots are lent for the call.
-        let maybe_encapsulation = unsafe {
-            web_crypto_mlkem_encapsulate(
-                size,
-                key.handle().as_ptr(),
-                core::ptr::from_mut(&mut shared_key).cast(),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
-            )
-        };
+        let encapsulation = libcrypto_rust::mlkem_encapsulate(size, key.handle());
 
         // 5. If the ML-KEM.Encaps function returned an error, throw an OperationError.
-        if maybe_encapsulation != 0 {
-            // SAFETY: LibCrypto transfers ownership of the error message.
-            let error = unsafe { Utf16String::from_raw_owned(maybe_encapsulation) };
+        if let Err(error) = encapsulation {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Key encapsulation failed: {}", &[&error]),
@@ -15128,7 +13914,11 @@ impl AlgorithmMethods for MlKem {
         // 6. Let result be a new EncapsulatedBits dictionary.
         // 7. Set the sharedKey attribute of result to the result of creating an ArrayBuffer containing sharedKey.
         // 8. Set the ciphertext attribute of result to the result of creating an ArrayBuffer containing ciphertext.
-        let result = EncapsulatedBitsData { shared_key, ciphertext };
+        let (shared_key, ciphertext) = encapsulation.expect("LibCrypto returns the encapsulation");
+        let result = EncapsulatedBitsData {
+            shared_key: Some(Bytes::new(shared_key)),
+            ciphertext: Some(Bytes::new(ciphertext)),
+        };
 
         // 9. Return result.
         Ok(result)
@@ -15168,20 +13958,10 @@ impl AlgorithmMethods for MlKem {
         } else {
             unreachable!("the name identifies an ML-KEM parameter set")
         };
-        // SAFETY: The handle, ciphertext and output slot are lent for the call.
-        let (maybe_shared_key, shared_key) = receive_native_bytes(|state, receive| unsafe {
-            web_crypto_mlkem_decapsulate(
-                size,
-                key.handle().as_ptr(),
-                Span::new(ciphertext.as_slice()),
-                state,
-                receive,
-            )
-        });
 
-        if maybe_shared_key != 0 {
-            // SAFETY: LibCrypto transfers ownership of the error message.
-            let error = unsafe { Utf16String::from_raw_owned(maybe_shared_key) };
+        let shared_key = libcrypto_rust::mlkem_decapsulate(size, key.handle(), ciphertext.as_slice()).map(Bytes::new);
+
+        if let Err(error) = shared_key {
             return Err(Exception::Dom(
                 "OperationError",
                 libjs_rust::api::utf16_formatted("Key decapsulation failed: {}", &[&error]),
@@ -15201,24 +13981,14 @@ impl AlgorithmMethods for MlKem {
     }
 }
 
-unsafe extern "C" fn receive_bytes(state: *mut c_void, bytes: Span<'_, u8>) {
-    // SAFETY: The state is the caller's slot, and the service lends the bytes.
-    unsafe { *state.cast::<Option<Bytes>>() = Some(Bytes::new(bytes.as_slice().to_vec())) };
-}
-
 pub(crate) fn public_key_for_private_key(vm: &Vm, key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {
     let name = key.algorithm_name();
     let algorithm = key.internal_algorithm();
     let named_curve = if let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm {
-        named_curve.raw_identity()
+        Some(named_curve)
     } else {
-        0
+        None
     };
-    // SAFETY: The key handle and algorithm metadata are lent for the call.
-    let public_key =
-        unsafe { web_crypto_public_key_for_private_key(key.handle().as_ptr(), name.raw_identity(), named_curve) };
-    NonNull::new(public_key).map(|handle| {
-        // SAFETY: The service transfers ownership of the native key.
-        unsafe { CryptoKey::create_with_handle(vm, handle) }
-    })
+    libcrypto_rust::public_key_for_private_key(key.handle(), &name, named_curve)
+        .map(|handle| CryptoKey::create(vm, handle))
 }

@@ -8,7 +8,7 @@
 
 use core::ffi::c_void;
 
-use ak::{Span, SpanMut, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{
     ArrayBufferOrder, ErrorType, Throw, Trace, TypedArrayKind, Value, Vm, is_typed_array_out_of_bounds,
     make_typed_array_with_buffer_witness_record, typed_array_byte_length,
@@ -20,11 +20,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::subtle_crypto::SubtleCrypto;
 use crate::webidl::dom_exception::DOMExceptionFields;
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
-
-unsafe extern "C" {
-    pub(super) fn web_crypto_fill_with_random(bytes: SpanMut<'_, u8>);
-    fn web_crypto_generate_random_uuid(state: *mut c_void, receive: unsafe extern "C" fn(*mut c_void, Span<'_, u8>));
-}
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
@@ -106,8 +101,7 @@ impl Crypto {
         let extent = array_view.extent();
         let mut random_bytes = vec![0; extent.byte_length];
         // 5. Fill bytes with cryptographically secure random bytes.
-        // SAFETY: The span is writable for the call.
-        unsafe { web_crypto_fill_with_random(SpanMut::new(&mut random_bytes)) };
+        libcrypto_rust::fill_with_random(&mut random_bytes);
         // 6. Write bytes into array.
         extent.buffer.overwrite(extent.byte_offset, &random_bytes);
 
@@ -123,12 +117,6 @@ impl Crypto {
 
 // https://w3c.github.io/webcrypto/#dfn-generate-a-random-uuid
 fn generate_random_uuid() -> Utf16String {
-    unsafe extern "C" fn receive(state: *mut c_void, bytes: Span<'_, u8>) {
-        // SAFETY: The caller lends the string and the service lends the UUID bytes.
-        unsafe { *state.cast::<Utf16String>() = Utf16String::from_ascii(bytes.as_slice()) };
-    }
-    let mut uuid = Utf16String::default();
-    // SAFETY: The state is writable for the call.
     // 1. Let bytes be a byte sequence of length 16.
     // 2. Fill bytes with cryptographically secure random bytes.
     // 3. Set the 4 most significant bits of bytes[6], which represent the UUID version, to 0100.
@@ -148,8 +136,7 @@ fn generate_random_uuid() -> Utf16String {
     //    representation of bytes[15]
     //    ».
     // NB: The native service performs these steps.
-    unsafe { web_crypto_generate_random_uuid((&raw mut uuid).cast(), receive) };
-    uuid
+    libcrypto_rust::generate_random_uuid()
 }
 
 /// # Safety

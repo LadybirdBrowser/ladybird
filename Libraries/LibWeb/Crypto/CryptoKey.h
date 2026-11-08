@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <LibCrypto/PK/EC.h>
-#include <LibCrypto/PK/MLDSA.h>
-#include <LibCrypto/PK/MLKEM.h>
-#include <LibCrypto/PK/RSA.h>
+#include <LibCrypto/KeyHandle.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
@@ -24,14 +21,8 @@ enum class KeyType : u8;
 
 namespace Web::Crypto {
 
-// The raw key octets of an Ed25519, Ed448, X25519, or X448 ("OKP") key.
-struct OKPPublicKey {
-    ByteBuffer bytes;
-};
-
-struct OKPPrivateKey {
-    ByteBuffer bytes;
-};
+using ::Crypto::OKPPrivateKey;
+using ::Crypto::OKPPublicKey;
 
 using KeyUsage = Bindings::KeyUsage;
 
@@ -45,7 +36,7 @@ class WEB_API CryptoKey final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(CryptoKey, crypto_key)
 
 public:
-    using InternalKeyData = Variant<ByteBuffer, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey, ::Crypto::PK::MLKEMPublicKey, ::Crypto::PK::MLKEMPrivateKey, OKPPublicKey, OKPPrivateKey>;
+    using InternalKeyData = ::Crypto::KeyHandle;
 
     struct KeyAlgorithmData {
         Utf16String const& name() const { return m_name; }
