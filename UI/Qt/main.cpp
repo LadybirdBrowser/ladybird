@@ -88,18 +88,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->new_window({ file_url });
         };
 
-        app->on_open_urls = [&](auto const& urls) {
-            for (auto const& url : urls)
-                app->on_open_file(url);
-        };
-
+        // NB: URLs from outside the browser, such as a link clicked in another app, never open in a private window.
         app->on_new_tab = [&](auto const& urls) {
-            if (!app->active_window_if_any()) {
+            auto* non_private_window = app->non_private_window_if_any();
+            if (!non_private_window) {
                 app->new_window(urls);
                 return;
             }
 
-            auto& window = *app->active_window_if_any();
+            auto& window = *non_private_window;
             for (size_t i = 0; i < urls.size(); ++i) {
                 window.new_tab_from_url(urls[i], (i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, Ladybird::BrowserWindow::TabLocation::end());
             }

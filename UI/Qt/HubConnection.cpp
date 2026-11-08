@@ -684,12 +684,6 @@ void HubConnection::view_page_dumps(u64 view_id, u64 request_id, Optional<String
         view->did_get_page_dumps(request_id, move(dumps));
 }
 
-void HubConnection::app_open_urls(Vector<URL::URL> urls)
-{
-    if (auto& application = Application::the(); application.on_open_urls)
-        application.on_open_urls(urls);
-}
-
 void HubConnection::app_open_new_tab(Vector<URL::URL> urls)
 {
     if (auto& application = Application::the(); application.on_new_tab)

@@ -102,7 +102,6 @@ set(SOURCES
 if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
-        LaunchURLsMacOS.cpp
         NotificationBackendMacOS.mm
         PlatformColorsMacOS.cpp
         ProcessReaper.cpp
@@ -181,7 +180,7 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework Carbon" "-framework CoreServices" "-framework Foundation" "-framework UserNotifications")
+    target_link_libraries(LibWebView PRIVATE "-framework CoreServices" "-framework Foundation" "-framework UserNotifications")
 endif()
 
 if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")

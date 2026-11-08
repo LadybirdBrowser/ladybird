@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/LaunchURLsMacOS.h>
+#include <UI/Qt/LaunchURLsMacOS.h>
 
 #include <Carbon/Carbon.h>
 
-namespace WebView {
+namespace Ladybird {
 
 static void append_url_from_descriptor(AEDesc const& descriptor, Vector<ByteString>& urls)
 {
@@ -69,12 +69,27 @@ Vector<ByteString> take_urls_from_launch_apple_events()
     AEInstallEventHandler(kInternetEventClass, kAEGetURL, get_url_handler, &urls, false);
     AEInstallEventHandler(kCoreEventClass, kAEOpenDocuments, open_documents_handler, &urls, false);
 
-    // LaunchServices has already queued the launch events by the time this runs — one kAEGetURL event per URL, back to
-    // back — so this only takes what is queued, and never waits for more. This is the same check Chrome makes in
-    // ProcessSingleton::WaitForAndForwardOpenURLEvent().
+    // LaunchServices has already queued the launch events by the time this runs, one kAEGetURL event per URL, back to
+    // back. So this only takes what is queued, and never waits for more. The first call only lets the event source turn
+    // the queued Apple events into events, and takes none of them.
     EventTypeSpec const apple_event_type { kEventClassAppleEvent, kEventAppleEvent };
-    EventRef event = nullptr;
-    while (ReceiveNextEvent(1, &apple_event_type, kEventDurationNanosecond, true, &event) == noErr) {
+    EventRef first_event = nullptr;
+    (void)ReceiveNextEvent(1, &apple_event_type, kEventDurationNanosecond, false, &first_event);
+
+    // NB: Only the URL events are taken. The other launch events, kAEOpenApplication above all, stay queued for AppKit,
+    //     which does not order any window in that is shown later on until it has handled them.
+    auto is_url_event = [](EventRef event, void*) -> Boolean {
+        if (GetEventClass(event) != kEventClassAppleEvent || GetEventKind(event) != kEventAppleEvent)
+            return false;
+        OSType event_class {};
+        OSType event_id {};
+        GetEventParameter(event, kEventParamAEEventClass, typeType, nullptr, sizeof(event_class), nullptr, &event_class);
+        GetEventParameter(event, kEventParamAEEventID, typeType, nullptr, sizeof(event_id), nullptr, &event_id);
+        return (event_class == kInternetEventClass && event_id == kAEGetURL) || (event_class == kCoreEventClass && event_id == kAEOpenDocuments);
+    };
+    while (auto* event = FindSpecificEventInQueue(GetMainEventQueue(), is_url_event, nullptr)) {
+        RetainEvent(event);
+        RemoveEventFromQueue(GetMainEventQueue(), event);
         AEProcessEvent(event);
         ReleaseEvent(event);
     }

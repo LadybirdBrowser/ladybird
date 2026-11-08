@@ -142,6 +142,7 @@ if (APPLE)
         Conversions.mm
         DictionaryLookup.mm
         ExternalURLHandler.mm
+        LaunchURLsMacOS.cpp
         LadybirdAccessibilityElement.mm
         MacWindow.mm
         MacWindowFocus.mm
@@ -155,7 +156,7 @@ if (APPLE)
         WebContentViewAccessibility.mm
         WebContentViewMac.mm
     )
-    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework AVFoundation" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
+    target_link_libraries(ladybird_impl PRIVATE Qt::GuiPrivate "-framework ApplicationServices" "-framework AVFoundation" "-framework Carbon" "-framework Cocoa" "-framework CoreServices" "-framework IOSurface" "-framework QuartzCore")
     set_source_files_properties(
         LadybirdAccessibilityElement.mm
         MicrophoneAuthorizerMacOS.mm

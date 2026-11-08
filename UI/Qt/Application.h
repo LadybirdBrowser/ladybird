@@ -86,7 +86,6 @@ public:
     Optional<int> exit_status_if_done() const;
     ErrorOr<int> execute();
 
-    Function<void(Vector<URL::URL> const&)> on_open_urls;
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
     static WebView::Settings& settings() { return *s_the->m_settings; }
