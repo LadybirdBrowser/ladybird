@@ -1,0 +1,5 @@
+In a full-screen window, Ladybird’s chrome leaves no room for the
+window controls, since macOS shows them only in the title bar that
+slides in over the window. Chromium does the same: For a full-screen
+window, BrowserFrameViewMac::GetBrowserLayoutParams() sets the width
+and padding of both its leading and trailing exclusions to zero.
