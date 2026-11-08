@@ -307,7 +307,13 @@ private:
     // Whether the engine keeps a before-change style the current stabilization epoch recorded.
     mutable bool m_transition_baselines_recorded { false };
 
-    ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
+    // What a sampled element's lengths resolve against, by when in the cascade they compute.
+    enum class LengthResolutionPhase : u8 {
+        Font,
+        LineHeight,
+        Remaining,
+    };
+    Length::ResolutionContext make_length_resolution_context(LengthResolutionPhase, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     CSSPixelRect m_viewport_rect;
 
     mutable StyleEngine m_style_engine;

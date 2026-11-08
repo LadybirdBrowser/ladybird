@@ -2403,7 +2403,7 @@ impl StyleEngine {
 
     /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
     /// already represented by their `@property` rule's program input.
-    pub fn record_custom_property_registration_change(&mut self, _name: StyleAtomID) {
+    pub fn record_custom_property_registration_change(&mut self) {
         self.retained.counters.bump(Counter::RawMutationRecords);
         self.retained.counters.bump(Counter::ProgramDeltas);
         // A registration made through `CSS.registerProperty()` moves how the elements declaring

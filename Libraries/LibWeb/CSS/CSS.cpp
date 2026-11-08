@@ -9,6 +9,8 @@
 #include <LibWeb/CSS/HighlightRegistry.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
 
 // What the Rust implementation of the CSS namespace (Libraries/LibWeb/Bindings/Rust/src/css/css.rs) asks of the
@@ -64,15 +66,18 @@ StyleValueData const* web_css_namespace_parse_with_a_syntax(void* document, Flat
 void web_css_namespace_register(void* raw_document, FlatPtr name, void const* syntax, bool inherits, StyleValueData const* initial_value)
 {
     auto& document = document_from_abi(raw_document);
-    auto property_name = Utf16FlyString { Utf16String::adopt_raw(name) };
     CustomPropertyRegistration registered_property {
-        .property_name = property_name,
+        .property_name = Utf16FlyString { Utf16String::adopt_raw(name) },
         .syntax = Parser::RustSyntaxHandle { syntax },
         .inherit = inherits,
         .initial_value = initial_value ? RefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(initial_value) } : nullptr,
     };
     document.registered_property_set().set(registered_property.property_name, move(registered_property));
-    document.did_change_custom_property_registrations(property_name);
+    document.did_change_custom_property_registrations();
+
+    // NB: An @property rule reaches the style engine as a rule of its own. CSS.registerProperty() has no rule, so tell
+    //     the engine directly.
+    StyleEngineFFI::style_engine_record_custom_property_registration_change(document.style_computer().style_engine().host());
 }
 
 }

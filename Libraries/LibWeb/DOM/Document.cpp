@@ -2800,14 +2800,14 @@ void Document::record_style_environment_change(StyleEnvironmentChange changes)
 
 void Document::invalidate_style_for_viewport_change(CSSPixelSize previous_viewport_size)
 {
-    Vector<Utf16FlyString> registrations_reading_viewport;
+    bool any_registration_read_viewport = false;
     auto invalidate_registered_initial_values = [&](auto& registrations) {
         for (auto& [name, registration] : registrations) {
             if (!registration.computed_initial_value_depends_on_viewport_metrics)
                 continue;
             registration.computed_initial_value = nullptr;
             registration.computed_initial_value_depends_on_viewport_metrics = false;
-            registrations_reading_viewport.append(name);
+            any_registration_read_viewport = true;
         }
     };
     invalidate_registered_initial_values(m_registered_property_set);
@@ -2816,7 +2816,7 @@ void Document::invalidate_style_for_viewport_change(CSSPixelSize previous_viewpo
     Layout::ForcedReadScope read { *this };
     auto& style_engine = style_computer().style_engine();
 
-    if (!registrations_reading_viewport.is_empty()) {
+    if (any_registration_read_viewport) {
         // The custom-property registry holds the initial values just dropped, so the next style
         // update has to publish the recomputed ones before it reads them. A registered initial value
         // moving is a change to its registration, which restyles the elements declaring, holding or
@@ -2824,8 +2824,7 @@ void Document::invalidate_style_for_viewport_change(CSSPixelSize previous_viewpo
         m_rust_custom_property_registry_synced = false;
         ++m_custom_property_registration_generation;
         m_custom_property_environments_need_republishing = true;
-        for (auto const& name : registrations_reading_viewport)
-            CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host(), style_engine.intern_atom(name));
+        CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host());
     }
 
     // The viewport is one of the document's published inputs, and the style engine drives a record
@@ -12886,7 +12885,7 @@ void Document::for_each_registered_custom_property(Function<void(CSS::CustomProp
     }
 }
 
-void Document::did_change_custom_property_registrations(Optional<Utf16FlyString> registered_property_set_change)
+void Document::did_change_custom_property_registrations()
 {
     ++m_custom_property_registration_generation;
     sync_custom_property_registrations_to_rust();
@@ -12895,13 +12894,6 @@ void Document::did_change_custom_property_registrations(Optional<Utf16FlyString>
     // That waits for the next style update, which reaches the engine under a read of its own. A change beside
     // a frame in flight leaves the flight alone.
     m_custom_property_environments_need_republishing = true;
-
-    // An @property rule's program input already reaches the elements declaring or referencing its
-    // name. CSS.registerProperty() has no rule, so publish the equivalent named input explicitly.
-    if (registered_property_set_change.has_value()) {
-        auto& style_engine = style_computer().style_engine();
-        CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host(), style_engine.intern_atom(*registered_property_set_change));
-    }
 }
 
 void Document::republish_custom_property_environments_for_style_update(Layout::BegunRead const& read)
