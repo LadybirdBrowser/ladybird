@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Sandboxed srcdoc and data: iframes run what their embedder gave them, but script in them must not reach the
+    // embedder, so they share the process of the sandboxed iframes of their embedder's site. An unsandboxed data: iframe
+    // has no reason to leave.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const childScript = name =>
+            "<scr" + `ipt>parent.postMessage({ name: "${name}", processId: internals.webContentProcessId() }, "*");</scr` + "ipt>";
+
+        const sandboxedHttpUrl = new URL(
+            await httpServer.createEcho("GET", "/sandboxed-http-sibling", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>${childScript("sandboxedHttp")}`,
+            })
+        );
+
+        const embedderScript = `
+            const childScript = ${childScript.toString()};
+            const processIds = {};
+            addEventListener("message", event => {
+                processIds[event.data.name] = event.data.processId;
+                if (Object.keys(processIds).length < 4)
+                    return;
+                const own = internals.webContentProcessId();
+                parent.postMessage({
+                    sandboxedSrcdocIsInProcessOfEmbedder: processIds.sandboxedSrcdoc === own,
+                    sandboxedDataIsInProcessOfEmbedder: processIds.sandboxedData === own,
+                    sandboxedSrcdocSharesProcessOfSandboxedHttp: processIds.sandboxedSrcdoc === processIds.sandboxedHttp,
+                    sandboxedDataSharesProcessOfSandboxedHttp: processIds.sandboxedData === processIds.sandboxedHttp,
+                    unsandboxedDataIsInProcessOfEmbedder: processIds.unsandboxedData === own,
+                }, "*");
+            });
+            const addIframe = (setup, sandbox) => {
+                const iframe = document.createElement("iframe");
+                if (sandbox !== null)
+                    iframe.sandbox = sandbox;
+                setup(iframe);
+                document.body.appendChild(iframe);
+            };
+            const dataUrl = name => "data:text/html," + encodeURIComponent(childScript(name));
+            addIframe(iframe => { iframe.srcdoc = childScript("sandboxedSrcdoc"); }, "allow-scripts");
+            addIframe(iframe => { iframe.src = dataUrl("sandboxedData"); }, "allow-scripts");
+            addIframe(iframe => { iframe.src = ${JSON.stringify(sandboxedHttpUrl.pathname)}; }, "allow-scripts");
+            addIframe(iframe => { iframe.src = dataUrl("unsandboxedData"); }, null);
+        `;
+
+        const embedderUrl = new URL(
+            await httpServer.createEcho("GET", "/sandboxed-children-embedder", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body><script>${embedderScript}<\/script>`,
+            })
+        );
+        embedderUrl.hostname = uniqueLocalhostHostname("sandboxed-children-embedder");
+
+        const report = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = embedderUrl;
+        document.body.appendChild(iframe);
+
+        const results = await report;
+        for (const [name, value] of Object.entries(results))
+            println(`${name}: ${value}`);
+    });
+</script>

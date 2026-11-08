@@ -1,0 +1,5 @@
+sandboxedSrcdocIsInProcessOfEmbedder: true
+sandboxedDataIsInProcessOfEmbedder: true
+sandboxedSrcdocSharesProcessOfSandboxedHttp: false
+sandboxedDataSharesProcessOfSandboxedHttp: false
+unsandboxedDataIsInProcessOfEmbedder: true
