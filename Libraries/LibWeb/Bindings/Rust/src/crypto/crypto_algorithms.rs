@@ -5702,7 +5702,10 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            // FIXME: 5. If the length in bits of data is not 256, then throw a DataError.
+            // 5. If the length in bits of data is not 256, then throw a DataError.
+            if data.as_slice().len() != 32 {
+                return Err(dom_error("DataError", b"Key data must be 256 bits"));
+            }
 
             // 6. If the alg field of jwk is present, and is not "C20P", then throw a DataError.
             if jwk

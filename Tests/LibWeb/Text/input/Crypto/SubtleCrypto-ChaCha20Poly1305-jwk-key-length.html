@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (const length of [31, 32, 33]) {
+            const jwk = { kty: "oct", k: btoa("\0".repeat(length)).replace(/=+$/, "") };
+            try {
+                await crypto.subtle.importKey("jwk", jwk, "ChaCha20-Poly1305", true, ["encrypt"]);
+                println(`${length}: imported`);
+            } catch (error) {
+                println(`${length}: ${error.name}`);
+            }
+        }
+    });
+</script>
