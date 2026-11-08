@@ -703,8 +703,8 @@ impl Generator<'_> {
     }
 
     #[inline(always)]
-    pub(super) fn pop_control(&mut self) {
-        self.context.stream.controls.pop();
+    pub(super) fn pop_control(&mut self) -> Option<Control> {
+        self.context.stream.controls.pop()
     }
 
     #[inline(always)]
