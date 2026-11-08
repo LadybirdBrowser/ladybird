@@ -2907,15 +2907,7 @@ impl<'pass> GridFormattingContext<'pass> {
             CssPixels::from_raw(i32::MAX)
         };
         let content = if preferred_behaves_as_auto {
-            if axis.is_column() && self.item_facts(item).is_scroll_container() {
-                // NOTE: Not defined in spec, but matches other browsers: a scroll container's min-content
-                //       width contribution is 0 because its content can overflow and scroll horizontally.
-                //       This does NOT apply to the row dimension — scroll containers must still contribute
-                //       their content height, otherwise grids with height:min-content collapse rows to 0.
-                CssPixels::default()
-            } else {
-                self.min_content_size(item, axis)
-            }
+            self.min_content_size(item, axis)
         } else if let Some(size) = self.column_subgrid_content_based_block_size(item, axis, false) {
             size
         } else {
@@ -3407,14 +3399,21 @@ impl<'pass> GridFormattingContext<'pass> {
             *max_content.get_or_init(|| self.max_content_contribution_with(item, axis, preferred_behaves_as_auto));
         let fixed_track_limit = std::cell::OnceCell::new();
         let grid_container_maximum_size = std::cell::OnceCell::new();
-        let limited_min = self.limited_content_contribution(
-            min_content,
-            minimum,
-            &fixed_track_limit,
-            &grid_container_maximum_size,
-            item,
-            axis,
-        );
+        let limited_min = if axis.is_column() && is_scroll_container && preferred_behaves_as_auto {
+            // NB: Not defined in the spec, but matches other browsers: a scroll container's content can overflow and
+            //     scroll horizontally, so under a min-content constraint it contributes only its minimum contribution.
+            //     This does not apply to the row axis, where grids with height:min-content would collapse their rows.
+            minimum
+        } else {
+            self.limited_content_contribution(
+                min_content,
+                minimum,
+                &fixed_track_limit,
+                &grid_container_maximum_size,
+                item,
+                axis,
+            )
+        };
         let limited_max = self.limited_content_contribution(
             max_content,
             minimum,
@@ -3739,7 +3738,6 @@ impl<'pass> GridFormattingContext<'pass> {
             !self.grid_item_is_subgridded(item, axis)
                 && self.item_contributes_to_track_sizing(item, axis)
                 && self.preferred_behaves_as_auto(item, axis)
-                && !(axis.is_column() && self.item_facts(item).is_scroll_container())
                 && !(!axis.is_column() && self.grid_item_is_column_only_subgrid(item))
         });
         if axis.is_column() {
