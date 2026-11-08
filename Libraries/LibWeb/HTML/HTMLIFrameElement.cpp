@@ -91,7 +91,7 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
         // A content navigable whose document another process hosts reads these attributes through its replicated
         // state, which the UI process keeps current from these reports.
-        if (name == AttributeNames::sandbox || name == AttributeNames::referrerpolicy || name == AttributeNames::allow || name == AttributeNames::allowfullscreen)
+        if (name == AttributeNames::sandbox || name == AttributeNames::referrerpolicy || name == AttributeNames::allow || name == AttributeNames::allowfullscreen || name == AttributeNames::name)
             document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
     }
 

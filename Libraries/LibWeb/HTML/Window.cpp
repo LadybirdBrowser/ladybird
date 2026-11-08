@@ -2363,11 +2363,8 @@ GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> Window::document_tree
         //     container's name content attribute. This keeps <iframe name=...> accessible
         //     through parent.frames.name while still excluding names introduced only by a
         //     cross-origin child changing window.name.
-        if (auto container = navigable->container()) {
-            auto container_name = container->name();
-            if (container_name.has_value() && *container_name == name)
-                names.set(name, *navigable);
-        }
+        if (auto container_name = navigable->container_name(); container_name.has_value() && *container_name == name)
+            names.set(name, *navigable);
     }
 
     return names;

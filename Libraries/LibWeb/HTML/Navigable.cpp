@@ -40,6 +40,14 @@ GC::Ptr<NavigableContainer> Navigable::container() const
     return m_container;
 }
 
+// The name content attribute of this navigable's container, which another process reports when it holds the container.
+Optional<Utf16FlyString> Navigable::container_name() const
+{
+    if (auto container = this->container())
+        return container->name();
+    return container_state().name;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
 GC::Ptr<DOM::Document> Navigable::container_document() const
 {

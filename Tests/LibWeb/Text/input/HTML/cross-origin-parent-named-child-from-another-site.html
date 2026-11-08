@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A frame looks up its siblings by name on its cross-origin parent, from a process of its own. A cross-origin child
+    // is found only when its target name matches its container's name content attribute.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childSite = uniqueLocalhostHostname("named-child-site");
+        const askingSite = uniqueLocalhostHostname("named-child-asking-site");
+        const echo = async (hostname, name, body) => {
+            const url = new URL(
+                await server.createEcho("GET", `/named-child/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html>${body}`,
+                })
+            );
+            url.hostname = hostname;
+            return url.href;
+        };
+
+        const childURL = await echo(childSite, "child", "");
+        const selfNamingURL = await echo(childSite, "self-naming", `<script>window.name = "named-by-itself";<\/script>`);
+        const askingURL = await echo(
+            askingSite,
+            "asking",
+            `<script>
+                onmessage = event => {
+                    const results = event.data.map(name => {
+                        try {
+                            const found = parent[name];
+                            return name + ": " + (found === undefined ? "undefined" : found === parent.frames[name] ? "found" : "mismatch");
+                        } catch (error) {
+                            return name + ": " + error.name;
+                        }
+                    });
+                    parent.postMessage(results, "*");
+                };
+            <\/script>`
+        );
+
+        const loaded = iframe => new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        const namedBeforeInsertion = document.createElement("iframe");
+        namedBeforeInsertion.name = "named-before-insertion";
+        namedBeforeInsertion.src = childURL;
+        document.body.append(namedBeforeInsertion);
+
+        const namedAfterInsertion = document.createElement("iframe");
+        namedAfterInsertion.src = childURL;
+        document.body.append(namedAfterInsertion);
+        namedAfterInsertion.name = "named-after-insertion";
+
+        const selfNaming = document.createElement("iframe");
+        selfNaming.src = selfNamingURL;
+        document.body.append(selfNaming);
+
+        const asking = document.createElement("iframe");
+        asking.src = askingURL;
+        document.body.append(asking);
+        await Promise.all([loaded(namedBeforeInsertion), loaded(namedAfterInsertion), loaded(selfNaming), loaded(asking)]);
+
+        const ask = names => new Promise(resolve => {
+            window.addEventListener("message", event => resolve(event.data), { once: true });
+            asking.contentWindow.postMessage(names, "*");
+        });
+
+        for (const result of await ask(["named-before-insertion", "named-after-insertion", "named-by-itself"]))
+            println(result);
+
+        // Renaming the container leaves the child's target name as it was, which no longer matches.
+        namedBeforeInsertion.name = "renamed";
+        // NB: The rename reaches the asking frame's process ahead of the question, which follows it from this process.
+        const [result] = await ask(["named-before-insertion"]);
+        println(`After renaming the container: ${result}`);
+        done();
+    });
+</script>
