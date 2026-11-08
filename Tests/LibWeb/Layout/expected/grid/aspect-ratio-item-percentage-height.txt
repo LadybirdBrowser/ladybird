@@ -1,0 +1,15 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1066]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1066 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1050 0+0+8] children: not-inline
+      Box <div.grid.definite> at [8,8] [0+0+0 300 0+0+484] [0+0+0 300 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,8] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+      Box <div.grid.definite> at [8,308] [0+0+0 300 0+0+484] [0+0+0 300 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,308] [0+0+0 60 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline overflow: [8,308 60x60]
+          BlockContainer <div.content> at [8,308] [0+0+0 60 0+0+0] [0+0+0 60 0+0+0] children: not-inline
+      Box <div.grid.definite> at [8,608] [0+0+0 300 0+0+484] [0+0+0 300 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,608] [0+0+0 600 0+0+0] [0+0+0 300 0+0+0] [BFC] children: not-inline
+      Box <div.grid> at [8,908] [0+0+0 300 0+0+484] [0+0+0 150 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,908] [0+0+0 60 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1066] (z-index: auto)
