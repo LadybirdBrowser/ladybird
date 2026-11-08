@@ -66,6 +66,11 @@ public:
     NonnullRefPtr<CanonicalSimilarOriginWindowAgent> obtain_similar_origin_window_agent(URL::Origin const&, bool requests_oac);
     RefPtr<CanonicalSimilarOriginWindowAgent> similar_origin_window_agent_for(URL::Origin const&) const;
 
+    // The process hosting this group's sandboxed documents of a site. It hosts no other documents of the site, since
+    // a sandbox exists to keep its content away from them.
+    RefPtr<WebContentClient> process_hosting_sandboxed_documents_of_site(URL::Site const&) const;
+    void set_process_hosting_sandboxed_documents_of_site(URL::Site const&, WebContentClient&);
+
 private:
     CanonicalBrowsingContextGroup() = default;
 
@@ -101,6 +106,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#historical-agent-cluster-key-map
     HashMap<URL::Origin, AgentClusterKey> m_historical_agent_cluster_key_map;
+
+    HashMap<String, WeakPtr<WebContentClient>> m_processes_hosting_sandboxed_documents;
 };
 
 }

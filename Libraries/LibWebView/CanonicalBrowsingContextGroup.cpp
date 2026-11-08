@@ -25,13 +25,18 @@ CanonicalSimilarOriginWindowAgent::CanonicalSimilarOriginWindowAgent(Web::HTML::
 {
 }
 
-RefPtr<WebContentClient> CanonicalSimilarOriginWindowAgent::hosting_process() const
+// A process that has exited, or has been asked to, hosts nothing.
+static RefPtr<WebContentClient> process_able_to_host(WeakPtr<WebContentClient> const& weak_process)
 {
-    // A process that has exited, or has been asked to, hosts nothing.
-    auto process = m_hosting_process.strong_ref();
+    auto process = weak_process.strong_ref();
     if (!process || !process->is_open() || process->has_requested_close())
         return nullptr;
     return process;
+}
+
+RefPtr<WebContentClient> CanonicalSimilarOriginWindowAgent::hosting_process() const
+{
+    return process_able_to_host(m_hosting_process);
 }
 
 void CanonicalSimilarOriginWindowAgent::set_hosting_process_if_unset(WebContentClient& process)
@@ -167,6 +172,20 @@ RefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::similar
     if (!agent_cluster.has_value())
         return nullptr;
     return agent_cluster->similar_origin_window_agent;
+}
+
+RefPtr<WebContentClient> CanonicalBrowsingContextGroup::process_hosting_sandboxed_documents_of_site(URL::Site const& site) const
+{
+    auto process = m_processes_hosting_sandboxed_documents.get(site.serialize());
+    if (!process.has_value())
+        return nullptr;
+    return process_able_to_host(*process);
+}
+
+void CanonicalBrowsingContextGroup::set_process_hosting_sandboxed_documents_of_site(URL::Site const& site, WebContentClient& process)
+{
+    m_processes_hosting_sandboxed_documents.remove_all_matching([](auto const&, auto const& hosting_process) { return hosting_process.is_null(); });
+    m_processes_hosting_sandboxed_documents.set(site.serialize(), process.make_weak_ptr<WebContentClient>());
 }
 
 }

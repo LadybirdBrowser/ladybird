@@ -860,6 +860,18 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
+// A document fetched over HTTP(S) has an opaque origin only because it is sandboxed. Such a document goes by the site
+// of its URL, which a document made from what its creator holds, such as a data: URL's, does not have.
+static Optional<URL::Site> site_of_sandboxed_document(CanonicalDocument const& document)
+{
+    if (!document.origin().is_opaque())
+        return {};
+    auto const& url = document.creation_url();
+    if (!url.scheme().is_one_of("http"sv, "https"sv))
+        return {};
+    return URL::Site::obtain(url.origin());
+}
+
 RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
 {
     RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
@@ -874,10 +886,16 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
     if (mode == SiteIsolationMode::Disabled || (mode == SiteIsolationMode::TopLevel && parent()))
         return process_holding_navigable;
 
-    // An opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
+    // A sandboxed iframe's content comes from its URL's site, so it stays out of its embedder's process, and every
+    // sandboxed iframe of that site shares one process rather than having a process per agent cluster.
+    auto sandboxed_site = site_of_sandboxed_document(document);
+    if (sandboxed_site.has_value() && parent())
+        return document.browsing_context().top_level_browsing_context().group()->process_hosting_sandboxed_documents_of_site(*sandboxed_site);
+
+    // Any other opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
     // address: it goes with the initiator's agent. A traversable's document of an opaque origin that no such agent
     // hosts, as a file's opened from the browser's UI is, keeps the process of a document of an opaque origin.
-    if (document.origin().is_opaque()) {
+    if (document.origin().is_opaque() && !sandboxed_site.has_value()) {
         if (initiator_origin.has_value()) {
             if (auto initiator_agent = document.browsing_context().top_level_browsing_context().group()->similar_origin_window_agent_for(*initiator_origin)) {
                 if (auto process = initiator_agent->hosting_process())
@@ -891,7 +909,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
     // A traversable's first document takes the process its initial about:blank came with, unless that document
     // inherited its creator's origin and shares the creator's process, or a browsing context group switch leaves the
     // initial about:blank's group.
-    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque() && &document.browsing_context() == &active_browsing_context())
+    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque() && !active_browsing_context().is_auxiliary() && &document.browsing_context() == &active_browsing_context())
         return process_holding_navigable;
 
     return nullptr;
@@ -941,6 +959,10 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
 ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
 {
     auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
+    if (site_isolation_mode() == SiteIsolationMode::IFrame && parent()) {
+        if (auto site = site_of_sandboxed_document(document); site.has_value())
+            document.browsing_context().top_level_browsing_context().group()->set_process_hosting_sandboxed_documents_of_site(*site, page->client());
+    }
     if (document.is_local_file_content())
         page->client().set_has_hosted_local_file_content();
     if (auto const& web_ui_host = document.web_ui_host(); web_ui_host.has_value()) {
