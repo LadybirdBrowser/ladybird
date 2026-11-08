@@ -2363,17 +2363,20 @@ void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> const& 
     auto current_range = matches[m_find_in_page_match_index];
     set_find_in_page_active_match(current_range.ptr());
 
-    auto common_ancestor_container = current_range->common_ancestor_container();
-    if (!common_ancestor_container->document().window())
+    auto& document = current_range->start_container()->document();
+    if (!document.window())
         return;
 
-    if (auto element = common_ancestor_container->parent_element()) {
-        DOM::Element::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
-        scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
-        element->scroll_into_view(scroll_options, nullptr);
-    }
+    // NB: Scroll the matched text itself into view. An element around it can be wider than the viewport, as a <pre> of
+    //     long lines is, and then scrolling it into view leaves the match where it is.
+    document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
+    Layout::ForcedReadScope read { document };
+    DOM::scroll_a_target_into_view(
+        read,
+        DOM::ScrollIntoViewTarget { current_range.ptr() },
+        DOM::Element::ScrollBehavior::Instant,
+        DOM::Element::ScrollLogicalPosition::Nearest,
+        DOM::Element::ScrollLogicalPosition::Nearest);
 }
 
 void Page::update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches)

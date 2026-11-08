@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #wide { margin: 0; width: 400vw; }
+    #far { position: absolute; left: 200vw; top: 200vh; }
+</style>
+<pre id="wide">needle</pre>
+<span id="far">needle</span>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const isVisible = element => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const rect = range.getBoundingClientRect();
+            return rect.left >= 0 && rect.right <= document.documentElement.clientWidth
+                && rect.top >= 0 && rect.bottom <= document.documentElement.clientHeight;
+        };
+        internals.findInPage("needle");
+        internals.findInPageNextMatch();
+        println(`second match visible: ${isVisible(document.getElementById("far"))}`);
+        internals.findInPageNextMatch();
+        println(`first match visible again after wrapping: ${isVisible(document.getElementById("wide"))}`);
+        internals.findInPageEnd();
+    });
+</script>
