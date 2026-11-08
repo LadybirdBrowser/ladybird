@@ -119,11 +119,9 @@ using ReceiveJsonWebKey = void (*)(void*, RawJsonWebKey const&);
 using ReceiveUsages = void (*)(void*, ReadonlySpan<KeyUsage>);
 
 extern "C" {
-JSCompletion web_rust_crypto_normalize_an_algorithm(JSVM*, JS::Realm*, JSObject*, FlatPtr, ReadonlyBytes, NormalizedAlgorithmAndParameter**);
 JSCompletion web_crypto_algorithm_from_value(JS::Realm*, AlgorithmId, ParameterId, JSValue, FlatPtr, NormalizedAlgorithmAndParameter**);
 void web_crypto_algorithm_destroy(NormalizedAlgorithmAndParameter*);
 void web_crypto_algorithm_public_key_usages(NormalizedAlgorithmAndParameter const*, void*, ReceiveUsages);
-void web_crypto_normalized_key_usages(ReadonlySpan<KeyUsage>, void*, ReceiveUsages);
 CryptoKey* web_crypto_public_key_for_private_key(CryptoKey const*);
 JSCompletion web_crypto_algorithm_encrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
 JSCompletion web_crypto_algorithm_decrypt(JS::Realm* realm_pointer, NormalizedAlgorithmAndParameter const* algorithm, CryptoKey* key, ReadonlyBytes data, void* state, ReceiveBytes receive);
@@ -236,21 +234,6 @@ static void with_raw_json_web_key(JsonWebKey const& key, void* state, ReceiveJso
     receive(state, raw);
 }
 
-WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::Realm& realm, AlgorithmIdentifier const& algorithm, String operation)
-{
-    JSObject* object = nullptr;
-    FlatPtr name = 0;
-    if (algorithm.has<Utf16String>())
-        name = algorithm.get<Utf16String>().raw_identity();
-    else
-        object = JS::HostABI::object_to_abi(algorithm.get<GC::Ref<JS::Object>>().ptr());
-
-    NormalizedAlgorithmAndParameter* normalized_algorithm = nullptr;
-    TRY(JS::HostABI::completion_from_abi<void>(web_rust_crypto_normalize_an_algorithm(
-        JS::HostABI::vm_to_abi(realm.vm()), &realm, object, name, operation.bytes(), &normalized_algorithm)));
-    return move(*adopt_own(*normalized_algorithm));
-}
-
 JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, AlgorithmId method_id, ParameterId parameter_id, JSValue value, FlatPtr name, NormalizedAlgorithmAndParameter** out)
 {
     auto& realm = *realm_pointer;
@@ -311,7 +294,7 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
         auto object = JS::HostABI::value_from_abi(value);
         switch (parameter_id) {
         case ParameterId::AlgorithmParams:
-            return AlgorithmParams::from_value(realm, object);
+            return adopt_own(*new AlgorithmParams {});
         case ParameterId::RsaHashedKeyGenParams:
             return RsaHashedKeyGenParams::from_value(realm, object);
         case ParameterId::RsaHashedImportParams:
@@ -383,12 +366,6 @@ void web_crypto_algorithm_public_key_usages(NormalizedAlgorithmAndParameter cons
 {
     if (auto usages = algorithm->methods->public_key_usages(); usages.has_value())
         receive(state, *usages);
-}
-
-void web_crypto_normalized_key_usages(ReadonlySpan<KeyUsage> usages, void* state, ReceiveUsages receive)
-{
-    auto normalized = normalized_key_usages(usages);
-    receive(state, normalized.span());
 }
 
 static ErrorOr<CryptoKey::InternalKeyData> public_key_for_private_key(CryptoKey const& key)

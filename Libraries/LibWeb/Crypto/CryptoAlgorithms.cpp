@@ -11,7 +11,6 @@
 #include <AK/Base64.h>
 #include <AK/HashTable.h>
 #include <AK/Memory.h>
-#include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/Constants.h>
@@ -33,6 +32,7 @@
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -40,33 +40,45 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
-#include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Crypto {
 
-static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::Realm& realm, JS::Value const hash_value)
+extern "C" {
+JSCompletion web_rust_crypto_hash_algorithm_identifier_from_value(JSVM*, JS::Realm*, JSValue, FlatPtr, FlatPtr*);
+using ReceiveKeyUsages = void (*)(void*, ReadonlySpan<KeyUsage>);
+void web_rust_crypto_usage_intersection(ReadonlySpan<KeyUsage>, ReadonlySpan<KeyUsage>, void*, ReceiveKeyUsages);
+void web_rust_crypto_normalized_key_usages(ReadonlySpan<KeyUsage>, void*, ReceiveKeyUsages);
+
+using ReceiveEncodedBytes = void (*)(void*, ReadonlyBytes);
+int web_crypto_encode_base64url(ReadonlyBytes, ReceiveEncodedBytes, void*);
+int web_rust_crypto_base64_url_bytes_encode(ReadonlyBytes, FlatPtr*);
+
+enum class Base64DecodeResult : u8 {
+    Success,
+    OutOfMemory,
+    InvalidBase64,
+    NonAscii,
+};
+Base64DecodeResult web_crypto_decode_base64url(FlatPtr, ByteBuffer*, FlatPtr*);
+Base64DecodeResult web_rust_crypto_base64_url_bytes_decode(FlatPtr, ByteBuffer*, FlatPtr*);
+
+enum class Asn1Structure : u8 {
+    SubjectPublicKeyInfo,
+    PrivateKeyInfo,
+    OctetString,
+};
+FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes, Asn1Structure, void*, bool*);
+FlatPtr web_rust_crypto_parse_an_asn1_structure(ReadonlyBytes, Asn1Structure, bool, void*);
+}
+
+static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::Realm& realm, JS::Value hash_value, FlatPtr hash_string = 0)
 {
-    auto& vm = realm.vm();
-
-    auto maybe_normalized_algorithm = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
-        if (hash_value.is_string()) {
-            auto const hash_string = TRY(hash_value.to_utf16_string(vm));
-            return normalize_an_algorithm(realm, hash_string, "digest"_string);
-        }
-        if (hash_value.is_object()) {
-            auto const hash_object = TRY(hash_value.to_object(vm));
-            return normalize_an_algorithm(realm, hash_object, "digest"_string);
-        }
-        VERIFY_NOT_REACHED();
-    }();
-
-    if (maybe_normalized_algorithm.is_error()) {
-        return WebIDL::exception_to_throw_completion(vm, realm, maybe_normalized_algorithm.exception());
-    }
-
-    return HashAlgorithmIdentifier { maybe_normalized_algorithm.value().parameter->name };
+    FlatPtr name = 0;
+    TRY(JS::HostABI::completion_from_abi<void>(web_rust_crypto_hash_algorithm_identifier_from_value(
+        JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::value_to_abi(hash_value), hash_string, &name)));
+    return HashAlgorithmIdentifier { Utf16String::adopt_raw(name) };
 }
 
 static WebIDL::ExceptionOr<::Crypto::Hash::HashKind> sha_hash_kind(Utf16String const& hash_algorithm)
@@ -89,22 +101,23 @@ static WebIDL::ExceptionOr<ByteBuffer> export_public_exponent(JS::VM& vm, ::Cryp
     return TRY_OR_THROW_OOM(vm, ByteBuffer::copy(exported_data));
 }
 
-// https://w3c.github.io/webcrypto/#concept-usage-intersection
+static void receive_key_usages(void* state, ReadonlySpan<KeyUsage> usages)
+{
+    *static_cast<Vector<KeyUsage>*>(state) = Vector<KeyUsage>(usages);
+}
+
 static Vector<KeyUsage> usage_intersection(ReadonlySpan<KeyUsage> a, ReadonlySpan<KeyUsage> b)
 {
     Vector<KeyUsage> result;
-    for (auto const& usage : a) {
-        if (b.contains_slow(usage) && !result.contains_slow(usage))
-            result.append(usage);
-    }
-    quick_sort(result);
+    web_rust_crypto_usage_intersection(a, b, &result, receive_key_usages);
     return result;
 }
 
-// https://w3c.github.io/webcrypto/#concept-normalized-usages
 Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage> usages)
 {
-    return usage_intersection(usages, { { KeyUsage::Encrypt, KeyUsage::Decrypt, KeyUsage::Sign, KeyUsage::Verify, KeyUsage::DeriveKey, KeyUsage::DeriveBits, KeyUsage::WrapKey, KeyUsage::UnwrapKey, KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits, KeyUsage::DecapsulateKey, KeyUsage::DecapsulateBits } });
+    Vector<KeyUsage> result;
+    web_rust_crypto_normalized_key_usages(usages, &result, receive_key_usages);
+    return result;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-validate-rsa-key-generation-parameters
@@ -204,11 +217,21 @@ static JS::ThrowCompletionOr<::Crypto::UnsignedBigInteger> big_integer_from_api_
     return ::Crypto::UnsignedBigInteger(0);
 }
 
-// https://www.rfc-editor.org/rfc/rfc7518#section-2
+int web_crypto_encode_base64url(ReadonlyBytes bytes, ReceiveEncodedBytes receive, void* state)
+{
+    auto encoded = encode_base64url(bytes, AK::OmitPadding::Yes);
+    if (encoded.is_error())
+        return encoded.error().code();
+    receive(state, encoded.value().bytes_as_string_view().bytes());
+    return 0;
+}
+
 static ErrorOr<Utf16String> base64_url_bytes_encode(ReadonlyBytes bytes)
 {
-    auto encoded = TRY(encode_base64url(bytes, AK::OmitPadding::Yes));
-    return Utf16String::from_ascii_without_validation(encoded.bytes_as_string_view().bytes());
+    FlatPtr encoded = 0;
+    if (auto error = web_rust_crypto_base64_url_bytes_encode(bytes, &encoded); error != 0)
+        return Error::from_errno(error);
+    return Utf16String::adopt_raw(encoded);
 }
 
 ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
@@ -225,20 +248,36 @@ ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer
     return TRY(base64_url_bytes_encode(result));
 }
 
-WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, Utf16String const& base64_url_string)
+Base64DecodeResult web_crypto_decode_base64url(FlatPtr raw, ByteBuffer* bytes, FlatPtr* error_message)
 {
-    auto& vm = realm.vm();
-
-    if (!base64_url_string.is_ascii())
-        return WebIDL::DataError::create(realm, "base64 decode: invalid base64url"_utf16);
-
+    auto base64_url_string = Utf16String::from_raw(raw);
     auto base64_bytes_or_error = decode_base64url(base64_url_string.to_byte_string(), AK::LastChunkHandling::Loose);
     if (base64_bytes_or_error.is_error()) {
         if (base64_bytes_or_error.error().code() == ENOMEM)
-            return vm.throw_completion<JS::InternalError>(vm.error_message(::JS::VM::ErrorMessage::OutOfMemory));
-        return WebIDL::DataError::create(Utf16String::formatted("base64 decode: {}", base64_bytes_or_error.release_error()));
+            return Base64DecodeResult::OutOfMemory;
+        *error_message = Utf16String::formatted("{}", base64_bytes_or_error.release_error()).into_raw();
+        return Base64DecodeResult::InvalidBase64;
     }
-    return base64_bytes_or_error.release_value();
+    *bytes = base64_bytes_or_error.release_value();
+    return Base64DecodeResult::Success;
+}
+
+WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, Utf16String const& base64_url_string)
+{
+    auto& vm = realm.vm();
+    ByteBuffer bytes;
+    FlatPtr error_message = 0;
+    switch (web_rust_crypto_base64_url_bytes_decode(base64_url_string.raw_identity(), &bytes, &error_message)) {
+    case Base64DecodeResult::Success:
+        return bytes;
+    case Base64DecodeResult::NonAscii:
+        return WebIDL::DataError::create(realm, "base64 decode: invalid base64url"_utf16);
+    case Base64DecodeResult::OutOfMemory:
+        return vm.throw_completion<JS::InternalError>(vm.error_message(::JS::VM::ErrorMessage::OutOfMemory));
+    case Base64DecodeResult::InvalidBase64:
+        return WebIDL::DataError::create(Utf16String::adopt_raw(error_message));
+    }
+    VERIFY_NOT_REACHED();
 }
 
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm& realm, Utf16String const& base64_url_string)
@@ -247,60 +286,64 @@ WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Rea
     return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be);
 }
 
-// https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
+FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes data, Asn1Structure structure, void* out, bool* all_consumed)
+{
+    ::Crypto::ASN1::Decoder decoder(data);
+    switch (structure) {
+    case Asn1Structure::SubjectPublicKeyInfo: {
+        auto subject_public_key = ::Crypto::Certificate::parse_subject_public_key_info(decoder);
+        if (subject_public_key.is_error())
+            return Utf16String::formatted("{}", subject_public_key.release_error()).into_raw();
+        *static_cast<::Crypto::Certificate::SubjectPublicKey*>(out) = subject_public_key.release_value();
+        break;
+    }
+    case Asn1Structure::PrivateKeyInfo: {
+        auto private_key = ::Crypto::Certificate::parse_private_key_info(decoder);
+        if (private_key.is_error())
+            return Utf16String::formatted("{}", private_key.release_error()).into_raw();
+        *static_cast<::Crypto::Certificate::PrivateKey*>(out) = private_key.release_value();
+        break;
+    }
+    case Asn1Structure::OctetString: {
+        auto octet_string = decoder.read<StringView>(::Crypto::ASN1::Class::Universal, ::Crypto::ASN1::Kind::OctetString);
+        if (octet_string.is_error())
+            return Utf16String::formatted("{}", octet_string.error()).into_raw();
+        *static_cast<StringView*>(out) = octet_string.release_value();
+        break;
+    }
+    }
+    *all_consumed = decoder.eof();
+    return 0;
+}
+
 template<typename Structure>
 static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm&, ReadonlyBytes data, bool exact_data = true)
 {
-    // 1. Let data be a sequence of bytes to be parsed.
-    // 2. Let structure be the ASN.1 structure to be parsed.
-    // 3. Let exactData be an optional boolean value. If it is not supplied, let it be initialized to true.
-
-    // 4. Parse data according to the Distinguished Encoding Rules of [X690], using structure as the ASN.1 structure to be decoded.
-    ::Crypto::ASN1::Decoder decoder(data);
+    constexpr auto structure_kind = [] {
+        if constexpr (IsSame<Structure, ::Crypto::Certificate::SubjectPublicKey>)
+            return Asn1Structure::SubjectPublicKeyInfo;
+        else if constexpr (IsSame<Structure, ::Crypto::Certificate::PrivateKey>)
+            return Asn1Structure::PrivateKeyInfo;
+        else if constexpr (IsSame<Structure, StringView>)
+            return Asn1Structure::OctetString;
+        else
+            static_assert(DependentFalse<Structure>, "Don't know how to parse ASN.1 structure type");
+    }();
     Structure structure;
-    if constexpr (IsSame<Structure, ::Crypto::Certificate::SubjectPublicKey>) {
-        auto maybe_subject_public_key = ::Crypto::Certificate::parse_subject_public_key_info(decoder);
-        if (maybe_subject_public_key.is_error())
-            return WebIDL::DataError::create(Utf16String::formatted("Error parsing subjectPublicKeyInfo: {}", maybe_subject_public_key.release_error()));
-        structure = maybe_subject_public_key.release_value();
-    } else if constexpr (IsSame<Structure, ::Crypto::Certificate::PrivateKey>) {
-        auto maybe_private_key = ::Crypto::Certificate::parse_private_key_info(decoder);
-        if (maybe_private_key.is_error())
-            return WebIDL::DataError::create(Utf16String::formatted("Error parsing privateKeyInfo: {}", maybe_private_key.release_error()));
-        structure = maybe_private_key.release_value();
-    } else if constexpr (IsSame<Structure, StringView>) {
-        auto read_result = decoder.read<StringView>(::Crypto::ASN1::Class::Universal, ::Crypto::ASN1::Kind::OctetString);
-        if (read_result.is_error())
-            return WebIDL::DataError::create(Utf16String::formatted("Read of kind OctetString failed: {}", read_result.error()));
-        structure = read_result.release_value();
-    } else {
-        static_assert(DependentFalse<Structure>, "Don't know how to parse ASN.1 structure type");
-    }
-
-    // 5. If exactData was specified, and all of the bytes of data were not consumed during the parsing phase, then throw a DataError.
-    if (exact_data && !decoder.eof())
-        return WebIDL::DataError::create("Not all bytes were consumed during the parsing phase"_utf16);
-
-    // 6. Return the parsed ASN.1 structure.
+    auto error = web_rust_crypto_parse_an_asn1_structure(data, structure_kind, exact_data, &structure);
+    if (error != 0)
+        return WebIDL::DataError::create(Utf16String::adopt_raw(error));
     return structure;
 }
 
-// https://w3c.github.io/webcrypto/#concept-parse-a-spki
 static WebIDL::ExceptionOr<::Crypto::Certificate::SubjectPublicKey> parse_a_subject_public_key_info(JS::Realm& realm, ReadonlyBytes bytes)
 {
-    // When this specification says to parse a subjectPublicKeyInfo, the user agent must parse an ASN.1 structure,
-    // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of subjectPublicKeyInfo,
-    // as specified in [RFC5280], and exactData set to true.
-    return parse_an_ASN1_structure<::Crypto::Certificate::SubjectPublicKey>(realm, bytes, true);
+    return parse_an_ASN1_structure<::Crypto::Certificate::SubjectPublicKey>(realm, bytes);
 }
 
-// https://w3c.github.io/webcrypto/#concept-parse-a-privateKeyInfo
 static WebIDL::ExceptionOr<::Crypto::Certificate::PrivateKey> parse_a_private_key_info(JS::Realm& realm, ReadonlyBytes bytes)
 {
-    // When this specification says to parse a PrivateKeyInfo, the user agent must parse an ASN.1 structure
-    // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of PrivateKeyInfo,
-    // as specified in [RFC5208], and exactData set to true.
-    return parse_an_ASN1_structure<::Crypto::Certificate::PrivateKey>(realm, bytes, true);
+    return parse_an_ASN1_structure<::Crypto::Certificate::PrivateKey>(realm, bytes);
 }
 
 static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_key(JS::Realm& realm, JsonWebKey const& jwk)
@@ -419,11 +462,6 @@ static WebIDL::ExceptionOr<void> validate_kmac_key_length(WebIDL::UnsignedLong l
 }
 
 AlgorithmParams::~AlgorithmParams() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_value(JS::Realm&, JS::Value)
-{
-    return adopt_own(*new AlgorithmParams {});
-}
 
 AesCbcParams::~AesCbcParams() = default;
 
@@ -1236,10 +1274,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
         // 9.  If hash is not undefined:
         if (hash.has_value()) {
             // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
-            auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
+            auto normalized_hash = TRY(hash_algorithm_identifier_from_value(realm, JS::js_undefined(), hash->raw_identity()));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
+            if (normalized_hash.name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
@@ -1829,10 +1867,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
         // 8. If hash is not undefined:
         if (hash.has_value()) {
             // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
-            auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
+            auto normalized_hash = TRY(hash_algorithm_identifier_from_value(realm, JS::js_undefined(), hash->raw_identity()));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
+            if (normalized_hash.name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
@@ -2417,10 +2455,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
         // 8. If hash is not undefined:
         if (hash.has_value()) {
             // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
-            auto normalized_hash = TRY(normalize_an_algorithm(realm, AlgorithmIdentifier { *hash }, "digest"_string));
+            auto normalized_hash = TRY(hash_algorithm_identifier_from_value(realm, JS::js_undefined(), hash->raw_identity()));
 
             // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
-            if (normalized_hash.parameter->name != normalized_algorithm.hash.name)
+            if (normalized_hash.name != normalized_algorithm.hash.name)
                 return WebIDL::DataError::create("Invalid hash"_utf16);
         }
 
