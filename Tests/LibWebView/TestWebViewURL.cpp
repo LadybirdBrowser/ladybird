@@ -464,6 +464,23 @@ TEST_CASE(autocomplete_suggestion_display_text)
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(search_suggestion), "https://example.com/"sv);
 }
 
+TEST_CASE(search_query_percent_encoding)
+{
+    expect_url_equals_sanitized_url("https://ecosia.org/search?q=a%26b"sv, "a&b"sv);
+    expect_url_equals_sanitized_url("https://ecosia.org/search?q=c%2B%2B"sv, "c++"sv);
+    expect_url_equals_sanitized_url("https://ecosia.org/search?q=100%25%20of%20%2441"sv, "100% of $41"sv);
+    expect_url_equals_sanitized_url("https://ecosia.org/search?q=a%2Cb%20%2341"sv, "a,b #41"sv);
+
+    WebView::SearchEngine engine_with_suggestions {
+        .name = "Test"_string,
+        .query_url = "https://ecosia.org/search?q=%s"_string,
+        .suggestions = WebView::SearchSuggestions { "https://ac.ecosia.org/autocomplete?q=%s&type=list"_string },
+    };
+    auto suggestions_url = engine_with_suggestions.suggestions_url_for_query("a&b"sv);
+    EXPECT(suggestions_url.has_value());
+    EXPECT_EQ(suggestions_url->to_string(), "https://ac.ecosia.org/autocomplete?q=a%26b&type=list"sv);
+}
+
 TEST_CASE(search_query_display_truncation)
 {
     EXPECT_EQ(s_test_engine.format_search_query_for_display("short"sv), "Search Test for “short”"sv);
