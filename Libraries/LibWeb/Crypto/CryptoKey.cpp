@@ -62,6 +62,8 @@ void web_rust_crypto_key_with_usages(CryptoKey const*, void*, void (*)(void*, Re
 void web_rust_crypto_key_set_usages(CryptoKey*, ReadonlySpan<KeyUsage>);
 
 void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData*);
+CryptoKey::InternalKeyData* web_crypto_key_create_byte_handle(ReadonlyBytes);
+void web_crypto_key_byte_handle_bytes(CryptoKey::InternalKeyData const*, ReadonlyBytes*);
 void web_crypto_key_encode_handle(CryptoKey::InternalKeyData const*, void*, void (*)(void*, CryptoKeyHandleFields const*));
 JSCompletion web_crypto_key_decode_handle(void* realm, CryptoKeyHandleFields const*, CryptoKey::InternalKeyData** out_handle);
 }
@@ -79,6 +81,16 @@ void web_crypto_key_destroy_handle(CryptoKey::InternalKeyData* handle)
         [](OKPPrivateKey& data) { secure_zero(data.bytes.data(), data.bytes.size()); },
         [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });
     delete handle;
+}
+
+CryptoKey::InternalKeyData* web_crypto_key_create_byte_handle(ReadonlyBytes bytes)
+{
+    return new CryptoKey::InternalKeyData(MUST(ByteBuffer::copy(bytes)));
+}
+
+void web_crypto_key_byte_handle_bytes(CryptoKey::InternalKeyData const* handle, ReadonlyBytes* bytes)
+{
+    *bytes = handle->get<ByteBuffer>().bytes();
 }
 
 CryptoKey::InternalKeyData const& CryptoKey::handle() const

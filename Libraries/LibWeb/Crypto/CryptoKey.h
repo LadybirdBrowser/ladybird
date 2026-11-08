@@ -122,7 +122,6 @@ public:
     Vector<KeyUsage> internal_usages() const;
     RsaHashedKeyAlgorithmData rsa_hashed_algorithm() const { return internal_algorithm().get<RsaHashedKeyAlgorithmData>(); }
     EcKeyAlgorithmData ec_algorithm() const { return internal_algorithm().get<EcKeyAlgorithmData>(); }
-    HmacKeyAlgorithmData hmac_algorithm() const { return internal_algorithm().get<HmacKeyAlgorithmData>(); }
 
     void set_extractable(bool);
     void set_type(KeyType);

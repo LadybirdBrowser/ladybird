@@ -259,38 +259,6 @@ struct AesDerivedKeyParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
 
-// https://w3c.github.io/webcrypto/#hmac-importparams
-struct HmacImportParams : public AlgorithmParams {
-    virtual ~HmacImportParams() override;
-
-    HmacImportParams(HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
-        : hash(move(hash))
-        , length(length)
-    {
-    }
-
-    HashAlgorithmIdentifier hash;
-    Optional<WebIDL::UnsignedLong> length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#hmac-keygen-params
-struct HmacKeyGenParams : public AlgorithmParams {
-    virtual ~HmacKeyGenParams() override;
-
-    HmacKeyGenParams(HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
-        : hash(move(hash))
-        , length(length)
-    {
-    }
-
-    HashAlgorithmIdentifier hash;
-    Optional<WebIDL::UnsignedLong> length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
 class AlgorithmMethods {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -646,24 +614,6 @@ private:
     X448() = default;
 };
 
-class HMAC : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<bool> verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_import_key_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new HMAC); }
-
-private:
-    HMAC() = default;
-};
-
 class MLDSA : public AlgorithmMethods {
 public:
     virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
@@ -783,70 +733,6 @@ struct Argon2Params : public AlgorithmParams {
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params
-// https://wicg.github.io/webcrypto-modern-algos/#kmac-params
-struct KmacParams : public AlgorithmParams {
-    virtual ~KmacParams() override;
-
-    KmacParams(u32 output_length, Optional<ByteBuffer> customization)
-        : output_length(output_length)
-        , customization(move(customization))
-    {
-    }
-
-    u32 output_length;
-    Optional<ByteBuffer> customization;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://wicg.github.io/webcrypto-modern-algos/#kmac-keygen-params
-struct KmacKeyGenParams : public AlgorithmParams {
-    virtual ~KmacKeyGenParams() override;
-
-    KmacKeyGenParams(Optional<WebIDL::UnsignedLong> length)
-        : length(length)
-    {
-    }
-
-    Optional<WebIDL::UnsignedLong> length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://wicg.github.io/webcrypto-modern-algos/#kmac-import-params
-struct KmacImportParams : public AlgorithmParams {
-    virtual ~KmacImportParams() override;
-
-    KmacImportParams(Optional<WebIDL::UnsignedLong> length)
-        : length(length)
-    {
-    }
-
-    Optional<WebIDL::UnsignedLong> length;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-class KMAC : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<bool> verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_import_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_sign_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_verify_parameters(AlgorithmParams const&) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new KMAC); }
-
-private:
-    KMAC() = default;
-};
-
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-AeadParams
 // NOTE: The AeadParams dictionary is identical to the AesGcmParams
 struct AeadParams : public AlgorithmParams {

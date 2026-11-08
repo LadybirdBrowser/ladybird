@@ -279,6 +279,22 @@ impl CryptoKey {
         })
     }
 
+    pub(crate) fn from_byte_handle(vm: &Vm, bytes: &[u8]) -> Ref<Self> {
+        // SAFETY: The bytes are lent to the service for the copy.
+        let handle = unsafe { web_crypto_key_create_byte_handle(Span::new(bytes)) };
+        Self::create(
+            vm,
+            CryptoKeyHandle(NonNull::new(handle).expect("LibWeb returns a key handle")),
+        )
+    }
+
+    pub(crate) fn byte_handle_bytes(&self) -> &[u8] {
+        let mut bytes = Span::new(&[]);
+        // SAFETY: The service borrows bytes from the handle for as long as the key is borrowed.
+        unsafe { web_crypto_key_byte_handle_bytes(self.handle().as_ptr(), &mut bytes) };
+        bytes.as_slice()
+    }
+
     fn handle(&self) -> NonNull<c_void> {
         self.handle.borrow().as_ref().expect("a live key has its handle").0
     }
@@ -402,6 +418,8 @@ struct RawHandle<'a> {
 
 unsafe extern "C" {
     fn web_crypto_key_destroy_handle(handle: *mut c_void);
+    fn web_crypto_key_create_byte_handle(bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_key_byte_handle_bytes(handle: *mut c_void, bytes: &mut Span<'_, u8>);
     fn web_crypto_key_encode_handle(
         handle: *mut c_void,
         state: *mut c_void,
@@ -420,7 +438,7 @@ const MAX_HANDLE_BUFFERS: usize = 8;
 const KEY_TYPES: [&[u8]; 3] = [b"public", b"private", b"secret"];
 
 /// The identifiers by which a storage record holds a key usage.
-const KEY_USAGES: [&[u8]; 12] = [
+pub(super) const KEY_USAGES: [&[u8]; 12] = [
     b"encrypt",
     b"decrypt",
     b"sign",

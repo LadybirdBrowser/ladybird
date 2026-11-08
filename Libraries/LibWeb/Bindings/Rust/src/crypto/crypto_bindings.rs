@@ -28,7 +28,7 @@ pub(crate) struct RsaOtherPrimesInfo {
     pub(crate) t: Option<Utf16String>,
 }
 
-#[derive(Clone, Trace)]
+#[derive(Clone, Default, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct JsonWebKey {
     pub(crate) alg: Option<Utf16String>,
