@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A popup that inherits the sandbox of the iframe opening it is a sandboxed document of the iframe's origin, so it
+    // is hosted with the origin's other sandboxed documents.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const popupUrl = new URL(
+            await httpServer.createEcho("GET", "/sandboxed-popup", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    opener.postMessage({ origin: self.origin, processId: internals.webContentProcessId() }, "*");
+                <\/script>`,
+            })
+        );
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", "/sandboxed-popup-opener", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("mousedown", () => {
+                        window.popup = window.open(${JSON.stringify(popupUrl.pathname)}, "sandboxed-popup");
+                    });
+                    addEventListener("message", event => {
+                        parent.postMessage({
+                            popupIsSandboxed: event.data.origin === "null",
+                            popupIsInProcessOfSandboxedOpener: event.data.processId === internals.webContentProcessId(),
+                        }, "*");
+                        window.popup.close();
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("sandboxed-popup-opener");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts allow-popups";
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const report = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(JSON.stringify(await report));
+    });
+</script>

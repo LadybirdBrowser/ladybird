@@ -1,0 +1,1 @@
+{"popupIsSandboxed":true,"popupIsInProcessOfSandboxedOpener":true}

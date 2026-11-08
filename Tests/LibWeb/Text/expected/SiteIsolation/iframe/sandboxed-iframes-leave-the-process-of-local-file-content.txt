@@ -1,0 +1,5 @@
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#1
+  iframe#2: remote WebContent#1
+  iframe#3: local

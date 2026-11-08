@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script>
-    // Sandboxed documents loaded over HTTP(S) share one process per site of their URLs, whichever way a redirect took
-    // them there. That process hosts only sandboxed documents, so it is not the process of the site's other documents.
+    // Sandboxed documents loaded over HTTP(S) share one process per origin of their URLs, whichever way a redirect took
+    // them there. That process hosts only sandboxed documents, so it is not the process of the origin's other documents.
     promiseTest(async () => {
         const httpServer = httpTestServer();
 
@@ -30,7 +30,7 @@
         const crossSiteRedirect = new URL(
             await httpServer.createEcho("GET", "/sandboxed-cross-site-redirect", {
                 status: 302,
-                headers: { Location: urlOnHost(childUrl, `c.${site}`).href },
+                headers: { Location: urlOnHost(childUrl, `a.${site}`).href },
             })
         );
 
@@ -44,8 +44,9 @@
         };
 
         await loadIframe(urlOnHost(childUrl, `a.${site}`), "");
-        await loadIframe(urlOnHost(sameSiteRedirect, `b.${site}`), "");
+        await loadIframe(urlOnHost(sameSiteRedirect, `a.${site}`), "");
         await loadIframe(urlOnHost(crossSiteRedirect, uniqueLocalhostHostname("redirecting-site")), "");
+        await loadIframe(urlOnHost(childUrl, `b.${site}`), "");
         await loadIframe(urlOnHost(childUrl, uniqueLocalhostHostname("other-sandboxed-site")), "");
         await loadIframe(urlOnHost(childUrl, `a.${site}`), null);
 
