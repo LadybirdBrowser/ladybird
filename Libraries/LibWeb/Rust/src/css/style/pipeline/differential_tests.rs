@@ -353,7 +353,6 @@ impl Workload {
             rules.extend(add_rules(&mut engine, sheet, &rule_source(index)));
             if index % 3 == 0 {
                 engine.set_rule_layer(rules[index], layers[index % 2]);
-                engine.set_rule_in_a_layer(rules[index]);
             }
         }
 
@@ -1223,7 +1222,6 @@ fn a_cascade_order_change_restyles_only_the_elements_whose_rules_moved() {
     add_rules(&mut engine, third, ".y { width: 3px; }");
     for (rule, layer) in [(base[0], layers[0]), (base[1], layers[0]), (theme[0], layers[1])] {
         engine.set_rule_layer(rule, layer);
-        engine.set_rule_in_a_layer(rule);
     }
     add_class(&mut engine, nodes[1], "x");
     add_class(&mut engine, nodes[2], "unmoved");

@@ -183,7 +183,6 @@ impl CompiledRule {
         }
         if self.in_a_layer {
             let layer = intern_native_text(engine, &self.layer_name).0;
-            engine.set_rule_in_a_layer(rule);
             engine.set_rule_layer(rule, CascadeLayerID(layer));
         }
         engine.register_native_rule(
