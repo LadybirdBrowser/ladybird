@@ -483,17 +483,7 @@ impl Visitor {
         if reference == 0 || reference & 1 != 0 {
             return;
         }
-        if reference & 3 == 2 {
-            // An embedder's host value, which LibGC only follows if it points into a cell.
-            unsafe {
-                ((*self.interface).gc_visitor_visit_possible_values)(
-                    self.raw,
-                    (&raw const reference).cast(),
-                    size_of::<u64>(),
-                );
-            }
-            return;
-        }
-        self.visit_cell(reference as *mut u8);
+        // NB: An embedder's host value is the address of one of its cells, with bit 1 set.
+        self.visit_cell((reference & !3) as *mut u8);
     }
 }
