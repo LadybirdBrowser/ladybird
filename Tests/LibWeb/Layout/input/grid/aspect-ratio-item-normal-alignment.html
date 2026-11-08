@@ -25,3 +25,9 @@
 <div class="grid" style="grid-template-columns: min-content; grid-template-rows: 0fr; height: 40px"><div class="item" style="overflow: hidden"><div class="content"></div></div></div>
 <!-- A percentage of an indefinite size does not limit the item's content-based minimum. -->
 <div class="grid" style="grid-template-columns: min-content; grid-template-rows: 20%"><div class="item"><div class="content"></div></div></div>
+<!-- A fixed maximum of the row limits the content-based minimum. -->
+<div class="grid" style="grid-template-rows: minmax(auto, 50px)"><div class="item"><div class="content" style="height: 200px"></div></div></div>
+<!-- The transferred maximum limits the column sized from the row. -->
+<div class="grid" style="grid-template-columns: min-content; grid-template-rows: 100px"><div class="item" style="max-height: 20px; overflow: hidden"></div></div>
+<!-- An intrinsic height is not definite, so the item still fills its column. -->
+<div class="grid"><div class="item" style="height: max-content"></div></div>

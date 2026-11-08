@@ -2677,7 +2677,12 @@ impl<'pass> GridFormattingContext<'pass> {
         item: GridItem,
         mut constraints: ContainingBlockConstraints,
     ) -> ContainingBlockConstraints {
-        if constraints.percentage_basis_block_size.is_none() {
+        let facts = self.item_facts(item);
+        if constraints.percentage_basis_block_size.is_none()
+            || (facts.has_preferred_aspect_ratio()
+                && !facts.is_replaced_box()
+                && !self.is_grid_lanes_stacking_axis(Axis::Row))
+        {
             constraints.percentage_basis_block_size = if self.use_row_sizes_for_column_percentages {
                 Some(self.containing_block_size(item, Axis::Row))
             } else {
@@ -2703,7 +2708,8 @@ impl<'pass> GridFormattingContext<'pass> {
                     || ((style.height().contains_percentage()
                         || style.min_height().contains_percentage()
                         || style.max_height().contains_percentage())
-                        && self.fixed_track_span_size(item, Axis::Row).is_none())
+                        && (self.fixed_track_span_size(item, Axis::Row).is_none()
+                            || self.item_spans_percentage_row_of_indefinite_grid(item)))
             })
             .collect()
     }
@@ -4109,8 +4115,21 @@ impl<'pass> GridFormattingContext<'pass> {
         // element), the grid item is sized as for 'align-self: stretch'.
         // Otherwise, the grid item is sized consistent with the size calculation rules for block-level elements for
         // the corresponding axis.
-        // NB: The automatic inline size of a block-level element is its stretch-fit size, with an aspect ratio too.
-        axis.is_column() || !self.item_facts(item).has_preferred_aspect_ratio()
+        // NB: The automatic inline size of a block-level element is its stretch-fit size, unless it has an aspect ratio
+        //     and a definite block size to transfer through it. A percentage block size becomes definite with its row.
+        if !self.item_facts(item).has_preferred_aspect_ratio() {
+            return true;
+        }
+        if !axis.is_column() {
+            return false;
+        }
+        let height = self.item_style(item).height();
+        let block_size_is_definite = !height.is_auto()
+            && !height.is_intrinsic_sizing_constraint()
+            && (!height.contains_percentage()
+                || self.use_row_sizes_for_column_percentages
+                || self.fixed_track_span_size(item, Axis::Row).is_some());
+        !block_size_is_definite
     }
 
     fn item_alignment(&self, item: GridItem, axis: Axis) -> Alignment {

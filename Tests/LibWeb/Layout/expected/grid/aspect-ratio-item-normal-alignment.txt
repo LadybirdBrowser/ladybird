@@ -1,6 +1,6 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 326 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 310 0+0+8] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x626]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 626 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 610 0+0+8] children: not-inline
       Box <div.grid> at [8,8] [0+0+0 300 0+0+484] [0+0+0 50 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item> at [8,8] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [BFC] children: not-inline
       Box <div.grid> at [8,58] [0+0+0 300 0+0+484] [0+0+0 60 0+0+0] [GFC] children: not-inline
@@ -17,6 +17,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.grid> at [8,258] [0+0+0 300 0+0+484] [0+0+0 60 0+0+0] [GFC] children: not-inline
         BlockContainer <div.item> at [8,258] [0+0+0 120 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
           BlockContainer <div.content> at [8,258] [0+0+0 60 0+0+60] [0+0+0 60 0+0+0] children: not-inline
+      Box <div.grid> at [8,318] [0+0+0 300 0+0+484] [0+0+0 50 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,318] [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.content> at [8,318] [0+0+0 60 0+0+240] [0+0+0 200 0+0+0] children: not-inline
+      Box <div.grid> at [8,368] [0+0+0 300 0+0+484] [0+0+0 100 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,368] [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+      Box <div.grid> at [8,468] [0+0+0 300 0+0+484] [0+0+0 150 0+0+0] [GFC] children: not-inline
+        BlockContainer <div.item> at [8,468] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x326] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x626] (z-index: auto)
