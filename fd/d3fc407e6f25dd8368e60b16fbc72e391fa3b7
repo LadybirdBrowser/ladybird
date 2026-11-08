@@ -1,0 +1,8 @@
+Ladybird queues a VisibilityStateEntry with a timestamp of 0 when a
+document’s initial visibility state is set, and another stamped with
+the current time on each change, and buffers up to 50 of them. Blink
+does the same in WindowPerformance::AddVisibilityStateEntry(): Its
+constructor calls that with a null timestamp for the page’s initial
+visibility, and WindowPerformance::PageVisibilityChangedWithTimestamp()
+calls it for each change, up to kDefaultVisibilityStateEntrySize (50)
+entries. WebKit and Gecko don’t implement VisibilityStateEntry.
