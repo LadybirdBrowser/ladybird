@@ -87,7 +87,7 @@ public:
 
     virtual void visit_possible_values(ReadonlyBytes) override
     {
-        // NB: Roots are gathered precisely; a conservative range belongs in a ConservativeRangeProvider.
+        // NB: Roots are gathered precisely.
         VERIFY_NOT_REACHED();
     }
 
