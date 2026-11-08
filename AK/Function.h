@@ -31,10 +31,8 @@
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/BitCast.h>
-#include <AK/Memory.h>
 #include <AK/Noncopyable.h>
 #include <AK/ScopeGuard.h>
-#include <AK/Span.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <AK/Types.h>
@@ -43,7 +41,6 @@
 // BlockRuntime methods for Objective-C block closure support.
 extern "C" void* _Block_copy(void const*);
 extern "C" void _Block_release(void const*);
-extern "C" size_t Block_size(void const*);
 
 namespace AK {
 
@@ -64,9 +61,6 @@ inline constexpr bool HaveObjcArc = true;
 #else
 inline constexpr bool HaveObjcArc = false;
 #endif
-
-// validated in TestFunction.mm
-inline constexpr size_t block_layout_size = 32;
 
 }
 
@@ -103,34 +97,25 @@ public:
         clear(false);
     }
 
-    [[nodiscard]] ReadonlyBytes raw_capture_range() const LIFETIME_BOUND
-    {
-        if (!m_size)
-            return {};
-        if (auto* wrapper = callable_wrapper())
-            return ReadonlyBytes { wrapper->raw_callable(), m_size };
-        return {};
-    }
-
     template<typename CallableType>
     Function(CallableType&& callable)
     requires((IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...> && !IsSame<RemoveCVReference<CallableType>, Function>))
     {
-        init_with_callable(forward<CallableType>(callable), CallableKind::FunctionObject);
+        init_with_callable(forward<CallableType>(callable));
     }
 
     template<typename FunctionType>
     Function(FunctionType f)
     requires((IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...> && !IsSame<RemoveCVReference<FunctionType>, Function>))
     {
-        init_with_callable(move(f), CallableKind::FunctionPointer);
+        init_with_callable(move(f));
     }
 
     template<typename BlockType>
     Function(BlockType b)
     requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
     {
-        init_with_callable(move(b), CallableKind::Block);
+        init_with_callable(move(b));
     }
 
     Function(Function&& other)
@@ -158,7 +143,7 @@ public:
     requires((IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...>))
     {
         clear();
-        init_with_callable(forward<CallableType>(callable), CallableKind::FunctionObject);
+        init_with_callable(forward<CallableType>(callable));
         return *this;
     }
 
@@ -168,7 +153,7 @@ public:
     {
         clear();
         if (f)
-            init_with_callable(move(f), CallableKind::FunctionPointer);
+            init_with_callable(move(f));
         return *this;
     }
 
@@ -177,7 +162,7 @@ public:
     requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
     {
         clear();
-        init_with_callable(static_cast<RemoveCVReference<BlockType>>(block), CallableKind::Block);
+        init_with_callable(static_cast<RemoveCVReference<BlockType>>(block));
         return *this;
     }
 
@@ -197,12 +182,6 @@ public:
     }
 
 private:
-    enum class CallableKind {
-        FunctionPointer,
-        FunctionObject,
-        Block,
-    };
-
     class CallableWrapperBase {
         AK_ALLOC_WITH_KMALLOC;
 
@@ -211,7 +190,6 @@ private:
         // Note: This is not const to allow storing mutable lambdas.
         virtual Out call(In...) = 0;
         virtual void init_and_swap(u8*, size_t) = 0;
-        virtual void const* raw_callable() const = 0;
     };
 
     template<typename CallableType>
@@ -244,16 +222,7 @@ private:
         void init_and_swap(u8* destination, size_t size) final override
         {
             VERIFY(size >= sizeof(CallableWrapper));
-            zero_callable_storage(destination, size);
             new (destination) CallableWrapper { move(m_callable) };
-        }
-
-        void const* raw_callable() const final override
-        {
-            if constexpr (IsBlockClosure<CallableType>)
-                return static_cast<u8 const*>(bridge_cast<void>(m_callable)) + Detail::block_layout_size;
-            else
-                return &m_callable;
         }
 
     private:
@@ -266,17 +235,6 @@ private:
         Outline,
         Block,
     };
-
-    // A callable is constructed into zeroed storage, since its bytes get scanned conservatively: GC::Function and the
-    // other cells that visit raw_capture_range() take every pointer-sized word in it that points at a cell for an edge.
-    // So padding, and storage the callable doesn't use, must not keep whatever the memory held before — a stale pointer
-    // there would keep alive the cell it points at, and everything that cell reaches. And secure_zero() keeps a
-    // compiler from dropping the zeroing as a dead store, as GCC's -flifetime-dse otherwise does, since the constructor
-    // that follows starts the object's lifetime.
-    static void zero_callable_storage(void* storage, size_t size)
-    {
-        secure_zero(storage, size);
-    }
 
     CallableWrapperBase* callable_wrapper() const
     {
@@ -324,7 +282,7 @@ private:
     }
 
     template<typename Callable>
-    void init_with_callable(Callable&& callable, CallableKind callable_kind)
+    void init_with_callable(Callable&& callable)
     {
         if constexpr (alignof(Callable) > ExcessiveAlignmentThreshold && !AccommodateExcessiveAlignmentRequirements) {
             static_assert(
@@ -335,28 +293,16 @@ private:
         }
         VERIFY(m_call_nesting_level == 0);
         using WrapperType = CallableWrapper<Callable>;
-        if (callable_kind == CallableKind::FunctionObject)
-            m_size = sizeof(Callable);
-        else
-            m_size = 0;
-        if constexpr (IsBlockClosure<Callable>) {
-            auto block_size = Block_size(bridge_cast<void>(callable));
-            VERIFY(block_size >= Detail::block_layout_size);
-            m_size = block_size - Detail::block_layout_size;
-        }
-
         if constexpr (alignof(Callable) > inline_alignment || sizeof(WrapperType) > inline_capacity) {
             void* storage;
             if constexpr (alignof(WrapperType) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
                 storage = WrapperType::operator new(sizeof(WrapperType), std::align_val_t { alignof(WrapperType) });
             else
                 storage = WrapperType::operator new(sizeof(WrapperType));
-            zero_callable_storage(storage, sizeof(WrapperType));
             *bit_cast<CallableWrapperBase**>(&m_storage) = new (storage) WrapperType(forward<Callable>(callable));
             m_kind = FunctionKind::Outline;
         } else {
             static_assert(sizeof(WrapperType) <= inline_capacity);
-            zero_callable_storage(m_storage, inline_capacity);
             if constexpr (IsBlockClosure<Callable>) {
                 if constexpr (Detail::HaveObjcArc) {
                     new (m_storage) WrapperType(forward<Callable>(callable));
@@ -375,7 +321,6 @@ private:
     {
         VERIFY(m_call_nesting_level == 0 && other.m_call_nesting_level == 0);
         auto* other_wrapper = other.callable_wrapper();
-        m_size = other.m_size;
         switch (other.m_kind) {
         case FunctionKind::NullPointer:
             break;
@@ -395,7 +340,6 @@ private:
         other.m_kind = FunctionKind::NullPointer;
     }
 
-    size_t m_size { 0 };
     FunctionKind m_kind { FunctionKind::NullPointer };
     bool m_deferred_clear { false };
     mutable Atomic<u16> m_call_nesting_level { 0 };

@@ -6,7 +6,6 @@
 
 #include <LibTest/TestCase.h>
 
-#include <AK/ByteReader.h>
 #include <AK/Function.h>
 #include <AK/Platform.h>
 
@@ -60,45 +59,6 @@ TEST_CASE(BlockCaptureLongStringAndInt)
     f();
 
     EXPECT_EQ(s, "world, hello, this is a long string to avoid small string optimization"_string);
-    EXPECT_EQ(x, 2);
-}
-
-// Struct definitions from llvm-project/compiler-rt/lib/BlocksRuntime/Block_private.h @ d0177670a0e59e9d9719386f85bb78de0929407c
-struct Block_descriptor {
-    unsigned long int reserved;
-    unsigned long int size;
-    void (*copy)(void* dst, void* src);
-    void (*dispose)(void*);
-};
-
-struct Block_layout {
-    void* isa;
-    int flags;
-    int reserved;
-    void (*invoke)(void*, ...);
-    struct Block_descriptor* descriptor;
-    /* Imported variables. */
-};
-// This check is super important for proper tracking of block closure captures
-static_assert(sizeof(Block_layout) == AK::Detail::block_layout_size);
-
-TEST_CASE(BlockPointerCaptures)
-{
-    int x = 0;
-    int* p = &x;
-
-    auto b = ^{
-        *p = 2;
-    };
-
-    auto f = Function<void()>(b);
-    auto span = f.raw_capture_range();
-
-    int* captured_p = ByteReader::load_pointer<int>(span.data());
-    EXPECT_EQ(captured_p, p);
-
-    f();
-
     EXPECT_EQ(x, 2);
 }
 
