@@ -957,6 +957,10 @@ void HTMLParserEndState::complete()
         //     Recheck its condition here and resume waiting using the same parser end state.
         // INTEROP: Blink and WebKit recheck descendant completeness at their final load-completion gate. Gecko's
         //          document loader likewise remains busy while a child loader is waiting to complete.
+        // NB: A task that ran since step 8 can have given an element an image that starting layout fetches, and that
+        //     fetch has to delay the load event too.
+        if (document->is_fully_active() && navigable_container_is_rendered(*document))
+            document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         if (document->is_fully_active() && document->anything_is_delaying_the_load_event()) {
             state->m_phase = Phase::WaitingForLoadEventDelay;
             state->schedule_progress_check();

@@ -97,7 +97,6 @@ void web_css_grouping_rule_inserted(void* cell, NativeRule const* inserted)
     auto* sheet = rule.parent_style_sheet();
     if (!sheet)
         return;
-    sheet->invalidate_image_resource_registration();
     if (auto* function = Parser::ValueParserFFI::rust_rule_containing_function(rule.native_rule().handle()))
         record_style_rule_declarations_changed(RustRule { function }, *sheet);
     else

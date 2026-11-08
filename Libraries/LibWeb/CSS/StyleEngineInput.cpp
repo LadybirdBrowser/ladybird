@@ -3012,7 +3012,6 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
     RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
     compile_rules_into(context, *contents);
     contents->evaluate_media_queries(document);
-    contents->load_pending_image_resources(document);
     auto shared_compiled_style_sheet = make_ref_counted<SharedCompiledStyleSheet>(move(key), move(contents), sheet_id);
     shared_compiled_style_sheets.set(shared_compiled_style_sheet->key(), shared_compiled_style_sheet);
     return shared_compiled_style_sheet;

@@ -343,12 +343,6 @@ void StyleSheetImport::set_style_sheet(NonnullRefPtr<StyleSheetState> style_shee
             m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
     }
 
-    auto document = m_style_sheet->owning_document();
-    if (!document && m_parent_style_sheet)
-        document = m_parent_style_sheet->owning_document();
-    if (document)
-        m_style_sheet->load_pending_image_resources(*document);
-
     // The rules the import brings in arrive now, at the position the import already holds.
     if (m_parent_style_sheet)
         record_imported_style_sheet_loaded(m_identity, *m_parent_style_sheet);
