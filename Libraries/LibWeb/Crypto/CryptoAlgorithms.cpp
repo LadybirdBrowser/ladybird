@@ -30,28 +30,18 @@
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
-#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Crypto/CryptoAlgorithms.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/ExceptionOrUtils.h>
+#include <LibWeb/Crypto/CryptoKey.h>
 
 namespace Web::Crypto {
 
 extern "C" {
-using ReceiveKeyUsages = void (*)(void*, ReadonlySpan<KeyUsage>);
-void web_rust_crypto_usage_intersection(ReadonlySpan<KeyUsage>, ReadonlySpan<KeyUsage>, void*, ReceiveKeyUsages);
-void web_rust_crypto_normalized_key_usages(ReadonlySpan<KeyUsage>, void*, ReceiveKeyUsages);
-
 using ReceiveEncodedBytes = void (*)(void*, ReadonlyBytes);
 int web_crypto_encode_base64url(ReadonlyBytes, ReceiveEncodedBytes, void*);
-int web_rust_crypto_base64_url_bytes_encode(ReadonlyBytes, FlatPtr*);
 
 enum class Base64DecodeResult : u8 {
     Success,
@@ -59,8 +49,7 @@ enum class Base64DecodeResult : u8 {
     InvalidBase64,
     NonAscii,
 };
-Base64DecodeResult web_crypto_decode_base64url(FlatPtr, ByteBuffer*, void*, ReceiveEncodedBytes, FlatPtr*);
-Base64DecodeResult web_rust_crypto_base64_url_bytes_decode(FlatPtr, ByteBuffer*, FlatPtr*);
+Base64DecodeResult web_crypto_decode_base64url(FlatPtr, void*, ReceiveEncodedBytes, FlatPtr*);
 
 enum class Asn1Structure : u8 {
     SubjectPublicKeyInfo,
@@ -68,23 +57,7 @@ enum class Asn1Structure : u8 {
     OctetString,
 };
 FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes, Asn1Structure, void*, bool*);
-FlatPtr web_rust_crypto_parse_an_asn1_structure(ReadonlyBytes, Asn1Structure, bool, void*);
 }
-
-static void receive_key_usages(void* state, ReadonlySpan<KeyUsage> usages)
-{
-    *static_cast<Vector<KeyUsage>*>(state) = Vector<KeyUsage>(usages);
-}
-
-Vector<KeyUsage> normalized_key_usages(ReadonlySpan<KeyUsage> usages)
-{
-    Vector<KeyUsage> result;
-    web_rust_crypto_normalized_key_usages(usages, &result, receive_key_usages);
-    return result;
-}
-
-// Out of line to ensure this class has a key function
-AlgorithmMethods::~AlgorithmMethods() = default;
 
 int web_crypto_encode_base64url(ReadonlyBytes bytes, ReceiveEncodedBytes receive, void* state)
 {
@@ -95,29 +68,7 @@ int web_crypto_encode_base64url(ReadonlyBytes bytes, ReceiveEncodedBytes receive
     return 0;
 }
 
-static ErrorOr<Utf16String> base64_url_bytes_encode(ReadonlyBytes bytes)
-{
-    FlatPtr encoded = 0;
-    if (auto error = web_rust_crypto_base64_url_bytes_encode(bytes, &encoded); error != 0)
-        return Error::from_errno(error);
-    return Utf16String::adopt_raw(encoded);
-}
-
-ErrorOr<Utf16String> base64_url_uint_encode(::Crypto::UnsignedBigInteger integer)
-{
-    // The representation of a positive or zero integer value as the
-    // base64url encoding of the value's unsigned big-endian
-    // representation as an octet sequence.  The octet sequence MUST
-    // utilize the minimum number of octets needed to represent the
-    // value.  Zero is represented as BASE64URL(single zero-valued
-    // octet), which is "AA".
-
-    auto bytes = TRY(ByteBuffer::create_uninitialized(integer.byte_length()));
-    auto result = integer.export_data(bytes.span());
-    return TRY(base64_url_bytes_encode(result));
-}
-
-Base64DecodeResult web_crypto_decode_base64url(FlatPtr raw, ByteBuffer* bytes, void* state, ReceiveEncodedBytes receive, FlatPtr* error_message)
+Base64DecodeResult web_crypto_decode_base64url(FlatPtr raw, void* state, ReceiveEncodedBytes receive, FlatPtr* error_message)
 {
     auto base64_url_string = Utf16String::from_raw(raw);
     auto base64_bytes_or_error = decode_base64url(base64_url_string.to_byte_string(), AK::LastChunkHandling::Loose);
@@ -127,35 +78,8 @@ Base64DecodeResult web_crypto_decode_base64url(FlatPtr raw, ByteBuffer* bytes, v
         *error_message = Utf16String::formatted("{}", base64_bytes_or_error.release_error()).into_raw();
         return Base64DecodeResult::InvalidBase64;
     }
-    if (receive)
-        receive(state, base64_bytes_or_error.value());
-    else
-        *bytes = base64_bytes_or_error.release_value();
+    receive(state, base64_bytes_or_error.value());
     return Base64DecodeResult::Success;
-}
-
-WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm& realm, Utf16String const& base64_url_string)
-{
-    auto& vm = realm.vm();
-    ByteBuffer bytes;
-    FlatPtr error_message = 0;
-    switch (web_rust_crypto_base64_url_bytes_decode(base64_url_string.raw_identity(), &bytes, &error_message)) {
-    case Base64DecodeResult::Success:
-        return bytes;
-    case Base64DecodeResult::NonAscii:
-        return WebIDL::DataError::create(realm, "base64 decode: invalid base64url"_utf16);
-    case Base64DecodeResult::OutOfMemory:
-        return vm.throw_completion<JS::InternalError>(vm.error_message(::JS::VM::ErrorMessage::OutOfMemory));
-    case Base64DecodeResult::InvalidBase64:
-        return WebIDL::DataError::create(Utf16String::adopt_raw(error_message));
-    }
-    VERIFY_NOT_REACHED();
-}
-
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm& realm, Utf16String const& base64_url_string)
-{
-    auto base64_bytes_be = TRY(base64_url_bytes_decode(realm, base64_url_string));
-    return ::Crypto::UnsignedBigInteger::import_data(base64_bytes_be);
 }
 
 FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes data, Asn1Structure structure, void* out, bool* all_consumed)
@@ -188,35 +112,6 @@ FlatPtr web_crypto_decode_asn1_structure(ReadonlyBytes data, Asn1Structure struc
     return 0;
 }
 
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_key(JS::Realm& realm, JsonWebKey const& jwk)
-{
-    auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
-    auto d = TRY(base64_url_uint_decode(realm, *jwk.d));
-    auto e = TRY(base64_url_uint_decode(realm, *jwk.e));
-
-    // We know that if any of the extra parameters are provided, all of them must be
-    if (!jwk.p.has_value())
-        return ::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e));
-
-    auto p = TRY(base64_url_uint_decode(realm, *jwk.p));
-    auto q = TRY(base64_url_uint_decode(realm, *jwk.q));
-    auto dp = TRY(base64_url_uint_decode(realm, *jwk.dp));
-    auto dq = TRY(base64_url_uint_decode(realm, *jwk.dq));
-    auto qi = TRY(base64_url_uint_decode(realm, *jwk.qi));
-
-    return ::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi));
-}
-
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(JS::Realm& realm, JsonWebKey const& jwk)
-{
-    auto e = TRY(base64_url_uint_decode(realm, *jwk.e));
-    auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
-
-    return ::Crypto::PK::RSAPublicKey(move(n), move(e));
-}
-
-AlgorithmParams::~AlgorithmParams() = default;
-
 extern "C" {
 void* web_crypto_asn1_allocate_key_info(Asn1Structure);
 void web_crypto_asn1_delete_key_info(Asn1Structure, void*);
@@ -229,9 +124,9 @@ bool web_crypto_rsa_validate_modulus_length(u32);
 bool web_crypto_rsa_generate_key_pair(u32, ReadonlyBytes, CryptoKey::InternalKeyData**, CryptoKey::InternalKeyData**);
 bool web_crypto_rsa_export_public_exponent(ReadonlyBytes, void*, ReceiveEncodedBytes);
 bool web_crypto_rsa_read_key_metadata(CryptoKey::InternalKeyData const*, u32*, void*, ReceiveEncodedBytes);
-JSCompletion web_crypto_rsa_parse_jwk_key(JS::Realm*, bool, ReadonlySpan<FlatPtr>, CryptoKey::InternalKeyData**);
+CryptoKey::InternalKeyData* web_crypto_rsa_key_from_jwk_components(bool, ReadonlySpan<ReadonlyBytes>);
 bool web_crypto_rsa_export_der(CryptoKey::InternalKeyData const*, bool, void*, ReceiveEncodedBytes);
-FlatPtr web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const*, u8);
+bool web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const*, u8, void*, ReceiveEncodedBytes);
 bool web_crypto_rsa_oaep_cipher(bool, ::Crypto::Hash::HashKind, CryptoKey::InternalKeyData const*, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
 bool web_crypto_rsa_pss_sign(::Crypto::Hash::HashKind, CryptoKey::InternalKeyData const*, u32, ReadonlyBytes, void*, ReceiveEncodedBytes);
 bool web_crypto_rsa_pss_verify(::Crypto::Hash::HashKind, CryptoKey::InternalKeyData const*, u32, ReadonlyBytes, ReadonlyBytes, bool*);
@@ -352,34 +247,23 @@ bool web_crypto_rsa_read_key_metadata(CryptoKey::InternalKeyData const* key, u32
     return true;
 }
 
-JSCompletion web_crypto_rsa_parse_jwk_key(JS::Realm* realm, bool is_private, ReadonlySpan<FlatPtr> components, CryptoKey::InternalKeyData** out)
+CryptoKey::InternalKeyData* web_crypto_rsa_key_from_jwk_components(bool is_private, ReadonlySpan<ReadonlyBytes> components)
 {
-    auto component = [&](size_t index) -> Optional<Utf16String> {
-        if (!components[index])
-            return {};
-        return Utf16String::from_raw(components[index]);
-    };
-    JsonWebKey jwk;
-    jwk.n = component(0);
-    jwk.e = component(1);
-    jwk.d = component(2);
-    jwk.p = component(3);
-    jwk.q = component(4);
-    jwk.dp = component(5);
-    jwk.dq = component(6);
-    jwk.qi = component(7);
-    if (is_private) {
-        auto result = parse_jwk_rsa_private_key(*realm, jwk);
-        if (result.is_exception())
-            return Bindings::completion_to_abi(*realm, result.release_error());
-        *out = new CryptoKey::InternalKeyData(result.release_value());
-    } else {
-        auto result = parse_jwk_rsa_public_key(*realm, jwk);
-        if (result.is_exception())
-            return Bindings::completion_to_abi(*realm, result.release_error());
-        *out = new CryptoKey::InternalKeyData(result.release_value());
-    }
-    return JS::HostABI::normal_completion_to_abi(0);
+    auto n = ::Crypto::UnsignedBigInteger::import_data(components[0]);
+    auto e = ::Crypto::UnsignedBigInteger::import_data(components[1]);
+    if (!is_private)
+        return new CryptoKey::InternalKeyData(::Crypto::PK::RSAPublicKey(move(n), move(e)));
+
+    auto d = ::Crypto::UnsignedBigInteger::import_data(components[2]);
+    if (components.size() == 3)
+        return new CryptoKey::InternalKeyData(::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e)));
+
+    auto p = ::Crypto::UnsignedBigInteger::import_data(components[3]);
+    auto q = ::Crypto::UnsignedBigInteger::import_data(components[4]);
+    auto dp = ::Crypto::UnsignedBigInteger::import_data(components[5]);
+    auto dq = ::Crypto::UnsignedBigInteger::import_data(components[6]);
+    auto qi = ::Crypto::UnsignedBigInteger::import_data(components[7]);
+    return new CryptoKey::InternalKeyData(::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi)));
 }
 
 bool web_crypto_rsa_export_der(CryptoKey::InternalKeyData const* key, bool is_public, void* state, ReceiveEncodedBytes receive)
@@ -393,7 +277,7 @@ bool web_crypto_rsa_export_der(CryptoKey::InternalKeyData const* key, bool is_pu
     return true;
 }
 
-FlatPtr web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const* key, u8 component)
+bool web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const* key, u8 component, void* state, ReceiveEncodedBytes receive)
 {
     auto const& integer = key->visit(
         [&](::Crypto::PK::RSAPublicKey const& public_key) -> ::Crypto::UnsignedBigInteger const& {
@@ -422,10 +306,11 @@ FlatPtr web_crypto_rsa_export_jwk_integer(CryptoKey::InternalKeyData const* key,
             VERIFY_NOT_REACHED();
         },
         [](auto const&) -> ::Crypto::UnsignedBigInteger const& { VERIFY_NOT_REACHED(); });
-    auto result = base64_url_uint_encode(integer);
-    if (result.is_error())
-        return 0;
-    return result.release_value().into_raw();
+    auto bytes = ByteBuffer::create_uninitialized(integer.byte_length());
+    if (bytes.is_error())
+        return false;
+    receive(state, integer.export_data(bytes.value().span()));
+    return true;
 }
 
 bool web_crypto_rsa_oaep_cipher(bool encrypt, ::Crypto::Hash::HashKind hash_kind, CryptoKey::InternalKeyData const* key, ReadonlyBytes label, ReadonlyBytes input, void* state, ReceiveEncodedBytes receive)
@@ -1294,6 +1179,60 @@ bool web_crypto_kmac_sign(::Crypto::Authentication::KMACKind kind, ReadonlyBytes
         return false;
     receive(state, result.value());
     return true;
+}
+
+extern "C" CryptoKey::InternalKeyData* web_crypto_public_key_for_private_key(CryptoKey::InternalKeyData const*, FlatPtr name, FlatPtr named_curve);
+
+CryptoKey::InternalKeyData* web_crypto_public_key_for_private_key(CryptoKey::InternalKeyData const* key, FlatPtr raw_name, FlatPtr raw_named_curve)
+{
+    auto result = key->visit(
+        [](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::RSAPublicKey { private_key.modulus(), private_key.public_exponent() };
+        },
+        [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            if (private_key.public_key().has_value())
+                return *private_key.public_key();
+
+            VERIFY(raw_named_curve);
+            auto named_curve = Utf16String::from_raw(raw_named_curve);
+            auto point = TRY([&] -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> {
+                if (named_curve == "P-256"_utf16)
+                    return ::Crypto::Curves::SECP256r1 {}.generate_public_key(private_key.d());
+                if (named_curve == "P-384"_utf16)
+                    return ::Crypto::Curves::SECP384r1 {}.generate_public_key(private_key.d());
+                if (named_curve == "P-521"_utf16)
+                    return ::Crypto::Curves::SECP521r1 {}.generate_public_key(private_key.d());
+                return Error::from_string_literal("Unsupported named curve");
+            }());
+            return ::Crypto::PK::ECPublicKey { move(point) };
+        },
+        [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::MLDSAPublicKey { private_key.public_key() };
+        },
+        [](::Crypto::PK::MLKEMPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::MLKEMPublicKey { private_key.public_key() };
+        },
+        [&](OKPPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            auto name = Utf16String::from_raw(raw_name);
+            auto public_key = TRY([&] -> ErrorOr<ByteBuffer> {
+                if (name == "Ed25519"_utf16)
+                    return ::Crypto::Curves::Ed25519 {}.generate_public_key(private_key.bytes);
+                if (name == "Ed448"_utf16)
+                    return ::Crypto::Curves::Ed448 {}.generate_public_key(private_key.bytes);
+                if (name == "X25519"_utf16)
+                    return ::Crypto::Curves::X25519 {}.generate_public_key(private_key.bytes);
+                if (name == "X448"_utf16)
+                    return ::Crypto::Curves::X448 {}.generate_public_key(private_key.bytes);
+                return Error::from_string_literal("Unsupported algorithm");
+            }());
+            return OKPPublicKey { move(public_key) };
+        },
+        [](auto const&) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return Error::from_string_literal("Key is not a private key");
+        });
+    if (result.is_error())
+        return nullptr;
+    return new CryptoKey::InternalKeyData(result.release_value());
 }
 
 }

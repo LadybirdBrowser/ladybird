@@ -6,15 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::ffi::c_void;
-
-use ak::{Span, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferShared, ErrorKind, ErrorType, Gc, PropertyKey, RawNativeFunctionResult, Realm,
-    ThrowCompletionOr, Trace, Utf16View, Value, Vm,
+    ArrayBuffer, ArrayBufferShared, ErrorKind, ErrorType, Gc, PropertyKey, Realm, ThrowCompletionOr, Trace, Utf16View,
+    Value, Vm,
 };
 
-use crate::bindings::interface::{Ref, cell_into_abi, create_dictionary_object, implementation_if_wrapper, wrap};
+use crate::bindings::interface::{Ref, create_dictionary_object, implementation_if_wrapper, wrap};
 use crate::bindings::promise::{WebIdlPromise, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_algorithms::{Bytes, EncapsulatedBitsData, EncapsulatedKeyData};
@@ -66,140 +64,6 @@ pub(crate) struct EncapsulatedKey {
 pub(crate) struct EncapsulatedBits {
     pub(crate) shared_key: Option<Gc<ArrayBuffer>>,
     pub(crate) ciphertext: Option<Gc<ArrayBuffer>>,
-}
-
-#[repr(C)]
-struct RawRsaOtherPrimesInfo {
-    d: usize,
-    r: usize,
-    t: usize,
-}
-
-#[repr(C)]
-pub(crate) struct RawJsonWebKey<'a> {
-    alg: usize,
-    crv: usize,
-    d: usize,
-    dp: usize,
-    dq: usize,
-    e: usize,
-    k: usize,
-    kty: usize,
-    n: usize,
-    p: usize,
-    r#priv: usize,
-    r#pub: usize,
-    q: usize,
-    qi: usize,
-    r#use: usize,
-    x: usize,
-    y: usize,
-    ext: u8,
-    has_key_ops: bool,
-    key_ops: Span<'a, usize>,
-    has_oth: bool,
-    oth: Span<'a, RawRsaOtherPrimesInfo>,
-}
-
-fn raw_string(string: Option<&Utf16String>) -> usize {
-    string.map_or(0, Utf16String::raw_identity)
-}
-
-unsafe fn string_from_raw(raw: usize) -> Option<Utf16String> {
-    if raw == 0 {
-        return None;
-    }
-    // SAFETY: The caller lends a valid string reference.
-    unsafe { ak::reference_utf16_string(raw) };
-    // SAFETY: The reference taken above belongs to the new owner.
-    Some(unsafe { Utf16String::from_raw_owned(raw) })
-}
-
-impl JsonWebKey {
-    pub(crate) fn with_raw_fields<T>(&self, steps: impl FnOnce(&RawJsonWebKey<'_>) -> T) -> T {
-        let key_ops: Vec<_> = self.key_ops.iter().flatten().map(Utf16String::raw_identity).collect();
-        let oth: Vec<_> = self
-            .oth
-            .iter()
-            .flatten()
-            .map(|prime| RawRsaOtherPrimesInfo {
-                d: raw_string(prime.d.as_ref()),
-                r: raw_string(prime.r.as_ref()),
-                t: raw_string(prime.t.as_ref()),
-            })
-            .collect();
-        steps(&RawJsonWebKey {
-            alg: raw_string(self.alg.as_ref()),
-            crv: raw_string(self.crv.as_ref()),
-            d: raw_string(self.d.as_ref()),
-            dp: raw_string(self.dp.as_ref()),
-            dq: raw_string(self.dq.as_ref()),
-            e: raw_string(self.e.as_ref()),
-            k: raw_string(self.k.as_ref()),
-            kty: raw_string(self.kty.as_ref()),
-            n: raw_string(self.n.as_ref()),
-            p: raw_string(self.p.as_ref()),
-            r#priv: raw_string(self.r#priv.as_ref()),
-            r#pub: raw_string(self.r#pub.as_ref()),
-            q: raw_string(self.q.as_ref()),
-            qi: raw_string(self.qi.as_ref()),
-            r#use: raw_string(self.r#use.as_ref()),
-            x: raw_string(self.x.as_ref()),
-            y: raw_string(self.y.as_ref()),
-            ext: self.ext.map_or(0, |ext| if ext { 2 } else { 1 }),
-            has_key_ops: self.key_ops.is_some(),
-            key_ops: Span::new(&key_ops),
-            has_oth: self.oth.is_some(),
-            oth: Span::new(&oth),
-        })
-    }
-
-    /// # Safety
-    ///
-    /// Every nonzero string word must be a live AK::Utf16String.
-    pub(crate) unsafe fn from_raw_fields(raw: &RawJsonWebKey<'_>) -> Self {
-        // SAFETY: The caller lends the strings and spans for the call.
-        unsafe {
-            Self {
-                alg: string_from_raw(raw.alg),
-                crv: string_from_raw(raw.crv),
-                d: string_from_raw(raw.d),
-                dp: string_from_raw(raw.dp),
-                dq: string_from_raw(raw.dq),
-                e: string_from_raw(raw.e),
-                k: string_from_raw(raw.k),
-                kty: string_from_raw(raw.kty),
-                n: string_from_raw(raw.n),
-                p: string_from_raw(raw.p),
-                r#priv: string_from_raw(raw.r#priv),
-                r#pub: string_from_raw(raw.r#pub),
-                q: string_from_raw(raw.q),
-                qi: string_from_raw(raw.qi),
-                r#use: string_from_raw(raw.r#use),
-                x: string_from_raw(raw.x),
-                y: string_from_raw(raw.y),
-                ext: (raw.ext != 0).then_some(raw.ext == 2),
-                key_ops: raw.has_key_ops.then(|| {
-                    raw.key_ops
-                        .as_slice()
-                        .iter()
-                        .map(|&word| string_from_raw(word).expect("a key usage is a string"))
-                        .collect()
-                }),
-                oth: raw.has_oth.then(|| {
-                    raw.oth
-                        .as_slice()
-                        .iter()
-                        .map(|prime| RsaOtherPrimesInfo {
-                            d: string_from_raw(prime.d),
-                            r: string_from_raw(prime.r),
-                            t: string_from_raw(prime.t),
-                        })
-                        .collect()
-                }),
-            }
-        }
-    }
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-a-jwk
@@ -332,21 +196,4 @@ pub(super) fn crypto_key_from_value(vm: &Vm, value: Value) -> ThrowCompletionOr<
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"CryptoKey"]);
     };
     Ok(key)
-}
-
-/// # Safety
-///
-/// The VM and value must be live and the output pointer must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_key_from_value(
-    vm: *const c_void,
-    value: u64,
-    out: &mut *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller supplies the live VM and value.
-    let (vm, value) = unsafe { (&*vm.cast::<Vm>(), Value::from_raw(value)) };
-    RawNativeFunctionResult::from_completion(crypto_key_from_value(vm, value).map(|key| {
-        *out = cell_into_abi(key);
-        Value::UNDEFINED
-    }))
 }

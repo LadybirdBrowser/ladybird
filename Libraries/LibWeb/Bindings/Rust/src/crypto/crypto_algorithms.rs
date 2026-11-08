@@ -10,24 +10,23 @@
  */
 
 use core::ffi::c_void;
-use core::ptr::{NonNull, null, null_mut};
+use core::ptr::{NonNull, null_mut};
 use std::collections::HashSet;
 use std::rc::Rc;
 
 use ak::{Span, SpanMut, Utf16String, Utf16StringUnits};
 use libjs_rust::api::{
-    ErrorKind, ErrorType, Gc, Object, PropertyKey, RawNativeFunctionResult, Realm, Trace, TypedArrayBase,
-    TypedArrayKind, Value, Vm,
+    ErrorKind, ErrorType, Gc, Object, PropertyKey, Realm, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
 };
 
 use crate::bindings::conversions::{
     BufferSource, buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range,
     to_unsigned_short_enforcing_range,
 };
-use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto::web_crypto_fill_with_random;
-use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, RawJsonWebKey, crypto_key_from_value};
+use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, crypto_key_from_value};
 use crate::crypto::crypto_key::{CryptoKey, InternalAlgorithmData, KEY_USAGES, KeyType, KeyUsage};
 use crate::crypto::subtle_crypto::{
     AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, dom_error, get_a_copy_of_the_bytes,
@@ -101,38 +100,9 @@ pub(crate) fn normalized_key_usages(usages: &[KeyUsage]) -> Vec<KeyUsage> {
     )
 }
 
-/// # Safety
-///
-/// The spans and the receiver are valid for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_usage_intersection(
-    a: Span<'_, KeyUsage>,
-    b: Span<'_, KeyUsage>,
-    state: *mut c_void,
-    receive: ReceiveUsages,
-) {
-    let result = usage_intersection(a.as_slice(), b.as_slice());
-    // SAFETY: The caller supplies a receiver that takes the span only for the call.
-    unsafe { receive(state, Span::new(&result)) };
-}
-
-/// # Safety
-///
-/// The span and the receiver are valid for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_normalized_key_usages(
-    usages: Span<'_, KeyUsage>,
-    state: *mut c_void,
-    receive: ReceiveUsages,
-) {
-    let result = normalized_key_usages(usages.as_slice());
-    // SAFETY: The caller supplies a receiver that takes the span only for the call.
-    unsafe { receive(state, Span::new(&result)) };
-}
-
 #[derive(PartialEq, Eq)]
 #[repr(u8)]
-pub enum Base64DecodeResult {
+enum Base64DecodeResult {
     #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
     Success,
     #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
@@ -143,7 +113,7 @@ pub enum Base64DecodeResult {
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
-pub enum Asn1Structure {
+enum Asn1Structure {
     SubjectPublicKeyInfo,
     PrivateKeyInfo,
     OctetString,
@@ -153,9 +123,8 @@ unsafe extern "C" {
     fn web_crypto_encode_base64url(bytes: Span<'_, u8>, receive: ReceiveBytes, state: *mut c_void) -> i32;
     fn web_crypto_decode_base64url(
         raw: usize,
-        out: *mut c_void,
         state: *mut c_void,
-        receive: Option<ReceiveBytes>,
+        receive: ReceiveBytes,
         error_message: &mut usize,
     ) -> Base64DecodeResult;
     fn web_crypto_decode_asn1_structure(
@@ -188,25 +157,10 @@ fn base64_url_bytes_encode(bytes: &[u8]) -> Result<Utf16String, i32> {
     Ok(encoded.expect("LibWeb returns the base64url string"))
 }
 
-/// # Safety
-///
-/// The span is live and the output is writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_encode(bytes: Span<'_, u8>, out: &mut usize) -> i32 {
-    match base64_url_bytes_encode(bytes.as_slice()) {
-        Ok(encoded) => {
-            *out = encoded.into_raw();
-            0
-        }
-        Err(error) => error,
-    }
-}
-
 unsafe fn decode_base64url(
     base64_url_string: &Utf16String,
-    out: *mut c_void,
     state: *mut c_void,
-    receive: Option<ReceiveBytes>,
+    receive: ReceiveBytes,
     error_message: &mut usize,
 ) -> Base64DecodeResult {
     let is_ascii = match base64_url_string.as_units() {
@@ -218,33 +172,15 @@ unsafe fn decode_base64url(
         return Base64DecodeResult::NonAscii;
     }
 
-    // SAFETY: The caller passes a live native ByteBuffer as the output.
+    // SAFETY: The caller supplies a receiver and a live output slot.
     let result =
-        unsafe { web_crypto_decode_base64url(base64_url_string.raw_identity(), out, state, receive, error_message) };
+        unsafe { web_crypto_decode_base64url(base64_url_string.raw_identity(), state, receive, error_message) };
     if result == Base64DecodeResult::InvalidBase64 {
         // SAFETY: The decoder hands over an owned diagnostic string.
         let detail = unsafe { Utf16String::from_raw_owned(*error_message) };
         *error_message = libjs_rust::api::utf16_formatted("base64 decode: {}", &[&detail]).into_raw();
     }
     result
-}
-
-/// # Safety
-///
-/// The string is live and the output points to a live ByteBuffer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_decode(
-    raw: usize,
-    out: *mut c_void,
-    error_message: &mut usize,
-) -> Base64DecodeResult {
-    // SAFETY: The caller lends a live string and we take our own reference.
-    let base64_url_string = unsafe {
-        ak::reference_utf16_string(raw);
-        Utf16String::from_raw_owned(raw)
-    };
-    // SAFETY: The caller supplies a live ByteBuffer.
-    unsafe { decode_base64url(&base64_url_string, out, null_mut(), None, error_message) }
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
@@ -302,41 +238,6 @@ unsafe fn parse_a_private_key_info(data: Span<'_, u8>, out: *mut c_void) -> Resu
     unsafe { parse_an_asn1_structure(data, Asn1Structure::PrivateKeyInfo, true, out) }
 }
 
-/// # Safety
-///
-/// The span is live and the output points to a live native value of the specified structure.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
-    data: Span<'_, u8>,
-    structure: Asn1Structure,
-    exact_data: bool,
-    out: *mut c_void,
-) -> usize {
-    // SAFETY: The caller supplies a live value of the specified structure.
-    let result = unsafe {
-        match structure {
-            Asn1Structure::SubjectPublicKeyInfo => parse_a_subject_public_key_info(data, out),
-            Asn1Structure::PrivateKeyInfo => parse_a_private_key_info(data, out),
-            Asn1Structure::OctetString => parse_an_asn1_structure(data, structure, exact_data, out),
-        }
-    };
-    result.err().map_or(0, Utf16String::into_raw)
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-#[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
-pub(crate) enum AlgorithmId {
-    MlKem = 1,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-#[allow(dead_code, reason = "the temporary native algorithm bridge is removed separately")]
-pub(crate) enum ParameterId {
-    AlgorithmParams,
-}
-
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct Bytes(#[gc(untraced)] Rc<Vec<u8>>);
@@ -377,213 +278,10 @@ pub(crate) struct EncapsulatedKeyData {
     pub(crate) ciphertext: Option<Bytes>,
 }
 
-#[repr(C)]
-#[derive(Default)]
-struct OptionalLength {
-    has_value: bool,
-    value: u32,
-}
-
-impl From<Option<u32>> for OptionalLength {
-    fn from(value: Option<u32>) -> Self {
-        Self {
-            has_value: value.is_some(),
-            value: value.unwrap_or_default(),
-        }
-    }
-}
-
 type ReceiveBytes = unsafe extern "C" fn(*mut c_void, Span<'_, u8>);
-type ReceiveUsages = unsafe extern "C" fn(*mut c_void, Span<'_, KeyUsage>);
-type ReceiveJsonWebKey = unsafe extern "C" fn(*mut c_void, &RawJsonWebKey<'_>);
 
 unsafe extern "C" {
-    fn web_crypto_algorithm_from_value(
-        realm: *mut c_void,
-        method_id: AlgorithmId,
-        parameter_id: ParameterId,
-        value: u64,
-        name: usize,
-        out: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_destroy(algorithm: *mut c_void);
-    fn web_crypto_algorithm_public_key_usages(algorithm: *mut c_void, state: *mut c_void, receive: ReceiveUsages);
-    fn web_crypto_public_key_for_private_key(key: *mut c_void) -> *mut c_void;
-    fn web_crypto_algorithm_encrypt(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_decrypt(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_sign(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_verify(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        signature: Span<'_, u8>,
-        data: Span<'_, u8>,
-        out: &mut bool,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_derive_bits(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        length: OptionalLength,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_import_key(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        format: KeyFormat,
-        key_data: Span<'_, u8>,
-        jwk: *const c_void,
-        extractable: bool,
-        usages: Span<'_, KeyUsage>,
-        out: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_generate_key(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        extractable: bool,
-        usages: Span<'_, KeyUsage>,
-        out_key: &mut *mut c_void,
-        out_public_key: &mut *mut c_void,
-        out_private_key: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_export_key(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        format: KeyFormat,
-        key: *mut c_void,
-        state: *mut c_void,
-        receive_bytes: ReceiveBytes,
-        receive_jwk: ReceiveJsonWebKey,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_get_key_length(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        out: &mut OptionalLength,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_get_shared_key_length(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        out: &mut u32,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_wrap_key(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_unwrap_key(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_encapsulate(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        shared_key: *mut c_void,
-        ciphertext: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_decapsulate(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        key: *mut c_void,
-        data: Span<'_, u8>,
-        state: *mut c_void,
-        receive: ReceiveBytes,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_encrypt_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_decrypt_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_sign_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_verify_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_generate_key_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_import_key_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_crypto_algorithm_validate_derive_bits_parameters(
-        realm: *mut c_void,
-        algorithm: *mut c_void,
-        length: OptionalLength,
-    ) -> RawNativeFunctionResult;
-}
-
-#[derive(Trace)]
-#[gc(crate = libjs_rust)]
-pub(crate) struct CppAlgorithm(#[gc(untraced)] NonNull<c_void>);
-
-impl Drop for CppAlgorithm {
-    fn drop(&mut self) {
-        // SAFETY: This object owns the C++ algorithm.
-        unsafe { web_crypto_algorithm_destroy(self.0.as_ptr()) };
-    }
-}
-
-impl CppAlgorithm {
-    pub(crate) fn from_value(
-        realm: Gc<Realm>,
-        method_id: AlgorithmId,
-        parameter_id: ParameterId,
-        value: Value,
-        name: &Utf16String,
-    ) -> WebIdlResult<Self> {
-        let mut out = null_mut();
-        // SAFETY: The realm and value are live, and the call borrows the name.
-        unsafe {
-            web_crypto_algorithm_from_value(
-                realm.as_ptr().cast(),
-                method_id,
-                parameter_id,
-                value.to_raw(),
-                name.raw_identity(),
-                &mut out,
-            )
-        }
-        .into_completion()?;
-        Ok(Self(NonNull::new(out).expect("LibWeb returns an algorithm")))
-    }
+    fn web_crypto_public_key_for_private_key(key: *const c_void, name: usize, named_curve: usize) -> *mut c_void;
 }
 
 pub(crate) trait AlgorithmMethods: Trace {
@@ -774,372 +472,6 @@ pub(crate) trait AlgorithmMethods: Trace {
         _: &AlgorithmParams,
         _length: Option<u32>,
     ) -> WebIdlResult<()> {
-        Ok(())
-    }
-}
-
-impl AlgorithmMethods for CppAlgorithm {
-    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
-        let mut usages = None;
-        // SAFETY: This object owns the algorithm and the state is writable for the call.
-        unsafe {
-            web_crypto_algorithm_public_key_usages(
-                self.0.as_ptr(),
-                core::ptr::from_mut(&mut usages).cast(),
-                receive_usages,
-            );
-        };
-        usages
-    }
-
-    fn encrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
-        let realm = cx.realm();
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_encrypt(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn decrypt(&self, cx: &CallContext, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
-        let realm = cx.realm();
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_decrypt(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn sign(
-        &self,
-        cx: &CallContext,
-        _algorithm: &AlgorithmParams,
-        key: Ref<CryptoKey>,
-        data: &Bytes,
-    ) -> WebIdlResult<Bytes> {
-        let realm = cx.realm();
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_sign(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn verify(
-        &self,
-        cx: &CallContext,
-        _algorithm: &AlgorithmParams,
-        key: Ref<CryptoKey>,
-        signature: &Bytes,
-        data: &Bytes,
-    ) -> WebIdlResult<bool> {
-        let realm = cx.realm();
-        let mut out = false;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_verify(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(signature.as_slice()),
-                Span::new(data.as_slice()),
-                &mut out,
-            )
-        }
-        .into_completion()?;
-        Ok(out)
-    }
-
-    fn derive_bits(
-        &self,
-        cx: &CallContext,
-        _algorithm: &AlgorithmParams,
-        key: Ref<CryptoKey>,
-        length: Option<u32>,
-    ) -> WebIdlResult<Bytes> {
-        let realm = cx.realm();
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_derive_bits(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                length.into(),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn import_key(
-        &self,
-        cx: &CallContext,
-        _algorithm: &AlgorithmParams,
-        format: KeyFormat,
-        key_data: ImportKeyData,
-        extractable: bool,
-        usages: &[KeyUsage],
-    ) -> WebIdlResult<Ref<CryptoKey>> {
-        let realm = cx.realm();
-        let mut out = null_mut();
-        let mut import = |data, jwk| {
-            // SAFETY: The realm and algorithm are live, and the input and output are lent for the call.
-            unsafe {
-                web_crypto_algorithm_import_key(
-                    realm.as_ptr().cast(),
-                    self.0.as_ptr(),
-                    format,
-                    data,
-                    jwk,
-                    extractable,
-                    Span::new(usages),
-                    &mut out,
-                )
-            }
-            .into_completion()
-        };
-        match key_data {
-            ImportKeyData::Bytes(bytes) => import(Span::new(bytes.as_slice()), null())?,
-            ImportKeyData::JsonWebKey(key) => {
-                key.with_raw_fields(|fields| import(Span::default(), core::ptr::from_ref(fields).cast()))?
-            }
-        };
-        // SAFETY: LibWeb returns a live CryptoKey cell.
-        Ok(unsafe { cell_from_abi(out) })
-    }
-
-    fn generate_key(
-        &self,
-        cx: &CallContext,
-        _algorithm: &AlgorithmParams,
-        extractable: bool,
-        usages: &[KeyUsage],
-    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
-        let realm = cx.realm();
-        let (mut key, mut public_key, mut private_key) = (null_mut(), null_mut(), null_mut());
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_generate_key(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                extractable,
-                Span::new(usages),
-                &mut key,
-                &mut public_key,
-                &mut private_key,
-            )
-        }
-        .into_completion()?;
-        // SAFETY: LibWeb returns a live CryptoKey or two live CryptoKeys.
-        unsafe {
-            if !key.is_null() {
-                Ok(CryptoKeyOrCryptoKeyPair::CryptoKey(cell_from_abi(key)))
-            } else {
-                Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
-                    public_key: Some(cell_from_abi(public_key)),
-                    private_key: Some(cell_from_abi(private_key)),
-                }))
-            }
-        }
-    }
-
-    fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        let realm = cx.realm();
-        let mut out: Option<ExportKeyResult> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_export_key(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                format,
-                cell_into_abi(key),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_export_bytes,
-                receive_export_jwk,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns an export result"))
-    }
-
-    fn get_key_length(&self, realm: Gc<Realm>, _algorithm: &AlgorithmParams) -> WebIdlResult<Option<u32>> {
-        let mut out = OptionalLength::default();
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_get_key_length(realm.as_ptr().cast(), self.0.as_ptr(), &mut out) }
-            .into_completion()?;
-        Ok(out.has_value.then_some(out.value))
-    }
-
-    fn get_shared_key_length(&self, realm: Gc<Realm>) -> WebIdlResult<u32> {
-        let mut out = 0;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_get_shared_key_length(realm.as_ptr().cast(), self.0.as_ptr(), &mut out) }
-            .into_completion()?;
-        Ok(out)
-    }
-
-    fn wrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_wrap_key(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn unwrap_key(&self, realm: Gc<Realm>, key: Ref<CryptoKey>, data: &Bytes) -> WebIdlResult<Bytes> {
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_unwrap_key(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn encapsulate(
-        &self,
-        realm: Gc<Realm>,
-        _params: &AlgorithmParams,
-        key: Ref<CryptoKey>,
-    ) -> WebIdlResult<EncapsulatedBitsData> {
-        let (mut shared_key, mut ciphertext): (Option<Bytes>, Option<Bytes>) = (None, None);
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_encapsulate(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                core::ptr::from_mut(&mut shared_key).cast(),
-                core::ptr::from_mut(&mut ciphertext).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(EncapsulatedBitsData { shared_key, ciphertext })
-    }
-
-    fn decapsulate(
-        &self,
-        realm: Gc<Realm>,
-        _params: &AlgorithmParams,
-        key: Ref<CryptoKey>,
-        data: &Bytes,
-    ) -> WebIdlResult<Bytes> {
-        let mut out: Option<Bytes> = None;
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_decapsulate(
-                realm.as_ptr().cast(),
-                self.0.as_ptr(),
-                cell_into_abi(key),
-                Span::new(data.as_slice()),
-                core::ptr::from_mut(&mut out).cast(),
-                receive_bytes,
-            )
-        }
-        .into_completion()?;
-        Ok(out.expect("LibWeb returns bytes"))
-    }
-
-    fn validate_encrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_encrypt_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_decrypt_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_decrypt_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_sign_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_sign_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_verify_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_verify_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_generate_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_generate_key_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_import_key_parameters(&self, realm: Gc<Realm>) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe { web_crypto_algorithm_validate_import_key_parameters(realm.as_ptr().cast(), self.0.as_ptr()) }
-            .into_completion()?;
-        Ok(())
-    }
-
-    fn validate_derive_bits_parameters(
-        &self,
-        realm: Gc<Realm>,
-        _: &AlgorithmParams,
-        length: Option<u32>,
-    ) -> WebIdlResult<()> {
-        // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
-        unsafe {
-            web_crypto_algorithm_validate_derive_bits_parameters(realm.as_ptr().cast(), self.0.as_ptr(), length.into())
-        }
-        .into_completion()?;
         Ok(())
     }
 }
@@ -1398,9 +730,8 @@ fn base64_url_bytes_decode(vm: &Vm, base64_url_string: &Utf16String) -> WebIdlRe
     let status = unsafe {
         decode_base64url(
             base64_url_string,
-            null_mut(),
             core::ptr::from_mut(&mut result).cast(),
-            Some(receive_bytes),
+            receive_bytes,
             &mut error_message,
         )
     };
@@ -6674,19 +6005,19 @@ unsafe extern "C" {
         state: *mut c_void,
         receive: ReceiveBytes,
     ) -> bool;
-    fn web_crypto_rsa_parse_jwk_key(
-        realm: *mut c_void,
-        is_private: bool,
-        components: Span<'_, usize>,
-        out: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
+    fn web_crypto_rsa_key_from_jwk_components(is_private: bool, components: Span<'_, Span<'_, u8>>) -> *mut c_void;
     fn web_crypto_rsa_export_der(
         key: *const c_void,
         is_public: bool,
         state: *mut c_void,
         receive: ReceiveBytes,
     ) -> bool;
-    fn web_crypto_rsa_export_jwk_integer(key: *const c_void, component: RsaJwkInteger) -> usize;
+    fn web_crypto_rsa_export_jwk_integer(
+        key: *const c_void,
+        component: RsaJwkInteger,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
     fn web_crypto_rsa_oaep_cipher(
         encrypt: bool,
         hash_kind: ShaHashKind,
@@ -6900,13 +6231,30 @@ fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)
     ))
 }
 
-fn parse_jwk_rsa_key(realm: Gc<Realm>, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledKey> {
-    let components = [&jwk.n, &jwk.e, &jwk.d, &jwk.p, &jwk.q, &jwk.dp, &jwk.dq, &jwk.qi]
-        .map(|field| field.as_ref().map_or(0, Utf16String::raw_identity));
-    let mut key = null_mut();
-    // SAFETY: The realm, strings and the output slot live for the call.
-    unsafe { web_crypto_rsa_parse_jwk_key(realm.as_ptr().cast(), is_private, Span::new(&components), &mut key) }
-        .into_completion()?;
+fn parse_jwk_rsa_key(vm: &Vm, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledKey> {
+    let decode = |component: &Option<Utf16String>| {
+        base64_url_bytes_decode(vm, component.as_ref().expect("the RSA JWK contains the component"))
+    };
+    let components = if is_private {
+        let n = decode(&jwk.n)?;
+        let d = decode(&jwk.d)?;
+        let e = decode(&jwk.e)?;
+        let mut components = vec![n, e, d];
+        // We know that if any of the extra parameters are provided, all of them must be
+        if jwk.p.is_some() {
+            for component in [&jwk.p, &jwk.q, &jwk.dp, &jwk.dq, &jwk.qi] {
+                components.push(decode(component)?);
+            }
+        }
+        components
+    } else {
+        let e = decode(&jwk.e)?;
+        let n = decode(&jwk.n)?;
+        vec![n, e]
+    };
+    let components: Vec<_> = components.iter().map(|bytes| Span::new(bytes.as_slice())).collect();
+    // SAFETY: The decoded bytes are lent for the call.
+    let key = unsafe { web_crypto_rsa_key_from_jwk_components(is_private, Span::new(&components)) };
     Ok(UninstalledKey(NonNull::new(key).expect("LibCrypto returns an RSA key")))
 }
 
@@ -6930,15 +6278,21 @@ fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult
 }
 
 fn rsa_export_jwk_integer(vm: &Vm, key: Ref<CryptoKey>, component: RsaJwkInteger) -> WebIdlResult<Utf16String> {
-    // SAFETY: The key has the requested RSA component and lives for the call.
-    let raw = unsafe { web_crypto_rsa_export_jwk_integer(key.handle().as_ptr(), component) };
-    if raw == 0 {
-        return vm
-            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
-            .map_err(Into::into);
+    let mut bytes: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slot are lent for the call.
+    let success = unsafe {
+        web_crypto_rsa_export_jwk_integer(
+            key.handle().as_ptr(),
+            component,
+            core::ptr::from_mut(&mut bytes).cast(),
+            receive_bytes,
+        )
+    };
+    if !success {
+        return Err(out_of_memory(vm));
     }
-    // SAFETY: LibCrypto transfers an owned string.
-    Ok(unsafe { Utf16String::from_raw_owned(raw) })
+    let bytes = bytes.expect("LibCrypto returns the exported integer");
+    encode_jwk_bytes(vm, bytes.as_slice())
 }
 
 fn key_format_to_string(format: KeyFormat) -> &'static str {
@@ -7459,7 +6813,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = private_key.is_valid();
@@ -7484,7 +6838,7 @@ impl AlgorithmMethods for RsaOaep {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = public_key.is_valid();
@@ -8166,7 +7520,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = private_key.is_valid();
@@ -8191,7 +7545,7 @@ impl AlgorithmMethods for RsaPss {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = public_key.is_valid();
@@ -8864,7 +8218,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
 
                 // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
-                let private_key = parse_jwk_rsa_key(cx.realm(), &jwk, true)?;
+                let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
                 // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = private_key.is_valid();
@@ -8889,7 +8243,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
 
                 // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
-                let public_key = parse_jwk_rsa_key(cx.realm(), &jwk, false)?;
+                let public_key = parse_jwk_rsa_key(cx.vm(), &jwk, false)?;
 
                 // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
                 let maybe_valid = public_key.is_valid();
@@ -15742,28 +15096,19 @@ unsafe extern "C" fn receive_bytes(state: *mut c_void, bytes: Span<'_, u8>) {
     unsafe { *state.cast::<Option<Bytes>>() = Some(Bytes::new(bytes.as_slice().to_vec())) };
 }
 
-unsafe extern "C" fn receive_usages(state: *mut c_void, usages: Span<'_, KeyUsage>) {
-    // SAFETY: The state is the caller's slot, and the service lends the usages.
-    unsafe { *state.cast::<Option<Vec<KeyUsage>>>() = Some(usages.as_slice().to_vec()) };
-}
-
-unsafe extern "C" fn receive_export_bytes(state: *mut c_void, bytes: Span<'_, u8>) {
-    // SAFETY: The state is the caller's slot, and the service lends the bytes.
-    unsafe {
-        *state.cast::<Option<ExportKeyResult>>() = Some(ExportKeyResult::Bytes(Bytes::new(bytes.as_slice().to_vec())));
+pub(crate) fn public_key_for_private_key(vm: &Vm, key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {
+    let name = key.algorithm_name();
+    let algorithm = key.internal_algorithm();
+    let named_curve = if let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm {
+        named_curve.raw_identity()
+    } else {
+        0
     };
-}
-
-unsafe extern "C" fn receive_export_jwk(state: *mut c_void, key: &RawJsonWebKey<'_>) {
-    // SAFETY: The state is the caller's slot, and the service lends the fields.
-    unsafe {
-        *state.cast::<Option<ExportKeyResult>>() = Some(ExportKeyResult::JsonWebKey(JsonWebKey::from_raw_fields(key)));
-    };
-}
-
-pub(crate) fn public_key_for_private_key(key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {
-    // SAFETY: The key is live.
-    let public_key = unsafe { web_crypto_public_key_for_private_key(cell_into_abi(key)) };
-    // SAFETY: A non-null pointer returned by LibWeb is a live CryptoKey cell.
-    NonNull::new(public_key).map(|key| unsafe { cell_from_abi(key.as_ptr()) })
+    // SAFETY: The key handle and algorithm metadata are lent for the call.
+    let public_key =
+        unsafe { web_crypto_public_key_for_private_key(key.handle().as_ptr(), name.raw_identity(), named_curve) };
+    NonNull::new(public_key).map(|handle| {
+        // SAFETY: The service transfers ownership of the native key.
+        unsafe { CryptoKey::create_with_handle(vm, handle) }
+    })
 }

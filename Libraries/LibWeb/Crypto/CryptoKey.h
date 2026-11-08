@@ -14,7 +14,6 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
 #include <LibWeb/Bindings/RustInterface.h>
-#include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Bindings {
@@ -46,7 +45,6 @@ class WEB_API CryptoKey final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(CryptoKey, crypto_key)
 
 public:
-    using ImportKeyData = Variant<ByteBuffer, JsonWebKey>;
     using InternalKeyData = Variant<ByteBuffer, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey, ::Crypto::PK::MLKEMPublicKey, ::Crypto::PK::MLKEMPrivateKey, OKPPublicKey, OKPPrivateKey>;
 
     struct KeyAlgorithmData {
@@ -118,10 +116,8 @@ public:
     bool extractable() const;
     KeyType type() const;
 
-    InternalAlgorithmData internal_algorithm() const;
     Vector<KeyUsage> internal_usages() const;
-    RsaHashedKeyAlgorithmData rsa_hashed_algorithm() const { return internal_algorithm().get<RsaHashedKeyAlgorithmData>(); }
-    EcKeyAlgorithmData ec_algorithm() const { return internal_algorithm().get<EcKeyAlgorithmData>(); }
+    EcKeyAlgorithmData ec_algorithm() const;
 
     void set_extractable(bool);
     void set_type(KeyType);
@@ -130,11 +126,6 @@ public:
 
     InternalKeyData const& handle() const;
     Utf16String algorithm_name() const;
-};
-
-struct CryptoKeyPair {
-    GC::Ref<CryptoKey> public_key;
-    GC::Ref<CryptoKey> private_key;
 };
 
 }

@@ -65,9 +65,7 @@ set(SOURCES
     CredentialManagement/PasswordCredentialOperations.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
-    Crypto/CryptoBindings.cpp
     Crypto/CryptoKey.cpp
-    Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
