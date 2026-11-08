@@ -549,165 +549,51 @@ impl GridValues {
     }
 }
 
-/// The payload type of one computed-value style group.
-#[derive(Clone, Copy)]
-pub(crate) enum StyleGroup {
-    Font,
-    InheritedListTable,
-    Sizing,
-    Alignment,
-    SVGReset,
-    Surround,
-    Box,
-    Grid,
-    TextReset,
-    Transform,
-    Effects,
-    Anchor,
-    InheritedUI,
-    InheritedSVG,
-    InheritedText,
-    Animation,
-    Mask,
-    Background,
-    Border,
-    Content,
-    MiscLayout,
-    MiscInteraction,
-}
-
-/// Every style group, in the order of the group indices both sides use (`group_index`, and
-/// LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS in C++).
-const STYLE_GROUPS: [StyleGroup; group_index::COUNT] = [
-    StyleGroup::InheritedListTable,
-    StyleGroup::InheritedUI,
-    StyleGroup::InheritedSVG,
-    StyleGroup::InheritedText,
-    StyleGroup::Font,
-    StyleGroup::Animation,
-    StyleGroup::SVGReset,
-    StyleGroup::Grid,
-    StyleGroup::Anchor,
-    StyleGroup::Content,
-    StyleGroup::Alignment,
-    StyleGroup::MiscLayout,
-    StyleGroup::MiscInteraction,
-    StyleGroup::Effects,
-    StyleGroup::Mask,
-    StyleGroup::TextReset,
-    StyleGroup::Transform,
-    StyleGroup::Background,
-    StyleGroup::Border,
-    StyleGroup::Sizing,
-    StyleGroup::Surround,
-    StyleGroup::Box,
-];
-
-fn style_group(group_index: usize) -> StyleGroup {
-    STYLE_GROUPS[group_index]
-}
-
-/// Expands `$body` once per style group, with `$payload` naming that group's payload type.
+/// Expands `$body` once per style group, with `$payload` naming the payload type of the group at
+/// the index `$group`.
 macro_rules! with_style_group_type {
     ($group:expr, $payload:ident => $body:expr) => {
+        with_style_group_type!(@match $group, $payload, $body,
+            INHERITED_LIST_TABLE: InheritedListTableValues,
+            INHERITED_UI: InheritedUIValues,
+            INHERITED_SVG: InheritedSVGValues,
+            INHERITED_TEXT: InheritedTextValues,
+            FONT: FontValues,
+            ANIMATION: AnimationValues,
+            SVG_RESET: SVGResetValues,
+            GRID: GridValues,
+            ANCHOR: AnchorValues,
+            CONTENT: ContentValues,
+            ALIGNMENT: AlignmentValues,
+            MISC_LAYOUT: MiscLayoutValues,
+            MISC_INTERACTION: MiscInteractionValues,
+            EFFECTS: EffectsValues,
+            MASK: MaskValues,
+            TEXT_RESET: TextResetValues,
+            TRANSFORM: TransformValues,
+            BACKGROUND: BackgroundValues,
+            BORDER: BorderValues,
+            SIZING: SizingValues,
+            SURROUND: SurroundValues,
+            BOX: BoxValues,
+        )
+    };
+    (@match $group:expr, $payload:ident, $body:expr, $($index:ident: $values:ident,)+) => {
         match $group {
-            StyleGroup::InheritedListTable => {
-                type $payload = InheritedListTableValues;
+            $(group_index::$index => {
+                type $payload = $values;
                 $body
-            }
-            StyleGroup::Sizing => {
-                type $payload = SizingValues;
-                $body
-            }
-            StyleGroup::Alignment => {
-                type $payload = AlignmentValues;
-                $body
-            }
-            StyleGroup::SVGReset => {
-                type $payload = SVGResetValues;
-                $body
-            }
-            StyleGroup::Surround => {
-                type $payload = SurroundValues;
-                $body
-            }
-            StyleGroup::Box => {
-                type $payload = BoxValues;
-                $body
-            }
-            StyleGroup::Grid => {
-                type $payload = GridValues;
-                $body
-            }
-            StyleGroup::TextReset => {
-                type $payload = TextResetValues;
-                $body
-            }
-            StyleGroup::Transform => {
-                type $payload = TransformValues;
-                $body
-            }
-            StyleGroup::Effects => {
-                type $payload = EffectsValues;
-                $body
-            }
-            StyleGroup::Anchor => {
-                type $payload = AnchorValues;
-                $body
-            }
-            StyleGroup::InheritedUI => {
-                type $payload = InheritedUIValues;
-                $body
-            }
-            StyleGroup::InheritedSVG => {
-                type $payload = InheritedSVGValues;
-                $body
-            }
-            StyleGroup::InheritedText => {
-                type $payload = InheritedTextValues;
-                $body
-            }
-            StyleGroup::Animation => {
-                type $payload = AnimationValues;
-                $body
-            }
-            StyleGroup::Mask => {
-                type $payload = MaskValues;
-                $body
-            }
-            StyleGroup::Background => {
-                type $payload = BackgroundValues;
-                $body
-            }
-            StyleGroup::Border => {
-                type $payload = BorderValues;
-                $body
-            }
-            StyleGroup::Content => {
-                type $payload = ContentValues;
-                $body
-            }
-            StyleGroup::MiscLayout => {
-                type $payload = MiscLayoutValues;
-                $body
-            }
-            StyleGroup::MiscInteraction => {
-                type $payload = MiscInteractionValues;
-                $body
-            }
-            StyleGroup::Font => {
-                type $payload = FontValues;
-                $body
-            }
+            })+
+            _ => panic!("no style group has this index"),
         }
     };
 }
 
-fn payload_size(group: StyleGroup) -> usize {
+fn payload_size(group: usize) -> usize {
     with_style_group_type!(group, Payload => size_of::<Payload>())
 }
 
-fn payload_align(group: StyleGroup) -> usize {
+fn payload_align(group: usize) -> usize {
     with_style_group_type!(group, Payload => align_of::<Payload>())
 }
 
@@ -720,7 +606,7 @@ unsafe fn payload_ref<'a, T>(payload: *const c_void) -> &'a T {
 }
 
 /// The payload must point to uninitialized storage laid out for the group's payload type.
-unsafe fn default_construct(group: StyleGroup, payload: *mut c_void) {
+unsafe fn default_construct(group: usize, payload: *mut c_void) {
     with_style_group_type!(group, Payload => unsafe { payload.cast::<Payload>().write(Payload::initial()) });
 }
 
@@ -730,19 +616,19 @@ unsafe fn default_construct(group: StyleGroup, payload: *mut c_void) {
     clippy::clone_on_copy,
     reason = "some style groups are Copy, and the macro expands for every group"
 )]
-unsafe fn copy_construct(group: StyleGroup, payload: *mut c_void, source: *const c_void) {
+unsafe fn copy_construct(group: usize, payload: *mut c_void, source: *const c_void) {
     with_style_group_type!(group, Payload => unsafe {
         payload.cast::<Payload>().write(payload_ref::<Payload>(source).clone());
     });
 }
 
 /// The payload must be a live payload of the group's type that nothing uses afterwards.
-unsafe fn destruct(group: StyleGroup, payload: *mut c_void) {
+unsafe fn destruct(group: usize, payload: *mut c_void) {
     with_style_group_type!(group, Payload => unsafe { std::ptr::drop_in_place(payload.cast::<Payload>()) });
 }
 
 /// Both payloads must be live payloads of the group's type.
-unsafe fn payloads_equal(group: StyleGroup, a: *const c_void, b: *const c_void) -> bool {
+unsafe fn payloads_equal(group: usize, a: *const c_void, b: *const c_void) -> bool {
     with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(a) == payload_ref::<Payload>(b) })
 }
 
@@ -819,7 +705,7 @@ macro_rules! impl_style_group_unread_by_layout {
 impl_style_group_unread_by_layout!(MaskValues, TextResetValues, BackgroundValues);
 
 /// Both payloads must be live payloads of the group's type.
-unsafe fn payload_layout_inputs_equal(group: StyleGroup, a: *const c_void, b: *const c_void) -> bool {
+unsafe fn payload_layout_inputs_equal(group: usize, a: *const c_void, b: *const c_void) -> bool {
     with_style_group_type!(group, Payload => {
         // SAFETY: The caller guarantees live payloads of the group.
         let (a, b) = unsafe { (payload_ref::<Payload>(a), payload_ref::<Payload>(b)) };
@@ -854,7 +740,7 @@ pub(crate) fn style_payloads_layout_inputs_equal(
     (0..group_index::COUNT).all(|group| {
         let (a, b) = (a[group].as_ptr(), b[group].as_ptr());
         // SAFETY: Each style holds a live payload of each group.
-        a == b || unsafe { payload_layout_inputs_equal(style_group(group), a, b) }
+        a == b || unsafe { payload_layout_inputs_equal(group, a, b) }
     })
 }
 
@@ -926,7 +812,7 @@ pub(crate) unsafe fn style_group_payloads_equal(group_index: usize, a: *const c_
     assert!(!a.is_null());
     assert!(!b.is_null());
     // SAFETY: The caller guarantees live payloads of the group.
-    unsafe { payloads_equal(style_group(group_index), a, b) }
+    unsafe { payloads_equal(group_index, a, b) }
 }
 
 /// Whether a layered image property holds an `<image>` in any layer. The value is one layer or a
@@ -1048,7 +934,7 @@ impl_style_group_without_image_values!(
 );
 
 /// The payload must be a live payload of the group's type.
-unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) -> bool {
+unsafe fn payload_holds_image_values(group: usize, payload: *const c_void) -> bool {
     with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(payload) }.holds_image_values())
 }
 
@@ -1062,7 +948,7 @@ unsafe fn payload_holds_image_values(group: StyleGroup, payload: *const c_void) 
 pub(crate) unsafe fn style_group_payloads_hold_image_values(payloads: &[*const c_void]) -> bool {
     payloads.iter().enumerate().any(|(group_index, &payload)| {
         // SAFETY: The caller guarantees live payloads of each group.
-        !payload.is_null() && unsafe { payload_holds_image_values(style_group(group_index), payload) }
+        !payload.is_null() && unsafe { payload_holds_image_values(group_index, payload) }
     })
 }
 
@@ -1080,20 +966,19 @@ pub(crate) unsafe fn style_group_payloads_move_image_values(old: &[*const c_void
             if old_payload == new_payload {
                 return false;
             }
-            let group = style_group(group_index);
             if old_payload.is_null() || new_payload.is_null() {
                 // SAFETY: As in `style_group_payloads_hold_image_values`.
                 return [old_payload, new_payload]
                     .into_iter()
-                    .any(|payload| !payload.is_null() && unsafe { payload_holds_image_values(group, payload) });
+                    .any(|payload| !payload.is_null() && unsafe { payload_holds_image_values(group_index, payload) });
             }
             // SAFETY: As in `style_group_payloads_hold_image_values`.
-            unsafe { payload_image_values_differ(group, old_payload, new_payload) }
+            unsafe { payload_image_values_differ(group_index, old_payload, new_payload) }
         })
 }
 
 /// Whether `old` and `new`, two live payloads of `group`, hold different images, by identity.
-unsafe fn payload_image_values_differ(group: StyleGroup, old: *const c_void, new: *const c_void) -> bool {
+unsafe fn payload_image_values_differ(group: usize, old: *const c_void, new: *const c_void) -> bool {
     with_style_group_type!(group, Payload => unsafe {
         payload_ref::<Payload>(old).image_values_differ(payload_ref::<Payload>(new))
     })
@@ -1116,12 +1001,12 @@ pub(crate) fn group_payload_allocation_bytes(group_index: usize, payload: *const
     if payload.is_null() {
         return 0;
     }
-    allocation_layout(style_group(group_index)).size()
+    allocation_layout(group_index).size()
 }
 
 /// Retains one reference to a payload, mirroring StyleStructRef::ref().
 pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
-    refcount_of(payload, payload_align(style_group(group_index))).fetch_add(1, Ordering::Relaxed);
+    refcount_of(payload, payload_align(group_index)).fetch_add(1, Ordering::Relaxed);
 }
 
 fn header_size(align: usize) -> usize {
@@ -1129,20 +1014,16 @@ fn header_size(align: usize) -> usize {
 }
 
 /// Where a group's computed values start in its allocation: after its payload.
-fn values_offset(group: StyleGroup) -> usize {
+fn values_offset(group: usize) -> usize {
     (header_size(payload_align(group)) + payload_size(group)).next_multiple_of(align_of::<RetainedStyleValueData>())
 }
 
 /// How many computed values the allocation of `group` holds.
-fn value_count(group: StyleGroup) -> usize {
-    usize::from(GROUP_VALUE_LAYOUT.counts[group_index_of(group)])
+fn value_count(group: usize) -> usize {
+    usize::from(GROUP_VALUE_LAYOUT.counts[group])
 }
 
-fn group_index_of(group: StyleGroup) -> usize {
-    with_style_group_type!(group, Payload => <Payload as StyleGroupPayload>::GROUP_INDEX)
-}
-
-fn allocation_layout(group: StyleGroup) -> Layout {
+fn allocation_layout(group: usize) -> Layout {
     let payload_align = payload_align(group);
     let align = payload_align
         .max(align_of::<usize>())
@@ -1158,7 +1039,7 @@ fn allocation_layout(group: StyleGroup) -> Layout {
 ///
 /// # Safety
 /// `payload` must be a live payload of the group, allocated by `allocate_payload`.
-unsafe fn values_of<'a>(group: StyleGroup, payload: *const c_void) -> &'a [RetainedStyleValueData] {
+unsafe fn values_of<'a>(group: usize, payload: *const c_void) -> &'a [RetainedStyleValueData] {
     // SAFETY: The allocation holds `value_count` initialized values at `values_offset`.
     unsafe {
         let start = (payload as *const u8)
@@ -1174,7 +1055,7 @@ unsafe fn values_of<'a>(group: StyleGroup, payload: *const c_void) -> &'a [Retai
 /// # Safety
 /// `payload` must be a live payload of the group, allocated by `allocate_payload`, that only the
 /// caller references.
-unsafe fn values_of_mut<'a>(group: StyleGroup, payload: *mut c_void) -> &'a mut [RetainedStyleValueData] {
+unsafe fn values_of_mut<'a>(group: usize, payload: *mut c_void) -> &'a mut [RetainedStyleValueData] {
     // SAFETY: As in `values_of`, and the caller holds the only reference.
     unsafe {
         let start = (payload as *mut u8)
@@ -1190,7 +1071,7 @@ unsafe fn values_of_mut<'a>(group: StyleGroup, payload: *mut c_void) -> &'a mut 
 /// # Safety
 /// `payload` must be a payload of the group, allocated by `allocate_payload`, with no remaining
 /// references.
-unsafe fn destroy_allocation(group: StyleGroup, payload: *mut c_void) {
+unsafe fn destroy_allocation(group: usize, payload: *mut c_void) {
     unsafe {
         std::ptr::drop_in_place(values_of_mut(group, payload));
         destruct(group, payload);
@@ -1208,7 +1089,7 @@ fn refcount_of(payload: *const c_void, align: usize) -> &'static AtomicUsize {
     }
 }
 
-fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
+fn allocate_payload(group: usize, initial_refcount: usize) -> *mut c_void {
     // SAFETY: The layout is never zero-sized (the header is at least a usize).
     unsafe {
         let allocation = alloc(allocation_layout(group));
@@ -2221,7 +2102,7 @@ impl<'a> GroupPayloadRef<'a> {
     /// The computed values the payload's group holds.
     pub(crate) fn group_values(self) -> &'a [RetainedStyleValueData] {
         // SAFETY: The payload is live for 'a.
-        unsafe { values_of(style_group(self.group_index), self.as_ptr()) }
+        unsafe { values_of(self.group_index, self.as_ptr()) }
     }
 
     pub(crate) fn as_ptr(self) -> *const c_void {
@@ -2244,7 +2125,7 @@ impl<'a> GroupPayloadRef<'a> {
     fn equals(self, other: GroupPayloadRef<'_>) -> bool {
         assert_eq!(self.group_index, other.group_index);
         // SAFETY: Both payloads are live payloads of the group.
-        unsafe { payloads_equal(style_group(self.group_index), self.as_ptr(), other.as_ptr()) }
+        unsafe { payloads_equal(self.group_index, self.as_ptr(), other.as_ptr()) }
     }
 
     /// The group, with one more reference to it.
@@ -2270,10 +2151,9 @@ struct ScratchPayload {
 
 impl ScratchPayload {
     fn new_default(group_index: usize) -> Self {
-        let group = style_group(group_index);
-        let pointer = allocate_payload(group, 1);
+        let pointer = allocate_payload(group_index, 1);
         // SAFETY: The payload was just allocated with the layout of the group's type.
-        unsafe { default_construct(group, pointer) };
+        unsafe { default_construct(group_index, pointer) };
         Self { group_index, pointer }
     }
 
@@ -2306,7 +2186,7 @@ impl ScratchPayload {
 impl Drop for ScratchPayload {
     fn drop(&mut self) {
         // SAFETY: The scratch payload was never published, so this guard holds its only reference.
-        unsafe { free_scratch_payload(style_group(self.group_index), self.pointer) };
+        unsafe { free_scratch_payload(self.group_index, self.pointer) };
     }
 }
 
@@ -2396,7 +2276,7 @@ pub(crate) unsafe fn patch_group_payload<T: StyleGroupPayload + PartialEq + Clon
 /// Moves a built group value into a fresh payload that carries one reference for the caller.
 fn publish_group_payload<T: StyleGroupPayload>(group_index: usize, built: T) -> *const c_void {
     assert_group_payload_type::<T>(group_index);
-    let payload = allocate_payload(style_group(group_index), 1);
+    let payload = allocate_payload(group_index, 1);
     // SAFETY: The payload was just allocated with the layout of the group's type, which is `T`.
     unsafe { payload.cast::<T>().write(built) };
     payload.cast_const()
@@ -2405,11 +2285,10 @@ fn publish_group_payload<T: StyleGroupPayload>(group_index: usize, built: T) -> 
 /// Allocates a new payload for `group_index` with a reference count of one,
 /// copy-constructed from `source`, a live payload of the registered group type.
 pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_void) -> *mut c_void {
-    let group = style_group(group_index);
-    let payload = allocate_payload(group, 1);
+    let payload = allocate_payload(group_index, 1);
     unsafe {
-        copy_construct(group, payload, source);
-        values_of_mut(group, payload).clone_from_slice(values_of(group, source));
+        copy_construct(group_index, payload, source);
+        values_of_mut(group_index, payload).clone_from_slice(values_of(group_index, source));
     }
     payload
 }
@@ -2422,18 +2301,16 @@ pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_vo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut c_void) {
     unsafe {
-        let group = style_group(group_index);
-        debug_assert!(refcount_of(payload, payload_align(group)).load(Ordering::Relaxed) == 0);
-        destroy_allocation(group, payload);
+        debug_assert!(refcount_of(payload, payload_align(group_index)).load(Ordering::Relaxed) == 0);
+        destroy_allocation(group_index, payload);
     };
 }
 
 pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
-    let group = style_group(group_index);
-    let refcount = refcount_of(payload, payload_align(group));
+    let refcount = refcount_of(payload, payload_align(group_index));
     if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
         // SAFETY: The count reached zero, so this reference was the last one.
-        unsafe { destroy_allocation(group, payload.cast_mut()) }
+        unsafe { destroy_allocation(group_index, payload.cast_mut()) }
     }
 }
 
@@ -2452,9 +2329,8 @@ pub(crate) unsafe fn group_values<'a>(group_index: usize, payload: *const c_void
 const GROUP_VALUE_SPANS: [(usize, usize); group_index::COUNT] = {
     let mut spans = [(0, 0); group_index::COUNT];
     let mut slot = 0;
-    while slot < STYLE_GROUPS.len() {
-        let (size, align) =
-            with_style_group_type!(STYLE_GROUPS[slot], Payload => (size_of::<Payload>(), align_of::<Payload>()));
+    while slot < group_index::COUNT {
+        let (size, align) = with_style_group_type!(slot, Payload => (size_of::<Payload>(), align_of::<Payload>()));
         let header = if align > size_of::<usize>() {
             align
         } else {
@@ -2554,10 +2430,10 @@ pub(crate) fn same_group_values(first: &[RetainedStyleValueData], second: &[Reta
 /// # Safety
 /// Both must be live payloads of the group.
 pub(crate) unsafe fn groups_hold_the_same(group_index: usize, first: *const c_void, second: *const c_void) -> bool {
-    let group = style_group(group_index);
     first == second
         || unsafe {
-            payloads_equal(group, first, second) && same_group_values(values_of(group, first), values_of(group, second))
+            payloads_equal(group_index, first, second)
+                && same_group_values(values_of(group_index, first), values_of(group_index, second))
         }
 }
 
@@ -2578,12 +2454,11 @@ unsafe fn group_with_values(
     values: &[RetainedStyleValueData],
     writes: &[ValueWrite],
 ) -> *const c_void {
-    let group = style_group(group_index);
-    assert_eq!(values.len(), value_count(group));
+    assert_eq!(values.len(), value_count(group_index));
     let written = || written_values(values, writes);
     // SAFETY: The caller passes live payloads of the group.
     unsafe {
-        if values_of(group, payload)
+        if values_of(group_index, payload)
             .iter()
             .zip(written())
             .all(|(held, value)| held.pointer() == value.pointer() || held == value)
@@ -2592,8 +2467,8 @@ unsafe fn group_with_values(
         }
         if writes.is_empty()
             && seed != payload
-            && payloads_equal(group, seed, payload)
-            && values_of(group, seed)
+            && payloads_equal(group_index, seed, payload)
+            && values_of(group_index, seed)
                 .iter()
                 .zip(written())
                 .all(|(held, value)| held.pointer() == value.pointer())
@@ -2603,16 +2478,16 @@ unsafe fn group_with_values(
             return seed;
         }
         let write_into = |target: *mut c_void| {
-            for (slot, value) in values_of_mut(group, target).iter_mut().zip(written()) {
+            for (slot, value) in values_of_mut(group_index, target).iter_mut().zip(written()) {
                 *slot = value.clone();
             }
         };
-        if refcount_of(payload, payload_align(group)).load(Ordering::Acquire) == 1 {
+        if refcount_of(payload, payload_align(group_index)).load(Ordering::Acquire) == 1 {
             write_into(payload.cast_mut());
             return payload;
         }
-        let copy = allocate_payload(group, 1);
-        copy_construct(group, copy, payload);
+        let copy = allocate_payload(group_index, 1);
+        copy_construct(group_index, copy, payload);
         write_into(copy);
         release_group_payload(group_index, payload);
         copy.cast_const()
@@ -4446,7 +4321,7 @@ impl Default for DefaultGroups {
         //         which the groups take over.
         Self(unsafe {
             StyleGroups::adopt(
-                STYLE_GROUPS.map(|group| {
+                std::array::from_fn(|group| {
                     let payload = allocate_payload(group, 1);
                     default_construct(group, payload);
                     payload.cast_const()
@@ -4515,13 +4390,12 @@ impl HeldGroup {
 
     /// A new group holding a copy of the payload of `base` and the values `values` yields.
     fn new_copy<'v>(base: GroupPayloadRef<'_>, values: impl Iterator<Item = &'v RetainedStyleValueData>) -> Self {
-        let group = style_group(base.group_index);
-        let payload = allocate_payload(group, 1);
+        let payload = allocate_payload(base.group_index, 1);
         // SAFETY: The payload was just allocated for the group, which `base` is a live payload of,
         //         and nothing else references it yet.
         unsafe {
-            copy_construct(group, payload, base.as_ptr());
-            for (slot, value) in values_of_mut(group, payload).iter_mut().zip(values) {
+            copy_construct(base.group_index, payload, base.as_ptr());
+            for (slot, value) in values_of_mut(base.group_index, payload).iter_mut().zip(values) {
                 *slot = value.clone();
             }
         }
@@ -4533,9 +4407,8 @@ impl HeldGroup {
 
     /// Puts `value` in the payload field at `place`, where this is the only reference to the group.
     fn set_payload_field(&mut self, place: LonghandPlace, value: &RetainedStyleValueData) {
-        let group = style_group(self.group);
         assert_eq!(
-            refcount_of(self.payload, payload_align(group)).load(Ordering::Acquire),
+            refcount_of(self.payload, payload_align(self.group)).load(Ordering::Acquire),
             1
         );
         // SAFETY: The group is live, and this is its only reference.
@@ -4863,7 +4736,7 @@ impl GroupValues<'_> {
             if GROUPS_OF_TYPED_LONGHANDS & (1 << group) != 0 {
                 let untold = self.typed_values_untold(group, own.as_ptr());
                 // SAFETY: The group was just made, and this is its only reference.
-                let slots = unsafe { values_of_mut(style_group(group), own.as_ptr().cast_mut()) };
+                let slots = unsafe { values_of_mut(group, own.as_ptr().cast_mut()) };
                 slots[TYPED_VALUES_SLOT] = untold;
             }
             std::mem::ManuallyDrop::new(own).payload
@@ -5606,7 +5479,7 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
 /// # Safety
 /// `scratch` must be a payload of the group, allocated by
 /// `allocate_payload` and not shared.
-unsafe fn free_scratch_payload(group: StyleGroup, scratch: *mut c_void) {
+unsafe fn free_scratch_payload(group: usize, scratch: *mut c_void) {
     unsafe { destroy_allocation(group, scratch) }
 }
 
@@ -7017,8 +6890,8 @@ mod tests {
 
     #[test]
     fn every_payload_type_names_the_group_it_is_dispatched_for() {
-        for (group_index, &group) in STYLE_GROUPS.iter().enumerate() {
-            with_style_group_type!(group, Payload => assert_eq!(Payload::GROUP_INDEX, group_index));
+        for group in 0..group_index::COUNT {
+            with_style_group_type!(group, Payload => assert_eq!(Payload::GROUP_INDEX, group));
         }
     }
 
@@ -7166,9 +7039,7 @@ mod tests {
             pointers
                 .iter()
                 .enumerate()
-                .map(|(group, &pointer)| {
-                    refcount_of(pointer, payload_align(style_group(group))).load(Ordering::Relaxed)
-                })
+                .map(|(group, &pointer)| refcount_of(pointer, payload_align(group)).load(Ordering::Relaxed))
                 .collect()
         };
         // SAFETY: Each default payload is a live payload of its group.
@@ -7223,7 +7094,7 @@ mod tests {
             let clone = unsafe { clone_group_payload(group_index, default) };
             // SAFETY: The payloads are live defaults and clones of this group.
             assert!(unsafe { style_group_payloads_equal(group_index, default, clone) });
-            refcount_of(clone, payload_align(style_group(group_index))).store(0, Ordering::Relaxed);
+            refcount_of(clone, payload_align(group_index)).store(0, Ordering::Relaxed);
             // SAFETY: The clone holds the last reference and is a payload of this group.
             unsafe { rust_style_group_free(group_index, clone) };
         }
@@ -7237,11 +7108,7 @@ mod tests {
         assert!(!unsafe {
             style_group_payloads_equal(group_index::INHERITED_LIST_TABLE, table_default, changed_payload)
         });
-        refcount_of(
-            changed_payload,
-            payload_align(style_group(group_index::INHERITED_LIST_TABLE)),
-        )
-        .store(0, Ordering::Relaxed);
+        refcount_of(changed_payload, payload_align(group_index::INHERITED_LIST_TABLE)).store(0, Ordering::Relaxed);
         // SAFETY: The clone holds the last reference and is a payload of this group.
         unsafe { rust_style_group_free(group_index::INHERITED_LIST_TABLE, changed_payload) };
     }
