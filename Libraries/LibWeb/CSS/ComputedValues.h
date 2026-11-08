@@ -96,63 +96,6 @@ class ComputedStyleRecordView;
 class StyleComputer;
 class StyleScope;
 
-using ClipRule = FillRule;
-
-struct AspectRatio {
-    bool use_natural_aspect_ratio_if_available;
-    Optional<Ratio> preferred_ratio;
-    bool computed_use_natural_aspect_ratio_if_available;
-    Optional<Ratio> computed_ratio;
-
-    bool operator==(AspectRatio const& other) const
-    {
-        // NB: Ratio's own equality is proportional (1 / 2 equals 0.5 / 1), but these ratios are
-        //     observable through serialization, so compare the components exactly.
-        auto ratios_identical = [](Optional<Ratio> const& a, Optional<Ratio> const& b) {
-            if (a.has_value() != b.has_value())
-                return false;
-            if (!a.has_value())
-                return true;
-            return a->numerator() == b->numerator() && a->denominator() == b->denominator();
-        };
-        return use_natural_aspect_ratio_if_available == other.use_natural_aspect_ratio_if_available
-            && computed_use_natural_aspect_ratio_if_available == other.computed_use_natural_aspect_ratio_if_available
-            && ratios_identical(preferred_ratio, other.preferred_ratio)
-            && ratios_identical(computed_ratio, other.computed_ratio);
-    }
-};
-
-struct GridAutoFlow {
-    bool row { true };
-    bool dense { false };
-
-    bool operator==(GridAutoFlow const&) const = default;
-};
-
-struct NormalGap {
-    bool operator==(NormalGap const&) const = default;
-};
-
-struct Position {
-    PositionEdge edge_x { PositionEdge::Left };
-    LengthPercentage offset_x { Percentage(50) };
-    PositionEdge edge_y { PositionEdge::Top };
-    LengthPercentage offset_y { Percentage(50) };
-
-    bool operator==(Position const&) const = default;
-
-    CSSPixelPoint resolved(CSSPixelRect const& rect) const
-    {
-        CSSPixels x = offset_x.to_px(rect.width());
-        CSSPixels y = offset_y.to_px(rect.height());
-        if (edge_x == PositionEdge::Right)
-            x = rect.width() - x;
-        if (edge_y == PositionEdge::Bottom)
-            y = rect.height() - y;
-        return CSSPixelPoint { rect.x() + x, rect.y() + y };
-    }
-};
-
 // https://drafts.csswg.org/css-contain-2/#containment-types
 struct Containment {
     bool size_containment : 1 { false };
@@ -174,29 +117,6 @@ struct ContainerType {
     bool operator==(ContainerType const&) const = default;
 
     bool is_empty() const { return !(is_size_container || is_inline_size_container || is_scroll_state_container); }
-};
-
-struct ScrollbarColorData {
-    Color thumb_color { Color::Transparent };
-    Color track_color { Color::Transparent };
-    bool is_auto { true };
-
-    bool operator==(ScrollbarColorData const&) const = default;
-};
-
-struct TextIndentData {
-    LengthPercentage length_percentage;
-    bool each_line { false };
-    bool hanging { false };
-
-    bool operator==(TextIndentData const&) const = default;
-};
-
-struct TextUnderlinePosition {
-    TextUnderlinePositionHorizontal horizontal { TextUnderlinePositionHorizontal::Auto };
-    TextUnderlinePositionVertical vertical { TextUnderlinePositionVertical::Auto };
-
-    bool operator==(TextUnderlinePosition const&) const = default;
 };
 
 class InitialValues {
@@ -235,7 +155,7 @@ struct TransformOrigin {
     bool operator==(TransformOrigin const&) const = default;
 };
 
-// One computed shadow layer, whose color may be `currentcolor`, which `resolved_color()` resolves.
+// One computed shadow layer, whose color may be `currentcolor`.
 struct ShadowData {
     CSSPixels offset_x { 0 };
     CSSPixels offset_y { 0 };
@@ -244,8 +164,6 @@ struct ShadowData {
     ComputedValuesFFI::StyleColor color {};
     ColorSyntax color_syntax { ColorSyntax::Legacy };
     ShadowPlacement placement { ShadowPlacement::Outer };
-
-    Color resolved_color(Color current_color) const { return resolve_style_color(color, current_color); }
 };
 
 // FIXME: Find a better place for this helper.
@@ -394,47 +312,10 @@ inline u8 reset_bits_field(ComputedValuesFFI::ResetBits bits, u32 shift, u32 wid
 }
 
 inline Float float_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<Float>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_FLOAT_SHIFT, ComputedValuesFFI::RESET_BITS_FLOAT_WIDTH)); }
-inline Clear clear_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<Clear>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_CLEAR_SHIFT, ComputedValuesFFI::RESET_BITS_CLEAR_WIDTH)); }
 inline Positioning position_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<Positioning>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_POSITION_SHIFT, ComputedValuesFFI::RESET_BITS_POSITION_WIDTH)); }
 inline Overflow overflow_x_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<Overflow>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_OVERFLOW_X_SHIFT, ComputedValuesFFI::RESET_BITS_OVERFLOW_X_WIDTH)); }
 inline Overflow overflow_y_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<Overflow>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_OVERFLOW_Y_SHIFT, ComputedValuesFFI::RESET_BITS_OVERFLOW_Y_WIDTH)); }
 inline BoxSizing box_sizing_from_reset_bits(ComputedValuesFFI::ResetBits bits) { return static_cast<BoxSizing>(reset_bits_field(bits, ComputedValuesFFI::RESET_BITS_BOX_SIZING_SHIFT, ComputedValuesFFI::RESET_BITS_BOX_SIZING_WIDTH)); }
-
-// The reset bits of the initial style.
-constexpr ComputedValuesFFI::ResetBits initial_reset_bits()
-{
-    return static_cast<ComputedValuesFFI::ResetBits>(
-        (static_cast<u32>(to_underlying(Positioning::Static)) << ComputedValuesFFI::RESET_BITS_POSITION_SHIFT)
-        | (static_cast<u32>(to_underlying(Float::None)) << ComputedValuesFFI::RESET_BITS_FLOAT_SHIFT)
-        | (static_cast<u32>(to_underlying(Clear::None)) << ComputedValuesFFI::RESET_BITS_CLEAR_SHIFT)
-        | (static_cast<u32>(to_underlying(Overflow::Visible)) << ComputedValuesFFI::RESET_BITS_OVERFLOW_X_SHIFT)
-        | (static_cast<u32>(to_underlying(Overflow::Visible)) << ComputedValuesFFI::RESET_BITS_OVERFLOW_Y_SHIFT)
-        | (static_cast<u32>(to_underlying(BoxSizing::ContentBox)) << ComputedValuesFFI::RESET_BITS_BOX_SIZING_SHIFT)
-        | (static_cast<u32>(to_underlying(UnicodeBidi::Normal)) << ComputedValuesFFI::RESET_BITS_UNICODE_BIDI_SHIFT)
-        | (static_cast<u32>(to_underlying(TableLayout::Auto)) << ComputedValuesFFI::RESET_BITS_TABLE_LAYOUT_SHIFT));
-}
-
-// What the inherited set of the initial style holds beside its groups.
-constexpr ComputedValuesFFI::InheritedSetValues initial_inherited_set_values()
-{
-    return {
-        .bits = static_cast<ComputedValuesFFI::InheritedBits>(
-            (static_cast<u32>(to_underlying(WritingMode::HorizontalTb)) << ComputedValuesFFI::INHERITED_BITS_WRITING_MODE_SHIFT)
-            | (static_cast<u32>(to_underlying(Direction::Ltr)) << ComputedValuesFFI::INHERITED_BITS_DIRECTION_SHIFT)
-            | (static_cast<u32>(to_underlying(Visibility::Visible)) << ComputedValuesFFI::INHERITED_BITS_VISIBILITY_SHIFT)
-            | (static_cast<u32>(to_underlying(TextOrientation::Mixed)) << ComputedValuesFFI::INHERITED_BITS_TEXT_ORIENTATION_SHIFT)
-            | (static_cast<u32>(to_underlying(PointerEvents::Auto)) << ComputedValuesFFI::INHERITED_BITS_POINTER_EVENTS_SHIFT)
-            | (static_cast<u32>(to_underlying(ListStylePosition::Outside)) << ComputedValuesFFI::INHERITED_BITS_LIST_STYLE_POSITION_SHIFT)
-            | (static_cast<u32>(to_underlying(BorderCollapse::Separate)) << ComputedValuesFFI::INHERITED_BITS_BORDER_COLLAPSE_SHIFT)
-            | (static_cast<u32>(to_underlying(CaptionSide::Top)) << ComputedValuesFFI::INHERITED_BITS_CAPTION_SIDE_SHIFT)
-            | (static_cast<u32>(to_underlying(EmptyCells::Show)) << ComputedValuesFFI::INHERITED_BITS_EMPTY_CELLS_SHIFT)
-            | (static_cast<u32>(to_underlying(TextAlign::Start)) << ComputedValuesFFI::INHERITED_BITS_TEXT_ALIGN_SHIFT)
-            | (static_cast<u32>(to_underlying(WhiteSpaceCollapse::Collapse)) << ComputedValuesFFI::INHERITED_BITS_WHITE_SPACE_COLLAPSE_SHIFT)
-            | (static_cast<u32>(to_underlying(TextWrapMode::Wrap)) << ComputedValuesFFI::INHERITED_BITS_TEXT_WRAP_MODE_SHIFT)
-            | (static_cast<u32>(to_underlying(WordBreak::Normal)) << ComputedValuesFFI::INHERITED_BITS_WORD_BREAK_SHIFT)),
-        .effective_zoom_bits = bit_cast<u32>(1.0f),
-    };
-}
 
 // One counted reference to a style record, or none.
 class StyleRecordRef {
@@ -483,15 +364,10 @@ class WEB_API ComputedValues final : public RefCounted<ComputedValues> {
     AK_MAKE_NONMOVABLE(ComputedValues);
 
 public:
-    class Builder;
-    class Mutator;
-
     enum class WithAnimationsApplied {
         No,
         Yes,
     };
-
-    static constexpr u32 all_style_groups = (1u << to_underlying(StyleGroupIndex::Count)) - 1;
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
@@ -539,18 +415,17 @@ public:
 
     ~ComputedValues();
 
-private:
-public:
+    // A copy of this style that owns references to its groups, so that it outlives the record view it was read from.
+    NonnullRefPtr<ComputedValues const> clone() const;
+
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
     // The animation-name entries other than none.
 
     Float float_() const { return float_from_reset_bits(m_noninherited.reset_bits); }
-    Clear clear() const { return clear_from_reset_bits(m_noninherited.reset_bits); }
     // https://drafts.csswg.org/css-ui-4/#caret-color
     // auto: "User agents should use currentColor." It computes to auto, so the element's own color is read here.
     Color caret_color() const { return m_inherited.ui->caret_color_value(color()); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
-    FillRule fill_rule() const { return m_inherited.svg->fill_rule_value(); }
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_noninherited.misc_layout->content_visibility); }
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
@@ -561,7 +436,6 @@ public:
     bool content_uses_list_item_counter() const { return generated_content_facts() & ComputedValuesFFI::GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER; }
     Display display() const { return display_from_ffi_display(m_noninherited.box->display); }
     Display display_before_box_type_transformation() const { return display_from_ffi_display(m_noninherited.box->display_before_box_type_transformation); }
-    Color text_decoration_color() const { return resolve_style_color(m_noninherited.text_reset->text_decoration_color, color()); }
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return position_from_reset_bits(m_noninherited.reset_bits); }
     Appearance appearance() const { return static_cast<Appearance>(m_noninherited.misc_layout->appearance); }
@@ -569,7 +443,6 @@ public:
     Visibility visibility() const { return visibility_from_inherited_bits(m_inherited.values.bits); }
     ComputedFilterView backdrop_filter() const { return m_noninherited.effects->backdrop_filter_value(); }
     ComputedFilterView filter() const { return m_noninherited.effects->filter_value(); }
-    ReadonlySpan<ShadowData> box_shadow() const { return m_noninherited.effects->box_shadow_span(); }
     ComputedValuesFFI::ComputedSize const& width() const { return m_noninherited.sizing->width; }
     ComputedValuesFFI::ComputedSize const& height() const { return m_noninherited.sizing->height; }
     Direction direction() const { return direction_from_inherited_bits(m_inherited.values.bits); }
@@ -599,7 +472,6 @@ public:
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
-    LengthBox margin() const { return length_box(m_noninherited.surround->margin); }
     LengthBox scroll_margin() const { return length_box(m_noninherited.misc_interaction->scroll_margin); }
 
     BorderData border_left() const { return m_noninherited.border->border_left_value(color()); }
@@ -614,8 +486,6 @@ public:
     Color color() const { return m_inherited.text->color_value(); }
     Color background_color() const { return m_noninherited.background->background_color_value(color()); }
     RefPtr<StyleValue const> background_color_style_value() const;
-
-    Color webkit_text_fill_color() const { return m_inherited.text->webkit_text_fill_color_value(); }
 
     void const* list_style_type_data() const { return m_inherited.list_table->list_style_type.pointer; }
     RefPtr<AbstractImageStyleValue const> list_style_image() const { return m_inherited.list_table->list_style_image_value(); }
@@ -650,8 +520,6 @@ public:
     double font_weight() const { return m_inherited.font->font_weight; }
     CSSPixels line_height() const { return m_inherited.font->line_height_used_value(); }
 
-    Color outline_color() const { return resolve_style_color(m_noninherited.misc_layout->outline_color, color()); }
-    Color column_rule_color() const { return resolve_style_color(m_noninherited.misc_layout->column_rule_color, color()); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc_layout->outline_style); }
 
     int math_depth() const { return m_inherited.font->math_depth; }
@@ -714,15 +582,6 @@ public:
     struct InheritedListTableValues : ComputedValuesFFI::InheritedListTableValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedListTableValues);
 
-        bool operator==(InheritedListTableValues const& other) const
-        {
-            return list_style_type.pointer == other.list_style_type.pointer
-                && list_style_image.pointer == other.list_style_image.pointer
-                && quotes.pointer == other.quotes.pointer
-                && border_spacing_horizontal == other.border_spacing_horizontal
-                && border_spacing_vertical == other.border_spacing_vertical;
-        }
-
         RefPtr<AbstractImageStyleValue const> list_style_image_value() const;
     };
 
@@ -764,7 +623,6 @@ public:
 
         Optional<URL> fill_url_value() const { return paint_url_value(fill); }
         Optional<URL> stroke_url_value() const { return paint_url_value(stroke); }
-        FillRule fill_rule_value() const { return static_cast<FillRule>(fill_rule); }
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }
         ColorInterpolation color_interpolation_filters_value() const { return static_cast<ColorInterpolation>(color_interpolation_filters); }
     };
@@ -802,7 +660,7 @@ private:
         StyleStructRef<InheritedTextValues> text;
         StyleStructRef<FontValues> font;
         // The inherited longhands held as bits beside the inherited groups, and the effective zoom.
-        ComputedValuesFFI::InheritedSetValues values { initial_inherited_set_values() };
+        ComputedValuesFFI::InheritedSetValues values {};
     };
 
     InheritedValues m_inherited;
@@ -1006,7 +864,7 @@ private:
         StyleStructRef<AnimationValues> animation;
         StyleStructRef<BoxValues> box;
         // The properties that do not inherit held as bits in the style's root.
-        ComputedValuesFFI::ResetBits reset_bits { initial_reset_bits() };
+        ComputedValuesFFI::ResetBits reset_bits {};
         StyleStructRef<SurroundValues> surround;
         StyleStructRef<SizingValues> sizing;
         StyleStructRef<MiscLayoutValues> misc_layout;
@@ -1149,52 +1007,6 @@ private:
     // NB: Only a present view builds its values, so a view of no record costs nothing to make.
     Optional<ComputedValues> m_values;
     InstalledStyle m_style;
-};
-
-class ComputedValues::Mutator final {
-private:
-    friend class Builder;
-
-    explicit Mutator(ComputedValues& values)
-        : m_values(values)
-    {
-    }
-
-public:
-    void set_animated_properties(AnimatedProperties const*);
-
-    ComputedValues& m_values;
-};
-
-class ComputedValues::Builder {
-public:
-    Builder()
-        : m_values(adopt_ref(*new ComputedValues))
-        , m_mutator(*m_values)
-    {
-    }
-
-    explicit Builder(ComputedValues const& values)
-        : Builder()
-    {
-        m_values->m_inherited = values.m_inherited;
-        m_values->m_noninherited = values.m_noninherited;
-        m_values->m_record = values.m_record;
-        if (values.m_borrowed_base_values)
-            m_values->m_base_values = Builder { *values.m_borrowed_base_values }.build();
-        else
-            m_values->m_base_values = values.m_base_values;
-        m_mutator.set_animated_properties(values.m_animated_properties.ptr());
-        m_values->m_depends_on_viewport_metrics = values.m_depends_on_viewport_metrics;
-        m_values->m_font_metrics_depend_on_viewport_metrics = values.m_font_metrics_depend_on_viewport_metrics;
-        m_values->m_in_display_none_subtree = values.m_in_display_none_subtree;
-    }
-
-    NonnullRefPtr<ComputedValues const> build() && { return move(m_values); }
-
-private:
-    NonnullRefPtr<ComputedValues> m_values;
-    Mutator m_mutator;
 };
 
 }

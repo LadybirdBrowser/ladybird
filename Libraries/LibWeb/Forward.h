@@ -377,7 +377,6 @@ enum class LayoutTreeRebuildRoot : u8;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
 enum class ValueType : u8;
-enum class AnimatedPropertyResultOfTransition : u8;
 
 enum class AbsoluteSize : u8;
 enum class AnchorSize : u8;
@@ -438,7 +437,6 @@ struct ColorResolutionStyle;
 struct ComputationContext;
 struct CustomPropertyRegistration;
 struct LogicalAliasMappingContext;
-struct NormalGap;
 struct RequiredInvalidationAfterStyleChange;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish

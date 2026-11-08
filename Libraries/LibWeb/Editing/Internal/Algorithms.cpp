@@ -5539,15 +5539,8 @@ CSSPixels font_size_to_pixel_size(Utf16View const& font_size)
     if (!keyword.has_value())
         return pixel_size;
 
-    // Convert the keyword to an absolute-size
-    auto absolute_size = CSS::keyword_to_absolute_size(keyword.value());
-
-    // If that failed - give up
-    if (!absolute_size.has_value())
-        return pixel_size;
-
-    // Return scaled pixel size
-    return CSS::StyleComputer::absolute_size_mapping(absolute_size.value(), pixel_size);
+    // Return scaled pixel size, or give up if the keyword is not an absolute-size
+    return CSSPixels::from_raw(CSS::ComputedValuesFFI::rust_absolute_size_font_mapping(to_underlying(keyword.value()), pixel_size.raw_value()));
 }
 
 void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range> range, Function<TraversalDecision(GC::Ref<DOM::Node>)> callback)

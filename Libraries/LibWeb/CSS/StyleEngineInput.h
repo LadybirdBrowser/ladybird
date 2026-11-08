@@ -184,8 +184,6 @@ WEB_API void prepare_non_author_stylesheets(DOM::Document&);
 // Called once a sheet has taken its place in the sheet list, so its successor is known.
 WEB_API void record_stylesheet_attached(StyleSheetState&, DOM::Node& document_or_shadow_root, StyleSheetState* before);
 
-// The order one tree scope declares its qualified cascade layer names in. Rules retain the interned
-// names, while StyleEngine derives the scope-local ranks used by every cascade consumer.
 WEB_API TreeScopeID style_engine_tree_scope_for(DOM::Node&);
 
 // A sheet's rules are not immutable, and each of these is one rule moving rather than the sheet

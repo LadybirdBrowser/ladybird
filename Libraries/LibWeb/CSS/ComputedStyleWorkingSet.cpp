@@ -177,16 +177,6 @@ StyleValue const& AnimatedProperties::property(PropertyID property_id) const
     return *wrapper;
 }
 
-void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, ComputedStyleWorkingSet::Inherited inherited)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    ComputedValuesFFI::rust_animated_overlay_set(m_overlay, to_underlying(id), value->rust_style_value_data(),
-        inherited == ComputedStyleWorkingSet::Inherited::Yes,
-        animated_property_result_of_transition == AnimatedPropertyResultOfTransition::Yes);
-    m_wrapper_cache.set(id, move(value));
-}
-
 RefPtr<AnimatedProperties const> ComputedStyleWorkingSet::animated_properties_snapshot() const
 {
     return m_animated_properties;

@@ -33,11 +33,6 @@ class StyleComputer;
 
 namespace Web::CSS {
 
-enum class AnimatedPropertyResultOfTransition : u8 {
-    No,
-    Yes
-};
-
 // What the host computes an element's style update in on the main thread, as an animation or
 // transition update or the document's own style does: the style record whose longhands it reads,
 // what it settles beside them, plus the genuinely-C++ residue no record can carry - the sparse
@@ -48,11 +43,6 @@ public:
     enum class WithAnimationsApplied {
         No,
         Yes,
-    };
-
-    enum class Inherited {
-        No,
-        Yes
     };
 
     static NonnullRefPtr<ComputedStyleWorkingSet> create_over_record(StyleRecordRef);
@@ -170,7 +160,6 @@ public:
     bool has_property(PropertyID property_id) const { return entry(property_id); }
     StyleValue const& property(PropertyID) const;
 
-    void set_property(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, ComputedStyleWorkingSet::Inherited);
     void clear_wrapper_cache() { m_wrapper_cache.clear(); }
 
 private:

@@ -159,7 +159,7 @@ static void prepare_for_style_engine_transaction(Layout::BegunRead const& read, 
 {
     document.build_registered_properties_cache_for_style_update();
     document.republish_custom_property_environments_for_style_update(read);
-    document.style_computer().prepare_for_style_engine_transaction();
+    document.style_computer().sweep_custom_property_environments();
 }
 
 // Runs the next style update of this update_style() on the document's render state: the writes recorded since the last
