@@ -860,16 +860,28 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
-// A document fetched over HTTP(S) has an opaque origin only because it is sandboxed. Such a document goes by the site
-// of its URL, which a document made from what its creator holds, such as a data: URL's, does not have.
-static Optional<URL::Site> site_of_sandboxed_document(CanonicalDocument const& document)
+// The site whose sandboxed documents a sandboxed document is hosted with: that of its URL when it was fetched over
+// HTTP(S), or that of the nearest ancestor fetched so when it holds what its embedder gave it, as a srcdoc or data: URL
+// iframe does. Any other document stays with its initiator, as an about:blank document can, since nothing else can
+// script it.
+static Optional<URL::Site> site_of_sandboxed_document(CanonicalNavigable const& navigable, CanonicalDocument const& document)
 {
-    if (!document.origin().is_opaque())
+    if (!document.origin().is_opaque() || !has_flag(document.active_sandboxing_flag_set(), Web::HTML::SandboxingFlagSet::SandboxedOrigin))
         return {};
+
+    auto is_http_or_https = [](URL::URL const& url) { return url.scheme().is_one_of("http"sv, "https"sv); };
     auto const& url = document.creation_url();
-    if (!url.scheme().is_one_of("http"sv, "https"sv))
+    if (is_http_or_https(url))
+        return URL::Site::obtain(url.origin());
+    if (!Web::HTML::url_matches_about_srcdoc(url) && url.scheme() != "data"sv)
         return {};
-    return URL::Site::obtain(url.origin());
+
+    for (auto const* ancestor = navigable.parent(); ancestor; ancestor = ancestor->parent()) {
+        auto const& ancestor_url = ancestor->active_document().creation_url();
+        if (is_http_or_https(ancestor_url))
+            return URL::Site::obtain(ancestor_url.origin());
+    }
+    return {};
 }
 
 RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
@@ -888,7 +900,7 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
 
     // A sandboxed iframe's content comes from its URL's site, so it stays out of its embedder's process, and every
     // sandboxed iframe of that site shares one process rather than having a process per agent cluster.
-    auto sandboxed_site = site_of_sandboxed_document(document);
+    auto sandboxed_site = site_of_sandboxed_document(*this, document);
     if (sandboxed_site.has_value() && parent())
         return document.browsing_context().top_level_browsing_context().group()->process_hosting_sandboxed_documents_of_site(*sandboxed_site);
 
@@ -960,7 +972,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
 {
     auto page = TRY(obtain_page_to_host_in(process_to_host(document, initiator_origin)));
     if (site_isolation_mode() == SiteIsolationMode::IFrame && parent()) {
-        if (auto site = site_of_sandboxed_document(document); site.has_value())
+        if (auto site = site_of_sandboxed_document(*this, document); site.has_value())
             document.browsing_context().top_level_browsing_context().group()->set_process_hosting_sandboxed_documents_of_site(*site, page->client());
     }
     if (document.is_local_file_content())

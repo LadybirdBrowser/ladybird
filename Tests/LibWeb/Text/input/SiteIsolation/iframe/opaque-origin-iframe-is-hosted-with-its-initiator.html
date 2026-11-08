@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script>
-    // A document with an opaque origin that is made from what its creator holds is in an agent cluster of its own,
-    // hosted with the agent cluster of the navigation's initiator origin: a data: URL iframe and a sandboxed srcdoc
+    // A document with an opaque origin is in an agent cluster of its own, hosted with the agent cluster of the
+    // navigation's initiator origin unless it is sandboxed content: a data: URL iframe and a sandboxed about:blank
     // iframe stay with their parent.
     promiseTest(async () => {
         const dataIframe = document.createElement("iframe");
@@ -13,7 +13,7 @@
         const sandboxedIframe = document.createElement("iframe");
         sandboxedIframe.sandbox = "";
         const sandboxedLoaded = new Promise(resolve => sandboxedIframe.addEventListener("load", resolve, { once: true }));
-        sandboxedIframe.srcdoc = "<!DOCTYPE html>sandboxed";
+        sandboxedIframe.src = "about:blank";
         document.body.appendChild(sandboxedIframe);
 
         await Promise.all([dataLoaded, sandboxedLoaded]);
