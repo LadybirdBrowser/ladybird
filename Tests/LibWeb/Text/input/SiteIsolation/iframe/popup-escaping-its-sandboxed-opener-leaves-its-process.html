@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A popup that escapes the sandbox of the iframe opening it holds a document with an origin of its own, so it does
+    // not stay in the process that hosts the sandboxed iframes of a site.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const popupUrl = new URL(
+            await httpServer.createEcho("GET", "/sandbox-escaping-popup", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    opener.postMessage({ origin: self.origin, processId: internals.webContentProcessId() }, "*");
+                <\/script>`,
+            })
+        );
+        popupUrl.hostname = uniqueLocalhostHostname("sandbox-escaping-popup");
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", "/sandbox-escaping-popup-opener", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("mousedown", () => {
+                        window.popup = window.open(${JSON.stringify(popupUrl.href)}, "escaping-its-sandboxed-opener");
+                    });
+                    addEventListener("message", event => {
+                        parent.postMessage({
+                            popupHasOriginOfItsOwn: event.data.origin !== "null",
+                            popupIsInProcessOfSandboxedOpener: event.data.processId === internals.webContentProcessId(),
+                        }, "*");
+                        window.popup.close();
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("sandbox-escaping-popup-opener");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts allow-popups allow-popups-to-escape-sandbox";
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const report = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(JSON.stringify(await report));
+    });
+</script>
