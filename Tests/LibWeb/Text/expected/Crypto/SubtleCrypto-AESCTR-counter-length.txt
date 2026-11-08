@@ -1,0 +1,7 @@
+length 8, first block is E(counter): true
+length 8, second block is E(wrapped): true
+length 8, second block is E(carried): false
+length 8, third block is E(wrapped + 1): true
+length 128, second block is E(carried): true
+length 128, all ones wraps to zero: true
+length 4, round trip: true
