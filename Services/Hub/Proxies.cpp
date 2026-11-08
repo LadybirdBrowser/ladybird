@@ -8,6 +8,7 @@
 #include <Hub/Application.h>
 #include <Hub/ConnectionFromUI.h>
 #include <Hub/Proxies.h>
+#include <LibWebView/Application.h>
 
 namespace Hub {
 
@@ -218,6 +219,48 @@ void MicrophoneAuthorizerInUI::did_change_authorization(WebView::MicrophoneAutho
     auto pending_requests = move(m_pending_requests);
     for (auto& on_complete : pending_requests)
         on_complete(authorization);
+}
+
+static GamepadSourceInUI* s_gamepad_source = nullptr;
+
+GamepadSourceInUI::GamepadSourceInUI()
+{
+    s_gamepad_source = this;
+}
+
+GamepadSourceInUI::~GamepadSourceInUI()
+{
+    s_gamepad_source = nullptr;
+}
+
+GamepadSourceInUI* GamepadSourceInUI::the()
+{
+    return s_gamepad_source;
+}
+
+bool GamepadSourceInUI::start()
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_gamepad_start(WebView::Application::web_content_options().is_test_mode == WebView::IsTestMode::Yes);
+    return true;
+}
+
+void GamepadSourceInUI::set_polling(bool polling)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_gamepad_set_polling(polling);
+}
+
+void GamepadSourceInUI::rumble(Web::Gamepad::GamepadHandle handle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_gamepad_rumble(handle, low_frequency_magnitude, high_frequency_magnitude, duration_ms);
+}
+
+void GamepadSourceInUI::rumble_triggers(Web::Gamepad::GamepadHandle handle, u16 left_magnitude, u16 right_magnitude, u32 duration_ms)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_gamepad_rumble_triggers(handle, left_magnitude, right_magnitude, duration_ms);
 }
 
 static TranslatorInUI* s_translator = nullptr;

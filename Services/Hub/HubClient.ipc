@@ -15,6 +15,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
@@ -248,6 +249,10 @@ endpoint HubClient
     translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) =|
     translator_open_language_download_settings() =|
     microphone_request_authorization() =|
+    gamepad_start(bool ignore_system_gamepads) =|
+    gamepad_set_polling(bool polling) =|
+    gamepad_rumble(u32 handle, u16 low_frequency_magnitude, u16 high_frequency_magnitude, u32 duration_ms) =|
+    gamepad_rumble_triggers(u32 handle, u16 left_magnitude, u16 right_magnitude, u32 duration_ms) =|
     spell_checker_close_document(i64 document_tag) =|
     spell_checker_check(u64 request_id, i64 document_tag, Utf16String text) =|
     spell_checker_guesses(u64 request_id, i64 document_tag, Utf16String word) =|
