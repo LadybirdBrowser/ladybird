@@ -44,7 +44,7 @@ ALLOWED_REALM_MENTIONS = {
     "Clipboard": (4, 16, "clipboard item/data callbacks still materialize JS values in caller-selected realms"),
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
-    "Crypto": (2, 4, "native Crypto and CryptoKey wrappers use the caller's realm and wrapper world"),
+    "Crypto": (2, 3, "CryptoKey wrappers use the caller's realm and wrapper world"),
     "DOM": (
         10,
         35,

@@ -23,6 +23,7 @@ encoding_rs = "0.8.42"
 ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 libcompositing_rust = { path = "../../../LibCompositing/Rust" }
 libcompress_rust = { path = "../../../LibCompress/Rust" }
+libcrypto_rust = { path = "../../../LibCrypto/Rust" }
 libgfx_rust = { path = "../../../LibGfx/Rust", default-features = false }
 libhttp_rust = { path = "../../../LibHTTP/Rust" }
 libipc_rust = { path = "../../../LibIPC/Rust" }

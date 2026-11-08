@@ -8,12 +8,12 @@
 
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
-use core::ptr::NonNull;
 
 use ak::{Span, Utf16String};
+use libcrypto_rust::{KeyDecodeError, KeyHandle};
 use libjs_rust::api::{
     Array, CellRoot, ErrorKind, ErrorType, Gc, GcRefCell, GcWeak, IntegrityLevel, MarkedVec, Must, Object,
-    PrimitiveString, PropertyKey, RawNativeFunctionResult, Trace, Value, Vm,
+    PrimitiveString, PropertyKey, Trace, Value, Vm,
 };
 
 use crate::bindings::conversions::create_uint8_array;
@@ -116,15 +116,6 @@ impl InternalAlgorithmData {
     }
 }
 
-struct CryptoKeyHandle(NonNull<c_void>);
-
-impl Drop for CryptoKeyHandle {
-    fn drop(&mut self) {
-        // SAFETY: The key handle is owned by this object.
-        unsafe { web_crypto_key_destroy_handle(self.0.as_ptr()) };
-    }
-}
-
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 struct CachedAlgorithmObject {
@@ -144,20 +135,14 @@ pub(crate) struct CryptoKey {
     #[gc(untraced)]
     key_usages: RefCell<Vec<KeyUsage>>,
     #[gc(untraced)]
-    handle: RefCell<Option<CryptoKeyHandle>>,
+    handle: KeyHandle,
     #[gc(untraced)]
     algorithm_name: RefCell<Utf16String>,
     cached_algorithm_objects: GcRefCell<Vec<CachedAlgorithmObject>>,
     cached_usages_objects: WorldEntries<Object>,
 }
 
-impl Wrappable for CryptoKey {
-    const FINALIZES: bool = true;
-
-    fn finalize(object: Ref<Self>) {
-        object.handle.borrow_mut().take();
-    }
-}
+impl Wrappable for CryptoKey {}
 
 fn create_key_algorithm_object(cx: &CallContext, name: &Utf16String) -> WebIdlResult<Gc<Object>> {
     let object = create_dictionary_object(cx);
@@ -264,7 +249,7 @@ fn create_algorithm_object(cx: &CallContext, algorithm: &InternalAlgorithmData) 
     reason = "the generated bindings can propagate exceptions from every getter"
 )]
 impl CryptoKey {
-    fn create(vm: &Vm, handle: CryptoKeyHandle) -> Ref<Self> {
+    pub(crate) fn create(vm: &Vm, handle: KeyHandle) -> Ref<Self> {
         allocate(vm, |_| Self {
             r#type: Cell::new(None),
             extractable: Cell::new(false),
@@ -272,54 +257,31 @@ impl CryptoKey {
                 name: Utf16String::default(),
             }),
             key_usages: RefCell::default(),
-            handle: RefCell::new(Some(handle)),
+            handle,
             algorithm_name: RefCell::default(),
             cached_algorithm_objects: GcRefCell::default(),
             cached_usages_objects: WorldEntries::default(),
         })
     }
 
-    /// # Safety
-    ///
-    /// The caller transfers ownership of a live native key handle.
-    pub(crate) unsafe fn create_with_handle(vm: &Vm, handle: NonNull<c_void>) -> Ref<Self> {
-        Self::create(vm, CryptoKeyHandle(handle))
-    }
-
     pub(crate) fn from_byte_handle(vm: &Vm, bytes: &[u8]) -> Ref<Self> {
-        // SAFETY: The bytes are lent to the service for the copy.
-        let handle = unsafe { web_crypto_key_create_byte_handle(Span::new(bytes)) };
-        Self::create(
-            vm,
-            CryptoKeyHandle(NonNull::new(handle).expect("LibWeb returns a key handle")),
-        )
+        Self::create(vm, KeyHandle::from_secret_bytes(bytes))
     }
 
     pub(crate) fn byte_handle_bytes(&self) -> &[u8] {
-        let mut bytes = Span::new(&[]);
-        // SAFETY: The service borrows bytes from the handle for as long as the key is borrowed.
-        unsafe { web_crypto_key_byte_handle_bytes(self.handle().as_ptr(), &mut bytes) };
-        bytes.as_slice()
+        self.handle.secret_bytes()
     }
 
     pub(crate) fn from_okp_handle(vm: &Vm, is_private: bool, bytes: &[u8]) -> Ref<Self> {
-        // SAFETY: The bytes are lent to the service for the copy.
-        let handle = unsafe { web_crypto_key_create_okp_handle(is_private, Span::new(bytes)) };
-        Self::create(
-            vm,
-            CryptoKeyHandle(NonNull::new(handle).expect("LibWeb returns an OKP key handle")),
-        )
+        Self::create(vm, KeyHandle::from_okp_bytes(is_private, bytes))
     }
 
     pub(crate) fn okp_handle_bytes(&self) -> &[u8] {
-        let mut bytes = Span::new(&[]);
-        // SAFETY: The service borrows bytes from the handle for as long as the key is borrowed.
-        unsafe { web_crypto_key_okp_handle_bytes(self.handle().as_ptr(), &mut bytes) };
-        bytes.as_slice()
+        self.handle.okp_bytes()
     }
 
-    pub(crate) fn handle(&self) -> NonNull<c_void> {
-        self.handle.borrow().as_ref().expect("a live key has its handle").0
+    pub(crate) fn handle(&self) -> &KeyHandle {
+        &self.handle
     }
 
     pub(crate) fn internal_algorithm(&self) -> core::cell::Ref<'_, InternalAlgorithmData> {
@@ -428,36 +390,6 @@ struct RawAlgorithm<'a> {
     named_curve: usize,
     length: u32,
 }
-
-#[repr(C)]
-struct RawHandle<'a> {
-    handle_tag: u8,
-    handle_buffers: [Span<'a, u8>; MAX_HANDLE_BUFFERS],
-    handle_buffer_count: usize,
-    has_ec_parameters: bool,
-    ec_parameters: Span<'a, u32>,
-    has_ec_public_key: bool,
-}
-
-unsafe extern "C" {
-    fn web_crypto_key_destroy_handle(handle: *mut c_void);
-    fn web_crypto_key_create_byte_handle(bytes: Span<'_, u8>) -> *mut c_void;
-    fn web_crypto_key_create_okp_handle(is_private: bool, bytes: Span<'_, u8>) -> *mut c_void;
-    fn web_crypto_key_okp_handle_bytes(handle: *mut c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_key_byte_handle_bytes(handle: *mut c_void, bytes: &mut Span<'_, u8>);
-    fn web_crypto_key_encode_handle(
-        handle: *mut c_void,
-        state: *mut c_void,
-        steps: unsafe extern "C" fn(state: *mut c_void, handle: *const RawHandle<'_>),
-    );
-    fn web_crypto_key_decode_handle(
-        realm: *mut c_void,
-        fields: &RawHandle<'_>,
-        out_handle: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-}
-
-const MAX_HANDLE_BUFFERS: usize = 8;
 
 /// The identifiers by which a storage record holds a key type.
 const KEY_TYPES: [&[u8]; 3] = [b"public", b"private", b"secret"];
@@ -580,21 +512,19 @@ impl Serializable for CryptoKey {
         }
 
         // 5. Set serialized.[[Handle]] to the [[handle]] internal slot of value.
-        unsafe extern "C" fn steps(state: *mut c_void, fields: *const RawHandle<'_>) {
-            // SAFETY: The writer and the fields are lent for this call.
-            let (serialized, fields) = unsafe { (&mut *state.cast::<SerializationWriter<'_, '_>>(), &*fields) };
-            serialized.write_u8(fields.handle_tag);
-            let buffers = &fields.handle_buffers[..fields.handle_buffer_count];
-            if fields.handle_tag != HANDLE_EC_PRIVATE_KEY {
+        self.handle().with_components(|fields| {
+            serialized.write_u8(fields.tag);
+            let buffers = fields.buffers();
+            if fields.tag != HANDLE_EC_PRIVATE_KEY {
                 for buffer in buffers {
-                    serialized.write_bytes(buffer.as_slice());
+                    serialized.write_bytes(buffer);
                 }
                 return;
             }
-            serialized.write_bytes(buffers[0].as_slice());
-            serialized.write_bool(fields.has_ec_parameters);
-            if fields.has_ec_parameters {
-                let parameters = fields.ec_parameters.as_slice();
+
+            serialized.write_bytes(buffers[0]);
+            serialized.write_bool(fields.ec_parameters.is_some());
+            if let Some(parameters) = fields.ec_parameters {
                 serialized.write_u64(parameters.len() as u64);
                 for &parameter in parameters {
                     serialized.write_u32(parameter);
@@ -602,15 +532,10 @@ impl Serializable for CryptoKey {
             }
             serialized.write_bool(fields.has_ec_public_key);
             if fields.has_ec_public_key {
-                serialized.write_bytes(buffers[1].as_slice());
-                serialized.write_bytes(buffers[2].as_slice());
+                serialized.write_bytes(buffers[1]);
+                serialized.write_bytes(buffers[2]);
             }
-        }
-
-        // SAFETY: The handle is live and the writer is lent until the service returns.
-        unsafe {
-            web_crypto_key_encode_handle(self.handle().as_ptr(), core::ptr::from_mut(serialized).cast(), steps);
-        }
+        });
         Ok(())
     }
 
@@ -698,25 +623,25 @@ impl Serializable for CryptoKey {
             }
         }
 
-        let mut handle_buffers = [Span::default(); MAX_HANDLE_BUFFERS];
-        for (span, buffer) in handle_buffers.iter_mut().zip(&buffers) {
-            *span = Span::new(buffer);
-        }
-        let fields = RawHandle {
+        let handle = KeyHandle::from_components(
             handle_tag,
-            handle_buffers,
-            handle_buffer_count: buffers.len(),
-            has_ec_parameters,
-            ec_parameters: Span::new(&ec_parameters),
+            &buffers,
+            has_ec_parameters.then_some(ec_parameters.as_slice()),
             has_ec_public_key,
-        };
-        let mut handle = core::ptr::null_mut();
-        // SAFETY: The realm is live, and the fields are lent for the call.
-        unsafe { web_crypto_key_decode_handle(cx.realm().as_ptr().cast(), &fields, &mut handle) }.into_completion()?;
-        let key = Self::create(
-            cx.vm(),
-            CryptoKeyHandle(NonNull::new(handle).expect("LibWeb creates the key handle")),
         );
+        let handle = match handle {
+            Ok(handle) => handle,
+            Err(KeyDecodeError::OutOfMemory) => {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            }
+            Err(KeyDecodeError::InvalidComponents) => {
+                return Err(data_clone_error(b"Invalid CryptoKey handle components"));
+            }
+        };
+        let key = Self::create(cx.vm(), handle);
 
         let mut public_exponent_bytes = Vec::new();
         if public_exponent_bytes.try_reserve_exact(public_exponent.len()).is_err() {
@@ -836,10 +761,9 @@ impl InternalAlgorithmData {
 ///
 /// The VM is live and the caller transfers ownership of the handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_key_create(vm: *const c_void, handle: *mut c_void) -> *mut c_void {
+pub unsafe extern "C" fn web_rust_crypto_key_create(vm: *const c_void, handle: KeyHandle) -> *mut c_void {
     // SAFETY: The VM is live and the handle is owned.
     let vm = unsafe { &*vm.cast::<Vm>() };
-    let handle = CryptoKeyHandle(NonNull::new(handle).expect("LibWeb supplies the handle"));
     cell_into_abi(CryptoKey::create(vm, handle))
 }
 
@@ -863,7 +787,7 @@ pub unsafe extern "C" fn web_rust_crypto_key_wrap(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_crypto_key_handle(key: *mut c_void) -> *mut c_void {
     // SAFETY: LibWeb supplies a live CryptoKey cell.
-    unsafe { cell_from_abi::<CryptoKey>(key) }.handle().as_ptr()
+    unsafe { cell_from_abi::<CryptoKey>(key) }.handle().as_raw()
 }
 
 /// # Safety

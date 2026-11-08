@@ -1971,6 +1971,7 @@ dependencies = [
  "ladybird_allocator",
  "libcompositing_rust",
  "libcompress_rust",
+ "libcrypto_rust",
  "libgfx_rust",
  "libhttp_rust",
  "libipc_rust",
