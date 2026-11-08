@@ -3524,9 +3524,14 @@ impl AlgorithmMethods for AesCtr {
         //    value of the counter block, the length member of normalizedAlgorithm as the input parameter m to the
         //    standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A] and plaintext as
         //    the input plaintext.
-        let ciphertext =
-            libcrypto_rust::aes_ctr_cipher(true, key.byte_handle_bytes(), plaintext.as_slice(), counter.as_slice())
-                .map(Bytes::new);
+        let ciphertext = libcrypto_rust::aes_ctr_cipher(
+            true,
+            key.byte_handle_bytes(),
+            plaintext.as_slice(),
+            counter.as_slice(),
+            normalized_algorithm.length,
+        )
+        .map(Bytes::new);
         if ciphertext.is_err() {
             return Err(dom_error("OperationError", b"Encryption failed"));
         }
@@ -3574,6 +3579,7 @@ impl AlgorithmMethods for AesCtr {
             key.byte_handle_bytes(),
             ciphertext.as_slice(),
             counter.as_slice(),
+            normalized_algorithm.length,
         )
         .map(Bytes::new);
         if plaintext.is_err() {

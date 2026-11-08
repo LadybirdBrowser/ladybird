@@ -361,7 +361,50 @@ pub fn aes_cbc_cipher(encrypt: bool, key: &[u8], input: &[u8], iv: &[u8]) -> Res
     Ok(bytes)
 }
 
-pub fn aes_ctr_cipher(encrypt: bool, key: &[u8], input: &[u8], counter: &[u8]) -> Result<Vec<u8>, BackendError> {
+/// Increments only the low `counter_length` bits of the counter block, modulo 2^counter_length, as the standard
+/// incrementing function of NIST SP 800-38A Appendix B.1 does.
+pub fn aes_ctr_cipher(
+    encrypt: bool,
+    key: &[u8],
+    input: &[u8],
+    counter: &[u8],
+    counter_length: u8,
+) -> Result<Vec<u8>, BackendError> {
+    let counter_block: [u8; 16] = counter.try_into().map_err(|_| BackendError)?;
+    if counter_length == 0 || counter_length > 128 {
+        return Err(BackendError);
+    }
+
+    // The native cipher increments the whole block, so split the input where the low bits wrap around.
+    let mask = u128::MAX >> (128 - u32::from(counter_length));
+    let mut block = u128::from_be_bytes(counter_block);
+    let mut output = Vec::with_capacity(input.len());
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let blocks_until_wrap = (mask - (block & mask)).checked_add(1);
+        let segment_length = match blocks_until_wrap.and_then(|blocks| blocks.checked_mul(16)) {
+            Some(bytes) if bytes < remaining.len() as u128 => bytes as usize,
+            _ => remaining.len(),
+        };
+        let (segment, rest) = remaining.split_at(segment_length);
+        output.extend(aes_ctr_cipher_whole_block_counter(
+            encrypt,
+            key,
+            segment,
+            &block.to_be_bytes(),
+        )?);
+        remaining = rest;
+        block &= !mask;
+    }
+    Ok(output)
+}
+
+fn aes_ctr_cipher_whole_block_counter(
+    encrypt: bool,
+    key: &[u8],
+    input: &[u8],
+    counter: &[u8],
+) -> Result<Vec<u8>, BackendError> {
     // SAFETY: Inputs and output are borrowed for the synchronous native call.
     let (status, bytes) = receive_native_bytes(|state, receive| unsafe {
         ffi::crypto_aes_ctr_cipher(

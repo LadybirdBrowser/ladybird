@@ -1,0 +1,64 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function hex(buffer) {
+        return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function keystreamBlocks(key, counter, length, blockCount) {
+        const keystream = await crypto.subtle.encrypt(
+            { name: "AES-CTR", counter, length },
+            key,
+            new Uint8Array(16 * blockCount)
+        );
+        const blocks = [];
+        for (let i = 0; i < blockCount; ++i)
+            blocks.push(hex(keystream.slice(16 * i, 16 * (i + 1))));
+        return blocks;
+    }
+
+    async function encryptBlock(key, counterBlock) {
+        const ecb = await crypto.subtle.encrypt(
+            { name: "AES-CTR", counter: counterBlock, length: 128 },
+            key,
+            new Uint8Array(16)
+        );
+        return hex(ecb);
+    }
+
+    promiseTest(async () => {
+        const key = await crypto.subtle.importKey("raw", new Uint8Array(16), "AES-CTR", false, ["encrypt", "decrypt"]);
+
+        // The low 8 bits wrap after the first block, so the second counter block keeps its upper bits.
+        const counter = new Uint8Array(16).fill(0xab);
+        counter[15] = 0xff;
+        const wrapped = new Uint8Array(counter);
+        wrapped[15] = 0x00;
+        const carried = new Uint8Array(counter);
+        carried[14] = 0xac;
+        carried[15] = 0x00;
+
+        const blocks = await keystreamBlocks(key, counter, 8, 3);
+        const next = new Uint8Array(wrapped);
+        next[15] = 0x01;
+        println(`length 8, first block is E(counter): ${blocks[0] === (await encryptBlock(key, counter))}`);
+        println(`length 8, second block is E(wrapped): ${blocks[1] === (await encryptBlock(key, wrapped))}`);
+        println(`length 8, second block is E(carried): ${blocks[1] === (await encryptBlock(key, carried))}`);
+        println(`length 8, third block is E(wrapped + 1): ${blocks[2] === (await encryptBlock(key, next))}`);
+
+        // With the full 128 bits as the counter, the increment carries into every byte.
+        const fullBlocks = await keystreamBlocks(key, counter, 128, 2);
+        println(`length 128, second block is E(carried): ${fullBlocks[1] === (await encryptBlock(key, carried))}`);
+
+        // A counter of all ones wraps to zero with length 128.
+        const ones = new Uint8Array(16).fill(0xff);
+        const onesBlocks = await keystreamBlocks(key, ones, 128, 2);
+        println(`length 128, all ones wraps to zero: ${onesBlocks[1] === (await encryptBlock(key, new Uint8Array(16)))}`);
+
+        // Decryption uses the same counter blocks.
+        const plaintext = new Uint8Array(40).map((_, i) => i);
+        const ciphertext = await crypto.subtle.encrypt({ name: "AES-CTR", counter, length: 4 }, key, plaintext);
+        const decrypted = await crypto.subtle.decrypt({ name: "AES-CTR", counter, length: 4 }, key, ciphertext);
+        println(`length 4, round trip: ${hex(decrypted) === hex(plaintext)}`);
+    });
+</script>
