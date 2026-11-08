@@ -5,7 +5,9 @@
  */
 
 #include <AK/HashMap.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/ProcessManager.h>
@@ -25,7 +27,7 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
     };
     HashMap<u64, ProcessPage> process_pages;
     HashMap<u64, Vector<ProcessTabSnapshot>> process_tabs;
-    HashMap<u64, size_t> process_frame_counts;
+    HashMap<u64, Vector<ProcessFrameSnapshot>> process_frames;
     // NB: The Application is only asked once there is a view, so that a ProcessManager without one can be described.
     bool did_look_up_active_view = false;
     Optional<ViewImplementation&> active_view;
@@ -64,8 +66,12 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             if (navigable.has_remote_host() && navigable.replicated_state().has_value()) {
                 auto child_id = navigable.remote_host().client().child_id();
                 add_page(child_id, navigable.replicated_state()->active_document_url, ProcessPageKind::Frame);
-                if (child_id != top_level_child_id)
-                    ++process_frame_counts.ensure(child_id);
+                if (child_id != top_level_child_id) {
+                    process_frames.ensure(child_id).append({
+                        .url = navigable.replicated_state()->active_document_url,
+                        .is_sandboxed = has_flag(navigable.active_document().active_sandboxing_flag_set(), Web::HTML::SandboxingFlagSet::SandboxedOrigin),
+                    });
+                }
             }
             return IterationDecision::Continue;
         });
@@ -86,7 +92,7 @@ Vector<ProcessSnapshot> process_snapshots(ProcessManager& manager)
             .memory_usage_bytes = statistics.memory_usage_bytes,
             .page = {},
             .tabs = process_tabs.get(process.child_id()).value_or({}),
-            .frame_count = process_frame_counts.get(process.child_id()).value_or(0),
+            .frames = process_frames.get(process.child_id()).value_or({}),
         };
         if (auto page = process_pages.get(process.child_id()); page.has_value()) {
             snapshot.site_url = page->url;
