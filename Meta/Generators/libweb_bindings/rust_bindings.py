@@ -26,6 +26,7 @@ from typing import Tuple
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.json_conversions import write_rust_dictionary_json_conversions
 from Generators.libweb_bindings.operations import idl_type_is_json_type
 from Generators.libweb_bindings.operations import operation_is_default_to_json
 from Generators.libweb_bindings.rust_members import RustAttribute
@@ -2476,7 +2477,7 @@ pub(crate) mod definitions {
 
     use ak::Utf16String;
     use libjs_rust::api::{
-        ErrorKind, ErrorType, Gc, MarkedVec, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind,
+        ErrorKind, ErrorType, Gc, JSONObject, MarkedVec, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Utf16View,
         Value, Vm, is_host_instance_of,
     };
 
@@ -2497,6 +2498,7 @@ pub(crate) mod definitions {
         Interface, Ref, create_dictionary_object, implementation_if, implementation_of, set_dictionary_member,
         to_interface,
     };
+    use crate::bindings::new_global_object::{run_in_a_new_global_object, serialize_to_json_in_a_new_global_object};
 """
     )
     for name, directions in usage.rust_dictionaries.items():
@@ -2509,6 +2511,7 @@ pub(crate) mod definitions {
             write_dictionary_from_js(out, context, dictionary)
         if directions.to_js:
             write_dictionary_to_js(out, context, dictionary)
+        write_rust_dictionary_json_conversions(out, context, dictionary)
     for name, directions in usage.rust_enumerations.items():
         enumeration = context.enumerations[name]
         if directions.from_js:

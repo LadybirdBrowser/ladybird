@@ -30,6 +30,7 @@ pub(crate) mod global_object;
 pub(crate) mod interface;
 pub(crate) mod iterable;
 pub(crate) mod maplike;
+pub(crate) mod new_global_object;
 pub(crate) mod promise;
 pub(crate) mod realm_data;
 pub(crate) mod services;

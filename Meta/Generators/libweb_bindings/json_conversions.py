@@ -4,8 +4,12 @@
 
 from typing import TextIO
 
+from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.cpp_types import converter_function_name
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
+from Generators.libweb_bindings.rust_types import dictionary_holds_sequence_of_cells
+from Generators.libweb_bindings.rust_types import rust_dictionary_path
 from Generators.libweb_bindings.to_js_value import to_value_function_name
 from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import title_case_to_snake_case
@@ -63,3 +67,35 @@ def write_dictionary_json_conversions(out: TextIO, dictionary: Dictionary, inclu
 
 """
         )
+
+
+def write_rust_dictionary_json_conversions(out: TextIO, context: GenerationContext, dictionary: Dictionary) -> None:
+    from_json = "GenerateFromJSON" in dictionary.extended_attributes
+    to_json = "GenerateToJSON" in dictionary.extended_attributes
+    if not from_json and not to_json:
+        return
+    if to_json and "GenerateToValue" not in dictionary.extended_attributes:
+        raise UnsupportedByRustBindings(
+            f"Dictionary '{dictionary.name}' has [GenerateToJSON] but not [GenerateToValue]"
+        )
+    if dictionary_holds_sequence_of_cells(dictionary, context):
+        raise UnsupportedByRustBindings(
+            f"The Rust bindings do not convert the dictionary {dictionary.name} to or from JSON"
+        )
+
+    out.write(f"\n    impl {rust_dictionary_path(dictionary, context)} {{\n")
+    if from_json:
+        out.write(
+            """        pub(crate) fn from_json(vm: &Vm, json: Utf16View<'_>) -> ThrowCompletionOr<Self> {
+            run_in_a_new_global_object(vm, |_| Self::from_js(vm, JSONObject::parse_json(vm, json, None)?))
+        }
+"""
+        )
+    if to_json:
+        out.write(
+            """        pub(crate) fn to_json(self, vm: &Vm) -> ThrowCompletionOr<Utf16String> {
+            serialize_to_json_in_a_new_global_object(vm, |realm| self.to_js(&CallContext::new(vm, realm)))
+        }
+"""
+        )
+    out.write("    }\n")
