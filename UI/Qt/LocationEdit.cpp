@@ -191,6 +191,9 @@ static constexpr int LOCATION_PILL_HORIZONTAL_PADDING = 16;
 // The zoom chip is at least wide enough for any zoom level up to 999%, so it keeps its width as the level changes.
 static constexpr int LOCATION_ZOOM_CHIP_MIN_WIDTH = 54;
 static constexpr int LOCATION_ZOOM_CHIP_GAP = 3;
+// The translate button's pulse while a download runs: one breath, and how far it fades.
+static constexpr int TRANSLATE_PULSE_DURATION_MS = 1600;
+static constexpr qreal TRANSLATE_PULSE_MINIMUM_OPACITY = 0.3;
 static constexpr int IN_USE_CHIP_COLLAPSE_DELAY_MS = 4000;
 static constexpr int IN_USE_CHIP_ICON_ONLY_WIDTH = 30;
 static constexpr int IN_USE_CHIP_ICON_SIZE = 16;
@@ -353,6 +356,20 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     m_translate_button->setFocusPolicy(Qt::NoFocus);
     m_translate_button->setCursor(Qt::ArrowCursor);
     m_translate_button->hide();
+    // The button pulses while a download it needs runs, since the download doesn't say how far along it is.
+    m_translate_opacity = new QGraphicsOpacityEffect(m_translate_button);
+    m_translate_opacity->setEnabled(false);
+    m_translate_button->setGraphicsEffect(m_translate_opacity);
+    m_translate_pulse = new QVariantAnimation(this);
+    m_translate_pulse->setDuration(TRANSLATE_PULSE_DURATION_MS);
+    m_translate_pulse->setKeyValueAt(0, 1.0);
+    m_translate_pulse->setKeyValueAt(0.5, TRANSLATE_PULSE_MINIMUM_OPACITY);
+    m_translate_pulse->setKeyValueAt(1, 1.0);
+    m_translate_pulse->setEasingCurve(QEasingCurve::InOutSine);
+    m_translate_pulse->setLoopCount(-1);
+    connect(m_translate_pulse, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
+        m_translate_opacity->setOpacity(value.toReal());
+    });
     connect(m_translate_button, &QToolButton::clicked, this, [this] {
         if (on_translate_requested)
             on_translate_requested();
@@ -615,6 +632,19 @@ void LocationEdit::update_translate_button()
         m_translate_button->setIcon(m_translate_action->icon());
         m_translate_button->setToolTip(m_translate_action->toolTip());
     }
+
+    // Under reduced motion the button doesn't pulse; its tooltip and the menu still say that a download is running.
+    auto pulse = visible && m_translate_action->property(BUSY_ACTION_PROPERTY).toBool() && !SystemAppearance::prefers_reduced_motion();
+    if (pulse && m_translate_pulse->state() != QAbstractAnimation::Running) {
+        m_translate_opacity->setEnabled(true);
+        m_translate_pulse->start();
+    } else if (!pulse && m_translate_pulse->state() == QAbstractAnimation::Running) {
+        m_translate_pulse->stop();
+        m_translate_opacity->setOpacity(1);
+        // An enabled effect renders the button offscreen on every repaint, even at full opacity.
+        m_translate_opacity->setEnabled(false);
+    }
+
     if (m_translate_button->isHidden() != visible)
         return;
     m_translate_button->setVisible(visible);

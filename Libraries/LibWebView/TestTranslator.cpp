@@ -29,7 +29,7 @@ void TestTranslator::target_languages(String const& source_language, Vector<Stri
     });
 }
 
-Translator::SessionId TestTranslator::create_session(String const&, String const& target_language)
+Translator::SessionId TestTranslator::create_session(String const&, String const& target_language, bool)
 {
     auto session_id = ++m_last_session_id;
     m_target_languages.set(session_id, target_language);

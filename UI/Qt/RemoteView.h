@@ -274,9 +274,11 @@ private:
     Optional<URL::URL> m_link_to_highlight;
     RefPtr<Action> m_translate_action;
     RefPtr<Menu> m_translation_menu;
+    // One of each per target language, in the order of the state's translation targets.
     Vector<NonnullRefPtr<Action>> m_translate_to_actions;
+    Vector<NonnullRefPtr<Action>> m_download_languages_actions;
     RefPtr<Action> m_show_original_action;
-    RefPtr<Action> m_download_languages_action;
+    RefPtr<Action> m_prefer_higher_quality_action;
     RefPtr<Menu> m_context_menu;
 
     u64 m_view_id { 0 };

@@ -183,6 +183,16 @@ struct WebView::SessionHistorySnapshot {
     size_t current_used_step_index;
 }
 
+// A language the tab's page can be translated into, perhaps after a download.
+struct Hub::TranslationTarget {
+    String language;
+    bool needs_download;
+    bool faster_after_download;
+    bool higher_quality_available;
+    bool downloading;
+    Vector<String> languages_to_download;
+}
+
 // What the UI needs to know about a view at any time, without having to ask.
 struct Hub::ViewState {
     URL::URL url;
@@ -206,9 +216,9 @@ struct Hub::ViewState {
     bool is_node_picker_active;
     bool is_translated;
     bool translation_offered;
-    Vector<String> translation_languages;
+    Vector<Hub::TranslationTarget> translation_targets;
     Optional<String> translation_target_language;
-    bool translation_needs_language_download;
+    bool translation_prefers_higher_quality;
     WebView::ContentBlockingSnapshot content_blocking_snapshot;
     WebView::ViewImplementation::InputMethodState input_method_state;
     Web::HTML::MuteState page_mute_state;
@@ -243,7 +253,8 @@ endpoint HubClient
     geolocation_stop_watching(u64 id) =|
     translator_detect_language(u64 request_id, Web::TranslationLanguageSample sample) =|
     translator_target_languages(u64 request_id, String source_language, Vector<String> candidates) =|
-    translator_create_session(u64 session_id, String source_language, String target_language) =|
+    translator_create_session(u64 session_id, String source_language, String target_language, bool prefer_higher_quality) =|
+    translator_choose_session_model_again(u64 session_id, bool prefer_higher_quality) =|
     translator_close_session(u64 session_id) =|
     translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) =|
     translator_open_language_download_settings() =|

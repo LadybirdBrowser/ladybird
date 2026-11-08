@@ -105,6 +105,15 @@ public:
         }
     }
 
+    // QAction has no busy state, so it's a property, and the buttons that show it learn of a change as of any other.
+    virtual void on_busy_state_changed(Action& action) override
+    {
+        if (!m_action || m_action->property(BUSY_ACTION_PROPERTY).toBool() == action.busy())
+            return;
+        m_action->setProperty(BUSY_ACTION_PROPERTY, action.busy());
+        Q_EMIT m_action->changed();
+    }
+
     virtual void on_checked_state_changed(Action& action) override
     {
         if (m_action)

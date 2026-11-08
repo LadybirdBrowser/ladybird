@@ -23,7 +23,8 @@ public:
     virtual void detect_language(Web::TranslationLanguageSample const&, Function<void(Optional<String>)> on_complete) override;
     // Every candidate in another language; one whose primary language subtag is "xx" needs downloading first.
     virtual void target_languages(String const& source_language, Vector<String> const& candidates, Function<void(Vector<TargetLanguage>)> on_complete) override;
-    virtual SessionId create_session(String const& source_language, String const& target_language) override;
+    virtual SessionId create_session(String const& source_language, String const& target_language, bool prefer_higher_quality) override;
+    virtual void choose_session_model_again(SessionId, bool) override { }
     virtual void close_session(SessionId) override;
     virtual void translate(SessionId, Web::TranslationUnit, Function<void(Optional<Vector<Web::TranslationRun>>)> on_complete) override;
     virtual void open_language_download_settings() override { }

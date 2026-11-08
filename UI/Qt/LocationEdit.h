@@ -147,6 +147,8 @@ private:
     QToolButton* m_trailing_action_button { nullptr };
     QToolButton* m_translate_button { nullptr };
     QAction* m_translate_action { nullptr };
+    QGraphicsOpacityEffect* m_translate_opacity { nullptr };
+    QVariantAnimation* m_translate_pulse { nullptr };
     QToolButton* m_zoom_indicator_button { nullptr };
     QGraphicsOpacityEffect* m_zoom_indicator_opacity { nullptr };
     QVariantAnimation* m_zoom_indicator_fade { nullptr };

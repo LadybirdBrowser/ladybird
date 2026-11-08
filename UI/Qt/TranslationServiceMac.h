@@ -13,10 +13,13 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef NS_ENUM(NSInteger, LadybirdTranslationLanguageStatus) {
-    LadybirdTranslationLanguageStatusUnsupported,
-    LadybirdTranslationLanguageStatusNeedsDownload,
-    LadybirdTranslationLanguageStatusReady,
+// The models the platform has for a language pair: The fast ones are the classic models, and the higher-quality ones
+// the Apple Intelligence models. A supported model that isn't installed can be downloaded.
+typedef NS_OPTIONS(NSInteger, LadybirdTranslationModels) {
+    LadybirdTranslationModelsFastSupported = 1 << 0,
+    LadybirdTranslationModelsFastInstalled = 1 << 1,
+    LadybirdTranslationModelsHigherQualitySupported = 1 << 2,
+    LadybirdTranslationModelsHigherQualityInstalled = 1 << 3,
 };
 
 API_AVAILABLE(macos(26.4))
@@ -30,15 +33,16 @@ API_AVAILABLE(macos(26.4))
 
 API_AVAILABLE(macos(26.4))
 @interface LadybirdTranslationService : NSObject
-+ (void)statusesFrom:(NSString*)source to:(NSArray<NSString*>*)targets completion:(void (^)(NSArray<NSNumber*>*))completion;
++ (void)modelsFrom:(NSString*)source to:(NSArray<NSString*>*)targets completion:(void (^)(NSArray<NSNumber*>*))completion;
 @end
 
 API_AVAILABLE(macos(26.4))
 @interface LadybirdTranslationSession : NSObject
-- (instancetype)initWithSource:(NSString*)source target:(NSString*)target;
+- (instancetype)initWithSource:(NSString*)source target:(NSString*)target preferHigherQuality:(BOOL)preferHigherQuality;
 - (instancetype)init NS_UNAVAILABLE;
 - (void)translate:(NSArray<LadybirdTranslationRun*>*)runs completion:(void (^)(NSArray<LadybirdTranslationRun*>* _Nullable))completion;
 - (void)cancel;
+- (void)chooseModelAgainWithPreferHigherQuality:(BOOL)preferHigherQuality;
 @end
 
 NS_ASSUME_NONNULL_END

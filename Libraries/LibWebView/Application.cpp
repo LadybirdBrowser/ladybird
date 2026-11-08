@@ -61,6 +61,7 @@
 #include <LibWebView/ImageDecoderManager.h>
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
+#include <LibWebView/PageTranslation.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/PictureInPictureWindow.h>
@@ -74,6 +75,7 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
@@ -2789,6 +2791,14 @@ void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 void Application::set_translator(OwnPtr<Translator> translator)
 {
     m_translator = move(translator);
+    if (!m_translator)
+        return;
+    m_translator->on_languages_changed = [] {
+        ViewImplementation::for_each_view([](ViewImplementation& view) {
+            view.page_translation().did_change_installed_languages();
+            return IterationDecision::Continue;
+        });
+    };
 }
 
 MicrophoneAuthorizer& Application::microphone_authorizer()

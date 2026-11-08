@@ -95,7 +95,8 @@ private:
     virtual void geolocation_stop_watching(u64 id) override;
     virtual void translator_detect_language(u64 request_id, Web::TranslationLanguageSample sample) override;
     virtual void translator_target_languages(u64 request_id, String source_language, Vector<String> candidates) override;
-    virtual void translator_create_session(u64 session_id, String source_language, String target_language) override;
+    virtual void translator_create_session(u64 session_id, String source_language, String target_language, bool prefer_higher_quality) override;
+    virtual void translator_choose_session_model_again(u64 session_id, bool prefer_higher_quality) override;
     virtual void translator_close_session(u64 session_id) override;
     virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
     virtual void translator_open_language_download_settings() override;
