@@ -1,0 +1,2 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/pause-on-unhandled-exceptions.js:1:1 (entry)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/pause-on-unhandled-exceptions.js:11:1 (debugger statement)
