@@ -25,7 +25,6 @@ enum class AlgorithmId : u8 {
     AesCbc,
     AesGcm,
     AesKw,
-    HMAC,
     HKDF,
     PBKDF2,
     X25519,
@@ -37,7 +36,6 @@ enum class AlgorithmId : u8 {
     Argon2,
     ChaCha20Poly1305,
     AesOcb,
-    KMAC,
 };
 
 enum class ParameterId : u8 {
@@ -55,17 +53,12 @@ enum class ParameterId : u8 {
     AesDerivedKeyParams,
     AesCbcParams,
     AesGcmParams,
-    HmacKeyGenParams,
-    HmacImportParams,
     HKDFParams,
     PBKDF2Params,
     Ed448Params,
     ContextParams,
     Argon2Params,
     AeadParams,
-    KmacParams,
-    KmacKeyGenParams,
-    KmacImportParams,
 };
 
 struct RawRsaOtherPrimesInfo {
@@ -252,8 +245,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return AesGcm::create();
         case AlgorithmId::AesKw:
             return AesKw::create();
-        case AlgorithmId::HMAC:
-            return HMAC::create();
         case AlgorithmId::HKDF:
             return HKDF::create();
         case AlgorithmId::PBKDF2:
@@ -276,8 +267,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return ChaCha20Poly1305::create();
         case AlgorithmId::AesOcb:
             return AesOcb::create();
-        case AlgorithmId::KMAC:
-            return KMAC::create();
         }
         VERIFY_NOT_REACHED();
     }();
@@ -312,10 +301,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return AesCbcParams::from_value(realm, object);
         case ParameterId::AesGcmParams:
             return AesGcmParams::from_value(realm, object);
-        case ParameterId::HmacKeyGenParams:
-            return HmacKeyGenParams::from_value(realm, object);
-        case ParameterId::HmacImportParams:
-            return HmacImportParams::from_value(realm, object);
         case ParameterId::HKDFParams:
             return HKDFParams::from_value(realm, object);
         case ParameterId::PBKDF2Params:
@@ -328,12 +313,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
             return Argon2Params::from_value(realm, object);
         case ParameterId::AeadParams:
             return AeadParams::from_value(realm, object);
-        case ParameterId::KmacParams:
-            return KmacParams::from_value(realm, object);
-        case ParameterId::KmacKeyGenParams:
-            return KmacKeyGenParams::from_value(realm, object);
-        case ParameterId::KmacImportParams:
-            return KmacImportParams::from_value(realm, object);
         }
         VERIFY_NOT_REACHED();
     }();

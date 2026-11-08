@@ -22,7 +22,7 @@ use crate::webidl::dom_exception::DOMExceptionFields;
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
 unsafe extern "C" {
-    fn web_crypto_fill_with_random(bytes: SpanMut<'_, u8>);
+    pub(super) fn web_crypto_fill_with_random(bytes: SpanMut<'_, u8>);
     fn web_crypto_generate_random_uuid(state: *mut c_void, receive: unsafe extern "C" fn(*mut c_void, Span<'_, u8>));
 }
 

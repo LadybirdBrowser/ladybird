@@ -32,7 +32,8 @@ use crate::bindings::promise::{
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
     AlgorithmId, AlgorithmMethods, AlgorithmParams, Bytes, CShakeParams, CppAlgorithm, EncapsulatedKeyData,
-    ExportKeyResult, ImportKeyData, ParameterId, Sha, normalized_key_usages, public_key_for_private_key,
+    ExportKeyResult, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams,
+    KmacParams, ParameterId, Sha, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -87,6 +88,13 @@ pub(crate) enum KeyFormat {
 enum RegisteredAlgorithm {
     Cpp(AlgorithmId, ParameterId),
     Sha,
+    Hmac,
+    HmacKeyGen,
+    HmacImport,
+    Kmac,
+    KmacSignOrVerify,
+    KmacKeyGen,
+    KmacImport,
     CShake,
 }
 
@@ -98,6 +106,13 @@ type SupportedAlgorithmsMap = HashMap<&'static str, RegisteredAlgorithms>;
 enum AlgorithmImplementation {
     Cpp(#[gc(untraced)] Rc<CppAlgorithm>),
     Sha(Sha),
+    Hmac(Hmac),
+    HmacKeyGen(HmacKeyGenParams),
+    HmacImport(HmacImportParams),
+    Kmac(Kmac),
+    KmacSignOrVerify(KmacParams),
+    KmacKeyGen(KmacKeyGenParams),
+    KmacImport(KmacImportParams),
     CShake(CShakeParams),
 }
 
@@ -108,6 +123,13 @@ impl Deref for AlgorithmImplementation {
         match self {
             Self::Cpp(algorithm) => algorithm.as_ref(),
             Self::Sha(algorithm) => algorithm,
+            Self::Hmac(algorithm) => algorithm,
+            Self::HmacKeyGen(algorithm) => algorithm,
+            Self::HmacImport(algorithm) => algorithm,
+            Self::Kmac(algorithm) => algorithm,
+            Self::KmacSignOrVerify(algorithm) => algorithm,
+            Self::KmacKeyGen(algorithm) => algorithm,
+            Self::KmacImport(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -176,7 +198,7 @@ fn export_key_result_to_bytes(vm: &Vm, result: ExportKeyResult) -> WebIdlResult<
     Ok(Bytes::new(String::from_utf16_lossy(&json.to_utf16()).into_bytes()))
 }
 
-fn dom_error(name: &'static str, message: &[u8]) -> Exception {
+pub(super) fn dom_error(name: &'static str, message: &[u8]) -> Exception {
     Exception::Dom(name, Utf16String::from_ascii(message))
 }
 
@@ -290,6 +312,23 @@ pub(crate) fn normalize_an_algorithm(
             )?))
         }
         RegisteredAlgorithm::Sha => AlgorithmImplementation::Sha(Sha),
+        RegisteredAlgorithm::Hmac => AlgorithmImplementation::Hmac(Hmac),
+        RegisteredAlgorithm::HmacKeyGen => {
+            AlgorithmImplementation::HmacKeyGen(HmacKeyGenParams::from_value(vm, realm, *algorithm)?)
+        }
+        RegisteredAlgorithm::HmacImport => {
+            AlgorithmImplementation::HmacImport(HmacImportParams::from_value(vm, realm, *algorithm)?)
+        }
+        RegisteredAlgorithm::Kmac => AlgorithmImplementation::Kmac(Kmac),
+        RegisteredAlgorithm::KmacSignOrVerify => {
+            AlgorithmImplementation::KmacSignOrVerify(KmacParams::from_value(vm, *algorithm)?)
+        }
+        RegisteredAlgorithm::KmacKeyGen => {
+            AlgorithmImplementation::KmacKeyGen(KmacKeyGenParams::from_value(vm, *algorithm)?)
+        }
+        RegisteredAlgorithm::KmacImport => {
+            AlgorithmImplementation::KmacImport(KmacImportParams::from_value(vm, *algorithm)?)
+        }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
 
@@ -620,9 +659,12 @@ impl SubtleCrypto {
 
                     // 7. Let result be the result of performing the generate key operation specified by normalizedAlgorithm
                     //    using algorithm, extractable and usages.
-                    let result_or_error = normalized_algorithm
-                        .methods
-                        .generate_key(realm, extractable, &key_usages);
+                    let result_or_error = normalized_algorithm.methods.generate_key(
+                        &CallContext::new(vm, realm),
+                        &normalized_algorithm.parameter,
+                        extractable,
+                        &key_usages,
+                    );
 
                     if let Err(error) = result_or_error {
                         reject_promise_with_exception(vm, promise, error);
@@ -780,10 +822,14 @@ impl SubtleCrypto {
 
                     // 9. Let result be the CryptoKey object that results from performing the import key operation
                     //    specified by normalizedAlgorithm using keyData, algorithm, format, extractable and usages.
-                    let maybe_result =
-                        normalized_algorithm
-                            .methods
-                            .import_key(realm, format, real_key_data, extractable, &key_usages);
+                    let maybe_result = normalized_algorithm.methods.import_key(
+                        &CallContext::new(vm, realm),
+                        &normalized_algorithm.parameter,
+                        format,
+                        real_key_data,
+                        extractable,
+                        &key_usages,
+                    );
                     if let Err(error) = maybe_result {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -872,7 +918,10 @@ impl SubtleCrypto {
                     }
 
                     // 7. Let result be the result of performing the export key operation specified by the [[algorithm]] internal slot of key using key and format.
-                    let result_or_error = normalized_algorithm.methods.export_key(realm, format, key);
+                    let result_or_error =
+                        normalized_algorithm
+                            .methods
+                            .export_key(&CallContext::new(vm, realm), format, key);
                     if let Err(error) = result_or_error {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -963,7 +1012,10 @@ impl SubtleCrypto {
 
                     // 11. Let signature be the result of performing the sign operation specified by normalizedAlgorithm using key
                     //     and algorithm and with data as message.
-                    let signature = normalized_algorithm.methods.sign(realm, key, &data);
+                    let signature =
+                        normalized_algorithm
+                            .methods
+                            .sign(realm, &normalized_algorithm.parameter, key, &data);
                     if let Err(error) = signature {
                         throw_in_this_context(error);
                         return;
@@ -1069,7 +1121,13 @@ impl SubtleCrypto {
 
                     // 12. Let result be the result of performing the verify operation specified by normalizedAlgorithm using key,
                     //     algorithm and signature and with data as message.
-                    let result = normalized_algorithm.methods.verify(realm, key, &signature, &data);
+                    let result = normalized_algorithm.methods.verify(
+                        realm,
+                        &normalized_algorithm.parameter,
+                        key,
+                        &signature,
+                        &data,
+                    );
                     if let Err(error) = result {
                         throw_in_this_context(error);
                         return;
@@ -1260,7 +1318,9 @@ impl SubtleCrypto {
                     }
 
                     // 13. Let length be the result of performing the get key length algorithm specified by normalizedDerivedKeyAlgorithmLength using derivedKeyType.
-                    let length_result = normalized_derived_key_algorithm_length.methods.get_key_length(realm);
+                    let length_result = normalized_derived_key_algorithm_length
+                        .methods
+                        .get_key_length(realm, &normalized_derived_key_algorithm_length.parameter);
                     if let Err(error) = length_result {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -1278,7 +1338,8 @@ impl SubtleCrypto {
                     // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
                     let secret_bytes = secret.must();
                     let result_or_error = normalized_derived_key_algorithm_import.methods.import_key(
-                        realm,
+                        &CallContext::new(vm, realm),
+                        &normalized_derived_key_algorithm_import.parameter,
                         KeyFormat::Raw,
                         ImportKeyData::Bytes(secret_bytes),
                         extractable,
@@ -1430,7 +1491,11 @@ impl SubtleCrypto {
                         return;
                     }
 
-                    let exported_key_or_error = normalized_key_algorithm.must().methods.export_key(realm, format, key);
+                    let exported_key_or_error =
+                        normalized_key_algorithm
+                            .must()
+                            .methods
+                            .export_key(&CallContext::new(vm, realm), format, key);
                     if let Err(error) = exported_key_or_error {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -1660,10 +1725,14 @@ impl SubtleCrypto {
 
                     // 16. Let result be the result of performing the import key operation specified by normalizedKeyAlgorithm
                     //    using unwrappedKeyAlgorithm as algorithm, format, usages and extractable and with key as keyData.
-                    let result_or_error =
-                        normalized_key_algorithm
-                            .methods
-                            .import_key(realm, format, key, extractable, &key_usages);
+                    let result_or_error = normalized_key_algorithm.methods.import_key(
+                        &CallContext::new(vm, realm),
+                        &normalized_key_algorithm.parameter,
+                        format,
+                        key,
+                        extractable,
+                        &key_usages,
+                    );
                     if let Err(error) = result_or_error {
                         reject_promise_with_exception(vm, promise, error);
                         return;
@@ -1814,7 +1883,8 @@ impl SubtleCrypto {
                     //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the sharedKey field of encapsulatedBits as
                     //     keyData, sharedKeyAlgorithm as algorithm and using extractable and usages.
                     let maybe_shared_key = normalized_shared_key_algorithm.methods.import_key(
-                        realm,
+                        &CallContext::new(vm, realm),
+                        &normalized_shared_key_algorithm.parameter,
                         KeyFormat::RawSecret,
                         ImportKeyData::Bytes(
                             encapsulated_bits
@@ -2095,7 +2165,8 @@ impl SubtleCrypto {
                     //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the decapsulatedBits as keyData,
                     //     sharedKeyAlgorithm as algorithm and using extractable and usages.
                     let maybe_shared_key = normalized_shared_key_algorithm.methods.import_key(
-                        realm,
+                        &CallContext::new(vm, realm),
+                        &normalized_shared_key_algorithm.parameter,
                         KeyFormat::RawSecret,
                         ImportKeyData::Bytes(decapsulated_bits),
                         extractable,
@@ -2482,7 +2553,14 @@ impl SubtleCrypto {
             let import_algorithm = normalized_additional_algorithm;
             if import_algorithm
                 .methods
-                .import_key(realm, KeyFormat::RawSecret, key_data, false, &[])
+                .import_key(
+                    &CallContext::new(vm, realm),
+                    &import_algorithm.parameter,
+                    KeyFormat::RawSecret,
+                    key_data,
+                    false,
+                    &[],
+                )
                 .is_err()
             {
                 return Ok(false);
@@ -2512,7 +2590,9 @@ impl SubtleCrypto {
             // 3. Let length be the result of performing the get key length algorithm specified by additionalAlgorithm
             //    using normalizedAdditionalAlgorithm.
             let normalized_length_algorithm = normalized_additional_algorithm.must();
-            let key_length = normalized_length_algorithm.methods.get_key_length(realm);
+            let key_length = normalized_length_algorithm
+                .methods
+                .get_key_length(realm, &normalized_length_algorithm.parameter);
             if key_length.is_err() {
                 return Ok(false);
             }
@@ -2581,7 +2661,7 @@ fn determine_support_from_operation_steps(
             return methods.validate_derive_bits_parameters(realm, length);
         }
         if op == "get key length" {
-            methods.get_key_length(realm)?;
+            methods.get_key_length(realm, &normalized_algorithm.parameter)?;
         }
         Ok(())
     })();
@@ -3010,41 +3090,26 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
         );
 
         // https://w3c.github.io/webcrypto/#hmac-registration
-        define_an_algorithm(
-            &mut internal_object,
-            "sign",
-            "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
-        );
-        define_an_algorithm(
-            &mut internal_object,
-            "verify",
-            "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
-        );
+        define_an_algorithm(&mut internal_object, "sign", "HMAC", RegisteredAlgorithm::Hmac);
+        define_an_algorithm(&mut internal_object, "verify", "HMAC", RegisteredAlgorithm::Hmac);
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacKeyGenParams),
+            RegisteredAlgorithm::HmacKeyGen,
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacImportParams),
+            RegisteredAlgorithm::HmacImport,
         );
-        define_an_algorithm(
-            &mut internal_object,
-            "exportKey",
-            "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::AlgorithmParams),
-        );
+        define_an_algorithm(&mut internal_object, "exportKey", "HMAC", RegisteredAlgorithm::Hmac);
         define_an_algorithm(
             &mut internal_object,
             "get key length",
             "HMAC",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Hmac, ParameterId::HmacImportParams),
+            RegisteredAlgorithm::HmacImport,
         );
 
         // https://w3c.github.io/webcrypto/#sha-registration
@@ -3396,37 +3461,32 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
                 &mut internal_object,
                 "sign",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacParams),
+                RegisteredAlgorithm::KmacSignOrVerify,
             );
             define_an_algorithm(
                 &mut internal_object,
                 "verify",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacParams),
+                RegisteredAlgorithm::KmacSignOrVerify,
             );
             define_an_algorithm(
                 &mut internal_object,
                 "generateKey",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacKeyGenParams),
+                RegisteredAlgorithm::KmacKeyGen,
             );
             define_an_algorithm(
                 &mut internal_object,
                 "importKey",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacImportParams),
+                RegisteredAlgorithm::KmacImport,
             );
-            define_an_algorithm(
-                &mut internal_object,
-                "exportKey",
-                algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::AlgorithmParams),
-            );
+            define_an_algorithm(&mut internal_object, "exportKey", algorithm, RegisteredAlgorithm::Kmac);
             define_an_algorithm(
                 &mut internal_object,
                 "get key length",
                 algorithm,
-                RegisteredAlgorithm::Cpp(AlgorithmId::Kmac, ParameterId::KmacImportParams),
+                RegisteredAlgorithm::KmacImport,
             );
         }
 
