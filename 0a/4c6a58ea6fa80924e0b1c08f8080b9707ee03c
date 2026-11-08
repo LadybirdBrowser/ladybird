@@ -1,0 +1,9 @@
+When the page is zoomed, Ladybird fits an image document’s image
+against the viewport at 100% zoom, so zooming in enlarges it past the
+window. Blink does the same: ImageDocument::Scale() pretends the
+viewport is larger when the page is zoomed in, and ResizeImageToFit()
+sets the fitted size from it. Gecko’s ImageDocument::ShrinkToFit()
+keeps an already fitted image’s size while the zoom level differs from
+mOriginalZoomLevel, which also lets zoom enlarge it. And WebKit’s
+ImageDocument::scale() always fits against the window’s current
+visible size, whatever the zoom.
