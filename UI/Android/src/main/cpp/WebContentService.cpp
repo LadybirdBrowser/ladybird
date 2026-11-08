@@ -16,6 +16,8 @@
 #include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -47,6 +49,7 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(bind_image_decoder_service));
 
     Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
+    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
 
     auto request_server_client = TRY(bind_request_server_service());
     Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap());

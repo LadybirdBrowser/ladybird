@@ -15,6 +15,8 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
 #include <WebContent/Worker/DedicatedWorkerThreadLink.h>
@@ -60,6 +62,7 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
 
     Core::EventLoop event_loop;
     Web::Bindings::initialize_agent(agent_type);
+    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
 
     auto event_loop_reference = Core::EventLoop::current_weak();
     {
