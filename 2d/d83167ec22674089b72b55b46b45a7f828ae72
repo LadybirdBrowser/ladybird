@@ -1,0 +1,11 @@
+Ladybird reads the stream of a request’s body to its end when fetch()
+sends the body, even when it sends the bytes from the body’s source;
+so, a tee of that stream (a clone of the Request) finishes reading, and
+the request’s body is used afterward. The other engines all consume
+the stream as well. Blink’s FetchManager takes the bytes through
+BodyStreamBuffer::DrainAsFormData(), which closes, locks, and disturbs
+the stream. Gecko’s FetchRequest() calls FetchBody::SetBodyUsed(),
+which locks the stream and starts its FetchStreamReader consuming it.
+And WebKit’s FetchResponse::fetch() reads a request’s exposed body
+stream to an ArrayBuffer, with convertReadableStreamToArrayBuffer(),
+before it starts the load.
