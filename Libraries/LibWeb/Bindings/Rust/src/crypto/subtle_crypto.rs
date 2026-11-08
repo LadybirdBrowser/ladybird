@@ -7,16 +7,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::ffi::c_void;
-use core::ptr::NonNull;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use ak::{Span, Utf16String};
+use ak::Utf16String;
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferShared, ErrorKind, ErrorType, Gc, Must, Object, PrimitiveString, PropertyKey,
-    RawNativeFunctionResult, Realm, Trace, Value, Vm,
+    ArrayBuffer, ArrayBufferShared, ErrorKind, ErrorType, Gc, Must, Object, PrimitiveString, PropertyKey, Realm, Trace,
+    Value, Vm,
 };
 
 use crate::bindings::conversions::BufferSource;
@@ -32,8 +30,8 @@ use crate::bindings::promise::{
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
-    AlgorithmId, Bytes, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, ImportKeyData, ParameterId,
-    normalized_key_usages, public_key_for_private_key,
+    AlgorithmId, AlgorithmParams, Bytes, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, ImportKeyData,
+    ParameterId, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -96,7 +94,7 @@ type SupportedAlgorithmsMap = HashMap<&'static str, RegisteredAlgorithms>;
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct NormalizedAlgorithmAndParameter {
-    pub(crate) name: Utf16String,
+    pub(crate) parameter: AlgorithmParams,
     #[gc(untraced)]
     pub(crate) methods: Rc<CppAlgorithm>,
 }
@@ -271,7 +269,7 @@ pub(crate) fn normalize_an_algorithm(
     // 9. Set the name attribute of normalizedAlgorithm to algName.
     let normalized_algorithm = NormalizedAlgorithmAndParameter {
         methods,
-        name: algorithm_name,
+        parameter: AlgorithmParams { name: algorithm_name },
     };
 
     // 13. Return normalizedAlgorithm.
@@ -340,7 +338,7 @@ impl SubtleCrypto {
                     };
 
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
-                    if normalized_algorithm.name != key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
                         return;
                     }
@@ -435,7 +433,7 @@ impl SubtleCrypto {
                     };
 
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
-                    if normalized_algorithm.name != key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
                         return;
                     }
@@ -923,7 +921,7 @@ impl SubtleCrypto {
 
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of key then throw an InvalidAccessError.
-                    if normalized_algorithm.name != key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
                         return;
                     }
@@ -1029,7 +1027,7 @@ impl SubtleCrypto {
 
                     // 10. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of key then throw an InvalidAccessError.
-                    if normalized_algorithm.name != key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Algorithm mismatch"));
                         return;
                     }
@@ -1099,7 +1097,7 @@ impl SubtleCrypto {
                     // 6. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
                     // 7. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
-                    if normalized_algorithm.name != base_key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != base_key.algorithm_name() {
                         reject_promise(
                             vm,
                             promise,
@@ -1209,7 +1207,7 @@ impl SubtleCrypto {
                     // 10. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
                     // 11. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
-                    if normalized_algorithm.name != base_key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != base_key.algorithm_name() {
                         reject_promise(
                             vm,
                             promise,
@@ -1352,7 +1350,7 @@ impl SubtleCrypto {
 
                     // 9. If the name member of normalizedAlgorithm is not equal to the name attribute
                     //    of the [[algorithm]] internal slot of wrappingKey then throw an InvalidAccessError.
-                    if normalized_algorithm.name != wrapping_key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != wrapping_key.algorithm_name() {
                         reject_promise(
                             vm,
                             promise,
@@ -1563,7 +1561,7 @@ impl SubtleCrypto {
 
                     // 12. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot
                     //     of unwrappingKey then throw an InvalidAccessError.
-                    if normalized_algorithm.name != unwrapping_key.algorithm_name() {
+                    if normalized_algorithm.parameter.name != unwrapping_key.algorithm_name() {
                         reject_promise(
                             vm,
                             promise,
@@ -1760,7 +1758,7 @@ impl SubtleCrypto {
 
                     // 10. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of encapsulationKey then throw an InvalidAccessError.
-                    if normalized_encapsulation_algorithm.name != encapsulation_key.algorithm_name() {
+                    if normalized_encapsulation_algorithm.parameter.name != encapsulation_key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"));
                         return;
                     }
@@ -1897,7 +1895,7 @@ impl SubtleCrypto {
 
                     // 8. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of encapsulationKey then throw an InvalidAccessError.
-                    if normalized_encapsulation_algorithm.name != encapsulation_key.algorithm_name() {
+                    if normalized_encapsulation_algorithm.parameter.name != encapsulation_key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Invalid encapsulation key algorithm"));
                         return;
                     }
@@ -2041,7 +2039,7 @@ impl SubtleCrypto {
 
                     // 11. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //     internal slot of decapsulationKey then throw an InvalidAccessError.
-                    if normalized_decapsulation_algorithm.name != decapsulation_key.algorithm_name() {
+                    if normalized_decapsulation_algorithm.parameter.name != decapsulation_key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Invalid algorithm name"));
                         return;
                     }
@@ -2174,7 +2172,7 @@ impl SubtleCrypto {
 
                     // 9. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
                     //    internal slot of decapsulationKey then throw an InvalidAccessError.
-                    if normalized_decapsulation_algorithm.name != decapsulation_key.algorithm_name() {
+                    if normalized_decapsulation_algorithm.parameter.name != decapsulation_key.algorithm_name() {
                         throw_in_this_context(dom_error("InvalidAccessError", b"Invalid algorithm name"));
                         return;
                     }
@@ -3604,40 +3602,4 @@ fn create_algorithm_dictionary(vm: &Vm, realm: Gc<Realm>, name: &Utf16String) ->
         None,
     )?;
     Ok(dictionary)
-}
-
-/// # Safety
-///
-/// The caller supplies a live VM and realm, a live object or string, and writable output storage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_normalize_an_algorithm(
-    vm: *const c_void,
-    realm: *mut c_void,
-    object: *mut c_void,
-    name: usize,
-    operation: Span<'_, u8>,
-    out: &mut *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The VM, realm, and algorithm value are live.
-    let (vm, realm, algorithm) = unsafe {
-        let vm = &*vm.cast::<Vm>();
-        let realm = Gc::from_non_null(NonNull::new(realm.cast()).expect("the caller passes the realm"));
-        let algorithm = if let Some(object) = NonNull::new(object.cast::<Object>()) {
-            AlgorithmIdentifier::Object(Gc::from_non_null(object))
-        } else {
-            ak::reference_utf16_string(name);
-            AlgorithmIdentifier::DOMString(Utf16String::from_raw_owned(name))
-        };
-        (vm, realm, algorithm)
-    };
-    let operation = std::str::from_utf8(operation.as_slice()).expect("an operation name is UTF-8");
-    let result = normalize_an_algorithm(vm, realm, &algorithm, operation)
-        .map(|normalized_algorithm| {
-            *out = Rc::into_inner(normalized_algorithm.methods)
-                .expect("a new algorithm has one owner")
-                .into_raw();
-            Value::UNDEFINED
-        })
-        .map_err(|exception| exception.throw(&CallContext::new(vm, realm)));
-    RawNativeFunctionResult::from_completion(result)
 }

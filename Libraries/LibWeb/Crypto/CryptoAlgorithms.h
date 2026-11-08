@@ -23,7 +23,6 @@
 
 namespace Web::Crypto {
 
-using AlgorithmIdentifier = Variant<GC::Ref<JS::Object>, Utf16String>;
 using NamedCurve = Utf16String;
 using ExportKeyResult = Variant<ByteBuffer, JsonWebKey>;
 
@@ -49,8 +48,6 @@ struct AlgorithmParams {
     // NOTE: this is initialized when normalizing the algorithm name as the spec requests.
     //       It must not be set in `from_value`.
     Utf16String name;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
 
 // https://w3c.github.io/webcrypto/#aes-cbc

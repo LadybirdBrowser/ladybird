@@ -13,14 +13,323 @@ use core::ffi::c_void;
 use core::ptr::{NonNull, null, null_mut};
 use std::rc::Rc;
 
-use ak::{Span, Utf16String};
-use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, Trace, Value};
+use ak::{Span, Utf16String, Utf16StringUnits};
+use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, Trace, Value, Vm};
 
-use crate::bindings::WebIdlResult;
-use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::bindings::{CallContext, WebIdlResult};
 use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, RawJsonWebKey};
 use crate::crypto::crypto_key::{CryptoKey, KeyUsage};
-use crate::crypto::subtle_crypto::{CryptoKeyOrCryptoKeyPair, KeyFormat};
+use crate::crypto::subtle_crypto::{AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, normalize_an_algorithm};
+
+// https://w3c.github.io/webcrypto/#algorithm-overview
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct AlgorithmParams {
+    pub(crate) name: Utf16String,
+}
+
+struct HashAlgorithmIdentifier {
+    name: Utf16String,
+}
+
+fn hash_algorithm_identifier_from_value(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    hash_value: Value,
+    hash_string: Option<Utf16String>,
+) -> WebIdlResult<HashAlgorithmIdentifier> {
+    let algorithm = if let Some(hash_string) = hash_string {
+        AlgorithmIdentifier::DOMString(hash_string)
+    } else if hash_value.is_string() {
+        AlgorithmIdentifier::DOMString(hash_value.to_utf16_string(vm)?)
+    } else if hash_value.is_object() {
+        AlgorithmIdentifier::Object(hash_value.to_object(vm)?)
+    } else {
+        unreachable!("the hash is a string or an object")
+    };
+
+    let normalized_algorithm = normalize_an_algorithm(vm, realm, &algorithm, "digest")?;
+    Ok(HashAlgorithmIdentifier {
+        name: normalized_algorithm.parameter.name,
+    })
+}
+
+/// # Safety
+///
+/// The VM and realm are live, the value or string is live, and the output is writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_hash_algorithm_identifier_from_value(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    value: u64,
+    raw_string: usize,
+    out_name: &mut usize,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller supplies the live VM, realm and value.
+    let ((vm, realm), value) = unsafe { (realm_arguments(vm, realm), Value::from_raw(value)) };
+    let hash_string = (raw_string != 0).then(|| {
+        // SAFETY: The caller lends a live string and we take our own reference.
+        unsafe {
+            ak::reference_utf16_string(raw_string);
+            Utf16String::from_raw_owned(raw_string)
+        }
+    });
+    let result = hash_algorithm_identifier_from_value(vm, realm, value, hash_string)
+        .map(|identifier| {
+            *out_name = identifier.name.into_raw();
+            Value::UNDEFINED
+        })
+        .map_err(|error| error.throw(&CallContext::new(vm, realm)));
+    RawNativeFunctionResult::from_completion(result)
+}
+
+// https://w3c.github.io/webcrypto/#concept-usage-intersection
+fn usage_intersection(a: &[KeyUsage], b: &[KeyUsage]) -> Vec<KeyUsage> {
+    let mut result = Vec::new();
+    for &usage in a {
+        if b.contains(&usage) && !result.contains(&usage) {
+            result.push(usage);
+        }
+    }
+    result.sort_unstable_by_key(|usage| *usage as u8);
+    result
+}
+
+// https://w3c.github.io/webcrypto/#concept-normalized-usages
+pub(crate) fn normalized_key_usages(usages: &[KeyUsage]) -> Vec<KeyUsage> {
+    usage_intersection(
+        usages,
+        &[
+            KeyUsage::Encrypt,
+            KeyUsage::Decrypt,
+            KeyUsage::Sign,
+            KeyUsage::Verify,
+            KeyUsage::DeriveKey,
+            KeyUsage::DeriveBits,
+            KeyUsage::WrapKey,
+            KeyUsage::UnwrapKey,
+            KeyUsage::EncapsulateKey,
+            KeyUsage::EncapsulateBits,
+            KeyUsage::DecapsulateKey,
+            KeyUsage::DecapsulateBits,
+        ],
+    )
+}
+
+/// # Safety
+///
+/// The spans and the receiver are valid for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_usage_intersection(
+    a: Span<'_, KeyUsage>,
+    b: Span<'_, KeyUsage>,
+    state: *mut c_void,
+    receive: ReceiveUsages,
+) {
+    let result = usage_intersection(a.as_slice(), b.as_slice());
+    // SAFETY: The caller supplies a receiver that takes the span only for the call.
+    unsafe { receive(state, Span::new(&result)) };
+}
+
+/// # Safety
+///
+/// The span and the receiver are valid for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_normalized_key_usages(
+    usages: Span<'_, KeyUsage>,
+    state: *mut c_void,
+    receive: ReceiveUsages,
+) {
+    let result = normalized_key_usages(usages.as_slice());
+    // SAFETY: The caller supplies a receiver that takes the span only for the call.
+    unsafe { receive(state, Span::new(&result)) };
+}
+
+#[derive(PartialEq, Eq)]
+#[repr(u8)]
+pub enum Base64DecodeResult {
+    #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
+    Success,
+    #[allow(dead_code, reason = "the native base64 decoder constructs this result")]
+    OutOfMemory,
+    InvalidBase64,
+    NonAscii,
+}
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum Asn1Structure {
+    SubjectPublicKeyInfo,
+    PrivateKeyInfo,
+    #[allow(dead_code, reason = "the native ASN.1 callers supply this structure")]
+    OctetString,
+}
+
+unsafe extern "C" {
+    fn web_crypto_encode_base64url(bytes: Span<'_, u8>, receive: ReceiveBytes, state: *mut c_void) -> i32;
+    fn web_crypto_decode_base64url(raw: usize, out: *mut c_void, error_message: &mut usize) -> Base64DecodeResult;
+    fn web_crypto_decode_asn1_structure(
+        data: Span<'_, u8>,
+        structure: Asn1Structure,
+        out: *mut c_void,
+        all_consumed: &mut bool,
+    ) -> usize;
+}
+
+unsafe extern "C" fn receive_base64url_string(state: *mut c_void, bytes: Span<'_, u8>) {
+    // SAFETY: The state is the caller's slot, and the service lends the bytes.
+    unsafe { *state.cast::<Option<Utf16String>>() = Some(Utf16String::from_ascii(bytes.as_slice())) };
+}
+
+// https://www.rfc-editor.org/rfc/rfc7518#section-2
+fn base64_url_bytes_encode(bytes: &[u8]) -> Result<Utf16String, i32> {
+    let mut encoded = None;
+    // SAFETY: The input and the output slot live for the call.
+    let error = unsafe {
+        web_crypto_encode_base64url(
+            Span::new(bytes),
+            receive_base64url_string,
+            core::ptr::from_mut(&mut encoded).cast(),
+        )
+    };
+    if error != 0 {
+        return Err(error);
+    }
+    Ok(encoded.expect("LibWeb returns the base64url string"))
+}
+
+/// # Safety
+///
+/// The span is live and the output is writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_encode(bytes: Span<'_, u8>, out: &mut usize) -> i32 {
+    match base64_url_bytes_encode(bytes.as_slice()) {
+        Ok(encoded) => {
+            *out = encoded.into_raw();
+            0
+        }
+        Err(error) => error,
+    }
+}
+
+unsafe fn base64_url_bytes_decode(
+    base64_url_string: &Utf16String,
+    out: *mut c_void,
+    error_message: &mut usize,
+) -> Base64DecodeResult {
+    let is_ascii = match base64_url_string.as_units() {
+        Utf16StringUnits::Ascii(_) => true,
+        Utf16StringUnits::Latin1(units) => units.is_ascii(),
+        Utf16StringUnits::Utf16(units) => units.iter().all(|&unit| unit <= 0x7f),
+    };
+    if !is_ascii {
+        return Base64DecodeResult::NonAscii;
+    }
+
+    // SAFETY: The caller passes a live native ByteBuffer as the output.
+    let result = unsafe { web_crypto_decode_base64url(base64_url_string.raw_identity(), out, error_message) };
+    if result == Base64DecodeResult::InvalidBase64 {
+        // SAFETY: The decoder hands over an owned diagnostic string.
+        let detail = unsafe { Utf16String::from_raw_owned(*error_message) };
+        *error_message = libjs_rust::api::utf16_formatted("base64 decode: {}", &[&detail]).into_raw();
+    }
+    result
+}
+
+/// # Safety
+///
+/// The string is live and the output points to a live ByteBuffer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_decode(
+    raw: usize,
+    out: *mut c_void,
+    error_message: &mut usize,
+) -> Base64DecodeResult {
+    // SAFETY: The caller lends a live string and we take our own reference.
+    let base64_url_string = unsafe {
+        ak::reference_utf16_string(raw);
+        Utf16String::from_raw_owned(raw)
+    };
+    // SAFETY: The caller supplies a live ByteBuffer.
+    unsafe { base64_url_bytes_decode(&base64_url_string, out, error_message) }
+}
+
+// https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
+unsafe fn parse_an_asn1_structure(
+    data: Span<'_, u8>,
+    structure: Asn1Structure,
+    exact_data: bool,
+    out: *mut c_void,
+) -> Result<(), Utf16String> {
+    // 1. Let data be a sequence of bytes to be parsed.
+    // 2. Let structure be the ASN.1 structure to be parsed.
+    // 3. Let exactData be an optional boolean value. If it is not supplied, let it be initialized to true.
+
+    // 4. Parse data according to the Distinguished Encoding Rules of [X690], using structure as the ASN.1 structure to be decoded.
+    let mut all_consumed = false;
+    // SAFETY: The caller passes a live native value of the specified structure.
+    let error = unsafe { web_crypto_decode_asn1_structure(data, structure, out, &mut all_consumed) };
+    if error != 0 {
+        // SAFETY: The decoder hands over an owned diagnostic string.
+        let detail = unsafe { Utf16String::from_raw_owned(error) };
+        let message = match structure {
+            Asn1Structure::SubjectPublicKeyInfo => "Error parsing subjectPublicKeyInfo: {}",
+            Asn1Structure::PrivateKeyInfo => "Error parsing privateKeyInfo: {}",
+            Asn1Structure::OctetString => "Read of kind OctetString failed: {}",
+        };
+        return Err(libjs_rust::api::utf16_formatted(message, &[&detail]));
+    }
+
+    // 5. If exactData was specified, and all of the bytes of data were not consumed during the parsing phase, then throw a DataError.
+    if exact_data && !all_consumed {
+        return Err(Utf16String::from_utf8(
+            "Not all bytes were consumed during the parsing phase",
+        ));
+    }
+
+    // 6. Return the parsed ASN.1 structure.
+    Ok(())
+}
+
+// https://w3c.github.io/webcrypto/#concept-parse-a-spki
+unsafe fn parse_a_subject_public_key_info(data: Span<'_, u8>, out: *mut c_void) -> Result<(), Utf16String> {
+    // When this specification says to parse a subjectPublicKeyInfo, the user agent must parse an ASN.1 structure,
+    // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of subjectPublicKeyInfo,
+    // as specified in [RFC5280], and exactData set to true.
+    // SAFETY: The caller passes a live native SubjectPublicKey.
+    unsafe { parse_an_asn1_structure(data, Asn1Structure::SubjectPublicKeyInfo, true, out) }
+}
+
+// https://w3c.github.io/webcrypto/#concept-parse-a-privateKeyInfo
+unsafe fn parse_a_private_key_info(data: Span<'_, u8>, out: *mut c_void) -> Result<(), Utf16String> {
+    // When this specification says to parse a PrivateKeyInfo, the user agent must parse an ASN.1 structure
+    // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of PrivateKeyInfo,
+    // as specified in [RFC5208], and exactData set to true.
+    // SAFETY: The caller passes a live native PrivateKey.
+    unsafe { parse_an_asn1_structure(data, Asn1Structure::PrivateKeyInfo, true, out) }
+}
+
+/// # Safety
+///
+/// The span is live and the output points to a live native value of the specified structure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
+    data: Span<'_, u8>,
+    structure: Asn1Structure,
+    exact_data: bool,
+    out: *mut c_void,
+) -> usize {
+    // SAFETY: The caller supplies a live value of the specified structure.
+    let result = unsafe {
+        match structure {
+            Asn1Structure::SubjectPublicKeyInfo => parse_a_subject_public_key_info(data, out),
+            Asn1Structure::PrivateKeyInfo => parse_a_private_key_info(data, out),
+            Asn1Structure::OctetString => parse_an_asn1_structure(data, structure, exact_data, out),
+        }
+    };
+    result.err().map_or(0, Utf16String::into_raw)
+}
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -157,7 +466,6 @@ unsafe extern "C" {
     ) -> RawNativeFunctionResult;
     fn web_crypto_algorithm_destroy(algorithm: *mut c_void);
     fn web_crypto_algorithm_public_key_usages(algorithm: *mut c_void, state: *mut c_void, receive: ReceiveUsages);
-    fn web_crypto_normalized_key_usages(usages: Span<'_, KeyUsage>, state: *mut c_void, receive: ReceiveUsages);
     fn web_crypto_public_key_for_private_key(key: *mut c_void) -> *mut c_void;
     fn web_crypto_algorithm_encrypt(
         realm: *mut c_void,
@@ -342,10 +650,6 @@ impl CppAlgorithm {
         }
         .into_completion()?;
         Ok(Self(NonNull::new(out).expect("LibWeb returns an algorithm")))
-    }
-
-    pub(crate) fn into_raw(self) -> *mut c_void {
-        core::mem::ManuallyDrop::new(self).0.as_ptr()
     }
 
     pub(crate) fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
@@ -729,19 +1033,6 @@ unsafe extern "C" fn receive_export_jwk(state: *mut c_void, key: &RawJsonWebKey<
     unsafe {
         *state.cast::<Option<ExportKeyResult>>() = Some(ExportKeyResult::JsonWebKey(JsonWebKey::from_raw_fields(key)));
     };
-}
-
-pub(crate) fn normalized_key_usages(usages: &[KeyUsage]) -> Vec<KeyUsage> {
-    let mut normalized: Option<Vec<KeyUsage>> = None;
-    // SAFETY: The usages and the output slot are lent for the call.
-    unsafe {
-        web_crypto_normalized_key_usages(
-            Span::new(usages),
-            core::ptr::from_mut(&mut normalized).cast(),
-            receive_usages,
-        );
-    };
-    normalized.expect("LibWeb returns the normalized usages")
 }
 
 pub(crate) fn public_key_for_private_key(key: Ref<CryptoKey>) -> Option<Ref<CryptoKey>> {

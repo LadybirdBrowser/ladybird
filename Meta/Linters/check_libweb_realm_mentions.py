@@ -45,10 +45,10 @@ ALLOWED_REALM_MENTIONS = {
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (
-        6,
-        358,
+        5,
+        354,
         "WebCrypto algorithms still use realms for buffer/key/promise materialization and for normalizing algorithm "
-        "dictionaries, which SubtleCrypto.supports() does in the caller realm. The native CryptoKey wrapper "
+        "dictionaries. The native CryptoKey wrapper "
         "uses the caller's realm and wrapper world",
     ),
     "DOM": (
