@@ -3479,7 +3479,6 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn item_contribution(&self, item: GridItem, axis: Axis, combined_track_count: usize) -> ItemContribution {
         let spanned_tracks = Self::spanned_interleaved_range(item, axis, combined_track_count);
-        let is_scroll_container = self.item_facts(item).is_scroll_container();
         if !self.item_contributes_to_track_sizing(item, axis) {
             return ItemContribution {
                 spanned_tracks,
@@ -3489,7 +3488,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 limited_min_content: CssPixels::default(),
                 max_content: CssPixels::default(),
                 limited_max_content: CssPixels::default(),
-                is_scroll_container,
             };
         }
         let preferred_behaves_as_auto = self.preferred_behaves_as_auto(item, axis);
@@ -3526,7 +3524,6 @@ impl<'pass> GridFormattingContext<'pass> {
             limited_min_content: limited_min,
             max_content,
             limited_max_content: limited_max,
-            is_scroll_container,
         }
     }
 
@@ -5913,7 +5910,6 @@ pub(crate) struct ItemContribution {
     pub(crate) limited_min_content: CssPixels,
     pub(crate) max_content: CssPixels,
     pub(crate) limited_max_content: CssPixels,
-    pub(crate) is_scroll_container: bool,
 }
 
 impl ItemContribution {
@@ -6244,7 +6240,11 @@ pub(crate) fn resolve_intrinsic_track_sizes(
                 group,
                 SpaceDistributionPhase::MaxContent,
                 available,
-                |track| track.min_sizing.is_auto(available) || track.min_sizing.is_max_content(),
+                // INTEROP: Other engines do not grow a track past its min-content maximum in this step.
+                |track| {
+                    (track.min_sizing.is_auto(available) && !track.max_sizing.is_min_content())
+                        || track.min_sizing.is_max_content()
+                },
                 |item| item.limited_max_content,
             );
         }
@@ -6358,10 +6358,8 @@ pub(crate) fn resolve_intrinsic_track_sizes(
             }
             // NB: Preserve the minimum-contribution behavior for min-content sizing.
             let mut contribution = if available == AvailableSize::MaxContent {
-                if total_flex == 0.0 && item.is_scroll_container {
-                    // https://drafts.csswg.org/css-grid-2/#min-size-auto
-                    // A grid item's automatic minimum size is zero if its computed overflow is a scrollable
-                    // overflow value. Preserve that zero minimum for collapsed zero-flex tracks.
+                if total_flex == 0.0 {
+                    // NB: Tracks that are collapsed by a zero flex factor only hold their items' minimum contributions.
                     item.minimum
                 } else {
                     item.limited_min_content
@@ -6372,10 +6370,8 @@ pub(crate) fn resolve_intrinsic_track_sizes(
             contribution = match phase {
                 FlexibleMinimumPhase::Intrinsic => contribution,
                 FlexibleMinimumPhase::MinContent => item.min_content,
-                FlexibleMinimumPhase::LimitedMaxContent if total_flex == 0.0 && item.is_scroll_container => {
-                    // NB: Preserve the zero automatic minimum for collapsed zero-flex tracks in this phase too.
-                    item.minimum
-                }
+                // NB: Tracks that are collapsed by a zero flex factor only hold their items' minimum contributions.
+                FlexibleMinimumPhase::LimitedMaxContent if total_flex == 0.0 => item.minimum,
                 FlexibleMinimumPhase::LimitedMaxContent => item.limited_max_content,
                 FlexibleMinimumPhase::MaxContent => item.max_content,
             };
@@ -7287,7 +7283,6 @@ mod tests {
             limited_min_content: size,
             max_content: size,
             limited_max_content: size,
-            is_scroll_container: false,
         }
     }
 
