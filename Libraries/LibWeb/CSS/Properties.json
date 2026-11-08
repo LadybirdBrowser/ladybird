@@ -4181,6 +4181,7 @@
   },
   "overflow-x": {
     "style-group": "BoxValues",
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -4194,6 +4195,7 @@
   },
   "overflow-y": {
     "style-group": "BoxValues",
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
