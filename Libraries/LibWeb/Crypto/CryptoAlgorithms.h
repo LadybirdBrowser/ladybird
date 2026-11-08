@@ -138,24 +138,6 @@ protected:
     AlgorithmMethods() = default;
 };
 
-class MLDSA : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<bool> verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_sign_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_verify_parameters(AlgorithmParams const&) const override;
-    virtual Optional<ReadonlySpan<KeyUsage>> public_key_usages() const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new MLDSA); }
-
-private:
-    MLDSA() = default;
-};
-
 class MLKEM : public AlgorithmMethods {
 public:
     virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
@@ -171,20 +153,6 @@ public:
 
 private:
     MLKEM() = default;
-};
-
-// https://wicg.github.io/webcrypto-modern-algos/#dfn-ContextParams
-struct ContextParams : public AlgorithmParams {
-    virtual ~ContextParams() override;
-
-    ContextParams(Optional<ByteBuffer>& context)
-        : context(context)
-    {
-    }
-
-    Optional<ByteBuffer> context;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params

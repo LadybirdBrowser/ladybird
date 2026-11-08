@@ -9,7 +9,6 @@
  */
 
 #include <AK/Base64.h>
-#include <AK/HashTable.h>
 #include <AK/Memory.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/Constants.h>
@@ -284,74 +283,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(
     return ::Crypto::PK::RSAPublicKey(move(n), move(e));
 }
 
-// https://www.rfc-editor.org/rfc/rfc7517#section-4.3
-static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey const& jwk, Vector<KeyUsage> const& usages)
-{
-    // Use of the "key_ops" member is OPTIONAL, unless the application requires its presence.
-    if (!jwk.key_ops.has_value())
-        return {};
-    auto key_operations = *jwk.key_ops;
-
-    // Duplicate key operation values MUST NOT be present in the array
-    HashTable<Utf16String> seen_operations;
-    for (auto const& key_operation : key_operations) {
-        if (seen_operations.set(key_operation) != HashSetResult::InsertedNewEntry)
-            return WebIDL::DataError::create(Utf16String::formatted("Duplicate key operation: {}", key_operation));
-    }
-
-    // Multiple unrelated key operations SHOULD NOT be specified for a key because of the potential
-    // vulnerabilities associated with using the same key with multiple algorithms.  Thus, the
-    // combinations "sign" with "verify", "encrypt" with "decrypt", and "wrapKey" with "unwrapKey"
-    // are permitted, but other combinations SHOULD NOT be used.
-    auto is_used_for_signing = seen_operations.contains("sign"_utf16) || seen_operations.contains("verify"_utf16);
-    auto is_used_for_encryption = seen_operations.contains("encrypt"_utf16) || seen_operations.contains("decrypt"_utf16);
-    auto is_used_for_wrapping = seen_operations.contains("wrapKey"_utf16) || seen_operations.contains("unwrapKey"_utf16);
-    auto number_of_operation_types = is_used_for_signing + is_used_for_encryption + is_used_for_wrapping;
-    if (number_of_operation_types > 1)
-        return WebIDL::DataError::create("Multiple unrelated key operations are specified"_utf16);
-
-    // The "use" and "key_ops" JWK members SHOULD NOT be used together; however, if both are used,
-    // the information they convey MUST be consistent. Applications should specify which of these
-    // members they use, if either is to be used by the application.
-    if (jwk.use.has_value()) {
-        for (auto const& key_operation : key_operations) {
-            if (key_operation == "deriveKey"_utf16 || key_operation == "deriveBits"_utf16)
-                continue;
-            if (jwk.use == "sig"sv && key_operation != "sign"sv && key_operation != "verify"sv)
-                return WebIDL::DataError::create("use=sig but key_ops does not contain 'sign' or 'verify'"_utf16);
-            if (jwk.use == "enc"sv && (key_operation == "sign"sv || key_operation == "verify"sv))
-                return WebIDL::DataError::create("use=enc but key_ops contains 'sign' or 'verify'"_utf16);
-        }
-    }
-
-    // NOTE: This validation happens in multiple places in the spec, so it is here for convenience.
-    for (auto const& usage : usages) {
-        if (!seen_operations.contains(Utf16String::from_utf8(key_usage_to_string(usage))))
-            return WebIDL::DataError::create(Utf16String::formatted("Missing key_ops usage: {}", key_usage_to_string(usage)));
-    }
-
-    return {};
-}
-
 AlgorithmParams::~AlgorithmParams() = default;
-
-ContextParams::~ContextParams() = default;
-
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> ContextParams::from_value(JS::Realm& realm, JS::Value value)
-{
-    auto& vm = realm.vm();
-    auto& object = value.as_object();
-
-    auto maybe_context = Optional<ByteBuffer> {};
-    if (TRY(object.has_property("context"_utf16_fly_string))) {
-        auto context_value = TRY(object.get("context"_utf16_fly_string));
-        if (!context_value.is_object() || !(is<JS::TypedArrayBase>(context_value.as_object()) || is<JS::ArrayBuffer>(context_value.as_object()) || is<JS::DataView>(context_value.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-        maybe_context = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(context_value.as_object()));
-    }
-
-    return adopt_own<AlgorithmParams>(*new ContextParams { maybe_context });
-}
 
 extern "C" {
 void* web_crypto_asn1_allocate_key_info(Asn1Structure);
@@ -1137,648 +1069,89 @@ bool web_crypto_timing_safe_compare(ReadonlyBytes left, ReadonlyBytes right)
     return timing_safe_compare(left.data(), right.data(), left.size());
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
-WebIDL::ExceptionOr<void> MLDSA::validate_sign_parameters(AlgorithmParams const& params) const
-{
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
-
-    // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
-    //    an OperationError.
-    if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
-        return WebIDL::OperationError::create("Context is too long"_utf16);
-
-    return {};
+extern "C" {
+bool web_crypto_mldsa_sign(::Crypto::PK::MLDSASize, CryptoKey::InternalKeyData const*, ReadonlyBytes, ReadonlyBytes, void*, ReceiveEncodedBytes);
+bool web_crypto_mldsa_verify(::Crypto::PK::MLDSASize, CryptoKey::InternalKeyData const*, ReadonlyBytes, ReadonlyBytes, ReadonlyBytes, bool*);
+FlatPtr web_crypto_mldsa_generate_key_pair(::Crypto::PK::MLDSASize, ReadonlyBytes, CryptoKey::InternalKeyData**, CryptoKey::InternalKeyData**);
+void web_crypto_asn1_key_info_identifier(Asn1Structure, void const*, ReadonlySpan<u32>*);
+CryptoKey::InternalKeyData* web_crypto_mldsa_key_info_read_private_key(void const*);
+CryptoKey::InternalKeyData* web_crypto_mldsa_read_public_key(ReadonlyBytes);
+void web_crypto_mldsa_public_bytes(CryptoKey::InternalKeyData const*, ReadonlyBytes*);
+void web_crypto_mldsa_seed_bytes(CryptoKey::InternalKeyData const*, ReadonlyBytes*);
+bool web_crypto_mldsa_export_der(CryptoKey::InternalKeyData const*, bool, ReadonlySpan<u32>, void*, ReceiveEncodedBytes);
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
-WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+static_assert(to_underlying(::Crypto::PK::MLDSA44) == 0);
+static_assert(to_underlying(::Crypto::PK::MLDSA65) == 1);
+static_assert(to_underlying(::Crypto::PK::MLDSA87) == 2);
+
+bool web_crypto_mldsa_sign(::Crypto::PK::MLDSASize size, CryptoKey::InternalKeyData const* key, ReadonlyBytes message, ReadonlyBytes context, void* state, ReceiveEncodedBytes receive)
 {
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
-
-    // NB: Step 1 is performed by validate_sign_parameters().
-    TRY(validate_sign_parameters(params));
-
-    // 2. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-    if (key->type() != KeyType::Private)
-        return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
-
-    // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
-    //    context member of normalizedAlgorithm is not present.
-    auto context = normalized_algorithm.context.value_or(ByteBuffer());
-
-    // 4. Let result be the result of performing the ML-DSA.Sign signing algorithm, as specified in
-    //    Section 5.2 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
-    //    using the ML-DSA private key associated with key as sk, message as M and context as ctx.
-    VERIFY(key->handle().has<::Crypto::PK::MLDSAPrivateKey>());
-    auto lattice = [&] {
-        if (params.name == "ML-DSA-44"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA44, key->handle().get<::Crypto::PK::MLDSAPrivateKey>(), context);
-        if (params.name == "ML-DSA-65"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA65, key->handle().get<::Crypto::PK::MLDSAPrivateKey>(), context);
-        if (params.name == "ML-DSA-87"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA87, key->handle().get<::Crypto::PK::MLDSAPrivateKey>(), context);
-        VERIFY_NOT_REACHED();
-    }();
-    auto const maybe_result = lattice.sign(message);
-
-    // 5. If the ML-DSA.Sign algorithm returned an error, return an OperationError.
-    if (maybe_result.is_error())
-        return WebIDL::OperationError::create("Failed to sign message"_utf16);
-
-    // 6. Return result.
-    return maybe_result.value();
+    ::Crypto::PK::MLDSA lattice(size, key->get<::Crypto::PK::MLDSAPrivateKey>(), MUST(ByteBuffer::copy(context)));
+    auto result = lattice.sign(message);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    return true;
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
-WebIDL::ExceptionOr<void> MLDSA::validate_verify_parameters(AlgorithmParams const& params) const
+bool web_crypto_mldsa_verify(::Crypto::PK::MLDSASize size, CryptoKey::InternalKeyData const* key, ReadonlyBytes message, ReadonlyBytes signature, ReadonlyBytes context, bool* verified)
 {
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
-
-    // 1. If the context member of normalizedAlgorithm is present and has a length greater than 255 bytes, then throw
-    //    an OperationError.
-    if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
-        return WebIDL::OperationError::create("Context is too long"_utf16);
-
-    return {};
+    ::Crypto::PK::MLDSA lattice(size, key->get<::Crypto::PK::MLDSAPublicKey>(), MUST(ByteBuffer::copy(context)));
+    auto result = lattice.verify(message, signature);
+    if (result.is_error())
+        return false;
+    *verified = result.value();
+    return true;
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
-WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+FlatPtr web_crypto_mldsa_generate_key_pair(::Crypto::PK::MLDSASize size, ReadonlyBytes seed, CryptoKey::InternalKeyData** out_public_key, CryptoKey::InternalKeyData** out_private_key)
 {
-    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
-
-    // NB: Step 1 is performed by validate_verify_parameters().
-    TRY(validate_verify_parameters(params));
-
-    // 2. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-    if (key->type() != KeyType::Public)
-        return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
-
-    // 3. Let context be the context member of normalizedAlgorithm or the empty octet string if the
-    //    context member of normalizedAlgorithm is not present.
-    auto context = normalized_algorithm.context.value_or(ByteBuffer());
-
-    // 4. Let result be the result of performing the ML-DSA.Verify verification algorithm, as specified in
-    //    Section 5.3 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm,
-    //    using the ML-DSA public key associated with key as pk, message as M, signature as σ and context as ctx.
-    VERIFY(key->handle().has<::Crypto::PK::MLDSAPublicKey>());
-    auto lattice = [&] {
-        if (params.name == "ML-DSA-44"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA44, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
-        if (params.name == "ML-DSA-65"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA65, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
-        if (params.name == "ML-DSA-87"sv)
-            return ::Crypto::PK::MLDSA(::Crypto::PK::MLDSASize::MLDSA87, key->handle().get<::Crypto::PK::MLDSAPublicKey>(), context);
-        VERIFY_NOT_REACHED();
-    }();
-    auto const maybe_result = lattice.verify(message, signature);
-
-    // 5. If the ML-DSA.Verify algorithm returned an error, return an OperationError.
-    if (maybe_result.is_error())
-        return WebIDL::OperationError::create("Failed to verify message"_utf16);
-
-    // 6. Return result.
-    return maybe_result.value();
+    auto key_pair = ::Crypto::PK::MLDSA::generate_key_pair(size, MUST(ByteBuffer::copy(seed)));
+    if (key_pair.is_error())
+        return Utf16String::formatted("{}", key_pair.error()).into_raw();
+    *out_public_key = new CryptoKey::InternalKeyData(move(key_pair.value().public_key));
+    *out_private_key = new CryptoKey::InternalKeyData(move(key_pair.value().private_key));
+    return 0;
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-generate-key
-WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
+void web_crypto_asn1_key_info_identifier(Asn1Structure structure, void const* key_info, ReadonlySpan<u32>* identifier)
 {
-    // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
-    for (auto const& usage : usages) {
-        if (usage != KeyUsage::Sign && usage != KeyUsage::Verify) {
-            return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-    }
-
-    // 2. Generate an ML-DSA key pair, as described in Section 5.1 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm.
-    auto const maybe_key_pair = [&] {
-        if (params.name == "ML-DSA-44"sv)
-            return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44);
-        if (params.name == "ML-DSA-65"sv)
-            return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65);
-        if (params.name == "ML-DSA-87"sv)
-            return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87);
-        VERIFY_NOT_REACHED();
-    }();
-
-    // 3. If the key generation step fails, then throw an OperationError.
-    if (maybe_key_pair.is_error())
-        return WebIDL::OperationError::create("Key generation failed"_utf16);
-    auto const& key_pair = maybe_key_pair.value();
-
-    // 6. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(key_pair.public_key);
-
-    // 7. Set the [[type]] internal slot of publicKey to "public".
-    public_key->set_type(KeyType::Public);
-
-    // 4. Let algorithm be a new KeyAlgorithm object.
-    // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-    // 8. Set the [[algorithm]] internal slot of publicKey to algorithm.
-    public_key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-    // 9. Set the [[extractable]] internal slot of publicKey to true.
-    public_key->set_extractable(true);
-
-    // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
-    public_key->set_usages(usage_intersection(usages, { { KeyUsage::Verify } }));
-
-    // 11. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(key_pair.private_key);
-
-    // 12. Set the [[type]] internal slot of privateKey to "private".
-    private_key->set_type(KeyType::Private);
-
-    // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
-    private_key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-
-    // 14. Set the [[extractable]] internal slot of privateKey to extractable.
-    private_key->set_extractable(extractable);
-
-    // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
-    private_key->set_usages(usage_intersection(usages, { { KeyUsage::Sign } }));
-
-    // 16. Let result be a new CryptoKeyPair dictionary.
-    // 17. Set the publicKey attribute of result to be publicKey.
-    // 18. Set the privateKey attribute of result to be privateKey.
-    auto const result = CryptoKeyPair { public_key, private_key };
-
-    // 19. Return result.
-    return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { result };
+    *identifier = key_info_algorithm(structure, key_info).identifier.span();
 }
 
-static ErrorOr<::Crypto::PK::MLDSA::KeyPairType> generate_mldsa_key_pair_from_seed(Utf16String const& name, ByteBuffer const& seed)
+CryptoKey::InternalKeyData* web_crypto_mldsa_key_info_read_private_key(void const* key_info)
 {
-    if (name == "ML-DSA-44"sv)
-        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA44, seed);
-    if (name == "ML-DSA-65"sv)
-        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA65, seed);
-    if (name == "ML-DSA-87"sv)
-        return ::Crypto::PK::MLDSA::generate_key_pair(::Crypto::PK::MLDSA87, seed);
-    VERIFY_NOT_REACHED();
+    return new CryptoKey::InternalKeyData(static_cast<::Crypto::Certificate::PrivateKey const*>(key_info)->mldsa);
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+CryptoKey::InternalKeyData* web_crypto_mldsa_read_public_key(ReadonlyBytes bytes)
 {
-    GC::Ptr<CryptoKey> key = nullptr;
-
-    // 1. Let keyData be the key data to be imported.
-    // 2. -> If format is "spki":
-    if (key_format == KeyFormat::Spki) {
-        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
-        for (auto const usage : usages) {
-            if (usage != KeyUsage::Verify)
-                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-
-        // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
-        // 3. If an error occurred while parsing, then throw a DataError.
-        auto const spki = TRY(parse_a_subject_public_key_info(realm, key_data.get<ByteBuffer>()));
-
-        Array<u32, 9> expected_oid;
-        // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
-        if (params.name == "ML-DSA-44"sv) {
-            // Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
-            expected_oid = ::Crypto::ASN1::ml_dsa_44_oid;
-        }
-        // If the name member of normalizedAlgorithm is "ML-DSA-65":
-        else if (params.name == "ML-DSA-65"sv) {
-            // Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
-            expected_oid = ::Crypto::ASN1::ml_dsa_65_oid;
-        }
-        // If the name member of normalizedAlgorithm is "ML-DSA-87":
-        else if (params.name == "ML-DSA-87"sv) {
-            // Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
-            expected_oid = ::Crypto::ASN1::ml_dsa_87_oid;
-        }
-        // Otherwise:
-        else {
-            // throw a NotSupportedError.
-            return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
-        }
-
-        // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
-        //    to expectedOid, then throw a DataError.
-        if (spki.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create("Invalid algorithm"_utf16);
-
-        // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
-        if (spki.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
-
-        // 7. Let publicKey be the ML-DSA public key identified by the subjectPublicKey field of spki.
-        auto const public_key = spki.raw_key;
-
-        // 8. Let key be a new CryptoKey that represents publicKey.
-        key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey(public_key));
-
-        // 9. Set the [[type]] internal slot of key to "public"
-        key->set_type(KeyType::Public);
-
-        // 10. Let algorithm be a new KeyAlgorithm.
-        // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-        // 12. Set the [[algorithm]] internal slot of key to algorithm.
-        key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-    }
-    // -> If format is "pkcs8":
-    else if (key_format == KeyFormat::Pkcs8) {
-        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
-        for (auto const& usage : usages) {
-            if (usage != KeyUsage::Sign) {
-                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-            }
-        }
-
-        // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-        // 3. If an error occurred while parsing, then throw a DataError.
-        VERIFY(key_data.has<ByteBuffer>());
-        auto private_key_info = TRY(parse_a_private_key_info(realm, key_data.get<ByteBuffer>()));
-
-        // 4. => If the name member of normalizedAlgorithm is "ML-DSA-44":
-        //       Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
-        //       Let asn1Structure be the ASN.1 ML-DSA-44-PrivateKey structure.
-        //    => If the name member of normalizedAlgorithm is "ML-DSA-65":
-        //       Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
-        //       Let asn1Structure be the ASN.1 ML-DSA-65-PrivateKey structure.
-        //    => If the name member of normalizedAlgorithm is "ML-DSA-87":
-        //       Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
-        //       Let asn1Structure be the ASN.1 ML-DSA-67-PrivateKey structure.
-        //    => Otherwise:
-        //       throw a NotSupportedError.
-        Array<u32, 9> expected_oid {};
-        if (params.name == "ML-DSA-44"sv) {
-            expected_oid = ::Crypto::ASN1::ml_dsa_44_oid;
-        } else if (params.name == "ML-DSA-65"sv) {
-            expected_oid = ::Crypto::ASN1::ml_dsa_65_oid;
-        } else if (params.name == "ML-DSA-87"sv) {
-            expected_oid = ::Crypto::ASN1::ml_dsa_87_oid;
-        } else {
-            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
-        }
-
-        // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
-        //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
-        if (private_key_info.algorithm.identifier != expected_oid)
-            return WebIDL::DataError::create("Invalid algorithm"_utf16);
-
-        // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
-        //    privateKeyInfo is present, then throw a DataError.
-        if (private_key_info.algorithm.ec_parameters.has_value())
-            return WebIDL::DataError::create("Invalid algorithm parameters"_utf16);
-
-        // 7. Let mlDsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
-        //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
-        //    true.
-        // NOTE: We already did this in parse_a_private_key_info
-        // 8. If an error occurred while parsing, then throw a DataError.
-        auto& ml_dsa_private_key = private_key_info.mldsa;
-
-        // 9. Let key be a new CryptoKey that represents the ML-DSA private key identified by
-        //    mlDsaPrivateKey.
-        key = CryptoKey::create(ml_dsa_private_key);
-
-        // 10. Set the [[type]] internal slot of key to "private"
-        key->set_type(KeyType::Private);
-
-        // 11. Let algorithm be a new KeyAlgorithm.
-        // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-        // 13. Set the [[algorithm]] internal slot of key to algorithm.
-        key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-    }
-    //    -> If format is "raw-public":
-    else if (key_format == KeyFormat::RawPublic) {
-        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
-        for (auto const usage : usages) {
-            if (usage != KeyUsage::Verify)
-                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-
-        // 4. Let key be a new CryptoKey representing the key data provided in keyData.
-        ASSERT(key_data.has<ByteBuffer>());
-        key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey { key_data.get<ByteBuffer>() });
-
-        // 5. Set the [[type]] internal slot of key to "public"
-        key->set_type(KeyType::Public);
-
-        // 2. Let algorithm be a new KeyAlgorithm object.
-        // 3. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-        // 6. Set the [[algorithm]] internal slot of key to algorithm.
-        key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-    }
-    //  -> If format is "raw-seed":
-    else if (key_format == KeyFormat::RawSeed) {
-        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
-        for (auto const usage : usages) {
-            if (usage != KeyUsage::Sign)
-                return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid key usage '{}'", key_usage_to_string(usage)));
-        }
-
-        // 2. Let data be keyData.
-        VERIFY(key_data.has<ByteBuffer>());
-        auto const data = key_data.get<ByteBuffer>();
-
-        // 3. If the length in bits of data is not 256 then throw a DataError.
-        if (data.size() * 8 != 256)
-            return WebIDL::DataError::create(Utf16String::formatted("Seed must be 256 bits long"));
-
-        // 4. Let privateKey be the result of performing the ML-DSA.KeyGen_internal function described in Section 6.1
-        //    of [FIPS-204] with the parameter set indicated by the name member of normalizedAlgorithm, using data as ξ.
-        auto maybe_key_pair = generate_mldsa_key_pair_from_seed(params.name, data);
-        if (maybe_key_pair.is_error())
-            return WebIDL::OperationError::create(Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
-        auto const private_key = maybe_key_pair.release_value().private_key;
-
-        // 5. Let key be a new CryptoKey that represents the ML-DSA private key identified by privateKey.
-        key = CryptoKey::create(private_key);
-
-        // 6. Set the [[type]] internal slot of key to "private"
-        key->set_type(KeyType::Private);
-
-        // 7. Let algorithm be a new KeyAlgorithm.
-        // 8. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-        // Set the [[algorithm]] internal slot of key to algorithm.
-        key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-    }
-    //  -> If format is "jwk":
-    else if (key_format == KeyFormat::Jwk) {
-        // 1.  => If keyData is a JsonWebKey dictionary:
-        //        Let jwk equal keyData.
-        //     => Otherwise:
-        //        Throw a DataError.
-        auto* const jwk = key_data.get_pointer<JsonWebKey>();
-
-        if (!jwk)
-            return WebIDL::DataError::create("Data is not a JsonWebKey dictionary"_utf16);
-
-        // 2. If the priv field is present and usages contains an entry which is not "sign", or, if the priv field is
-        //    not present and usages contains an entry which is not "verify" then throw a SyntaxError.
-        if ((jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Sign; }))
-            || (!jwk->priv.has_value() && usages.contains([](auto usage) { return usage != KeyUsage::Verify; }))) {
-            return WebIDL::SyntaxError::create("Invalid usage"_utf16);
-        }
-
-        // 3. If the kty field of jwk is not "AKP", then throw a DataError.
-        if (jwk->kty != "AKP"_utf16)
-            return WebIDL::DataError::create("Invalid key type"_utf16);
-
-        // 4. If the alg field of jwk is not equal to the name member of normalizedAlgorithm, then throw a DataError.
-        if (jwk->alg != params.name)
-            return WebIDL::DataError::create("Invalid algorithm"_utf16);
-
-        // 5. If usages is non-empty and the use field of jwk is present and is not equal to "sig", then throw a DataError.
-        if (!usages.is_empty() && jwk->use.has_value() && jwk->use != "sig"_utf16)
-            return WebIDL::DataError::create("Invalid usage type"_utf16);
-
-        // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
-        //    Key [JWK], or it does not contain all of the specified usages values, then throw a DataError.
-        TRY(validate_jwk_key_ops(realm, *jwk, usages));
-
-        // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
-        if (jwk->ext.has_value() && jwk->ext == false && extractable)
-            return WebIDL::DataError::create("Invalid ext field"_utf16);
-
-        // 8. => If the priv field of jwk is present:
-        if (jwk->priv.has_value()) {
-            // 1. If the priv attribute of jwk does not contain a valid base64url encoded seed
-            //    representing an ML-DSA private key, then throw a DataError.
-            auto const seed = TRY(base64_url_bytes_decode(realm, jwk->priv.value()));
-            if (seed.size() * 8 != 256)
-                return WebIDL::DataError::create("Seed must be 256 bits long"_utf16);
-
-            // 2. Let key be a new CryptoKey object that represents the ML-DSA private key
-            //    identified by interpreting the priv attribute of jwk as a base64url encoded seed.
-            auto maybe_key_pair = generate_mldsa_key_pair_from_seed(params.name, seed);
-            if (maybe_key_pair.is_error())
-                return WebIDL::DataError::create(Utf16String::formatted("Invalid seed: {}", maybe_key_pair.release_error()));
-            auto const [public_key, private_key] = maybe_key_pair.release_value();
-            key = CryptoKey::create(private_key);
-
-            // 3. Set the [[type]] internal slot of key to "private".
-            key->set_type(KeyType::Private);
-
-            // 4. If the pub attribute of jwk does not contain the base64url encoded public key
-            //    representing the ML-DSA public key corresponding to key, then throw a DataError.
-            if (!jwk->pub.has_value())
-                return WebIDL::DataError::create("JsonWebKey does not contain public key"_utf16);
-
-            if (auto pub_decoded = base64_url_bytes_decode(realm, jwk->pub.value());
-                pub_decoded.is_error() || pub_decoded.value() != public_key.public_key())
-                return WebIDL::DataError::create("JsonWebKey public key does not match"_utf16);
-        }
-        //    => Otherwise:
-        else {
-            // 1. If the pub attribute of jwk does not contain a valid base64url encoded public key
-            //    representing an ML-DSA public key, then throw a DataError.
-            if (!jwk->pub.has_value())
-                return WebIDL::DataError::create("JsonWebKey does not contain public key"_utf16);
-
-            auto public_key = TRY(base64_url_bytes_decode(realm, jwk->pub.value()));
-
-            // 2. Let key be a new CryptoKey object that represents the ML-DSA public key
-            //    identified by interpreting the pub attribute of jwk as a base64url encoded public key.
-            key = CryptoKey::create(::Crypto::PK::MLDSAPublicKey { public_key });
-
-            // 3. Set the [[type]] internal slot of key to "public".
-            key->set_type(KeyType::Public);
-        }
-
-        // 9. Let algorithm be a new instance of a KeyAlgorithm object.
-        // 10. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
-        // 11. Set the [[algorithm]] internal slot of key to algorithm.
-        key->set_algorithm(CryptoKey::KeyAlgorithmData { params.name });
-    }
-    //    -> Otherwise:
-    else {
-        // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
-    }
-
-    // 3. Return key.
-    return GC::Ref { *key };
+    return new CryptoKey::InternalKeyData(::Crypto::PK::MLDSAPublicKey { MUST(ByteBuffer::copy(bytes)) });
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-export-key
-WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyFormat format, GC::Ref<CryptoKey> key)
+void web_crypto_mldsa_public_bytes(CryptoKey::InternalKeyData const* key, ReadonlyBytes* bytes)
 {
-    Optional<ExportKeyResult> result;
-    auto& vm = realm.vm();
-
-    // 1. Let key be the CryptoKey to be exported.
-
-    // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-    // Note: In our impl this is always accessible
-    auto const& handle = key->handle();
-
-    // 3. -> If format is "spki":
-    if (format == KeyFormat::Spki) {
-        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != KeyType::Public)
-            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
-
-        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
-
-        // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-        //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-        //      * -> If the name member of keyAlgorithm is "ML-DSA-44":
-        //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-        //        -> If the name member of keyAlgorithm is "ML-DSA-65":
-        //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-        //        -> If the name member of keyAlgorithm is "ML-DSA-87":
-        //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
-        //        -> Otherwise:
-        //           throw a NotSupportedError.
-        //    * Set the subjectPublicKey field to keyData.
-        Array<u32, 9> algorithm_oid {};
-        if (key->algorithm_name() == "ML-DSA-44"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_44_oid;
-        } else if (key->algorithm_name() == "ML-DSA-65"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_65_oid;
-        } else if (key->algorithm_name() == "ML-DSA-87"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_87_oid;
-        } else {
-            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
-        }
-
-        ::Crypto::ASN1::Encoder encoder;
-        VERIFY(handle.has<::Crypto::PK::MLDSAPublicKey>());
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLDSAPublicKey>().public_key(), algorithm_oid));
-
-        // 4. Let result be the result of DER-encoding data.
-        result = ExportKeyResult { data };
-    }
-    //   -> If format is "pkcs8":
-    else if (format == KeyFormat::Pkcs8) {
-        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != KeyType::Private)
-            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
-
-        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
-
-        // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
-        //    * Set the version field to 0.
-        //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-        //      * => If the name member of keyAlgorithm is "ML-DSA-44":
-        //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-        //      * => If the name member of keyAlgorithm is "ML-DSA-65":
-        //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-        //      * => If the name member of keyAlgorithm is "ML-DSA-87":
-        //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
-        //      * => Otherwise:
-        //           throw a NotSupportedError.
-        //    * Set the privateKey field as follows:
-        //      * => If the name member of keyAlgorithm is "ML-DSA-44":
-        //           Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey
-        //           ASN.1 type that represents the ML-DSA private key seed represented by the
-        //           [[handle]] internal slot of key using the seed-only format (using a context-
-        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of keyAlgorithm is "ML-DSA-65":
-        //           Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey
-        //           ASN.1 type that represents the ML-DSA private key seed represented by the
-        //           [[handle]] internal slot of key using the seed-only format (using a context-
-        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => If the name member of keyAlgorithm is "ML-DSA-87":
-        //           Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey
-        //           ASN.1 type that represents the ML-DSA private key seed represented by the
-        //           [[handle]] internal slot of key using the seed-only format (using a context-
-        //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-        //      * => Otherwise:
-        //           throw a NotSupportedError.
-        Array<u32, 9> algorithm_oid {};
-        if (key->algorithm_name() == "ML-DSA-44"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_44_oid;
-        } else if (key->algorithm_name() == "ML-DSA-65"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_65_oid;
-        } else if (key->algorithm_name() == "ML-DSA-87"sv) {
-            algorithm_oid = ::Crypto::ASN1::ml_dsa_87_oid;
-        } else {
-            return WebIDL::NotSupportedError::create("Invalid algorithm"_utf16);
-        }
-
-        ::Crypto::ASN1::Encoder encoder;
-        VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
-        auto const data = TRY_OR_THROW_OOM(realm.vm(), ::Crypto::PK::wrap_in_private_key_info(handle.get<::Crypto::PK::MLDSAPrivateKey>(), algorithm_oid));
-
-        // 4. Let result be the result of DER-encoding data.
-        result = ExportKeyResult { data };
-    }
-    //   -> If format is "raw-public":
-    else if (format == KeyFormat::RawPublic) {
-        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
-        if (key->type() != KeyType::Public)
-            return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
-
-        // 2. Let data be a byte sequence containing the ML-DSA public key represented by the [[handle]] internal slot of key.
-        VERIFY(handle.has<::Crypto::PK::MLDSAPublicKey>());
-        auto const data = handle.get<::Crypto::PK::MLDSAPublicKey>().public_key();
-
-        // 3. Let result be data.
-        result = ExportKeyResult { data };
-    }
-    //   -> If format is "raw-seed":
-    else if (format == KeyFormat::RawSeed) {
-        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
-        if (key->type() != KeyType::Private)
-            return WebIDL::InvalidAccessError::create("Key is not a private key"_utf16);
-
-        // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
-        VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
-        auto const data = handle.get<::Crypto::PK::MLDSAPrivateKey>().seed();
-
-        // 3. Let result be data.
-        result = ExportKeyResult { data };
-    }
-    //   -> If format is "jwk":
-    else if (format == KeyFormat::Jwk) {
-        // 1. Let jwk be a new JsonWebKey dictionary.
-        auto jwk = JsonWebKey {};
-
-        // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
-
-        // 3. Set the kty attribute of jwk to "AKP".
-        jwk.kty = "AKP"_utf16;
-
-        // 4. Set the alg attribute of jwk to the name member of keyAlgorithm.
-        jwk.alg = key->algorithm_name();
-
-        // 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]] internal slot of key.
-        jwk.pub = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.visit([](::Crypto::PK::MLDSAPublicKey const& public_key) -> ReadonlyBytes { return public_key.public_key(); }, [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ReadonlyBytes { return private_key.public_key(); }, [](auto) -> ReadonlyBytes { VERIFY_NOT_REACHED(); })));
-
-        // 6. -> If the [[type]] internal slot of key is "private":
-        //       Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal slot of key.
-        if (key->type() == KeyType::Private) {
-            VERIFY(handle.has<::Crypto::PK::MLDSAPrivateKey>());
-            jwk.priv = TRY_OR_THROW_OOM(vm, base64_url_bytes_encode(handle.get<::Crypto::PK::MLDSAPrivateKey>().seed()));
-        }
-
-        // 7. Set the key_ops attribute of jwk to the usages attribute of key.
-        jwk.key_ops = Vector<Utf16String> {};
-        jwk.key_ops->ensure_capacity(key->internal_usages().size());
-        for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->unchecked_append(Utf16String::from_utf8(key_usage_to_string(usage)));
-        }
-
-        // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
-        jwk.ext = key->extractable();
-
-        // 9. Let result be jwk.
-        result = ExportKeyResult { move(jwk) };
-    }
-    //   -> Otherwise:
-    else {
-        // throw a NotSupportedError.
-        return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
-    }
-
-    // 4. Return result.
-    return result.release_value();
+    *bytes = key->visit(
+        [](::Crypto::PK::MLDSAPublicKey const& public_key) -> ReadonlyBytes { return public_key.public_key(); },
+        [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ReadonlyBytes { return private_key.public_key(); },
+        [](auto const&) -> ReadonlyBytes { VERIFY_NOT_REACHED(); });
 }
 
-Optional<ReadonlySpan<KeyUsage>> MLDSA::public_key_usages() const
+void web_crypto_mldsa_seed_bytes(CryptoKey::InternalKeyData const* key, ReadonlyBytes* bytes)
 {
-    static constexpr Array usages { KeyUsage::Verify };
-    return usages.span();
+    *bytes = key->get<::Crypto::PK::MLDSAPrivateKey>().seed();
+}
+
+bool web_crypto_mldsa_export_der(CryptoKey::InternalKeyData const* key, bool is_public, ReadonlySpan<u32> oid, void* state, ReceiveEncodedBytes receive)
+{
+    auto result = is_public
+        ? ::Crypto::PK::wrap_in_subject_public_key_info(key->get<::Crypto::PK::MLDSAPublicKey>().public_key(), oid)
+        : ::Crypto::PK::wrap_in_private_key_info(key->get<::Crypto::PK::MLDSAPrivateKey>(), oid);
+    if (result.is_error())
+        return false;
+    receive(state, result.value());
+    return true;
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
