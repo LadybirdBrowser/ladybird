@@ -558,7 +558,7 @@ absolutize_log_args() {
 
 update_hosts_file_if_needed() {
     pushd "${WPT_SOURCE_DIR}" > /dev/null
-        if [ "$(comm -13 <(sort -u /etc/hosts) <(./wpt make-hosts-file | sort -u) | wc -l)" -gt 0 ]; then
+        if [ "$(LC_ALL=C comm -13 <(LC_ALL=C sort -u /etc/hosts) <(./wpt make-hosts-file | LC_ALL=C sort -u) | wc -l)" -gt 0 ]; then
             ./wpt make-hosts-file | sudo_and_ask "Appending wpt hosts to /etc/hosts" tee -a /etc/hosts
         fi
     popd > /dev/null
