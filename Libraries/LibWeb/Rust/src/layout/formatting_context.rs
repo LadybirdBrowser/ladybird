@@ -694,9 +694,14 @@ pub(crate) fn box_baseline_with_content_baselines(
     // baseline sets always derive from content; so do flex and grid containers, which are not block containers.
     // FIXME: Per CSS Align, a scroll container's content-derived baseline position should be clamped to its border
     //        edge.
+    // AD-HOC: A box with button layout derives its baselines from its content even when its overflow makes it a
+    //         scroll container, rather than taking its block-end margin edge, so that a button with overflow: hidden
+    //         sits on the line by the text it shows, as pages expect.
+    //         https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     let derive_baseline_from_content = baseline_set == BaselineSet::First
         || style.baseline_source() != crate::css::css_enums::baseline_source::AUTO
         || is_flex_or_grid_container
+        || facts.uses_button_layout()
         || !facts.is_scroll_container();
 
     // AD-HOC: We also use the content-derived baseline for <input> elements with block children, even when their
@@ -712,7 +717,17 @@ pub(crate) fn box_baseline_with_content_baselines(
     if let Some(content_baseline) = content_baseline
         && (derive_baseline_from_content || input_derives_from_children)
     {
-        return metrics.margin_box_top(collapsed) + content_baseline;
+        let baseline = metrics.margin_box_top(collapsed) + content_baseline;
+        // https://drafts.csswg.org/css-align-3/#baseline-export
+        // "if the position of a scroll container's first/last baseline is outside its border edge, that baseline's
+        // position is clamped to the border edge."
+        // NB: Only a button takes a scroll container's baseline from its content here.
+        if facts.uses_button_layout() && facts.is_scroll_container() {
+            let border_box_bottom =
+                metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed);
+            return baseline.min(border_box_bottom);
+        }
+        return baseline;
     }
 
     // AD-HOC: Inline buttons without a content baseline synthesize one from their content-box bottom edge in
