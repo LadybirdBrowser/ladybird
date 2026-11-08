@@ -145,7 +145,17 @@ fn paint_box_shadow_layers<O: Observer>(
                 blur_radius + offset_x,
             );
 
-            let mut inner_shadow_corner_radii = corner_radii;
+            // https://drafts.csswg.org/css-backgrounds/#shadow-shape
+            let padding_corner_radii = border_radii
+                .shrunken(
+                    borderless_content_rect.top() - bordered_content_rect.top(),
+                    bordered_content_rect.right() - borderless_content_rect.right(),
+                    bordered_content_rect.bottom() - borderless_content_rect.bottom(),
+                    borderless_content_rect.left() - bordered_content_rect.left(),
+                )
+                .as_corners(&converter);
+
+            let mut inner_shadow_corner_radii = padding_corner_radii;
             adjust_corners_for_spread_distance(&mut inner_shadow_corner_radii, -spread_distance);
 
             recorder.recorder.paint_inner_box_shadow(
@@ -153,7 +163,7 @@ fn paint_box_shadow_layers<O: Observer>(
                     color: Color(layer.color.resolve(current_color)),
                     blur_radius,
                     device_content_rect,
-                    content_corner_radii: corner_radii,
+                    content_corner_radii: padding_corner_radii,
                     outer_shadow_rect,
                     inner_shadow_rect,
                     inner_shadow_corner_radii,
