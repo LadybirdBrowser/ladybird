@@ -3907,7 +3907,9 @@ void TabWidget::set_vertical_tabs_position(WebView::VerticalTabsPosition positio
 
 bool TabWidget::event(QEvent* event)
 {
-    if (auto type = event->type(); type == QEvent::PaletteChange) {
+    // NB: The chrome's colors follow the color scheme as well as the palette, and a color scheme change can leave the
+    //     palette as it was, so that only a ThemeChange arrives.
+    if (auto type = event->type(); type == QEvent::PaletteChange || type == QEvent::ApplicationPaletteChange || type == QEvent::ThemeChange) {
         recreate_icons();
         update_chrome_style();
     } else if (type == QEvent::WindowStateChange) {

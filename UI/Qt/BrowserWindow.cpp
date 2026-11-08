@@ -1908,7 +1908,9 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
 
 void BrowserWindow::changeEvent(QEvent* event)
 {
-    if (event->type() == QEvent::PaletteChange) {
+    // NB: The chrome's colors follow the color scheme as well as the palette, and a color scheme change can leave the
+    //     palette as it was, so that only a ThemeChange arrives.
+    if (event->type() == QEvent::PaletteChange || event->type() == QEvent::ApplicationPaletteChange || event->type() == QEvent::ThemeChange) {
         update_chrome_style();
         update_menu_bar_window_control_icons();
         update_tab_button_icons();
