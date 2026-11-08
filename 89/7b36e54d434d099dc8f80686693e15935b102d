@@ -1,0 +1,10 @@
+Ladybird gives a quirks-mode table the used color of the document’s
+body element, whose color it reads as the table’s style computes, and
+otherwise color’s initial value. Blink does the same: Its quirks sheet
+gives tables “color: -internal-quirk-inherit”, which resolves to the
+document’s TextLinkColors::TextColor(), which StyleResolver::
+ResolveStyle() sets from the body’s color. WebKit’s quirks sheet gives
+tables “color: -internal-document-text-color”, from the document text
+color that Style::TreeResolver sets as it resolves the body. And Gecko
+adds TABLE_COLOR_RULE, with Color::InheritFromBodyQuirk, resolving to
+the body_text_color() that matching.rs records from the body’s style.
