@@ -45,6 +45,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "NeedsCallerRealm",
     "NewObject",
     "PutForwards",
+    "ReturnsJSValue",
     "SameObject",
     "SecureContext",
 }
@@ -96,6 +97,10 @@ class RustAttribute:
         """Whether the getter returns the same value for as long as the object lives, which the engine then caches on
         the object: [CachedAccessor]."""
         return "CachedAccessor" in self.attribute.extended_attributes
+
+    @property
+    def returns_js_value(self) -> bool:
+        return "ReturnsJSValue" in self.attribute.extended_attributes
 
     @property
     def function_stem(self) -> str:
