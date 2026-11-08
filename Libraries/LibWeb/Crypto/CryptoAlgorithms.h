@@ -95,40 +95,6 @@ struct AesGcmParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
 
-// https://w3c.github.io/webcrypto/#hkdf-params
-struct HKDFParams : public AlgorithmParams {
-    virtual ~HKDFParams() override;
-    HKDFParams(HashAlgorithmIdentifier hash, ByteBuffer salt, ByteBuffer info)
-        : hash(move(hash))
-        , salt(move(salt))
-        , info(move(info))
-    {
-    }
-
-    HashAlgorithmIdentifier hash;
-    ByteBuffer salt;
-    ByteBuffer info;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#pbkdf2-params
-struct PBKDF2Params : public AlgorithmParams {
-    virtual ~PBKDF2Params() override;
-    PBKDF2Params(ByteBuffer salt, u32 iterations, HashAlgorithmIdentifier hash)
-        : salt(move(salt))
-        , iterations(iterations)
-        , hash(move(hash))
-    {
-    }
-
-    ByteBuffer salt;
-    u32 iterations;
-    HashAlgorithmIdentifier hash;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
 // https://w3c.github.io/webcrypto/#dfn-RsaKeyGenParams
 struct RsaKeyGenParams : public AlgorithmParams {
     virtual ~RsaKeyGenParams() override;
@@ -482,34 +448,6 @@ private:
     AesKw() = default;
 };
 
-class HKDF : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> derive_bits(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_derive_bits_parameters(AlgorithmParams const&, Optional<u32>) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new HKDF); }
-
-private:
-    HKDF() = default;
-};
-
-class PBKDF2 : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> derive_bits(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_derive_bits_parameters(AlgorithmParams const&, Optional<u32>) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new PBKDF2); }
-
-private:
-    PBKDF2() = default;
-};
-
 class ECDSA : public AlgorithmMethods {
 public:
     virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
@@ -649,20 +587,6 @@ private:
     MLKEM() = default;
 };
 
-class Argon2 : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> derive_bits(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>) override;
-    virtual WebIDL::ExceptionOr<Optional<u32>> get_key_length(JS::Realm& realm, AlgorithmParams const&) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_derive_bits_parameters(AlgorithmParams const&, Optional<u32>) const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new Argon2); }
-
-private:
-    Argon2() = default;
-};
-
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
@@ -705,32 +629,6 @@ struct Ed448Params : public AlgorithmParams {
 
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-ContextParams
 using ContextParams = Ed448Params;
-
-// https://wicg.github.io/webcrypto-modern-algos/#argon2-params
-struct Argon2Params : public AlgorithmParams {
-    virtual ~Argon2Params() override;
-
-    Argon2Params(ByteBuffer nonce, u32 parallelism, u32 memory, u32 passes, Optional<u8> version, Optional<ByteBuffer> secret_value, Optional<ByteBuffer> associated_data)
-        : nonce(move(nonce))
-        , parallelism(parallelism)
-        , memory(memory)
-        , passes(passes)
-        , version(version)
-        , secret_value(secret_value)
-        , associated_data(associated_data)
-    {
-    }
-
-    ByteBuffer nonce;
-    u32 parallelism;
-    u32 memory;
-    u32 passes;
-    Optional<u8> version;
-    Optional<ByteBuffer> secret_value;
-    Optional<ByteBuffer> associated_data;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-params
 // https://wicg.github.io/webcrypto-modern-algos/#dfn-AeadParams

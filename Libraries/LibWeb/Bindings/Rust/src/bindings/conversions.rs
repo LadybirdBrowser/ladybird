@@ -278,6 +278,16 @@ fn to_integer_enforcing_range(vm: &Vm, value: Value, lower_bound: f64, upper_bou
 /// [EnforceRange] or [Clamp].
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 
+/// A JS value converted to an octet with [EnforceRange], https://webidl.spec.whatwg.org/#js-octet
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_octet_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<u8> {
+    Ok(to_integer_enforcing_range(vm, value, 0.0, f64::from(u8::MAX))? as u8)
+}
+
 /// A JS value converted to a long with [EnforceRange], https://webidl.spec.whatwg.org/#js-long
 #[allow(
     clippy::cast_possible_truncation,
