@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    body { font: 20px serif; margin: 20px; }
+    span.box { border: 2px solid black; padding: 2em; display: inline-block; }
+</style>
+<span class="box" id="outer">foo <span class="box" id="inner">bar</span></span>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const describe = (x, y) => {
+            const position = document.caretPositionFromPoint(x, y);
+            const node = position.offsetNode;
+            return `${node.nodeType === Node.TEXT_NODE ? JSON.stringify(node.data) : node.nodeName}@${position.offset}`;
+        };
+        const outer = document.getElementById("outer").getBoundingClientRect();
+        const inner = document.getElementById("inner").getBoundingClientRect();
+        println(`inner box, left padding: ${describe(inner.left + 10, inner.top + inner.height / 2)}`);
+        println(`inner box, right padding: ${describe(inner.right - 10, inner.top + inner.height / 2)}`);
+        println(`outer box, padding above its line: ${describe(outer.right - 10, outer.top + 10)}`);
+
+        const text = document.getElementById("outer").firstChild;
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.setEnd(text, 1);
+        const start = range.getBoundingClientRect();
+        internals.mouseDown(start.left + 1, start.top + start.height / 2, 1, 0, 0, 1);
+        internals.mouseMove(inner.left + 10, inner.top + inner.height / 2, 0, 1);
+        internals.mouseUp(inner.left + 10, inner.top + inner.height / 2, 0, 0, 0);
+        println(`dragged from "foo" into the inner box's left padding: "${getSelection().toString()}"`);
+    });
+</script>
