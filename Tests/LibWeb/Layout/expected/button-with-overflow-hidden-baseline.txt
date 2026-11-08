@@ -1,0 +1,65 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 168 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 136 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 28 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 9, rect: [8,22 80.484375x16] baseline: 13
+            "Read the "
+        frag 1 from BlockContainer start: 0, length: 0, rect: [88.484375,22 45.953125x16] baseline: 13
+        frag 2 from TextNode start: 0, length: 9, rect: [134.4375,22 75.6875x16] baseline: 13
+            " and the "
+        frag 3 from BlockContainer start: 0, length: 0, rect: [220.125,22 109.0625x16] baseline: 19
+        frag 4 from TextNode start: 0, length: 18, rect: [339.1875,22 151.34375x16] baseline: 13
+            " before you agree."
+        TextNode <#text> (not painted)
+        BlockContainer <button> at [88.484375,22] inline-block [0+0+0 45.953125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [88.484375,22] flex-container(column) [0+0+0 45.953125 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [88.484375,22] flex-item [0+0+0 45.953125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [88.484375,22 45.953125x16] baseline: 13
+                  "terms"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        BlockContainer <button.padded> at [220.125,22] inline-block [0+2+8 109.0625 8+2+0] [0+2+4 16 4+2+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [220.125,22] flex-container(column) [0+0+0 109.0625 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [220.125,22] flex-item [0+0+0 109.0625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 14, rect: [220.125,22 109.0625x16] baseline: 13
+                  "privacy policy"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,60] [0+0+0 784 0+0+0] [16+0+0 33 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,77 9.703125x16] baseline: 13
+            "x"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [19.703125,62 36x26] baseline: 30
+        frag 2 from TextNode start: 0, length: 1, rect: [57.703125,77 7.171875x16] baseline: 13
+            "y"
+        TextNode <#text> (not painted)
+        BlockContainer <button.short> at [19.703125,62] inline-block [0+2+0 36 0+2+0] [0+2+0 26 0+2+0] [BFC] children: not-inline overflow: [19.703125,62 42.421875x80]
+          BlockContainer <(anonymous)> at [19.703125,62] flex-container(column) [0+0+0 36 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [19.703125,62] flex-item [0+0+0 36 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 3, rect: [23.359375,64 28.6875x16] baseline: 13
+                  "one"
+              frag 1 from TextNode start: 4, length: 3, rect: [23.484375,84 28.4375x16] baseline: 13
+                  "two"
+              frag 2 from TextNode start: 8, length: 5, rect: [19.703125,104 42.421875x16] baseline: 13
+                  "three"
+              frag 3 from TextNode start: 14, length: 4, rect: [20,124 35.390625x16] baseline: 13
+                  "four"
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,109] [0+0+0 784 0+0+0] [16+0+0 43 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,109 9.703125x16] baseline: 13
+            "x"
+        frag 1 from BlockContainer start: 0, length: 0, rect: [19.703125,124 48.65625x26] baseline: 0
+        frag 2 from TextNode start: 0, length: 1, rect: [70.359375,109 7.171875x16] baseline: 13
+            "y"
+        TextNode <#text> (not painted)
+        BlockContainer <button.raised> at [19.703125,124] inline-block [0+2+0 48.65625 0+2+0] [0+2+0 26 0+2+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [19.703125,124] flex-container(column) [0+0+0 48.65625 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [19.703125,137] flex-item [0+0+0 48.65625 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+              BlockContainer <span> at [19.703125,97] [0+0+0 48.65625 0+0+0] [-40+0+0 16 0+0+0] children: inline
+                frag 0 from TextNode start: 0, length: 6, rect: [19.703125,97 48.65625x16] baseline: 13
+                    "raised"
+                TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x168] (z-index: auto)
