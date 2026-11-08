@@ -185,13 +185,7 @@ describe("own properties of functions that never had them looked at", () => {
         expect(f.b).toBe(2);
         expect(f.c).toBe(3);
         expect(f.length).toBe(1);
-        expect(Object.getOwnPropertyNames(f).filter(name => name !== "prototype")).toEqual([
-            "length",
-            "name",
-            "a",
-            "b",
-            "c",
-        ]);
+        expect(Object.getOwnPropertyNames(f)).toEqual(["length", "name", "prototype", "a", "b", "c"]);
         expect(Object.getOwnPropertyDescriptor(f, "c").enumerable).toBeFalse();
         expect(Object.keys(f)).toEqual(["a", "b"]);
     });
@@ -236,7 +230,7 @@ describe("own properties of functions that never had them looked at", () => {
         const o = Object.create(f);
         expect(o.a).toBe(1);
         expect(o.name).toBe("named");
-        expect(Object.getOwnPropertyNames(f).slice(0, 3)).toEqual(["length", "name", "a"]);
+        expect(Object.getOwnPropertyNames(f)).toEqual(["length", "name", "prototype", "a"]);
     });
 
     test("the prototype property does not get ahead of them", () => {

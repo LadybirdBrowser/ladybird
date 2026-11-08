@@ -2853,7 +2853,7 @@ impl Object {
         // NB: Setting a lazy property of a function must find it.
         if self.is_ecmascript_function_object() && (*property_key == vm.names.length || *property_key == vm.names.name)
         {
-            self.reify_lazy_function_properties(vm);
+            cast_ref::<Object, EcmascriptFunctionObject>(self).reify_length_and_name(vm);
         }
 
         let Some(metadata) = self.shape().lookup(property_key) else {
@@ -3704,19 +3704,21 @@ impl Object {
             .cast_mut()
     }
 
-    /// Puts the property values in front of the existing ones, as `shape` has them.
-    pub(crate) fn prepend_named_properties(&self, shape: Gc<Shape>, values: &[Value]) {
+    /// Puts the property values in front of the existing one in slot `index`, as `shape` has them.
+    pub(crate) fn insert_named_properties(&self, shape: Gc<Shape>, index: u32, values: &[Value]) {
         let existing_count = self.shape().property_count();
+        assert!(index <= existing_count);
         self.ensure_named_storage_capacity(existing_count + values.len() as u32);
-        let named_properties = self.named_properties.get();
-        // SAFETY: The named storage has room for the existing and the new values.
+        // SAFETY: The named storage has room for the existing and the new values, and `index` is at most the number of
+        //         existing values.
         unsafe {
+            let insertion_point = self.named_properties.get().add(index as usize);
             core::ptr::copy(
-                named_properties,
-                named_properties.add(values.len()),
-                existing_count as usize,
+                insertion_point,
+                insertion_point.add(values.len()),
+                (existing_count - index) as usize,
             );
-            core::ptr::copy_nonoverlapping(values.as_ptr(), named_properties, values.len());
+            core::ptr::copy_nonoverlapping(values.as_ptr(), insertion_point, values.len());
         }
         self.shape.set(shape);
     }
@@ -3724,7 +3726,7 @@ impl Object {
     #[inline(always)]
     fn reify_lazy_function_properties(&self, vm: &Vm) {
         if self.is_ecmascript_function_object() {
-            cast_ref::<Object, EcmascriptFunctionObject>(self).reify_length_and_name(vm);
+            cast_ref::<Object, EcmascriptFunctionObject>(self).reify_lazy_properties(vm);
         }
     }
 

@@ -407,6 +407,88 @@ impl EcmascriptFunctionObject {
     fn reify_lazy_length_and_name_with_name(&self, vm: &Vm, name_string: Gc<PrimitiveString>) {
         self.set_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME, false);
 
+        let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE);
+        self.insert_properties(
+            vm,
+            0,
+            &[(&vm.names.length, attributes), (&vm.names.name, attributes)],
+            &[Value::from_i32(self.function_length()), Value::from_string(name_string)],
+        );
+    }
+
+    /// OPTIMIZATION: Few normal functions are ever used as constructors, so they make their "prototype" property when
+    ///               something looks for it.
+    ///
+    /// Gives the function its "prototype" property if it may not have it yet, right after "length" and "name", where
+    /// the spec creates it.
+    #[inline(always)]
+    fn instantiate_lazy_prototype_if_needed(&self, vm: &Vm) {
+        if self.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION) {
+            self.instantiate_lazy_prototype(vm);
+        }
+    }
+
+    fn instantiate_lazy_prototype(&self, vm: &Vm) {
+        self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
+
+        // NB: Class constructors and functions from the Function constructor are given theirs directly.
+        if self.shape().lookup(&vm.names.prototype).is_some() {
+            return;
+        }
+
+        let realm = self.realm().expect("an ECMAScript function has a realm");
+        let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
+        prototype.initialize_direct(
+            realm.normal_function_prototype_constructor_offset(),
+            Value::from_object(self.as_function_object_gc()),
+        );
+
+        let attributes = PropertyAttributes::new(Attribute::WRITABLE);
+        // NB: Lazy "length" and "name" are put in front of all other properties when they are made.
+        let index = if self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME) {
+            0
+        } else {
+            let shape = self.shape();
+            debug_assert!(
+                shape
+                    .lookup(&vm.names.length)
+                    .is_some_and(|metadata| metadata.offset == 0)
+                    && shape
+                        .lookup(&vm.names.name)
+                        .is_some_and(|metadata| metadata.offset == 1),
+                "a function with a lazy prototype has its length and name first"
+            );
+            2
+        };
+        if self.shape().property_count() == index {
+            self.define_direct_property(vm, &vm.names.prototype, Value::from_object(prototype), attributes);
+            return;
+        }
+        self.insert_properties(
+            vm,
+            index,
+            &[(&vm.names.prototype, attributes)],
+            &[Value::from_object(prototype)],
+        );
+    }
+
+    /// Gives the function all of the properties it makes lazily. This must happen before its shape changes in a way that
+    /// insert_properties() cannot rebuild.
+    pub(crate) fn reify_lazy_properties(&self, vm: &Vm) {
+        self.reify_length_and_name(vm);
+        self.instantiate_lazy_prototype_if_needed(vm);
+    }
+
+    /// Rebuilds the shape from the premade shape of the function's kind with the given properties in front of the one
+    /// at `index` in insertion order, and gives them the given values.
+    fn insert_properties(
+        &self,
+        vm: &Vm,
+        index: u32,
+        properties: &[(&PropertyKey, PropertyAttributes)],
+        values: &[Value],
+    ) {
+        debug_assert_eq!(properties.len(), values.len());
         let old_shape = self.shape();
         // NB: Rebuilding the shape bypasses transitions away from the old one and moves existing property offsets.
         old_shape.mark_unstable(vm);
@@ -415,15 +497,12 @@ impl EcmascriptFunctionObject {
             FunctionKind::Normal => realm.normal_function_shape(),
             FunctionKind::Async => realm.async_function_shape(),
             FunctionKind::Generator | FunctionKind::AsyncGenerator => {
-                unreachable!("generator functions have their length and name from the start")
+                unreachable!("generator functions have all of their properties from the start")
             }
         };
         if shape.prototype() != old_shape.prototype() {
             shape = shape.create_prototype_transition(vm, old_shape.prototype());
         }
-        let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE);
-        shape = shape.create_put_transition(vm, &vm.names.length, attributes);
-        shape = shape.create_put_transition(vm, &vm.names.name, attributes);
         // NB: Adding the transitions can allocate, which must not happen while the shape is borrowed, so the properties
         //     are read out first.
         let property_count = old_shape.property_count() as usize;
@@ -434,15 +513,22 @@ impl EcmascriptFunctionObject {
             property_attributes.push(metadata.attributes);
             ControlFlow::Continue(())
         });
-        for (index, attributes) in property_attributes.into_iter().enumerate() {
-            let property_key = property_keys.get(index).expect("the index is in bounds");
+        for (position, attributes) in property_attributes.into_iter().enumerate() {
+            if position == index as usize {
+                for (inserted_key, inserted_attributes) in properties {
+                    shape = shape.create_put_transition(vm, inserted_key, *inserted_attributes);
+                }
+            }
+            let property_key = property_keys.get(position).expect("the position is in bounds");
             shape = shape.create_put_transition(vm, &property_key, attributes);
         }
+        if index as usize == property_count {
+            for (inserted_key, inserted_attributes) in properties {
+                shape = shape.create_put_transition(vm, inserted_key, *inserted_attributes);
+            }
+        }
 
-        self.prepend_named_properties(
-            shape,
-            &[Value::from_i32(self.function_length()), Value::from_string(name_string)],
-        );
+        self.insert_named_properties(shape, index, values);
     }
 
     pub fn as_ecmascript_function_gc(&self) -> Gc<EcmascriptFunctionObject> {
@@ -1240,22 +1326,7 @@ impl EcmascriptFunctionObject {
         if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
             && *property_key == vm.names.prototype
         {
-            let realm = function.realm().expect("an ECMAScript function has a realm");
-            let metadata = object.shape().lookup(property_key);
-            if metadata.is_none() {
-                let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
-                prototype.initialize_direct(
-                    realm.normal_function_prototype_constructor_offset(),
-                    Value::from_object(function.as_function_object_gc()),
-                );
-                object.define_direct_property(
-                    vm,
-                    &vm.names.prototype,
-                    Value::from_object(prototype),
-                    PropertyAttributes::new(Attribute::WRITABLE),
-                );
-            }
-            function.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
+            function.instantiate_lazy_prototype(vm);
         }
 
         object.ordinary_get_own_property(vm, property_key)
@@ -1264,10 +1335,7 @@ impl EcmascriptFunctionObject {
     fn internal_own_property_keys<'vm>(object: &Object, vm: &'vm Vm) -> ThrowCompletionOr<MarkedVec<'vm, Value>> {
         let function = as_ecmascript_function(object);
 
-        function.reify_length_and_name(vm);
-        if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION) {
-            Self::internal_get_own_property(object, vm, &vm.names.prototype)?;
-        }
+        function.reify_lazy_properties(vm);
 
         object.ordinary_own_property_keys(vm)
     }
