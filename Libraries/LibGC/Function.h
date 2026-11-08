@@ -43,6 +43,9 @@ struct CapturedCellPointer {
 template<typename T>
 struct CapturedValue {
     static_assert(IsCapturable<T>, "A GC::Function capture must be traced, or hold no cell edges");
+    // NB: A value is copied into the function. A polymorphic one may be part of a larger object, such as the mixin of a
+    //     cell captured as *this, and the function would act on a copy of it.
+    static_assert(!__is_polymorphic(T), "A GC::Function can't capture a polymorphic value, which would be copied out of the object it is part of");
 
     T value;
 
