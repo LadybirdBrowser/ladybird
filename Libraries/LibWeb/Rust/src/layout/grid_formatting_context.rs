@@ -3502,21 +3502,14 @@ impl<'pass> GridFormattingContext<'pass> {
             *max_content.get_or_init(|| self.max_content_contribution_with(item, axis, preferred_behaves_as_auto));
         let fixed_track_limit = std::cell::OnceCell::new();
         let grid_container_maximum_size = std::cell::OnceCell::new();
-        let limited_min = if axis.is_column() && is_scroll_container && preferred_behaves_as_auto {
-            // NB: Not defined in the spec, but matches other browsers: a scroll container's content can overflow and
-            //     scroll horizontally, so under a min-content constraint it contributes only its minimum contribution.
-            //     This does not apply to the row axis, where grids with height:min-content would collapse their rows.
-            minimum
-        } else {
-            self.limited_content_contribution(
-                min_content,
-                minimum,
-                &fixed_track_limit,
-                &grid_container_maximum_size,
-                item,
-                axis,
-            )
-        };
+        let limited_min = self.limited_content_contribution(
+            min_content,
+            minimum,
+            &fixed_track_limit,
+            &grid_container_maximum_size,
+            item,
+            axis,
+        );
         let limited_max = self.limited_content_contribution(
             max_content,
             minimum,
@@ -6220,8 +6213,9 @@ pub(crate) fn resolve_intrinsic_track_sizes(
             SpaceDistributionPhase::Minimum,
             available,
             |track| track.min_sizing.is_intrinsic(available),
+            // INTEROP: Other engines keep the minimum contributions under a min-content constraint.
             |item| {
-                if available.is_intrinsic_sizing_constraint() {
+                if available == AvailableSize::MaxContent {
                     item.limited_min_content
                 } else {
                     item.minimum
