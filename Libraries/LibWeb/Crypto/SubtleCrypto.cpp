@@ -16,8 +16,6 @@
 namespace Web::Crypto {
 
 enum class AlgorithmId : u8 {
-    ECDSA,
-    ECDH,
     X25519,
     X448,
     ED25519,
@@ -28,9 +26,6 @@ enum class AlgorithmId : u8 {
 
 enum class ParameterId : u8 {
     AlgorithmParams,
-    EcdsaParams,
-    EcKeyGenParams,
-    EcKeyImportParams,
     EcdhKeyDeriveParams,
     Ed448Params,
     ContextParams,
@@ -202,10 +197,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
     auto& realm = *realm_pointer;
     auto methods = [&]() -> NonnullOwnPtr<AlgorithmMethods> {
         switch (method_id) {
-        case AlgorithmId::ECDSA:
-            return ECDSA::create();
-        case AlgorithmId::ECDH:
-            return ECDH::create();
         case AlgorithmId::X25519:
             return X25519::create();
         case AlgorithmId::X448:
@@ -226,12 +217,6 @@ JSCompletion web_crypto_algorithm_from_value(JS::Realm* realm_pointer, Algorithm
         switch (parameter_id) {
         case ParameterId::AlgorithmParams:
             return adopt_own(*new AlgorithmParams {});
-        case ParameterId::EcdsaParams:
-            return EcdsaParams::from_value(realm, object);
-        case ParameterId::EcKeyGenParams:
-            return EcKeyGenParams::from_value(realm, object);
-        case ParameterId::EcKeyImportParams:
-            return EcKeyImportParams::from_value(realm, object);
         case ParameterId::EcdhKeyDeriveParams:
             return EcdhKeyDeriveParams::from_value(realm, object);
         case ParameterId::Ed448Params:

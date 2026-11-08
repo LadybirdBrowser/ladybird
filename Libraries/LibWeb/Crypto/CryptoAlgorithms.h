@@ -32,10 +32,6 @@ struct EncapsulatedBits {
     Optional<ByteBuffer> ciphertext;
 };
 
-struct HashAlgorithmIdentifier {
-    Utf16String name;
-};
-
 // https://w3c.github.io/webcrypto/#algorithm-overview
 struct AlgorithmParams {
     AK_ALLOC_WITH_KMALLOC;
@@ -48,34 +44,6 @@ struct AlgorithmParams {
     // NOTE: this is initialized when normalizing the algorithm name as the spec requests.
     //       It must not be set in `from_value`.
     Utf16String name;
-};
-
-// https://w3c.github.io/webcrypto/#dfn-EcdsaParams
-struct EcdsaParams : public AlgorithmParams {
-    virtual ~EcdsaParams() override;
-
-    EcdsaParams(HashAlgorithmIdentifier hash)
-        : hash(move(hash))
-    {
-    }
-
-    HashAlgorithmIdentifier hash;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-// https://w3c.github.io/webcrypto/#dfn-EcKeyGenParams
-struct EcKeyGenParams : public AlgorithmParams {
-    virtual ~EcKeyGenParams() override;
-
-    EcKeyGenParams(NamedCurve named_curve)
-        : named_curve(move(named_curve))
-    {
-    }
-
-    NamedCurve named_curve;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };
 
 class AlgorithmMethods {
@@ -168,45 +136,6 @@ public:
 
 protected:
     AlgorithmMethods() = default;
-};
-
-class ECDSA : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<ByteBuffer> sign(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
-    virtual WebIDL::ExceptionOr<bool> verify(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
-
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_import_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_sign_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_verify_parameters(AlgorithmParams const&) const override;
-    virtual Optional<ReadonlySpan<KeyUsage>> public_key_usages() const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new ECDSA); }
-
-private:
-    ECDSA() = default;
-};
-
-class ECDH : public AlgorithmMethods {
-public:
-    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> generate_key(JS::Realm& realm, AlgorithmParams const&, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(JS::Realm& realm, AlgorithmParams const&, KeyFormat, CryptoKey::ImportKeyData, bool, Vector<KeyUsage> const&) override;
-    virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
-    virtual WebIDL::ExceptionOr<ByteBuffer> derive_bits(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>) override;
-
-    virtual WebIDL::ExceptionOr<void> validate_generate_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_import_key_parameters(AlgorithmParams const&) const override;
-    virtual WebIDL::ExceptionOr<void> validate_derive_bits_parameters(AlgorithmParams const&, Optional<u32>) const override;
-    virtual Optional<ReadonlySpan<KeyUsage>> public_key_usages() const override;
-
-    static NonnullOwnPtr<AlgorithmMethods> create() { return adopt_own(*new ECDH); }
-
-private:
-    ECDH() = default;
 };
 
 class ED25519 : public AlgorithmMethods {
@@ -318,19 +247,6 @@ struct EcdhKeyDeriveParams : public AlgorithmParams {
     }
 
     GC::Root<CryptoKey> public_key;
-
-    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
-};
-
-struct EcKeyImportParams : public AlgorithmParams {
-    virtual ~EcKeyImportParams() override;
-
-    EcKeyImportParams(NamedCurve named_curve)
-        : named_curve(move(named_curve))
-    {
-    }
-
-    NamedCurve named_curve;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::Realm&, JS::Value);
 };

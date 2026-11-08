@@ -32,10 +32,10 @@ use crate::bindings::promise::{
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::crypto::crypto_algorithms::{
     AesCbc, AesCtr, AesGcm, AesKw, AesOcb, AesParameterType, AlgorithmId, AlgorithmMethods, AlgorithmParams, Argon2,
-    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EncapsulatedKeyData, ExportKeyResult, Hkdf,
-    HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData, Kmac, KmacImportParams, KmacKeyGenParams,
-    KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType, RsaPss, RsassaPkcs1, Sha,
-    normalized_key_usages, public_key_for_private_key,
+    Argon2Params, Bytes, CShakeParams, ChaCha20Poly1305, CppAlgorithm, EcParameterType, Ecdh, Ecdsa,
+    EncapsulatedKeyData, ExportKeyResult, Hkdf, HkdfParams, Hmac, HmacImportParams, HmacKeyGenParams, ImportKeyData,
+    Kmac, KmacImportParams, KmacKeyGenParams, KmacParams, ParameterId, Pbkdf2, Pbkdf2Params, RsaOaep, RsaParameterType,
+    RsaPss, RsassaPkcs1, Sha, normalized_key_usages, public_key_for_private_key,
 };
 #[allow(
     unused_imports,
@@ -113,6 +113,8 @@ enum RegisteredAlgorithm {
     RsaOaep(RsaParameterType),
     RsaPss(RsaParameterType),
     RsassaPkcs1(RsaParameterType),
+    Ecdsa(EcParameterType),
+    Ecdh(EcParameterType),
     CShake,
 }
 
@@ -146,6 +148,8 @@ enum AlgorithmImplementation {
     RsaOaep(RsaOaep),
     RsaPss(RsaPss),
     RsassaPkcs1(RsassaPkcs1),
+    Ecdsa(Ecdsa),
+    Ecdh(Ecdh),
     CShake(CShakeParams),
 }
 
@@ -178,6 +182,8 @@ impl Deref for AlgorithmImplementation {
             Self::RsaOaep(algorithm) => algorithm,
             Self::RsaPss(algorithm) => algorithm,
             Self::RsassaPkcs1(algorithm) => algorithm,
+            Self::Ecdsa(algorithm) => algorithm,
+            Self::Ecdh(algorithm) => algorithm,
             Self::CShake(algorithm) => algorithm,
         }
     }
@@ -418,6 +424,12 @@ pub(crate) fn normalize_an_algorithm(
         }
         RegisteredAlgorithm::RsassaPkcs1(parameter_type) => {
             AlgorithmImplementation::RsassaPkcs1(RsassaPkcs1::from_value(vm, realm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::Ecdsa(parameter_type) => {
+            AlgorithmImplementation::Ecdsa(Ecdsa::from_value(vm, realm, *algorithm, parameter_type)?)
+        }
+        RegisteredAlgorithm::Ecdh(parameter_type) => {
+            AlgorithmImplementation::Ecdh(Ecdh::from_value(vm, realm, *algorithm, parameter_type)?)
         }
         RegisteredAlgorithm::CShake => AlgorithmImplementation::CShake(CShakeParams::from_value(vm, *algorithm)?),
     };
@@ -1106,10 +1118,12 @@ impl SubtleCrypto {
 
                     // 11. Let signature be the result of performing the sign operation specified by normalizedAlgorithm using key
                     //     and algorithm and with data as message.
-                    let signature =
-                        normalized_algorithm
-                            .methods
-                            .sign(realm, &normalized_algorithm.parameter, key, &data);
+                    let signature = normalized_algorithm.methods.sign(
+                        &CallContext::new(vm, realm),
+                        &normalized_algorithm.parameter,
+                        key,
+                        &data,
+                    );
                     if let Err(error) = signature {
                         throw_in_this_context(error);
                         return;
@@ -1216,7 +1230,7 @@ impl SubtleCrypto {
                     // 12. Let result be the result of performing the verify operation specified by normalizedAlgorithm using key,
                     //     algorithm and signature and with data as message.
                     let result = normalized_algorithm.methods.verify(
-                        realm,
+                        &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
                         key,
                         &signature,
@@ -1303,7 +1317,7 @@ impl SubtleCrypto {
 
                     // 9. Let result be the result of creating an ArrayBuffer containing the result of performing the derive bits operation specified by normalizedAlgorithm using baseKey, algorithm and length.
                     let result = normalized_algorithm.methods.derive_bits(
-                        realm,
+                        &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
                         base_key,
                         length_optional,
@@ -1427,7 +1441,7 @@ impl SubtleCrypto {
 
                     // 14. Let secret be the result of performing the derive bits operation specified by normalizedAlgorithm using key, algorithm and length.
                     let secret = normalized_algorithm.methods.derive_bits(
-                        realm,
+                        &CallContext::new(vm, realm),
                         &normalized_algorithm.parameter,
                         base_key,
                         length,
@@ -2765,7 +2779,7 @@ fn determine_support_from_operation_steps(
             return methods.validate_import_key_parameters(realm);
         }
         if op == "deriveBits" {
-            return methods.validate_derive_bits_parameters(realm, length);
+            return methods.validate_derive_bits_parameters(realm, &normalized_algorithm.parameter, length);
         }
         if op == "get key length" {
             methods.get_key_length(realm, &normalized_algorithm.parameter)?;
@@ -2991,31 +3005,31 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "sign",
             "ECDSA",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcdsaParams),
+            RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify),
         );
         define_an_algorithm(
             &mut internal_object,
             "verify",
             "ECDSA",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcdsaParams),
+            RegisteredAlgorithm::Ecdsa(EcParameterType::SignOrVerify),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ECDSA",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcKeyGenParams),
+            RegisteredAlgorithm::Ecdsa(EcParameterType::KeyGen),
         );
         define_an_algorithm(
             &mut internal_object,
             "importKey",
             "ECDSA",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::EcKeyImportParams),
+            RegisteredAlgorithm::Ecdsa(EcParameterType::Import),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ECDSA",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdsa, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ecdsa(EcParameterType::Base),
         );
 
         // https://w3c.github.io/webcrypto/#ecdh-registration
@@ -3023,25 +3037,25 @@ fn supported_algorithms() -> &'static SupportedAlgorithmsMap {
             &mut internal_object,
             "importKey",
             "ECDH",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcKeyImportParams),
+            RegisteredAlgorithm::Ecdh(EcParameterType::Import),
         );
         define_an_algorithm(
             &mut internal_object,
             "exportKey",
             "ECDH",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::AlgorithmParams),
+            RegisteredAlgorithm::Ecdh(EcParameterType::Base),
         );
         define_an_algorithm(
             &mut internal_object,
             "deriveBits",
             "ECDH",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcdhKeyDeriveParams),
+            RegisteredAlgorithm::Ecdh(EcParameterType::Derive),
         );
         define_an_algorithm(
             &mut internal_object,
             "generateKey",
             "ECDH",
-            RegisteredAlgorithm::Cpp(AlgorithmId::Ecdh, ParameterId::EcKeyGenParams),
+            RegisteredAlgorithm::Ecdh(EcParameterType::KeyGen),
         );
 
         // https://w3c.github.io/webcrypto/#aes-ctr-registration

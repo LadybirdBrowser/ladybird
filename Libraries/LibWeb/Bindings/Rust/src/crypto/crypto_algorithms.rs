@@ -24,10 +24,10 @@ use crate::bindings::conversions::{
     BufferSource, buffer_source_type_of, to_octet_enforcing_range, to_unsigned_long_enforcing_range,
     to_unsigned_short_enforcing_range,
 };
-use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto::web_crypto_fill_with_random;
-use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, RawJsonWebKey};
+use crate::crypto::crypto_bindings::{CryptoKeyPair, JsonWebKey, RawJsonWebKey, crypto_key_from_value};
 use crate::crypto::crypto_key::{CryptoKey, InternalAlgorithmData, KEY_USAGES, KeyType, KeyUsage};
 use crate::crypto::subtle_crypto::{
     AlgorithmIdentifier, CryptoKeyOrCryptoKeyPair, KeyFormat, dom_error, get_a_copy_of_the_bytes,
@@ -66,35 +66,6 @@ fn hash_algorithm_identifier_from_value(
     Ok(HashAlgorithmIdentifier {
         name: normalized_algorithm.parameter.name,
     })
-}
-
-/// # Safety
-///
-/// The VM and realm are live, the value or string is live, and the output is writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_hash_algorithm_identifier_from_value(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    value: u64,
-    raw_string: usize,
-    out_name: &mut usize,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller supplies the live VM, realm and value.
-    let ((vm, realm), value) = unsafe { (realm_arguments(vm, realm), Value::from_raw(value)) };
-    let hash_string = (raw_string != 0).then(|| {
-        // SAFETY: The caller lends a live string and we take our own reference.
-        unsafe {
-            ak::reference_utf16_string(raw_string);
-            Utf16String::from_raw_owned(raw_string)
-        }
-    });
-    let result = hash_algorithm_identifier_from_value(vm, realm, value, hash_string)
-        .map(|identifier| {
-            *out_name = identifier.name.into_raw();
-            Value::UNDEFINED
-        })
-        .map_err(|error| error.throw(&CallContext::new(vm, realm)));
-    RawNativeFunctionResult::from_completion(result)
 }
 
 // https://w3c.github.io/webcrypto/#concept-usage-intersection
@@ -232,7 +203,7 @@ pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_encode(bytes: Span<'_,
     }
 }
 
-unsafe fn base64_url_bytes_decode(
+unsafe fn decode_base64url(
     base64_url_string: &Utf16String,
     out: *mut c_void,
     state: *mut c_void,
@@ -274,7 +245,7 @@ pub unsafe extern "C" fn web_rust_crypto_base64_url_bytes_decode(
         Utf16String::from_raw_owned(raw)
     };
     // SAFETY: The caller supplies a live ByteBuffer.
-    unsafe { base64_url_bytes_decode(&base64_url_string, out, null_mut(), None, error_message) }
+    unsafe { decode_base64url(&base64_url_string, out, null_mut(), None, error_message) }
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-an-asn1-structure
@@ -356,8 +327,6 @@ pub unsafe extern "C" fn web_rust_crypto_parse_an_asn1_structure(
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum AlgorithmId {
-    Ecdsa,
-    Ecdh,
     X25519,
     X448,
     ED25519,
@@ -374,9 +343,6 @@ pub(crate) enum AlgorithmId {
 )]
 pub(crate) enum ParameterId {
     AlgorithmParams,
-    EcdsaParams,
-    EcKeyGenParams,
-    EcKeyImportParams,
     EcdhKeyDeriveParams,
     Ed448Params,
     ContextParams,
@@ -652,7 +618,7 @@ pub(crate) trait AlgorithmMethods: Trace {
 
     fn sign(
         &self,
-        _realm: Gc<Realm>,
+        _: &CallContext,
         _algorithm: &AlgorithmParams,
         _key: Ref<CryptoKey>,
         _data: &Bytes,
@@ -665,7 +631,7 @@ pub(crate) trait AlgorithmMethods: Trace {
 
     fn verify(
         &self,
-        _realm: Gc<Realm>,
+        _: &CallContext,
         _algorithm: &AlgorithmParams,
         _key: Ref<CryptoKey>,
         _signature: &Bytes,
@@ -686,7 +652,7 @@ pub(crate) trait AlgorithmMethods: Trace {
 
     fn derive_bits(
         &self,
-        _realm: Gc<Realm>,
+        _: &CallContext,
         _algorithm: &AlgorithmParams,
         _key: Ref<CryptoKey>,
         _length: Option<u32>,
@@ -802,7 +768,12 @@ pub(crate) trait AlgorithmMethods: Trace {
         Ok(())
     }
 
-    fn validate_derive_bits_parameters(&self, _realm: Gc<Realm>, _length: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(
+        &self,
+        _realm: Gc<Realm>,
+        _: &AlgorithmParams,
+        _length: Option<u32>,
+    ) -> WebIdlResult<()> {
         Ok(())
     }
 }
@@ -859,11 +830,12 @@ impl AlgorithmMethods for CppAlgorithm {
 
     fn sign(
         &self,
-        realm: Gc<Realm>,
+        cx: &CallContext,
         _algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         data: &Bytes,
     ) -> WebIdlResult<Bytes> {
+        let realm = cx.realm();
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -882,12 +854,13 @@ impl AlgorithmMethods for CppAlgorithm {
 
     fn verify(
         &self,
-        realm: Gc<Realm>,
+        cx: &CallContext,
         _algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
         data: &Bytes,
     ) -> WebIdlResult<bool> {
+        let realm = cx.realm();
         let mut out = false;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -906,11 +879,12 @@ impl AlgorithmMethods for CppAlgorithm {
 
     fn derive_bits(
         &self,
-        realm: Gc<Realm>,
+        cx: &CallContext,
         _algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         length: Option<u32>,
     ) -> WebIdlResult<Bytes> {
+        let realm = cx.realm();
         let mut out: Option<Bytes> = None;
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
@@ -1144,7 +1118,12 @@ impl AlgorithmMethods for CppAlgorithm {
         Ok(())
     }
 
-    fn validate_derive_bits_parameters(&self, realm: Gc<Realm>, length: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(
+        &self,
+        realm: Gc<Realm>,
+        _: &AlgorithmParams,
+        length: Option<u32>,
+    ) -> WebIdlResult<()> {
         // SAFETY: The realm, algorithm and cells are live, and the other arguments are lent for the call.
         unsafe {
             web_crypto_algorithm_validate_derive_bits_parameters(realm.as_ptr().cast(), self.0.as_ptr(), length.into())
@@ -1398,11 +1377,15 @@ fn parse_jwk_symmetric_key(vm: &Vm, jwk: &JsonWebKey) -> WebIdlResult<Bytes> {
         return Err(dom_error("DataError", b"JWK has no 'k' field"));
     };
 
+    base64_url_bytes_decode(vm, base64_url_string)
+}
+
+fn base64_url_bytes_decode(vm: &Vm, base64_url_string: &Utf16String) -> WebIdlResult<Bytes> {
     let mut result: Option<Bytes> = None;
     let mut error_message = 0;
     // SAFETY: The receiver borrows the decoded bytes for the call.
     let status = unsafe {
-        base64_url_bytes_decode(
+        decode_base64url(
             base64_url_string,
             null_mut(),
             core::ptr::from_mut(&mut result).cast(),
@@ -1726,7 +1709,7 @@ pub(crate) struct Hmac;
 
 impl AlgorithmMethods for Hmac {
     // https://w3c.github.io/webcrypto/#hmac-operations-sign
-    fn sign(&self, _: Gc<Realm>, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
         // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
         //    [FIPS-198-1] using the key represented by [[handle]] internal slot of key, the hash
         //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
@@ -1745,7 +1728,7 @@ impl AlgorithmMethods for Hmac {
     // https://w3c.github.io/webcrypto/#hmac-operations-verify
     fn verify(
         &self,
-        _: Gc<Realm>,
+        _: &CallContext,
         _: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
@@ -2288,7 +2271,7 @@ impl AlgorithmMethods for KmacParams {
     // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
     fn sign(
         &self,
-        _: Gc<Realm>,
+        _: &CallContext,
         algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         message: &Bytes,
@@ -2344,7 +2327,7 @@ impl AlgorithmMethods for KmacParams {
     // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-verify
     fn verify(
         &self,
-        _: Gc<Realm>,
+        _: &CallContext,
         algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
@@ -2933,25 +2916,6 @@ fn sha_hash_kind(hash_algorithm: &Utf16String) -> Result<ShaHashKind, Utf16Strin
     ))
 }
 
-/// # Safety
-///
-/// The string is live and the output is writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_crypto_sha_hash_kind(raw: usize, out: &mut i32) -> usize {
-    // SAFETY: The caller lends a live string and we take our own reference.
-    let hash_algorithm = unsafe {
-        ak::reference_utf16_string(raw);
-        Utf16String::from_raw_owned(raw)
-    };
-    match sha_hash_kind(&hash_algorithm) {
-        Ok(kind) => {
-            *out = kind as i32;
-            0
-        }
-        Err(message) => message.into_raw(),
-    }
-}
-
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct Hkdf;
@@ -3023,7 +2987,12 @@ impl AlgorithmMethods for Hkdf {
 
 impl AlgorithmMethods for HkdfParams {
     // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length_optional: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(
+        &self,
+        _: Gc<Realm>,
+        _: &AlgorithmParams,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<()> {
         let normalized_algorithm = self;
 
         // 1. If length is null or is not a multiple of 8, then throw an OperationError.
@@ -3055,15 +3024,15 @@ impl AlgorithmMethods for HkdfParams {
     // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
     fn derive_bits(
         &self,
-        realm: Gc<Realm>,
-        _: &AlgorithmParams,
+        cx: &CallContext,
+        algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         length_optional: Option<u32>,
     ) -> WebIdlResult<Bytes> {
         let normalized_algorithm = self;
 
         // NB: Steps 1 to 3 are performed by validate_derive_bits_parameters().
-        self.validate_derive_bits_parameters(realm, length_optional)?;
+        self.validate_derive_bits_parameters(cx.realm(), algorithm, length_optional)?;
         let hash_kind = sha_hash_kind(&normalized_algorithm.hash.name)
             .map_err(|message| Exception::Dom("NotSupportedError", message))?;
 
@@ -3117,7 +3086,12 @@ pub(crate) struct Pbkdf2;
 
 impl AlgorithmMethods for Pbkdf2Params {
     // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length_optional: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(
+        &self,
+        _: Gc<Realm>,
+        _: &AlgorithmParams,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<()> {
         let normalized_algorithm = self;
 
         // 1. If length is null or is not a multiple of 8, then throw an OperationError.
@@ -3143,15 +3117,15 @@ impl AlgorithmMethods for Pbkdf2Params {
     // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
     fn derive_bits(
         &self,
-        realm: Gc<Realm>,
-        _: &AlgorithmParams,
+        cx: &CallContext,
+        algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         length_optional: Option<u32>,
     ) -> WebIdlResult<Bytes> {
         let normalized_algorithm = self;
 
         // NB: Steps 1 and 2 are performed by validate_derive_bits_parameters().
-        self.validate_derive_bits_parameters(realm, length_optional)?;
+        self.validate_derive_bits_parameters(cx.realm(), algorithm, length_optional)?;
 
         // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
         let hash_algorithm = &normalized_algorithm.hash.name;
@@ -3316,7 +3290,12 @@ impl AlgorithmMethods for Argon2 {
 
 impl AlgorithmMethods for Argon2Params {
     // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
-    fn validate_derive_bits_parameters(&self, _: Gc<Realm>, length: Option<u32>) -> WebIdlResult<()> {
+    fn validate_derive_bits_parameters(
+        &self,
+        _: Gc<Realm>,
+        _: &AlgorithmParams,
+        length: Option<u32>,
+    ) -> WebIdlResult<()> {
         let normalized_algorithm = self;
 
         // 1. If length is null, or is less than 32 (4*8), or is not a multiple of 8, then throw an OperationError.
@@ -3365,14 +3344,14 @@ impl AlgorithmMethods for Argon2Params {
     // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
     fn derive_bits(
         &self,
-        realm: Gc<Realm>,
+        cx: &CallContext,
         algorithm: &AlgorithmParams,
         key: Ref<CryptoKey>,
         length: Option<u32>,
     ) -> WebIdlResult<Bytes> {
         let normalized_algorithm = self;
         // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
-        self.validate_derive_bits_parameters(realm, length)?;
+        self.validate_derive_bits_parameters(cx.realm(), algorithm, length)?;
 
         // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
         //      Let type be 0.
@@ -6666,7 +6645,7 @@ unsafe extern "C" {
     fn web_crypto_asn1_delete_key_info(structure: Asn1Structure, key_info: *mut c_void);
     fn web_crypto_rsa_key_info_has_encryption_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
     fn web_crypto_rsa_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
-    fn web_crypto_rsa_delete_uninstalled_key(key: *mut c_void);
+    fn web_crypto_delete_uninstalled_key(key: *mut c_void);
     fn web_crypto_rsa_key_is_valid(key: *const c_void, valid: &mut bool) -> bool;
     fn web_crypto_rsa_validate_public_exponent(exponent: Span<'_, u8>, modulus_length: u32) -> bool;
     fn web_crypto_rsa_validate_modulus_length(modulus_length: u32) -> bool;
@@ -6772,10 +6751,10 @@ impl Asn1KeyInfo {
         unsafe { web_crypto_rsa_key_info_has_encryption_oid(self.structure, self.key_info.as_ptr()) }
     }
 
-    fn rsa_key(&self) -> UninstalledRsaKey {
+    fn rsa_key(&self) -> UninstalledKey {
         // SAFETY: This object owns the live structure.
         let key = unsafe { web_crypto_rsa_key_info_read_key(self.structure, self.key_info.as_ptr()) };
-        UninstalledRsaKey(NonNull::new(key).expect("LibCrypto returns an RSA key"))
+        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an RSA key"))
     }
 }
 
@@ -6786,16 +6765,16 @@ impl Drop for Asn1KeyInfo {
     }
 }
 
-struct UninstalledRsaKey(NonNull<c_void>);
+struct UninstalledKey(NonNull<c_void>);
 
-impl Drop for UninstalledRsaKey {
+impl Drop for UninstalledKey {
     fn drop(&mut self) {
         // SAFETY: This object owns the native RSA key.
-        unsafe { web_crypto_rsa_delete_uninstalled_key(self.0.as_ptr()) };
+        unsafe { web_crypto_delete_uninstalled_key(self.0.as_ptr()) };
     }
 }
 
-impl UninstalledRsaKey {
+impl UninstalledKey {
     fn is_valid(&self) -> Result<bool, ()> {
         let mut valid = false;
         // SAFETY: This object owns the native key and the output is writable.
@@ -6813,12 +6792,12 @@ impl UninstalledRsaKey {
     }
 }
 
-struct RsaKeyPair {
-    public_key: UninstalledRsaKey,
-    private_key: UninstalledRsaKey,
+struct NativeKeyPair {
+    public_key: UninstalledKey,
+    private_key: UninstalledKey,
 }
 
-fn rsa_generate_key_pair(modulus_length: u32, exponent: &Bytes) -> Result<RsaKeyPair, ()> {
+fn rsa_generate_key_pair(modulus_length: u32, exponent: &Bytes) -> Result<NativeKeyPair, ()> {
     let mut public_key = null_mut();
     let mut private_key = null_mut();
     // SAFETY: The exponent and the output slots are lent for the call.
@@ -6833,9 +6812,9 @@ fn rsa_generate_key_pair(modulus_length: u32, exponent: &Bytes) -> Result<RsaKey
     if !success {
         return Err(());
     }
-    Ok(RsaKeyPair {
-        public_key: UninstalledRsaKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
-        private_key: UninstalledRsaKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
+    Ok(NativeKeyPair {
+        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
+        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
     })
 }
 
@@ -6910,16 +6889,14 @@ fn rsa_key_metadata(vm: &Vm, key: Ref<CryptoKey>) -> WebIdlResult<(u32, Vec<u8>)
     ))
 }
 
-fn parse_jwk_rsa_key(realm: Gc<Realm>, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledRsaKey> {
+fn parse_jwk_rsa_key(realm: Gc<Realm>, jwk: &JsonWebKey, is_private: bool) -> WebIdlResult<UninstalledKey> {
     let components = [&jwk.n, &jwk.e, &jwk.d, &jwk.p, &jwk.q, &jwk.dp, &jwk.dq, &jwk.qi]
         .map(|field| field.as_ref().map_or(0, Utf16String::raw_identity));
     let mut key = null_mut();
     // SAFETY: The realm, strings and the output slot live for the call.
     unsafe { web_crypto_rsa_parse_jwk_key(realm.as_ptr().cast(), is_private, Span::new(&components), &mut key) }
         .into_completion()?;
-    Ok(UninstalledRsaKey(
-        NonNull::new(key).expect("LibCrypto returns an RSA key"),
-    ))
+    Ok(UninstalledKey(NonNull::new(key).expect("LibCrypto returns an RSA key")))
 }
 
 fn rsa_export_der(vm: &Vm, key: Ref<CryptoKey>, is_public: bool) -> WebIdlResult<Bytes> {
@@ -7817,7 +7794,7 @@ impl AlgorithmMethods for RsaPss {
     }
 
     // https://w3c.github.io/webcrypto/#rsa-pss-operations-sign
-    fn sign(&self, _: Gc<Realm>, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
         if key.key_type() != KeyType::Private {
             return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
@@ -7878,7 +7855,7 @@ impl AlgorithmMethods for RsaPss {
     // https://w3c.github.io/webcrypto/#rsa-pss-operations-verify
     fn verify(
         &self,
-        _: Gc<Realm>,
+        _: &CallContext,
         _: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
@@ -8525,7 +8502,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
     }
 
     // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-sign
-    fn sign(&self, _: Gc<Realm>, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+    fn sign(&self, _: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
         if key.key_type() != KeyType::Private {
             return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
@@ -8581,7 +8558,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
     // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-verify
     fn verify(
         &self,
-        _: Gc<Realm>,
+        _: &CallContext,
         _: &AlgorithmParams,
         key: Ref<CryptoKey>,
         signature: &Bytes,
@@ -9086,6 +9063,2409 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
     fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
         Some(vec![KeyUsage::Verify])
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct EcdsaParams {
+    #[gc(untraced)]
+    hash: HashAlgorithmIdentifier,
+}
+
+impl EcdsaParams {
+    fn from_value(vm: &Vm, realm: Gc<Realm>, object: Gc<Object>) -> WebIdlResult<Self> {
+        let hash_value = object.get(vm, &PropertyKey::from_utf8("hash"))?;
+        let hash = hash_algorithm_identifier_from_value(vm, realm, hash_value, None)?;
+        Ok(Self { hash })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct EcKeyGenParams {
+    named_curve: Utf16String,
+}
+
+impl EcKeyGenParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let curve_value = object.get(vm, &PropertyKey::from_utf8("namedCurve"))?;
+        let named_curve = curve_value.to_utf16_string(vm)?;
+        Ok(Self { named_curve })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct EcdhKeyDeriveParams {
+    public_key: Ref<CryptoKey>,
+}
+
+impl EcdhKeyDeriveParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let public_key = crypto_key_from_value(vm, object.get(vm, &PropertyKey::from_utf8("public"))?)?;
+        Ok(Self { public_key })
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+struct EcKeyImportParams {
+    named_curve: Utf16String,
+}
+
+impl EcKeyImportParams {
+    fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
+        let named_curve_value = object.get(vm, &PropertyKey::from_utf8("namedCurve"))?;
+        let named_curve = named_curve_value.to_utf16_string(vm)?;
+        Ok(Self { named_curve })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum EcParameterType {
+    Base,
+    SignOrVerify,
+    KeyGen,
+    Derive,
+    Import,
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+enum EcParameters {
+    Base,
+    SignOrVerify(EcdsaParams),
+    KeyGen(EcKeyGenParams),
+    Derive(EcdhKeyDeriveParams),
+    Import(EcKeyImportParams),
+}
+
+impl EcParameters {
+    fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: EcParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(match parameter_type {
+            EcParameterType::Base => Self::Base,
+            EcParameterType::SignOrVerify => Self::SignOrVerify(EcdsaParams::from_value(vm, realm, object)?),
+            EcParameterType::KeyGen => Self::KeyGen(EcKeyGenParams::from_value(vm, object)?),
+            EcParameterType::Derive => Self::Derive(EcdhKeyDeriveParams::from_value(vm, object)?),
+            EcParameterType::Import => Self::Import(EcKeyImportParams::from_value(vm, object)?),
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum EcCurve {
+    P256,
+    P384,
+    P521,
+}
+
+impl EcCurve {
+    fn from_name(named_curve: &Utf16String) -> Option<Self> {
+        if *named_curve == Utf16String::from_ascii(b"P-256") {
+            Some(Self::P256)
+        } else if *named_curve == Utf16String::from_ascii(b"P-384") {
+            Some(Self::P384)
+        } else if *named_curve == Utf16String::from_ascii(b"P-521") {
+            Some(Self::P521)
+        } else {
+            None
+        }
+    }
+}
+
+const SECP256R1_OID: [u32; 7] = [1, 2, 840, 10045, 3, 1, 7];
+const SECP384R1_OID: [u32; 5] = [1, 3, 132, 0, 34];
+const SECP521R1_OID: [u32; 5] = [1, 3, 132, 0, 35];
+
+unsafe extern "C" {
+    fn web_crypto_ec_generate_key_pair(
+        curve: EcCurve,
+        public_key: &mut *mut c_void,
+        private_key: &mut *mut c_void,
+    ) -> bool;
+    fn web_crypto_ec_sign(
+        curve: EcCurve,
+        key: *const c_void,
+        digest: Span<'_, u8>,
+        error: &mut usize,
+        r: *mut c_void,
+        s: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> u8;
+    fn web_crypto_ec_verify(
+        curve: EcCurve,
+        key: *const c_void,
+        digest: Span<'_, u8>,
+        r: Span<'_, u8>,
+        s: Span<'_, u8>,
+        verified: &mut bool,
+    ) -> usize;
+    fn web_crypto_ec_public_key_scalar_size(key: *const c_void) -> usize;
+    fn web_crypto_ec_compute_coordinate(
+        curve: EcCurve,
+        key: *const c_void,
+        public_key: *const c_void,
+        error: &mut usize,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> u8;
+    fn web_crypto_ec_key_info_has_public_key_oid(structure: Asn1Structure, key_info: *const c_void) -> bool;
+    fn web_crypto_ec_key_info_parameters(
+        structure: Asn1Structure,
+        key_info: *const c_void,
+        parameters: &mut Span<'_, u32>,
+    ) -> bool;
+    fn web_crypto_ec_private_key_info_parameters_match(key_info: *const c_void) -> bool;
+    fn web_crypto_ec_key_info_read_key(structure: Asn1Structure, key_info: *const c_void) -> *mut c_void;
+    fn web_crypto_ec_key_from_coordinates(
+        x: Span<'_, u8>,
+        y: Span<'_, u8>,
+        coord_size: usize,
+        d: OptionalBytes<'_>,
+    ) -> *mut c_void;
+    fn web_crypto_ec_parse_raw_public_key(bytes: Span<'_, u8>) -> *mut c_void;
+    fn web_crypto_ec_key_is_valid(curve: EcCurve, key: *const c_void, valid: &mut bool) -> bool;
+    fn web_crypto_ec_export_der(
+        curve: EcCurve,
+        key: *const c_void,
+        is_public: bool,
+        state: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_ec_export_uncompressed(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
+    fn web_crypto_ec_export_public_coordinates(
+        curve: EcCurve,
+        key: *const c_void,
+        x: *mut c_void,
+        y: *mut c_void,
+        receive: ReceiveBytes,
+    ) -> bool;
+    fn web_crypto_ec_export_private_scalar(key: *const c_void, state: *mut c_void, receive: ReceiveBytes) -> bool;
+}
+
+impl Asn1KeyInfo {
+    fn has_ec_public_key_oid(&self) -> bool {
+        // SAFETY: This object owns the live structure.
+        unsafe { web_crypto_ec_key_info_has_public_key_oid(self.structure, self.key_info.as_ptr()) }
+    }
+
+    fn ec_parameters(&self) -> Option<&[u32]> {
+        let mut parameters = Span::new(&[]);
+        // SAFETY: This object owns the live structure and the parameters borrow from it.
+        if unsafe { web_crypto_ec_key_info_parameters(self.structure, self.key_info.as_ptr(), &mut parameters) } {
+            Some(parameters.as_slice())
+        } else {
+            None
+        }
+    }
+
+    fn ec_private_key_parameters_match(&self) -> bool {
+        assert!(matches!(self.structure, Asn1Structure::PrivateKeyInfo));
+        // SAFETY: This object owns the live private key info.
+        unsafe { web_crypto_ec_private_key_info_parameters_match(self.key_info.as_ptr()) }
+    }
+
+    fn ec_key(&self) -> UninstalledKey {
+        // SAFETY: This object owns the live structure.
+        let key = unsafe { web_crypto_ec_key_info_read_key(self.structure, self.key_info.as_ptr()) };
+        UninstalledKey(NonNull::new(key).expect("LibCrypto returns an EC key"))
+    }
+}
+
+fn ec_generate_key_pair(curve: EcCurve) -> Result<NativeKeyPair, ()> {
+    let mut public_key = null_mut();
+    let mut private_key = null_mut();
+    // SAFETY: The output slots are lent for the call.
+    if !unsafe { web_crypto_ec_generate_key_pair(curve, &mut public_key, &mut private_key) } {
+        return Err(());
+    }
+    Ok(NativeKeyPair {
+        public_key: UninstalledKey(NonNull::new(public_key).expect("LibCrypto returns a public key")),
+        private_key: UninstalledKey(NonNull::new(private_key).expect("LibCrypto returns a private key")),
+    })
+}
+
+fn ec_key_from_coordinates(vm: &Vm, x: &Bytes, y: &Bytes, coord_size: usize, d: Option<&Bytes>) -> Ref<CryptoKey> {
+    // SAFETY: The input bytes are lent for the call.
+    let key = unsafe {
+        web_crypto_ec_key_from_coordinates(Span::new(x.as_slice()), Span::new(y.as_slice()), coord_size, d.into())
+    };
+    // SAFETY: The service transfers ownership of the live key.
+    unsafe { CryptoKey::create_with_handle(vm, NonNull::new(key).expect("LibCrypto returns an EC key")) }
+}
+
+fn ec_parse_raw_public_key(vm: &Vm, key_bytes: &Bytes) -> WebIdlResult<Ref<CryptoKey>> {
+    // SAFETY: The input bytes are lent for the call.
+    let key = unsafe { web_crypto_ec_parse_raw_public_key(Span::new(key_bytes.as_slice())) };
+    let Some(key) = NonNull::new(key) else {
+        return Err(dom_error("DataError", b"Failed to parse key"));
+    };
+    // SAFETY: The service transfers ownership of the live key.
+    Ok(unsafe { CryptoKey::create_with_handle(vm, key) })
+}
+
+fn ec_key_is_valid(curve: EcCurve, key: Ref<CryptoKey>) -> Result<bool, ()> {
+    let mut valid = false;
+    // SAFETY: The key handle is live and the output is writable.
+    if !unsafe { web_crypto_ec_key_is_valid(curve, key.handle().as_ptr(), &mut valid) } {
+        return Err(());
+    }
+    Ok(valid)
+}
+
+fn ec_export_der(curve: EcCurve, key: Ref<CryptoKey>, is_public: bool) -> Result<Bytes, ()> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slot are lent for the call.
+    if !unsafe {
+        web_crypto_ec_export_der(
+            curve,
+            key.handle().as_ptr(),
+            is_public,
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(());
+    }
+    Ok(result.expect("LibCrypto returns the DER bytes"))
+}
+
+fn ec_export_uncompressed(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slot are lent for the call.
+    if !unsafe {
+        web_crypto_ec_export_uncompressed(
+            key.handle().as_ptr(),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(());
+    }
+    Ok(result.expect("LibCrypto returns the encoded bytes"))
+}
+
+fn ec_export_public_coordinates(curve: EcCurve, key: Ref<CryptoKey>) -> Result<(Bytes, Bytes), ()> {
+    let mut x: Option<Bytes> = None;
+    let mut y: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slots are lent for the call.
+    if !unsafe {
+        web_crypto_ec_export_public_coordinates(
+            curve,
+            key.handle().as_ptr(),
+            core::ptr::from_mut(&mut x).cast(),
+            core::ptr::from_mut(&mut y).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(());
+    }
+    Ok((
+        x.expect("LibCrypto returns an x coordinate"),
+        y.expect("LibCrypto returns a y coordinate"),
+    ))
+}
+
+fn ec_export_private_scalar(key: Ref<CryptoKey>) -> Result<Bytes, ()> {
+    let mut result: Option<Bytes> = None;
+    // SAFETY: The key handle and the output slot are lent for the call.
+    if !unsafe {
+        web_crypto_ec_export_private_scalar(
+            key.handle().as_ptr(),
+            core::ptr::from_mut(&mut result).cast(),
+            receive_bytes,
+        )
+    } {
+        return Err(());
+    }
+    Ok(result.expect("LibCrypto returns the private scalar"))
+}
+
+fn copy_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
+    let mut copy = Vec::new();
+    if copy.try_reserve_exact(bytes.len()).is_err() {
+        return vm
+            .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            .map_err(Into::into);
+    }
+    copy.extend_from_slice(bytes);
+    Ok(copy)
+}
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Ecdsa {
+    parameters: EcParameters,
+}
+
+impl Ecdsa {
+    pub(crate) fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: EcParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: EcParameters::from_value(vm, realm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for Ecdsa {
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // NB: Step 2 throws a NotSupportedError when the namedCurve member of normalizedAlgorithm is not "P-256", "P-384" or
+        //     "P-521".
+        let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC KeyGen parameters")
+        };
+        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only 'P-256', 'P-384' and 'P-521' is supported",
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::Sign && usage != KeyUsage::Verify {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC KeyGen parameters")
+        };
+
+        // 2. If the namedCurve member of normalizedAlgorithm is "P-256", "P-384" or "P-521":
+        // Generate an Elliptic Curve key pair, as defined in [RFC6090]
+        // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
+        // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification:
+        // Perform the ECDSA generation steps specified in that specification,
+        // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
+        // Otherwise: throw a NotSupportedError
+        // NOTE: Spec jumps to 6 here for some reason
+        // 6. If performing the key generation operation results in an error, then throw an OperationError.
+        let Some(curve) = EcCurve::from_name(&normalized_algorithm.named_curve) else {
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only 'P-256', 'P-384' and 'P-521' is supported",
+            ));
+        };
+        let Ok(key_pair) = ec_generate_key_pair(curve) else {
+            return Err(dom_error("OperationError", b"Failed to create valid crypto instance"));
+        };
+
+        // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 11. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 7. Let algorithm be a new EcKeyAlgorithm object.
+        // 8. Set the name attribute of algorithm to "ECDSA".
+        // 9. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+        // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Ec {
+            name: Utf16String::from_ascii(b"ECDSA"),
+            named_curve: normalized_algorithm.named_curve.clone(),
+        });
+
+        // 13. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 14. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+        public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
+
+        // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 16. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 17. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Ec {
+            name: Utf16String::from_ascii(b"ECDSA"),
+            named_curve: normalized_algorithm.named_curve.clone(),
+        });
+
+        // 18. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 19. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+        private_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Sign]));
+
+        // 20. Let result be a new CryptoKeyPair dictionary.
+        // 21. Set the publicKey attribute of result to be publicKey.
+        // 22. Set the privateKey attribute of result to be privateKey.
+        // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
+    fn validate_sign_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // NB: Step 3 fails for the hash functions that our ECDSA does not support.
+        let EcParameters::SignOrVerify(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC signature parameters")
+        };
+        sha_hash_kind(&normalized_algorithm.hash.name)
+            .map_err(|message| Exception::Dom("NotSupportedError", message))?;
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
+    fn sign(&self, cx: &CallContext, _: &AlgorithmParams, key: Ref<CryptoKey>, message: &Bytes) -> WebIdlResult<Bytes> {
+        let EcParameters::SignOrVerify(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC SignOrVerify parameters")
+        };
+
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
+        let hash_algorithm = &normalized_algorithm.hash.name;
+
+        // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
+        let hash_kind =
+            sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
+        let mut digest: Option<Bytes> = None;
+        // SAFETY: The input and output slot live for the call.
+        let success = unsafe {
+            web_crypto_sha_digest(
+                hash_kind,
+                Span::new(message.as_slice()),
+                core::ptr::from_mut(&mut digest).cast(),
+                receive_bytes,
+            )
+        };
+        if !success {
+            return cx
+                .vm()
+                .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                .map_err(Into::into);
+        }
+        let m = digest.expect("LibCrypto returns the digest");
+
+        // 4. Let d be the ECDSA private key associated with key.
+        let d = key.handle();
+
+        // FIXME: 5. Let params be the EC domain parameters associated with key.
+
+        let internal_algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::Ec { named_curve, .. } = &*internal_algorithm else {
+            unreachable!("the key has an EC algorithm")
+        };
+
+        let result;
+
+        // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+        if let Some(curve) = EcCurve::from_name(named_curve) {
+            let coord_size = match curve {
+                EcCurve::P256 => 32,
+                EcCurve::P384 => 48,
+                EcCurve::P521 => 66,
+            };
+
+            // 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4, with M as the message,
+            //    using params as the EC domain parameters, and with d as the private key.
+            // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
+            let mut error = 0;
+            let mut r_bytes: Option<Bytes> = None;
+            let mut s_bytes: Option<Bytes> = None;
+            // SAFETY: The key handle, digest and output slots live for the call.
+            let maybe_signature = unsafe {
+                web_crypto_ec_sign(
+                    curve,
+                    d.as_ptr(),
+                    Span::new(m.as_slice()),
+                    &mut error,
+                    core::ptr::from_mut(&mut r_bytes).cast(),
+                    core::ptr::from_mut(&mut s_bytes).cast(),
+                    receive_bytes,
+                )
+            };
+            if maybe_signature == 1 {
+                // SAFETY: LibCrypto transfers ownership of the error message.
+                let message = unsafe { Utf16String::from_raw_owned(error) };
+                return Err(Exception::Dom("OperationError", message));
+            }
+            if maybe_signature == 2 {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            }
+
+            // 3. Let result be an empty byte sequence.
+            let mut result_bytes = Vec::new();
+            if result_bytes.try_reserve_exact(coord_size * 2).is_err() {
+                return cx
+                    .vm()
+                    .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                    .map_err(Into::into);
+            }
+            result_bytes.resize(coord_size * 2, 0);
+
+            // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
+            // 5. Convert r to an octet string of length n and append this sequence of bytes to result.
+            let r_bytes = r_bytes.expect("LibCrypto returns the signature component");
+            assert!(r_bytes.as_slice().len() <= coord_size);
+            result_bytes[..r_bytes.as_slice().len()].copy_from_slice(r_bytes.as_slice());
+
+            // 6. Convert s to an octet string of length n and append this sequence of bytes to result.
+            let s_bytes = s_bytes.expect("LibCrypto returns the signature component");
+            assert!(s_bytes.as_slice().len() <= coord_size);
+            result_bytes[coord_size..coord_size + s_bytes.as_slice().len()].copy_from_slice(s_bytes.as_slice());
+            result = Bytes::new(result_bytes);
+        } else {
+            // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
+            // Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
+            return Err(dom_error("DataError", b"Invalid algorithm"));
+        }
+
+        // NOTE: The spec jumps to 9 here for some reason
+        // 9. Return the result of creating an ArrayBuffer containing result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-verify
+    fn validate_verify_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // NB: Step 3 fails for the hash functions that our ECDSA does not support.
+        let EcParameters::SignOrVerify(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC signature parameters")
+        };
+        sha_hash_kind(&normalized_algorithm.hash.name)
+            .map_err(|message| Exception::Dom("NotSupportedError", message))?;
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-verify
+    fn verify(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        signature: &Bytes,
+        message: &Bytes,
+    ) -> WebIdlResult<bool> {
+        let EcParameters::SignOrVerify(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC SignOrVerify parameters")
+        };
+
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+        }
+
+        // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
+        let hash_algorithm = &normalized_algorithm.hash.name;
+
+        // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
+        let hash_kind =
+            sha_hash_kind(hash_algorithm).map_err(|message| Exception::Dom("NotSupportedError", message))?;
+        let mut digest: Option<Bytes> = None;
+        // SAFETY: The input and output slot live for the call.
+        let success = unsafe {
+            web_crypto_sha_digest(
+                hash_kind,
+                Span::new(message.as_slice()),
+                core::ptr::from_mut(&mut digest).cast(),
+                receive_bytes,
+            )
+        };
+        if !success {
+            return cx
+                .vm()
+                .throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+                .map_err(Into::into);
+        }
+        let m = digest.expect("LibCrypto returns the digest");
+
+        // 4. Let Q be the ECDSA public key associated with key.
+        let q = key.handle();
+
+        // FIXME: 5. Let params be the EC domain parameters associated with key.
+
+        // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+        let internal_algorithm = key.internal_algorithm();
+        let InternalAlgorithmData::Ec { named_curve, .. } = &*internal_algorithm else {
+            unreachable!("the key has an EC algorithm")
+        };
+
+        let mut result = false;
+
+        if let Some(curve) = EcCurve::from_name(named_curve) {
+            // 1. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the
+            //    base point of the elliptic curve identified by params.
+            // SAFETY: Q is a live EC public key handle.
+            let n = unsafe { web_crypto_ec_public_key_scalar_size(q.as_ptr()) };
+
+            // 2. If signature does not have a length of n * 2 bytes, then return false.
+            if signature.as_slice().len() != n * 2 {
+                return Ok(false);
+            }
+
+            // 3. Let r be the result of converting the first n bytes of signature to an integer.
+            let r = &signature.as_slice()[..n];
+
+            // 4. Let s be the result of converting the last n bytes of signature to an integer.
+            let s = &signature.as_slice()[n..];
+
+            // 5. Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.4.3, with M as the received
+            //    message, (r, s) as the signature and using params as the EC domain parameters, and Q as the public key.
+            // SAFETY: The inputs and output slot live for the call.
+            let maybe_result = unsafe {
+                web_crypto_ec_verify(
+                    curve,
+                    q.as_ptr(),
+                    Span::new(m.as_slice()),
+                    Span::new(r),
+                    Span::new(s),
+                    &mut result,
+                )
+            };
+            if maybe_result != 0 {
+                // SAFETY: LibCrypto transfers ownership of the error message.
+                let message = unsafe { Utf16String::from_raw_owned(maybe_result) };
+                return Err(Exception::Dom("OperationError", message));
+            }
+        } else {
+            // Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
+            // Perform the ECDSA verification steps specified in that specification passing in M, signature, params and Q and resulting in an indication of whether or not the purported signature is valid.
+            return Err(dom_error("NotSupportedError", b"Invalid algorithm"));
+        }
+
+        // 7. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
+        // 8. Return result.
+        Ok(result)
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
+    fn validate_import_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let EcParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Import parameters")
+        };
+
+        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
+        //    specified in an applicable specification that specifies the use of that value with ECDSA, then throw a
+        //    NotSupportedError.
+        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted("Unsupported named curve '{}'", &[&normalized_algorithm.named_curve]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks the JWK usage in its own step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let EcParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Import parameters")
+        };
+
+        // NB: Step 1 is performed by validate_import_key_parameters().
+        self.validate_import_key_parameters(cx.realm())?;
+
+        // NOTE: This is a parameter to the function
+        // 2. Let keyData be the key data to be imported.
+
+        let key;
+
+        // 3. If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+            if !spki.has_ec_public_key_oid() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
+            if spki.ec_parameters().is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let params be the parameters field of the algorithm AlgorithmIdentifier field of spki.
+            let ec_params = spki.ec_parameters().expect("the algorithm parameters are present");
+
+            // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+            // 8. Let namedCurve be a string whose initial value is undefined.
+            let mut named_curve = Utf16String::default();
+
+            // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+            if ec_params == SECP256R1_OID {
+                // Set namedCurve to "P-256".
+                named_curve = Utf16String::from_ascii(b"P-256");
+            }
+            // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP384R1_OID {
+                // Set namedCurve to "P-384".
+                named_curve = Utf16String::from_ascii(b"P-384");
+            }
+            // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP521R1_OID {
+                // Set namedCurve to "P-521".
+                named_curve = Utf16String::from_ascii(b"P-521");
+            }
+
+            // 10. If namedCurve is not undefined
+            if !named_curve.is_empty() {
+                // 1. Let publicKey be the Elliptic Curve public key identified by performing
+                //    the conversion steps defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki.
+                // The uncompressed point format MUST be supported.
+                let public_key = spki.ec_key();
+
+                // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+                // 3. If a decode error occurs or an identity point is found, throw a DataError.
+                // 4. Let key be a new CryptoKey that represents publicKey.
+                // NOTE: We already did this in parse_a_subject_public_key_info
+                key = public_key.install(cx.vm());
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if !named_curve.is_empty() && named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 12. If the public key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 13. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 14. Let algorithm be a new EcKeyAlgorithm.
+            // 15. Set the name attribute of algorithm to "ECDSA".
+            // 16. Set the namedCurve attribute of algorithm to namedCurve.
+            // 17. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDSA"),
+                named_curve,
+            });
+        }
+        // 3. If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Sign {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+            if !private_key_info.has_ec_public_key_oid() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
+            //    of privateKeyInfo is not present, then throw a DataError.
+            if private_key_info.ec_parameters().is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let params be the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo.
+            let ec_params = private_key_info
+                .ec_parameters()
+                .expect("the algorithm parameters are present");
+
+            // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+            // 8. Let namedCurve be a string whose initial value is undefined.
+            let mut named_curve = Utf16String::default();
+
+            // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+            if ec_params == SECP256R1_OID {
+                // Set namedCurve to "P-256".
+                named_curve = Utf16String::from_ascii(b"P-256");
+            }
+            // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP384R1_OID {
+                // Set namedCurve to "P-384".
+                named_curve = Utf16String::from_ascii(b"P-384");
+            }
+            // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP521R1_OID {
+                // Set namedCurve to "P-521".
+                named_curve = Utf16String::from_ascii(b"P-521");
+            }
+
+            // 10. If namedCurve is not undefined
+            if !named_curve.is_empty() {
+                // 1. Let ecPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+                //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 ECPrivateKey
+                //    structure specified in Section 3 of [RFC5915], and exactData set to true.
+                // NOTE: We already did this in parse_a_private_key_info
+                // 2. If an error occurred while parsing, then throw a DataError.
+                let ec_private_key = private_key_info.ec_key();
+
+                // 3. If the parameters field of ecPrivateKey is present, and is not an instance
+                //    of the namedCurve ASN.1 type defined in [RFC5480], or does not contain
+                //    the same object identifier as the parameters field of the privateKeyAlgorithm
+                //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
+                if !private_key_info.ec_private_key_parameters_match() {
+                    return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+                }
+
+                // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
+                //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
+                key = ec_private_key.install(cx.vm());
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if !named_curve.is_empty() && named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 12. If the key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 13. Set the [[type]] internal slot of key to "private".
+            key.set_type(KeyType::Private);
+
+            // 14. Let algorithm be a new EcKeyAlgorithm.
+            // 15. Set the name attribute of algorithm to "ECDSA".
+            // 16. Set the namedCurve attribute of algorithm to namedCurve.
+            // 17. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDSA"),
+                named_curve,
+            });
+        }
+        // 3. If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+            //    Otherwise: Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and usages contains a value which is not "sign", or,
+            //    if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
+            if jwk.d.is_some() {
+                for &usage in usages {
+                    if usage != KeyUsage::Sign {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            } else {
+                for &usage in usages {
+                    if usage != KeyUsage::Verify {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the kty field of jwk is not "EC", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"EC")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 4. If usages is non-empty and the use field of jwk is present and is not "sig", then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"sig"))
+            {
+                return Err(dom_error("DataError", b"Invalid key use"));
+            }
+
+            // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            // 7. Let namedCurve be a string whose value is equal to the crv field of jwk.
+            // NOTE: The spec does not say what to do if crv is missing.
+            if jwk.crv.is_none() {
+                return Err(dom_error("DataError", b"Invalid key crv"));
+            }
+            let named_curve = jwk.crv.as_ref().expect("the named curve is present").clone();
+
+            // 8. If namedCurve is not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 9. If namedCurve is "P-256", "P-384" or "P-521":
+            if EcCurve::from_name(&named_curve).is_some() {
+                // 1. Let algNamedCurve be a string whose initial value is undefined.
+                let mut alg_named_curve = Utf16String::default();
+
+                // 2. If the alg field is not present:
+                //    Let algNamedCurve be undefined.
+                if jwk.alg.is_some() {
+                    // If the alg field is equal to the string "ES256":
+                    if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"ES256")) {
+                        // Let algNamedCurve be the string "P-256".
+                        alg_named_curve = Utf16String::from_ascii(b"P-256");
+                    }
+                    // If the alg field is equal to the string "ES384":
+                    else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"ES384")) {
+                        // Let algNamedCurve be the string "P-384".
+                        alg_named_curve = Utf16String::from_ascii(b"P-384");
+                    }
+                    // If the alg field is equal to the string "ES512":
+                    else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"ES512")) {
+                        // Let algNamedCurve be the string "P-521".
+                        alg_named_curve = Utf16String::from_ascii(b"P-521");
+                    }
+                    // otherwise:
+                    else {
+                        // throw a DataError.
+                        return Err(dom_error("DataError", b"Invalid algorithm"));
+                    }
+                }
+
+                // 3. If algNamedCurve is defined, and is not equal to namedCurve, throw a DataError.
+                if !alg_named_curve.is_empty() && alg_named_curve != named_curve {
+                    return Err(dom_error("DataError", b"Invalid algorithm"));
+                }
+
+                let coord_size = match EcCurve::from_name(&named_curve).expect("the named curve is supported") {
+                    EcCurve::P256 => 32,
+                    EcCurve::P384 => 48,
+                    EcCurve::P521 => 66,
+                };
+
+                // NOTE: according to Section 6.2.1 and 6.2.2 of JSON Web Algorithms [JWA], x and y are always required
+                if jwk.x.is_none() || jwk.y.is_none() {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                let maybe_x_bytes =
+                    base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"));
+                let Ok(x_bytes) = maybe_x_bytes else {
+                    return Err(dom_error("DataError", b"Failed to decode base64"));
+                };
+                if x_bytes.as_slice().len() != coord_size {
+                    return Err(dom_error("DataError", b"Invalid key size"));
+                }
+
+                let maybe_y_bytes =
+                    base64_url_bytes_decode(cx.vm(), jwk.y.as_ref().expect("the coordinate is present"));
+                let Ok(y_bytes) = maybe_y_bytes else {
+                    return Err(dom_error("DataError", b"Failed to decode base64"));
+                };
+                if y_bytes.as_slice().len() != coord_size {
+                    return Err(dom_error("DataError", b"Invalid key size"));
+                }
+
+                // If the d field is present:
+                if let Some(d) = &jwk.d {
+                    // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                    let maybe_d_bytes = base64_url_bytes_decode(cx.vm(), d);
+                    let Ok(d_bytes) = maybe_d_bytes else {
+                        return Err(dom_error("DataError", b"Failed to decode base64"));
+                    };
+                    if d_bytes.as_slice().len() != coord_size {
+                        return Err(dom_error("DataError", b"Invalid key size"));
+                    }
+
+                    // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
+                    //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, Some(&d_bytes));
+
+                    // 3. Set the [[type]] internal slot of Key to "private".
+                    key.set_type(KeyType::Private);
+                } else {
+                    // Otherwise:
+                    // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                    // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
+                    //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
+                    key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None);
+
+                    // 3. Set the [[type]] internal slot of Key to "public".
+                    key.set_type(KeyType::Public);
+                }
+            } else {
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 10. If the key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 11. Let algorithm be a new instance of an EcKeyAlgorithm object.
+            // 12. Set the name attribute of algorithm to "ECDSA".
+            // 13. Set the namedCurve attribute of algorithm to namedCurve.
+            // 14. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDSA"),
+                named_curve,
+            });
+        }
+        // 3. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic {
+            // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
+            if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 2. If usages contains an entry which is not "verify" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::Verify {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 3. If namedCurve is "P-256", "P-384" or "P-521":
+            if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
+                // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
+                //          member of normalizedAlgorithm identified by performing the conversion steps
+                //          defined in Section 2.3.4 of [SEC1] to keyData.
+                // The uncompressed point format MUST be supported.
+                // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+                // 3. If a decode error occurs or an identity point is found, throw a DataError.
+                // 4. Let key be a new CryptoKey that represents Q.
+                let ImportKeyData::Bytes(key_bytes) = key_data else {
+                    unreachable!("raw key data contains bytes")
+                };
+                key = ec_parse_raw_public_key(cx.vm(), &key_bytes)?;
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 4. Let algorithm be a new EcKeyAlgorithm object.
+            // 5. Set the name attribute of algorithm to "ECDSA".
+            // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+            // 7. Set the [[type]] internal slot of key to "public"
+            key.set_type(KeyType::Public);
+
+            // 8. Set the [[algorithm]] internal slot of key to algorithm.
+            key.set_algorithm(InternalAlgorithmData::Ec {
+                name: Utf16String::from_ascii(b"ECDSA"),
+                named_curve: normalized_algorithm.named_curve.clone(),
+            });
+        }
+        // Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        }
+
+        // 4. Return key.
+        Ok(key)
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdsa-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // NOTE: This is a parameter to the function
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        // 3. If format is "spki":
+        let result = if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            let data;
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
+            //    Set the subjectPublicKey field to keyData
+            //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
+                //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
+                // NOTE: everything above happens in wrap_in_subject_public_key_info
+                let maybe_data = ec_export_der(curve, key, true);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode public key"));
+                }
+
+                data = maybe_data.expect("encoding succeeded");
+            } else {
+                // Otherwise:
+                // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
+                //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
+                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // NOTE: Spec does not say anything about this.
+            ExportKeyResult::Bytes(data)
+        }
+        // 3. If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            let data;
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    Set the version field to 0.
+            //    Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //      Set the privateKey field to keyData.
+            //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
+                // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
+                // of key and that conforms to the following:
+                //      The parameters field is present, and is equivalent to the parameters field of the privateKeyAlgorithm field
+                //      of this PrivateKeyInfo ASN.1 structure.
+                //      The publicKey field is present and represents the Elliptic Curve public key associated with the Elliptic Curve
+                //      private key represented by the [[handle]] internal slot of key.
+                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
+                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
+                //       If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
+                // NOTE: everything above happens in wrap_in_private_key_info
+                let maybe_data = ec_export_der(curve, key, false);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode private key"));
+                }
+
+                data = maybe_data.expect("encoding succeeded");
+            } else {
+                // Otherwise:
+                // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
+                //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
+                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // 3. If format is "jwt":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "EC".
+            jwk.kty = Some(Utf16String::from_ascii(b"EC"));
+
+            // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                if *named_curve == Utf16String::from_ascii(b"P-256") {
+                    // Set the crv attribute of jwk to "P-256"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-256"));
+                }
+                // If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                else if *named_curve == Utf16String::from_ascii(b"P-384") {
+                    // Set the crv attribute of jwk to "P-384"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-384"));
+                }
+                // If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                else if *named_curve == Utf16String::from_ascii(b"P-521") {
+                    // Set the crv attribute of jwk to "P-521"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-521"));
+                }
+
+                // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
+                // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
+                // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
+                // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
+                let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
+                    .map_err(|()| dom_error("DataError", b"Failed to encode public key"))?;
+                jwk.x = Some(
+                    base64_url_bytes_encode(x_bytes.as_slice())
+                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
+                );
+                jwk.y = Some(
+                    base64_url_bytes_encode(y_bytes.as_slice())
+                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
+                );
+
+                // 4. If the [[type]] internal slot of key is "private"
+                if key.key_type() == KeyType::Private {
+                    // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
+                    let d_bytes = ec_export_private_scalar(key)
+                        .map_err(|()| dom_error("DataError", b"Failed to encode private key"))?;
+                    jwk.d = Some(
+                        base64_url_bytes_encode(d_bytes.as_slice())
+                            .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
+                    );
+                }
+            } else {
+                // 1. Perform any key export steps defined by other applicable specifications,
+                //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
+                //    of key and obtaining namedCurve and a new value of jwk.
+                // 2. Set the crv attribute of jwk to namedCurve.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 4. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            ExportKeyResult::JsonWebKey(jwk)
+        }
+        // 3. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            let data = if EcCurve::from_name(named_curve).is_some() {
+                // Let data be an octet string representing the Elliptic Curve point Q represented by [[handle]] internal slot
+                // of key according to [SEC1] 2.3.3 using the uncompressed format.
+                let maybe_data = ec_export_uncompressed(key);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode public key"));
+                }
+
+                maybe_data.expect("encoding succeeded")
+            } else {
+                // Perform any key export steps defined by other applicable specifications, passing format and
+                // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            };
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            ExportKeyResult::Bytes(data)
+        }
+        // Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return Err(dom_error("NotSupportedError", b"Invalid key format"));
+        };
+
+        // 4. Return result.
+        Ok(result)
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(vec![KeyUsage::Verify])
+    }
+}
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct Ecdh {
+    parameters: EcParameters,
+}
+
+impl Ecdh {
+    pub(crate) fn from_value(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        object: Gc<Object>,
+        parameter_type: EcParameterType,
+    ) -> WebIdlResult<Self> {
+        Ok(Self {
+            parameters: EcParameters::from_value(vm, realm, object, parameter_type)?,
+        })
+    }
+}
+
+impl AlgorithmMethods for Ecdh {
+    // https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
+    fn validate_generate_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        // NB: Step 2 throws a NotSupportedError when the namedCurve member of normalizedAlgorithm is not "P-256", "P-384" or
+        //     "P-521".
+        let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC KeyGen parameters")
+        };
+        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only 'P-256', 'P-384' and 'P-521' is supported",
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
+    fn generate_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        extractable: bool,
+        key_usages: &[KeyUsage],
+    ) -> WebIdlResult<CryptoKeyOrCryptoKeyPair> {
+        // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+        for &usage in key_usages {
+            if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                return Err(Exception::Dom(
+                    "SyntaxError",
+                    libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                ));
+            }
+        }
+
+        let EcParameters::KeyGen(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC KeyGen parameters")
+        };
+
+        // 2. If the namedCurve member of normalizedAlgorithm is "P-256", "P-384" or "P-521":
+        // Generate an Elliptic Curve key pair, as defined in [RFC6090]
+        // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
+        // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification
+        // that specifies the use of that value with ECDH:
+        // Perform the ECDH generation steps specified in that specification,
+        // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
+        // Otherwise: throw a NotSupportedError
+        // 3. If performing the operation results in an error, then throw a OperationError.
+        let Some(curve) = EcCurve::from_name(&normalized_algorithm.named_curve) else {
+            return Err(dom_error(
+                "NotSupportedError",
+                b"Only 'P-256', 'P-384' and 'P-521' is supported",
+            ));
+        };
+        let Ok(key_pair) = ec_generate_key_pair(curve) else {
+            return Err(dom_error("OperationError", b"Failed to create valid crypto instance"));
+        };
+
+        // 7. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+        let public_key = key_pair.public_key.install(cx.vm());
+
+        // 8. Set the [[type]] internal slot of publicKey to "public"
+        public_key.set_type(KeyType::Public);
+
+        // 4. Let algorithm be a new EcKeyAlgorithm object.
+        // 5. Set the name attribute of algorithm to "ECDH".
+        // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+        // 9. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key.set_algorithm(InternalAlgorithmData::Ec {
+            name: Utf16String::from_ascii(b"ECDH"),
+            named_curve: normalized_algorithm.named_curve.clone(),
+        });
+
+        // 10. Set the [[extractable]] internal slot of publicKey to true.
+        public_key.set_extractable(true);
+
+        // 11. Set the [[usages]] internal slot of publicKey to be the empty list.
+        public_key.set_usages(Vec::new());
+
+        // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+        let private_key = key_pair.private_key.install(cx.vm());
+
+        // 13. Set the [[type]] internal slot of privateKey to "private"
+        private_key.set_type(KeyType::Private);
+
+        // 14. Set the [[algorithm]] internal slot of privateKey to algorithm.
+        private_key.set_algorithm(InternalAlgorithmData::Ec {
+            name: Utf16String::from_ascii(b"ECDH"),
+            named_curve: normalized_algorithm.named_curve.clone(),
+        });
+
+        // 15. Set the [[extractable]] internal slot of privateKey to extractable.
+        private_key.set_extractable(extractable);
+
+        // 16. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
+        private_key.set_usages(usage_intersection(
+            key_usages,
+            &[KeyUsage::DeriveKey, KeyUsage::DeriveBits],
+        ));
+
+        // 17. Let result be a new CryptoKeyPair dictionary.
+        // 18. Set the publicKey attribute of result to be publicKey.
+        // 19. Set the privateKey attribute of result to be privateKey.
+        // 20. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
+            public_key: Some(public_key),
+            private_key: Some(private_key),
+        }))
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
+    fn validate_derive_bits_parameters(
+        &self,
+        _: Gc<Realm>,
+        algorithm: &AlgorithmParams,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<()> {
+        let EcParameters::Derive(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Derive parameters")
+        };
+
+        // 1. Let publicKey be the public member of normalizedAlgorithm.
+        let public_key = normalized_algorithm.public_key;
+
+        // 2. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+        if public_key.key_type() != KeyType::Public {
+            return Err(dom_error("InvalidAccessError", b"Public key is not a public key"));
+        }
+
+        // 3. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to the name member of
+        //    normalizedAlgorithm, then throw an InvalidAccessError.
+        if public_key.algorithm_name() != algorithm.name {
+            return Err(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+        }
+
+        // 4. Let maximumLength be the length in bits of the output of the field element to octet string conversion
+        //    defined in Section 6.2 of [RFC6090] for the EC domain parameters associated with publicKey.
+        // SAFETY: The public key has a live EC public key handle.
+        let maximum_length = unsafe { web_crypto_ec_public_key_scalar_size(public_key.handle().as_ptr()) } * 8;
+
+        // 5. If length is not null and is greater than maximumLength, then throw an OperationError.
+        if length_optional.is_some_and(|length| length as usize > maximum_length) {
+            return Err(dom_error("OperationError", b"Length is too large"));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
+    fn derive_bits(
+        &self,
+        cx: &CallContext,
+        algorithm: &AlgorithmParams,
+        key: Ref<CryptoKey>,
+        length_optional: Option<u32>,
+    ) -> WebIdlResult<Bytes> {
+        let EcParameters::Derive(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Derive parameters")
+        };
+
+        // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
+        self.validate_derive_bits_parameters(cx.realm(), algorithm, length_optional)?;
+        let public_key = normalized_algorithm.public_key;
+
+        // 6. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if key.key_type() != KeyType::Private {
+            return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+        }
+
+        // 7. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+        //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+        let internal_algorithm = key.internal_algorithm();
+        let public_internal_algorithm = public_key.internal_algorithm();
+        let InternalAlgorithmData::Ec { name, named_curve } = &*internal_algorithm else {
+            unreachable!("the private key has an EC algorithm")
+        };
+        let InternalAlgorithmData::Ec {
+            name: public_name,
+            named_curve: public_named_curve,
+        } = &*public_internal_algorithm
+        else {
+            unreachable!("the public key has an EC algorithm")
+        };
+        if name != public_name {
+            return Err(dom_error("InvalidAccessError", b"Algorithm mismatch"));
+        }
+
+        // 8. If the namedCurve attribute of the [[algorithm]] internal slot of publicKey is not equal to
+        //    the namedCurve property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+        if named_curve != public_named_curve {
+            return Err(dom_error("InvalidAccessError", b"Curve mismatch"));
+        }
+
+        let secret;
+
+        // 9. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+        // 10. If performing the operation results in an error, then throw a OperationError.
+        if let Some(curve) = EcCurve::from_name(named_curve) {
+            // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
+            //    with key as the EC private key d and the EC public key represented
+            //    by the [[handle]] internal slot of publicKey as the EC public key.
+            // 2. Let secret be the result of applying the field element to octet string conversion
+            //    defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
+            // NOTE: Remove the prefix from the uncompressed point
+            let mut error = 0;
+            let mut secret_data: Option<Bytes> = None;
+            // SAFETY: The key handles and output slots live for the call.
+            let status = unsafe {
+                web_crypto_ec_compute_coordinate(
+                    curve,
+                    key.handle().as_ptr(),
+                    public_key.handle().as_ptr(),
+                    &mut error,
+                    core::ptr::from_mut(&mut secret_data).cast(),
+                    receive_bytes,
+                )
+            };
+            if status == 1 {
+                // SAFETY: LibCrypto transfers ownership of the error message.
+                let detail = unsafe { Utf16String::from_raw_owned(error) };
+                return Err(Exception::Dom(
+                    "OperationError",
+                    libjs_rust::api::utf16_formatted("Failed to compute secret: {}", &[&detail]),
+                ));
+            }
+            if status == 2 {
+                return Err(dom_error("OperationError", b"Failed to convert secret"));
+            }
+            let secret_data = secret_data.expect("LibCrypto returns the uncompressed point");
+            assert_eq!(secret_data.as_slice()[0], 0x04);
+
+            // NOTE: Use the x-coordinate as shared secret. RFC6090 section 4.2:
+            //   In the ECDH key exchange protocol, after the element g^(j*k) has been
+            //   computed, the x-coordinate of that value can be used as the shared secret.
+            secret = copy_bytes(cx.vm(), &secret_data.as_slice()[1..=secret_data.as_slice().len() / 2])?;
+        } else {
+            // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
+            // in an applicable specification that specifies the use of that value with ECDH:
+            // Perform the ECDH derivation steps specified in that specification,
+            // passing in key and publicKey and resulting in secret.
+            return Err(dom_error("DataError", b"Invalid algorithm"));
+        }
+
+        // 11. If length is null: Return secret.
+        let Some(length) = length_optional else {
+            return Ok(Bytes::new(secret));
+        };
+
+        // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+        let length = length as usize;
+        if secret.len() * 8 < length {
+            return Err(dom_error("OperationError", b"Secret is too short"));
+        }
+
+        // Otherwise: Return an octet string containing the first length bits of secret.
+        let mut slice = copy_bytes(cx.vm(), &secret[..length.div_ceil(8)])?;
+        if !length.is_multiple_of(8) {
+            // Zero out the last bits
+            *slice.last_mut().expect("a partial byte is present") &= 0xFF << (8 - (length % 8));
+        }
+
+        Ok(Bytes::new(slice))
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
+    fn validate_import_key_parameters(&self, _: Gc<Realm>) -> WebIdlResult<()> {
+        let EcParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Import parameters")
+        };
+
+        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
+        //    specified in an applicable specification that specifies the use of that value with ECDH, then throw a
+        //    NotSupportedError.
+        if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+            return Err(Exception::Dom(
+                "NotSupportedError",
+                libjs_rust::api::utf16_formatted("Unsupported named curve '{}'", &[&normalized_algorithm.named_curve]),
+            ));
+        }
+
+        Ok(())
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
+    #[allow(
+        clippy::collapsible_if,
+        reason = "the specification checks the JWK usage in its own step"
+    )]
+    fn import_key(
+        &self,
+        cx: &CallContext,
+        _: &AlgorithmParams,
+        key_format: KeyFormat,
+        key_data: ImportKeyData,
+        extractable: bool,
+        usages: &[KeyUsage],
+    ) -> WebIdlResult<Ref<CryptoKey>> {
+        let EcParameters::Import(normalized_algorithm) = &self.parameters else {
+            unreachable!("the operation uses EC Import parameters")
+        };
+
+        // NB: Step 1 is performed by validate_import_key_parameters().
+        self.validate_import_key_parameters(cx.realm())?;
+
+        // NOTE: This is a parameter to the function
+        // 2. Let keyData be the key data to be imported.
+
+        let mut key = None;
+
+        // 3. If format is "spki":
+        if key_format == KeyFormat::Spki {
+            // 1. If usages is not empty then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let spki = Asn1KeyInfo::parse(&key_data, Asn1Structure::SubjectPublicKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+            //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+            if !spki.has_ec_public_key_oid() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
+            if spki.ec_parameters().is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let params be the parameters field of the algorithm AlgorithmIdentifier field of spki.
+            let ec_params = spki.ec_parameters().expect("the algorithm parameters are present");
+
+            // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+            // 8. Let namedCurve be a string whose initial value is undefined.
+            let mut named_curve = Utf16String::default();
+
+            // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+            if ec_params == SECP256R1_OID {
+                // Set namedCurve to "P-256".
+                named_curve = Utf16String::from_ascii(b"P-256");
+            }
+            // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP384R1_OID {
+                // Set namedCurve to "P-384".
+                named_curve = Utf16String::from_ascii(b"P-384");
+            }
+            // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP521R1_OID {
+                // Set namedCurve to "P-521".
+                named_curve = Utf16String::from_ascii(b"P-521");
+            }
+
+            // 10. If namedCurve is not undefined
+            if !named_curve.is_empty() {
+                // 1. Let publicKey be the Elliptic Curve public key identified by performing
+                //    the conversion steps defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki.
+                // The uncompressed point format MUST be supported.
+                let public_key = spki.ec_key();
+
+                // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+                // 3. If a decode error occurs or an identity point is found, throw a DataError.
+                // 4. Let key be a new CryptoKey that represents publicKey.
+                // NOTE: We already did this in parse_a_subject_public_key_info
+                key = Some(public_key.install(cx.vm()));
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if !named_curve.is_empty() && named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 12. If the key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 13. Set the [[type]] internal slot of key to "public"
+            key.expect("the operation has a key").set_type(KeyType::Public);
+
+            // 14. Let algorithm be a new EcKeyAlgorithm.
+            // 15. Set the name attribute of algorithm to "ECDH".
+            // 16. Set the namedCurve attribute of algorithm to namedCurve.
+            // 17. Set the [[algorithm]] internal slot of key to algorithm.
+            key.expect("the operation has a key")
+                .set_algorithm(InternalAlgorithmData::Ec {
+                    name: Utf16String::from_ascii(b"ECDH"),
+                    named_curve,
+                });
+        }
+        // 3. If format is "pkcs8":
+        else if key_format == KeyFormat::Pkcs8 {
+            // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            for &usage in usages {
+                if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                    return Err(Exception::Dom(
+                        "SyntaxError",
+                        libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                    ));
+                }
+            }
+
+            // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+            // 3. If an error occurred while parsing, then throw a DataError.
+            let ImportKeyData::Bytes(key_data) = key_data else {
+                unreachable!("DER key data contains bytes")
+            };
+            let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
+
+            // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+            //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+            if !private_key_info.has_ec_public_key_oid() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
+            //    of privateKeyInfo is not present, then throw a DataError.
+            if private_key_info.ec_parameters().is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+            }
+
+            // 6. Let params be the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo.
+            let ec_params = private_key_info
+                .ec_parameters()
+                .expect("the algorithm parameters are present");
+
+            // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+            // 8. Let namedCurve be a string whose initial value is undefined.
+            let mut named_curve = Utf16String::default();
+
+            // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+            if ec_params == SECP256R1_OID {
+                // Set namedCurve to "P-256".
+                named_curve = Utf16String::from_ascii(b"P-256");
+            }
+            // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP384R1_OID {
+                // Set namedCurve to "P-384".
+                named_curve = Utf16String::from_ascii(b"P-384");
+            }
+            // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+            else if ec_params == SECP521R1_OID {
+                // Set namedCurve to "P-521".
+                named_curve = Utf16String::from_ascii(b"P-521");
+            }
+
+            // 10. If namedCurve is not undefined
+            if !named_curve.is_empty() {
+                // 1. Let ecPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+                //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 ECPrivateKey
+                //    structure specified in Section 3 of [RFC5915], and exactData set to true.
+                // NOTE: We already did this in parse_a_private_key_info
+                // 2. If an error occurred while parsing, then throw a DataError.
+                let ec_private_key = private_key_info.ec_key();
+
+                // 3. If the parameters field of ecPrivateKey is present, and is not an instance
+                //    of the namedCurve ASN.1 type defined in [RFC5480], or does not contain
+                //    the same object identifier as the parameters field of the privateKeyAlgorithm
+                //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
+                if !private_key_info.ec_private_key_parameters_match() {
+                    return Err(dom_error("DataError", b"Invalid algorithm parameters"));
+                }
+
+                // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
+                //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
+                key = Some(ec_private_key.install(cx.vm()));
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if !named_curve.is_empty() && named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 12. If the key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 13. Set the [[type]] internal slot of key to "private".
+            key.expect("the operation has a key").set_type(KeyType::Private);
+
+            // 14. Let algorithm be a new EcKeyAlgorithm.
+            // 15. Set the name attribute of algorithm to "ECDH".
+            // 16. Set the namedCurve attribute of algorithm to namedCurve.
+            // 17. Set the [[algorithm]] internal slot of key to algorithm.
+            key.expect("the operation has a key")
+                .set_algorithm(InternalAlgorithmData::Ec {
+                    name: Utf16String::from_ascii(b"ECDH"),
+                    named_curve,
+                });
+        }
+        // 3. If format is "jwk":
+        else if key_format == KeyFormat::Jwk {
+            // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+            //    Otherwise: Throw a DataError.
+            let ImportKeyData::JsonWebKey(jwk) = key_data else {
+                return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
+            };
+
+            // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+            if jwk.d.is_some() && !usages.is_empty() {
+                for &usage in usages {
+                    if usage != KeyUsage::DeriveKey && usage != KeyUsage::DeriveBits {
+                        return Err(Exception::Dom(
+                            "SyntaxError",
+                            libjs_rust::api::utf16_formatted("Invalid key usage '{}'", &[&key_usage_to_string(usage)]),
+                        ));
+                    }
+                }
+            }
+
+            // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
+            if jwk.d.is_none() && !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 4. If the kty field of jwk is not "EC", then throw a DataError.
+            if jwk.kty.as_ref() != Some(&Utf16String::from_ascii(b"EC")) {
+                return Err(dom_error("DataError", b"Invalid key type"));
+            }
+
+            // 5. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
+            if !usages.is_empty()
+                && jwk
+                    .r#use
+                    .as_ref()
+                    .is_some_and(|key_use| *key_use != Utf16String::from_ascii(b"enc"))
+            {
+                return Err(dom_error("DataError", b"Invalid key use"));
+            }
+
+            // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+            //    or it does not contain all of the specified usages values, then throw a DataError.
+            validate_jwk_key_ops(&jwk, usages)?;
+
+            // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+            if jwk.ext == Some(false) && extractable {
+                return Err(dom_error("DataError", b"Invalid extractable"));
+            }
+
+            // 8. Let namedCurve be a string whose value is equal to the crv field of jwk.
+            // NOTE: The spec does not say what to do if crv is missing.
+            if jwk.crv.is_none() {
+                return Err(dom_error("DataError", b"Invalid key crv"));
+            }
+            let named_curve = jwk.crv.as_ref().expect("the named curve is present").clone();
+
+            // 9. If namedCurve is not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+            if named_curve != normalized_algorithm.named_curve {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 10. If namedCurve is "P-256", "P-384" or "P-521":
+            if EcCurve::from_name(&named_curve).is_some() {
+                let coord_size = match EcCurve::from_name(&named_curve).expect("the named curve is supported") {
+                    EcCurve::P256 => 32,
+                    EcCurve::P384 => 48,
+                    EcCurve::P521 => 66,
+                };
+
+                // NOTE: according to Section 6.2.1 and 6.2.2 of JSON Web Algorithms [JWA], x and y are always required
+                if jwk.x.is_none() || jwk.y.is_none() {
+                    return Err(dom_error("DataError", b"Invalid key"));
+                }
+
+                let maybe_x_bytes =
+                    base64_url_bytes_decode(cx.vm(), jwk.x.as_ref().expect("the coordinate is present"));
+                let Ok(x_bytes) = maybe_x_bytes else {
+                    return Err(dom_error("DataError", b"Failed to decode base64"));
+                };
+                if x_bytes.as_slice().len() != coord_size {
+                    return Err(dom_error("DataError", b"Invalid key size"));
+                }
+
+                let maybe_y_bytes =
+                    base64_url_bytes_decode(cx.vm(), jwk.y.as_ref().expect("the coordinate is present"));
+                let Ok(y_bytes) = maybe_y_bytes else {
+                    return Err(dom_error("DataError", b"Failed to decode base64"));
+                };
+                if y_bytes.as_slice().len() != coord_size {
+                    return Err(dom_error("DataError", b"Invalid key size"));
+                }
+
+                // If the d field is present:
+                if let Some(d) = &jwk.d {
+                    // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                    let maybe_d_bytes = base64_url_bytes_decode(cx.vm(), d);
+                    let Ok(d_bytes) = maybe_d_bytes else {
+                        return Err(dom_error("DataError", b"Failed to decode base64"));
+                    };
+                    if d_bytes.as_slice().len() != coord_size {
+                        return Err(dom_error("DataError", b"Invalid key size"));
+                    }
+
+                    // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
+                    //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
+                    key = Some(ec_key_from_coordinates(
+                        cx.vm(),
+                        &x_bytes,
+                        &y_bytes,
+                        coord_size,
+                        Some(&d_bytes),
+                    ));
+
+                    // 3. Set the [[type]] internal slot of Key to "private".
+                    key.expect("the operation has a key").set_type(KeyType::Private);
+                } else {
+                    // Otherwise:
+                    // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                    // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
+                    //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
+                    key = Some(ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, None));
+
+                    // 3. Set the [[type]] internal slot of Key to "public".
+                    key.expect("the operation has a key").set_type(KeyType::Public);
+                }
+            } else {
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 11. If the key value is not a valid point on the Elliptic Curve identified
+            //     by the namedCurve member of normalizedAlgorithm throw a DataError.
+            let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
+            let Ok(maybe_valid) = ec_key_is_valid(curve, key.expect("the operation has a key")) else {
+                return Err(dom_error("DataError", b"Failed to verify key"));
+            };
+            if !maybe_valid {
+                return Err(dom_error("DataError", b"Invalid key"));
+            }
+
+            // 12. Let algorithm be a new instance of an EcKeyAlgorithm object.
+            // 13. Set the name attribute of algorithm to "ECDH".
+            // 14. Set the namedCurve attribute of algorithm to namedCurve.
+            // 15. Set the [[algorithm]] internal slot of key to algorithm.
+            key.expect("the operation has a key")
+                .set_algorithm(InternalAlgorithmData::Ec {
+                    name: Utf16String::from_ascii(b"ECDH"),
+                    named_curve,
+                });
+        }
+        // 3. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if key_format == KeyFormat::Raw || key_format == KeyFormat::RawPublic {
+            // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
+            if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 2. If usages is not the empty list, then throw a SyntaxError.
+            if !usages.is_empty() {
+                return Err(dom_error("SyntaxError", b"Usages must be empty"));
+            }
+
+            // 3. If namedCurve is "P-256", "P-384" or "P-521":
+            if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
+                // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
+                //          member of normalizedAlgorithm identified by performing the conversion steps
+                //          defined in Section 2.3.4 of [SEC1] to keyData.
+                // The uncompressed point format MUST be supported.
+                // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+                // 3. If a decode error occurs or an identity point is found, throw a DataError.
+                // 4. Let key be a new CryptoKey that represents Q.
+                let ImportKeyData::Bytes(key_bytes) = key_data else {
+                    unreachable!("raw key data contains bytes")
+                };
+                key = Some(ec_parse_raw_public_key(cx.vm(), &key_bytes)?);
+            } else {
+                // Otherwise:
+                // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
+                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 4. Let algorithm be a new EcKeyAlgorithm object.
+            // 5. Set the name attribute of algorithm to "ECDH".
+            // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+            // 7. Set the [[type]] internal slot of key to "public"
+            key.expect("the operation has a key").set_type(KeyType::Public);
+
+            // 8. Set the [[algorithm]] internal slot of key to algorithm.
+            key.expect("the operation has a key")
+                .set_algorithm(InternalAlgorithmData::Ec {
+                    name: Utf16String::from_ascii(b"ECDH"),
+                    named_curve: normalized_algorithm.named_curve.clone(),
+                });
+        }
+
+        // 4. Return key.
+        Ok(key.expect("the operation has a key"))
+    }
+
+    // https://w3c.github.io/webcrypto/#ecdh-operations-export-key
+    #[allow(
+        clippy::field_reassign_with_default,
+        reason = "the algorithm sets JWK members in separate steps"
+    )]
+    fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
+        // NOTE: This is a parameter to the function
+        // 1. Let key be the CryptoKey to be exported.
+
+        // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+        // Note: In our impl this is always accessible
+
+        let mut result = None;
+
+        // 3. If format is "spki":
+        if format == KeyFormat::Spki {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            let data;
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
+            //    Set the subjectPublicKey field to keyData
+            //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
+                //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
+                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
+                // NOTE: everything above happens in wrap_in_subject_public_key_info
+                let maybe_data = ec_export_der(curve, key, true);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode public key"));
+                }
+
+                data = maybe_data.expect("encoding succeeded");
+            } else {
+                // Otherwise:
+                // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
+                //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
+                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // NOTE: Spec does not say anything about this.
+            result = Some(ExportKeyResult::Bytes(data));
+        }
+        // 3. If format is "pkcs8":
+        else if format == KeyFormat::Pkcs8 {
+            // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Private {
+                return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
+            }
+
+            let data;
+
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            //    Set the version field to 0.
+            //    Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+            //      Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //      Set the privateKey field to keyData.
+            //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
+                // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
+                // of key and that conforms to the following:
+                //      The parameters field is present, and is equivalent to the parameters field of the privateKeyAlgorithm field
+                //      of this PrivateKeyInfo ASN.1 structure.
+                //      The publicKey field is present and represents the Elliptic Curve public key associated with the Elliptic Curve
+                //      private key represented by the [[handle]] internal slot of key.
+                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
+                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
+                //       If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
+                // NOTE: everything above happens in wrap_in_private_key_info
+                let maybe_data = ec_export_der(curve, key, false);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode private key"));
+                }
+
+                data = maybe_data.expect("encoding succeeded");
+            } else {
+                // Otherwise:
+                // 1. Perform any key export steps defined by other applicable specifications, passing format and the namedCurve attribute
+                //    of the [[algorithm]] internal slot of key and obtaining namedCurveOid and keyData.
+                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // NOTE: Spec does not say anything about this.
+            result = Some(ExportKeyResult::Bytes(data));
+        }
+        // 3. If format is "jwt":
+        else if format == KeyFormat::Jwk {
+            // 1. Let jwk be a new JsonWebKey dictionary.
+            let mut jwk = JsonWebKey::default();
+
+            // 2. Set the kty attribute of jwk to "EC".
+            jwk.kty = Some(Utf16String::from_ascii(b"EC"));
+
+            // 3. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            if let Some(curve) = EcCurve::from_name(named_curve) {
+                // 1. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                if *named_curve == Utf16String::from_ascii(b"P-256") {
+                    // Set the crv attribute of jwk to "P-256"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-256"));
+                }
+                // If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                else if *named_curve == Utf16String::from_ascii(b"P-384") {
+                    // Set the crv attribute of jwk to "P-384"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-384"));
+                }
+                // If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                else if *named_curve == Utf16String::from_ascii(b"P-521") {
+                    // Set the crv attribute of jwk to "P-521"
+                    jwk.crv = Some(Utf16String::from_ascii(b"P-521"));
+                }
+
+                // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
+                // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
+                // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
+                // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
+                let (x_bytes, y_bytes) = ec_export_public_coordinates(curve, key)
+                    .map_err(|()| dom_error("DataError", b"Failed to encode public key"))?;
+                jwk.x = Some(
+                    base64_url_bytes_encode(x_bytes.as_slice())
+                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
+                );
+                jwk.y = Some(
+                    base64_url_bytes_encode(y_bytes.as_slice())
+                        .map_err(|_| dom_error("DataError", b"Failed to encode public key"))?,
+                );
+
+                // 4. If the [[type]] internal slot of key is "private"
+                if key.key_type() == KeyType::Private {
+                    // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
+                    let d_bytes = ec_export_private_scalar(key)
+                        .map_err(|()| dom_error("DataError", b"Failed to encode private key"))?;
+                    jwk.d = Some(
+                        base64_url_bytes_encode(d_bytes.as_slice())
+                            .map_err(|_| dom_error("DataError", b"Failed to encode private key"))?,
+                    );
+                }
+            } else {
+                // 1. Perform any key export steps defined by other applicable specifications,
+                //    passing format and the namedCurve attribute of the [[algorithm]] internal slot
+                //    of key and obtaining namedCurve and a new value of jwk.
+                // 2. Set the crv attribute of jwk to namedCurve.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            }
+
+            // 4. Set the key_ops attribute of jwk to the usages attribute of key.
+            jwk.key_ops = Some(
+                key.internal_usages()
+                    .iter()
+                    .map(|usage| Utf16String::from_ascii(KEY_USAGES[*usage as usize]))
+                    .collect(),
+            );
+
+            // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+            jwk.ext = Some(key.is_extractable());
+
+            // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            result = Some(ExportKeyResult::JsonWebKey(jwk));
+        }
+        // 3. If format is "raw":
+        // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+        // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+        else if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
+            // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+            if key.key_type() != KeyType::Public {
+                return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
+            }
+
+            // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            let algorithm = key.internal_algorithm();
+            let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
+                unreachable!("the key has an EC algorithm")
+            };
+            let data = if EcCurve::from_name(named_curve).is_some() {
+                // Let data be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
+                // of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
+                let maybe_data = ec_export_uncompressed(key);
+
+                if maybe_data.is_err() {
+                    return Err(dom_error("DataError", b"Failed to encode public key"));
+                }
+
+                maybe_data.expect("encoding succeeded")
+            } else {
+                // Perform any key export steps defined by other applicable specifications, passing format and
+                // the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and data.
+                return Err(dom_error("DataError", b"Invalid algorithm"));
+            };
+
+            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            result = Some(ExportKeyResult::Bytes(data));
+        }
+
+        // 4. Return result.
+        Ok(result.expect("the operation has a result"))
+    }
+
+    fn public_key_usages(&self) -> Option<Vec<KeyUsage>> {
+        Some(Vec::new())
     }
 }
 
