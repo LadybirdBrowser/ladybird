@@ -4034,7 +4034,8 @@ void ViewImplementation::set_reports_session_history(bool reports_session_histor
 
     // NB: A view that navigated before reporting began has nothing else coming to tell of that. One still on its first
     //     blank page has nothing to tell, and must not overwrite the history a restored tab is about to get.
-    if (!traversable().session_history().current_entry().url.equals(URL::about_blank()))
+    auto const& session_history = traversable().session_history();
+    if (session_history.used_step_count() > 1 || !session_history.current_entry().url.equals(URL::about_blank()))
         notify_session_history_changed();
 }
 
