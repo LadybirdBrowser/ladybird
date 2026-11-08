@@ -9,5 +9,6 @@ read() in a browser paste: resolved with types []
 The page's own data on the clipboard:
 readText() after a click: resolved with "own text"
 read() after a click: resolved with types [["text/plain"]]
+readText() after a click without focus: rejected with NotAllowedError
 Another application's data replacing the page's:
 read() after a click: rejected with NotAllowedError

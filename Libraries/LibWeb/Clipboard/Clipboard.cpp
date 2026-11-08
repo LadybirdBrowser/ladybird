@@ -168,6 +168,11 @@ static ClipboardReadPermission check_clipboard_read_permission(JS::Realm& realm,
 
     auto& window = HTML::relevant_window(realm.global_object());
 
+    // NB: "This API must not be available unless the script is executing in the context of a document that has focus."
+    //     https://w3c.github.io/clipboard-apis/#privacy-async
+    if (!window.associated_document().has_focus())
+        return ClipboardReadPermission::Denied;
+
     // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
     auto has_gesture = window.has_transient_activation();
 
