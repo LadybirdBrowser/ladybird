@@ -2102,7 +2102,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
             if (WebDriver::BiDi::network_events_enabled() && authentication_handled == AuthenticationHandled::No) {
                 auto intercepts = WebDriver::BiDi::get_network_intercepts(fetch_params, "authRequired"sv);
                 if (!intercepts.is_empty()) {
-                    WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, fetch_params = NonnullRefPtr { fetch_params }, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
+                    WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), GC::create_function(realm.heap(), GC::captures(realm, NonnullRefPtr { fetch_params }, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials), [](auto& realm, auto& fetch_params, auto& http_request, auto& returned_pending_response, auto& is_authentication_fetch, auto& is_new_connection_fetch, auto& include_credentials, WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
                         if (action == WebDriver::BiDi::NetworkContinuationAction::ProvideCredentials) {
                             stop_discarded_response_body(*fetch_params->controller(), *continued_response);
                             auto pending_response = http_network_or_cache_fetch(realm, *fetch_params, IsAuthenticationFetch::Yes);
@@ -2112,7 +2112,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
                         } else {
                             process_http_network_or_cache_response(realm.global_object(), *fetch_params, http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, action == WebDriver::BiDi::NetworkContinuationAction::RetryAuthentication ? AuthenticationHandled::No : AuthenticationHandled::Yes);
                         }
-                    }));
+                    })));
                     return;
                 }
                 WebDriver::BiDi::network_auth_required(fetch_params, *response);
@@ -2270,9 +2270,9 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
             WebDriver::BiDi::synchronize_network_request(*fetch_params->request(), *http_request);
             auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "responseStarted"sv);
             if (!response->is_network_error() && !intercepts.is_empty()) {
-                WebDriver::BiDi::block_network_request(*http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](WebDriver::BiDi::NetworkContinuationAction, RefPtr<Infrastructure::Response> continued_response) {
+                WebDriver::BiDi::block_network_request(*http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), GC::create_function(realm.heap(), GC::captures(realm, fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials), [](auto& realm, auto& fetch_params, auto& http_request, auto& returned_pending_response, auto& is_authentication_fetch, auto& is_new_connection_fetch, auto& include_credentials, WebDriver::BiDi::NetworkContinuationAction, RefPtr<Infrastructure::Response> continued_response) {
                     process_http_network_or_cache_response(realm.global_object(), *fetch_params, *http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
-                }));
+                })));
                 return;
             }
             WebDriver::BiDi::network_response_started(*http_fetch_params, *response);
@@ -2600,7 +2600,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "beforeRequestSent"sv);
         if (!intercepts.is_empty()) {
             auto returned_pending_response = PendingResponse::create(fetch_params);
-            WebDriver::BiDi::block_network_request(*http_fetch_params, nullptr, "beforeRequestSent"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), [&realm, fetch_params = NonnullRefPtr { fetch_params }, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
+            WebDriver::BiDi::block_network_request(*http_fetch_params, nullptr, "beforeRequestSent"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), GC::create_function(realm.heap(), GC::captures(realm, NonnullRefPtr { fetch_params }, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response), [](auto& realm, auto& fetch_params, auto& http_fetch_params, auto& response, auto& stored_response, auto& http_cache, auto& is_authentication_fetch, auto& is_new_connection_fetch, auto& include_credentials, auto& returned_pending_response, WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
                 // AD-HOC: The fetch can be canceled while its request is blocked.
                 if (fetch_params->is_canceled()) {
                     returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(*fetch_params));
@@ -2608,7 +2608,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 }
                 auto pending_response = continue_http_network_or_cache_fetch(realm.global_object(), *fetch_params, *http_fetch_params, action == WebDriver::BiDi::NetworkContinuationAction::Continue ? response : continued_response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
                 pending_response->when_loaded(GC::create_function(GC::Heap::the(), GC::captures(returned_pending_response), [](GC::Ref<PendingResponse>& returned_pending_response, NonnullRefPtr<Infrastructure::Response> response) { returned_pending_response->resolve(response); }));
-            }),
+            })),
                 request);
             return returned_pending_response;
         }

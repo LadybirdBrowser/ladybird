@@ -44,7 +44,7 @@ class NetworkContinuation final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(NetworkContinuation);
 
 public:
-    using Callback = Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>;
+    using Callback = GC::Ref<GC::Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>>;
     static GC::Ref<NetworkContinuation> create(GC::Heap&, Callback);
     void invoke(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>);
     void clear_blocked_state();
@@ -61,7 +61,7 @@ private:
     explicit NetworkContinuation(Callback);
     virtual void finalize() override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
-    Callback m_callback;
+    GC::Ptr<GC::Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>> m_callback;
 };
 
 // https://w3c.github.io/webdriver-bidi/#request-id
