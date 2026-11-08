@@ -72,6 +72,7 @@
 #    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
+#    include <UI/Qt/SpellCheckerMac.h>
 #endif
 
 #if defined(LADYBIRD_HAS_TRANSLATOR)
@@ -701,6 +702,9 @@ Hub::UIInfo Application::current_ui_info() const
             info.location_authorization = provider.value()->authorization();
     }
     info.has_translator = has_translator();
+    info.has_spell_checker = m_spell_checker != nullptr;
+    info.spell_checker_learns_for_every_tag = m_spell_checker && m_spell_checker->learns_for_every_tag();
+    info.spell_checker_can_suggest = m_spell_checker && m_spell_checker->can_suggest();
     info.supports_selection_clipboard = supports_clipboard_type(ClipboardType::Selection);
     info.supports_system_menu_bar = supports_system_menu_bar();
     info.supports_vertical_tabs = supports_vertical_tabs();
@@ -721,6 +725,9 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
 
 #    if defined(LADYBIRD_HAS_TRANSLATOR)
     m_translator = create_platform_translator();
+#    endif
+#    if defined(AK_OS_MACOS)
+    m_spell_checker = create_platform_spell_checker();
 #    endif
 
     IPC::MessageBuffer ui_info_buffer;

@@ -27,12 +27,6 @@ target_include_directories(hubservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(hubservice PRIVATE LibCore LibGfx LibHTTP LibIPC LibRequests LibURL LibWebView hubipc)
 
-if (APPLE)
-    target_sources(hubservice PRIVATE SpellCheckerMac.mm)
-    set_source_files_properties(SpellCheckerMac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
-    target_link_libraries(hubservice PRIVATE "-framework AppKit")
-endif()
-
 add_executable(Hub main.cpp)
 target_include_directories(Hub PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 target_link_libraries(Hub PRIVATE hubservice hubipc LibCore LibHTTP LibIPC LibMain LibRequests LibURL LibWebView)

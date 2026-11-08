@@ -11,6 +11,7 @@
 #include <Hub/HubServerEndpoint.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebView/SpellChecker.h>
 
 namespace Ladybird {
 
@@ -54,6 +55,9 @@ private:
     HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watches;
     HashMap<u64, WebView::Translator::SessionId> m_translator_sessions;
 
+    WebView::SpellChecker::DocumentTag spell_document_tag(WebView::SpellChecker&, i64 document_tag);
+    HashMap<i64, WebView::SpellChecker::DocumentTag> m_spell_document_tags;
+
     // The Hub owns the settings. The settings here are its last word, plus the changes it has yet to confirm.
     struct SettingsChange {
         u64 id { 0 };
@@ -91,6 +95,12 @@ private:
     virtual void translator_close_session(u64 session_id) override;
     virtual void translator_translate(u64 request_id, u64 session_id, Web::TranslationUnit unit) override;
     virtual void translator_open_language_download_settings() override;
+    virtual void spell_checker_close_document(i64 document_tag) override;
+    virtual void spell_checker_check(u64 request_id, i64 document_tag, Utf16String text) override;
+    virtual void spell_checker_guesses(u64 request_id, i64 document_tag, Utf16String word) override;
+    virtual void spell_checker_ignore(i64 document_tag, Utf16String word) override;
+    virtual void spell_checker_learn(i64 document_tag, Utf16String word) override;
+    virtual void spell_checker_suggest(u64 request_id, i64 document_tag, Utf16String text, u32 caret_offset) override;
     virtual void app_focus_view_from_notification(u64 view_id) override;
     virtual void app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) override;
     virtual void external_url_resolve_handler(u64 request_id, URL::URL url) override;

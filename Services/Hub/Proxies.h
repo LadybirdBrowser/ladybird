@@ -14,6 +14,7 @@
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
+#include <LibWebView/SpellChecker.h>
 #include <LibWebView/Translator.h>
 
 namespace Hub {
@@ -125,6 +126,37 @@ private:
     HashMap<u64, PendingTranslation> m_pending_translations;
     u64 m_next_request_id { 1 };
     SessionId m_next_session_id { 1 };
+};
+
+class SpellCheckerInUI final : public WebView::SpellChecker {
+public:
+    SpellCheckerInUI(bool learns_for_every_tag, bool can_suggest);
+    virtual ~SpellCheckerInUI() override;
+
+    static SpellCheckerInUI* the();
+
+    void did_check(u64 request_id, Vector<Web::SpellingError>);
+    void did_guess(u64 request_id, Vector<Utf16String>);
+    void did_suggest(u64 request_id, Optional<Web::WritingSuggestion>);
+
+private:
+    virtual DocumentTag create_document_tag() override;
+    virtual void close_document_tag(DocumentTag) override;
+    virtual void check(DocumentTag, Utf16String const& text, Function<void(Vector<Web::SpellingError>)> on_complete) override;
+    virtual void guesses(DocumentTag, Utf16String const& word, Function<void(Vector<Utf16String>)> on_complete) override;
+    virtual void ignore(DocumentTag, Utf16String const& word) override;
+    virtual void learn(DocumentTag, Utf16String const& word) override;
+    virtual bool learns_for_every_tag() const override { return m_learns_for_every_tag; }
+    virtual bool can_suggest() const override { return m_can_suggest; }
+    virtual void suggest(DocumentTag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete) override;
+
+    HashMap<u64, Function<void(Vector<Web::SpellingError>)>> m_pending_checks;
+    HashMap<u64, Function<void(Vector<Utf16String>)>> m_pending_guesses;
+    HashMap<u64, Function<void(Optional<Web::WritingSuggestion>)>> m_pending_suggestions;
+    u64 m_next_request_id { 1 };
+    DocumentTag m_next_document_tag { 1 };
+    bool m_learns_for_every_tag { true };
+    bool m_can_suggest { false };
 };
 
 class ExternalURLHandlerInUI final : public WebView::ExternalURLHandler {

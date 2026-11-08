@@ -4901,15 +4901,25 @@ void ViewImplementation::reset_spell_checking()
     }
 }
 
-void ViewImplementation::update_context_menu_misspelling(Optional<Utf16String> misspelled_word)
+void ViewImplementation::update_context_menu_misspelling(Optional<Utf16String> misspelled_word, Function<void()> on_complete)
 {
     auto* spell_checker = Application::the().spell_checker();
     m_context_menu_misspelled_word = spell_checker ? move(misspelled_word) : OptionalNone {};
     m_spelling_guesses.clear();
-    if (m_context_menu_misspelled_word.has_value())
-        m_spelling_guesses = spell_checker->guesses(spell_document_tag(), *m_context_menu_misspelled_word);
-    if (m_spelling_guesses.size() > MAX_SPELLING_GUESSES)
-        m_spelling_guesses.shrink(MAX_SPELLING_GUESSES);
+    if (!m_context_menu_misspelled_word.has_value()) {
+        on_complete();
+        return;
+    }
+
+    auto request_id = m_context_menu_request_id;
+    spell_checker->guesses(spell_document_tag(), *m_context_menu_misspelled_word, [weak_this = make_weak_ptr(), request_id, on_complete = move(on_complete)](Vector<Utf16String> guesses) {
+        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+            return;
+        if (guesses.size() > MAX_SPELLING_GUESSES)
+            guesses.shrink(MAX_SPELLING_GUESSES);
+        weak_this->m_spelling_guesses = move(guesses);
+        on_complete();
+    });
 }
 
 void ViewImplementation::ignore_misspelling(Utf16String const& word)
@@ -5025,41 +5035,45 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
     request_text_fragment_url(text_fragment_generation_id);
     prepare_inspect_element(content_position);
     m_spelling_context_menu_page = requesting_page;
-    update_context_menu_misspelling(move(misspelled_word));
 
     auto request_id = ++m_context_menu_request_id;
     auto weak_this = make_weak_ptr();
     auto makes_link_to_highlight = text_fragment_generation_id.has_value();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, for_input_events_target, makes_link_to_highlight](auto const& lookup) {
+    // NB: The menu lists the guesses for a misspelled word, so it waits for them.
+    update_context_menu_misspelling(move(misspelled_word), [weak_this, request_id, content_position, for_input_events_target, makes_link_to_highlight] {
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
-
-        auto open_menu = [weak_this, request_id, content_position, for_input_events_target, lookup, makes_link_to_highlight](Optional<String> selected_text) {
+        weak_this->request_context_menu_dictionary_lookup([weak_this, request_id, content_position, for_input_events_target, makes_link_to_highlight](auto const& lookup) {
             if (!weak_this || request_id != weak_this->m_context_menu_request_id)
                 return;
 
-            ContextMenuRequest request;
-            request.kind = ContextMenuKind::Page;
-            request.is_editable = for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes;
-            request.selected_text = move(selected_text);
-            request.dictionary_lookup = lookup;
-            if (lookup.has_value() && weak_this->on_request_dictionary_lookup)
-                request.dictionary_lookup_position = weak_this->to_widget_position(lookup->baseline_origin.value_or(content_position));
-            else
-                request.dictionary_lookup.clear();
-            request.misspelled_word = weak_this->m_context_menu_misspelled_word;
-            request.spelling_guesses = weak_this->m_spelling_guesses;
-            request.makes_link_to_highlight = makes_link_to_highlight;
-            weak_this->send_context_menu_request(move(request), content_position);
-        };
+            auto open_menu = [weak_this, request_id, content_position, for_input_events_target, lookup, makes_link_to_highlight](Optional<String> selected_text) {
+                if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+                    return;
 
-        if (lookup.has_value()) {
-            open_menu(lookup->text);
-            return;
-        }
+                ContextMenuRequest request;
+                request.kind = ContextMenuKind::Page;
+                request.is_editable = for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes;
+                request.selected_text = move(selected_text);
+                request.dictionary_lookup = lookup;
+                if (lookup.has_value() && weak_this->on_request_dictionary_lookup)
+                    request.dictionary_lookup_position = weak_this->to_widget_position(lookup->baseline_origin.value_or(content_position));
+                else
+                    request.dictionary_lookup.clear();
+                request.misspelled_word = weak_this->m_context_menu_misspelled_word;
+                request.spelling_guesses = weak_this->m_spelling_guesses;
+                request.makes_link_to_highlight = makes_link_to_highlight;
+                weak_this->send_context_menu_request(move(request), content_position);
+            };
 
-        weak_this->selected_text_with_whitespace_collapsed()->when_resolved([open_menu = move(open_menu)](auto& selected_text) mutable {
-            open_menu(selected_text);
+            if (lookup.has_value()) {
+                open_menu(lookup->text);
+                return;
+            }
+
+            weak_this->selected_text_with_whitespace_collapsed()->when_resolved([open_menu = move(open_menu)](auto& selected_text) mutable {
+                open_menu(selected_text);
+            });
         });
     });
 }

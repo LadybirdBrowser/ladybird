@@ -118,6 +118,9 @@ private:
     virtual void translator_language_detected(u64 request_id, Optional<String> language) override;
     virtual void translator_target_languages_ready(u64 request_id, Vector<WebView::Translator::TargetLanguage> target_languages) override;
     virtual void translator_translation_finished(u64 request_id, Optional<Vector<Web::TranslationRun>> runs) override;
+    virtual void spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) override;
+    virtual void spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) override;
+    virtual void spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) override;
     virtual void external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) override;
     virtual void external_url_launched(u64 request_id, bool launched) override;
     virtual void cancel_download(u64 id) override;
