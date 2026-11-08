@@ -261,22 +261,8 @@ impl FunctionConstructor {
             );
         }
         // 32. Else if kind is normal, perform MakeConstructor(F).
-        else if kind == FunctionKind::Normal {
-            // FIXME: Implement MakeConstructor
-            prototype = Object::create_prototype(vm, realm, Some(realm.object_prototype()));
-            prototype.define_direct_property(
-                vm,
-                &names.constructor,
-                Value::from_object(function),
-                PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE),
-            );
-            function.define_direct_property(
-                vm,
-                &names.prototype,
-                Value::from_object(prototype),
-                PropertyAttributes::new(Attribute::WRITABLE),
-            );
-        }
+        // NB: Normal functions make their "prototype" property the first time something looks for it (see
+        //     EcmascriptFunctionObject::instantiate_lazy_prototype()).
 
         // 33. NOTE: Functions whose kind is async are not constructible and do not have a [[Construct]] internal method or a "prototype" property.
 

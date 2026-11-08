@@ -92,7 +92,10 @@ pub static ECMASCRIPT_FUNCTION_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     },
     // NB: The non-enumerable lazy properties shadow enumerable ones of the prototype chain.
     eligible_for_own_property_enumeration_fast_path: |object| {
-        !as_ecmascript_function(object).has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
+        !as_ecmascript_function(object).has_flag(
+            ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME
+                | ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION,
+        )
     },
     internal_own_property_keys: EcmascriptFunctionObject::internal_own_property_keys,
     internal_call: Some(EcmascriptFunctionObject::internal_call),
@@ -338,7 +341,8 @@ impl EcmascriptFunctionObject {
         match self.kind() {
             FunctionKind::Normal => {
                 self.make_length_and_name_lazy();
-                if !self.is_arrow_function() {
+                // NB: Class constructors get their "prototype" property from ClassDefinitionEvaluation.
+                if !self.is_arrow_function() && !self.is_class_constructor() {
                     self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, true);
                 }
             }
@@ -431,10 +435,10 @@ impl EcmascriptFunctionObject {
     fn instantiate_lazy_prototype(&self, vm: &Vm) {
         self.set_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION, false);
 
-        // NB: Class constructors and functions from the Function constructor are given theirs directly.
-        if self.shape().lookup(&vm.names.prototype).is_some() {
-            return;
-        }
+        debug_assert!(
+            self.shape().lookup(&vm.names.prototype).is_none(),
+            "a function with a lazy prototype does not have one yet"
+        );
 
         let realm = self.realm().expect("an ECMAScript function has a realm");
         let prototype = Object::create_with_premade_shape(vm, realm.normal_function_prototype_shape());
