@@ -31,13 +31,13 @@ using Response = Fetch::Infrastructure::Response;
 GC_DEFINE_ALLOCATOR(NetworkContinuation);
 
 NetworkContinuation::NetworkContinuation(Callback callback)
-    : m_callback(move(callback))
+    : m_callback(callback)
 {
 }
 
 GC::Ref<NetworkContinuation> NetworkContinuation::create(GC::Heap& heap, Callback callback)
 {
-    return heap.allocate<NetworkContinuation>(move(callback));
+    return heap.allocate<NetworkContinuation>(callback);
 }
 
 void NetworkContinuation::finalize()
@@ -51,12 +51,12 @@ void NetworkContinuation::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(controller);
-    visitor.visit_possible_values(m_callback.raw_capture_range());
+    visitor.visit(m_callback);
 }
 
 void NetworkContinuation::invoke(NetworkContinuationAction action, RefPtr<Response> response)
 {
-    m_callback(action, response);
+    (*m_callback)(action, response);
     m_callback = nullptr;
 }
 
