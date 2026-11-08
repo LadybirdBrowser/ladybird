@@ -571,12 +571,8 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (!property.has_value())
                 continue;
 
-            if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value_string, property->id())) {
-                // Handle 'initial' here so we don't have to get the default value of the property every frame in StyleComputer
-                if (style_value->is_initial() && !property->is_custom_property())
-                    style_value = CSS::property_initial_value(property->id());
+            if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value_string, property->id()))
                 parsed_properties.set(*property, CSS::RustStyleValueHandle::retained(style_value->rust_style_value_data()));
-            }
         }
         keyframe.properties.set(move(parsed_properties));
 

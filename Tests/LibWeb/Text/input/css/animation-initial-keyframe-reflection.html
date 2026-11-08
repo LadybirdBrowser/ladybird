@@ -1,0 +1,8 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const effect = new KeyframeEffect(null, [{ opacity: "initial" }]);
+        println(effect.getKeyframes()[0].opacity);
+    });
+</script>
