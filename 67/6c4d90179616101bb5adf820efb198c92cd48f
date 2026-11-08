@@ -1,0 +1,6 @@
+When a page leaves full screen because another tab became current,
+Ladybird tells the tab that held full screen, not the one that’s
+current by then. Chromium does the same: When a tab is deactivated,
+its FullscreenController::ExitExclusiveAccessIfNecessary() runs
+NotifyTabExclusiveAccessLost(), which calls ExitFullscreen() on the
+WebContents holding exclusive access rather than on the active one.
