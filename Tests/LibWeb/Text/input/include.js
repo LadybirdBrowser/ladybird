@@ -292,7 +292,10 @@ class HTTPTestServer {
 const __httpTestServer = (function () {
     if (globalThis.internals && globalThis.internals.getEchoServerPort) {
         const echoServerPort = internals.getEchoServerPort();
-        const isLoadedFromEchoServer = location.protocol === "http:" && location.port === String(echoServerPort);
+        const httpsEchoServerPort = internals.getHttpsEchoServerPort();
+        const isLoadedFromEchoServer =
+            (location.protocol === "http:" && location.port === String(echoServerPort)) ||
+            (location.protocol === "https:" && location.port === String(httpsEchoServerPort));
 
         // Tests loaded through the echo server should create echo URLs on their current origin,
         // so same-origin iframe/fetch checks keep working with unique localhost hostnames.

@@ -9,7 +9,6 @@ import itertools
 import json
 import logging
 import os
-import re
 import socket
 import socketserver
 import ssl
@@ -19,6 +18,7 @@ import time
 import urllib.parse
 
 from collections import defaultdict
+from functools import lru_cache
 from types import SimpleNamespace
 from typing import Any
 from typing import Callable
@@ -129,6 +129,15 @@ def name_of_download_in_progress(filename: str) -> Optional[str]:
     return name
 
 
+def test_web_host_for(hostname):
+    # A test's subdomains and its -alt host belong to the test-web-*.localhost or test-web-*.test host of the test.
+    rest, _, top_level_domain = hostname.rpartition(".")
+    host = rest.rpartition(".")[2].removesuffix("-alt")
+    if top_level_domain not in ("localhost", "test") or not host.startswith("test-web-"):
+        return None
+    return f"{host}.{top_level_domain}"
+
+
 class WPTContext:
     def __init__(self, wpt_directory):
         vendored_tools_root = os.path.join(wpt_directory, "_wpttools")
@@ -195,7 +204,7 @@ class WPTContext:
         self.configs_by_host_lock = threading.Lock()
         cast(Any, self.server_class).config = self._build_config("web-platform.localhost")
 
-    def _build_config(self, browser_host):
+    def _build_config(self, browser_host, alternate_host="not-localhost.localhost"):
         def make_subdomains_product(subdomains, depth=2):
             return {
                 ".".join(labels)
@@ -209,7 +218,7 @@ class WPTContext:
         with self.config_builder_class(
             logger,
             browser_host=browser_host,
-            alternate_hosts={"alt": "not-localhost.localhost"},
+            alternate_hosts={"alt": alternate_host},
             ports=self.ports,
             subdomains=subdomains,
             not_subdomains=not_subdomains,
@@ -221,19 +230,23 @@ class WPTContext:
         # test-web uses unique test-web-*.localhost hosts, or test-web-*.test for insecure-origin tests.
         # Substitutions like {{host}} and {{domains[www1]}} must name that test host and its subdomains.
         hostname = request.url_parts.hostname or ""
-        match = re.search(r"(?:^|\.)(test-web-[0-9a-fA-F-]+\.(?:localhost|test))$", hostname)
-        if not match:
+        test_host = test_web_host_for(hostname)
+        if not test_host:
             return
 
-        test_host = match.group(1)
+        is_https = request.url_parts.scheme == "https"
+        key = (test_host, is_https)
         with self.configs_by_host_lock:
-            config = self.configs_by_host.get(test_host)
+            config = self.configs_by_host.get(key)
             if config is None:
                 # Each test has its own host, so only keep the configs of the most recent ones.
                 if len(self.configs_by_host) >= 64:
                     self.configs_by_host.pop(next(iter(self.configs_by_host)))
-                config = self._build_config(test_host)
-                self.configs_by_host[test_host] = config
+                if is_https:
+                    config = self._build_config(test_host, test_host.removesuffix(".localhost") + "-alt.localhost")
+                else:
+                    config = self._build_config(test_host)
+                self.configs_by_host[key] = config
         request.server.config = config
 
     def close(self):
@@ -1072,29 +1085,30 @@ def _setup_tls_test_servers(http_port, ca_cert_output):
     # subdomains ({{hosts[alt][]}} and {{hosts[alt][www]}}), so the WPT HTTPS server presents a leaf for all of them,
     # issued by the root itself.
     wpt_leaf_key = new_key()
-    wpt_leaf = (
-        x509.CertificateBuilder()
-        .subject_name(dn("localhost"))
-        .issuer_name(root.subject)
-        .public_key(wpt_leaf_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(not_before)
-        .not_valid_after(not_after)
-        .add_extension(
-            x509.SubjectAlternativeName(
-                [
-                    x509.DNSName("localhost"),
-                    # NB: curl ignores a wildcard with fewer than two dots, so the alternate host is named outright.
-                    x509.DNSName("not-localhost.localhost"),
-                    x509.DNSName("*.not-localhost.localhost"),
-                    x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
-                    x509.IPAddress(ipaddress.ip_address("::1")),
-                ]
-            ),
-            critical=False,
+
+    def make_wpt_leaf(names):
+        return (
+            x509.CertificateBuilder()
+            .subject_name(dn("localhost"))
+            .issuer_name(root.subject)
+            .public_key(wpt_leaf_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(not_before)
+            .not_valid_after(not_after)
+            .add_extension(x509.SubjectAlternativeName(names), critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .sign(root_key, hashes.SHA256())
         )
-        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
-        .sign(root_key, hashes.SHA256())
+
+    wpt_leaf = make_wpt_leaf(
+        [
+            x509.DNSName("localhost"),
+            # NB: curl ignores a wildcard with fewer than two dots, so the alternate host is named outright.
+            x509.DNSName("not-localhost.localhost"),
+            x509.DNSName("*.not-localhost.localhost"),
+            x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+            x509.IPAddress(ipaddress.ip_address("::1")),
+        ]
     )
     scenarios["wpt"] = (wpt_leaf, wpt_leaf_key)
 
@@ -1118,6 +1132,25 @@ def _setup_tls_test_servers(http_port, ca_cert_output):
         server = AIATLSServer(("127.0.0.1", 0), AIALeafHandler, context)
         config[name] = server.socket.getsockname()[1]
         threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    # Tests reach HTTPS origins on unique *.localhost hosts, which no wildcard can cover, so each host gets a leaf.
+    @lru_cache(maxsize=128)
+    def context_for_host(host):
+        leaf = make_wpt_leaf([x509.DNSName(host)])
+        with tempfile.TemporaryDirectory(dir=scratch) as certificate_directory:
+            certificate_path = os.path.join(certificate_directory, "leaf.pem")
+            with open(certificate_path, "wb") as certificate:
+                certificate.write(leaf.public_bytes(Encoding.PEM))
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_cert_chain(certfile=certificate_path, keyfile=os.path.join(scratch, "wpt.key"))
+        return context
+
+    def use_host_certificate(socket, server_name, _context):
+        if server_name and server_name.endswith(".localhost"):
+            socket.context = context_for_host(server_name)
+
+    assert wpt_ssl_context is not None
+    wpt_ssl_context.sni_callback = use_host_certificate
 
     TestHTTPRequestHandler.aia_config = config
     logging.info("AIA test servers ready: %s (root CA at %s)", config, ca_cert_output)
