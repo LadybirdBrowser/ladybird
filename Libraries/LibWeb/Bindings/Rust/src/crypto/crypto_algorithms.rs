@@ -588,18 +588,40 @@ impl AlgorithmMethods for Sha {
         let algorithm_name = &algorithm.name;
 
         let hash_kind = if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
+            // 1. If the name member of normalizedAlgorithm is a cases-sensitive string match for "SHA-1":
+            //    Let result be the result of performing the SHA-1 hash function defined in Section 6.1 of [FIPS-180-4]
+            //    using message as the input message, M.
             ShaHashKind::Sha1
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-256")) {
+            // 1. If the name member of normalizedAlgorithm is a cases-sensitive string match for "SHA-256":
+            //    Let result be the result of performing the SHA-256 hash function defined in Section 6.2 of
+            //    [FIPS-180-4] using message as the input message, M.
             ShaHashKind::Sha256
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-384")) {
+            // 1. If the name member of normalizedAlgorithm is a cases-sensitive string match for "SHA-384":
+            //    Let result be the result of performing the SHA-384 hash function defined in Section 6.5 of
+            //    [FIPS-180-4] using message as the input message, M.
             ShaHashKind::Sha384
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
+            // 1. If the name member of normalizedAlgorithm is a cases-sensitive string match for "SHA-512":
+            //    Let result be the result of performing the SHA-512 hash function defined in Section 6.4 of
+            //    [FIPS-180-4] using message as the input message, M.
             ShaHashKind::Sha512
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-256")) {
+            // https://wicg.github.io/webcrypto-modern-algos/#sha3-operations-digest
+            // 1. If the name member of normalizedAlgorithm is a case-sensitive string match for "SHA3-256":
+            //    Let result be the result of performing the SHA3-256 hash function defined in Section 6.1 of [FIPS-202]
+            //    using the Keccak decoding of message as the input message, M.
             ShaHashKind::Sha3_256
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-384")) {
+            // 1. If the name member of normalizedAlgorithm is a case-sensitive string match for "SHA3-384":
+            //    Let result be the result of performing the SHA3-384 hash function defined in Section 6.1 of [FIPS-202]
+            //    using the Keccak decoding of message as the input message, M.
             ShaHashKind::Sha3_384
         } else if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"SHA3-512")) {
+            // 1. If the name member of normalizedAlgorithm is a case-sensitive string match for "SHA3-512":
+            //    Let result be the result of performing the SHA3-512 hash function defined in Section 6.1 of [FIPS-202]
+            //    using the Keccak decoding of message as the input message, M.
             ShaHashKind::Sha3_512
         } else {
             return Err(Exception::Dom(
@@ -618,6 +640,7 @@ impl AlgorithmMethods for Sha {
                 receive_bytes,
             )
         };
+        // 2. If performing the operation results in an error, then throw an OperationError.
         if !success {
             return Err(Exception::Dom(
                 "OperationError",
@@ -625,6 +648,9 @@ impl AlgorithmMethods for Sha {
             ));
         }
 
+        // 3. Return result.
+        // https://wicg.github.io/webcrypto-modern-algos/#sha3-operations-digest
+        // 3. Return the Keccak encoding of result.
         Ok(result_buffer.expect("LibCrypto returns the digest"))
     }
 }
@@ -1103,10 +1129,10 @@ impl AlgorithmMethods for Hmac {
     fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot
         //    of key cannot be accessed, then throw an OperationError.
-        // NOTE: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. Let bits be the raw bits of the key represented by the [[handle]] internal slot of key.
-        // 3. Let data be an octet string containing bits.
+        // 3. Let data be a byte sequence containing bits.
         let data = key.byte_handle_bytes();
 
         // 4. If format is "raw":
@@ -1114,6 +1140,7 @@ impl AlgorithmMethods for Hmac {
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
             // Let result be the result of creating an ArrayBuffer containing data.
+            // 1. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
         // If format is "jwk":
@@ -1176,6 +1203,7 @@ impl AlgorithmMethods for Hmac {
             jwk.ext = Some(key.is_extractable());
 
             // Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 9. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // Otherwise:
@@ -1224,6 +1252,8 @@ impl AlgorithmMethods for HmacKeyGenParams {
         }
 
         // 2. If the length member of normalizedAlgorithm is not present:
+        //    Let length be the block size in bits of the hash function identified by the hash member of
+        //    normalizedAlgorithm as specified by Table 2 of [NIST-SP800-224], or 512 for SHA-1.
         let normalized_algorithm = self;
         let length = if normalized_algorithm.length.is_none() {
             // Let length be the block size in bits of the hash function identified by the hash member
@@ -1251,7 +1281,7 @@ impl AlgorithmMethods for HmacKeyGenParams {
 
         // 6. Let algorithm be a new HmacKeyAlgorithm.
         // 7. Set the name attribute of algorithm to "HMAC".
-        // 8. Let hash be a new KeyAlgorithm.
+        // 9. Let hash be a new KeyAlgorithm.
         // 10. Set the name attribute of hash to equal the name member of the hash member of normalizedAlgorithm.
         let hash_name = normalized_algorithm.hash.name.clone();
 
@@ -1327,13 +1357,13 @@ impl AlgorithmMethods for HmacImportParams {
         // 5. If format is "raw":
         let data;
         if key_format == KeyFormat::Raw || key_format == KeyFormat::RawSecret {
-            // 5.1. Let data be the octet string contained in keyData.
+            // 1. Let data be keyData.
             let ImportKeyData::Bytes(bytes) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
             data = bytes;
 
-            // 5.2. Set hash to equal the hash member of normalizedAlgorithm.
+            // 2. Set hash to equal the hash member of normalizedAlgorithm.
             hash_name = normalized_algorithm.hash.name.clone();
         }
         // If format is "jwk":
@@ -1438,7 +1468,7 @@ impl AlgorithmMethods for HmacImportParams {
             return Err(dom_error("NotSupportedError", b"Invalid key format"));
         }
 
-        // 6. Let length be equivalent to the length, in octets, of data, multiplied by 8.
+        // 6. Let length be the length in bits of data.
         let mut length = data.as_slice().len() * 8;
 
         // 7. If length is zero then throw a DataError.
@@ -1494,6 +1524,8 @@ impl AlgorithmMethods for HmacImportParams {
         let normalized_derived_key_algorithm = self;
 
         // 1. If the length member of normalizedDerivedKeyAlgorithm is not present:
+        //    Let length be the block size in bits of the hash function identified by the hash member of
+        //    normalizedDerivedKeyAlgorithm as specified by Table 2 of [NIST-SP800-224], or 512 for SHA-1.
         let length = if normalized_derived_key_algorithm.length.is_none() {
             // Let length be the block size in bits of the hash function identified by the hash member of
             // normalizedDerivedKeyAlgorithm.
@@ -1525,7 +1557,7 @@ pub(crate) struct KmacParams {
 impl KmacParams {
     // https://wicg.github.io/webcrypto-modern-algos/#kmac-params
     pub(crate) fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
-        // 1. If the outputLength member is missing, throw a TypeError.
+        // NB: outputLength is a required dictionary member.
         let output_length_property = PropertyKey::from_utf8("outputLength");
         if !object.has_property(vm, &output_length_property)? {
             return vm
@@ -1540,7 +1572,7 @@ impl KmacParams {
         let output_length = object.get(vm, &output_length_property)?;
         let length = to_unsigned_long_enforcing_range(vm, output_length)?;
 
-        // 2. Let customization be the optional customization member or the empty octet string.
+        // NB: The operation uses an empty bit string when customization is absent.
         let customization = get_optional_buffer_source(vm, object, &PropertyKey::from_utf8("customization"))?;
 
         Ok(Self {
@@ -1559,7 +1591,7 @@ pub(crate) struct KmacKeyGenParams {
 impl KmacKeyGenParams {
     // https://wicg.github.io/webcrypto-modern-algos/#kmac-keygen-params
     pub(crate) fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
-        // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
+        // NB: An absent length stays unset until the operation chooses its default.
         let mut length = None;
         let length_property = PropertyKey::from_utf8("length");
         if object.has_property(vm, &length_property)? {
@@ -1580,7 +1612,7 @@ pub(crate) struct KmacImportParams {
 impl KmacImportParams {
     // https://wicg.github.io/webcrypto-modern-algos/#kmac-import-params
     pub(crate) fn from_value(vm: &Vm, object: Gc<Object>) -> WebIdlResult<Self> {
-        // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
+        // NB: An absent length stays unset until the operation chooses its default.
         let mut length = None;
         let length_property = PropertyKey::from_utf8("length");
         if object.has_property(vm, &length_property)? {
@@ -1629,15 +1661,16 @@ impl AlgorithmMethods for KmacParams {
         let output_length = normalized_algorithm.output_length;
 
         // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
-        //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
-        //    using the key represented by [[handle]] internal slot of key as the K input parameter,
-        //    message as the X input parameter, the outputLength member of normalizedAlgorithm as the L input parameter,
-        //    and customization as the S input parameter.
+        //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185] using
+        //    the raw bits of the key represented by the [[handle]] internal slot of key as the K input parameter, the
+        //    Keccak decoding of message as the X input parameter, the outputLength member of normalizedAlgorithm as the
+        //    L input parameter, and customization as the S input parameter.
         // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
-        //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185]
-        //    using the key represented by [[handle]] internal slot of key as the K input parameter,
-        //    message as the X input parameter, the outputLength member of normalizedAlgorithm as the L input parameter,
-        //    and customization as the S input parameter.
+        //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185] using
+        //    the raw bits of the key represented by the [[handle]] internal slot of key as the K input parameter, the
+        //    Keccak decoding of message as the X input parameter, the outputLength member of normalizedAlgorithm as the
+        //    L input parameter, and customization as the S input parameter.
+        // 3. If performing the operation results in an error, then throw an OperationError.
         let mac = kmac_calculate_mac(
             &algorithm.name,
             key_data,
@@ -1646,7 +1679,7 @@ impl AlgorithmMethods for KmacParams {
             customization,
         )?;
 
-        // 3. Return a byte sequence containing mac.
+        // 4. Return the Keccak encoding of mac.
         Ok(mac)
     }
 
@@ -1687,13 +1720,16 @@ impl AlgorithmMethods for KmacParams {
         let output_length = normalized_algorithm.output_length;
 
         // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
-        //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
-        //    using the key represented by [[handle]] internal slot of key as the K input parameter, message as the X input parameter,
-        //    the outputLength member of normalizedAlgorithm as the L input parameter, and customization as the S input parameter.
+        //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185] using
+        //    the raw bits of the key represented by the [[handle]] internal slot of key as the K input parameter, the
+        //    Keccak decoding of message as the X input parameter, the outputLength member of normalizedAlgorithm as the
+        //    L input parameter, and customization as the S input parameter.
         // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
-        //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185]
-        //    using the key represented by [[handle]] internal slot of key as the K input parameter, message as the X input parameter,
-        //    the outputLength member of normalizedAlgorithm as the L input parameter, and customization as the S input parameter.
+        //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185] using
+        //    the raw bits of the key represented by the [[handle]] internal slot of key as the K input parameter, the
+        //    Keccak decoding of message as the X input parameter, the outputLength member of normalizedAlgorithm as the
+        //    L input parameter, and customization as the S input parameter.
+        // 3. If performing the operation results in an error, then throw an OperationError.
         let mac = kmac_calculate_mac(
             &algorithm.name,
             key_data,
@@ -1702,7 +1738,7 @@ impl AlgorithmMethods for KmacParams {
             customization,
         )?;
 
-        // 3. Let computedMac be a byte sequence containing mac.
+        // 4. Let computedMac be the Keccak encoding of mac.
         // 5. Return true if computedMac is equal to signature and false otherwise. This comparison must be performed in
         //    constant-time.
         // SAFETY: The input bytes live for the duration of the comparison.
@@ -1746,7 +1782,9 @@ impl AlgorithmMethods for KmacKeyGenParams {
         // 2. If the length member of normalizedAlgorithm is present:
         //    Let length be equal to the length member of normalizedAlgorithm.
         // 2. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+        //    Let length be 128.
         // 2. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+        //    Let length be 256.
         let length = if let Some(length) = normalized_algorithm.length {
             length
         } else {
@@ -1865,10 +1903,10 @@ impl AlgorithmMethods for KmacImportParams {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            // 5. -> If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
-            //           If the alg field of jwk is present and is not "K128", then throw a DataError.
-            //    -> If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
-            //           If the alg field of jwk is present and is not "K256", then throw a DataError.
+            // 5. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+            //    If the alg field of jwk is present and is not "K128", then throw a DataError.
+            // 5. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+            //    If the alg field of jwk is present and is not "K256", then throw a DataError.
             let algorithm_name = &algorithm.name;
             if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"KMAC128")) {
                 if jwk
@@ -1909,7 +1947,7 @@ impl AlgorithmMethods for KmacImportParams {
         }
         // 3. Otherwise:
         else {
-            // 1. Throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only raw-secret and jwk formats are supported",
@@ -1921,18 +1959,20 @@ impl AlgorithmMethods for KmacImportParams {
 
         // 5. If the length member of normalizedAlgorithm is present:
         if let Some(requested_length) = normalized_algorithm.length {
-            // 1. If the length member of normalizedAlgorithm is greater than length, then throw a DataError.
+            // If the length member of normalizedAlgorithm is greater than length:
+            //    throw a DataError.
             if requested_length > length {
                 return Err(dom_error("DataError", b"Invalid data size"));
             }
 
-            // 2. If the length member of normalizedAlgorithm is less than or equal to length minus eight, then throw a DataError.
+            // If the length member of normalizedAlgorithm, is less than or equal to length minus eight:
+            //    throw a DataError.
             if requested_length.wrapping_add(8) <= length {
                 return Err(dom_error("DataError", b"Invalid data size"));
             }
 
-            // 3. Otherwise:
-            //        Set length equal to the length member of normalizedAlgorithm.
+            // Otherwise:
+            //    Set length equal to the length member of normalizedAlgorithm.
             length = requested_length;
         }
 
@@ -1964,7 +2004,11 @@ impl AlgorithmMethods for KmacImportParams {
         let normalized_algorithm = self;
 
         // 1. If the length member of normalizedAlgorithm is present:
-        //        Let length be equal to the length member of normalizedAlgorithm.
+        //    Let length be equal to the length member of normalizedAlgorithm.
+        // 1. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+        //    Let length be 128.
+        // 1. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+        //    Let length be 256.
         let length = if let Some(length) = normalized_algorithm.length {
             length
         }
@@ -1995,15 +2039,17 @@ impl AlgorithmMethods for Kmac {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
-        // 2. If format is "raw-secret":
+        // 4. If format is "raw-secret":
         let result = if format == KeyFormat::RawSecret {
-            // 1. Let result be the raw bits of the key represented by [[handle]] internal slot of key.
+            // 2. Let bits be the raw bits of the key represented by [[handle]] internal slot of key.
+            // 3. Let data be the Keccak encoding of bits.
+            //       1. Let result be data.
             let data = key.byte_handle_bytes();
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
-        // 2. If format is "jwk":
+        // 4. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -2011,8 +2057,8 @@ impl AlgorithmMethods for Kmac {
             // 2. Set the kty attribute of jwk to the string "oct".
             jwk.kty = Some(Utf16String::from_ascii(b"oct"));
 
-            // 3. Set the k attribute of jwk to be a string containing the raw bits of the key represented by [[handle]] internal slot of key,
-            //    encoded according to JSON Web Algorithms [JWA].
+            // 3. Set the k attribute of jwk to be a string containing data, encoded according to Section 6.4 of JSON
+            //    Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
             let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
                 return cx
@@ -2023,10 +2069,10 @@ impl AlgorithmMethods for Kmac {
             jwk.k = Some(encoded);
 
             // 4. Let keyAlgorithm be the [[algorithm]] internal slot of key.
-            // 5. -> If the name member of keyAlgorithm is "KMAC128":
-            //        Set the alg attribute of jwk to the string "K128".
-            //    -> If the name member of keyAlgorithm is "KMAC256":
-            //        Set the alg attribute of jwk to the string "K256".
+            // 5. If the name member of keyAlgorithm is "KMAC128":
+            //    Set the alg attribute of jwk to the string "K128".
+            // 5. If the name member of keyAlgorithm is "KMAC256":
+            //    Set the alg attribute of jwk to the string "K256".
             let algorithm_name = key.algorithm_name();
             if matches!(algorithm_name.as_units(), Utf16StringUnits::Ascii(b"KMAC128")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"K128"));
@@ -2048,13 +2094,14 @@ impl AlgorithmMethods for Kmac {
             // 8. Let result be jwk.
             return Ok(ExportKeyResult::JsonWebKey(jwk));
         }
-        // 2. Otherwise:
+        // 4. Otherwise:
+        //    throw a NotSupportedError.
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
-        // 3. Return result.
+        // 5. Return result.
         Ok(result)
     }
 }
@@ -2275,9 +2322,8 @@ impl AlgorithmMethods for Hkdf {
         // 1. Let keyData be the key data to be imported.
 
         // 2. If format is "raw":
-        //        (… see below …)
-        //    Otherwise:
-        //        throw a NotSupportedError.
+        // 2. Otherwise:
+        //    throw a NotSupportedError.
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         if format != KeyFormat::Raw && format != KeyFormat::RawSecret {
@@ -2380,11 +2426,12 @@ impl AlgorithmMethods for HkdfParams {
         // 4. Let keyDerivationKey be the secret represented by the [[handle]] internal slot of key.
         let key_derivation_key = key.byte_handle_bytes();
 
-        // 5. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
+        // 5. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section
+        //    2 of [RFC5869] using:
         //    * the hash member of normalizedAlgorithm as Hash,
         //    * keyDerivationKey as the input keying material, IKM,
-        //    * the contents of the salt member of normalizedAlgorithm as salt,
-        //    * the contents of the info member of normalizedAlgorithm as info,
+        //    * the salt member of normalizedAlgorithm as salt,
+        //    * the info member of normalizedAlgorithm as info,
         //    * length divided by 8 as the value of L,
         // Note: Although HKDF technically supports absent salt (treating it as hashLen many NUL bytes),
         // all major browsers instead raise a TypeError, for example:
@@ -2468,6 +2515,7 @@ impl AlgorithmMethods for Pbkdf2Params {
         // NB: Steps 1 and 2 are performed by validate_derive_bits_parameters().
         self.validate_derive_bits_parameters(cx.realm(), algorithm, length_optional)?;
 
+        // FIXME: 3. If length is zero, return an empty byte sequence.
         // 4. Let prf be the HMAC function described in Section 2 of [NIST-SP800-224] using the hash function described
         //    by the hash member of normalizedAlgorithm.
         let hash_algorithm = &normalized_algorithm.hash.name;
@@ -2694,16 +2742,16 @@ impl AlgorithmMethods for Argon2Params {
         // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
         self.validate_derive_bits_parameters(cx.realm(), algorithm, length)?;
 
-        // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
-        //      Let type be 0.
+        // 6. If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
+        //    Let type be 0.
         let kind = if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2d")) {
             Argon2Type::Argon2d
-        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2i":
-        //      Let type be 1.
+        // 6. If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2i":
+        //    Let type be 1.
         } else if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2i")) {
             Argon2Type::Argon2i
-        //   => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2id":
-        //      Let type be 2.
+        // 6. If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2id":
+        //    Let type be 2.
         } else if matches!(algorithm.name.as_units(), Utf16StringUnits::Ascii(b"Argon2id")) {
             Argon2Type::Argon2id
         } else {
@@ -2750,6 +2798,7 @@ impl AlgorithmMethods for Argon2Params {
             ));
         }
 
+        // 11. Return result.
         Ok(result.expect("LibCrypto returns the derived bytes"))
     }
 }
@@ -3159,7 +3208,7 @@ impl AlgorithmMethods for AesCbc {
         let data;
         if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
             // -> If format is "raw":
-            //    1. Let data be the octet string contained in keyData.
+            // 1. Let data be keyData.
             //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
             let ImportKeyData::Bytes(bytes) = key_data else {
                 unreachable!("raw key data contains bytes")
@@ -3195,17 +3244,17 @@ impl AlgorithmMethods for AesCbc {
             // - ".k" is a valid bas64url encoded octet stream, which we do by just parsing it, in step 4.
             // - ".alg" is checked only in step 5.
 
-            //    4. Let data be the octet string obtained by decoding the k field of jwk.
+            // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            //    5. -> If data has length 128 bits:
-            //              If the alg field of jwk is present, and is not "A128CBC", then throw a DataError.
-            //       -> If data has length 192 bits:
-            //              If the alg field of jwk is present, and is not "A192CBC", then throw a DataError.
-            //       -> If data has length 256 bits:
-            //              If the alg field of jwk is present, and is not "A256CBC", then throw a DataError.
-            //       -> Otherwise:
-            //              throw a DataError.
+            // 5. If the length in bits of data is 128:
+            //    If the alg field of jwk is present, and is not "A128CBC", then throw a DataError.
+            // 5. If the length in bits of data is 192:
+            //    If the alg field of jwk is present, and is not "A192CBC", then throw a DataError.
+            // 5. If the length in bits of data is 256:
+            //    If the alg field of jwk is present, and is not "A256CBC", then throw a DataError.
+            // 5. Otherwise:
+            //    throw a DataError.
             let data_bits = data.as_slice().len() * 8;
             let alg = &jwk.alg;
             if data_bits == 128 {
@@ -3378,16 +3427,17 @@ impl AlgorithmMethods for AesCbc {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. -> If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]]
+            //    internal slot of key.
             let data = key.byte_handle_bytes();
 
-            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            // 2. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
         //    -> If format is "jwk":
@@ -3398,7 +3448,8 @@ impl AlgorithmMethods for AesCbc {
             // 2. Set the kty attribute of jwk to the string "oct".
             jwk.kty = Some(Utf16String::from_ascii(b"oct"));
 
-            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
+            //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
             let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
                 return cx
@@ -3408,12 +3459,12 @@ impl AlgorithmMethods for AesCbc {
             };
             jwk.k = Some(encoded);
 
-            // 4. -> If the length attribute of key is 128:
-            //        Set the alg attribute of jwk to the string "A128CBC".
-            //    -> If the length attribute of key is 192:
-            //        Set the alg attribute of jwk to the string "A192CBC".
-            //    -> If the length attribute of key is 256:
-            //        Set the alg attribute of jwk to the string "A256CBC".
+            // 4. If the length attribute of key is 128:
+            //    Set the alg attribute of jwk to the string "A128CBC".
+            // 4. If the length attribute of key is 192:
+            //    Set the alg attribute of jwk to the string "A192CBC".
+            // 4. If the length attribute of key is 256:
+            //    Set the alg attribute of jwk to the string "A256CBC".
             let key_bits = key_bytes.len() * 8;
             if key_bits == 128 {
                 jwk.alg = Some(Utf16String::from_ascii(b"A128CBC"));
@@ -3436,7 +3487,7 @@ impl AlgorithmMethods for AesCbc {
             // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 7. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         //    -> Otherwise:
@@ -3512,7 +3563,7 @@ impl AlgorithmMethods for AesCtr {
 
         // 2. If format is "raw":
         if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the octet string contained in keyData.
+            // 1. Let data be keyData.
             let ImportKeyData::Bytes(bytes) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
@@ -3532,10 +3583,10 @@ impl AlgorithmMethods for AesCtr {
         }
         // 2. If format is "jwk":
         else if format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -3561,14 +3612,14 @@ impl AlgorithmMethods for AesCtr {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            //    5. -> If data has length 128 bits:
-            //              If the alg field of jwk is present, and is not "A128CTR", then throw a DataError.
-            //       -> If data has length 192 bits:
-            //              If the alg field of jwk is present, and is not "A192CTR", then throw a DataError.
-            //       -> If data has length 256 bits:
-            //              If the alg field of jwk is present, and is not "A256CTR", then throw a DataError.
-            //       -> Otherwise:
-            //              throw a DataError.
+            // 5. If the length in bits of data is 128:
+            //    If the alg field of jwk is present, and is not "A128CTR", then throw a DataError.
+            // 5. If the length in bits of data is 192:
+            //    If the alg field of jwk is present, and is not "A192CTR", then throw a DataError.
+            // 5. If the length in bits of data is 256:
+            //    If the alg field of jwk is present, and is not "A256CTR", then throw a DataError.
+            // 5. Otherwise:
+            //    throw a DataError.
             let data_bits = data.as_slice().len() * 8;
             let alg = &jwk.alg;
             if data_bits == 128 {
@@ -3629,7 +3680,7 @@ impl AlgorithmMethods for AesCtr {
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only raw and jwk formats are supported",
@@ -3664,16 +3715,17 @@ impl AlgorithmMethods for AesCtr {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]]
+            //    internal slot of key.
             let data = key.byte_handle_bytes();
 
-            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            // 2. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
         // 2. If format is "jwk":
@@ -3684,8 +3736,8 @@ impl AlgorithmMethods for AesCtr {
             // 2. Set the kty attribute of jwk to the string "oct".
             jwk.kty = Some(Utf16String::from_ascii(b"oct"));
 
-            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
-            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
+            //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
             let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
                 return cx
@@ -3695,12 +3747,12 @@ impl AlgorithmMethods for AesCtr {
             };
             jwk.k = Some(encoded);
 
-            // 4. -> If the length attribute of key is 128:
-            //        Set the alg attribute of jwk to the string "A128CTR".
-            //    -> If the length attribute of key is 192:
-            //        Set the alg attribute of jwk to the string "A192CTR".
-            //    -> If the length attribute of key is 256:
-            //        Set the alg attribute of jwk to the string "A256CTR".
+            // 4. If the length attribute of key is 128:
+            //    Set the alg attribute of jwk to the string "A128CTR".
+            // 4. If the length attribute of key is 192:
+            //    Set the alg attribute of jwk to the string "A192CTR".
+            // 4. If the length attribute of key is 256:
+            //    Set the alg attribute of jwk to the string "A256CTR".
             let key_bits = key_bytes.len() * 8;
             if key_bits == 128 {
                 jwk.alg = Some(Utf16String::from_ascii(b"A128CTR"));
@@ -3710,7 +3762,7 @@ impl AlgorithmMethods for AesCtr {
                 jwk.alg = Some(Utf16String::from_ascii(b"A256CTR"));
             }
 
-            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            // 5. Set the key_ops attribute of jwk to equal the [[usages]] internal slot of key.
             jwk.key_ops = Some(
                 key.internal_usages()
                     .iter()
@@ -3721,12 +3773,12 @@ impl AlgorithmMethods for AesCtr {
             // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 7. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
@@ -3996,7 +4048,7 @@ impl AlgorithmMethods for AesGcm {
 
         // 2. If format is "raw":
         if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the octet string contained in keyData.
+            // 1. Let data be keyData.
             let ImportKeyData::Bytes(bytes) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
@@ -4016,10 +4068,10 @@ impl AlgorithmMethods for AesGcm {
         }
         // 2. If format is "jwk":
         else if format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -4045,14 +4097,14 @@ impl AlgorithmMethods for AesGcm {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            //    5. -> If data has length 128 bits:
-            //              If the alg field of jwk is present, and is not "A128GCM", then throw a DataError.
-            //       -> If data has length 192 bits:
-            //              If the alg field of jwk is present, and is not "A192GCM", then throw a DataError.
-            //       -> If data has length 256 bits:
-            //              If the alg field of jwk is present, and is not "A256GCM", then throw a DataError.
-            //       -> Otherwise:
-            //              throw a DataError.
+            // 5. If the length in bits of data is 128:
+            //    If the alg field of jwk is present, and is not "A128GCM", then throw a DataError.
+            // 5. If the length in bits of data is 192:
+            //    If the alg field of jwk is present, and is not "A192GCM", then throw a DataError.
+            // 5. If the length in bits of data is 256:
+            //    If the alg field of jwk is present, and is not "A256GCM", then throw a DataError.
+            // 5. Otherwise:
+            //    throw a DataError.
             let data_bits = data.as_slice().len() * 8;
             let alg = &jwk.alg;
             if data_bits == 128 {
@@ -4113,7 +4165,7 @@ impl AlgorithmMethods for AesGcm {
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only raw and jwk formats are supported",
@@ -4148,16 +4200,17 @@ impl AlgorithmMethods for AesGcm {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]]
+            //    internal slot of key.
             let data = key.byte_handle_bytes();
 
-            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            // 2. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
         // 2. If format is "jwk":
@@ -4168,8 +4221,8 @@ impl AlgorithmMethods for AesGcm {
             // 2. Set the kty attribute of jwk to the string "oct".
             jwk.kty = Some(Utf16String::from_ascii(b"oct"));
 
-            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
-            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
+            //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
             let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
                 return cx
@@ -4179,12 +4232,12 @@ impl AlgorithmMethods for AesGcm {
             };
             jwk.k = Some(encoded);
 
-            // 4. -> If the length attribute of key is 128:
-            //        Set the alg attribute of jwk to the string "A128GCM".
-            //    -> If the length attribute of key is 192:
-            //        Set the alg attribute of jwk to the string "A192GCM".
-            //    -> If the length attribute of key is 256:
-            //        Set the alg attribute of jwk to the string "A256GCM".
+            // 4. If the length attribute of key is 128:
+            //    Set the alg attribute of jwk to the string "A128GCM".
+            // 4. If the length attribute of key is 192:
+            //    Set the alg attribute of jwk to the string "A192GCM".
+            // 4. If the length attribute of key is 256:
+            //    Set the alg attribute of jwk to the string "A256GCM".
             let key_bits = key_bytes.len() * 8;
             if key_bits == 128 {
                 jwk.alg = Some(Utf16String::from_ascii(b"A128GCM"));
@@ -4194,7 +4247,7 @@ impl AlgorithmMethods for AesGcm {
                 jwk.alg = Some(Utf16String::from_ascii(b"A256GCM"));
             }
 
-            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            // 5. Set the key_ops attribute of jwk to equal the usages attribute of key.
             jwk.key_ops = Some(
                 key.internal_usages()
                     .iter()
@@ -4205,12 +4258,12 @@ impl AlgorithmMethods for AesGcm {
             // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 7. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
@@ -4265,7 +4318,8 @@ impl AlgorithmMethods for AesGcm {
             return Err(dom_error("OperationError", b"Invalid plaintext length"));
         }
 
-        // 5. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        // 5. Let additionalData be the additionalData member of normalizedAlgorithm if present or an empty byte
+        //    sequence otherwise.
         let additional_data = normalized_algorithm
             .additional_data
             .as_ref()
@@ -4375,7 +4429,8 @@ impl AlgorithmMethods for AesGcm {
         // 6. Let actualCiphertext be the result of removing the last tagLength bits from ciphertext.
         let actual_ciphertext = copy_bytes(&ciphertext.as_slice()[..split])?;
 
-        // 7. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+        // 7. Let additionalData be the additionalData member of normalizedAlgorithm if present or an empty byte
+        //    sequence otherwise.
         let additional_data = normalized_algorithm
             .additional_data
             .as_ref()
@@ -4528,7 +4583,7 @@ impl AlgorithmMethods for AesKw {
 
         // 2. If format is "raw":
         if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the octet string contained in keyData.
+            // 1. Let data be keyData.
             let ImportKeyData::Bytes(bytes) = key_data else {
                 unreachable!("raw key data contains bytes")
             };
@@ -4548,10 +4603,10 @@ impl AlgorithmMethods for AesKw {
         }
         // 2. If format is "jwk":
         else if format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -4574,14 +4629,14 @@ impl AlgorithmMethods for AesKw {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            // 5. -> If data has length 128 bits:
-            //           If the alg field of jwk is present, and is not "A128KW", then throw a DataError.
-            //    -> If data has length 192 bits:
-            //           If the alg field of jwk is present, and is not "A192KW", then throw a DataError.
-            //    -> If data has length 256 bits:
-            //           If the alg field of jwk is present, and is not "A256KW", then throw a DataError.
-            //    -> Otherwise:
-            //           throw a DataError.
+            // 5. If the length in bits of data is 128:
+            //    If the alg field of jwk is present, and is not "A128KW", then throw a DataError.
+            // 5. If the length in bits of data is 192:
+            //    If the alg field of jwk is present, and is not "A192KW", then throw a DataError.
+            // 5. If the length in bits of data is 256:
+            //    If the alg field of jwk is present, and is not "A256KW", then throw a DataError.
+            // 5. Otherwise:
+            //    throw a DataError.
             let data_bits = data.as_slice().len() * 8;
             let alg = &jwk.alg;
             if data_bits == 128 {
@@ -4642,7 +4697,7 @@ impl AlgorithmMethods for AesKw {
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only raw and jwk formats are supported",
@@ -4677,16 +4732,17 @@ impl AlgorithmMethods for AesKw {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
         let result = if format == KeyFormat::Raw || format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by the [[handle]]
+            //    internal slot of key.
             let data = key.byte_handle_bytes();
 
-            // 2. Let result be the result of creating an ArrayBuffer containing data.
+            // 2. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(data.to_vec()))
         }
         // 2. If format is "jwk":
@@ -4697,8 +4753,8 @@ impl AlgorithmMethods for AesKw {
             // 2. Set the kty attribute of jwk to the string "oct".
             jwk.kty = Some(Utf16String::from_ascii(b"oct"));
 
-            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key,
-            //    encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+            // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by the
+            //    [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
             let key_bytes = key.byte_handle_bytes();
             let Ok(encoded) = base64_url_bytes_encode(key_bytes) else {
                 return cx
@@ -4708,12 +4764,12 @@ impl AlgorithmMethods for AesKw {
             };
             jwk.k = Some(encoded);
 
-            // 4. -> If the length attribute of key is 128:
-            //        Set the alg attribute of jwk to the string "A128KW".
-            //    -> If the length attribute of key is 192:
-            //        Set the alg attribute of jwk to the string "A192KW".
-            //    -> If the length attribute of key is 256:
-            //        Set the alg attribute of jwk to the string "A256KW".
+            // 4. If the length attribute of key is 128:
+            //    Set the alg attribute of jwk to the string "A128KW".
+            // 4. If the length attribute of key is 192:
+            //    Set the alg attribute of jwk to the string "A192KW".
+            // 4. If the length attribute of key is 256:
+            //    Set the alg attribute of jwk to the string "A256KW".
             let key_bits = key_bytes.len() * 8;
             if key_bits == 128 {
                 jwk.alg = Some(Utf16String::from_ascii(b"A128KW"));
@@ -4723,7 +4779,7 @@ impl AlgorithmMethods for AesKw {
                 jwk.alg = Some(Utf16String::from_ascii(b"A256KW"));
             }
 
-            // 5. Set the key_ops attribute of jwk to the usages attribute of key.
+            // 5. Set the key_ops attribute of jwk to equal the usages attribute of key.
             jwk.key_ops = Some(
                 key.internal_usages()
                     .iter()
@@ -4734,12 +4790,12 @@ impl AlgorithmMethods for AesKw {
             // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 7. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
@@ -4816,7 +4872,7 @@ impl AlgorithmMethods for AesKw {
 
         // 6. Let algorithm be a new AesKeyAlgorithm.
         // 7. Set the name attribute of algorithm to "AES-KW".
-        // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+        // 8. Set the length attribute of algorithm to equal the length property of normalizedAlgorithm.
         // 10. Set the [[algorithm]] internal slot of key to algorithm.
         key.set_algorithm(InternalAlgorithmData::Aes {
             name: Utf16String::from_ascii(b"AES-KW"),
@@ -4985,7 +5041,7 @@ impl AlgorithmMethods for AesOcb {
             ));
         }
 
-        // 5. Return C
+        // 5. Return C.
         Ok(ciphertext.expect("LibCrypto returns the result"))
     }
 
@@ -5063,10 +5119,14 @@ impl AlgorithmMethods for AesOcb {
             )
         };
 
-        // 5. If the result of the algorithm is the indication of authentication failure:
+        // 5. Perform the OCB-DECRYPT function described in Section 4.3 of [RFC7253] using AES as the block cipher,
+        //    using the key represented by [[handle]] internal slot of key as the K input parameter, the iv member of
+        //    normalizedAlgorithm as the N input parameter, additionalData as the A input parameter, ciphertext as the C
+        //    input parameter, and tagLength as the TAGLEN global parameter.
+        //    If the result of the algorithm is the indication of authentication failure, "INVALID":
         //       throw an OperationError
         //    Otherwise:
-        //       Let plaintext be the resulting plaintext.
+        //       Let plaintext be the output P of OCB-DECRYPT.
         if maybe_plaintext != 0 {
             // SAFETY: LibCrypto transfers an ownership reference.
             let detail = unsafe { Utf16String::from_raw_owned(maybe_plaintext) };
@@ -5231,14 +5291,14 @@ impl AlgorithmMethods for AesOcb {
             // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
             data = parse_jwk_symmetric_key(cx.vm(), &jwk)?;
 
-            // 5. -> If data has length 128 bits:
-            //           If the alg field of jwk is present, and is not "A128OCB", then throw a DataError.
-            //    -> If data has length 192 bits:
-            //           If the alg field of jwk is present, and is not "A192OCB", then throw a DataError.
-            //    -> If data has length 256 bits:
-            //           If the alg field of jwk is present, and is not "A256OCB", then throw a DataError.
-            //    -> Otherwise:
-            //           throw a DataError.
+            // 5. If data has length 128 bits:
+            //    If the alg field of jwk is present, and is not "A128OCB", then throw a DataError.
+            // 5. If data has length 192 bits:
+            //    If the alg field of jwk is present, and is not "A192OCB", then throw a DataError.
+            // 5. If data has length 256 bits:
+            //    If the alg field of jwk is present, and is not "A256OCB", then throw a DataError.
+            // 5. Otherwise:
+            //    throw a DataError.
             let data_bits = data.as_slice().len() * 8;
             let alg = &jwk.alg;
             if data_bits == 128 {
@@ -5297,9 +5357,10 @@ impl AlgorithmMethods for AesOcb {
                 return Err(dom_error("DataError", b"Invalid ext field"));
             }
         }
-        // 2. Otherwise:
+        // 3. Otherwise:
+        //    throw a NotSupportedError.
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error(
                 "NotSupportedError",
                 b"Only raw-secret and jwk formats are supported",
@@ -5334,11 +5395,12 @@ impl AlgorithmMethods for AesOcb {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. If format is "raw-secret":
         let result = if format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by [[handle]] internal
+            //    slot of key.
             let data = key.byte_handle_bytes();
 
             // 2. Let result be data.
@@ -5363,12 +5425,12 @@ impl AlgorithmMethods for AesOcb {
             };
             jwk.k = Some(encoded);
 
-            // 4. -> If the length attribute of key is 128:
-            //        Set the alg attribute of jwk to the string "A128OCB".
-            //    -> If the length attribute of key is 192:
-            //        Set the alg attribute of jwk to the string "A192OCB".
-            //    -> If the length attribute of key is 256:
-            //        Set the alg attribute of jwk to the string "A256OCB".
+            // 4. If the length attribute of key is 128:
+            //    Set the alg attribute of jwk to the string "A128OCB".
+            // 4. If the length attribute of key is 192:
+            //    Set the alg attribute of jwk to the string "A192OCB".
+            // 4. If the length attribute of key is 256:
+            //    Set the alg attribute of jwk to the string "A256OCB".
             let key_bits = key_bytes.len() * 8;
             if key_bits == 128 {
                 jwk.alg = Some(Utf16String::from_ascii(b"A128OCB"));
@@ -5394,7 +5456,7 @@ impl AlgorithmMethods for AesOcb {
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
@@ -5769,11 +5831,12 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
         // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 2. If format is "raw-secret":
         let result = if format == KeyFormat::RawSecret {
-            // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+            // 1. Let data be a byte sequence containing the raw octets of the key represented by [[handle]] internal
+            //    slot of key.
             let data = key.byte_handle_bytes();
 
             // 2. Let result be data.
@@ -5817,7 +5880,7 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
         }
         // 2. Otherwise:
         else {
-            // 1. throw a NotSupportedError.
+            // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Cannot export to unsupported format"));
         };
 
@@ -6577,7 +6640,7 @@ impl AlgorithmMethods for RsaOaep {
         // 20. Let result be a new CryptoKeyPair dictionary.
         // 21. Set the publicKey attribute of result to be publicKey.
         // 22. Set the privateKey attribute of result to be privateKey.
-        // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        // 23. Return result.
         Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
             public_key: Some(public_key),
             private_key: Some(private_key),
@@ -6601,7 +6664,7 @@ impl AlgorithmMethods for RsaOaep {
             unreachable!("the operation uses RSA import parameters")
         };
 
-        // 2. -> If format is "spki":
+        // 2. If format is "spki":
         if key_format == KeyFormat::Spki {
             // 1. If usages contains an entry which is not "encrypt" or "wrapKey", then throw a SyntaxError.
             for &usage in usages {
@@ -6652,7 +6715,7 @@ impl AlgorithmMethods for RsaOaep {
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
         }
-        // -> If format is "pkcs8":
+        // 2. If format is "pkcs8":
         else if key_format == KeyFormat::Pkcs8 {
             // 1. If usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
             for &usage in usages {
@@ -6703,12 +6766,12 @@ impl AlgorithmMethods for RsaOaep {
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
         }
-        // -> If format is "jwk":
+        // 2. If format is "jwk":
         else if key_format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -6904,7 +6967,7 @@ impl AlgorithmMethods for RsaOaep {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki"
         let result = if format == KeyFormat::Spki {
@@ -6915,36 +6978,43 @@ impl AlgorithmMethods for RsaOaep {
 
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
-            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            //   - Set the params field to the ASN.1 type NULL.
-            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
-            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
+            //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
+            //      internal slot of key
             let data = rsa_export_der(vm, key, true)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "pkcs8"
+        // 3. If format is "pkcs8":
         else if format == KeyFormat::Pkcs8 {
             // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Private {
                 return Err(dom_error("InvalidAccessError", b"Key is not private"));
             }
 
-            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
-            // - Set the version field to 0.
-            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            // - - Set the params field to the ASN.1 type NULL.
-            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
-            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in
+            //      [RFC3447], Appendix A.1.2, that represents the RSA private key represented by the [[handle]]
+            //      internal slot of key
+            // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
+            //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
+            //       BER-decoding, only DER encodings are produced or accepted.
             let data = rsa_export_der(vm, key, false)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "jwk"
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -6959,7 +7029,7 @@ impl AlgorithmMethods for RsaOaep {
             };
 
             // 4. If hash is "SHA-1":
-            //      - Set the alg attribute of jwk to the string "RSA-OAEP".
+            //    Set the alg attribute of jwk to the string "RSA-OAEP".
             if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP"));
             }
@@ -6978,9 +7048,10 @@ impl AlgorithmMethods for RsaOaep {
             else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"RSA-OAEP-512"));
             } else {
-                // - Perform any key export steps defined by other applicable specifications,
-                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
-                // - Set the alg attribute of jwk to alg.
+                // 4. Otherwise:
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+                // FIXME: 2. Set the alg attribute of jwk to alg.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -7016,7 +7087,7 @@ impl AlgorithmMethods for RsaOaep {
             // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 15. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 9. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // Otherwise throw a NotSupportedError.
@@ -7030,7 +7101,7 @@ impl AlgorithmMethods for RsaOaep {
             ));
         };
 
-        // 8. Return result
+        // 4. Return result.
         Ok(result)
     }
 
@@ -7228,7 +7299,7 @@ impl AlgorithmMethods for RsaPss {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
-        // 6. Return signature.
+        // 5. Return signature.
         Ok(signature.expect("LibCrypto returns the result"))
     }
 
@@ -7314,7 +7385,7 @@ impl AlgorithmMethods for RsaPss {
             unreachable!("the operation uses RSA import parameters")
         };
 
-        // 2. -> If format is "spki":
+        // 2. If format is "spki":
         if key_format == KeyFormat::Spki {
             // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
             for &usage in usages {
@@ -7365,7 +7436,7 @@ impl AlgorithmMethods for RsaPss {
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
         }
-        // -> If format is "pkcs8":
+        // 2. If format is "pkcs8":
         else if key_format == KeyFormat::Pkcs8 {
             // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
             for &usage in usages {
@@ -7416,12 +7487,12 @@ impl AlgorithmMethods for RsaPss {
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
         }
-        // -> If format is "jwk":
+        // 2. If format is "jwk":
         else if key_format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -7478,22 +7549,22 @@ impl AlgorithmMethods for RsaPss {
             if jwk.alg.is_none() {
                 //     Let hash be undefined.
             }
-            //    ->  If the alg field of jwk is equal to "PS1":
+            // 7. If the alg field is equal to the string "PS1":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS1")) {
                 //     Let hash be the string "SHA-1".
                 hash = Some(Utf16String::from_ascii(b"SHA-1"));
             }
-            //    -> If the alg field of jwk is equal to "PS256":
+            // 7. If the alg field is equal to the string "PS256":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS256")) {
                 //     Let hash be the string "SHA-256".
                 hash = Some(Utf16String::from_ascii(b"SHA-256"));
             }
-            //    -> If the alg field of jwk is equal to "PS384":
+            // 7. If the alg field is equal to the string "PS384":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS384")) {
                 //     Let hash be the string "SHA-384".
                 hash = Some(Utf16String::from_ascii(b"SHA-384"));
             }
-            //    -> If the alg field of jwk is equal to "PS512":
+            // 7. If the alg field is equal to the string "PS512":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"PS512")) {
                 //     Let hash be the string "SHA-512".
                 hash = Some(Utf16String::from_ascii(b"SHA-512"));
@@ -7616,7 +7687,7 @@ impl AlgorithmMethods for RsaPss {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki"
         let result = if format == KeyFormat::Spki {
@@ -7627,36 +7698,43 @@ impl AlgorithmMethods for RsaPss {
 
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
-            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            //   - Set the params field to the ASN.1 type NULL.
-            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
-            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
+            //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
+            //      internal slot of key
             let data = rsa_export_der(vm, key, true)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "pkcs8"
+        // 3. If format is "pkcs8":
         else if format == KeyFormat::Pkcs8 {
             // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Private {
                 return Err(dom_error("InvalidAccessError", b"Key is not private"));
             }
 
-            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
-            // - Set the version field to 0.
-            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            // - - Set the params field to the ASN.1 type NULL.
-            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
-            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in
+            //      [RFC3447], Appendix A.1.2, that represents the RSA private key represented by the [[handle]]
+            //      internal slot of key
+            // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
+            //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
+            //       BER-decoding, only DER encodings are produced or accepted.
             let data = rsa_export_der(vm, key, false)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "jwk"
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -7671,7 +7749,7 @@ impl AlgorithmMethods for RsaPss {
             };
 
             // 4. If hash is "SHA-1":
-            //      - Set the alg attribute of jwk to the string "PS1".
+            //    Set the alg attribute of jwk to the string "PS1".
             if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"PS1"));
             }
@@ -7690,9 +7768,10 @@ impl AlgorithmMethods for RsaPss {
             else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"PS512"));
             } else {
-                // - Perform any key export steps defined by other applicable specifications,
-                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
-                // - Set the alg attribute of jwk to alg.
+                // 4. Otherwise:
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+                // FIXME: 2. Set the alg attribute of jwk to alg.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -7727,7 +7806,7 @@ impl AlgorithmMethods for RsaPss {
             // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 9. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // Otherwise throw a NotSupportedError.
@@ -7741,7 +7820,7 @@ impl AlgorithmMethods for RsaPss {
             ));
         };
 
-        // 8. Return result
+        // 4. Return result.
         Ok(result)
     }
 
@@ -7804,9 +7883,10 @@ impl AlgorithmMethods for RsassaPkcs1 {
         // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
         validate_rsa_key_generation_parameters(&normalized_algorithm.key_gen)?;
 
-        // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
-        //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
-        // 4. If performing the operation results in an error, then throw an OperationError.
+        // 3. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength
+        //    attribute of normalizedAlgorithm and RSA public exponent equal to the publicExponent attribute of
+        //    normalizedAlgorithm.
+        // 4. If generation of the key pair fails, then throw an OperationError.
         let maybe_key_pair = rsa_generate_key_pair(
             normalized_algorithm.key_gen.modulus_length,
             &normalized_algorithm.key_gen.public_exponent,
@@ -7826,8 +7906,9 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
         // 5. Let algorithm be a new RsaHashedKeyAlgorithm dictionary.
         // 6. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
-        // 7. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
-        // 8. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+        // 7. Set the modulusLength attribute of algorithm to equal the modulusLength attribute of normalizedAlgorithm.
+        // 8. Set the publicExponent attribute of algorithm to equal the publicExponent attribute of
+        //    normalizedAlgorithm.
         // 9. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
         // 12. Set the [[algorithm]] internal slot of publicKey to algorithm.
         public_key.set_algorithm(InternalAlgorithmData::RsaHashed {
@@ -7918,7 +7999,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             ));
         };
 
-        // 5. Let signature be the signature, S, that results from performing the operation.
+        // 4. Let signature be the value S that results from performing the operation.
         let mut signature: Option<Bytes> = None;
         // SAFETY: The input and output slots live for the call.
         let maybe_signature = unsafe {
@@ -7934,7 +8015,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             return Err(dom_error("OperationError", b"Failed to sign message"));
         }
 
-        // 6. Return signature.
+        // 5. Return signature.
         Ok(signature.expect("LibCrypto returns the result"))
     }
 
@@ -7996,6 +8077,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             return Err(dom_error("OperationError", b"Failed to verify message"));
         }
 
+        // 4. Return result.
         Ok(verified)
     }
 
@@ -8016,7 +8098,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             unreachable!("the operation uses RSA import parameters")
         };
 
-        // 2. -> If format is "spki":
+        // 2. If format is "spki":
         if key_format == KeyFormat::Spki {
             // 1. If usages contains an entry which is not "verify", then throw a SyntaxError.
             for &usage in usages {
@@ -8067,7 +8149,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             // 8. Set the [[type]] internal slot of key to "public"
             key.set_type(KeyType::Public);
         }
-        // -> If format is "pkcs8":
+        // 2. If format is "pkcs8":
         else if key_format == KeyFormat::Pkcs8 {
             // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
             for &usage in usages {
@@ -8118,12 +8200,12 @@ impl AlgorithmMethods for RsassaPkcs1 {
             // 8. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
         }
-        // -> If format is "jwk":
+        // 2. If format is "jwk":
         else if key_format == KeyFormat::Jwk {
-            // 1. -> If keyData is a JsonWebKey dictionary:
-            //         Let jwk equal keyData.
-            //    -> Otherwise:
-            //         Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"keyData is not a JsonWebKey dictionary"));
             };
@@ -8175,27 +8257,28 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 return Err(dom_error("DataError", b"Invalid ext field"));
             }
 
+            // 7. Let hash be a be a string whose initial value is undefined.
             let mut hash = None;
             // 8. -> If the alg field of jwk is not present:
             if jwk.alg.is_none() {
                 //     Let hash be undefined.
             }
-            //    ->  If the alg field of jwk is equal to "RS1":
+            // 8. If the alg field is equal to the string "RS1":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS1")) {
                 //     Let hash be the string "SHA-1".
                 hash = Some(Utf16String::from_ascii(b"SHA-1"));
             }
-            //    -> If the alg field of jwk is equal to "RS256":
+            // 8. If the alg field is equal to the string "RS256":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS256")) {
                 //     Let hash be the string "SHA-256".
                 hash = Some(Utf16String::from_ascii(b"SHA-256"));
             }
-            //    -> If the alg field of jwk is equal to "RS384":
+            // 8. If the alg field is equal to the string "RS384":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS384")) {
                 //     Let hash be the string "SHA-384".
                 hash = Some(Utf16String::from_ascii(b"SHA-384"));
             }
-            //    -> If the alg field of jwk is equal to "RS512":
+            // 8. If the alg field is equal to the string "RS512":
             else if jwk.alg.as_ref() == Some(&Utf16String::from_ascii(b"RS512")) {
                 //     Let hash be the string "SHA-512".
                 hash = Some(Utf16String::from_ascii(b"SHA-512"));
@@ -8207,7 +8290,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // 8. If hash is not undefined:
+            // 9. If hash is not undefined:
             if let Some(hash) = hash {
                 // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
                 let normalized_hash =
@@ -8219,7 +8302,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 }
             }
 
-            // 9. -> If the d field of jwk is present:
+            // 10. If the d field of jwk is present:
             if jwk.d.is_some() {
                 // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
                 let mut meets_requirements = jwk.e.is_some() && jwk.n.is_some() && jwk.d.is_some();
@@ -8241,8 +8324,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                 //    6.3.2 of JSON Web Algorithms [JWA].
                 let private_key = parse_jwk_rsa_key(cx.vm(), &jwk, true)?;
 
-                // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw
-                //    a DataError.
+                // 3. If privateKey is not a valid RSA private key according to [RFC3447], then throw a DataError.
                 let maybe_valid = private_key.is_valid();
                 let Ok(maybe_valid) = maybe_valid else {
                     return Err(dom_error("DataError", b"Failed to verify key"));
@@ -8251,7 +8333,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
                     return Err(dom_error("DataError", b"Invalid key"));
                 }
 
-                // 4. Let key be a new CryptoKey representing publicKey.
+                // 4. Let key be a new CryptoKey object that represents privateKey.
                 key = private_key.install(cx.vm());
 
                 // 5. Set the [[type]] internal slot of key to "private"
@@ -8320,7 +8402,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
         // 1. Let key be the key to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki"
         let result = if format == KeyFormat::Spki {
@@ -8331,36 +8413,43 @@ impl AlgorithmMethods for RsassaPkcs1 {
 
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
-            // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            //   - Set the params field to the ASN.1 type NULL.
-            // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
-            //   that represents the RSA public key represented by the [[handle]] internal slot of key
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined
+            //      in [RFC3447], Appendix A.1.1, that represents the RSA public key represented by the [[handle]]
+            //      internal slot of key
             let data = rsa_export_der(vm, key, true)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "pkcs8"
+        // 3. If format is "pkcs8":
         else if format == KeyFormat::Pkcs8 {
             // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Private {
                 return Err(dom_error("InvalidAccessError", b"Key is not private"));
             }
 
-            // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
-            // - Set the version field to 0.
-            // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
-            // - - Set the params field to the ASN.1 type NULL.
-            // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
-            // that represents the RSA private key represented by the [[handle]] internal slot of key
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+            //       * Set the params field to the ASN.1 type NULL.
+            //    * Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in
+            //      [RFC3447], Appendix A.1.2, that represents the RSA private key represented by the [[handle]]
+            //      internal slot of key
+            // Note: [RFC5208] specifies that the encoding of this field should be BER encoded in Section 5 (as a "for
+            //       example"). However, to avoid requiring WebCrypto implementations support BER-encoding and
+            //       BER-decoding, only DER encodings are produced or accepted.
             let data = rsa_export_der(vm, key, false)?;
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // If format is "jwk"
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -8375,7 +8464,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             };
 
             // 4. If hash is "SHA-1":
-            //      - Set the alg attribute of jwk to the string "RS1".
+            //    Set the alg attribute of jwk to the string "RS1".
             if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-1")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"RS1"));
             }
@@ -8394,9 +8483,11 @@ impl AlgorithmMethods for RsassaPkcs1 {
             else if matches!(hash.as_units(), Utf16StringUnits::Ascii(b"SHA-512")) {
                 jwk.alg = Some(Utf16String::from_ascii(b"RS512"));
             } else {
-                // - Perform any key export steps defined by other applicable specifications,
-                //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
-                // - Set the alg attribute of jwk to alg.
+                // 4. Otherwise:
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format,
+                //           key and obtaining alg.
+                // FIXME: 2. If an error occurred or there are no applicable specifications, throw a NotSupportedError.
+                // FIXME: 3. Set the alg attribute of jwk to alg.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -8431,7 +8522,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 9. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // Otherwise throw a NotSupportedError.
@@ -8445,7 +8536,7 @@ impl AlgorithmMethods for RsassaPkcs1 {
             ));
         };
 
-        // 8. Return result
+        // 4. Return result.
         Ok(result)
     }
 
@@ -8852,7 +8943,6 @@ impl AlgorithmMethods for Ecdsa {
         // Perform the ECDSA generation steps specified in that specification,
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
         // Otherwise: throw a NotSupportedError
-        // NOTE: Spec jumps to 6 here for some reason
         // 3. If performing the key generation operation results in an error, then throw an OperationError.
         let Some(curve) = EcCurve::from_name(&normalized_algorithm.named_curve) else {
             return Err(dom_error(
@@ -8906,7 +8996,7 @@ impl AlgorithmMethods for Ecdsa {
         // 17. Let result be a new CryptoKeyPair dictionary.
         // 18. Set the publicKey attribute of result to be publicKey.
         // 19. Set the privateKey attribute of result to be privateKey.
-        // 23. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        // 20. Return result.
         Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
             public_key: Some(public_key),
             private_key: Some(private_key),
@@ -9021,12 +9111,12 @@ impl AlgorithmMethods for Ecdsa {
             result_bytes.resize(coord_size * 2, 0);
 
             // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
-            // 5. Convert r to an octet string of length n and append this sequence of bytes to result.
+            // 5. Convert r to a byte sequence of length n and append it to result.
             let r_bytes = r_bytes.expect("LibCrypto returns the signature component");
             assert!(r_bytes.as_slice().len() <= coord_size);
             result_bytes[..r_bytes.as_slice().len()].copy_from_slice(r_bytes.as_slice());
 
-            // 6. Convert s to an octet string of length n and append this sequence of bytes to result.
+            // 6. Convert s to a byte sequence of length n and append it to result.
             let s_bytes = s_bytes.expect("LibCrypto returns the signature component");
             assert!(s_bytes.as_slice().len() <= coord_size);
             result_bytes[coord_size..coord_size + s_bytes.as_slice().len()].copy_from_slice(s_bytes.as_slice());
@@ -9037,8 +9127,7 @@ impl AlgorithmMethods for Ecdsa {
             return Err(dom_error("DataError", b"Invalid algorithm"));
         }
 
-        // NOTE: The spec jumps to 9 here for some reason
-        // 9. Return the result of creating an ArrayBuffer containing result.
+        // 7. Return result.
         Ok(result)
     }
 
@@ -9161,9 +9250,9 @@ impl AlgorithmMethods for Ecdsa {
             unreachable!("the operation uses EC Import parameters")
         };
 
-        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
-        //    specified in an applicable specification that specifies the use of that value with ECDSA, then throw a
-        //    NotSupportedError.
+        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a
+        //    value specified in an applicable specification that specifies the use of that value with ECDSA, then throw
+        //    a NotSupportedError.
         if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(Exception::Dom(
                 "NotSupportedError",
@@ -9195,7 +9284,7 @@ impl AlgorithmMethods for Ecdsa {
         // NB: Step 1 is performed by validate_import_key_parameters().
         self.validate_import_key_parameters(cx.realm())?;
 
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 2. Let keyData be the key data to be imported.
 
         let key;
@@ -9239,24 +9328,25 @@ impl AlgorithmMethods for Ecdsa {
 
             // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
             if ec_params == SECP256R1_OID {
-                // Set namedCurve to "P-256".
+                // Set namedCurve "P-256".
                 named_curve = Utf16String::from_ascii(b"P-256");
             }
             // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP384R1_OID {
-                // Set namedCurve to "P-384".
+                // Set namedCurve "P-384".
                 named_curve = Utf16String::from_ascii(b"P-384");
             }
             // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP521R1_OID {
-                // Set namedCurve to "P-521".
+                // Set namedCurve "P-521".
                 named_curve = Utf16String::from_ascii(b"P-521");
             }
 
             // 10. If namedCurve is not undefined:
             if !named_curve.is_empty() {
-                // 1. Let publicKey be the Elliptic Curve public key identified by performing
-                //    the conversion steps defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki.
+                // 1. Let publicKey be the Elliptic Curve public key identified by performing the conversion steps
+                //    defined in Section 2.3.4 of [SEC1] using the subjectPublicKey field of spki. The uncompressed
+                //    point format MUST be supported.
                 // The uncompressed point format MUST be supported.
                 let public_key = spki.ec_key();
 
@@ -9312,7 +9402,7 @@ impl AlgorithmMethods for Ecdsa {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, then throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
@@ -9341,17 +9431,17 @@ impl AlgorithmMethods for Ecdsa {
 
             // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
             if ec_params == SECP256R1_OID {
-                // Set namedCurve to "P-256".
+                // Set namedCurve "P-256".
                 named_curve = Utf16String::from_ascii(b"P-256");
             }
             // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP384R1_OID {
-                // Set namedCurve to "P-384".
+                // Set namedCurve "P-384".
                 named_curve = Utf16String::from_ascii(b"P-384");
             }
             // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP521R1_OID {
-                // Set namedCurve to "P-521".
+                // Set namedCurve "P-521".
                 named_curve = Utf16String::from_ascii(b"P-521");
             }
 
@@ -9377,7 +9467,8 @@ impl AlgorithmMethods for Ecdsa {
                 key = ec_private_key.install(cx.vm());
             } else {
                 // Otherwise:
-                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 1. Perform any key import steps defined by other applicable specifications, passing format,
+                //    privateKeyInfo and obtaining namedCurve and key.
                 // 2. If an error occurred or there are no applicable specifications, throw a DataError.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
@@ -9387,8 +9478,8 @@ impl AlgorithmMethods for Ecdsa {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // 12. If the public key value is not a valid point on the Elliptic Curve identified by the namedCurve
-            //    member of normalizedAlgorithm throw a DataError.
+            // 12. If the private key value is not a valid point on the Elliptic Curve identified by the namedCurve
+            //     member of normalizedAlgorithm throw a DataError.
             let curve = EcCurve::from_name(&named_curve).expect("the named curve is supported");
             let Ok(maybe_valid) = ec_key_is_valid(curve, key) else {
                 return Err(dom_error("DataError", b"Failed to verify key"));
@@ -9475,7 +9566,7 @@ impl AlgorithmMethods for Ecdsa {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // 3. If namedCurve is "P-256", "P-384" or "P-521":
+            // 9. If namedCurve is equal to "P-256", "P-384" or "P-521":
             if EcCurve::from_name(&named_curve).is_some() {
                 // 1. Let algNamedCurve be a string whose initial value is undefined.
                 let mut alg_named_curve = Utf16String::default();
@@ -9612,9 +9703,9 @@ impl AlgorithmMethods for Ecdsa {
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
             if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
-                // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
-                //          member of normalizedAlgorithm identified by performing the conversion steps
-                //          defined in Section 2.3.4 of [SEC1] to keyData.
+                // 1. Let Q be the elliptic curve point on the curve identified by the namedCurve member of
+                //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
+                //    [SEC1] on keyData. The uncompressed point format MUST be supported.
                 // The uncompressed point format MUST be supported.
                 // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
@@ -9658,11 +9749,11 @@ impl AlgorithmMethods for Ecdsa {
         reason = "the algorithm sets JWK members in separate steps"
     )]
     fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki":
         let result = if format == KeyFormat::Spki {
@@ -9672,25 +9763,31 @@ impl AlgorithmMethods for Ecdsa {
             }
 
             let data;
-            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-            //    Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
-            //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
-            //    Set the subjectPublicKey field to keyData
-            //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //       * Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as
+            //         follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+            //          "P-521":
             let algorithm = key.internal_algorithm();
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
             if let Some(curve) = EcCurve::from_name(named_curve) {
-                //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
-                //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
-                // NOTE: everything above happens in wrap_in_subject_public_key_info
+                //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
+                //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.2 of
+                //    [RFC5480] and using the uncompressed form. and keyData.
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp256r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp384r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
+                //       defined in [RFC5480]
                 let maybe_data = ec_export_der(curve, key, true);
 
                 if maybe_data.is_err() {
@@ -9700,14 +9797,16 @@ impl AlgorithmMethods for Ecdsa {
                 data = maybe_data.expect("encoding succeeded");
             } else {
                 // Otherwise:
-                // 1. Perform any key export steps defined by other applicable specifications, passing format and the
-                //    namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and a new
-                //    value of jwk.
-                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining
+                //           namedCurveOid and keyData.
+                // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
+                //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // NOTE: Spec does not say anything about this.
+            //    * Set the subjectPublicKey field to keyData.
+            // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
         // 3. If format is "pkcs8":
@@ -9719,32 +9818,37 @@ impl AlgorithmMethods for Ecdsa {
 
             let data;
 
-            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-            //    Set the version field to 0.
-            //    Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
-            //      Set the privateKey field to keyData.
-            //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
-            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //       * Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as
+            //         follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+            //          "P-521":
             let algorithm = key.internal_algorithm();
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
             if let Some(curve) = EcCurve::from_name(named_curve) {
-                // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
-                // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
-                // of key and that conforms to the following:
-                //      The parameters field is present, and is equivalent to the parameters field of the privateKeyAlgorithm field
-                //      of this PrivateKeyInfo ASN.1 structure.
-                //      The publicKey field is present and represents the Elliptic Curve public key associated with the Elliptic Curve
-                //      private key represented by the [[handle]] internal slot of key.
-                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
-                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
-                //       If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
-                // NOTE: everything above happens in wrap_in_private_key_info
+                //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
+                //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
+                //    slot of key and that conforms to the following:
+                //    * The parameters field is present, and is equivalent to the parameters field of the
+                //      privateKeyAlgorithm field of this PrivateKeyInfo ASN.1 structure.
+                //    * The publicKey field is present and represents the Elliptic Curve public key associated with the
+                //      Elliptic Curve private key represented by the [[handle]] internal slot of key.
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp256r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp384r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
+                //       defined in [RFC5480]
                 let maybe_data = ec_export_der(curve, key, false);
 
                 if maybe_data.is_err() {
@@ -9754,17 +9858,19 @@ impl AlgorithmMethods for Ecdsa {
                 data = maybe_data.expect("encoding succeeded");
             } else {
                 // Otherwise:
-                // 1. Perform any key export steps defined by other applicable specifications, passing format and the
-                //    namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and a new
-                //    value of jwk.
-                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining
+                //           namedCurveOid and keyData.
+                // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
+                //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
+            // * Set the privateKey field to keyData.
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // 3. If format is "jwt":
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -9838,7 +9944,7 @@ impl AlgorithmMethods for Ecdsa {
             // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 6. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // 3. If format is "raw":
@@ -9856,8 +9962,10 @@ impl AlgorithmMethods for Ecdsa {
                 unreachable!("the key has an EC algorithm")
             };
             let data = if EcCurve::from_name(named_curve).is_some() {
-                // Let data be an octet string representing the Elliptic Curve point Q represented by [[handle]] internal slot
-                // of key according to [SEC1] 2.3.3 using the uncompressed format.
+                // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+                //    "P-521":
+                //    Let data be a byte sequence representing the Elliptic Curve point Q represented by the [[handle]]
+                //    internal slot of key according to [SEC1] 2.3.3 using the uncompressed format.
                 let maybe_data = ec_export_uncompressed(key);
 
                 if maybe_data.is_err() {
@@ -9871,7 +9979,7 @@ impl AlgorithmMethods for Ecdsa {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             };
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be data.
             ExportKeyResult::Bytes(data)
         }
         // Otherwise:
@@ -9974,7 +10082,7 @@ impl AlgorithmMethods for Ecdh {
         public_key.set_type(KeyType::Public);
 
         // 4. Let algorithm be a new EcKeyAlgorithm object.
-        // 5. Set the name attribute of algorithm to "ECDH".
+        // 5. Set the name member of algorithm to "ECDH".
         // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
         // 9. Set the [[algorithm]] internal slot of publicKey to algorithm.
         public_key.set_algorithm(InternalAlgorithmData::Ec {
@@ -10012,7 +10120,7 @@ impl AlgorithmMethods for Ecdh {
         // 17. Let result be a new CryptoKeyPair dictionary.
         // 18. Set the publicKey attribute of result to be publicKey.
         // 19. Set the privateKey attribute of result to be privateKey.
-        // 20. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        // 20. Return result.
         Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
             public_key: Some(public_key),
             private_key: Some(private_key),
@@ -10149,21 +10257,27 @@ impl AlgorithmMethods for Ecdh {
             // in an applicable specification that specifies the use of that value with ECDH:
             // Perform the ECDH derivation steps specified in that specification,
             // passing in key and publicKey and resulting in secret.
+            // FIXME: 9. Otherwise:
+            //    throw a NotSupportedError
             return Err(dom_error("DataError", b"Invalid algorithm"));
         }
 
-        // 11. If length is null: Return secret.
+        // 11. If length is null:
+        //    Return secret.
         let Some(length) = length_optional else {
             return Ok(Bytes::new(secret));
         };
 
-        // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+        // 11. Otherwise:
+        //    If the length in bits of secret is less than length:
+        //       throw an OperationError.
         let length = length as usize;
         if secret.len() * 8 < length {
             return Err(dom_error("OperationError", b"Secret is too short"));
         }
 
-        // Otherwise: Return an octet string containing the first length bits of secret.
+        // Otherwise:
+        //    Return a byte sequence containing the first length bits of secret.
         let mut slice = copy_bytes(cx.vm(), &secret[..length.div_ceil(8)])?;
         if !length.is_multiple_of(8) {
             // Zero out the last bits
@@ -10179,9 +10293,9 @@ impl AlgorithmMethods for Ecdh {
             unreachable!("the operation uses EC Import parameters")
         };
 
-        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a value
-        //    specified in an applicable specification that specifies the use of that value with ECDH, then throw a
-        //    NotSupportedError.
+        // 1. If the namedCurve member of normalizedAlgorithm is not one of "P-256", "P-384" or "P-521", and is not a
+        //    value specified in an applicable specification that specifies the use of that value with ECDH, then throw
+        //    a NotSupportedError.
         if EcCurve::from_name(&normalized_algorithm.named_curve).is_none() {
             return Err(Exception::Dom(
                 "NotSupportedError",
@@ -10213,7 +10327,7 @@ impl AlgorithmMethods for Ecdh {
         // NB: Step 1 is performed by validate_import_key_parameters().
         self.validate_import_key_parameters(cx.realm())?;
 
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 2. Let keyData be the key data to be imported.
 
         let key;
@@ -10252,17 +10366,17 @@ impl AlgorithmMethods for Ecdh {
 
             // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
             if ec_params == SECP256R1_OID {
-                // Set namedCurve to "P-256".
+                // Set namedCurve "P-256".
                 named_curve = Utf16String::from_ascii(b"P-256");
             }
             // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP384R1_OID {
-                // Set namedCurve to "P-384".
+                // Set namedCurve "P-384".
                 named_curve = Utf16String::from_ascii(b"P-384");
             }
             // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
             else if ec_params == SECP521R1_OID {
-                // Set namedCurve to "P-521".
+                // Set namedCurve "P-521".
                 named_curve = Utf16String::from_ascii(b"P-521");
             }
 
@@ -10326,7 +10440,7 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
@@ -10392,7 +10506,8 @@ impl AlgorithmMethods for Ecdh {
                 key = ec_private_key.install(cx.vm());
             } else {
                 // Otherwise:
-                // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+                // 1. Perform any key import steps defined by other applicable specifications, passing format,
+                //    privateKeyInfo and obtaining namedCurve and key.
                 // 2. If an error occurred or there are no applicable specifications, throw a DataError.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
@@ -10531,7 +10646,7 @@ impl AlgorithmMethods for Ecdh {
                     //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
                     key = ec_key_from_coordinates(cx.vm(), &x_bytes, &y_bytes, coord_size, Some(&d_bytes));
 
-                    // 13. Set the [[type]] internal slot of key to "private".
+                    // 3. Set the [[type]] internal slot of Key to "private".
                     key.set_type(KeyType::Private);
                 } else {
                     // Otherwise:
@@ -10584,9 +10699,9 @@ impl AlgorithmMethods for Ecdh {
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
             if EcCurve::from_name(&normalized_algorithm.named_curve).is_some() {
-                // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
-                //          member of normalizedAlgorithm identified by performing the conversion steps
-                //          defined in Section 2.3.4 of [SEC1] to keyData.
+                // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve member of
+                //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
+                //    [SEC1] to keyData. The uncompressed point format MUST be supported.
                 // The uncompressed point format MUST be supported.
                 // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
                 // 3. If a decode error occurs or an identity point is found, throw a DataError.
@@ -10598,7 +10713,7 @@ impl AlgorithmMethods for Ecdh {
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
-                // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+                // 2. If an error occured or there are no applicable specifications, throw a DataError.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
@@ -10629,11 +10744,11 @@ impl AlgorithmMethods for Ecdh {
         reason = "the algorithm sets JWK members in separate steps"
     )]
     fn export_key(&self, _: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         let mut result = None;
 
@@ -10645,25 +10760,31 @@ impl AlgorithmMethods for Ecdh {
             }
 
             let data;
-            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-            //    Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
-            //    Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
-            //    Set the subjectPublicKey field to keyData
-            //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //       * Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as
+            //         follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+            //          "P-521":
             let algorithm = key.internal_algorithm();
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
             if let Some(curve) = EcCurve::from_name(named_curve) {
-                //  Let keyData be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
-                //  of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
-                //  If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
-                //      Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
-                // NOTE: everything above happens in wrap_in_subject_public_key_info
+                //    Let keyData be the byte sequence that represents the Elliptic Curve public key represented by the
+                //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.3.3 of
+                //    [SEC1] and using the uncompressed form.
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp256r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp384r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
+                //       defined in [RFC5480]
                 let maybe_data = ec_export_der(curve, key, true);
 
                 if maybe_data.is_err() {
@@ -10673,14 +10794,16 @@ impl AlgorithmMethods for Ecdh {
                 data = maybe_data.expect("encoding succeeded");
             } else {
                 // Otherwise:
-                // 1. Perform any key export steps defined by other applicable specifications, passing format and the
-                //    namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and a new
-                //    value of jwk.
-                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining
+                //           namedCurveOid and keyData.
+                // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
+                //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // NOTE: Spec does not say anything about this.
+            // * Set the subjectPublicKey field to keyData
+            // AD-HOC: The draft omits the result assignment for this DER format.
             result = Some(ExportKeyResult::Bytes(data));
         }
         // 3. If format is "pkcs8":
@@ -10692,32 +10815,37 @@ impl AlgorithmMethods for Ecdh {
 
             let data;
 
-            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-            //    Set the version field to 0.
-            //    Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
-            //      Set the privateKey field to keyData.
-            //      Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as follows:
-            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm field to the OID id-ecPublicKey defined in [RFC5480].
+            //       * Set the parameters field to an instance of the ECParameters ASN.1 type defined in [RFC5480] as
+            //         follows:
+            //          If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+            //          "P-521":
             let algorithm = key.internal_algorithm();
             let InternalAlgorithmData::Ec { named_curve, .. } = &*algorithm else {
                 unreachable!("the key has an EC algorithm")
             };
             if let Some(curve) = EcCurve::from_name(named_curve) {
-                // Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined
-                // in Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal slot
-                // of key and that conforms to the following:
-                //      The parameters field is present, and is equivalent to the parameters field of the privateKeyAlgorithm field
-                //      of this PrivateKeyInfo ASN.1 structure.
-                //      The publicKey field is present and represents the Elliptic Curve public key associated with the Elliptic Curve
-                //      private key represented by the [[handle]] internal slot of key.
-                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp256r1 defined in [RFC5480]
-                //      If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp384r1 defined in [RFC5480]
-                //       If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
-                //          Set parameters to the namedCurve choice with value equal to the object identifier secp521r1 defined in [RFC5480]
-                // NOTE: everything above happens in wrap_in_private_key_info
+                //    Let keyData be the result of DER-encoding an instance of the ECPrivateKey structure defined in
+                //    Section 3 of [RFC5915] for the Elliptic Curve private key represented by the [[handle]] internal
+                //    slot of key and that conforms to the following:
+                //    * The parameters field is present, and is equivalent to the parameters field of the
+                //      privateKeyAlgorithm field of this PrivateKeyInfo ASN.1 structure.
+                //    * The publicKey field is present and represents the Elliptic Curve public key associated with the
+                //      Elliptic Curve private key represented by the [[handle]] internal slot of key.
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp256r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-384":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp384r1
+                //       defined in [RFC5480]
+                //    If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-521":
+                //       Set parameters to the namedCurve choice with value equal to the object identifier secp521r1
+                //       defined in [RFC5480]
                 let maybe_data = ec_export_der(curve, key, false);
 
                 if maybe_data.is_err() {
@@ -10727,17 +10855,19 @@ impl AlgorithmMethods for Ecdh {
                 data = maybe_data.expect("encoding succeeded");
             } else {
                 // Otherwise:
-                // 1. Perform any key export steps defined by other applicable specifications, passing format and the
-                //    namedCurve attribute of the [[algorithm]] internal slot of key and obtaining namedCurve and a new
-                //    value of jwk.
-                // 2. Set parameters to the namedCurve choice with value equal to the object identifier namedCurveOid.
+                // FIXME: 1. Perform any key export steps defined by other applicable specifications, passing format and
+                //           the namedCurve attribute of the [[algorithm]] internal slot of key and obtaining
+                //           namedCurveOid and keyData.
+                // FIXME: 2. Set parameters to the namedCurve choice with value equal to the object identifier
+                //           namedCurveOid.
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             }
 
-            // NOTE: Spec does not say anything about this.
+            // * Set the privateKey field to keyData.
+            // AD-HOC: The draft omits the result assignment for this DER format.
             result = Some(ExportKeyResult::Bytes(data));
         }
-        // 3. If format is "jwt":
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -10811,7 +10941,7 @@ impl AlgorithmMethods for Ecdh {
             // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 6. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 6. Let result be jwk.
             result = Some(ExportKeyResult::JsonWebKey(jwk));
         }
         // 3. If format is "raw":
@@ -10829,8 +10959,11 @@ impl AlgorithmMethods for Ecdh {
                 unreachable!("the key has an EC algorithm")
             };
             let data = if EcCurve::from_name(named_curve).is_some() {
-                // Let data be the octet string that represents the Elliptic Curve public key represented by the [[handle]] internal slot
-                // of key according to the encoding rules specified in Section 2.3.3 of [SEC1] and using the uncompressed form.
+                // 2. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or
+                //    "P-521":
+                //    Let data be the byte sequence that represents the Elliptic Curve public key represented by the
+                //    [[handle]] internal slot of key according to the encoding rules specified in Section 2.3.3 of
+                //    [SEC1] and using the uncompressed form.
                 let maybe_data = ec_export_uncompressed(key);
 
                 if maybe_data.is_err() {
@@ -10844,7 +10977,7 @@ impl AlgorithmMethods for Ecdh {
                 return Err(dom_error("DataError", b"Invalid algorithm"));
             };
 
-            // 3. Let result be the result of creating an ArrayBuffer containing data.
+            // 3. Let result be data.
             result = Some(ExportKeyResult::Bytes(data));
         }
 
@@ -11062,8 +11195,7 @@ impl AlgorithmMethods for Ed25519 {
             return Err(dom_error("OperationError", b"Failed to generate public key"));
         };
 
-        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
-        // and representing the public key of the generated key pair.
+        // 5. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
         let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
@@ -11082,8 +11214,7 @@ impl AlgorithmMethods for Ed25519 {
         // 9. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
         public_key.set_usages(usage_intersection(key_usages, &[KeyUsage::Verify]));
 
-        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
-        // and representing the private key of the generated key pair.
+        // 10. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
         let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
@@ -11103,7 +11234,7 @@ impl AlgorithmMethods for Ed25519 {
         // 15. Let result be a new CryptoKeyPair dictionary.
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
-        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        // 18. Return result.
         Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
             public_key: Some(public_key),
             private_key: Some(private_key),
@@ -11161,8 +11292,7 @@ impl AlgorithmMethods for Ed25519 {
             // 6. Let publicKey be the Ed25519 public key identified by the subjectPublicKey field of spki.
             let public_key = spki.raw_key();
 
-            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
-            //    and that represents publicKey.
+            // 7. Let key be a new CryptoKey that represents publicKey.
             key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
 
             // 8. Set the [[type]] internal slot of key to "public"
@@ -11212,8 +11342,7 @@ impl AlgorithmMethods for Ed25519 {
             // 7. If an error occurred while parsing, then throw a DataError.
             let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
 
-            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
-            //    and that represents the Ed25519 private key identified by curvePrivateKey.
+            // 8. Let key be a new CryptoKey that represents the Ed25519 private key identified by curvePrivateKey.
             key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
 
             // 9. Set the [[type]] internal slot of key to "private"
@@ -11435,7 +11564,7 @@ impl AlgorithmMethods for Ed25519 {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki":
         if format == KeyFormat::Spki {
@@ -11447,7 +11576,7 @@ impl AlgorithmMethods for Ed25519 {
             // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
             //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
+            //       * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
             let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, true, key.okp_handle_bytes())?;
 
@@ -11465,11 +11594,12 @@ impl AlgorithmMethods for Ed25519 {
             // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
             //    properties:
             //    * Set the version field to 0.
-            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
-            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type,
-            //      as defined in Section 7 of [RFC8410], that represents the Ed25519 private key
-            //      represented by the [[handle]] internal slot of key
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in
+            //      Section 7 of [RFC8410], that represents the Ed25519 private key represented by the [[handle]]
+            //      internal slot of key
 
             let data = okp_export_der(cx.vm(), OkpCurve::Ed25519, false, key.okp_handle_bytes())?;
 
@@ -11477,7 +11607,7 @@ impl AlgorithmMethods for Ed25519 {
             return Ok(ExportKeyResult::Bytes(data));
         }
 
-        // 2. If format is "jwk":
+        // 3. If format is "jwk":
         if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -11506,7 +11636,7 @@ impl AlgorithmMethods for Ed25519 {
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
-                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
@@ -11525,7 +11655,7 @@ impl AlgorithmMethods for Ed25519 {
             return Ok(ExportKeyResult::JsonWebKey(jwk));
         }
 
-        // 2. If format is "raw":
+        // 3. If format is "raw":
         // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
         // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
         if format == KeyFormat::Raw || format == KeyFormat::RawPublic {
@@ -11534,12 +11664,14 @@ impl AlgorithmMethods for Ed25519 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            // 2. Let data be an octet string representing the Ed25519 public key represented by the [[handle]] internal slot of key.
-            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            // 2. Let data be a byte sequence representing the Ed25519 public key represented by the [[handle]] internal
+            //    slot of key.
+            // 3. Let result be data.
+            // 4. Return result.
             return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
         }
 
-        // 2. Otherwise:
+        // 3. Otherwise:
         //    throw a NotSupportedError.
         Err(dom_error("NotSupportedError", b"Invalid key format"))
     }
@@ -11627,7 +11759,7 @@ impl AlgorithmMethods for Ed25519 {
             return Err(Exception::Dom("OperationError", error));
         }
 
-        // 10. Return result.
+        // 6. Return result.
         Ok(verified)
     }
 }
@@ -12041,6 +12173,7 @@ impl AlgorithmMethods for Ed448 {
             return Err(dom_error("NotSupportedError", b"Invalid key format"));
         }
 
+        // 3. Return key
         Ok(key)
     }
 
@@ -12053,7 +12186,7 @@ impl AlgorithmMethods for Ed448 {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki":
         if format == KeyFormat::Spki {
@@ -12062,9 +12195,10 @@ impl AlgorithmMethods for Ed448 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
+            //       * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
             let data = okp_export_der(cx.vm(), OkpCurve::Ed448, true, key.okp_handle_bytes())?;
 
@@ -12079,13 +12213,15 @@ impl AlgorithmMethods for Ed448 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
             }
 
-            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
             //    * Set the version field to 0.
-            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
-            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type,
-            //      as defined in Section 7 of [RFC8410], that represents the Ed448 private key
-            //      represented by the [[handle]] internal slot of key
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm object identifier to the id-Ed448 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in
+            //      Section 7 of [RFC8410], that represents the Ed448 private key represented by the [[handle]] internal
+            //      slot of key
 
             let data = okp_export_der(cx.vm(), OkpCurve::Ed448, false, key.okp_handle_bytes())?;
 
@@ -12093,7 +12229,7 @@ impl AlgorithmMethods for Ed448 {
             return Ok(ExportKeyResult::Bytes(data));
         }
 
-        // 2. If format is "jwk":
+        // 3. If format is "jwk":
         if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -12122,7 +12258,7 @@ impl AlgorithmMethods for Ed448 {
 
             // 6. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
-                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
@@ -12141,7 +12277,7 @@ impl AlgorithmMethods for Ed448 {
             return Ok(ExportKeyResult::JsonWebKey(jwk));
         }
 
-        // 2. If format is "raw":
+        // 3. If format is "raw":
         if format == KeyFormat::Raw {
             // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Public {
@@ -12150,10 +12286,11 @@ impl AlgorithmMethods for Ed448 {
 
             // 2. Let data be an octet string representing the Ed448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            // 4. Return result.
             return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
         }
 
-        // 2. Otherwise:
+        // 3. Otherwise:
         //    throw a NotSupportedError.
         Err(dom_error("NotSupportedError", b"Invalid key format"))
     }
@@ -12367,8 +12504,7 @@ impl AlgorithmMethods for X25519 {
 
         // 8. If secret is the all-zero value, then throw a OperationError.
         //    This check must be performed in constant-time, as per [RFC7748] Section 6.1.
-        // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
-        //       as this eliminates standard side-channels in software implementations.
+        // NB: ORing all the bytes avoids an early exit on a nonzero byte.
         let mut or_bytes = 0;
         for &byte in secret.as_slice() {
             or_bytes |= byte;
@@ -12378,19 +12514,23 @@ impl AlgorithmMethods for X25519 {
             return Err(dom_error("OperationError", b"Secret is the all-zero value"));
         }
 
-        // 9. If length is null: Return secret.
+        // 9. If length is null:
+        //    Return secret.
         let Some(length) = length_optional else {
             let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
             return Ok(result);
         };
 
-        // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+        // 9. Otherwise:
+        //    If the length of secret in bits is less than length:
+        //       throw an OperationError.
         let length = length as usize;
         if secret.as_slice().len() * 8 < length {
             return Err(dom_error("OperationError", b"Secret is too short"));
         }
 
-        // Otherwise: Return an octet string containing the first length bits of secret.
+        // Otherwise:
+        //    Return a byte sequence containing the first length bits of secret.
         let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
         if !length.is_multiple_of(8) {
             // Zero out the last bits
@@ -12430,8 +12570,7 @@ impl AlgorithmMethods for X25519 {
             return Err(dom_error("OperationError", b"Failed to generate public key"));
         };
 
-        // 5. Let publicKey be a new CryptoKey associated with the relevant global object of this [HTML],
-        //    and representing the public key of the generated key pair.
+        // 5. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
         let public_key = CryptoKey::from_okp_handle(cx.vm(), false, public_key_data.as_slice());
 
         // 6. Set the [[type]] internal slot of publicKey to "public"
@@ -12450,8 +12589,7 @@ impl AlgorithmMethods for X25519 {
         // 9. Set the [[usages]] internal slot of publicKey to be the empty list.
         public_key.set_usages(Vec::new());
 
-        // 10. Let privateKey be a new CryptoKey associated with the relevant global object of this [HTML],
-        //     and representing the private key of the generated key pair.
+        // 10. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
         let private_key = CryptoKey::from_okp_handle(cx.vm(), true, private_key_data.as_slice());
 
         // 11. Set the [[type]] internal slot of privateKey to "private"
@@ -12474,7 +12612,7 @@ impl AlgorithmMethods for X25519 {
         // 15. Let result be a new CryptoKeyPair dictionary.
         // 16. Set the publicKey attribute of result to be publicKey.
         // 17. Set the privateKey attribute of result to be privateKey.
-        // 18. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+        // 18. Return result.
         Ok(CryptoKeyOrCryptoKeyPair::CryptoKeyPair(CryptoKeyPair {
             public_key: Some(public_key),
             private_key: Some(private_key),
@@ -12495,7 +12633,7 @@ impl AlgorithmMethods for X25519 {
         extractable: bool,
         usages: &[KeyUsage],
     ) -> WebIdlResult<Ref<CryptoKey>> {
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 1. Let keyData be the key data to be imported.
 
         let key;
@@ -12528,7 +12666,7 @@ impl AlgorithmMethods for X25519 {
             // 6. Let publicKey be the X25519 public key identified by the subjectPublicKey field of spki.
             let public_key = spki.raw_key();
 
-            // 7. Let key be a new CryptoKey associated with the relevant global object of this [HTML], and that represents publicKey.
+            // 7. Let key be a new CryptoKey that represents publicKey.
             key = CryptoKey::from_okp_handle(cx.vm(), false, public_key);
 
             // 8. Set the [[type]] internal slot of key to "public"
@@ -12554,7 +12692,7 @@ impl AlgorithmMethods for X25519 {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, then throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
@@ -12578,8 +12716,7 @@ impl AlgorithmMethods for X25519 {
             // 7. If an error occurred while parsing, then throw a DataError.
             let curve_private_key_bytes = parse_octet_string(cx.vm(), private_key_info.raw_key())?;
 
-            // 8. Let key be a new CryptoKey associated with the relevant global object of this [HTML],
-            //    and that represents the X25519 private key identified by curvePrivateKey.
+            // 8. Let key be a new CryptoKey that represents the X25519 private key identified by curvePrivateKey.
             key = CryptoKey::from_okp_handle(cx.vm(), true, curve_private_key_bytes.as_slice());
 
             // 9. Set the [[type]] internal slot of key to "private"
@@ -12720,6 +12857,8 @@ impl AlgorithmMethods for X25519 {
                     return Err(dom_error("DataError", b"Present d field"));
                 }
 
+                // 2. Let key be a new CryptoKey object that represents the X25519 public key identified by interpreting
+                //    jwk according to Section 2 of [RFC8037].
                 key = CryptoKey::from_okp_handle(cx.vm(), false, public_key.as_slice());
 
                 // 3. Set the [[type]] internal slot of Key to "public".
@@ -12778,11 +12917,11 @@ impl AlgorithmMethods for X25519 {
         reason = "the algorithm sets JWK members in separate steps"
     )]
     fn export_key(&self, cx: &CallContext, format: KeyFormat, key: Ref<CryptoKey>) -> WebIdlResult<ExportKeyResult> {
-        // NOTE: This is a parameter to the function
+        // NB: This is a parameter to the function.
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki":
         let result = if format == KeyFormat::Spki {
@@ -12791,10 +12930,11 @@ impl AlgorithmMethods for X25519 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
-            //    Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
-            //    Set the subjectPublicKey field to keyData.
+            // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
+            //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+            //       * Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
+            //    * Set the subjectPublicKey field to keyData.
             let data = okp_export_der(cx.vm(), OkpCurve::X25519, true, key.okp_handle_bytes())?;
 
             // 3. Let result be the result of DER-encoding data.
@@ -12807,19 +12947,22 @@ impl AlgorithmMethods for X25519 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
             }
 
-            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
-            //    Set the version field to 0.
-            //    Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
-            //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
-            //    that represents the X25519 private key represented by the [[handle]] internal slot of key
+            // 2. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
+            //    * Set the version field to 0.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in
+            //      Section 7 of [RFC8410], that represents the X25519 private key represented by the [[handle]]
+            //      internal slot of key
 
             let data = okp_export_der(cx.vm(), OkpCurve::X25519, false, key.okp_handle_bytes())?;
 
             // 3. Let result be the result of DER-encoding data.
             ExportKeyResult::Bytes(data)
         }
-        // 3. If format is "jwt":
+        // 3. If format is "jwk":
         else if format == KeyFormat::Jwk {
             // 1. Let jwk be a new JsonWebKey dictionary.
             let mut jwk = JsonWebKey::default();
@@ -12846,7 +12989,7 @@ impl AlgorithmMethods for X25519 {
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
-                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 let private_key = key.okp_handle_bytes();
                 jwk.d = Some(encode_jwk_bytes(cx.vm(), private_key)?);
             }
@@ -12862,7 +13005,7 @@ impl AlgorithmMethods for X25519 {
             // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
             jwk.ext = Some(key.is_extractable());
 
-            // 8. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+            // 8. Let result be jwk.
             ExportKeyResult::JsonWebKey(jwk)
         }
         // 3. If format is "raw":
@@ -12874,13 +13017,15 @@ impl AlgorithmMethods for X25519 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            // 2. Let data be an octet string representing the X25519 public key represented by the [[handle]] internal slot of key.
+            // 2. Let data be a byte sequence representing the X25519 public key represented by the [[handle]] internal
+            //    slot of key.
             let public_key = key.okp_handle_bytes();
 
-            // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            // 3. Let result be data.
             ExportKeyResult::Bytes(Bytes::new(public_key.to_vec()))
         }
         // 3. Otherwise:
+        //    throw a NotSupportedError.
         else {
             return Err(dom_error("NotSupportedError", b"Invalid key format"));
         };
@@ -12967,8 +13112,7 @@ impl AlgorithmMethods for X448 {
         let secret = secret.expect("LibCrypto returns the shared secret");
 
         // 6. If secret is the all-zero value, then throw a OperationError. This check must be performed in constant-time, as per [RFC7748] Section 6.2.
-        // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
-        //       as this eliminates standard side-channels in software implementations.
+        // NB: ORing all the bytes avoids an early exit on a nonzero byte.
         let mut or_bytes = 0;
         for &byte in secret.as_slice() {
             or_bytes |= byte;
@@ -12978,18 +13122,23 @@ impl AlgorithmMethods for X448 {
             return Err(dom_error("OperationError", b"Secret is the all-zero value"));
         }
 
-        // 7. If length is null: Return secret
+        // 7. If length is null:
+        //    Return secret
         let Some(length) = length_optional else {
             let result = Bytes::new(copy_bytes(cx.vm(), secret.as_slice())?);
             return Ok(result);
         };
 
-        // Otherwise: Return an octet string containing the first length bits of secret.
+        // 7. Otherwise:
+        //    If the length of secret in bits is less than length:
+        //       throw an OperationError.
         let length = length as usize;
         if secret.as_slice().len() * 8 < length {
             return Err(dom_error("OperationError", b"Secret is too short"));
         }
 
+        // Otherwise:
+        //    Return an octet string containing the first length bits of secret.
         let mut slice = copy_bytes(cx.vm(), &secret.as_slice()[..length.div_ceil(8)])?;
         if !length.is_multiple_of(8) {
             // Zero out the last bits
@@ -13084,7 +13233,7 @@ impl AlgorithmMethods for X448 {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
 
         // 3. If format is "spki":
         if format == KeyFormat::Spki {
@@ -13093,9 +13242,10 @@ impl AlgorithmMethods for X448 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a public key"));
             }
 
-            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
+            //       * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
             //    * Set the subjectPublicKey field to keyData.
             let data = okp_export_der(cx.vm(), OkpCurve::X448, true, key.okp_handle_bytes())?;
 
@@ -13110,11 +13260,15 @@ impl AlgorithmMethods for X448 {
                 return Err(dom_error("InvalidAccessError", b"Key is not a private key"));
             }
 
-            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            // 2. Let data be an instance of the privateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
             //    * Set the version field to 0.
-            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
-            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //       * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
+            //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in
+            //      Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal
+            //      slot of key
 
             let data = okp_export_der(cx.vm(), OkpCurve::X448, false, key.okp_handle_bytes())?;
 
@@ -13144,7 +13298,7 @@ impl AlgorithmMethods for X448 {
 
             // 5. If the [[type]] internal slot of key is "private"
             if key.key_type() == KeyType::Private {
-                // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
+                //    Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
                 jwk.d = Some(encode_jwk_bytes(cx.vm(), key.okp_handle_bytes())?);
             }
 
@@ -13172,6 +13326,7 @@ impl AlgorithmMethods for X448 {
 
             // 2. Let data be an octet string representing the X448 public key represented by the [[handle]] internal slot of key.
             // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
+            // 4. Return result.
             return Ok(ExportKeyResult::Bytes(Bytes::new(key.okp_handle_bytes().to_vec())));
         }
 
@@ -13243,7 +13398,7 @@ impl AlgorithmMethods for X448 {
             return Ok(key);
         }
 
-        // 3. If format is "pkcs8":
+        // 2. If format is "pkcs8":
         if format == KeyFormat::Pkcs8 {
             // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
             for &usage in usages {
@@ -13256,7 +13411,7 @@ impl AlgorithmMethods for X448 {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, then throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
@@ -13294,7 +13449,7 @@ impl AlgorithmMethods for X448 {
             return Ok(key);
         }
 
-        // 3. If format is "jwk":
+        // 2. If format is "jwk":
         if format == KeyFormat::Jwk {
             // 1. If keyData is a JsonWebKey dictionary:
             //    Let jwk equal keyData.
@@ -13444,7 +13599,7 @@ impl AlgorithmMethods for X448 {
             return Ok(key);
         }
 
-        // 3. If format is "raw":
+        // 2. If format is "raw":
         if format == KeyFormat::Raw {
             // 1. If usages is not empty then throw a SyntaxError.
             if !usages.is_empty() {
@@ -13474,12 +13629,13 @@ impl AlgorithmMethods for X448 {
                 name: Utf16String::from_ascii(b"X448"),
             });
 
+            // 3. Return key
             return Ok(key);
         }
 
         let _ = extractable;
 
-        // 3. Otherwise:
+        // 2. Otherwise:
         //    throw a NotSupportedError.
         Err(dom_error("NotSupportedError", b"Invalid key format"))
     }
@@ -13788,6 +13944,7 @@ impl AlgorithmMethods for MlDsa {
         }
 
         // 2. Generate an ML-DSA key pair, as described in Section 5.1 of [FIPS-204], with the parameter set indicated by the name member of normalizedAlgorithm.
+        // Note: In order to be able to export the seed ξ, it needs to be stored as part of the generated key material.
         let maybe_key_pair = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
             mldsa_generate_key_pair(MlDsaSize::MlDsa44, &[])
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
@@ -13864,7 +14021,7 @@ impl AlgorithmMethods for MlDsa {
         let key;
 
         // 1. Let keyData be the key data to be imported.
-        // 2. -> If format is "spki":
+        // 2. If format is "spki":
         if key_format == KeyFormat::Spki {
             // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
             for &usage in usages {
@@ -13931,7 +14088,7 @@ impl AlgorithmMethods for MlDsa {
                 name: params.name.clone(),
             });
         }
-        // -> If format is "pkcs8":
+        // 2. If format is "pkcs8":
         else if key_format == KeyFormat::Pkcs8 {
             // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
             for &usage in usages {
@@ -13944,23 +14101,23 @@ impl AlgorithmMethods for MlDsa {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, then throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
             let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
-            // 4. => If the name member of normalizedAlgorithm is "ML-DSA-44":
-            //       Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17).
-            //       Let asn1Structure be the ASN.1 ML-DSA-44-PrivateKey structure.
-            //    => If the name member of normalizedAlgorithm is "ML-DSA-65":
-            //       Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18).
-            //       Let asn1Structure be the ASN.1 ML-DSA-65-PrivateKey structure.
-            //    => If the name member of normalizedAlgorithm is "ML-DSA-87":
-            //       Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19).
-            //       Let asn1Structure be the ASN.1 ML-DSA-87-PrivateKey structure.
-            //    => Otherwise:
-            //       throw a NotSupportedError.
+            // 4. If the name member of normalizedAlgorithm is "ML-DSA-44":
+            //    Let expectedOid be id-ml-dsa-44 (2.16.840.1.101.3.4.3.17). Let asn1Structure be the ASN.1
+            //    ML-DSA-44-PrivateKey structure.
+            // 4. If the name member of normalizedAlgorithm is "ML-DSA-65":
+            //    Let expectedOid be id-ml-dsa-65 (2.16.840.1.101.3.4.3.18). Let asn1Structure be the ASN.1
+            //    ML-DSA-65-PrivateKey structure.
+            // 4. If the name member of normalizedAlgorithm is "ML-DSA-87":
+            //    Let expectedOid be id-ml-dsa-87 (2.16.840.1.101.3.4.3.19). Let asn1Structure be the ASN.1
+            //    ML-DSA-87-PrivateKey structure.
+            // 4. Otherwise:
+            //    throw a NotSupportedError.
             let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
                 ML_DSA_44_OID
             } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
@@ -13996,16 +14153,15 @@ impl AlgorithmMethods for MlDsa {
             // NB: LibCrypto checks the correspondence between the seed and expanded key while parsing.
             let ml_dsa_private_key = private_key_info.mldsa_private_key();
 
-            // 9. Let key be a new CryptoKey that represents the ML-DSA private key identified by
-            //    mlDsaPrivateKey.
+            // 11. Let key be a new CryptoKey that represents the ML-DSA private key identified by mlDsaPrivateKey.
             key = ml_dsa_private_key.install(cx.vm());
 
-            // 10. Set the [[type]] internal slot of key to "private"
+            // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
 
-            // 11. Let algorithm be a new KeyAlgorithm.
-            // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-            // 13. Set the [[algorithm]] internal slot of key to algorithm.
+            // 13. Let algorithm be a new KeyAlgorithm.
+            // 14. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 15. Set the [[algorithm]] internal slot of key to algorithm.
             key.set_algorithm(InternalAlgorithmData::Key {
                 name: params.name.clone(),
             });
@@ -14086,10 +14242,10 @@ impl AlgorithmMethods for MlDsa {
         }
         //  -> If format is "jwk":
         else if key_format == KeyFormat::Jwk {
-            // 1.  => If keyData is a JsonWebKey dictionary:
-            //        Let jwk equal keyData.
-            //     => Otherwise:
-            //        Throw a DataError.
+            // 1. If keyData is a JsonWebKey dictionary:
+            //    Let jwk equal keyData.
+            // 1. Otherwise:
+            //    Throw a DataError.
             let ImportKeyData::JsonWebKey(jwk) = key_data else {
                 return Err(dom_error("DataError", b"Data is not a JsonWebKey dictionary"));
             };
@@ -14218,10 +14374,10 @@ impl AlgorithmMethods for MlDsa {
         // 1. Let key be the CryptoKey to be exported.
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
         let handle = key.handle();
 
-        // 3. -> If format is "spki":
+        // 3. If format is "spki":
         let result = if format == KeyFormat::Spki {
             // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Public {
@@ -14230,16 +14386,17 @@ impl AlgorithmMethods for MlDsa {
 
             // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
 
-            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //      * -> If the name member of keyAlgorithm is "ML-DSA-44":
-            //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-            //        -> If the name member of keyAlgorithm is "ML-DSA-65":
-            //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-            //        -> If the name member of keyAlgorithm is "ML-DSA-87":
-            //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
-            //        -> Otherwise:
-            //           throw a NotSupportedError.
+            //          If the name member of keyAlgorithm is "ML-DSA-44":
+            //             Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
+            //          If the name member of keyAlgorithm is "ML-DSA-65":
+            //             Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
+            //          If the name member of keyAlgorithm is "ML-DSA-87":
+            //             Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
+            //          Otherwise:
+            //             throw a NotSupportedError.
             //    * Set the subjectPublicKey field to keyData.
             let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
                 ML_DSA_44_OID
@@ -14265,35 +14422,37 @@ impl AlgorithmMethods for MlDsa {
 
             // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
 
-            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
             //    * Set the version field to 0.
-            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      * => If the name member of keyAlgorithm is "ML-DSA-44":
-            //           Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
-            //      * => If the name member of keyAlgorithm is "ML-DSA-65":
-            //           Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
-            //      * => If the name member of keyAlgorithm is "ML-DSA-87":
-            //           Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
-            //      * => Otherwise:
-            //           throw a NotSupportedError.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //          If the name member of keyAlgorithm is "ML-DSA-44":
+            //             Set the algorithm object identifier to the id-ml-dsa-44 (2.16.840.1.101.3.4.3.17) OID.
+            //          If the name member of keyAlgorithm is "ML-DSA-65":
+            //             Set the algorithm object identifier to the id-ml-dsa-65 (2.16.840.1.101.3.4.3.18) OID.
+            //          If the name member of keyAlgorithm is "ML-DSA-87":
+            //             Set the algorithm object identifier to the id-ml-dsa-87 (2.16.840.1.101.3.4.3.19) OID.
+            //          Otherwise:
+            //             throw a NotSupportedError.
             //    * Set the privateKey field as follows:
-            //      * => If the name member of keyAlgorithm is "ML-DSA-44":
-            //           Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey
-            //           ASN.1 type that represents the ML-DSA private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => If the name member of keyAlgorithm is "ML-DSA-65":
-            //           Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey
-            //           ASN.1 type that represents the ML-DSA private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => If the name member of keyAlgorithm is "ML-DSA-87":
-            //           Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey
-            //           ASN.1 type that represents the ML-DSA private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => Otherwise:
-            //           throw a NotSupportedError.
+            //          If the name member of keyAlgorithm is "ML-DSA-44":
+            //             Set the privateKey field to the result of DER-encoding a ML-DSA-44-PrivateKey ASN.1 type that
+            //             represents the ML-DSA private key seed represented by the [[handle]] internal slot of key
+            //             using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          If the name member of keyAlgorithm is "ML-DSA-65":
+            //             Set the privateKey field to the result of DER-encoding a ML-DSA-65-PrivateKey ASN.1 type that
+            //             represents the ML-DSA private key seed represented by the [[handle]] internal slot of key
+            //             using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          If the name member of keyAlgorithm is "ML-DSA-87":
+            //             Set the privateKey field to the result of DER-encoding a ML-DSA-87-PrivateKey ASN.1 type that
+            //             represents the ML-DSA private key seed represented by the [[handle]] internal slot of key
+            //             using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          Otherwise:
+            //             throw a NotSupportedError.
             let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-44")) {
                 ML_DSA_44_OID
             } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-DSA-65")) {
@@ -14333,6 +14492,8 @@ impl AlgorithmMethods for MlDsa {
             }
 
             // 2. Let data be a byte sequence containing the ξ seed variable of the key represented by the [[handle]] internal slot of key.
+            // Note: The ξ value is the seed from which the key was generated or imported, as used by
+            //       ML-DSA.KeyGen_internal in Section 6.1 of [FIPS-204].
             let mut bytes = Span::new(&[]);
             // SAFETY: The key owns the bytes through the copy.
             unsafe { web_crypto_mldsa_seed_bytes(handle.as_ptr(), &mut bytes) };
@@ -14519,6 +14680,8 @@ impl AlgorithmMethods for MlKem {
 
         // 2. Generate an ML-KEM key pair, as described in Section 7.1 of [FIPS-203], with the parameter set indicated
         //    by the name member of normalizedAlgorithm.
+        // Note: In order to be able to export the seed (d, z), d and z need to be stored as part of the generated key
+        //       material.
         let size = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
             MlKemSize::MlKem512
         } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
@@ -14607,7 +14770,7 @@ impl AlgorithmMethods for MlKem {
         let key;
 
         // 1. Let keyData be the key data to be imported.
-        // 2. -> If format is "spki":
+        // 2. If format is "spki":
         if format == KeyFormat::Spki {
             // 1. If usages contains an entry which is not "encapsulateKey" or "encapsulateBits" then throw
             //    a SyntaxError.
@@ -14688,23 +14851,23 @@ impl AlgorithmMethods for MlKem {
             }
 
             // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
-            // 3. If an error occurred while parsing, then throw a DataError.
+            // 3. If an error occurs while parsing, then throw a DataError.
             let ImportKeyData::Bytes(key_data) = key_data else {
                 unreachable!("DER key data contains bytes")
             };
             let private_key_info = Asn1KeyInfo::parse(&key_data, Asn1Structure::PrivateKeyInfo)?;
 
-            // 4. => If the name member of normalizedAlgorithm is "ML-KEM-512":
-            //       Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1).
-            //       Let asn1Structure be the ASN.1 ML-KEM-512-PrivateKey structure.
-            //    => If the name member of normalizedAlgorithm is "ML-KEM-768":
-            //       Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2).
-            //       Let asn1Structure be the ASN.1 ML-KEM-768-PrivateKey structure.
-            //    => If the name member of normalizedAlgorithm is "ML-KEM-1024":
-            //       Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3).
-            //       Let asn1Structure be the ASN.1 ML-KEM-1024-PrivateKey structure.
-            //    => Otherwise:
-            //       throw a NotSupportedError.
+            // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
+            //    Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1). Let asn1Structure be the ASN.1
+            //    ML-KEM-512-PrivateKey structure.
+            // 4. If the name member of normalizedAlgorithm is "ML-KEM-768":
+            //    Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2). Let asn1Structure be the ASN.1
+            //    ML-KEM-768-PrivateKey structure.
+            // 4. If the name member of normalizedAlgorithm is "ML-KEM-1024":
+            //    Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3). Let asn1Structure be the ASN.1
+            //    ML-KEM-1024-PrivateKey structure.
+            // 4. Otherwise:
+            //    throw a NotSupportedError.
             let expected_oid = if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
                 ML_KEM_512_OID
             } else if matches!(params.name.as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
@@ -14740,16 +14903,15 @@ impl AlgorithmMethods for MlKem {
             // NB: LibCrypto checks the correspondence between the seed and expanded key while parsing.
             let ml_kem_private_key = private_key_info.mlkem_private_key();
 
-            // 9. Let key be a new CryptoKey that represents the ML-KEM private key identified by
-            //    mlKemPrivateKey.
+            // 11. Let key be a new CryptoKey that represents the ML-KEM private key identified by mlKemPrivateKey.
             key = ml_kem_private_key.install(cx.vm());
 
-            // 10. Set the [[type]] internal slot of key to "private"
+            // 12. Set the [[type]] internal slot of key to "private"
             key.set_type(KeyType::Private);
 
-            // 11. Let algorithm be a new KeyAlgorithm.
-            // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-            // 13. Set the [[algorithm]] internal slot of key to algorithm.
+            // 13. Let algorithm be a new KeyAlgorithm.
+            // 14. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+            // 15. Set the [[algorithm]] internal slot of key to algorithm.
             key.set_algorithm(InternalAlgorithmData::Key {
                 name: params.name.clone(),
             });
@@ -14779,7 +14941,7 @@ impl AlgorithmMethods for MlKem {
 
             // 5. Let algorithm be a new KeyAlgorithm.
             // 6. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
-            // 6. Set the [[algorithm]] internal slot of key to algorithm.
+            // 7. Set the [[algorithm]] internal slot of key to algorithm.
             key.set_algorithm(InternalAlgorithmData::Key {
                 name: params.name.clone(),
             });
@@ -14839,8 +15001,49 @@ impl AlgorithmMethods for MlKem {
                 name: params.name.clone(),
             });
         }
-        // FIXME: -> If format is "jwk":
-        //    -> Otherwise:
+        // FIXME: 2. If format is "jwk":
+        //       FIXME: 1. If keyData is a JsonWebKey dictionary:
+        //          Let jwk equal keyData.
+        //       FIXME: 1. Otherwise:
+        //          Throw a DataError.
+        //    FIXME: 2. If the priv field of jwk is present and if usages contains an entry which is not
+        //              "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
+        //    FIXME: 3. If the priv field of jwk is not present and if usages contains an entry which is not
+        //              "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
+        //    FIXME: 4. If the kty field of jwk is not "AKP", then throw a DataError.
+        //    FIXME: 5. If the alg field of jwk is not present, or its value does not identify the ML-KEM parameter set
+        //              indicated by the name member of normalizedAlgorithm, then throw a DataError.
+        // Note: The "alg" values registered in the IANA JSON Web Signature and Encryption Algorithms registry for the
+        //       ML-KEM parameter sets defined by this specification are ML-KEM-512, ML-KEM-768, and ML-KEM-1024.
+        //       Implementations should also accept other values from this registry that identify a JWE algorithm using
+        //       the same ML-KEM parameter set, provided that the JWE algorithm's JWK representation is compatible with
+        //       the representation defined here apart from the "alg" value. Examples include the values proposed in
+        //       [draft-ietf-jose-hpke-pq-pqt], once registered.
+        //    FIXME: 6. If usages is non-empty and the use field of jwk is present and is not equal to "enc", then throw
+        //              a DataError.
+        //    FIXME: 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
+        //              Key [JWK], or it does not contain all of the specified usages values, then throw a DataError.
+        //    FIXME: 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a
+        //              DataError.
+        //       FIXME: 9. If the priv field of jwk is present:
+        //          FIXME: 1. If the priv attribute of jwk does not contain a valid base64url encoded seed representing
+        //                    an ML-KEM private key, then throw a DataError.
+        //          FIXME: 2. Let key be a new CryptoKey object that represents the ML-KEM private key identified by
+        //                    interpreting the priv attribute of jwk as a base64url encoded seed.
+        //          FIXME: 3. Set the [[type]] internal slot of key to "private".
+        //          FIXME: 4. If the pub attribute of jwk does not contain the base64url encoded public key representing
+        //                    the ML-KEM public key corresponding to key, then throw a DataError.
+        //       FIXME: 9. Otherwise:
+        //          FIXME: 1. If the pub attribute of jwk does not contain a valid base64url encoded public key
+        //                    representing an ML-KEM public key, then throw a DataError.
+        //          FIXME: 2. Let key be a new CryptoKey object that represents the ML-KEM public key identified by
+        //                    interpreting the pub attribute of jwk as a base64url encoded public key.
+        //          FIXME: 3. Set the [[type]] internal slot of key to "public".
+        //    FIXME: 10. Let algorithm be a new instance of a KeyAlgorithm object.
+        //    FIXME: 11. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+        //    FIXME: 12. Set the [[algorithm]] internal slot of key to algorithm.
+        // 2. Otherwise:
+        //    throw a NotSupportedError.
         else {
             // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Invalid key format"));
@@ -14858,10 +15061,10 @@ impl AlgorithmMethods for MlKem {
 
         // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
         //    accessed, then throw an OperationError.
-        // Note: In our impl this is always accessible
+        // NB: The key handle is always accessible.
         let handle = key.handle();
 
-        // 3. -> If format is "spki":
+        // 3. If format is "spki":
         let result = if format == KeyFormat::Spki {
             // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
             if key.key_type() != KeyType::Public {
@@ -14870,16 +15073,17 @@ impl AlgorithmMethods for MlKem {
 
             // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
 
-            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+            // 3. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the
+            //    following properties:
             //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
-            //      * -> If the name member of keyAlgorithm is "ML-KEM-512":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
-            //        -> If the name member of keyAlgorithm is "ML-KEM-768":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
-            //        -> If the name member of keyAlgorithm is "ML-KEM-1024":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
-            //        -> Otherwise:
-            //           throw a NotSupportedError.
+            //          If the name member of keyAlgorithm is "ML-KEM-512":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
+            //          If the name member of keyAlgorithm is "ML-KEM-768":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
+            //          If the name member of keyAlgorithm is "ML-KEM-1024":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
+            //          Otherwise:
+            //             throw a NotSupportedError.
             //    * Set the subjectPublicKey field to keyData.
             let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
                 ML_KEM_512_OID
@@ -14905,35 +15109,37 @@ impl AlgorithmMethods for MlKem {
 
             // 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
 
-            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following properties:
+            // 3. Let data be an instance of the PrivateKeyInfo ASN.1 structure defined in [RFC5208] with the following
+            //    properties:
             //    * Set the version field to 0.
-            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
-            //      * => If the name member of keyAlgorithm is "ML-KEM-512":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
-            //      * => If the name member of keyAlgorithm is "ML-KEM-768":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
-            //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
-            //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
-            //      * => Otherwise:
-            //           throw a NotSupportedError.
+            //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following
+            //      properties:
+            //          If the name member of keyAlgorithm is "ML-KEM-512":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
+            //          If the name member of keyAlgorithm is "ML-KEM-768":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
+            //          If the name member of keyAlgorithm is "ML-KEM-1024":
+            //             Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
+            //          Otherwise:
+            //             throw a NotSupportedError.
             //    * Set the privateKey field as follows:
-            //      * => If the name member of keyAlgorithm is "ML-KEM-512":
-            //           Set the privateKey field to the result of DER-encoding a ML-KEM-512-PrivateKey
-            //           ASN.1 type that represents the ML-KEM private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => If the name member of keyAlgorithm is "ML-KEM-768":
-            //           Set the privateKey field to the result of DER-encoding a ML-KEM-65-PrivateKey
-            //           ASN.1 type that represents the ML-KEM private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => If the name member of keyAlgorithm is "ML-KEM-1024":
-            //           Set the privateKey field to the result of DER-encoding a ML-KEM-1024-PrivateKey
-            //           ASN.1 type that represents the ML-KEM private key seed represented by the
-            //           [[handle]] internal slot of key using the seed-only format (using a context-
-            //           specific [0] primitive tag with an implicit encoding of OCTET STRING).
-            //      * => Otherwise:
-            //           throw a NotSupportedError.
+            //          If the name member of keyAlgorithm is "ML-KEM-512":
+            //             Set the privateKey field to the result of DER-encoding a ML-KEM-512-PrivateKey ASN.1 type
+            //             that represents the ML-KEM private key seed represented by the [[handle]] internal slot of
+            //             key using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          If the name member of keyAlgorithm is "ML-KEM-768":
+            //             Set the privateKey field to the result of DER-encoding a ML-KEM-768-PrivateKey ASN.1 type
+            //             that represents the ML-KEM private key seed represented by the [[handle]] internal slot of
+            //             key using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          If the name member of keyAlgorithm is "ML-KEM-1024":
+            //             Set the privateKey field to the result of DER-encoding a ML-KEM-1024-PrivateKey ASN.1 type
+            //             that represents the ML-KEM private key seed represented by the [[handle]] internal slot of
+            //             key using the seed-only format (using a context-specific [0] primitive tag with an implicit
+            //             encoding of OCTET STRING).
+            //          Otherwise:
+            //             throw a NotSupportedError.
             let algorithm_oid = if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-512")) {
                 ML_KEM_512_OID
             } else if matches!(key.algorithm_name().as_units(), Utf16StringUnits::Ascii(b"ML-KEM-768")) {
@@ -14976,6 +15182,8 @@ impl AlgorithmMethods for MlKem {
 
             // 2. Let data be a byte sequence containing the concatenation of the d and z seed variables of the
             //    key represented by the [[handle]] internal slot of key.
+            // Note: The d and z values are the seed from which the key was generated or imported, as used by
+            //       ML-KEM.KeyGen_internal in Section 6.1 of [FIPS-203].
             let mut seed = Span::new(&[]);
             // SAFETY: The key owns the seed through the copy.
             unsafe { web_crypto_mlkem_seed_bytes(handle.as_ptr(), &mut seed) };
@@ -14984,8 +15192,21 @@ impl AlgorithmMethods for MlKem {
             // 3. Let result be data.
             ExportKeyResult::Bytes(data)
         }
-        // FIXME:  -> If format is "jwk":
-        //   -> Otherwise:
+        // FIXME: 3. If format is "jwk":
+        //    FIXME: 1. Let jwk be a new JsonWebKey dictionary.
+        //    FIXME: 2. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+        //    FIXME: 3. Set the kty attribute of jwk to "AKP".
+        //    FIXME: 4. Set the alg attribute of jwk to the name member of keyAlgorithm.
+        //    FIXME: 5. Set the pub attribute of jwk to the base64url encoded public key corresponding to the [[handle]]
+        //              internal slot of key.
+        //       FIXME: 6. If the [[type]] internal slot of key is "private":
+        //          Set the priv attribute of jwk to the base64url encoded seed represented by the [[handle]] internal
+        //          slot of key.
+        //    FIXME: 7. Set the key_ops attribute of jwk to the usages attribute of key.
+        //    FIXME: 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        //    FIXME: 9. Let result be jwk.
+        // 3. Otherwise:
+        //    throw a NotSupportedError.
         else {
             // throw a NotSupportedError.
             return Err(dom_error("NotSupportedError", b"Invalid key format"));
@@ -15014,6 +15235,8 @@ impl AlgorithmMethods for MlKem {
         // 2. Perform the encapsulation key check described in Section 7.2 of [FIPS-203] with the parameter set indicated
         //    by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as the ek
         //    input parameter.
+        // Note: The result of this check may be cached or precomputed for the CryptoKey object if desirable for
+        //       performance.
         // 3. If the encapsulation key check failed, throw an OperationError.
         // NOTE: Presumably done by OpenSSL for us
 
@@ -15077,7 +15300,9 @@ impl AlgorithmMethods for MlKem {
         // 2. Perform the decapsulation input check described in Section 7.3 of [FIPS-203] with the parameter set
         //    indicated by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as
         //    the dk input parameter, and ciphertext as the c input parameter.
-        // 3. If the decapsulation key check failed, return an OperationError.
+        // Note: The result of the decapsulation key type check and the hash check may be cached or precomputed for the
+        //       CryptoKey object if desirable for performance.
+        // 3. If the decapsulation input check failed, throw an OperationError.
         // NOTE: Presumably done by OpenSSL for us
 
         // 4. Let sharedKey be the output that results from performing the ML-KEM.Decaps function described in Section

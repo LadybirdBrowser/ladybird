@@ -368,6 +368,20 @@ pub(crate) fn normalize_an_algorithm(
     // 9. Let dictionaries be a list consisting of the IDL dictionary type desiredType and all of desiredType's
     //    inherited dictionaries, in order from least to most derived.
     // 10. For each dictionary dictionary in dictionaries:
+    //    1. For each dictionary member member declared on dictionary, in order:
+    //       1. Let key be the identifier of member.
+    //       2. Let idlValue be the value of the dictionary member with key name of key on normalizedAlgorithm.
+    //          3. If member is of the type BufferSource and is present:
+    //             Set the dictionary member on normalizedAlgorithm with key name key to the result of getting a copy of
+    //             the bytes held by idlValue, replacing the current value.
+    //          3. If member is of the type HashAlgorithmIdentifier:
+    //             Set the dictionary member on normalizedAlgorithm with key name key to the result of normalizing an
+    //             algorithm, with the alg set to idlValue and the op set to "digest".
+    //          3. If member is of the type AlgorithmIdentifier:
+    //             Set the dictionary member on normalizedAlgorithm with key name key to the result of normalizing an
+    //             algorithm, with the alg set to idlValue and the op set to the operation defined by the specification
+    //             that defines the algorithm identified by algName.
+    //       4. If an error occurred, return the error and terminate this algorithm.
     // NB: The registered parameter converters normalize their own members.
     let methods = match desired_type {
         RegisteredAlgorithm::Sha => AlgorithmImplementation::Sha(Sha),
@@ -459,7 +473,7 @@ pub(crate) fn normalize_an_algorithm(
         parameter: AlgorithmParams { name: algorithm_name },
     };
 
-    // 13. Return normalizedAlgorithm.
+    // 11. Return normalizedAlgorithm.
     Ok(normalized_algorithm)
 }
 
@@ -1655,6 +1669,11 @@ impl SubtleCrypto {
                     // Note: Handled by the base AlgorithmMethods implementation
 
                     // 12. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
+                    // Note: Because the wrapKey method effectively exports the key, only keys marked as extractable may
+                    //       be wrapped. In particular, this means that this API cannot create a wrapped JWK key that is
+                    //       marked as non-extractable using the ext JWK member. However, the unwrapKey method does
+                    //       support the ext JWK member, so that wrapped non-extractable keys created elsewhere, for
+                    //       example by a server, can be unwrapped using this API.
                     if !key.is_extractable() {
                         reject_promise(
                             vm,
@@ -1696,6 +1715,12 @@ impl SubtleCrypto {
                     //     2. Let bytes be the result of UTF-8 encoding json.
                     //     Otherwise:
                     //     Let bytes be exportedKey.
+                    // Note: The key wrapping operations for some algorithms place constraints on the payload size. For
+                    //       example AES-KW requires the payload to be a multiple of 8 bytes in length and RSA-OAEP
+                    //       places a restriction on the length. For key formats that offer flexibility in serialization
+                    //       of a given key (for example JWK), implementations may choose to adapt the serialization to
+                    //       the constraints of the wrapping algorithm. This is why JSON.stringify is not normatively
+                    //       required, as otherwise it would prohibit implementations from introducing added padding.
                     let bytes_or_error = export_key_result_to_bytes(vm, exported_key_or_error.must());
                     if let Err(error) = bytes_or_error {
                         reject_promise_with_exception(vm, promise, error);
@@ -2093,6 +2118,7 @@ impl SubtleCrypto {
                         throw_in_this_context(error);
                         return;
                     }
+                    // FIXME: 14. If usages is empty, then throw a SyntaxError.
                     let shared_key = maybe_shared_key.must();
 
                     // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
@@ -2126,7 +2152,7 @@ impl SubtleCrypto {
                                 }
                                 let result = maybe_result.must();
 
-                                // 19. Resolve promise with result.
+                                // 20. Resolve promise with result.
                                 resolve_promise(vm, promise, result);
                             });
                         },
@@ -2377,6 +2403,7 @@ impl SubtleCrypto {
                         throw_in_this_context(error);
                         return;
                     }
+                    // FIXME: 15. If usages is empty, then throw a SyntaxError.
                     let shared_key = maybe_shared_key.must();
 
                     // 16. Set the [[extractable]] internal slot of sharedKey to extractable.
@@ -2396,7 +2423,7 @@ impl SubtleCrypto {
                             with_temporary_execution_context_and_callbacks(realm, || {
                                 // 19. Let result be the result of converting sharedKey to an ECMAScript Object in
                                 //    realm, as defined by [WebIDL].
-                                // 19. Resolve promise with result.
+                                // 20. Resolve promise with result.
                                 resolve_crypto_key_promise(vm, realm, promise, shared_key);
                             });
                         },
@@ -2699,17 +2726,19 @@ impl SubtleCrypto {
 
         // 2. If operation is "deriveKey" or "unwrapKey":
         if matches!(op, "deriveKey" | "unwrapKey") {
-            // 1. If the result of checking support for an algorithm with op set to "importKey" and alg set to
-            //    additionalAlgorithm is false, return false.
+            // If the result of checking support for an algorithm with op set to "importKey" and alg set to
+            // additionalAlgorithm is false, return false.
             if !check_support_for_an_algorithm(vm, realm, "importKey", &additional_algorithm, None) {
                 return Ok(false);
             }
         }
 
-        // 3. If operation is "wrapKey":
+        // 2. If operation is "wrapKey":
+        //    If the result of checking support for an algorithm with op set to "exportKey" and alg set to
+        //    additionalAlgorithm is false, return false.
         if op == "wrapKey" {
-            // 1. If the result of checking support for an algorithm with op set to "exportKey" and alg set to
-            //    additionalAlgorithm is false, return false.
+            // If the result of checking support for an algorithm with op set to "exportKey" and alg set to
+            // additionalAlgorithm is false, return false.
             if !check_support_for_an_algorithm(vm, realm, "exportKey", &additional_algorithm, None) {
                 return Ok(false);
             }
@@ -2772,10 +2801,10 @@ impl SubtleCrypto {
             }
         }
 
-        // 5. Let length be null.
+        // 4. Let length be null.
         let mut length = None;
 
-        // 6. If operation is "deriveKey":
+        // 5. If operation is "deriveKey":
         if op == "deriveKey" {
             // 1. If the result of checking support for an algorithm with op set to "get key length" and alg set to
             //    additionalAlgorithm is false, return false.
@@ -2807,8 +2836,8 @@ impl SubtleCrypto {
             op = "deriveBits";
         }
 
-        // 7. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm, and
-        //    length set to length.
+        // 6. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm,
+        //    and length set to length.
         Ok(check_support_for_an_algorithm(vm, realm, op, &algorithm, length))
     }
 }
@@ -2831,11 +2860,18 @@ fn determine_support_from_operation_steps(
     // NB: An empty list of usages never makes a step of these operations throw.
 
     // 3. For each of the steps of the operation specified by op of the algorithm specified by normalizedAlgorithm:
-    //    -> If the step says to throw an error: Return false.
-    //    -> If the step says to generate a key: Return true.
-    //    -> If the step relies on an unavailable parameter, such as key, plaintext or ciphertext: Return true.
-    //    -> If the step says to return a value: Return true.
-    //    -> Otherwise: Execute the step.
+    //    If the step says to throw an error:
+    //       Return false.
+    //    If the step says to generate a key:
+    //       Return true.
+    //    If the step relies on an unavailable parameter, such as key, plaintext or ciphertext:
+    //       Return true.
+    //    If the step says to return a value:
+    //       Return true.
+    //    Otherwise:
+    //       Execute the step.
+    // Note: The steps in the referenced algorithm may access the normalizedAlgorithm, length, and usages variables from
+    //       this context.
     // NB: The validate_*_parameters() methods of an algorithm perform the steps of its operations that come before the
     //     first step that relies on an unavailable parameter, generates a key or returns a value. The operations that
     //     have no such method rely on an unavailable parameter in their first steps. The get key length operation
@@ -2870,6 +2906,9 @@ fn determine_support_from_operation_steps(
         }
         Ok(())
     })();
+    // 4. Assert: this step is never reached, because one of the steps of the operation will have said to return a value
+    //    or throw an error, causing us to return true or false, respectively.
+    // NB: The validators stop at the first step that determines support.
     result.is_ok()
 }
 
