@@ -338,7 +338,7 @@ private:
     u64 m_next_external_url_handler_id { 1 };
     BrowserWindow* m_active_window { nullptr };
     OwnPtr<ProcessManagerWindow> m_process_manager_window;
-    RefPtr<WebView::Action> m_open_task_manager_action;
+    RefPtr<Action> m_open_task_manager_action;
 
     bool m_private_session_restart_in_progress { false };
     bool m_quit_in_progress { false };

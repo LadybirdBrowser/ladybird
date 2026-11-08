@@ -12,6 +12,7 @@
 #include <LibWebView/ContextMenuRequest.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/WebCompatReport.h>
+#include <UI/Qt/Actions.h>
 #include <UI/Qt/BookmarkStore.h>
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/SessionStore.h>
@@ -206,15 +207,15 @@ public:
     bool needs_beforeunload_check() const;
     u64 add_navigation_listener(NavigationListener);
     void remove_navigation_listener(u64 listener_id) { m_navigation_listeners.remove(listener_id); }
-    WebView::Action& navigate_back_action() { return *m_navigate_back_action; }
-    WebView::Action& navigate_forward_action() { return *m_navigate_forward_action; }
-    WebView::Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
+    Action& navigate_back_action() { return *m_navigate_back_action; }
+    Action& navigate_forward_action() { return *m_navigate_forward_action; }
+    Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     void update_bookmark_action();
-    WebView::Action& reset_zoom_action() { return *m_reset_zoom_action; }
-    WebView::Action& copy_link_to_highlight_action() { return *m_copy_link_to_highlight_action; }
-    WebView::Action& translate_action() { return *m_translate_action; }
+    Action& reset_zoom_action() { return *m_reset_zoom_action; }
+    Action& copy_link_to_highlight_action() { return *m_copy_link_to_highlight_action; }
+    Action& translate_action() { return *m_translate_action; }
     bool is_translated() const { return m_state.is_translated; }
-    WebView::Menu& translation_menu() { return *m_translation_menu; }
+    Menu& translation_menu() { return *m_translation_menu; }
 
     Vector<WebView::ViewImplementation::SessionHistoryTraversalItem> session_history_traversal_items(int direction) const;
     Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
@@ -244,7 +245,7 @@ public:
     u64 backing_stores_page_id() const { return m_backing_stores_page_id; }
 
 protected:
-    virtual void show_context_menu(WebView::Menu&, Gfx::IntPoint) { }
+    virtual void show_context_menu(Menu&, Gfx::IntPoint) { }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
 
@@ -265,18 +266,18 @@ private:
     Hub::View* m_view { nullptr };
 #endif
 
-    RefPtr<WebView::Action> m_navigate_back_action;
-    RefPtr<WebView::Action> m_navigate_forward_action;
-    RefPtr<WebView::Action> m_toggle_bookmark_action;
-    RefPtr<WebView::Action> m_reset_zoom_action;
-    RefPtr<WebView::Action> m_copy_link_to_highlight_action;
+    RefPtr<Action> m_navigate_back_action;
+    RefPtr<Action> m_navigate_forward_action;
+    RefPtr<Action> m_toggle_bookmark_action;
+    RefPtr<Action> m_reset_zoom_action;
+    RefPtr<Action> m_copy_link_to_highlight_action;
     Optional<URL::URL> m_link_to_highlight;
-    RefPtr<WebView::Action> m_translate_action;
-    RefPtr<WebView::Menu> m_translation_menu;
-    Vector<NonnullRefPtr<WebView::Action>> m_translate_to_actions;
-    RefPtr<WebView::Action> m_show_original_action;
-    RefPtr<WebView::Action> m_download_languages_action;
-    RefPtr<WebView::Menu> m_context_menu;
+    RefPtr<Action> m_translate_action;
+    RefPtr<Menu> m_translation_menu;
+    Vector<NonnullRefPtr<Action>> m_translate_to_actions;
+    RefPtr<Action> m_show_original_action;
+    RefPtr<Action> m_download_languages_action;
+    RefPtr<Menu> m_context_menu;
 
     u64 m_view_id { 0 };
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };

@@ -66,20 +66,20 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
     m_state = m_view->current_state();
 #endif
 
-    m_navigate_back_action = WebView::Action::create("Back"sv, WebView::ActionID::NavigateBack, [this] {
+    m_navigate_back_action = Action::create("Back"sv, ActionID::NavigateBack, [this] {
         traverse_the_history_by_delta(-1);
     });
-    m_navigate_forward_action = WebView::Action::create("Forward"sv, WebView::ActionID::NavigateForward, [this] {
+    m_navigate_forward_action = Action::create("Forward"sv, ActionID::NavigateForward, [this] {
         traverse_the_history_by_delta(+1);
     });
-    m_toggle_bookmark_action = WebView::Action::create("Toggle Bookmark"sv, WebView::ActionID::ToggleBookmarkViaToolbar, [] {
+    m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmarkViaToolbar, [] {
         Application::the().show_bookmark_popover();
     });
-    m_reset_zoom_action = WebView::Action::create("100%"sv, WebView::ActionID::ResetZoomViaToolbar, [this] {
+    m_reset_zoom_action = Action::create("100%"sv, ActionID::ResetZoomViaToolbar, [this] {
         reset_zoom();
     });
     m_reset_zoom_action->set_tooltip("Reset zoom level"sv);
-    m_copy_link_to_highlight_action = WebView::Action::create("Copy Link to Highlight"sv, WebView::ActionID::CopyLinkToHighlight, [this] {
+    m_copy_link_to_highlight_action = Action::create("Copy Link to Highlight"sv, ActionID::CopyLinkToHighlight, [this] {
         if (m_link_to_highlight.has_value())
             Application::the().set_clipboard_text(MUST(String::from_byte_string(WebView::url_text_to_copy(*m_link_to_highlight))));
     });
@@ -477,11 +477,11 @@ static String language_display_name(StringView language)
 
 void RemoteView::create_translation_actions()
 {
-    m_translate_action = WebView::Action::create("Translate"sv, WebView::ActionID::TranslatePage, [] { });
+    m_translate_action = Action::create("Translate"sv, ActionID::TranslatePage, [] { });
 
-    m_translation_menu = WebView::Menu::create("Translation"sv);
+    m_translation_menu = Menu::create("Translation"sv);
     for (size_t index = 0; index < WebView::PageTranslation::MAXIMUM_OFFERED_LANGUAGES; ++index) {
-        auto action = WebView::Action::create_checkable("Translate"sv, WebView::ActionID::TranslateTo, [this, index] {
+        auto action = Action::create_checkable("Translate"sv, ActionID::TranslateTo, [this, index] {
             if (index < m_state.translation_languages.size())
                 HubConnection::the().async_view_translate_to(view_id(), m_state.translation_languages[index]);
             // NB: The check mark shows the language the page is in, which activating an action doesn't change by itself.
@@ -490,17 +490,17 @@ void RemoteView::create_translation_actions()
         m_translation_menu->add_action(action);
         m_translate_to_actions.append(move(action));
     }
-    m_show_original_action = WebView::Action::create("Show Original"sv, WebView::ActionID::ShowOriginal, [this] {
+    m_show_original_action = Action::create("Show Original"sv, ActionID::ShowOriginal, [this] {
         HubConnection::the().async_view_show_original(view_id());
     });
     m_translation_menu->add_action(*m_show_original_action);
     m_translation_menu->add_separator();
-    m_download_languages_action = WebView::Action::create("Download Languages…"sv, WebView::ActionID::DownloadTranslationLanguages, [] {
+    m_download_languages_action = Action::create("Download Languages…"sv, ActionID::DownloadTranslationLanguages, [] {
         if (auto* translator = Application::the().translator())
             translator->open_language_download_settings();
     });
     m_translation_menu->add_action(*m_download_languages_action);
-    m_translation_menu->add_action(WebView::Action::create("Preferred Languages…"sv, WebView::ActionID::EditPreferredLanguages, [] {
+    m_translation_menu->add_action(Action::create("Preferred Languages…"sv, ActionID::EditPreferredLanguages, [] {
         auto url = URL::about_settings();
         url.set_fragment("editLanguages"sv);
         Application::the().activate_or_open_tab_with_url(url);

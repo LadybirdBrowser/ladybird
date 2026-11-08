@@ -16,12 +16,9 @@
 
 namespace Ladybird {
 
-using WebView::Action;
-using WebView::ActionID;
 using WebView::ContextMenuKind;
 using WebView::ContextMenuMediaAction;
 using WebView::ContextMenuRequest;
-using WebView::Menu;
 
 // NB: A shown menu can outlive its view, so its actions find the view again when the user picks them.
 template<typename Callback>
