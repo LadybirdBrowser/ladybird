@@ -14,7 +14,6 @@ use super::custom_properties::{
     CustomPropertyStores, DrivenWithRegisteredProperties, SubstitutingSubject, SubstitutionCache,
     drive_with_registered_properties,
 };
-use super::drive::Drive;
 use super::records::Record;
 use std::sync::Arc;
 
@@ -53,7 +52,7 @@ impl StyleEngine {
         &mut self,
         subject: StyleNodeID,
         declared: DeclaredOnly,
-    ) -> Drive<Arc<Record>> {
+    ) -> Option<Arc<Record>> {
         let live = self
             .retained
             .live_style
@@ -84,7 +83,7 @@ impl StyleEngine {
             .record_in_environment(&record, custom_property_environment)
             .into_owned();
         record.settle_view_dependency_flags(computed::record_dependency_flags(&record.facts(), &record.payloads));
-        Ok(record)
+        Some(record)
     }
 }
 
@@ -99,7 +98,7 @@ impl RetainedState {
         node: StyleNodeID,
         font_requests: &mut Vec<font_resolution::FontRequest>,
         random_requests: &mut Vec<super::super::random_bases::RandomBaseRequest>,
-    ) -> Drive<Arc<Record>> {
+    ) -> Option<Arc<Record>> {
         let initial = &live.initial;
         let subject = DeclaredOnlySubject { state: self, node };
         let substitutions = std::cell::RefCell::new(SubstitutionCache::default());
@@ -137,7 +136,7 @@ impl RetainedState {
                 initial.group_seeds(None),
             );
             font_requests.extend(suspended_font);
-            let mut computed = driven?;
+            let mut computed = driven.ok_or(())?;
             let registered = self.registered_custom_property_store(
                 node,
                 None,
@@ -148,12 +147,13 @@ impl RetainedState {
                 random_requests,
             );
             // NB: Where base values of random functions are still to be drawn, the caller draws them and asks again.
-            Ok(DrivenWithRegisteredProperties {
+            Ok::<_, ()>(DrivenWithRegisteredProperties {
                 computed,
                 registered,
                 computes_again: false,
             })
-        })?;
+        })
+        .ok()?;
         let custom_properties = registered.unwrap_or(custom_properties);
         let value_of = |property| computed.groups.value(property);
         let counter_style_environment_identity = self.values_counter_style_environment_identity(
@@ -166,7 +166,7 @@ impl RetainedState {
             },
         );
         let table_flags = Arc::new(computed.flags);
-        Ok(Arc::new(Record {
+        Some(Arc::new(Record {
             header: super::records::RecordHeader::new(computed.facts),
             payloads: computed
                 .groups

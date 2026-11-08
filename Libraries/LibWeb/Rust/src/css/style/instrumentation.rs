@@ -64,8 +64,6 @@ define_counters! {
     // Physical work, including drives whose output is later abandoned.
     FontRefillRounds => "fontRefillRounds",
     FontResolutionRequests => "fontResolutionRequests",
-    FontRefillResumedDrives => "fontRefillResumedDrives",
-    FontRefillPreservedLonghands => "fontRefillPreservedLonghands",
     FontRefillBlockedDepth => "fontRefillBlockedDepth",
     EngineFullDrivesStarted => "engineFullDrivesStarted",
     EnginePhysicalLonghandEvaluations => "enginePhysicalLonghandEvaluations",
