@@ -1,0 +1,15 @@
+Ladybird keeps a scrollbar thumb with automatic colors visible over
+content of either lightness by outlining it in the opposite color to its
+own. Gecko’s macOS painter does the same: The ThumbRect returned by
+ScrollbarDrawingCocoa’s GetThumbRect() gives a white thumb a translucent
+black stroke color, and a black thumb a translucent white one. WebKit’s
+AdwaitaScrollbarPainter::paint() rings an overlay thumb with a 1px
+border in the opposite color, from overlayThumbBorderColorDark and
+overlayThumbBorderColorLight. And Chromium’s NativeThemeAura::
+PaintScrollbarThumb() strokes an overlay thumb in a contrasting color.
+None of them looks at the content under the thumb: Blink’s
+ScrollableArea::RecalculateOverlayScrollbarColorScheme(), WebKit’s
+LocalFrameView::recalculateScrollbarOverlayStyle(), and Gecko’s
+nsNativeTheme::IsDarkBackgroundForScrollbar() all choose a light or a
+dark thumb from a background color, much as Ladybird’s
+scrollbar_colors_for_paint() does.
