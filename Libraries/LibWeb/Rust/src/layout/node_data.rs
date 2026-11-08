@@ -167,6 +167,7 @@ pub enum NodeKind {
     TextNode = 35,
     VideoBox = 37,
     Viewport = 38,
+    FrameSetBox = 39,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

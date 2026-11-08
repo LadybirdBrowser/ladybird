@@ -3351,7 +3351,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 ),
                 formatting_context::FormattingContextType::Svg
                 | formatting_context::FormattingContextType::InternalReplaced
-                | formatting_context::FormattingContextType::ReplacedWithChildren => (
+                | formatting_context::FormattingContextType::ReplacedWithChildren
+                | formatting_context::FormattingContextType::FrameSet => (
                     "REPLACED CONTENT",
                     intrinsic_sizing::content_sizes_of_replaced_content(self.pass, &scope()),
                 ),

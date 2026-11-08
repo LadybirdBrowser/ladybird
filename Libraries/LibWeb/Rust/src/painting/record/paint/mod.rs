@@ -14,6 +14,7 @@ pub mod border_image;
 pub mod column_rule;
 pub mod fieldset;
 pub mod form_controls;
+pub mod frameset;
 pub mod gradient_resolution;
 pub mod inline_box;
 pub mod inspector_overlay;
@@ -164,6 +165,12 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
                     }
                     _ => unreachable!(),
                 }
+            }
+        }
+        NodeKind::FrameSetBox => {
+            paint_base(recorder, paintable, phase);
+            if phase == PaintPhase::Foreground && recorder.is_visible(paintable) {
+                frameset::paint_frameset_borders(recorder, paintable);
             }
         }
         NodeKind::FieldSetBox => {

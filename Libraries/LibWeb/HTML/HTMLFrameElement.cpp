@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFrameElement.h>
+#include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -32,6 +34,17 @@ HTMLFrameElement::HTMLFrameElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLFrameElement::~HTMLFrameElement() = default;
+
+// https://html.spec.whatwg.org/multipage/rendering.html#frames-and-framesets
+CSS::ElementBoxKind HTMLFrameElement::box_kind() const
+{
+    // The contents of a frame element that does not have a frameset parent are expected to be rendered as transparent
+    // black; the user agent is expected to not render its content navigable in this case, and its content navigable is
+    // expected to have a viewport with zero width and zero height.
+    if (is<HTMLFrameSetElement>(parent()))
+        return CSS::ElementBoxKind::Frame;
+    return CSS::ElementBoxKind::FromDisplay;
+}
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-post-connection-steps
 void HTMLFrameElement::post_connection()
@@ -65,6 +78,11 @@ void HTMLFrameElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     // user agent must process the frame attributes.
     if (content_navigable() && name == HTML::AttributeNames::src)
         process_the_frame_attributes();
+
+    if (first_is_one_of(name, HTML::AttributeNames::frameborder, HTML::AttributeNames::bordercolor)) {
+        if (auto* frameset = as_if<HTMLFrameSetElement>(parent()))
+            frameset->layout_data_changed();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

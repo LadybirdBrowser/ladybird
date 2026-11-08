@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="help" href="http://crbug.com/1383361">
+<body style="columns:2">
+<div id="parent" style="display:table-caption"></div>
+<script>
+const caption = document.querySelector('#parent');
+const frameset = caption.appendChild(document.createElement('frameset'));
+frameset.setAttribute('rows', '100%');
+frameset.setAttribute('cols', '100%');
+frameset.innerHTML = '<frame srcdoc=""></frame><frame srcdoc=""></frame>';
+</script>
+</body>

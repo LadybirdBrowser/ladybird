@@ -16,11 +16,12 @@ use super::ReplacedContentInput;
 use super::StyleEngine;
 use super::animations::HeldAppliedAnimationDefinition;
 use super::bridge::{ElementBoxKind, FfiAppliedAnimationDefinition, borrow};
+use super::bridge::{FfiFrameSetBorder, FfiFrameSetDimension};
 use super::engine_calls::EngineWrite;
 use super::engine_calls::with_engine;
 use super::index::StyleAtomID;
 use super::pipeline::rule_store::{CascadeLayerID, SheetID};
-use super::tree::{StyleNodeID, TableSpans, TreeScopeID};
+use super::tree::{FrameSetLayout, StyleNodeID, TableSpans, TreeScopeID};
 use crate::abort_on_panic;
 use crate::css::css_string::CssString;
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
@@ -89,6 +90,10 @@ carried! {
         |span| unsafe { borrow(span.data, span.size) }.iter().map(|&raw| unsafe { CssString::from_borrowed_raw(raw) }).collect();
     Box<[u32]>: FfiSpan<u32> as "ReadonlySpan<u32>" = |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[u64]>: FfiSpan<u64> as "ReadonlySpan<u64>" = |span| unsafe { borrow(span.data, span.size) }.into();
+    Box<[FfiFrameSetDimension]>: FfiSpan<FfiFrameSetDimension> as "ReadonlySpan<FfiFrameSetDimension>" =
+        |span| unsafe { borrow(span.data, span.size) }.into();
+    Box<[FfiFrameSetBorder]>: FfiSpan<FfiFrameSetBorder> as "ReadonlySpan<FfiFrameSetBorder>" =
+        |span| unsafe { borrow(span.data, span.size) }.into();
     Box<[StyleAtomID]>: FfiSpan<u32> as "ReadonlySpan<StyleAtomID>" =
         |span| unsafe { borrow(span.data, span.size) }.iter().copied().map(StyleAtomID).collect();
     Box<[StyleNodeID]>: FfiSpan<u32> as "ReadonlySpan<StyleNodeID>" =
@@ -352,6 +357,18 @@ style_boundary! {
                 column_span: u16::try_from(column_span).expect("a column span is clamped to 1000"),
                 row_span: u16::try_from(row_span).expect("a row span is clamped to 65534"),
             });
+        set_element_frameset_layout => SetElementFrameSetLayout {
+            node: StyleNodeID,
+            columns: Box<[FfiFrameSetDimension]>,
+            rows: Box<[FfiFrameSetDimension]>,
+            borders: Box<[FfiFrameSetBorder]>,
+            border_thickness: u32
+        } =>
+            {
+                let (column_borders, row_borders) = borders.split_at(columns.len());
+                let (column_borders, row_borders) = (column_borders.into(), row_borders.into());
+                engine.set_element_frameset_layout(node, FrameSetLayout { columns, rows, column_borders, row_borders, border_thickness });
+            };
         set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         record_environment_change => RecordEnvironmentChange { changes: u8 };
         record_custom_property_registration_change => RecordCustomPropertyRegistrationChange => engine.record_custom_property_registration_change();

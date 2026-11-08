@@ -743,6 +743,7 @@ pub(crate) fn kind_is_block_container(kind: NodeKind) -> bool {
         kind,
         NodeKind::BlockContainer
             | NodeKind::FieldSetBox
+            | NodeKind::FrameSetBox
             | NodeKind::LegendBox
             | NodeKind::ListItemBox
             | NodeKind::ListItemMarkerBox

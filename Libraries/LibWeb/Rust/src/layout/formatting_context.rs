@@ -964,6 +964,7 @@ pub enum FormattingContextType {
     Math,
     ReplacedWithChildren,
     InternalReplaced,
+    FrameSet,
 }
 
 impl FormattingContextType {
@@ -972,7 +973,7 @@ impl FormattingContextType {
     }
 
     fn lays_out_inside_its_root_as_definite_in_both_axes(self) -> bool {
-        matches!(self, Self::Svg | Self::ReplacedWithChildren)
+        matches!(self, Self::Svg | Self::ReplacedWithChildren | Self::FrameSet)
     }
 }
 
@@ -1395,6 +1396,7 @@ enum FormattingContextImplementation<'pass> {
     Math(math_formatting_context::MathFormattingContext<'pass>),
     ReplacedWithChildren,
     InternalReplaced,
+    FrameSet,
 }
 
 pub(crate) fn formatting_context_type_created_by_node_data(
@@ -1405,6 +1407,9 @@ pub(crate) fn formatting_context_type_created_by_node_data(
 ) -> Option<FormattingContextType> {
     if data.kind.get() == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FormattingContextType::Svg);
+    }
+    if data.kind.get() == crate::layout::node_data::NodeKind::FrameSetBox {
+        return Some(FormattingContextType::FrameSet);
     }
     let is_replaced_box = node_facts::kind_is_replaced_box(data.kind.get());
     let can_have_children = node_facts::node_can_have_children(data);
@@ -1511,6 +1516,7 @@ fn create_formatting_context_implementation<'pass>(
         ),
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
+        FormattingContextType::FrameSet => FormattingContextImplementation::FrameSet,
     }
 }
 
@@ -2459,6 +2465,11 @@ fn lay_out_run_root_and_contents<'pass>(
                 (result, root_after_body)
             }
             FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), own_root.get()),
+            FormattingContextImplementation::FrameSet => {
+                let mut root_after_body = own_root.get();
+                let result = frameset_formatting_context::layout_frameset(body_run, &mut root_after_body);
+                (result, root_after_body)
+            }
         }
     };
     let baselines_in_own_frame = result.baselines;
@@ -2671,7 +2682,9 @@ fn lay_out_run_root_and_contents<'pass>(
             FormattingContextImplementation::Math(context) => {
                 context.parent_did_dimension(root_in_own_frame_left_by_run);
             }
-            FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
+            FormattingContextImplementation::Svg(_)
+            | FormattingContextImplementation::ReplacedWithChildren
+            | FormattingContextImplementation::FrameSet => {}
             FormattingContextImplementation::InternalReplaced => {
                 let outputs = run.outputs(
                     result,

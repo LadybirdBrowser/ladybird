@@ -27,6 +27,6 @@
     document.documentElement.append(second);
 </script>"></iframe>
 <!-- A frameset before the body is the document's body: the body paints its own background. -->
-<iframe srcdoc="<style>body { margin: 0; height: 50px; } frameset { display: none; }</style><body style='background: green'></body><script>
+<iframe srcdoc="<style>body { margin: 0; height: 50px; } frameset { margin-bottom: -100vh; }</style><body style='background: green'></body><script>
     document.documentElement.insertBefore(document.createElement('frameset'), document.body);
 </script>"></iframe>

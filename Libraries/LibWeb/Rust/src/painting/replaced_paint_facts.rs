@@ -101,6 +101,7 @@ pub(crate) enum ReplacedPaintFacts {
     NavigableContainer(FfiNavigableContainerPaintFacts),
     Image(ImagePaintFacts),
     Video(VideoPaintFacts),
+    FrameSet(std::sync::Arc<crate::css::style::tree::FrameSetLayout>),
 }
 
 impl ReplacedPaintFacts {
@@ -112,7 +113,14 @@ impl ReplacedPaintFacts {
             Self::FormControl(_) => PaintDamage::DRAW_FOREGROUND,
             Self::Canvas(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT,
             Self::NavigableContainer(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT | PaintDamage::SCROLL_METADATA,
-            Self::Image(_) | Self::Video(_) => PaintDamage::ALL_DRAW,
+            Self::Image(_) | Self::Video(_) | Self::FrameSet(_) => PaintDamage::ALL_DRAW,
+        }
+    }
+
+    pub(crate) fn frameset(self) -> Option<std::sync::Arc<crate::css::style::tree::FrameSetLayout>> {
+        match self {
+            Self::FrameSet(layout) => Some(layout),
+            _ => None,
         }
     }
 

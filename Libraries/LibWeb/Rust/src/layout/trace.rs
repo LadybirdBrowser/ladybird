@@ -253,6 +253,7 @@ impl<'a> LayoutTraceTarget<'a> {
                 FormattingContextType::Math => "math",
                 FormattingContextType::ReplacedWithChildren => "replaced-with-children",
                 FormattingContextType::InternalReplaced => "internal-replaced",
+                FormattingContextType::FrameSet => "frameset",
             };
             format!("/{context} {}", action())
         })

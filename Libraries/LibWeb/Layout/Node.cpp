@@ -113,6 +113,7 @@ StringView Node::class_name() const
         LAYOUT_NODE_KIND_NAME_CASE(CanvasBox)
         LAYOUT_NODE_KIND_NAME_CASE(CheckBox)
         LAYOUT_NODE_KIND_NAME_CASE(FieldSetBox)
+        LAYOUT_NODE_KIND_NAME_CASE(FrameSetBox)
         LAYOUT_NODE_KIND_NAME_CASE(GeneratedTextNode)
         LAYOUT_NODE_KIND_NAME_CASE(ImageBox)
         LAYOUT_NODE_KIND_NAME_CASE(InlineNode)

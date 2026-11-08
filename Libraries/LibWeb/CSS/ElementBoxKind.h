@@ -42,7 +42,10 @@ enum class ElementBoxKind : u8 {
     InputRadioButton,
     InputRange,
     InputText,
+    // A frame element whose parent is a frameset.
+    Frame,
+    FrameSet,
 };
-static_assert(to_underlying(ElementBoxKind::InputText) == 22, "Rust's ElementBoxKind lists the same kinds in the same order");
+static_assert(to_underlying(ElementBoxKind::FrameSet) == 24, "Rust's ElementBoxKind lists the same kinds in the same order");
 
 }

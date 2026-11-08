@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async () => {
+  await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once:true}));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  // #fs1, #container, and #child were laid out.
+
+  // Move #child.
+  // It makes #container dirty, and it exceeds from #fs1's 1x1 grid.
+  document.querySelector('#fs1').insertBefore(
+      document.querySelector('#child'), document.querySelector('#container'));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  // Removing #child makes #container visible again.
+  document.querySelector('#child').remove();
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+}, 'No crash when a dirty FRAMESET exceeds from the grid then fits in it again');
+</script>
+</head>
+<frameset id="fs1">
+<frameset id="container">
+<frameset id="child"></frameset>
+</frameset>
+</frameset>
+</html>
