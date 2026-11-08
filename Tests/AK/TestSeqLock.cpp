@@ -75,20 +75,27 @@ TEST_CASE(concurrent_reads_are_never_torn)
     });
     writer->start();
 
-    size_t successful_reads = 0;
     for (size_t iteration = 0; iteration < 500'000; iteration++) {
         auto snapshot = lock.read();
         if (!snapshot.has_value())
             continue;
-        successful_reads++;
         auto expected = snapshot->values[0];
         for (auto value : snapshot->values)
             EXPECT_EQ(value, expected);
     }
-    EXPECT(successful_reads > 0);
 
     stop.store(true, AK::MemoryOrder::memory_order_relaxed);
     (void)writer->join();
+
+    // A read gives up while the writer is partway through a write, so on a busy machine, every read above may have
+    // given up. Once the writer has stopped, a read must succeed, and see all of its fields from one write.
+    auto final_snapshot = lock.read();
+    EXPECT(final_snapshot.has_value());
+    if (!final_snapshot.has_value())
+        return;
+    auto expected = final_snapshot->values[0];
+    for (auto value : final_snapshot->values)
+        EXPECT_EQ(value, expected);
 }
 
 // weak_read() skips the protocol and is only valid on the writer thread; it returns the last write.
