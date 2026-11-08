@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (const [name, usages, generateUsages] of [
+            ["ECDSA", ["verify"], ["sign", "verify"]],
+            ["ECDH", [], ["deriveBits"]],
+        ]) {
+            const { publicKey } = await crypto.subtle.generateKey({ name, namedCurve: "P-256" }, true, generateUsages);
+            const raw = new Uint8Array(await crypto.subtle.exportKey("raw", publicKey));
+            const offCurve = new Uint8Array(raw);
+            offCurve[raw.length - 1] ^= 1;
+
+            for (const [description, keyData, namedCurve] of [
+                ["P-256 point as P-256", raw, "P-256"],
+                ["P-256 point as P-384", raw, "P-384"],
+                ["P-256 point as P-521", raw, "P-521"],
+                ["off-curve point", offCurve, "P-256"],
+            ]) {
+                try {
+                    const key = await crypto.subtle.importKey("raw", keyData, { name, namedCurve }, true, usages);
+                    println(`${name}, ${description}: imported as ${key.algorithm.namedCurve}`);
+                } catch (error) {
+                    println(`${name}, ${description}: ${error.name}`);
+                }
+            }
+        }
+    });
+</script>

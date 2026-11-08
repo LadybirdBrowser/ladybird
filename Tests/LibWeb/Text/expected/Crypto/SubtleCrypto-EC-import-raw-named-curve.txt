@@ -1,0 +1,8 @@
+ECDSA, P-256 point as P-256: imported as P-256
+ECDSA, P-256 point as P-384: DataError
+ECDSA, P-256 point as P-521: DataError
+ECDSA, off-curve point: DataError
+ECDH, P-256 point as P-256: imported as P-256
+ECDH, P-256 point as P-384: DataError
+ECDH, P-256 point as P-521: DataError
+ECDH, off-curve point: DataError

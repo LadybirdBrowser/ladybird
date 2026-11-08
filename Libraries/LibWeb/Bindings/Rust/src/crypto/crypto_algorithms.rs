@@ -7893,11 +7893,18 @@ fn ec_key_from_coordinates(vm: &Vm, x: &Bytes, y: &Bytes, coord_size: usize, d: 
     )
 }
 
-fn ec_parse_raw_public_key(vm: &Vm, key_bytes: &Bytes) -> WebIdlResult<Ref<CryptoKey>> {
+fn ec_parse_raw_public_key(vm: &Vm, curve: EcCurve, key_bytes: &Bytes) -> WebIdlResult<Ref<CryptoKey>> {
     let Some(key) = libcrypto_rust::ec_parse_raw_public_key(key_bytes.as_slice()) else {
         return Err(dom_error("DataError", b"Failed to parse key"));
     };
-    Ok(CryptoKey::create(vm, key))
+    let key = CryptoKey::create(vm, key);
+    let Ok(is_valid) = ec_key_is_valid(curve, key) else {
+        return Err(dom_error("DataError", b"Failed to verify key"));
+    };
+    if !is_valid {
+        return Err(dom_error("DataError", b"Invalid key"));
+    }
+    Ok(key)
 }
 
 fn ec_key_is_valid(curve: EcCurve, key: Ref<CryptoKey>) -> Result<bool, BackendError> {
@@ -8711,7 +8718,7 @@ impl AlgorithmMethods for Ecdsa {
             }
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
-            if ec_curve_from_name(&normalized_algorithm.named_curve).is_some() {
+            if let Some(curve) = ec_curve_from_name(&normalized_algorithm.named_curve) {
                 // 1. Let Q be the elliptic curve point on the curve identified by the namedCurve member of
                 //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
                 //    [SEC1] on keyData. The uncompressed point format MUST be supported.
@@ -8722,7 +8729,7 @@ impl AlgorithmMethods for Ecdsa {
                 let ImportKeyData::Bytes(key_bytes) = key_data else {
                     unreachable!("raw key data contains bytes")
                 };
-                key = ec_parse_raw_public_key(cx.vm(), &key_bytes)?;
+                key = ec_parse_raw_public_key(cx.vm(), curve, &key_bytes)?;
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
@@ -9692,7 +9699,7 @@ impl AlgorithmMethods for Ecdh {
             }
 
             // 3. If namedCurve is "P-256", "P-384" or "P-521":
-            if ec_curve_from_name(&normalized_algorithm.named_curve).is_some() {
+            if let Some(curve) = ec_curve_from_name(&normalized_algorithm.named_curve) {
                 // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve member of
                 //    normalizedAlgorithm identified by performing the conversion steps defined in Section 2.3.4 of
                 //    [SEC1] to keyData. The uncompressed point format MUST be supported.
@@ -9703,7 +9710,7 @@ impl AlgorithmMethods for Ecdh {
                 let ImportKeyData::Bytes(key_bytes) = key_data else {
                     unreachable!("raw key data contains bytes")
                 };
-                key = ec_parse_raw_public_key(cx.vm(), &key_bytes)?;
+                key = ec_parse_raw_public_key(cx.vm(), curve, &key_bytes)?;
             } else {
                 // Otherwise:
                 // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
