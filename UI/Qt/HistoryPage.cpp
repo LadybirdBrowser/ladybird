@@ -52,8 +52,9 @@ static JsonObject serialize_history_entry(WebView::HistoryEntry const& entry)
     return serialized;
 }
 
-HistoryPage::HistoryPage(u64 web_ui_id)
+HistoryPage::HistoryPage(u64 web_ui_id, WebView::IsPrivate is_private)
     : WebUIPage(web_ui_id)
+    , m_is_private(is_private)
 {
 }
 
@@ -84,7 +85,10 @@ void HistoryPage::load_history_entries(JsonValue const& data)
     else
         limit = DEFAULT_HISTORY_PAGE_SIZE;
 
-    auto entries = Application::history_store().list_entries(query, offset, *limit + 1);
+    // NB: A private window keeps no history, so its page shows none of the normal windows' history.
+    Vector<WebView::HistoryEntry> entries;
+    if (m_is_private == WebView::IsPrivate::No)
+        entries = Application::history_store().list_entries(query, offset, *limit + 1);
     auto has_more = entries.size() > *limit;
     if (has_more)
         entries.resize(*limit);
@@ -106,7 +110,7 @@ void HistoryPage::load_history_entries(JsonValue const& data)
 
 void HistoryPage::remove_history_entry(JsonValue const& data)
 {
-    if (!data.is_object())
+    if (m_is_private == WebView::IsPrivate::Yes || !data.is_object())
         return;
 
     auto url = data.as_object().get_string("url"sv);
@@ -124,7 +128,7 @@ void HistoryPage::remove_history_entry(JsonValue const& data)
 
 void HistoryPage::forget_history_site(JsonValue const& data)
 {
-    if (!data.is_object())
+    if (m_is_private == WebView::IsPrivate::Yes || !data.is_object())
         return;
 
     auto url = data.as_object().get_string("url"sv);
