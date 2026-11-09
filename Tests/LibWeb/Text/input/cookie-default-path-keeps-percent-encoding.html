@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const host = `cookie-${crypto.randomUUID()}.example.com`;
+        for (const path of ["/a/%C3%A9/page.html", "/a/%FF/page.html"]) {
+            spoofCurrentURL(`https://${host}${path}`);
+            document.cookie = "no-path=value";
+            document.cookie = "relative-path=value; path=x";
+            println(`${path}: "${document.cookie.split("; ").sort().join("; ")}"`);
+        }
+    });
+</script>

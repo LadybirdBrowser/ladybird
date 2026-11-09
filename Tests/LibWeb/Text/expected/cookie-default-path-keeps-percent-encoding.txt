@@ -1,0 +1,2 @@
+/a/%C3%A9/page.html: "no-path=value; relative-path=value"
+/a/%FF/page.html: "no-path=value; relative-path=value"

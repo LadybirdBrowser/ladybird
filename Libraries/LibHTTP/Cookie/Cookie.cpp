@@ -131,15 +131,14 @@ bool path_matches(StringView request_path, StringView cookie_path)
 String default_path(URL::URL const& url)
 {
     // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
-    auto uri_path = URL::percent_decode(url.serialize_path());
+    auto uri_path = url.serialize_path();
 
     // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output
     //    %x2F ("/") and skip the remaining steps.
     if (uri_path.is_empty() || (uri_path[0] != '/'))
         return "/"_string;
 
-    StringView uri_path_view = uri_path;
-    size_t last_separator = uri_path_view.find_last('/').value();
+    size_t last_separator = uri_path.find_last('/').value();
 
     // 3. If the uri-path contains no more than one %x2F ("/") character, output %x2F ("/") and skip the remaining step.
     if (last_separator == 0)
@@ -147,7 +146,6 @@ String default_path(URL::URL const& url)
 
     // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
     //    %x2F ("/").
-    // FIXME: The path might not be valid UTF-8.
     return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
 }
 
