@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+        const otherNext = Object.getPrototypeOf(other.eval("(function* () {})").prototype).next;
+
+        function realmOf(object) {
+            if (Object.getPrototypeOf(object) === Object.prototype) return "generator's realm";
+            if (Object.getPrototypeOf(object) === other.Object.prototype) return "next's realm";
+            return "neither";
+        }
+
+        function* generator() {
+            yield 1;
+        }
+        const iterator = generator();
+        println(`yield result: ${realmOf(otherNext.call(iterator))}`);
+        println(`final result: ${realmOf(otherNext.call(iterator))}`);
+    });
+</script>
