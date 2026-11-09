@@ -547,7 +547,8 @@ impl DateParser {
         }
 
         if self.consume_specific(b':') {
-            if !self.maybe_time(number, self.date_is_iso_like && previous_separator_was_space) {
+            // NB: Single-digit minutes and seconds are fine except in an ISO-like date whose time follows a "T".
+            if !self.maybe_time(number, !self.date_is_iso_like || previous_separator_was_space) {
                 return false;
             }
             if !self.maybe_ampm() {
@@ -867,7 +868,7 @@ impl DateParser {
             1 | 2 if self.next_is(|character| character == b':') => {
                 // This may not be a year after all but the start of a "time" component.
                 self.ignore();
-                if !self.maybe_time(number, false) {
+                if !self.maybe_time(number, true) {
                     return Err("Cannot parse time.");
                 }
                 if !self.maybe_ampm() {
