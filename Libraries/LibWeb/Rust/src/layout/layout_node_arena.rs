@@ -6576,7 +6576,8 @@ mod tests {
 
     use crate::layout::AxisEdge;
     use crate::layout::abspos_inputs::{
-        AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionRect,
+        AbsposAxisAlignment, AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, AxisPlacement,
+        StaticPositionRect,
     };
     use crate::layout::layout_node_arena::{
         Chunk, DerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
@@ -7622,11 +7623,14 @@ mod tests {
             },
             containing_block_info: AbsposContainingBlockInfo {
                 rect: Default::default(),
-                inline_axis_mode: AbsposAxisMode::StaticPosition,
-                block_axis_mode: AbsposAxisMode::InsetFromRect,
-                inline_alignment: None,
-                block_alignment: None,
-                derives_from_own_computed_values: true,
+                inline_placement: AxisPlacement {
+                    mode: AbsposAxisMode::StaticPosition,
+                    alignment: None,
+                },
+                block_placement: AxisPlacement {
+                    mode: AbsposAxisMode::InsetFromRect,
+                    alignment: Some(AbsposAxisAlignment::Stretch),
+                },
                 is_position_area: false,
             },
             resolved_anchor_insets: None,

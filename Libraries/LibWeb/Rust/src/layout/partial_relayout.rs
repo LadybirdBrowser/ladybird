@@ -451,7 +451,7 @@ impl LayoutNodeArena {
         if inputs.containing_block.is_invalid() || !self.slot_is_live(inputs.containing_block) {
             return false;
         }
-        if inputs.containing_block_info.derives_from_own_computed_values {
+        if inputs.containing_block_info.derives_from_own_computed_values() {
             return false;
         }
         // What the box's anchor functions resolved to last time says nothing of the style it has now.
@@ -551,7 +551,9 @@ impl LayoutNodeArena {
     fn abspos_layout_inputs_confined_to_parent(&self, node: NodeSlotId) -> Option<AbsposLayoutInputs> {
         use crate::css::css_enums::positioning;
         use crate::layout::AxisEdge;
-        use crate::layout::abspos_inputs::{AbsposAxisMode, AbsposContainingBlockInfo, StaticPositionRect};
+        use crate::layout::abspos_inputs::{
+            AbsposAxisMode, AbsposContainingBlockInfo, AxisPlacement, StaticPositionRect,
+        };
         use crate::layout::geometry::{LogicalOffset, LogicalRect, LogicalSize};
 
         let data = self.data(node);
@@ -633,6 +635,10 @@ impl LayoutNodeArena {
             return None;
         }
 
+        let placed_by_insets = AxisPlacement {
+            mode: AbsposAxisMode::InsetFromRect,
+            alignment: None,
+        };
         let padding = crate::painting::paintable_geometry::committed_padding(self, parent);
         let content_size = crate::painting::paintable_geometry::committed_content_size(&self.paintable_rows(), parent);
         Some(AbsposLayoutInputs {
@@ -655,11 +661,8 @@ impl LayoutNodeArena {
                         block_size: content_size.height + padding.top + padding.bottom,
                     },
                 },
-                inline_axis_mode: AbsposAxisMode::InsetFromRect,
-                block_axis_mode: AbsposAxisMode::InsetFromRect,
-                inline_alignment: None,
-                block_alignment: None,
-                derives_from_own_computed_values: false,
+                inline_placement: placed_by_insets,
+                block_placement: placed_by_insets,
                 is_position_area: false,
             },
             resolved_anchor_insets: None,

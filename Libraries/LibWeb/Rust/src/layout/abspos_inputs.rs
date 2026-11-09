@@ -86,44 +86,84 @@ pub(crate) enum AbsposAxisAlignment {
     Stretch,
     Edge(AxisEdge),
     /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
-    AnchorCenter,
+    /// Centers the box over its default anchor box, which starts at `anchor_start` in the containing block rect.
+    AnchorCenter {
+        anchor_start: CssPixels,
+        anchor_size: CssPixels,
+    },
+}
+
+/// How an absolutely positioned box is placed along one axis of its containing block.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AxisPlacement {
+    pub(crate) mode: AbsposAxisMode,
+    /// The alignment that a grid area, a position area or anchor-center gives the axis, whatever its insets are.
+    pub(crate) alignment: Option<AbsposAxisAlignment>,
+}
+
+impl AxisPlacement {
+    /// The placement that the insets `start` and `end` of the box give it, at its static position where both are auto.
+    pub(crate) fn of_own_insets(start: style_values::InsetValue<'_>, end: style_values::InsetValue<'_>) -> Self {
+        Self {
+            mode: if start.is_auto() && end.is_auto() {
+                AbsposAxisMode::StaticPosition
+            } else {
+                AbsposAxisMode::InsetFromRect
+            },
+            alignment: None,
+        }
+    }
+
+    fn is_placed_by_own_insets(self) -> bool {
+        self.mode == AbsposAxisMode::InsetFromRect && self.alignment.is_none()
+    }
+
+    fn is_anchor_centered(self) -> bool {
+        matches!(self.alignment, Some(AbsposAxisAlignment::AnchorCenter { .. }))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsposContainingBlockInfo {
     pub(crate) rect: geometry::LogicalRect,
-    pub(crate) inline_axis_mode: AbsposAxisMode,
-    pub(crate) block_axis_mode: AbsposAxisMode,
-    pub(crate) inline_alignment: Option<AbsposAxisAlignment>,
-    pub(crate) block_alignment: Option<AbsposAxisAlignment>,
-    pub(crate) derives_from_own_computed_values: bool,
+    pub(crate) inline_placement: AxisPlacement,
+    pub(crate) block_placement: AxisPlacement,
     /// Whether a position area made this the box's containing block.
     pub(crate) is_position_area: bool,
 }
 
 impl AbsposContainingBlockInfo {
+    /// The containing block rect `rect`, along whose axes the box styled `style` is placed by its own insets.
+    pub(crate) fn of_own_insets(rect: geometry::LogicalRect, style: StyleValues<'_>) -> Self {
+        Self {
+            rect,
+            inline_placement: AxisPlacement::of_own_insets(style.inset_left(), style.inset_right()),
+            block_placement: AxisPlacement::of_own_insets(style.inset_top(), style.inset_bottom()),
+            is_position_area: false,
+        }
+    }
+
     // NB: A grid area, a position area and anchor-center give an axis an alignment, and set its mode whatever the
     //     insets are. They may size or align the box against the static position rect.
     pub(crate) fn axes_placed_by_own_insets(&self) -> (bool, bool) {
-        let placed_by_own_insets = |mode: AbsposAxisMode, alignment: Option<AbsposAxisAlignment>| {
-            mode == AbsposAxisMode::InsetFromRect && alignment.is_none()
-        };
         (
-            placed_by_own_insets(self.inline_axis_mode, self.inline_alignment),
-            placed_by_own_insets(self.block_axis_mode, self.block_alignment),
+            self.inline_placement.is_placed_by_own_insets(),
+            self.block_placement.is_placed_by_own_insets(),
         )
+    }
+
+    /// Whether a grid area, a position area or anchor-center, which the box's own computed values ask for, places it.
+    pub(crate) fn derives_from_own_computed_values(&self) -> bool {
+        self.inline_placement.alignment.is_some() || self.block_placement.alignment.is_some()
     }
 
     /// Whether a position area or anchor-center aligns the box in the inline and the block axis.
     /// https://drafts.csswg.org/css-anchor-position-1/#position-area
     /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
     pub(crate) fn anchor_aligned_axes(&self) -> (bool, bool) {
-        if self.is_position_area {
-            return (true, true);
-        }
         (
-            self.inline_alignment == Some(AbsposAxisAlignment::AnchorCenter),
-            self.block_alignment == Some(AbsposAxisAlignment::AnchorCenter),
+            self.is_position_area || self.inline_placement.is_anchor_centered(),
+            self.is_position_area || self.block_placement.is_anchor_centered(),
         )
     }
 }

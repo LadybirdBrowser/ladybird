@@ -1166,6 +1166,15 @@ pub(crate) enum SizingAxis {
     Block,
 }
 
+impl SizingAxis {
+    pub(crate) fn select<T>(self, inline_value: T, block_value: T) -> T {
+        match self {
+            Self::Inline => inline_value,
+            Self::Block => block_value,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SizingProperty {
     Width,
