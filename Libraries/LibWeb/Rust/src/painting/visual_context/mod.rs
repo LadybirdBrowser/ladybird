@@ -10,6 +10,7 @@
 pub mod basic_shapes;
 pub mod box_build;
 pub mod build;
+pub(crate) mod compositor_scroll_table;
 pub mod delta;
 pub mod dirty;
 pub mod dump;
