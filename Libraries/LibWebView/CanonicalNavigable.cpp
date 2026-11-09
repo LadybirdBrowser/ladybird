@@ -893,11 +893,11 @@ static Optional<String> origin_of_sandboxed_document(CanonicalNavigable const& n
     return {};
 }
 
-static RefPtr<WebContentClient> lowest_process_hosting_only_tabs_of(URL::Origin const& origin, BrowsingSession const& session)
+static RefPtr<WebContentClient> lowest_process_hosting_only_tabs_like(CanonicalDocument const& document, BrowsingSession const& session)
 {
     RefPtr<WebContentClient> process;
     WebContentClient::for_each_client([&](WebContentClient& client) {
-        if (&client.session() == &session && client.is_open() && !client.has_requested_close() && client.has_hosted_only_tabs_of(origin) && (!process || client.child_id() < process->child_id()))
+        if (&client.session() == &session && client.is_open() && !client.has_requested_close() && client.has_hosted_only_tabs_like(document) && (!process || client.child_id() < process->child_id()))
             process = client;
         return IterationDecision::Continue;
     });
@@ -929,14 +929,15 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
             return nullptr;
     }
 
-    // A tab goes to a process that has hosted only tabs of its origin, to share what the process holds. Nothing else can
-    // reach a browsing context group of one, whereas an opener could make a process it can connect to host the tab. A
-    // tab recovering from a crash gets a process of its own, so that it can't take the tabs it joins down with it again.
+    // A tab goes to a process that has hosted only tabs of its origin that are origin-keyed just as it is, to share
+    // what the process holds. Nothing else can reach a browsing context group of one, whereas an opener could make a
+    // process it can connect to host the tab. A tab recovering from a crash gets a process of its own, so that it can't
+    // take the tabs it joins down with it again.
     if (!parent() && process_holding_navigable && document.may_share_a_process_with_tabs_of_its_origin()
         && document.browsing_context().top_level_browsing_context().group()->browsing_context_set().size() == 1
         && !top_level_traversable().has_page_standing_in_for_lost_document()
         && Application::the().same_origin_tabs_may_share_a_process()) {
-        if (auto process = lowest_process_hosting_only_tabs_of(document.origin(), process_holding_navigable->session()))
+        if (auto process = lowest_process_hosting_only_tabs_like(document, process_holding_navigable->session()))
             return process;
     }
 
@@ -957,9 +958,10 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host_for_site_isolation(
     // A traversable's first document takes the process its initial about:blank came with, unless that document
     // inherited its creator's origin and shares the creator's process, or a browsing context group switch leaves the
     // initial about:blank's group. A noopener popup's initial about:blank came with the process of the document that
-    // opened it, which a document of another origin stays out of if that process hosts tabs of one origin.
+    // opened it, which a document unlike the tabs of that process stays out of if the process hosts tabs of one
+    // origin.
     if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque() && !active_browsing_context().is_auxiliary() && &document.browsing_context() == &active_browsing_context()) {
-        if (process_holding_navigable && process_holding_navigable->has_hosted_only_tabs_of_an_origin_other_than(document.origin()))
+        if (process_holding_navigable && process_holding_navigable->has_hosted_only_tabs_unlike(document))
             return nullptr;
         return process_holding_navigable;
     }
