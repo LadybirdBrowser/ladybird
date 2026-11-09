@@ -4936,11 +4936,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         Some(formatting_context::ChildRunShape {
             node: child,
-            key: fc_run_cache::FcRunCacheKey {
-                fc_type: plan.fc_type,
-                input: plan.input,
-                root_cells: cells.get(),
-            },
+            key: fc_run_cache::FcRunCacheKey::new(&self.run.pass, plan.fc_type, plan.input, cells.get()),
             root_containing_block: plan.root_containing_block,
         })
     }

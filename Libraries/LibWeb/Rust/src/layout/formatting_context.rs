@@ -2067,11 +2067,7 @@ pub(super) fn run_formatting_context(
             false,
         );
     }
-    let key = fc_run_cache::FcRunCacheKey {
-        fc_type,
-        input,
-        root_cells,
-    };
+    let key = fc_run_cache::FcRunCacheKey::new(&pass, fc_type, input, root_cells);
     let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         box_,
         subgrid_parent.is_some(),
@@ -2110,6 +2106,7 @@ fn run_formatting_context_after_probe(
         fc_type,
         ref input,
         root_cells,
+        ..
     } = *key;
     let builds_fragments = run_builds_fragments(input, parent_collects_fragments);
     let cache_attempt = match attempt {
@@ -3228,11 +3225,7 @@ pub(crate) fn plan_child_run(
         percentage_block_insets_of_containing_block_have_definite_basis,
     );
     let parent_collects_fragments = run.fragments.is_some();
-    let key = fc_run_cache::FcRunCacheKey {
-        fc_type,
-        input,
-        root_cells: child_input_cells,
-    };
+    let key = fc_run_cache::FcRunCacheKey::new(&run.pass, fc_type, input, child_input_cells);
     let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         child,
         false,
@@ -3392,11 +3385,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     );
     ChildRunShape {
         node: cell,
-        key: fc_run_cache::FcRunCacheKey {
-            fc_type: plan.fc_type,
-            input: plan.input,
-            root_cells: cell_input_cells,
-        },
+        key: fc_run_cache::FcRunCacheKey::new(&run.pass, plan.fc_type, plan.input, cell_input_cells),
         root_containing_block: plan.root_containing_block,
     }
 }
@@ -3451,11 +3440,12 @@ impl ChildRunShape {
         Self {
             node,
             root_containing_block: pass.containing_block_for_child_run(node, &input.participation),
-            key: fc_run_cache::FcRunCacheKey {
-                fc_type: independent_formatting_context_type(node, pass),
+            key: fc_run_cache::FcRunCacheKey::new(
+                pass,
+                independent_formatting_context_type(node, pass),
                 input,
                 root_cells,
-            },
+            ),
         }
     }
 }
@@ -3520,6 +3510,7 @@ pub(crate) fn lay_out_shape_for_its_result(pass: LayoutPass<'_>, shape: ChildRun
         fc_type,
         ref input,
         root_cells,
+        ..
     } = key;
     let builds_fragments = run_builds_fragments(input, false);
     let lay_out = |pass: LayoutPass<'_>, root_cells, input: &LayoutInput, previous_line_data| {
