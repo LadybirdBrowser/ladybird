@@ -1641,6 +1641,7 @@ pub fn eval_declaration_instantiation(
             //     iii. Let funcObj be ! blockEnv.GetBindingValue(funcName, false).
             //     iv. Perform ? globalEnv.SetMutableBinding(funcName, funcObj, false).
             //     v. Return unused.
+            // NB: The bytecode of the function does this with SetVariableBindingOfBlockFunction.
         }
     }
 

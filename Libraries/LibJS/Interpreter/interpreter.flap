@@ -2278,6 +2278,15 @@ handler DynamicSetLexicalBinding(
     dispatch_next;
 }
 
+# Evaluates a block function in the code of a script or an eval, which stores it into the var of its name if the checks
+# of declaration instantiation still pass. program_environment_depth is how many environments out from the running one
+# the environment of the program's own code is.
+handler SetVariableBindingOfBlockFunction(
+    identifier: IdentifierTableIndex,
+    src: in Operand,
+    program_environment_depth: u32
+) @cold = call_slow_path(asm_slow_path_set_variable_binding_of_block_function);
+
 handler DynamicSetVariableBinding(
     identifier: IdentifierTableIndex,
     src: in Operand,
