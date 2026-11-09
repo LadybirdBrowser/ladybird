@@ -188,6 +188,8 @@ test("canonical format: Date.toString", () => {
 test("canonical format: Date.toUTCString", () => {
     expect("1999-12-08T08:00:00.000Z").toBe(new Date("Wed, 08 Dec 1999 08:00:00 GMT").toISOString());
     expect("1999-12-08T08:00:00.000Z").toBe(new Date("Thu, 08 Dec 1999 08:00:00 GMT").toISOString()); // Wrong weekday is ignored
+    expect("2000-01-01T00:00:00.000Z").toBe(new Date("Sat, 01 Jan 2000 00:00:0 GMT").toISOString());
+    expect("2000-01-01T01:02:03.000Z").toBe(new Date("Sat, 01 Jan 2000 1:2:3 GMT").toISOString());
 });
 
 test("ambiguous date: 1 number", () => {
@@ -415,6 +417,9 @@ test("time with colon", () => {
 
     expect("2048-12-24T09:23:00.000Z").toBe(new Date("12/24/2048 1:23").toISOString());
     expect("2048-12-24T09:23:45.000Z").toBe(new Date("12/24/2048 1:23:45").toISOString());
+    expect("2048-12-24T09:02:00.000Z").toBe(new Date("12/24/2048 1:2").toISOString()); // Single-digit minutes and seconds.
+    expect("2048-12-24T09:23:04.000Z").toBe(new Date("12/24/2048 1:23:4").toISOString());
+    expect("2048-12-24T09:02:03.000Z").toBe(new Date("12/24/2048 1:2:3").toISOString());
     expect("2048-12-24T09:23:45.600Z").toBe(new Date("12/24/2048 1:23:45.6").toISOString());
     expect("2048-12-24T09:23:45.670Z").toBe(new Date("12/24/2048 1:23:45.67").toISOString());
     expect("2048-12-24T09:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.678").toISOString());
@@ -442,8 +447,6 @@ test("time with colon", () => {
 
     expect(Date.parse("12/24/2048 1")).toBeNaN(); // Bare hours fail. At a minimum, time needs a colon ':'.
     expect(Date.parse("12/24/2048 01")).toBeNaN();
-    expect(Date.parse("12/24/2048 1:2")).toBeNaN(); // Two digits needed for minutes.
-    expect(Date.parse("12/24/2048 1:23:4")).toBeNaN(); // Two digits needed for seconds
 
     expect(Date.parse("12/24/2048 24:01")).toBeNaN(); // '24' hour needs 0 min 0 sec
     expect(Date.parse("12/24/2048 24:01:00")).toBeNaN();
@@ -459,6 +462,7 @@ test("time with colon", () => {
 
     // Time before date.
     expect("2048-12-24T09:23:00.000Z").toBe(new Date("1:23 12/24/2048").toISOString());
+    expect("2048-12-24T09:02:03.000Z").toBe(new Date("1:2:3 12/24/2048").toISOString());
     expect("2048-12-24T21:23:00.000Z").toBe(new Date("1:23PM 12/24/2048").toISOString());
     expect("2048-12-24T09:23:45.000Z").toBe(new Date("1:23:45 12/24/2048").toISOString());
     expect("2048-12-24T09:23:45.678Z").toBe(new Date("1:23:45.678 12/24/2048").toISOString());
