@@ -1,33 +1,33 @@
-outer$12b0cda7 module-level-bindings.mjs:6:5
+outer$dbf33210 module-level-bindings.mjs:6:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] NewFunction dst:reg5, shared_function_data_index:0
-  [  20] Return value:reg5
+  [   1] NewFunction dst:reg5, shared_function_data_index:0
+  [   c] Return value:reg5
 
 
-inner$24238fde module-level-bindings.mjs:7:18
+inner$983cfd00 module-level-bindings.mjs:7:18
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetBinding value_feedback:0, dst:reg5, `lexical`
-  [  20] GetBinding value_feedback:1, dst:reg6, `constant`
-  [  38] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  48] SetLexicalBinding `variable`, src:reg5
-  [  60] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
-  [  78] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
-  [  98] Return value:reg5
+  [   1] GetBinding value_feedback:0, dst:reg5, `lexical`
+  [  10] GetBinding value_feedback:1, dst:reg6, `constant`
+  [  1f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  28] SetLexicalBinding `variable`, src:reg5
+  [  35] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
+  [  46] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
+  [  5b] Return value:reg5
 
 
-declared$581f69d1 module-level-bindings.mjs:13:5
+declared$91a0f678 module-level-bindings.mjs:13:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] TypeofBinding dst:reg5, `lexical`
-  [  20] Return value:reg5
+  [   1] TypeofBinding dst:reg5, `lexical`
+  [   e] Return value:reg5

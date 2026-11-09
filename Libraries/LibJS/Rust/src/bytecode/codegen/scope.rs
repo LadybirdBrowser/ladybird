@@ -2039,6 +2039,7 @@ impl Generator<'_> {
         let executable = ExecutableData {
             bytecode: assembled.bytecode,
             exception_handlers: assembled.exception_handlers,
+            strict_ranges: assembled.strict_ranges,
             source_map: assembled.source_map,
             number_of_registers: assembled.number_of_registers,
             number_of_arguments: assembled.number_of_arguments,

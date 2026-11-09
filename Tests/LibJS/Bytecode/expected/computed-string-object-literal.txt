@@ -1,4 +1,4 @@
-$f8dd73d3 computed-string-object-literal.js:15:1
+$6278565e computed-string-object-literal.js:15:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,47 +7,45 @@ $f8dd73d3 computed-string-object-literal.js:15:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `simple_computed`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] GetGlobal value_feedback:2, dst:reg6, `mixed`
-  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  78] GetGlobal value_feedback:4, dst:reg6, `dynamic`
-  [  88] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("x")]
-  [  b0] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `simple_computed`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] GetGlobal value_feedback:2, dst:reg6, `mixed`
+  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  42] GetGlobal value_feedback:4, dst:reg6, `dynamic`
+  [  4b] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("x")]
+  [  62] End value:reg5
 
 
-simple_computed$ee1d99de computed-string-object-literal.js:6:5
+simple_computed$5ee7ec06 computed-string-object-literal.js:6:5
   Registers: 6
   Blocks:    1
   Constants:
-    [0] = String("x")
-    [1] = Int32(1)
+    [0] = Int32(1)
 
 block0:
   [   0] Enter
-  [   8] NewObject dst:reg5
-  [  18] PutById base:reg5, `x`, src:Int32(1), kind:Own
-  [  38] Return value:reg5
+  [   1] NewObject dst:reg5
+  [   6] PutById base:reg5, `x`, src:Int32(1), kind:Own
+  [  15] Return value:reg5
 
 
-mixed$15906784 computed-string-object-literal.js:9:5
+mixed$ba546433 computed-string-object-literal.js:9:5
   Registers: 6
   Blocks:    1
   Constants:
-    [0] = String("a")
-    [1] = Int32(1)
-    [2] = Int32(2)
+    [0] = Int32(1)
+    [1] = Int32(2)
 
 block0:
   [   0] Enter
-  [   8] NewObject dst:reg5
-  [  18] PutById base:reg5, `a`, src:Int32(1), kind:Own
-  [  38] PutById base:reg5, `b`, src:Int32(2), kind:Own
-  [  58] Return value:reg5
+  [   1] NewObject dst:reg5
+  [   6] PutById base:reg5, `a`, src:Int32(1), kind:Own
+  [  15] PutById base:reg5, `b`, src:Int32(2), kind:Own
+  [  24] Return value:reg5
 
 
-dynamic$fd0d2731 computed-string-object-literal.js:12:5
+dynamic$1a5c1f4e computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -55,7 +53,7 @@ dynamic$fd0d2731 computed-string-object-literal.js:12:5
 
 block0:
   [   0] Enter
-  [   8] NewObject dst:reg5
-  [  18] ToPrimitiveWithStringHint dst:reg6, value:arg0
-  [  28] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
-  [  48] Return value:reg5
+  [   1] NewObject dst:reg5
+  [   6] ToPrimitiveWithStringHint dst:reg6, value:arg0
+  [   b] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
+  [  1c] Return value:reg5

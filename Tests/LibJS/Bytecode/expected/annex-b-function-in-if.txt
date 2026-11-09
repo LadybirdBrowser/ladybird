@@ -1,4 +1,4 @@
-$7e20502e annex-b-function-in-if.js:13:1
+$f9d7ab1a annex-b-function-in-if.js:13:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -8,21 +8,21 @@ $7e20502e annex-b-function-in-if.js:13:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  40] GetGlobal value_feedback:2, dst:reg8, `annexBFunctionInIf`
-  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(true)]
-  [  78] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  a0] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  b0] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  c8] GetGlobal value_feedback:7, dst:reg8, `annexBFunctionInIf`
-  [  d8] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(false)]
-  [ 100] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 128] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `console`
+  [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  1c] GetGlobal value_feedback:2, dst:reg8, `annexBFunctionInIf`
+  [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(true)]
+  [  3c] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  53] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  5c] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  69] GetGlobal value_feedback:7, dst:reg8, `annexBFunctionInIf`
+  [  72] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Bool(false)]
+  [  89] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  a0] End value:reg5
 
 
-annexBFunctionInIf$c86c2a51 annex-b-function-in-if.js:2:10
+annexBFunctionInIf$795c4ed3 annex-b-function-in-if.js:2:10
   Registers: 6
   Blocks:    4
   Locals:    inner~0, inner~1, inner~2
@@ -31,24 +31,24 @@ annexBFunctionInIf$c86c2a51 annex-b-function-in-if.js:2:10
 
 block0:
   [   0] Enter
-  [   8] Mov dst:inner~0, src:Undefined
-  [  18] JumpFalse condition:arg0, target:block2
+  [   1] Mov dst:inner~0, src:Undefined
+  [   6] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  28] NewFunction dst:inner~1, shared_function_data_index:0
-  [  40] Mov dst:inner~0, src:inner~1
-  [  50] Jump target:block3
+  [   d] NewFunction dst:inner~1, shared_function_data_index:0
+  [  18] Mov dst:inner~0, src:inner~1
+  [  1d] Jump target:block3
 
 block2:
-  [  58] NewFunction dst:inner~2, shared_function_data_index:1
-  [  70] Mov dst:inner~0, src:inner~2
+  [  22] NewFunction dst:inner~2, shared_function_data_index:1
+  [  2d] Mov dst:inner~0, src:inner~2
 
 block3:
-  [  80] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  a0] Return value:reg5
+  [  32] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  47] Return value:reg5
 
 
-inner$3192ffc2 annex-b-function-in-if.js:4:13
+inner$7507ed16 annex-b-function-in-if.js:4:13
   Registers: 5
   Blocks:    1
   Constants:
@@ -56,10 +56,10 @@ inner$3192ffc2 annex-b-function-in-if.js:4:13
 
 block0:
   [   0] Enter
-  [   8] Return value:String("true branch")
+  [   1] Return value:String("true branch")
 
 
-inner$081ea88e annex-b-function-in-if.js:8:13
+inner$ca319d5a annex-b-function-in-if.js:8:13
   Registers: 5
   Blocks:    1
   Constants:
@@ -67,7 +67,7 @@ inner$081ea88e annex-b-function-in-if.js:8:13
 
 block0:
   [   0] Enter
-  [   8] Return value:String("false branch")
+  [   1] Return value:String("false branch")
 
 
 "true branch"

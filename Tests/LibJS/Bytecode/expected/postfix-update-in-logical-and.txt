@@ -1,4 +1,4 @@
-$aa378608 postfix-update-in-logical-and.js:4:1
+$0dbf5c89 postfix-update-in-logical-and.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,26 +7,24 @@ $aa378608 postfix-update-in-logical-and.js:4:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `postfixInLogicalAnd`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(5)]
-  [  50] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `postfixInLogicalAnd`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(5)]
+  [  26] End value:reg5
 
 
-postfixInLogicalAnd$025c71c2 postfix-update-in-logical-and.js:2:5
+postfixInLogicalAnd$6a4fc6d0 postfix-update-in-logical-and.js:2:5
   Registers: 7
   Blocks:    3
-  Constants:
-    [0] = Int32(0)
 
 block0:
   [   0] Enter
-  [   8] GreaterThanRhsInt32 arith_feedback:0, dst:reg5, lhs:arg0, rhs:0
-  [  18] JumpFalse condition:reg5, target:block2
+  [   1] GreaterThanRhsInt32 arith_feedback:0, dst:reg5, lhs:arg0, rhs:0
+  [   c] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  28] PostfixDecrement arith_feedback:1, dst:reg6, src:arg0
-  [  38] Mov dst:reg5, src:reg6
+  [  13] PostfixDecrement arith_feedback:1, dst:reg6, src:arg0
+  [  1a] Mov dst:reg5, src:reg6
 
 block2:
-  [  48] Return value:reg5
+  [  1f] Return value:reg5

@@ -218,27 +218,27 @@ pub struct ArrayLayout {
     pub element_size: usize,
 }
 
+/// The type of an instruction field. Instructions are packed, so fields have no alignment.
 pub struct FieldType {
     pub rust_type: &'static str,
-    pub align: usize,
     pub size: usize,
     pub kind: &'static str,
 }
 
-impl From<(&'static str, usize, usize, &'static str)> for FieldType {
-    fn from(v: (&'static str, usize, usize, &'static str)) -> Self {
+impl From<(&'static str, usize, &'static str)> for FieldType {
+    fn from(v: (&'static str, usize, &'static str)) -> Self {
         Self {
             rust_type: v.0,
-            align: v.1,
-            size: v.2,
-            kind: v.3,
+            size: v.1,
+            kind: v.2,
         }
     }
 }
 
-/// The alignment of every instruction in the bytecode, that of a pointer.
-/// On 64-bit: alignof(void*) = 8.
-pub const STRUCT_ALIGN: usize = 8;
+/// How many bytes an operand takes in an instruction.
+pub const OPERAND_SIZE: usize = 2;
+/// The encoding of an absent optional operand.
+pub const NO_OPERAND: i64 = u16::MAX as i64;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -670,37 +670,38 @@ impl SpecializationParser<'_> {
 fn try_field_type_info(ty: &str) -> Option<FieldType> {
     Some(
         match ty {
-            "bool" => ("bool", 1, 1, "bool"),
-            "i32" => ("i32", 4, 4, "i32"),
-            "u32" => ("u32", 4, 4, "u32"),
-            "u64" => ("u64", 8, 8, "u64"),
-            "Operand" => ("Operand", 4, 4, "operand"),
-            "Optional<Operand>" => ("Option<Operand>", 4, 4, "optional_operand"),
-            "Label" => ("Label", 4, 4, "label"),
-            "Optional<Label>" => ("Option<Label>", 4, 8, "optional_label"),
-            "IdentifierTableIndex" => ("IdentifierTableIndex", 4, 4, "u32_newtype"),
-            "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype"),
-            "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
-            "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
-            "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
-            "EnvironmentCoordinate" => ("EnvironmentCoordinate", 4, 8, "env_coord"),
-            "Builtin" => ("u8", 1, 1, "u8"),
-            "Completion::Type" => ("u32", 4, 4, "u32"),
-            "IteratorHint" => ("u32", 4, 4, "u32"),
-            "EnvironmentMode" => ("u32", 4, 4, "u32"),
-            "PutKind" => ("u32", 4, 4, "u32"),
-            "ArgumentsKind" => ("u32", 4, 4, "u32"),
-            "FunctionNamePrefix" => ("u32", 4, 4, "u32"),
-            "Value" => ("u64", 8, 8, "u64"),
+            "bool" => ("bool", 1, "bool"),
+            "i32" => ("i32", 4, "i32"),
+            "u32" => ("u32", 4, "u32"),
+            "u64" => ("u64", 8, "u64"),
+            "Operand" => ("Operand", OPERAND_SIZE, "operand"),
+            "Optional<Operand>" => ("Option<Operand>", OPERAND_SIZE, "optional_operand"),
+            "Label" => ("Label", 4, "label"),
+            "Optional<Label>" => ("Option<Label>", 5, "optional_label"),
+            "IdentifierTableIndex" => ("IdentifierTableIndex", 2, "u32_newtype"),
+            "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 2, "optional_u32_newtype"),
+            "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 2, "u32_newtype"),
+            "StringTableIndex" => ("StringTableIndex", 2, "u32_newtype"),
+            "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 2, "optional_u32_newtype"),
+            "EnvironmentCoordinate" => ("EnvironmentCoordinate", 8, "env_coord"),
+            "Builtin" => ("u8", 1, "u8"),
+            "Completion::Type" => ("u32", 4, "u32"),
+            "IteratorHint" => ("u32", 4, "u32"),
+            "EnvironmentMode" => ("u32", 4, "u32"),
+            "PutKind" => ("u32", 4, "u32"),
+            "ArgumentsKind" => ("u32", 4, "u32"),
+            "FunctionNamePrefix" => ("u32", 4, "u32"),
+            "Value" => ("u64", 8, "u64"),
             "PropertyLookupCacheIndex"
             | "GlobalVariableCacheIndex"
             | "EnvironmentCoordinateCacheIndex"
-            | "TemplateObjectCacheIndex"
-            | "ObjectShapeCacheIndex"
-            | "ObjectPropertyIteratorCacheIndex"
-            | "EnvironmentShapeCacheIndex" => ("u32", 4, 4, "u32"),
+            | "ObjectShapeCacheIndex" => ("u32", 2, "cache_index"),
+            // NB: The sites of these are rare and they cannot share a slot, so they stay wide.
+            "TemplateObjectCacheIndex" | "ObjectPropertyIteratorCacheIndex" | "EnvironmentShapeCacheIndex" => {
+                ("u32", 4, "u32")
+            }
             "ArithFeedbackIndex" | "CallFeedbackIndex" | "KeyedFeedbackIndex" | "ValueFeedbackIndex" => {
-                ("u16", 2, 2, "u16")
+                ("u16", 2, "u16")
             }
             _ => return None,
         }
@@ -744,7 +745,7 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
         return Err(format!("op '{}' must derive directly from Instruction", op.name));
     }
 
-    let mut offset = 2usize;
+    let mut offset = 1usize;
     let mut field_offsets = HashMap::new();
     let array_indices = op
         .fields
@@ -769,10 +770,6 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
             continue;
         }
         let info = try_field_type_info(&field.ty).expect("field types are checked while parsing");
-        offset = offset
-            .checked_add(info.align - 1)
-            .map(|offset| offset & !(info.align - 1))
-            .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
         field_offsets.insert(field.name.clone(), offset);
         offset = offset
             .checked_add(info.size)
@@ -794,34 +791,18 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
             )
         })?;
         let info = try_field_type_info(&op.fields[array_index].ty).expect("field types are checked while parsing");
-        let array_offset = offset
-            .checked_add(info.align - 1)
-            .map(|offset| offset & !(info.align - 1))
-            .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
-        field_offsets.insert(op.fields[array_index].name.clone(), array_offset);
+        field_offsets.insert(op.fields[array_index].name.clone(), offset);
         Some(ArrayLayout {
             field_index: array_index,
             count_field_index,
-            offset: array_offset,
+            offset,
             element_size: info.size,
         })
     } else {
         None
     };
-    let size = if array.is_some() {
-        None
-    } else {
-        Some(
-            offset
-                .checked_add(STRUCT_ALIGN - 1)
-                .map(|offset| offset & !(STRUCT_ALIGN - 1))
-                .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?,
-        )
-    };
-    let minimum_size = offset
-        .checked_add(STRUCT_ALIGN - 1)
-        .map(|offset| offset & !(STRUCT_ALIGN - 1))
-        .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
+    let size = array.is_none().then_some(offset);
+    let minimum_size = offset;
     let m_length_offset = field_offsets.get("m_length").copied();
     op.layout = OpLayout {
         field_offsets,
@@ -840,7 +821,7 @@ pub struct OpLayout {
     pub field_offsets: HashMap<String, usize>,
     /// Total encoded size (for fixed-size instructions), or None for variable-length.
     pub size: Option<usize>,
-    /// Minimum encoded size, including the fixed header and tail padding.
+    /// Minimum encoded size: the fixed fields, without the array.
     pub minimum_size: usize,
     /// Byte offset of m_length for variable-length instructions.
     pub m_length_offset: Option<usize>,

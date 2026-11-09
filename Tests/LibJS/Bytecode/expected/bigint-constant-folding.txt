@@ -1,44 +1,27 @@
-$0f6f4eb1 bigint-constant-folding.js:1:5
+$82fd91e9 bigint-constant-folding.js:1:5
   Registers: 6
   Blocks:    1
   Constants:
     [0] = Undefined
-    [1] = BigInt(1n)
-    [2] = BigInt(2n)
-    [3] = BigInt(3n)
-    [4] = BigInt(10n)
-    [5] = BigInt(3n)
-    [6] = BigInt(7n)
-    [7] = BigInt(2n)
-    [8] = BigInt(3n)
-    [9] = BigInt(6n)
-    [10] = BigInt(10n)
-    [11] = BigInt(3n)
-    [12] = BigInt(3n)
-    [13] = BigInt(10n)
-    [14] = BigInt(3n)
-    [15] = BigInt(1n)
-    [16] = BigInt(2n)
-    [17] = BigInt(3n)
-    [18] = BigInt(8n)
-    [19] = BigInt(1n)
-    [20] = BigInt(1n)
-    [21] = Bool(true)
-    [22] = BigInt(1n)
-    [23] = Int32(1)
-    [24] = BigInt(1n)
-    [25] = BigInt(-2n)
+    [1] = BigInt(3n)
+    [2] = BigInt(7n)
+    [3] = BigInt(6n)
+    [4] = BigInt(3n)
+    [5] = BigInt(1n)
+    [6] = BigInt(8n)
+    [7] = Bool(true)
+    [8] = BigInt(-2n)
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] SetGlobal `a`, src:BigInt(3n)
-  [  28] SetGlobal `b`, src:BigInt(7n)
-  [  38] SetGlobal `c`, src:BigInt(6n)
-  [  48] SetGlobal `d`, src:BigInt(3n)
-  [  58] SetGlobal `e`, src:BigInt(1n)
-  [  68] SetGlobal `f`, src:BigInt(8n)
-  [  78] SetGlobal `g`, src:Bool(true)
-  [  88] SetGlobal `h`, src:Bool(true)
-  [  98] SetGlobal `i`, src:BigInt(-2n)
-  [  a8] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] SetGlobal `a`, src:BigInt(3n)
+  [   d] SetGlobal `b`, src:BigInt(7n)
+  [  14] SetGlobal `c`, src:BigInt(6n)
+  [  1b] SetGlobal `d`, src:BigInt(3n)
+  [  22] SetGlobal `e`, src:BigInt(1n)
+  [  29] SetGlobal `f`, src:BigInt(8n)
+  [  30] SetGlobal `g`, src:Bool(true)
+  [  37] SetGlobal `h`, src:Bool(true)
+  [  3e] SetGlobal `i`, src:BigInt(-2n)
+  [  45] End value:reg5

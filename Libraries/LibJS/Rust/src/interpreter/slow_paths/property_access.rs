@@ -13,14 +13,16 @@ use ak::Utf16FlyString;
 use libjs_abi::PutKind;
 use libjs_abi::value as nan_box;
 
+use super::strict_at;
 use crate::bytecode::encoding::{IdentifierTableIndex, OptionalIndex};
 use crate::bytecode::executable::{
     Executable, KeyedPropertyLookup, KeyedPropertyLookupCache, ObjectPropertyIteratorCache,
     ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath, PropertyLookupCache, PropertyLookupCacheEntryType,
 };
 use crate::bytecode::op;
+use crate::bytecode::operand::UNCACHED_SITE;
 use crate::bytecode::property_access::{
-    self, GetByIdMode, Strict, base_object_for_get, get_by_value_with_keyed_cache, get_cached_property_value,
+    self, GetByIdMode, base_object_for_get, get_by_value_with_keyed_cache, get_cached_property_value,
     get_with_property_lookup_cache, object_can_cache_property_additions, property_addition_is_cacheable,
     put_by_property_key, throw_if_nullish_put_base,
 };
@@ -47,10 +49,6 @@ use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::reference::Reference;
 use crate::runtime::shape::ShapeKey;
 use crate::runtime::typed_array::{Kind, is_valid_integer_index, typed_array_of_object};
-
-fn strict_of(header_strict: bool) -> Strict {
-    if header_strict { Strict::Yes } else { Strict::No }
-}
 
 pub(crate) fn put_kind_from_operand(kind: u32) -> PutKind {
     match kind {
@@ -234,7 +232,7 @@ pub fn put_by_id(vm: &Vm, pc: u32, instruction: &op::PutById, values: &mut op::P
             || optional_identifier(vm, &instruction.base_identifier),
             property_key,
             put_kind_from_operand(instruction.kind),
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
             Some(cache),
             0,
         )
@@ -264,7 +262,7 @@ pub fn put_by_id_with_this(
             || None,
             name,
             put_kind_from_operand(instruction.kind),
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
             Some(cache),
             0,
         )
@@ -474,7 +472,7 @@ pub fn put_by_value(
             base,
             || optional_identifier(vm, &instruction.base_identifier),
             &property,
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
         )
     );
     let property_key = asm_try!(vm, pc, property.to_property_key(vm));
@@ -496,7 +494,7 @@ pub fn put_by_value(
                 || optional_identifier(vm, &instruction.base_identifier),
                 &property_key,
                 put_kind_from_operand(instruction.kind),
-                strict_of(instruction.header.strict),
+                strict_at(vm, pc),
                 Some(cache),
                 cache_key,
             )
@@ -511,7 +509,7 @@ pub fn put_by_value(
         asm_try!(
             vm,
             pc,
-            put_by_value_with_keyed_store_cache(vm, instruction, base, property, value, &property_key)
+            put_by_value_with_keyed_store_cache(vm, pc, instruction, base, property, value, &property_key)
         );
         return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
     }
@@ -526,7 +524,7 @@ pub fn put_by_value(
             || optional_identifier(vm, &instruction.base_identifier),
             &property_key,
             put_kind_from_operand(instruction.kind),
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
             None,
             0,
         )
@@ -541,6 +539,7 @@ pub fn put_by_value(
 /// to make generically otherwise, so that other puts it cannot make only pay for the lookup.
 fn put_by_value_with_keyed_store_cache(
     vm: &Vm,
+    pc: u32,
     instruction: &op::PutByValue,
     base: Value,
     key: Value,
@@ -561,7 +560,7 @@ fn put_by_value_with_keyed_store_cache(
             || optional_identifier(vm, &instruction.base_identifier),
             property_key,
             PutKind::Normal,
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
             cache,
             cache_key,
         )
@@ -633,13 +632,7 @@ pub fn put_by_value_with_this(
     asm_try!(
         vm,
         pc,
-        throw_if_nullish_put_base(
-            vm,
-            base,
-            || None,
-            &values.property,
-            strict_of(instruction.header.strict)
-        )
+        throw_if_nullish_put_base(vm, base, || None, &values.property, strict_at(vm, pc))
     );
     let property_key = asm_try!(vm, pc, values.property.to_property_key(vm));
     asm_try!(
@@ -653,7 +646,7 @@ pub fn put_by_value_with_this(
             || None,
             &property_key,
             put_kind_from_operand(instruction.kind),
-            strict_of(instruction.header.strict),
+            strict_at(vm, pc),
             None,
             0,
         )
@@ -686,7 +679,7 @@ pub fn delete_by_id(
     let result = asm_try!(
         vm,
         pc,
-        Reference::with_base_value(values.base, property_key, None, strict_of(instruction.header.strict)).delete_(vm)
+        Reference::with_base_value(values.base, property_key, None, strict_at(vm, pc)).delete_(vm)
     );
     values.dst = Value::from_bool(result);
     SlowPathControl::continue_at(pc + op::DeleteById::LENGTH)
@@ -695,7 +688,7 @@ pub fn delete_by_id(
 pub fn delete_by_value(
     vm: &Vm,
     pc: u32,
-    instruction: &op::DeleteByValue,
+    _instruction: &op::DeleteByValue,
     values: &mut op::DeleteByValueValues,
 ) -> SlowPathControl {
     // NB: delete converts the base to an object before it converts the key to a property key.
@@ -706,7 +699,7 @@ pub fn delete_by_value(
     let result = asm_try!(
         vm,
         pc,
-        Reference::with_base_value(values.base, property_key, None, strict_of(instruction.header.strict)).delete_(vm)
+        Reference::with_base_value(values.base, property_key, None, strict_at(vm, pc)).delete_(vm)
     );
     values.dst = Value::from_bool(result);
     SlowPathControl::continue_at(pc + op::DeleteByValue::LENGTH)
@@ -752,9 +745,9 @@ pub fn create_data_property_or_throw(
 pub fn new_object(vm: &Vm, pc: u32, instruction: &op::NewObject, values: &mut op::NewObjectValues) -> SlowPathControl {
     let realm = vm.current_realm().expect("there is a current realm");
 
-    if instruction.cache != u32::MAX {
+    if u32::from(instruction.cache) != UNCACHED_SITE {
         let executable = vm.current_executable();
-        let cache = executable.object_shape_cache(instruction.cache);
+        let cache = executable.object_shape_cache(instruction.cache.into());
         if let Some(cached_shape) = cache.shape.get() {
             values.dst = Value::from_object(Object::create_with_premade_shape(vm, cached_shape));
             return SlowPathControl::continue_at(pc + op::NewObject::LENGTH);
@@ -781,8 +774,11 @@ pub fn cache_object_shape(
     instruction: &op::CacheObjectShape,
     values: &mut op::CacheObjectShapeValues,
 ) -> SlowPathControl {
+    if u32::from(instruction.cache) == UNCACHED_SITE {
+        return SlowPathControl::continue_at(pc + op::CacheObjectShape::LENGTH);
+    }
     let executable = vm.current_executable();
-    let cache = executable.object_shape_cache(instruction.cache);
+    let cache = executable.object_shape_cache(instruction.cache.into());
     if cache.shape.get().is_none() {
         let object = values.object.as_object();
         if !object.shape().is_dictionary() {
@@ -1459,7 +1455,7 @@ pub fn try_inline_get_by_id_accessor(vm: &Vm, pc: u32, instruction: &op::GetById
         getter_function.inline_call_executable(),
         &[],
         pc + instruction.length(),
-        instruction.dst.0,
+        instruction.dst.0.into(),
         Value::from_object(object),
         None,
         false,

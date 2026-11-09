@@ -15,10 +15,10 @@ inline fn call_site_info(
     length: u32,
     dst: out Operand
 ) -> (u32, u32, u32) {
-    let [instruction_length, destination_index] = load_pair32(
-        [pb, pc, length],
-        [pb, pc, dst]
-    );
+    let mut instruction_length: u32;
+    load32(instruction_length, [pb, pc, length]);
+    let mut destination_index: u32;
+    load16(destination_index, [pb, pc, dst]);
     let current_pc: u32 = pc;
     let return_pc: u32 = current_pc + instruction_length;
     (current_pc, return_pc, destination_index)
@@ -111,7 +111,10 @@ inline fn load_direct_getter_value(
 }
 
 inline fn move_operand(dst: out Operand, src: in Operand) {
-    let [dst_index, src_index] = load_pair32([pb, pc, dst], [pb, pc, src]);
+    let mut dst_index: u32;
+    load16(dst_index, [pb, pc, dst]);
+    let mut src_index: u32;
+    load16(src_index, [pb, pc, src]);
     values[dst_index] = values[src_index];
 }
 
@@ -3249,10 +3252,8 @@ handler GetById(
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
         let native_pc: u32 = pc;
-        let [destination_offset, _] = load_pair32(
-            [pb, pc, dst],
-            [pb, pc, base]
-        );
+        let mut destination_offset: u32;
+        load16(destination_offset, [pb, pc, dst]);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;
         # The exception helper only needs a PC within the current instruction.
@@ -3964,7 +3965,7 @@ handler Call(
     let argument_operand_indices = &arguments;
     let mut argument_index: u32 = 0;
     while argument_index < actual_argument_count {
-        frame_values[write_index] = caller_values[argument_operand_indices[argument_index]];
+        frame_values[write_index] = caller_values[u32(argument_operand_indices[argument_index])];
         argument_index = argument_index + 1;
         write_index = write_index + 1;
     }
@@ -4062,7 +4063,7 @@ handler Call(
         let native_frame_values = native_frame.slots;
         let mut argument_index: u32 = 0;
         while argument_index < actual_argument_count {
-            native_frame_values[argument_index] = native_caller_values[native_argument_operand_indices[argument_index]];
+            native_frame_values[argument_index] = native_caller_values[u32(native_argument_operand_indices[argument_index])];
             argument_index = argument_index + 1;
         }
         let native_running_vm = current_vm();

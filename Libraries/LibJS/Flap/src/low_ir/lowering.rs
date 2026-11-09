@@ -2280,7 +2280,8 @@ fn lower_instruction(
             let destination_index = Operand::VirtualRegister(destination_index_register.clone());
             let source_index = Operand::VirtualRegister(source_index_register.clone());
             let value = Operand::VirtualRegister(format!("ssa_move_operand_{}_value", instruction_id.0).into());
-            emit!(output; MachineOperation::load_pair(PairWidth::Word) => [destination_index.clone(), source_index.clone(), bytecode_field_memory(destination), bytecode_field_memory(source)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [destination_index.clone(), bytecode_field_memory(destination)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [source_index.clone(), bytecode_field_memory(source)];);
             emit!(output;
                 MachineOperation::load(MemoryWidth::DoubleWord, false) => [value.clone(), Operand::Address(MemoryAddress {
                         base: AddressRegister::Interpreter(InterpreterRegister::Values),
@@ -2304,7 +2305,7 @@ fn lower_instruction(
                 return Err("'load' requires one bytecode operand field".to_string());
             };
             let index = operand_load_index(instruction_id, 0);
-            emit!(output; MachineOperation::load(MemoryWidth::Word, false) => [index.clone(), bytecode_field_memory(field)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [index.clone(), bytecode_field_memory(field)];);
             emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [destination.clone(), indexed_value_memory(&index)?];);
         }
         Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Decode)) => {
@@ -2312,7 +2313,7 @@ fn lower_instruction(
             let [Operand::BytecodeField(field)] = inputs.as_slice() else {
                 return Err("'decode_operand' requires one bytecode field".to_string());
             };
-            emit!(output; MachineOperation::load(MemoryWidth::Word, false) => [destination.clone(), bytecode_field_memory(field)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [destination.clone(), bytecode_field_memory(field)];);
         }
         Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Load(
             OperandLoad::Index | OperandLoad::RematerializedIndex,
@@ -2582,7 +2583,8 @@ fn lower_instruction(
             };
             let lhs_index = operand_load_index(instruction_id, 0);
             let rhs_index = operand_load_index(instruction_id, 1);
-            emit!(output; MachineOperation::load_pair(PairWidth::Word) => [lhs_index.clone(), rhs_index.clone(), bytecode_field_memory(lhs_field), bytecode_field_memory(rhs_field)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [lhs_index.clone(), bytecode_field_memory(lhs_field)];);
+            emit!(output; MachineOperation::load(OPERAND_FIELD_WIDTH, false) => [rhs_index.clone(), bytecode_field_memory(rhs_field)];);
             emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [lhs.clone(), indexed_value_memory(&lhs_index)?];);
             emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [rhs.clone(), indexed_value_memory(&rhs_index)?];);
         }
@@ -3589,6 +3591,9 @@ fn machine_instruction(operation: MachineOperation, operands: Vec<Operand>) -> I
         operands,
     }
 }
+
+/// How wide the loads of operand fields are, which `metadata::OPERAND_SIZE` lays out.
+const OPERAND_FIELD_WIDTH: MemoryWidth = MemoryWidth::HalfWord;
 
 fn bytecode_field_memory(field: &BytecodeFieldId) -> Operand {
     Operand::Address(MemoryAddress {

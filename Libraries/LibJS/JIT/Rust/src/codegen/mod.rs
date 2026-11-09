@@ -914,6 +914,25 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         })
     }
 
+    /// The operand at `offset` in the instruction at `pc` of executable `executable`, `Operand::INVALID` if absent.
+    fn read_operand(&self, executable: u32, pc: u32, offset: u32) -> Result<u32, CompileFailure> {
+        let at = (pc + offset) as usize;
+        let bytes =
+            self.executables[executable as usize]
+                .bytecode
+                .get(at..at + 2)
+                .ok_or(CompileFailure::InvalidBytecode {
+                    pc,
+                    reason: "operand field outside the bytecode",
+                })?;
+        let raw = u16::from_ne_bytes(bytes.try_into().expect("two bytes"));
+        Ok(if raw == u16::MAX {
+            crate::bytecode::Operand::INVALID
+        } else {
+            u32::from(raw)
+        })
+    }
+
     /// The u32 at `offset` in the instruction at `pc` of executable `executable`.
     fn read_u32(&self, executable: u32, pc: u32, offset: u32) -> Result<u32, CompileFailure> {
         let at = (pc + offset) as usize;
@@ -2606,6 +2625,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.masm.load_effective_address(arguments[2], &destination);
                 self.load_value(arguments[3], lhs)?;
                 self.load_value(arguments[4], rhs)?;
+                self.masm.move_imm32(arguments[5], next_pc - pc);
                 self.masm.move64(arguments[0], self.pinned.vm);
                 self.masm.move_imm32(arguments[1], pc);
                 self.masm.call_absolute(address);
@@ -2650,7 +2670,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         } else {
             let layout = slow_path_layout(opcode);
             for field in layout.fields {
-                let operand = self.read_u32(executable, pc, field.instruction_offset)?;
+                let operand = self.read_operand(executable, pc, field.instruction_offset)?;
                 if field.role != OperandRole::Out {
                     operands.push(operand);
                 }
@@ -2660,7 +2680,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             if let Some(array) = layout.array {
                 for element in 0..self.read_u32(executable, pc, array.count_offset)? {
-                    operands.push(self.read_u32(executable, pc, array.instruction_offset + 4 * element)?);
+                    operands.push(self.read_operand(executable, pc, array.instruction_offset + 2 * element)?);
                 }
             }
         }
@@ -2905,7 +2925,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let operands = layout
             .fields
             .iter()
-            .map(|field| self.read_u32(executable, pc, field.instruction_offset))
+            .map(|field| self.read_operand(executable, pc, field.instruction_offset))
             .collect::<Result<Vec<_>, _>>()?;
 
         // Inputs passed by value: in the remaining argument registers, then on the stack.
@@ -2984,7 +3004,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let count = self.read_u32(executable, pc, array.count_offset)?;
                 let first_input = input_index(layout.fields.len());
                 for element in 0..count {
-                    let operand = self.read_u32(executable, pc, array.instruction_offset + 4 * element)?;
+                    let operand = self.read_operand(executable, pc, array.instruction_offset + 2 * element)?;
                     load(self, scratch, operand, first_input + element as usize)?;
                     let index = layout.fields.len() as u32 + element;
                     let address = self.local_address(self.locals.record + 8 * index);

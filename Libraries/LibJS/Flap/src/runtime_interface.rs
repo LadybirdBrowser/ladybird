@@ -48,7 +48,8 @@ pub enum RuntimeFunctionKind {
     /// in `values`, and nonzero to leave the instruction to the handler.
     Try { op: String, layout: SlowPathLayout },
     /// A `call_binary_slow_path` target:
-    /// `i64 f(VM*, u32 pc, Value& dst, Value lhs, Value rhs)`.
+    /// `i64 f(VM*, u32 pc, Value& dst, Value lhs, Value rhs, u32 length)`, where `length` is the length of the
+    /// instruction, which the slow path continues after.
     BinarySlowPath,
     /// A `call_jump_slow_path` target:
     /// `i64 f(VM*, u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target)`.

@@ -1,4 +1,4 @@
-$faa11ddd var-hoisting-tdz.js:9:1
+$1d77f81a var-hoisting-tdz.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,42 +6,41 @@ $faa11ddd var-hoisting-tdz.js:9:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `isect`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `isect`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] End value:reg5
 
 
-isect$cab742dc var-hoisting-tdz.js:5:12
+isect$b7ece515 var-hoisting-tdz.js:5:12
   Registers: 6
   Blocks:    7
   Locals:    i~0
   Constants:
     [0] = Undefined
     [1] = Int32(0)
-    [2] = Int32(3)
 
 block0:
   [   0] Enter
-  [   8] Mov dst:i~0, src:Undefined
-  [  18] Mov dst:i~0, src:Int32(0)
-  [  28] Jump target:block2
+  [   1] Mov dst:i~0, src:Undefined
+  [   6] Mov dst:i~0, src:Int32(0)
+  [   b] Jump target:block2
 
 block1:
-  [  30] Increment arith_feedback:0, dst:i~0
+  [  10] Increment arith_feedback:0, dst:i~0
 
 block2:
-  [  38] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:i~0, rhs:3, true_target:block1, false_target:block3
+  [  15] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:i~0, rhs:3, true_target:block1, false_target:block3
 
 block3:
-  [  50] Mov dst:i~0, src:Int32(0)
-  [  60] Jump target:block5
+  [  26] Mov dst:i~0, src:Int32(0)
+  [  2b] Jump target:block5
 
 block4:
-  [  68] Increment arith_feedback:2, dst:i~0
+  [  30] Increment arith_feedback:2, dst:i~0
 
 block5:
-  [  70] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:i~0, rhs:3, true_target:block4, false_target:block6
+  [  35] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:i~0, rhs:3, true_target:block4, false_target:block6
 
 block6:
-  [  88] End value:Undefined
+  [  46] End value:Undefined

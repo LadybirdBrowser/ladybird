@@ -12,6 +12,18 @@ pub enum InstructionLengthError {
     InvalidLength,
 }
 
+/// The last slot of a cache table, which all the sites past it share. It never remembers anything.
+pub const UNCACHED_SITE: u32 = u16::MAX as u32;
+
+/// A table or cache index as an instruction holds it. `u32::MAX` means none, which stays all bits set.
+#[inline]
+pub fn narrow_index(index: u32) -> u16 {
+    if index == u32::MAX {
+        return u16::MAX;
+    }
+    u16::try_from(index).expect("bytecode indices fit in 16 bits")
+}
+
 #[inline]
 pub fn read_u16(bytes: &[u8], at: usize) -> u16 {
     u16::from_ne_bytes(bytes[at..at + 2].try_into().unwrap())
@@ -55,7 +67,7 @@ impl Register {
 ///
 ///   `raw = (type << 29) | index`
 ///
-/// This encoding is ABI-compatible with the VM's operand format.
+/// The bytecode does not hold this encoding, but the frame slot that the operand ends up in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Operand(u32);
 
@@ -129,15 +141,6 @@ impl Operand {
 
     pub fn optional_from_raw(raw: u32) -> Option<Self> {
         if raw == Self::INVALID { None } else { Some(Self(raw)) }
-    }
-
-    /// Offset the index by the given amount, stripping the type tag and
-    /// leaving a flat index into the combined
-    /// [registers | locals | constants | arguments] array.
-    /// Used when the operands of finished code get their final indices.
-    pub fn offset_index_by(&mut self, offset: u32) {
-        self.0 &= Self::INDEX_MASK;
-        self.0 = self.0.checked_add(offset).expect("operand index overflow");
     }
 }
 

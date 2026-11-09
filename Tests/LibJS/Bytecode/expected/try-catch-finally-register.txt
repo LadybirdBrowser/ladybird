@@ -1,4 +1,4 @@
-$2fee8f6a try-catch-finally-register.js:1:1
+$041dfc97 try-catch-finally-register.js:1:1
   Registers: 9
   Blocks:    7
   Locals:    e~0
@@ -12,40 +12,40 @@ $2fee8f6a try-catch-finally-register.js:1:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] Mov dst:reg5, src:Undefined
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] Mov dst:reg5, src:Undefined
 
 block1:
-  [  28] Mov dst:reg5, src:Int32(1)
-  [  38] Mov dst:reg6, src:Int32(0)
-  [  48] Jump target:block4
+  [   b] Mov dst:reg5, src:Int32(1)
+  [  10] Mov dst:reg6, src:Int32(0)
+  [  15] Jump target:block4
 
 block2:
-  [  50] Catch value_feedback:0, dst:reg8
-  [  58] Mov dst:reg5, src:Undefined
-  [  68] Mov dst:e~0, src:<Empty>
-  [  78] Mov dst:e~0, src:reg8
-  [  88] Mov dst:reg5, src:Int32(2)
-  [  98] Mov dst:reg6, src:Int32(0)
-  [  a8] Jump target:block4
+  [  1a] Catch value_feedback:0, dst:reg8
+  [  1f] Mov dst:reg5, src:Undefined
+  [  24] Mov dst:e~0, src:<Empty>
+  [  29] Mov dst:e~0, src:reg8
+  [  2e] Mov dst:reg5, src:Int32(2)
+  [  33] Mov dst:reg6, src:Int32(0)
+  [  38] Jump target:block4
 
 block3:
-  [  b0] Catch value_feedback:1, dst:reg7
-  [  b8] Mov dst:reg6, src:Int32(1)
+  [  3d] Catch value_feedback:1, dst:reg7
+  [  42] Mov dst:reg6, src:Int32(1)
 
 block4:
-  [  c8] Mov dst:reg8, src:reg5
-  [  d8] Mov dst:reg5, src:Undefined
-  [  e8] Mov dst:reg5, src:Int32(3)
-  [  f8] Mov dst:reg5, src:reg8
-  [ 108] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:0, true_target:block6, false_target:block5
+  [  47] Mov dst:reg8, src:reg5
+  [  4c] Mov dst:reg5, src:Undefined
+  [  51] Mov dst:reg5, src:Int32(3)
+  [  56] Mov dst:reg5, src:reg8
+  [  5b] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:0, true_target:block6, false_target:block5
 
 block5:
-  [ 120] Throw src:reg7
+  [  6c] Throw src:reg7
 
 block6:
-  [ 128] End value:reg5
+  [  6f] End value:reg5
 
 Exception handlers:
-  [  28 ..   50] => handler block2
-  [  50 ..   b0] => handler block3
+  [   b ..   1a] => handler block2
+  [  1a ..   3d] => handler block3

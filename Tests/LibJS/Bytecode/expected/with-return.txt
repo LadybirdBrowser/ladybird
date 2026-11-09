@@ -1,4 +1,4 @@
-$af73ebee with-return.js:10:1
+$330eab9c with-return.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,23 +7,23 @@ $af73ebee with-return.js:10:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `with_return`
-  [  28] NewObject dst:reg7
-  [  38] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
-  [  50] CacheObjectShape object:reg7
-  [  60] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  88] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `with_return`
+  [   f] NewObject dst:reg7
+  [  14] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
+  [  23] CacheObjectShape object:reg7
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  3f] End value:reg5
 
 
-with_return$d690ef5a with-return.js:5:5
+with_return$5d7aca02 with-return.js:5:5
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] EnterObjectEnvironment dst:reg5, object:arg0
-  [  20] DynamicGetBinding value_feedback:0, dst:reg6, `x`
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] Return value:reg6
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] EnterObjectEnvironment dst:reg5, object:arg0
+  [   9] DynamicGetBinding value_feedback:0, dst:reg6, `x`
+  [  12] SetLexicalEnvironment environment:reg4
+  [  15] Return value:reg6

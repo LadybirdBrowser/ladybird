@@ -1,4 +1,4 @@
-$996e2b0f try-catch-scoping.js:11:1
+$29c03c7a try-catch-scoping.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,15 +6,15 @@ $996e2b0f try-catch-scoping.js:11:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `tryCatchWithBlocks`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] GetGlobal value_feedback:2, dst:reg6, `tryCatchFinallyWithBlocks`
-  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  78] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `tryCatchWithBlocks`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] GetGlobal value_feedback:2, dst:reg6, `tryCatchFinallyWithBlocks`
+  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  42] End value:reg5
 
 
-tryCatchWithBlocks$475f75cc try-catch-scoping.js:2:9
+tryCatchWithBlocks$adab3d5d try-catch-scoping.js:2:9
   Registers: 9
   Blocks:    4
   Locals:    x~0, y~1, e~2, z~3
@@ -27,32 +27,32 @@ tryCatchWithBlocks$475f75cc try-catch-scoping.js:2:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:x~0, src:Int32(1)
+  [   1] Mov dst:x~0, src:Int32(1)
 
 block1:
-  [  18] Mov dst:y~1, src:Int32(2)
-  [  28] Throw src:y~1
+  [   6] Mov dst:y~1, src:Int32(2)
+  [   b] Throw src:y~1
 
 block2:
-  [  30] Catch value_feedback:0, dst:reg5
-  [  38] Mov dst:e~2, src:<Empty>
-  [  48] Mov dst:e~2, src:reg5
-  [  58] Mov dst:z~3, src:Int32(3)
-  [  68] GetGlobal value_feedback:1, dst:reg6, `console`
-  [  78] GetById value_feedback:2, dst:reg7, base:reg6, `log`
-  [  90] Add arith_feedback:0, dst:reg8, lhs:x~0, rhs:e~2
-  [  a0] Add arith_feedback:1, dst:reg8, lhs:reg8, rhs:z~3
-  [  b0] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  d8] Jump target:block3
+  [   e] Catch value_feedback:0, dst:reg5
+  [  13] Mov dst:e~2, src:<Empty>
+  [  18] Mov dst:e~2, src:reg5
+  [  1d] Mov dst:z~3, src:Int32(3)
+  [  22] GetGlobal value_feedback:1, dst:reg6, `console`
+  [  2b] GetById value_feedback:2, dst:reg7, base:reg6, `log`
+  [  38] Add arith_feedback:0, dst:reg8, lhs:x~0, rhs:e~2
+  [  41] Add arith_feedback:1, dst:reg8, lhs:reg8, rhs:z~3
+  [  4a] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  61] Jump target:block3
 
 block3:
-  [  e0] End value:Undefined
+  [  66] End value:Undefined
 
 Exception handlers:
-  [  18 ..   30] => handler block2
+  [   6 ..    e] => handler block2
 
 
-tryCatchFinallyWithBlocks$adde6df6 try-catch-scoping.js:14:9
+tryCatchFinallyWithBlocks$9ed1a956 try-catch-scoping.js:14:9
   Registers: 10
   Blocks:    7
   Locals:    x~0, y~1, e~2, z~3
@@ -66,42 +66,42 @@ tryCatchFinallyWithBlocks$adde6df6 try-catch-scoping.js:14:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:x~0, src:Int32(1)
+  [   1] Mov dst:x~0, src:Int32(1)
 
 block1:
-  [  18] Mov dst:y~1, src:Int32(2)
-  [  28] Throw src:y~1
+  [   6] Mov dst:y~1, src:Int32(2)
+  [   b] Throw src:y~1
 
 block2:
-  [  30] Catch value_feedback:0, dst:reg7
-  [  38] Mov dst:e~2, src:<Empty>
-  [  48] Mov dst:e~2, src:reg7
-  [  58] GetGlobal value_feedback:1, dst:reg8, `console`
-  [  68] GetById value_feedback:2, dst:reg9, base:reg8, `log`
-  [  80] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:reg8, arguments:[e~2]
-  [  a8] Mov dst:reg5, src:Int32(0)
-  [  b8] Jump target:block4
+  [   e] Catch value_feedback:0, dst:reg7
+  [  13] Mov dst:e~2, src:<Empty>
+  [  18] Mov dst:e~2, src:reg7
+  [  1d] GetGlobal value_feedback:1, dst:reg8, `console`
+  [  26] GetById value_feedback:2, dst:reg9, base:reg8, `log`
+  [  33] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg9, this_value:reg8, arguments:[e~2]
+  [  4a] Mov dst:reg5, src:Int32(0)
+  [  4f] Jump target:block4
 
 block3:
-  [  c0] Catch value_feedback:4, dst:reg6
-  [  c8] Mov dst:reg5, src:Int32(1)
+  [  54] Catch value_feedback:4, dst:reg6
+  [  59] Mov dst:reg5, src:Int32(1)
 
 block4:
-  [  d8] Mov dst:z~3, src:Int32(3)
-  [  e8] GetGlobal value_feedback:5, dst:reg7, `console`
-  [  f8] GetById value_feedback:6, dst:reg8, base:reg7, `log`
-  [ 110] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[z~3]
-  [ 138] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block6, false_target:block5
+  [  5e] Mov dst:z~3, src:Int32(3)
+  [  63] GetGlobal value_feedback:5, dst:reg7, `console`
+  [  6c] GetById value_feedback:6, dst:reg8, base:reg7, `log`
+  [  79] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[z~3]
+  [  90] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block6, false_target:block5
 
 block5:
-  [ 150] Throw src:reg6
+  [  a1] Throw src:reg6
 
 block6:
-  [ 158] End value:Undefined
+  [  a4] End value:Undefined
 
 Exception handlers:
-  [  18 ..   30] => handler block2
-  [  30 ..   c0] => handler block3
+  [   6 ..    e] => handler block2
+  [   e ..   54] => handler block3
 
 
 6

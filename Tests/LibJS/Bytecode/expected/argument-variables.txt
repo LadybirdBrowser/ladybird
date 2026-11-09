@@ -1,4 +1,4 @@
-$ba294ac8 argument-variables.js:12:1
+$371fc4c3 argument-variables.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,28 +8,28 @@ $ba294ac8 argument-variables.js:12:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `identity`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  50] GetGlobal value_feedback:2, dst:reg6, `swap`
-  [  60] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2)]
-  [  88] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `identity`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  26] GetGlobal value_feedback:2, dst:reg6, `swap`
+  [  2f] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2)]
+  [  48] End value:reg5
 
 
-identity$f6a18ea3 argument-variables.js:5:5
+identity$348e99d7 argument-variables.js:5:5
   Registers: 5
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] Return value:arg0
+  [   1] Return value:arg0
 
 
-swap$d149ca94 argument-variables.js:9:5
+swap$67aee809 argument-variables.js:9:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] Add arith_feedback:0, dst:reg5, lhs:arg1, rhs:arg0
-  [  18] Return value:reg5
+  [   1] Add arith_feedback:0, dst:reg5, lhs:arg1, rhs:arg0
+  [   a] Return value:reg5

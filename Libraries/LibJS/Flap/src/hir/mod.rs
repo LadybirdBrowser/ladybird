@@ -1399,7 +1399,7 @@ impl<'a> Checker<'a> {
                 symbol.ty,
                 Type::EnvironmentCoordinateCacheIndex | Type::GlobalVariableCacheIndex | Type::PropertyLookupCacheIndex
             ) {
-                return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U32)));
+                return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U16)));
             }
             if matches!(
                 symbol.ty,

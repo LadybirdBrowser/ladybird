@@ -10,28 +10,25 @@ use core::marker::PhantomData;
 #[repr(C)]
 pub struct InstructionHeader {
     pub opcode: u8,
-    pub strict: bool,
 }
 
-/// An operand, encoded as a 3-bit kind above the index of its slot in the frame.
+/// An operand: the index of its slot in the frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct Operand(pub u32);
+#[repr(C, packed)]
+pub struct Operand(pub u16);
 
 impl Operand {
-    const INDEX_MASK: u32 = 0x1fff_ffff;
-
     pub fn index(self) -> usize {
-        (self.0 & Self::INDEX_MASK) as usize
+        self.0 as usize
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct OptionalOperand(pub u32);
+#[repr(C, packed)]
+pub struct OptionalOperand(pub u16);
 
 impl OptionalOperand {
-    const NONE: u32 = u32::MAX;
+    const NONE: u16 = u16::MAX;
 
     pub fn get(self) -> Option<Operand> {
         (self.0 != Self::NONE).then_some(Operand(self.0))
@@ -40,11 +37,11 @@ impl OptionalOperand {
 
 /// The bytecode offset of a basic block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(transparent)]
+#[repr(C, packed)]
 pub struct Label(pub u32);
 
 #[derive(Clone, Copy, Debug)]
-#[repr(C)]
+#[repr(C, packed)]
 pub struct OptionalLabel {
     pub label: Label,
     pub has_value: bool,
@@ -60,11 +57,11 @@ macro_rules! define_table_index {
     ($($name:ident),*) => {
         $(
             #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-            #[repr(transparent)]
-            pub struct $name(pub u32);
+            #[repr(C, packed)]
+            pub struct $name(pub u16);
 
-            impl From<u32> for $name {
-                fn from(index: u32) -> Self {
+            impl From<u16> for $name {
+                fn from(index: u16) -> Self {
                     Self(index)
                 }
             }
@@ -75,11 +72,12 @@ macro_rules! define_table_index {
 define_table_index!(IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex);
 
 /// A table index that may be absent, encoded with all bits set.
-#[repr(transparent)]
-pub struct OptionalIndex<T>(pub u32, PhantomData<T>);
+#[repr(C, packed)]
+pub struct OptionalIndex<T>(pub u16, PhantomData<T>);
 
-impl<T: From<u32>> OptionalIndex<T> {
+impl<T: From<u16>> OptionalIndex<T> {
     pub fn get(&self) -> Option<T> {
-        (self.0 != u32::MAX).then(|| T::from(self.0))
+        let raw = self.0;
+        (raw != u16::MAX).then(|| T::from(raw))
     }
 }

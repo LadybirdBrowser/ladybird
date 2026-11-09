@@ -1,4 +1,4 @@
-$28d58d80 resolve-this-caching.js:4:1
+$6d66de67 resolve-this-caching.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,13 +6,13 @@ $28d58d80 resolve-this-caching.js:4:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `foo`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `foo`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] End value:reg5
 
 
-foo$9e71f40c resolve-this-caching.js:2:5
+foo$d6d71d20 resolve-this-caching.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -20,19 +20,19 @@ foo$9e71f40c resolve-this-caching.js:2:5
 
 block0:
   [   0] Enter
-  [   8] NewFunction dst:reg5, shared_function_data_index:0
-  [  20] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined
-  [  40] Return value:reg5
+  [   1] NewFunction dst:reg5, shared_function_data_index:0
+  [   c] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined
+  [  21] Return value:reg5
 
 
-$1243b2a2 resolve-this-caching.js:2:13
+$259f4a12 resolve-this-caching.js:2:13
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] ResolveThisBinding
-  [  10] GetById value_feedback:0, dst:reg5, base:this, `x`
-  [  28] GetById value_feedback:1, dst:reg6, base:this, `y`
-  [  40] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  50] Return value:reg5
+  [   1] ResolveThisBinding
+  [   2] GetById value_feedback:0, dst:reg5, base:this, `x`
+  [   f] GetById value_feedback:1, dst:reg6, base:this, `y`
+  [  1c] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  25] Return value:reg5

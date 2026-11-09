@@ -149,6 +149,7 @@ impl EntryPointSignature {
                     ("dst", "*mut Value"),
                     ("lhs", "Value"),
                     ("rhs", "Value"),
+                    ("length", "u32"),
                 ]),
                 Some("i64"),
             ),
@@ -258,11 +259,11 @@ pub fn generate(functions: &[RuntimeFunction], ops: &[InstructionDefinition]) ->
             RuntimeFunctionKind::BinarySlowPath => {
                 let _ = writeln!(
                     methods,
-                    "    fn {name}(_vm: &Vm, pc: u32, _dst: &Cell<Value>, _lhs: Value, _rhs: Value) -> SlowPathControl;"
+                    "    fn {name}(_vm: &Vm, pc: u32, _dst: &Cell<Value>, _lhs: Value, _rhs: Value, _length: u32) -> SlowPathControl;"
                 );
                 let _ = writeln!(
                     entry_points,
-                    "    // SAFETY: The interpreter passes its VM and a live value slot.\n    let (vm, dst) = unsafe {{ (&*vm, &*dst.cast::<Cell<Value>>()) }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, dst, lhs, rhs).0\n}}"
+                    "    // SAFETY: The interpreter passes its VM and a live value slot.\n    let (vm, dst) = unsafe {{ (&*vm, &*dst.cast::<Cell<Value>>()) }};\n    <Runtime as RuntimeFunctions>::{name}(vm, pc, dst, lhs, rhs, length).0\n}}"
                 );
             }
             RuntimeFunctionKind::JumpSlowPath => {

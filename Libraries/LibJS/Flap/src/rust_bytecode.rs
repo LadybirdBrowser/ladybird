@@ -21,6 +21,7 @@
 
 use crate::metadata::Field;
 use crate::metadata::InstructionDefinition;
+use crate::metadata::OPERAND_SIZE;
 use crate::metadata::Specialization;
 use crate::metadata::SpecializedInstruction;
 use crate::metadata::field_type_info;
@@ -94,31 +95,37 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
         | "PutKind"
         | "ArgumentsKind"
         | "FunctionNamePrefix"
-        | "PropertyLookupCacheIndex"
-        | "GlobalVariableCacheIndex"
-        | "EnvironmentCoordinateCacheIndex"
         | "TemplateObjectCacheIndex"
-        | "ObjectShapeCacheIndex"
         | "ObjectPropertyIteratorCacheIndex"
         | "EnvironmentShapeCacheIndex" => format!("{reader}read_u32(bytes, {offset})"),
+        "PropertyLookupCacheIndex"
+        | "GlobalVariableCacheIndex"
+        | "EnvironmentCoordinateCacheIndex"
+        | "ObjectShapeCacheIndex" => format!("u32::from({reader}read_u16(bytes, {offset}))"),
         "ArithFeedbackIndex" | "CallFeedbackIndex" | "KeyedFeedbackIndex" | "ValueFeedbackIndex" => {
             format!("{reader}read_u16(bytes, {offset})")
         }
         "u64" | "Value" => format!("{reader}read_u64(bytes, {offset})"),
-        "Operand" => format!("Operand::from_raw({reader}read_u32(bytes, {offset}))"),
-        "Optional<Operand>" => format!("Operand::optional_from_raw({reader}read_u32(bytes, {offset}))"),
+        "Operand" => format!("Operand::from_raw(u32::from({reader}read_u16(bytes, {offset})))"),
+        "Optional<Operand>" => format!(
+            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(Operand::from_raw(u32::from(raw))) }}"
+        ),
         "Label" => format!("Label({reader}read_u32(bytes, {offset}))"),
         "Optional<Label>" => {
             format!("if bytes[{offset} + 4] != 0 {{ Some(Label({reader}read_u32(bytes, {offset}))) }} else {{ None }}")
         }
-        "IdentifierTableIndex" => format!("IdentifierTableIndex({reader}read_u32(bytes, {offset}))"),
+        "IdentifierTableIndex" => format!("IdentifierTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
         "Optional<IdentifierTableIndex>" => {
-            format!("IdentifierTableIndex::optional_from_raw({reader}read_u32(bytes, {offset}))")
+            format!(
+                "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(IdentifierTableIndex(u32::from(raw))) }}"
+            )
         }
-        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex({reader}read_u32(bytes, {offset}))"),
-        "StringTableIndex" => format!("StringTableIndex({reader}read_u32(bytes, {offset}))"),
+        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
+        "StringTableIndex" => format!("StringTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
         "Optional<StringTableIndex>" => {
-            format!("StringTableIndex::optional_from_raw({reader}read_u32(bytes, {offset}))")
+            format!(
+                "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(StringTableIndex(u32::from(raw))) }}"
+            )
         }
         "EnvironmentCoordinate" => format!(
             "EnvironmentCoordinate {{ hops: {reader}read_u32(bytes, {offset}), index: {reader}read_u32(bytes, {offset} + 4) }}"
@@ -358,10 +365,9 @@ pub fn generate_encoded_size_method(mut w: impl Write, ops: &[InstructionDefinit
             )?;
             writeln!(
                 w,
-                "                let base = {} + {}.len() * {};",
+                "                {} + {}.len() * {}",
                 op.layout.minimum_size, arr_name, array.element_size
             )?;
-            writeln!(w, "                (base + 7) & !7 // round up to 8")?;
             writeln!(w, "            }}")?;
         }
     }
@@ -385,10 +391,7 @@ pub fn generate_encode_method(
         w,
         "    /// Encode this instruction into bytes in the struct layout of its fields."
     )?;
-    writeln!(
-        w,
-        "    pub fn {method_name}(&self, strict: bool, encoder: &mut {encoder_type}) {{"
-    )?;
+    writeln!(w, "    pub fn {method_name}(&self, encoder: &mut {encoder_type}) {{")?;
     writeln!(w, "        match self {{")?;
 
     for op in ops {
@@ -427,10 +430,8 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
     };
     writeln!(w, "                let mut out = [0u8; {fixed_size}];")?;
     writeln!(w, "                out[0] = OpCode::{} as u8;", op.name)?;
-    writeln!(w, "                out[1] = strict as u8;")?;
 
-    // We iterate ALL fields (including m_type, m_strict, m_length) for
-    // accurate alignment but only emit writes for user fields.
+    // NB: Only the user fields get written; the opcode is written above.
     for f in &op.fields {
         if f.is_array || f.name == "m_type" || f.name == "m_strict" || f.name == "m_length" {
             continue;
@@ -459,7 +460,7 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
         writeln!(w, "                }}")?;
         writeln!(
             w,
-            "                let target = ({} + {}.len() * {} + 7) & !7;",
+            "                let target = {} + {}.len() * {};",
             op.layout.minimum_size, rname, array.element_size
         )?;
         writeln!(w, "                encoder.bytes.resize(start + target, 0);")?;
@@ -503,7 +504,7 @@ pub fn generate_typed_instructions(
         "    /// Whether an operand that is a constant may select a specialized form."
     )?;
     writeln!(w, "    fn may_specialize(&self) -> bool;")?;
-    writeln!(w, "    fn encode(&self, strict: bool, encoder: &mut {encoder_type});")?;
+    writeln!(w, "    fn encode(&self, encoder: &mut {encoder_type});")?;
     writeln!(w, "    fn to_instruction(&self) -> Instruction;")?;
     writeln!(w, "}}")?;
     writeln!(w)?;
@@ -543,7 +544,7 @@ pub fn generate_typed_instructions(
             writeln!(w, "    fn may_specialize(&self) -> bool {{ {} }}", tests.join(" || "))?;
         }
         writeln!(w, "    #[inline(always)]")?;
-        writeln!(w, "    fn encode(&self, strict: bool, encoder: &mut {encoder_type}) {{")?;
+        writeln!(w, "    fn encode(&self, encoder: &mut {encoder_type}) {{")?;
         if !fields.is_empty() {
             let bindings: Vec<String> = fields.iter().map(|f| rust_field_name(&f.name)).collect();
             writeln!(w, "                let Self {{ {} }} = self;", bindings.join(", "))?;
@@ -596,28 +597,40 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
         "operand" => writeln!(
             w,
             "{prefix}{}",
-            store(&format!("encoder.operand(*{name}, {offset}).to_ne_bytes()"), 4)
+            store(
+                &format!("(encoder.operand(*{name}, {offset}) as u16).to_ne_bytes()"),
+                OPERAND_SIZE
+            )
         )?,
         "optional_operand" => {
-            let value = format!("{name}.map_or(Operand::INVALID, |op| encoder.operand(op, {offset})).to_ne_bytes()");
-            writeln!(w, "{prefix}{}", store(&value, 4))?;
+            let value = format!("{name}.map_or(u16::MAX, |op| encoder.operand(op, {offset}) as u16).to_ne_bytes()");
+            writeln!(w, "{prefix}{}", store(&value, OPERAND_SIZE))?;
         }
         "label" => {
             writeln!(w, "{prefix}encoder.note_label({offset});")?;
             writeln!(w, "{prefix}{}", store(&format!("{name}.0.to_ne_bytes()"), 4))?;
         }
         "optional_label" => {
-            // Optional<Label> layout: u32 value, bool has_value, 3 bytes padding = 8 bytes total
+            // Optional<Label> layout: u32 value, then bool has_value.
             writeln!(w, "{prefix}if let Some(lbl) = {name} {{")?;
             writeln!(w, "{prefix}    encoder.note_label({offset});")?;
             writeln!(w, "{prefix}    {}", store("lbl.0.to_ne_bytes()", 4))?;
             writeln!(w, "{prefix}    out[{}] = 1;", offset + 4)?;
             writeln!(w, "{prefix}}}")?;
         }
-        "u32_newtype" => writeln!(w, "{prefix}{}", store(&format!("{name}.0.to_ne_bytes()"), 4))?,
+        "u32_newtype" => writeln!(
+            w,
+            "{prefix}{}",
+            store(&format!("narrow_index({name}.0).to_ne_bytes()"), 2)
+        )?,
+        "cache_index" => writeln!(
+            w,
+            "{prefix}{}",
+            store(&format!("narrow_index(*{name}).to_ne_bytes()"), 2)
+        )?,
         "optional_u32_newtype" => {
-            let value = format!("{name}.map_or(0xFFFF_FFFFu32, |idx| idx.0).to_ne_bytes()");
-            writeln!(w, "{prefix}{}", store(&value, 4))?;
+            let value = format!("{name}.map_or(u16::MAX, |idx| narrow_index(idx.0)).to_ne_bytes()");
+            writeln!(w, "{prefix}{}", store(&value, 2))?;
         }
         "env_coord" => {
             writeln!(w, "{prefix}{}", store(&format!("{name}.hops.to_ne_bytes()"), 4))?;
@@ -644,17 +657,20 @@ fn emit_field_write(mut w: impl Write, name: &str, kind: &str) -> GeneratorResul
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&{name}.to_ne_bytes());")?
         }
         "operand" => {
-            writeln!(w, "{prefix}let raw = encoder.operand(*{name}, 0);")?;
+            writeln!(w, "{prefix}let raw = encoder.operand(*{name}, 0) as u16;")?;
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
         }
         "optional_operand" => {
             writeln!(
                 w,
-                "{prefix}let raw = {name}.map_or(Operand::INVALID, |op| encoder.operand(op, 0));"
+                "{prefix}let raw = {name}.map_or(u16::MAX, |op| encoder.operand(op, 0) as u16);"
             )?;
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
         }
-        "u32_newtype" => writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&{name}.0.to_ne_bytes());")?,
+        "u32_newtype" => writeln!(
+            w,
+            "{prefix}encoder.bytes.extend_from_slice(&narrow_index({name}.0).to_ne_bytes());"
+        )?,
         other => panic!("Unknown array element encoding kind: {other}"),
     }
 
