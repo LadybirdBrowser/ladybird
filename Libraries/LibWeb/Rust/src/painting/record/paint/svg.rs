@@ -110,7 +110,8 @@ pub(crate) fn svg_stroke_style(
     paintable: NodeSlotId,
     style: &ComputedValuesView<'_>,
 ) -> SvgStrokeStyle {
-    let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
+    let basis = crate::painting::paintable_geometry::committed_svg_geometry(layout_arena, paintable)
+        .map_or_else(Default::default, |geometry| geometry.percentage_basis());
     let mut stroke = svg_stroke_style_for_percentage_basis(style, basis);
     if !stroke.dash_array.is_empty()
         && let Some(path_length) =
