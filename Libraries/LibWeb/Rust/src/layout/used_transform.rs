@@ -9,6 +9,7 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::transform_functions::multiply_transform_functions;
+use crate::layout::svg_formatting_context::{SvgGeometry, css_pixel_rect_of};
 use libgfx_rust::{
     AffineTransform, FloatMatrix4x4, FloatPoint, affine_to_matrix, translated_then_multiplied, translation_matrix,
 };
@@ -18,7 +19,7 @@ pub(crate) trait TransformGeometry {
     fn content_box(&self) -> CssPixelRect;
     fn border_box(&self) -> CssPixelRect;
     fn scrollable_overflow_rect(&self) -> Option<CssPixelRect>;
-    fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect>;
+    fn svg_geometry(&self) -> Option<SvgGeometry>;
     fn containing_block_box(&self, coord_box: u16) -> CssPixelRect;
     fn svg_additional_element_transform(&self) -> Option<AffineTransform>;
 }
@@ -40,12 +41,20 @@ pub(crate) fn transform_reference_box_of(
     is_svg: bool,
     geometry: &impl TransformGeometry,
 ) -> CssPixelRect {
-    use css_enums::transform_box::{CONTENT_BOX, FILL_BOX, VIEW_BOX};
-    match used_transform_box(style, is_svg) {
+    use css_enums::transform_box::{CONTENT_BOX, FILL_BOX};
+    let transform_box = used_transform_box(style, is_svg);
+    if is_svg && let Some(svg_geometry) = geometry.svg_geometry() {
+        // NB: The content box of an SVG element's box is its stroke bounding box, so that maps the element's user
+        //     units into the space of the geometry.
+        let content_box = geometry.content_box();
+        let stroke_bounding_box = css_pixel_rect_of(svg_geometry.stroke_bounding_box);
+        return svg_geometry.transform_reference_box(transform_box).translated(
+            content_box.x - stroke_bounding_box.x,
+            content_box.y - stroke_bounding_box.y,
+        );
+    }
+    match transform_box {
         CONTENT_BOX | FILL_BOX => geometry.content_box(),
-        VIEW_BOX => geometry
-            .nearest_svg_viewport_user_rect()
-            .unwrap_or_else(|| geometry.border_box()),
         _ => geometry.border_box(),
     }
 }

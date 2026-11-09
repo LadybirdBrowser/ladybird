@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>transform-box: view-box, relative to nested viewport</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/greensquare200x200.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<style>
+#target {
+  transform-box: view-box;
+  transform: translate(-50%, -50%);
+}
+</style>
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="400" height="200">
+  <rect width="200" height="200" fill="red"/>
+  <svg width="200" height="200">
+    <rect id="target" x="100" y="100" width="200" height="200" fill="green"/>
+  </svg>
+</svg>

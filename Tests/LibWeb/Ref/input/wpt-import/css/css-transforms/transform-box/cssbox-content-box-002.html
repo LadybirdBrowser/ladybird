@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>transform-box: content-box (CSS layout), percentage padding</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/cssbox-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-box">
+<meta name="assert" content="This should display a square with a black bar at the top whose top-left corner is at 100,100."/>
+<style>
+#target {
+    width: 125px;
+    height: 200px;
+    margin-left: 300px;
+    margin-top: 100px;
+    padding-left: 25%;
+    background-color: green;
+    border-left: solid 50px black;
+
+    transform: rotate(90deg);
+    transform-origin: -75px 0;
+    transform-box: content-box;
+}
+</style>
+<div style="width: 100px">
+  <div id="target"></div>
+</div>

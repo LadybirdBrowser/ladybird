@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>transform-box: initial (CSS layout)</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/cssbox-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-box">
+<meta name="assert" content="This should display a square with a black bar at the top whose top-left corner is at 100,100."/>
+
+<style>
+#target {
+    width: 150px;
+    height: 200px;
+    margin-left: 300px;
+    margin-top: 100px;
+    background-color: green;
+    border-left: solid 50px black;
+
+    transform: rotate(90deg);
+    transform-origin: 0 0;
+}
+</style>
+
+<div id="target"></div>
+
+<div id="error"></div>
+<script>
+var refStyle = "view-box";
+var compStyle = getComputedStyle(document.getElementById('target')).transformBox;
+if (refStyle != compStyle)
+    document.getElementById('error').textContent = "Error, got computed style " + compStyle;
+</script>

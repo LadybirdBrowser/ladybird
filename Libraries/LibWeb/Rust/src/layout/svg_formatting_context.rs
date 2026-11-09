@@ -338,15 +338,24 @@ impl SvgGeometry {
     }
 
     /// The transform reference box that a used `transform-box` value names.
-    pub(crate) fn transform_reference_box(&self, transform_box: u8) -> FloatRect {
-        match transform_box {
+    pub(crate) fn transform_reference_box(&self, transform_box: u8) -> CssPixelRect {
+        css_pixel_rect_of(match transform_box {
             transform_box::FILL_BOX => self.object_bounding_box,
             transform_box::VIEW_BOX => {
                 FloatRect::new(0.0, 0.0, self.viewport_user_rect.width, self.viewport_user_rect.height)
             }
             _ => self.stroke_bounding_box,
-        }
+        })
     }
+}
+
+pub(crate) fn css_pixel_rect_of(rect: FloatRect) -> CssPixelRect {
+    CssPixelRect::new(
+        CssPixels::nearest_value_for_f32(rect.x),
+        CssPixels::nearest_value_for_f32(rect.y),
+        CssPixels::nearest_value_for_f32(rect.width),
+        CssPixels::nearest_value_for_f32(rect.height),
+    )
 }
 
 /// The union of `rect` and `other`, which keeps the extent of an empty rect too.
@@ -1857,7 +1866,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         });
         self.update_svg_payload_of(node, |svg| {
             let svg = &mut svg.facts;
-            svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
             svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
             svg.additional_element_transform =
                 (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
@@ -1894,16 +1902,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         let transform_box =
             used_transform::used_transform_box(*style, node_facts::kind_is_svg_box(self.node_kind(node)));
-        let reference_box = float_rect_to_css_pixels(geometry.transform_reference_box(transform_box));
         // FIXME: Apply the element's offset path.
         used_transform::transform_about_origin(
             *style,
-            CssPixelRect::new(
-                reference_box.x,
-                reference_box.y,
-                reference_box.width,
-                reference_box.height,
-            ),
+            geometry.transform_reference_box(transform_box),
             |_| None,
             Some(additional_transform.into()),
         )

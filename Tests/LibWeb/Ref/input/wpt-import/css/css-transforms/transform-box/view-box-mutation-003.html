@@ -1,0 +1,26 @@
+<!doctype html>
+<html class="reftest-wait">
+<title>transform-box: view-box, viewport mutated, &lt;foreignObject></title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/greensquare200x200.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<script src="../../../common/reftest-wait.js"></script>
+<script src="../../../common/rendering-utils.js"></script>
+<style>
+#target {
+  transform-box: view-box;
+  transform: translate(-50%, 0);
+}
+</style>
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="400" height="200">
+  <rect width="200" height="200" fill="red"/>
+  <foreignObject id="target" x="100" width="200" height="100%">
+    <div style="width: 200px; height: 200px; background-color: green"></div>
+  </foreignObject>
+</svg>
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    document.querySelector('svg').setAttribute('width', 200);
+    takeScreenshot();
+  });
+</script>
