@@ -150,6 +150,7 @@ asm_dispatch_table:
     .quad asm_handler_ObjectPropertyIteratorNext
     .quad asm_handler_IteratorClose
     .quad asm_handler_IteratorNext
+    .quad asm_handler_IteratorStep
     .quad asm_handler_IteratorNextUnpack
     .quad asm_handler_IteratorToArray
     .quad asm_handler_CallConstruct
@@ -235,7 +236,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1081,6 +1081,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_IteratorNext_hot_end
     .quad asm_handler_IteratorNext_cold
     .quad asm_handler_IteratorNext_cold_end
+    .quad asm_handler_IteratorStep
+    .quad asm_handler_IteratorStep_hot_end
+    .quad asm_handler_IteratorStep_cold
+    .quad asm_handler_IteratorStep_cold_end
     .quad asm_handler_IteratorNextUnpack
     .quad asm_handler_IteratorNextUnpack_hot_end
     .quad asm_handler_IteratorNextUnpack_cold
@@ -1421,10 +1425,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -15829,6 +15829,84 @@ asm_handler_IteratorNext:
 asm_handler_IteratorNext_hot_end:
 asm_handler_IteratorNext_cold:
 asm_handler_IteratorNext_cold_end:
+
+.p2align 4
+asm_handler_IteratorStep:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    sub sp, sp, #32
+    ldr w12, [x21, #8]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.value_ready_1:
+    mov x4, x11
+    ldr w12, [x21, #12]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.value_ready_2:
+    mov x5, x11
+    ldr w12, [x21, #16]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.value_ready_3:
+    mov x6, x11
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    add x3, sp, #0
+    bl CSYM(asm_slow_path_iterator_step)
+    tbnz x0, #63, .Lasm_IteratorStep.values_exceptional_outputs_5
+    tbz x0, #32, .Lasm_IteratorStep.values_exceptional_outputs_5
+    ldr w12, [x21, #4]
+    ldr x11, [sp]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.skip_output_value_6:
+    ldr w12, [x21, #8]
+    ldr x11, [sp, #8]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.skip_output_value_7:
+    ldr w12, [x21, #16]
+    ldr x11, [sp, #24]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.skip_output_value_8:
+    add sp, sp, #32
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorStep.values_exceptional_outputs_5:
+    ldr x9, [x20]
+    cmp x9, x28
+    b.ne .Lasm_IteratorStep.values_restore_stack_4
+    ldr w12, [x21, #8]
+    ldr x11, [sp, #8]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.skip_exceptional_output_9:
+    ldr w12, [x21, #16]
+    ldr x11, [sp, #24]
+    str x11, [x27, x12, lsl #3]
+.Lasm_IteratorStep.skip_exceptional_output_10:
+.Lasm_IteratorStep.values_restore_stack_4:
+    add sp, sp, #32
+.Lasm_IteratorStep.values_call_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_IteratorStep.slow_path_transfer_11
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorStep.slow_path_transfer_11:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_IteratorStep_hot_end:
+asm_handler_IteratorStep_cold:
+asm_handler_IteratorStep_cold_end:
 
 asm_handler_IteratorNextUnpack_cold:
 // Cold paths for IteratorNextUnpack

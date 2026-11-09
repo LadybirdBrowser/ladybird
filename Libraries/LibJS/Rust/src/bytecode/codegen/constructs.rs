@@ -1857,10 +1857,25 @@ impl Generator<'_> {
             let is_rest = tree.node_tag(item) == tag::REST;
             // NB: A rest element started out as a spread element, whose mark means nothing here.
             row += usize::from(tree.ast.tag[row] == tag::MARK_SPREAD_START);
-            if tree.node_tag(item) != tag::HOLE {
-                let element = if is_rest { NodeId(tree.node_a(item)) } else { item };
-                self.prepare_pattern_target(element, row, mode)?;
+            if tree.node_tag(item) == tag::HOLE {
+                let after_step = self.new_label();
+                if index != 0 {
+                    self.jump_if(is_exhausted, after_step);
+                }
+                self.set_handler(outer_handler);
+                self.put(op::IteratorStep {
+                    dst_done: is_exhausted,
+                    iterator_object: object,
+                    iterator_next: next,
+                    iterator_done: done,
+                });
+                self.set_handler(Some(close_handler));
+                self.bind_label(after_step);
+                row = item.index() + 1;
+                continue;
             }
+            let element = if is_rest { NodeId(tree.node_a(item)) } else { item };
+            self.prepare_pattern_target(element, row, mode)?;
             let element_value = self.temporary();
             if is_rest {
                 let exhausted = self.new_label();
@@ -1912,9 +1927,7 @@ impl Generator<'_> {
             });
             self.reference_label(have_value);
             self.bind_label(have_value);
-            if tree.node_tag(item) != tag::HOLE {
-                self.bind_pattern_element(item, row, element_value, mode)?;
-            }
+            self.bind_pattern_element(item, row, element_value, mode)?;
             self.release_temporaries_from(first_temporary);
             row = item.index() + 1;
         }

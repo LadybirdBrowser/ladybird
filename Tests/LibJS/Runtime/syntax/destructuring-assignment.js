@@ -349,4 +349,67 @@ describe("array iterator closing", () => {
         expect(result.value).toBe(444);
         expect(result.done).toBe(true);
     });
+
+    test("an elision steps the iterator without reading the value of the result", () => {
+        function iterable(log) {
+            let count = 0;
+            return {
+                [Symbol.iterator]() {
+                    return this;
+                },
+                next() {
+                    const n = ++count;
+                    log.push(`next ${n}`);
+                    return {
+                        get done() {
+                            log.push(`done ${n}`);
+                            return false;
+                        },
+                        get value() {
+                            log.push(`value ${n}`);
+                            if (n === 1) throw new Error("value of an elided element");
+                            return n;
+                        },
+                    };
+                },
+                return() {
+                    log.push("return");
+                    return {};
+                },
+            };
+        }
+
+        let log = [];
+        const [, a] = iterable(log);
+        expect(a).toBe(2);
+        expect(log).toEqual(["next 1", "done 1", "next 2", "done 2", "value 2", "return"]);
+
+        log = [];
+        let b;
+        [, b] = iterable(log);
+        expect(b).toBe(2);
+        expect(log).toEqual(["next 1", "done 1", "next 2", "done 2", "value 2", "return"]);
+
+        log = [];
+        (function ([, c]) {})(iterable(log));
+        expect(log).toEqual(["next 1", "done 1", "next 2", "done 2", "value 2", "return"]);
+
+        // NB: The next method of an array iterator still reads the element, from the prototype for a hole.
+        let calls = 0;
+        let d;
+        Object.defineProperty(Array.prototype, 0, {
+            get() {
+                ++calls;
+                return "inherited";
+            },
+            configurable: true,
+        });
+        try {
+            [, d] = [, 2];
+        } finally {
+            delete Array.prototype[0];
+        }
+        expect(d).toBe(2);
+        expect(calls).toBe(1);
+    });
 });

@@ -4220,6 +4220,14 @@ handler IteratorNext(
     iterator_done: inout Operand
 ) @cold = call_slow_path(asm_slow_path_iterator_next);
 
+# IteratorStep, which unlike IteratorNextUnpack does not read the value of the result.
+handler IteratorStep(
+    dst_done: out Operand,
+    iterator_object: inout Operand,
+    iterator_next: Operand,
+    iterator_done: inout Operand
+) @cold = call_slow_path(asm_slow_path_iterator_step);
+
 handler IteratorNextUnpack(
     dst_value: out Operand,
     dst_done: out Operand,

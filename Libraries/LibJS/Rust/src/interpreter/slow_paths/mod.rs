@@ -1396,6 +1396,15 @@ impl RuntimeFunctions for Runtime {
         control::iterator_next_slow_path(vm, pc, values)
     }
 
+    fn iterator_step(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::IteratorStep,
+        values: &mut op::IteratorStepValues,
+    ) -> SlowPathControl {
+        control::iterator_step_slow_path(vm, pc, values)
+    }
+
     fn iterator_next_unpack(
         vm: &Vm,
         pc: u32,

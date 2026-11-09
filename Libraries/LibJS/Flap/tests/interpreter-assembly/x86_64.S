@@ -151,6 +151,7 @@ asm_dispatch_table:
     .quad asm_handler_ObjectPropertyIteratorNext
     .quad asm_handler_IteratorClose
     .quad asm_handler_IteratorNext
+    .quad asm_handler_IteratorStep
     .quad asm_handler_IteratorNextUnpack
     .quad asm_handler_IteratorToArray
     .quad asm_handler_CallConstruct
@@ -236,7 +237,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1082,6 +1082,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_IteratorNext_hot_end
     .quad asm_handler_IteratorNext_cold
     .quad asm_handler_IteratorNext_cold_end
+    .quad asm_handler_IteratorStep
+    .quad asm_handler_IteratorStep_hot_end
+    .quad asm_handler_IteratorStep_cold
+    .quad asm_handler_IteratorStep_cold_end
     .quad asm_handler_IteratorNextUnpack
     .quad asm_handler_IteratorNextUnpack_hot_end
     .quad asm_handler_IteratorNextUnpack_cold
@@ -1422,10 +1426,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -15439,6 +15439,88 @@ asm_handler_IteratorNext:
 asm_handler_IteratorNext_hot_end:
 asm_handler_IteratorNext_cold:
 asm_handler_IteratorNext_cold_end:
+
+.p2align 4
+asm_handler_IteratorStep:
+    mov DWORD PTR [rbx + -64], r13d
+    lea rcx, [r14 + r13]
+    sub rsp, 48
+    mov r10d, DWORD PTR [rcx + 8]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_IteratorStep.value_ready_1:
+    mov r8, rax
+    mov r10d, DWORD PTR [rcx + 12]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_IteratorStep.value_ready_2:
+    mov r9, rax
+    mov r10d, DWORD PTR [rcx + 16]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_IteratorStep.value_ready_3:
+    mov QWORD PTR [rsp], rax
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    lea rcx, [rsp + 16]
+    call CSYM(asm_slow_path_iterator_step)
+    test rax, rax
+    js .Lasm_IteratorStep.values_exceptional_outputs_5
+    bt rax, 32
+    jnc .Lasm_IteratorStep.values_exceptional_outputs_5
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 4]
+    mov r11, QWORD PTR [rsp + 16]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorStep.skip_output_value_6:
+    mov r10d, DWORD PTR [rcx + 8]
+    mov r11, QWORD PTR [rsp + 24]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorStep.skip_output_value_7:
+    mov r10d, DWORD PTR [rcx + 16]
+    mov r11, QWORD PTR [rsp + 40]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorStep.skip_output_value_8:
+    add rsp, 48
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_IteratorStep.values_exceptional_outputs_5:
+    mov r10, QWORD PTR [rbp - 48]
+    mov r10, QWORD PTR [r10]
+    add r10, 128
+    cmp r10, rbx
+    jne .Lasm_IteratorStep.values_restore_stack_4
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 8]
+    mov r11, QWORD PTR [rsp + 24]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorStep.skip_exceptional_output_9:
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 16]
+    mov r11, QWORD PTR [rsp + 40]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_IteratorStep.skip_exceptional_output_10:
+.Lasm_IteratorStep.values_restore_stack_4:
+    add rsp, 48
+.Lasm_IteratorStep.values_call_done_0:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_IteratorStep.slow_path_transfer_11
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_IteratorStep.slow_path_transfer_11:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_IteratorStep_hot_end:
+asm_handler_IteratorStep_cold:
+asm_handler_IteratorStep_cold_end:
 
 asm_handler_IteratorNextUnpack_cold:
 # Cold paths for IteratorNextUnpack
