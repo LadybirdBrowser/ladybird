@@ -13,15 +13,13 @@ use crate::display_list::commands::{
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
-use crate::display_list::effect_geometry::{
-    EffectGeometry, Extent, SpaceMatrices, compute_effect_geometry, map_rect_between_spaces,
-};
+use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, ContextRef, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, device_offset_for_index,
-    resolve_leaf_to_context_matrices, should_cull_back_face,
+    ClipNodeData, ContextRef, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, WorldTransforms,
+    device_offset_for_index, resolve_leaf_to_context_matrices,
 };
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
@@ -192,27 +190,6 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
     });
 }
 
-// Cumulative to-root matrices for every spatial node, resolved against the live scroll offsets
-// and folded onto the canvas matrix at replay entry, so any node's space can be entered
-// absolutely with a single set_matrix(). Spatial nodes therefore never touch the canvas save
-// stack; only clips and effects do. A backface marker's entry carries the flattened matrix that
-// feeds its cull test and its descendants, while content recorded directly under the marker
-// belongs to its parent's plane, so draw_space redirects the marker to the parent's entry.
-#[derive(Default)]
-struct ReplayPaletteStorage {
-    to_root_matrices: Vec<FloatMatrix4x4>,
-    local_matrices: Vec<FloatMatrix4x4>,
-    draw_spaces: Vec<SpatialNodeIndex>,
-    backface_culled: Vec<bool>,
-    flattens_inherited_transform: Vec<bool>,
-}
-
-impl SpaceMatrices for &ReplayPaletteStorage {
-    fn to_root_matrix(&mut self, space: SpatialNodeIndex) -> FloatMatrix4x4 {
-        self.to_root_matrices[self.draw_spaces[space.0 as usize].0 as usize]
-    }
-}
-
 // Recorded bounds are whole device pixels around geometry that antialiasing and glyph rounding
 // can push past them by up to this much, and a layer's bounds clip what is drawn into it.
 const LAYER_CONTENT_MARGIN_IN_DEVICE_PIXELS: f32 = 2.0;
@@ -226,10 +203,10 @@ enum Applied {
 
 // Steady-state replays reuse the previous frame's capacity. Taking the storage out of the slot
 // for the duration of a replay keeps re-entrant nested replays from clobbering the outer
-// driver's buffers; the slot keeps whichever returned storage has the larger palette.
+// driver's buffers; the slot keeps whichever returned storage has the larger table.
 #[derive(Default)]
 struct ReplayScratchStorage {
-    palette: ReplayPaletteStorage,
+    world: WorldTransforms,
     culling: TreeCullingScratch,
     applied: Vec<Applied>,
     target: Vec<Applied>,
@@ -245,21 +222,17 @@ fn take_replay_scratch_storage() -> ReplayScratchStorage {
 }
 
 fn return_replay_scratch_storage(mut storage: ReplayScratchStorage) {
-    storage.palette.to_root_matrices.clear();
-    storage.palette.local_matrices.clear();
-    storage.palette.draw_spaces.clear();
-    storage.palette.backface_culled.clear();
-    storage.palette.flattens_inherited_transform.clear();
+    storage.world.clear();
     storage.culling.clear();
     storage.applied.clear();
     storage.target.clear();
     storage.effect_geometry.clear();
     WARM_REPLAY_SCRATCH_STORAGE.with(|slot| {
         let mut slot = slot.borrow_mut();
-        let slot_has_larger_palette = slot.as_ref().is_some_and(|kept| {
-            kept.palette.to_root_matrices.capacity() >= storage.palette.to_root_matrices.capacity()
-        });
-        if !slot_has_larger_palette {
+        let slot_has_larger_table = slot
+            .as_ref()
+            .is_some_and(|kept| kept.world.to_root.capacity() >= storage.world.to_root.capacity());
+        if !slot_has_larger_table {
             *slot = Some(storage);
         }
     });
@@ -279,12 +252,14 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     effect_clips: &'a EffectClipPlan,
     root_group_color: Color,
     painter: &'a mut Painter,
-    palette: ReplayPaletteStorage,
+    // Spatial nodes never touch the canvas save stack: any node's space is entered absolutely with a single
+    // set_matrix(), so only clips and effects do.
+    world: WorldTransforms,
     culling: TreeCullingScratch,
     spatial_dependency_order: Vec<u32>,
     tree_has_sorting_contexts: bool,
     replay_base_matrix: FloatMatrix4x4,
-    // The palette entry the canvas matrix currently equals, if known; popping a clip or a layer
+    // The draw space the canvas matrix currently equals, if known; popping a clip or a layer
     // resets the matrix to its save point, so unwinding invalidates it. Recorded streams contain
     // no matrix-mutating commands, so playing commands never invalidates the cache.
     current_ctm_space: Option<SpatialNodeIndex>,
@@ -372,112 +347,19 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
         .then(|| enclosing_int_rect(rect))
 }
 
-// The cull state of the element that establishes the 3D rendering context rooted at root: the cull state of the
-// plane the context is flattened into.
-fn backface_culled_outside_sorting_context(
-    tree: &VisualContextTree,
-    backface_culled: &[bool],
-    root: SpatialNodeIndex,
-) -> bool {
-    let mut index = root;
-    loop {
-        if tree
-            .local_transform(index, &[], ScrollSnap::None)
-            .establishes_sorting_context
-        {
-            return backface_culled[index.0 as usize];
-        }
-        if index.0 == 0 {
-            return false;
-        }
-        index = tree.spatial_nodes[index.0 as usize].parent;
-    }
-}
-
-fn fill_replay_palette_in_dependency_order(
-    tree: &VisualContextTree,
-    spatial_dependency_order: &[u32],
-    scroll_offsets: &[FloatPoint],
-    replay_base_matrix: FloatMatrix4x4,
-    palette: &mut ReplayPaletteStorage,
-) {
-    let node_count = tree.spatial_nodes.len();
-    palette.to_root_matrices.clear();
-    palette.to_root_matrices.resize(node_count, replay_base_matrix);
-    palette.local_matrices.clear();
-    palette.local_matrices.resize(node_count, FloatMatrix4x4::identity());
-    palette.draw_spaces.clear();
-    palette
-        .draw_spaces
-        .extend((0..node_count).map(|index| SpatialNodeIndex(index as u32)));
-    palette.backface_culled.clear();
-    palette.backface_culled.resize(node_count, false);
-    palette.flattens_inherited_transform.clear();
-    palette.flattens_inherited_transform.resize(node_count, false);
-    for &index in spatial_dependency_order {
-        let i = index as usize;
-        let parent = tree.spatial_nodes[i].parent.0 as usize;
-        // Whole device pixels, so scrolled content never lands on subpixel positions.
-        let local = tree.local_transform(SpatialNodeIndex(index), scroll_offsets, ScrollSnap::Truncate);
-        let parent_matrix = if i == 0 {
-            replay_base_matrix
-        } else {
-            palette.to_root_matrices[parent]
-        };
-        palette.to_root_matrices[i] = local.applied_to(parent_matrix);
-        palette.local_matrices[i] = local.matrix;
-        palette.flattens_inherited_transform[i] = local.flattens_inherited_transform;
-        let mut culled = i != 0 && palette.backface_culled[parent];
-        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
-        // A participant in a 3D rendering context is its own plane, so the hidden backfaces of other planes in the
-        // context don't cull it. But a context is part of the content flattened into the plane its establishing
-        // element sits in, so whatever culls that plane culls the whole context: A participant starts from the cull
-        // state of the element that establishes its context. The spec doesn't yet say if a hidden backface culls the
-        // 3D rendering contexts nested in it:
-        // https://github.com/w3c/csswg-drafts/issues/918
-        if let Some(root) = local.sorting_context_root {
-            culled = backface_culled_outside_sorting_context(tree, &palette.backface_culled, root);
-        }
-        if let Some(plane_root) = local.backface_plane_root {
-            palette.draw_spaces[i] = palette.draw_spaces[parent];
-            if !culled {
-                let plane_root_matrix = palette.to_root_matrices[plane_root.0 as usize];
-                culled = should_cull_back_face(palette.to_root_matrices[i], plane_root_matrix);
-            }
-        }
-        palette.backface_culled[i] = culled;
-    }
-}
-
 impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
-    fn build_transform_palette(&mut self, scroll_offsets: &[FloatPoint]) {
-        fill_replay_palette_in_dependency_order(
-            self.tree,
-            &self.spatial_dependency_order,
-            scroll_offsets,
-            self.replay_base_matrix,
-            &mut self.palette,
-        );
-    }
-
     fn ensure_ctm_space(&mut self, spatial: SpatialNodeIndex) {
-        let space = self.palette.draw_spaces[spatial.0 as usize];
+        let space = self.world.draw_space[spatial.0 as usize];
         if self.current_ctm_space == Some(space) {
             return;
         }
-        self.painter
-            .set_matrix(&self.palette.to_root_matrices[space.0 as usize]);
+        self.painter.set_matrix(&self.world.to_root[space.0 as usize]);
         self.current_ctm_space = Some(space);
     }
 
     fn effect_geometry(&mut self, effect: EffectNodeIndex) -> EffectGeometry {
         if !self.effect_geometry_is_known {
-            compute_effect_geometry(
-                self.tree,
-                self.command_runs,
-                &mut &self.palette,
-                &mut self.effect_geometry,
-            );
+            compute_effect_geometry(self.tree, self.command_runs, &self.world, &mut self.effect_geometry);
             self.effect_geometry_is_known = true;
         }
         self.effect_geometry[effect.0 as usize]
@@ -488,7 +370,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         let Extent::Within(content) = self.effect_geometry(effect).content else {
             return None;
         };
-        let to_root_matrix = (&self.palette).to_root_matrix(space);
+        let to_root_matrix = self.world.draw_matrix(space);
         if !to_root_matrix.is_2d_affine() {
             return None;
         }
@@ -574,9 +456,10 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                 ClipNodeData::Path(path) => Some(path.bounding_rect.to_float()),
                 _ => None,
             };
-            if let Some(clip_rect) = clip_rect
-                .and_then(|rect| map_rect_between_spaces(&mut &self.palette, rect, clip_node.spatial, node.spatial))
-            {
+            if let Some(clip_rect) = clip_rect.and_then(|rect| {
+                self.world
+                    .map_rect_between_spaces(rect, clip_node.spatial, node.spatial)
+            }) {
                 edge = edge.intersected(clip_rect);
             }
             clip = clip_node.parent;
@@ -798,7 +681,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
     // context spares the pushes.
     fn execute_run(&mut self, run_index: usize) {
         let run = self.command_runs[run_index];
-        if self.palette.backface_culled[run.context.spatial.0 as usize] {
+        if self.world.backface_culled[run.context.spatial.0 as usize] {
             return;
         }
         if self.culling.context_culls_everything(run.context) {
@@ -815,11 +698,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             return;
         }
         let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
-        let palette = &self.palette;
-        let clip_space_matrix = |space: SpatialNodeIndex| {
-            let draw_space = palette.draw_spaces.get(space.0 as usize)?;
-            palette.to_root_matrices.get(draw_space.0 as usize).copied()
-        };
+        let world = &self.world;
+        let clip_space_matrix = |space: SpatialNodeIndex| world.draw_matrix_if_known(space);
         self.painter
             .execute_run(run_index, records, self.scroll_offsets, &clip_space_matrix);
     }
@@ -839,16 +719,16 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                 &contexts,
                 &self.spatial_dependency_order,
                 &parent_by_node,
-                &self.palette.local_matrices,
-                &self.palette.flattens_inherited_transform,
+                &self.world.local,
+                &self.world.flattens_inherited_transform,
             );
             let plan = build_depth_sorted_replay_plan(
                 self.command_runs,
                 &contexts,
-                &self.palette.to_root_matrices,
+                &self.world.to_root,
                 &leaf_to_context_palette,
-                &self.palette.draw_spaces,
-                &self.palette.backface_culled,
+                &self.world.draw_space,
+                &self.world.backface_culled,
                 &self.culling,
             );
             for step in &plan.steps {
@@ -916,7 +796,7 @@ pub fn replay_display_list(
         effect_clips,
         root_group_color,
         painter,
-        palette: scratch.palette,
+        world: scratch.world,
         culling: scratch.culling,
         spatial_dependency_order: tree.spatial_dependency_order(),
         tree_has_sorting_contexts: tree.spatial_nodes.iter().any(|node| {
@@ -930,10 +810,17 @@ pub fn replay_display_list(
         effect_geometry: scratch.effect_geometry,
         effect_geometry_is_known: false,
     };
-    driver.build_transform_palette(scroll_offsets);
+    // Whole device pixels, so scrolled content never lands on subpixel positions.
+    driver.world.fill(
+        tree,
+        &driver.spatial_dependency_order,
+        scroll_offsets,
+        replay_base_matrix,
+        ScrollSnap::Truncate,
+    );
     driver.execute();
     return_replay_scratch_storage(ReplayScratchStorage {
-        palette: std::mem::take(&mut driver.palette),
+        world: std::mem::take(&mut driver.world),
         culling: std::mem::take(&mut driver.culling),
         applied: std::mem::take(&mut driver.applied),
         target: std::mem::take(&mut driver.target),
@@ -1007,22 +894,8 @@ mod tests {
         permuted.spatial_nodes[permuted_child.0 as usize].parent = permuted_parent;
 
         let base = scale_matrix(2.0, 2.0, 1.0);
-        let mut in_order_palette = ReplayPaletteStorage::default();
-        fill_replay_palette_in_dependency_order(
-            &in_order,
-            &in_order.spatial_dependency_order(),
-            &[],
-            base,
-            &mut in_order_palette,
-        );
-        let mut permuted_palette = ReplayPaletteStorage::default();
-        fill_replay_palette_in_dependency_order(
-            &permuted,
-            &permuted.spatial_dependency_order(),
-            &[],
-            base,
-            &mut permuted_palette,
-        );
+        let in_order_palette = WorldTransforms::new(&in_order, &[], base, ScrollSnap::Truncate);
+        let permuted_palette = WorldTransforms::new(&permuted, &[], base, ScrollSnap::Truncate);
         let pairs = [
             (VISUAL_VIEWPORT_NODE_INDEX, VISUAL_VIEWPORT_NODE_INDEX),
             (parent, permuted_parent),
@@ -1033,16 +906,16 @@ mod tests {
         let map = |index: SpatialNodeIndex| pairs.iter().find(|(original, _)| *original == index).unwrap().1;
         for (original, mapped) in pairs {
             assert_eq!(
-                permuted_palette.to_root_matrices[mapped.0 as usize],
-                in_order_palette.to_root_matrices[original.0 as usize]
+                permuted_palette.to_root[mapped.0 as usize],
+                in_order_palette.to_root[original.0 as usize]
             );
             assert_eq!(
-                permuted_palette.local_matrices[mapped.0 as usize],
-                in_order_palette.local_matrices[original.0 as usize]
+                permuted_palette.local[mapped.0 as usize],
+                in_order_palette.local[original.0 as usize]
             );
             assert_eq!(
-                permuted_palette.draw_spaces[mapped.0 as usize],
-                map(in_order_palette.draw_spaces[original.0 as usize])
+                permuted_palette.draw_space[mapped.0 as usize],
+                map(in_order_palette.draw_space[original.0 as usize])
             );
             assert_eq!(
                 permuted_palette.backface_culled[mapped.0 as usize],
@@ -1054,7 +927,7 @@ mod tests {
             );
         }
         assert!(in_order_palette.backface_culled[marker.0 as usize]);
-        assert_eq!(in_order_palette.draw_spaces[marker.0 as usize], plane);
+        assert_eq!(in_order_palette.draw_space[marker.0 as usize], plane);
     }
 
     #[derive(Debug, PartialEq)]

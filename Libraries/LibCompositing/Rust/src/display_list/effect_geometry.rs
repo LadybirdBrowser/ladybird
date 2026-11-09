@@ -13,8 +13,8 @@
 
 use crate::display_list::commands::{DisplayListCommandRun, EffectNodeIndex, SpatialNodeIndex};
 use crate::filter_bytes;
-use crate::visual_context::{EffectNode, EffectNodeData, VisualContextTree};
-use libgfx_rust::{FloatMatrix4x4, FloatRect, multiply_affine};
+use crate::visual_context::{EffectNode, EffectNodeData, VisualContextTree, WorldTransforms};
+use libgfx_rust::FloatRect;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Extent {
@@ -34,42 +34,14 @@ impl Extent {
         }
     }
 
-    fn mapped_between_spaces(
-        self,
-        spaces: &mut impl SpaceMatrices,
-        from: SpatialNodeIndex,
-        to: SpatialNodeIndex,
-    ) -> Self {
+    fn mapped_between_spaces(self, world: &WorldTransforms, from: SpatialNodeIndex, to: SpatialNodeIndex) -> Self {
         match self {
-            Self::Within(rect) => map_rect_between_spaces(spaces, rect, from, to).map_or(Self::Anywhere, Self::Within),
+            Self::Within(rect) => world
+                .map_rect_between_spaces(rect, from, to)
+                .map_or(Self::Anywhere, Self::Within),
             extent => extent,
         }
     }
-}
-
-pub trait SpaceMatrices {
-    /// The matrix that takes coordinates in `space` to the root's.
-    fn to_root_matrix(&mut self, space: SpatialNodeIndex) -> FloatMatrix4x4;
-}
-
-/// Maps `rect` from `from`'s space into `to`'s, or gives `None` when either space is not a
-/// two-dimensional transform of the root or `to`'s cannot be inverted.
-pub fn map_rect_between_spaces(
-    spaces: &mut impl SpaceMatrices,
-    rect: FloatRect,
-    from: SpatialNodeIndex,
-    to: SpatialNodeIndex,
-) -> Option<FloatRect> {
-    if from == to {
-        return Some(rect);
-    }
-    let from_matrix = spaces.to_root_matrix(from);
-    let to_matrix = spaces.to_root_matrix(to);
-    if !from_matrix.is_2d_affine() || !to_matrix.is_2d_affine() {
-        return None;
-    }
-    let root_to_target = to_matrix.extract_2d_affine().inverse()?;
-    Some(multiply_affine(root_to_target, from_matrix.extract_2d_affine()).map_rect(rect))
 }
 
 /// Where an effect paints what it composites, given that content in the effect's space.
@@ -131,7 +103,7 @@ pub fn changed_extent_through_filters(
     space: SpatialNodeIndex,
     rect: FloatRect,
     effect: EffectNodeIndex,
-    spaces: &mut impl SpaceMatrices,
+    world: &WorldTransforms,
 ) -> (SpatialNodeIndex, Extent) {
     let nearest_at_or_above = |effect: EffectNodeIndex| {
         if effect.is_none() {
@@ -145,7 +117,7 @@ pub fn changed_extent_through_filters(
     let mut effect = nearest_at_or_above(effect);
     while !effect.is_none() && extent != Extent::Anywhere {
         let node = &tree.effect_nodes[effect.0 as usize];
-        extent = changed_output_extent(node, extent.mapped_between_spaces(spaces, space, node.spatial));
+        extent = changed_output_extent(node, extent.mapped_between_spaces(world, space, node.spatial));
         space = node.spatial;
         effect = nearest_at_or_above(node.parent);
     }
@@ -164,7 +136,7 @@ pub struct EffectGeometry {
 pub fn compute_effect_geometry(
     tree: &VisualContextTree,
     command_runs: &[DisplayListCommandRun],
-    spaces: &mut impl SpaceMatrices,
+    world: &WorldTransforms,
     geometry: &mut Vec<EffectGeometry>,
 ) {
     geometry.clear();
@@ -179,9 +151,9 @@ pub fn compute_effect_geometry(
     // Neighboring runs mostly differ only in their clip, so their ink is united before it is
     // mapped into the effect's space.
     let mut pending: Option<(DisplayListCommandRun, FloatRect)> = None;
-    let mut add_ink = |geometry: &mut Vec<EffectGeometry>, run: &DisplayListCommandRun, ink: FloatRect| {
+    let add_ink = |geometry: &mut Vec<EffectGeometry>, run: &DisplayListCommandRun, ink: FloatRect| {
         let node = &tree.effect_nodes[run.context.effect.0 as usize];
-        let landed = Extent::Within(ink).mapped_between_spaces(spaces, run.context.spatial, node.spatial);
+        let landed = Extent::Within(ink).mapped_between_spaces(world, run.context.spatial, node.spatial);
         let content = &mut geometry[run.context.effect.0 as usize].content;
         *content = content.united(landed);
     };
@@ -218,7 +190,7 @@ pub fn compute_effect_geometry(
             continue;
         }
         let parent_spatial = tree.effect_nodes[node.parent.0 as usize].spatial;
-        let landed = output.mapped_between_spaces(spaces, node.spatial, parent_spatial);
+        let landed = output.mapped_between_spaces(world, node.spatial, parent_spatial);
         let parent_content = &mut geometry[node.parent.0 as usize].content;
         *parent_content = parent_content.united(landed);
     }
@@ -228,24 +200,13 @@ pub fn compute_effect_geometry(
 mod tests {
     use super::*;
     use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
-    use crate::visual_context::{
-        EffectsData, IncludeVisualViewportTransform, SpatialData, TransformData, TransformDataRole,
-    };
+    use crate::visual_context::{EffectsData, ScrollSnap, SpatialData, TransformData, TransformDataRole};
     use libgfx_rust::filter::Filter;
     use libgfx_rust::{
-        Color, ColorFilterType, CompositingAndBlendingOperator, FloatPoint, IntRect, rotation_matrix, scale_matrix,
-        translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect, rotation_matrix,
+        scale_matrix, translation_matrix,
     };
     use std::sync::Arc;
-
-    struct TreeSpaces<'a>(&'a VisualContextTree);
-
-    impl SpaceMatrices for TreeSpaces<'_> {
-        fn to_root_matrix(&mut self, space: SpatialNodeIndex) -> FloatMatrix4x4 {
-            self.0
-                .accumulated_matrix(space, &[], IncludeVisualViewportTransform::Yes)
-        }
-    }
 
     fn transform(matrix: FloatMatrix4x4) -> TransformData {
         TransformData {
@@ -300,7 +261,8 @@ mod tests {
 
     fn geometry_of(tree: &VisualContextTree, runs: &[DisplayListCommandRun]) -> Vec<EffectGeometry> {
         let mut geometry = Vec::new();
-        compute_effect_geometry(tree, runs, &mut TreeSpaces(tree), &mut geometry);
+        let world = WorldTransforms::new(tree, &[], FloatMatrix4x4::identity(), ScrollSnap::None);
+        compute_effect_geometry(tree, runs, &world, &mut geometry);
         geometry
     }
 
@@ -414,12 +376,13 @@ mod tests {
         assert_eq!(nearest[opacity.0 as usize], blur);
         assert_eq!(nearest[plain.0 as usize], EffectNodeIndex::NONE);
         let content = FloatRect::new(10.0, 20.0, 30.0, 40.0);
+        let world = WorldTransforms::new(&tree, &[], FloatMatrix4x4::identity(), ScrollSnap::None);
         assert_eq!(
-            changed_extent_through_filters(&tree, &nearest, scaled, content, shadow, &mut TreeSpaces(&tree)),
+            changed_extent_through_filters(&tree, &nearest, scaled, content, shadow, &world),
             (VISUAL_VIEWPORT_NODE_INDEX, within(-10.0, 10.0, 120.0, 160.0))
         );
         assert_eq!(
-            changed_extent_through_filters(&tree, &nearest, scaled, content, plain, &mut TreeSpaces(&tree)),
+            changed_extent_through_filters(&tree, &nearest, scaled, content, plain, &world),
             (scaled, Extent::Within(content))
         );
     }

@@ -5,7 +5,7 @@
  */
 
 use super::effect_clip_plan::EffectClipPlan;
-use super::effect_geometry::{Extent, SpaceMatrices, changed_extent_through_filters, nearest_spreading_effects};
+use super::effect_geometry::{Extent, changed_extent_through_filters, nearest_spreading_effects};
 use super::replay::{OwnSpaceClipExtent, own_space_clip_extent};
 use super::summary::{DisplayListSummary, LiveContent};
 use crate::display_list::builder::{
@@ -23,8 +23,7 @@ use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
-    device_offset_for_index,
+    ClipNodeData, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::cell::{Cell, OnceCell, RefCell};
@@ -471,29 +470,11 @@ struct ContextPairVerdict {
     equal: bool,
 }
 
-// How one tree's filters spread the commands drawn under them, worked out on first use.
+// Where one tree draws its commands and how its filters spread them, worked out on first use.
 #[derive(Default)]
-struct FilterSpreading {
+struct LazySideGeometry {
     nearest_spreading_effects: OnceCell<Vec<EffectNodeIndex>>,
-    to_root_matrices: RefCell<Vec<Option<FloatMatrix4x4>>>,
-}
-
-struct TreeSpaces<'a> {
-    tree: &'a VisualContextTree,
-    scroll_offsets: &'a [FloatPoint],
-    to_root_matrices: &'a mut Vec<Option<FloatMatrix4x4>>,
-}
-
-impl SpaceMatrices for TreeSpaces<'_> {
-    fn to_root_matrix(&mut self, space: SpatialNodeIndex) -> FloatMatrix4x4 {
-        if self.to_root_matrices.is_empty() {
-            self.to_root_matrices.resize(self.tree.spatial_nodes.len(), None);
-        }
-        *self.to_root_matrices[space.0 as usize].get_or_insert_with(|| {
-            self.tree
-                .accumulated_matrix(space, self.scroll_offsets, IncludeVisualViewportTransform::Yes)
-        })
-    }
+    world_transforms: OnceCell<WorldTransforms>,
 }
 
 // Where a command's inline clips in spaces of their own let it draw on one side of the comparison.
@@ -504,22 +485,13 @@ fn own_space_clip_extent_on(command: &CommandReference<'_>, side: TreeSide<'_>) 
     {
         return None;
     }
-    let mut to_root_matrices = side.filter_spreading.to_root_matrices.borrow_mut();
-    let mut spaces = TreeSpaces {
-        tree: side.tree,
-        scroll_offsets: side.scroll_offsets,
-        to_root_matrices: &mut to_root_matrices,
-    };
-    let mut to_root = |space: SpatialNodeIndex| {
-        ((space.0 as usize) < side.tree.spatial_nodes.len()).then(|| spaces.to_root_matrix(space))
-    };
-    let command_to_root = to_root(command.context.spatial)?;
+    let world = side.world();
     own_space_clip_extent(
         &command.header,
         command.payload,
         command.header.bounding_rect.to_float(),
-        command_to_root,
-        to_root,
+        world.draw_matrix_if_known(command.context.spatial)?,
+        |space| world.draw_matrix_if_known(space),
     )
 }
 
@@ -530,7 +502,21 @@ struct TreeSide<'b> {
     scroll_offsets: &'b [FloatPoint],
     culling: &'b TreeCullingScratch,
     effect_clips: &'b EffectClipPlan,
-    filter_spreading: &'b FilterSpreading,
+    lazy_geometry: &'b LazySideGeometry,
+}
+
+impl<'b> TreeSide<'b> {
+    // Damage maps commands with the matrices replay draws them with.
+    fn world(&self) -> &'b WorldTransforms {
+        self.lazy_geometry.world_transforms.get_or_init(|| {
+            WorldTransforms::new(
+                self.tree,
+                self.scroll_offsets,
+                FloatMatrix4x4::identity(),
+                ScrollSnap::Truncate,
+            )
+        })
+    }
 }
 
 struct TreeChainComparison<'a> {
@@ -555,8 +541,8 @@ struct TreeChainComparison<'a> {
     effect_chain_memo: RefCell<Vec<ChainMemoEntry>>,
     chain_walk_path: RefCell<Vec<(u32, u32)>>,
     mask_comparisons: RefCell<FastMap<(u32, u32), bool>>,
-    old_filter_spreading: FilterSpreading,
-    new_filter_spreading: FilterSpreading,
+    old_lazy_geometry: LazySideGeometry,
+    new_lazy_geometry: LazySideGeometry,
 }
 
 impl<'a> TreeChainComparison<'a> {
@@ -566,7 +552,7 @@ impl<'a> TreeChainComparison<'a> {
             scroll_offsets: self.old_scroll_offsets,
             culling: &self.old_culling,
             effect_clips: &self.old_effect_clips,
-            filter_spreading: &self.old_filter_spreading,
+            lazy_geometry: &self.old_lazy_geometry,
         }
     }
 
@@ -576,7 +562,7 @@ impl<'a> TreeChainComparison<'a> {
             scroll_offsets: self.new_scroll_offsets,
             culling: &self.new_culling,
             effect_clips: &self.new_effect_clips,
-            filter_spreading: &self.new_filter_spreading,
+            lazy_geometry: &self.new_lazy_geometry,
         }
     }
 
@@ -793,12 +779,8 @@ impl<'a> TreeChainComparison<'a> {
 // The viewport bounds that the clips outside every filter on a context's effect chain put on the
 // filtered output, or None when no rect clip bounds it. Replay can widen an effect's output clip
 // for escaping descendants, so the complete display list's layer plan says which clips are outside.
-fn filter_output_clip_bounds(
-    context: ContextRef,
-    tree: &VisualContextTree,
-    effect_clips: &EffectClipPlan,
-    scroll_offsets: &[FloatPoint],
-) -> Option<FloatRect> {
+fn filter_output_clip_bounds(context: ContextRef, side: TreeSide<'_>) -> Option<FloatRect> {
+    let (tree, effect_clips) = (side.tree, side.effect_clips);
     let mut clip = context.clip;
     let mut effect = context.effect;
     while !effect.is_none() {
@@ -816,13 +798,9 @@ fn filter_output_clip_bounds(
         if let ClipNodeData::Rect(data) = &node.data
             && data.mode == ClipMode::Intersect
         {
-            let bounds = tree
-                .transform_rect_to_viewport(
-                    node.spatial,
-                    data.rect,
-                    scroll_offsets,
-                    IncludeVisualViewportTransform::Yes,
-                )
+            let bounds = side
+                .world()
+                .map_rect_to_root(node.spatial, data.rect)
                 .inflated(1.0, 1.0);
             if bounds.x.is_finite() && bounds.y.is_finite() && bounds.width.is_finite() && bounds.height.is_finite() {
                 output_bounds = Some(output_bounds.map_or(bounds, |output_bounds| output_bounds.intersected(bounds)));
@@ -883,7 +861,7 @@ impl DamageAccumulator {
     // it spread the change.
     fn add_changed_content_damage(&mut self, rect: FloatRect, context: ContextRef, side: TreeSide<'_>) {
         let nearest_spreading_effects = side
-            .filter_spreading
+            .lazy_geometry
             .nearest_spreading_effects
             .get_or_init(|| nearest_spreading_effects(side.tree));
         let spread_by_filters =
@@ -894,26 +872,17 @@ impl DamageAccumulator {
             context.spatial,
             rect,
             context.effect,
-            &mut TreeSpaces {
-                tree: side.tree,
-                scroll_offsets: side.scroll_offsets,
-                to_root_matrices: &mut side.filter_spreading.to_root_matrices.borrow_mut(),
-            },
+            side.world(),
         );
         // Spread content can reach far past the clips it was drawn in, but not past those outside
         // the filters.
         let output_clip_bounds = if spread_by_filters {
-            filter_output_clip_bounds(context, side.tree, side.effect_clips, side.scroll_offsets)
+            filter_output_clip_bounds(context, side)
         } else {
             None
         };
         let mut transformed_rect = match (extent, output_clip_bounds) {
-            (Extent::Within(rect), _) => side.tree.transform_rect_to_viewport(
-                space,
-                rect,
-                side.scroll_offsets,
-                IncludeVisualViewportTransform::Yes,
-            ),
+            (Extent::Within(rect), _) => side.world().map_rect_to_root(space, rect),
             (_, Some(output_clip_bounds)) => output_clip_bounds,
             _ => {
                 self.changed_unbounded_command = true;
@@ -1006,12 +975,7 @@ impl DamageAccumulator {
                 let node = &tree.effect_nodes[effect.0 as usize];
                 let backdrop = backdrop_of(effect).expect("only effects with a backdrop filter are collected");
                 let region = backdrop.region.to_float();
-                let to_root_matrix = TreeSpaces {
-                    tree,
-                    scroll_offsets: side.scroll_offsets,
-                    to_root_matrices: &mut side.filter_spreading.to_root_matrices.borrow_mut(),
-                }
-                .to_root_matrix(node.spatial);
+                let to_root_matrix = side.world().draw_matrix(node.spatial);
                 let reads_damage = (|| {
                     if !to_root_matrix.is_2d_affine() {
                         return None;
@@ -1365,6 +1329,7 @@ pub fn animated_content_may_affect_viewport(
         };
         *flag = true;
     }
+    let world = OnceCell::new();
     let mut may_affect_viewport = false;
     let tape = Tape {
         bytes: command_bytes,
@@ -1426,13 +1391,14 @@ pub fn animated_content_may_affect_viewport(
             }
             let mut rect = header.bounding_rect.to_float();
             if has_inline_clip_in_its_own_space && header.has_bounding_rect {
-                let to_root = |space: SpatialNodeIndex| {
-                    ((space.0 as usize) < tree.spatial_nodes.len())
-                        .then(|| tree.accumulated_matrix(space, scroll_offsets, IncludeVisualViewportTransform::Yes))
-                };
-                if let Some(command_to_root) = to_root(run.context.spatial)
+                let world = world.get_or_init(|| {
+                    WorldTransforms::new(tree, scroll_offsets, FloatMatrix4x4::identity(), ScrollSnap::Truncate)
+                });
+                if let Some(command_to_root) = world.draw_matrix_if_known(run.context.spatial)
                     && let Some(OwnSpaceClipExtent::Within(clipped_rect)) =
-                        own_space_clip_extent(header, payload, rect, command_to_root, to_root)
+                        own_space_clip_extent(header, payload, rect, command_to_root, |space| {
+                            world.draw_matrix_if_known(space)
+                        })
                 {
                     if clipped_rect.is_empty() {
                         return;
@@ -1551,8 +1517,8 @@ pub fn compute_display_list_damage(
         ]),
         chain_walk_path: RefCell::new(Vec::new()),
         mask_comparisons: RefCell::new(FastMap::default()),
-        old_filter_spreading: FilterSpreading::default(),
-        new_filter_spreading: FilterSpreading::default(),
+        old_lazy_geometry: LazySideGeometry::default(),
+        new_lazy_geometry: LazySideGeometry::default(),
     };
     let scroll_offsets_differ = old_scroll_offsets != new_scroll_offsets;
     // NB: An inline clip in a space of its own names its space by index, which a new tree can give to another node,
@@ -2269,6 +2235,47 @@ mod tests {
         assert_eq!(
             damage(&old_commands, &in_order, &new_commands, &permuted),
             Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn content_under_nested_fractional_scrolls_is_damaged_where_replay_draws_it() {
+        let mut tree = identity_tree();
+        let mut scroll_node = VISUAL_VIEWPORT_NODE_INDEX;
+        for _ in 0..3 {
+            scroll_node = tree.append_spatial(
+                SpatialData::Scroll(ScrollData {
+                    state_slot: NO_SCROLL_STATE_SLOT,
+                    owner_paintable: NodeSlotId::INVALID,
+                }),
+                scroll_node,
+            );
+        }
+        let mut scroll_offsets = vec![FloatPoint { x: 0.0, y: -0.9 }; 4];
+        scroll_offsets[0] = FloatPoint::default();
+        let rect = IntRect::new(10, 10, 20, 20);
+        let new_commands = command_bytes(
+            &FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            },
+            Some(rect),
+            context_in(scroll_node, ContextRef::default()),
+        );
+        // Replay truncates each of the three offsets to zero, so the rect is drawn where it was recorded.
+        assert_eq!(
+            damage_with_scroll_offsets(
+                &TestDisplayList::default(),
+                &tree,
+                &scroll_offsets,
+                &new_commands,
+                &tree,
+                &scroll_offsets,
+                IntRect::new(0, 0, 100, 100),
+            ),
+            Some(IntRect::new(9, 9, 22, 22))
         );
     }
 
