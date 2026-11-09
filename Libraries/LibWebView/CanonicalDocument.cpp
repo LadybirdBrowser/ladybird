@@ -85,7 +85,7 @@ bool CanonicalDocument::may_share_a_process_with_tabs_of_its_origin() const
     auto const& agent = m_relevant_global_object->agent();
     return !agent.agent_cluster_is_origin_keyed()
         && agent.agent_cluster_cross_origin_isolation_mode() == Web::HTML::CrossOriginIsolationMode::None
-        && m_opener_policy.value == Web::HTML::OpenerPolicyValue::UnsafeNone;
+        && m_opener_policy.value != Web::HTML::OpenerPolicyValue::SameOriginPlusCOEP;
 }
 
 void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
