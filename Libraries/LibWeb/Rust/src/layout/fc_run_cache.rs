@@ -36,10 +36,6 @@ pub(crate) struct RunInputsTheStoredRunNeverObserved {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RunObservations {
     pub(super) never_observed: RunInputsTheStoredRunNeverObserved,
-    /// Whether the run is a table cell's that did not observe its block paddings (see run_observes_root_block_padding),
-    /// so that it stands for runs at any of them, such as the intrinsic block padding its table hands it once its rows
-    /// are sized.
-    pub(super) table_cell_block_paddings_unobserved: bool,
     /// Whether the root's parent owns the root's input cells, which the run then leaves as they were handed to it but
     /// for the content block size the root adopts.
     pub(super) parent_owns_root_cells: bool,
@@ -74,14 +70,13 @@ pub(crate) fn cells_at_probe(
 }
 
 /// What a run did besides its result that decides which of its inputs it observed.
-pub(crate) struct RunObservationFacts<'a> {
+pub(crate) struct RunObservationFacts {
     /// For an atomic inline root, the available inline sizes at or above which sizing the root repeats itself.
     pub(crate) definite_available_inline_sizes_at_or_above: Option<CssPixels>,
     /// Whether the run was handed a table inline layout, which its key does not hold.
     pub(crate) handed_table_inline_layout: bool,
     /// Whether the run laid out absolutely positioned boxes against the final sizes and box sides of its root.
     pub(crate) laid_out_abspos_contained_by_root: bool,
-    pub(crate) root: Option<&'a fragment_tree::RunRootFragment>,
     pub(crate) parent_owns_root_input_cells: bool,
 }
 
@@ -90,7 +85,7 @@ pub(crate) fn observations_of(
     run: &formatting_context::FormattingContextRun,
     request: &formatting_context::RunRequest,
     result: &formatting_context::ChildLayoutResult,
-    facts: RunObservationFacts<'_>,
+    facts: RunObservationFacts,
 ) -> RunObservations {
     let fc_type = request.key.fc_type;
     let input = &request.key.input;
@@ -123,14 +118,6 @@ pub(crate) fn observations_of(
         never_observed,
         parent_owns_root_cells: facts.parent_owns_root_input_cells,
         laid_out_abspos_contained_by_root: facts.laid_out_abspos_contained_by_root,
-        table_cell_block_paddings_unobserved: facts.parent_owns_root_input_cells
-            && NodeFacts::new(&run.pass, run.box_).is_table_cell()
-            && !run_observes_root_block_padding(
-                &run.pass,
-                run.box_,
-                facts.laid_out_abspos_contained_by_root,
-                facts.root,
-            ),
     }
 }
 
@@ -336,14 +323,6 @@ impl LayoutRequest {
         }
     }
 
-    /// The key with the root's block paddings left out.
-    fn without_root_block_paddings(&self) -> Self {
-        let mut key = self.clone();
-        key.root_cells.padding_top = CssPixels::default();
-        key.root_cells.padding_bottom = CssPixels::default();
-        key
-    }
-
     fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
         if self.fc_type != probe.fc_type || self.parent_frame != probe.parent_frame {
             return false;
@@ -542,12 +521,7 @@ impl FcRunCacheEntry {
 
     fn answers_probe_for(&self, probe: &LayoutRequest) -> bool {
         let unobserved = self.result.observed.never_observed;
-        (self.key.matches(probe, unobserved)
-            || (self.result.observed.table_cell_block_paddings_unobserved
-                && self
-                    .key
-                    .without_root_block_paddings()
-                    .matches(&probe.without_root_block_paddings(), unobserved)))
+        self.key.matches(probe, unobserved)
             && self.probe_leaves_root_with_block_size_its_abspos_were_laid_out_against(probe)
     }
 }
@@ -1170,26 +1144,6 @@ pub(super) fn can_describe_run(
     !node_facts::has_flag(NodeFacts::new(pass, box_).data(), NodeFlag::InsetsUseAnchorFunctions)
 }
 
-/// Whether a run's outputs may depend on its root's block paddings. They hold the content in content box coordinates,
-/// so they stand for the same run at other block paddings unless the root is a scroll container, whose scrollable
-/// overflow area is bounded by its padding box, places a rendered legend on its border box, lays out absolutely
-/// positioned boxes against its padding box, or passes payloads on to its ancestors (out-of-flow descendants, their
-/// containing block rects, anchors), which are placed against its padding box. Outputs without a root fragment cannot
-/// show those payloads.
-fn run_observes_root_block_padding(
-    pass: &LayoutPass<'_>,
-    box_: Node,
-    laid_out_abspos_contained_by_root: bool,
-    root: Option<&fragment_tree::RunRootFragment>,
-) -> bool {
-    let facts = NodeFacts::new(pass, box_);
-    let places_rendered_legend_on_its_border_box = facts.is_fieldset_box() && !facts.rendered_legend().is_invalid();
-    facts.is_scroll_container()
-        || places_rendered_legend_on_its_border_box
-        || laid_out_abspos_contained_by_root
-        || root.is_none_or(|root| root.payloads_past_run.is_some())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1259,7 +1213,6 @@ mod tests {
                         percentage_block_basis_and_block_size_definiteness: true,
                         ..RunInputsTheStoredRunNeverObserved::default()
                     },
-                    table_cell_block_paddings_unobserved: false,
                     parent_owns_root_cells: false,
                     laid_out_abspos_contained_by_root: false,
                 },

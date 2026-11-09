@@ -25,7 +25,7 @@
         document.body.offsetHeight;
 
         const work = layoutWork(() => rows.rows[2].cells[0].append(control));
-        results.push(`Measured cells: ${work.boxes({ event: "run", action: "RUN AHEAD OF INTRINSIC BLOCK PADDING" }).join(", ") || "none"}`);
+        results.push(`Laid out cells: ${work.boxes(event => event.event === "run" && event.box.startsWith("BlockContainer<TD>")).join(", ") || "none"}`);
         results.push(`Control position: ${control.getBoundingClientRect().x},${control.getBoundingClientRect().y}`);
 
         function checkTree(label, mutate) {

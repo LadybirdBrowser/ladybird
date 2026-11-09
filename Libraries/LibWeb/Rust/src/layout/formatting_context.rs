@@ -2232,33 +2232,13 @@ impl RunRequest {
         )
     }
 
-    /// Whether the run is laid out for its result ahead of the intrinsic block padding its table hands its root, a
-    /// table cell.
-    fn runs_ahead_of_intrinsic_block_padding(&self, pass: &LayoutPass<'_>) -> bool {
-        // NB: The only shapes of table cells are those laid out ahead of the intrinsic block padding their table hands
-        //     them.
-        self.caller == RunCaller::ResultQuery
-            && self.mode.builds_fragments()
-            && NodeFacts::new(pass, self.node).is_table_cell()
-    }
-
     fn trace_action_of_reuse(&self, pass: &LayoutPass<'_>, entry: &fc_run_cache::FcRunCacheEntry) -> &'static str {
-        if self.runs_ahead_of_intrinsic_block_padding(pass) {
-            "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING"
-        } else if self.caller == RunCaller::ResultQuery || !self.mode.builds_fragments() {
+        if self.caller == RunCaller::ResultQuery || !self.mode.builds_fragments() {
             "READ RESULT"
         } else if entry.holds_committed_fragments(pass.arena(), self.node) {
             "REUSE SUBTREE"
         } else {
             "REPLAY FRAGMENTS"
-        }
-    }
-
-    fn trace_action_of_run(&self, pass: &LayoutPass<'_>, attempt: &fc_run_cache::FcRunCacheAttempt) -> &'static str {
-        if self.runs_ahead_of_intrinsic_block_padding(pass) {
-            "RUN AHEAD OF INTRINSIC BLOCK PADDING"
-        } else {
-            attempt.trace_action()
         }
     }
 }
@@ -2307,7 +2287,7 @@ fn layout_after_probe(
     };
     let _trace = pass
         .layout_trace()
-        .run(box_, key.fc_type, || request.trace_action_of_run(&pass, &cache_attempt));
+        .run(box_, key.fc_type, || cache_attempt.trace_action());
     let previous_line_data = cache_attempt.previous_line_data();
     let subgrid_parent = side.subgrid_parent;
     let discarded_outputs = run_repeatability::lay_out_discarded_run(&pass, |pass| {
@@ -2755,7 +2735,6 @@ fn lay_out_run_root_and_contents<'pass>(
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
             handed_table_inline_layout: run_is_handed_table_inline_layout_outside_its_key,
             laid_out_abspos_contained_by_root,
-            root: root.as_ref(),
             parent_owns_root_input_cells,
         },
     );
