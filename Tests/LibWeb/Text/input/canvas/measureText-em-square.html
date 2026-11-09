@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The em square is as tall as the font size, divided at the alphabetic baseline in the proportion of the font's
+    // ascent and descent, and "top", "middle", and "bottom" are its top, middle, and bottom. Lato's ascent and descent
+    // span more than its font size, so they'd give different results.
+    asyncTest(async done => {
+        const lato = new FontFace("Lato", "url(../../../Assets/Lato-Bold.ttf)");
+        document.fonts.add(await lato.load());
+
+        const context = document.createElement("canvas").getContext("2d");
+        context.font = "80px Lato";
+        context.textBaseline = "alphabetic";
+        const alphabetic = context.measureText("Hello");
+        const fontHeight = alphabetic.fontBoundingBoxAscent + alphabetic.fontBoundingBoxDescent;
+        println(`font ascent and descent span more than 80px: ${fontHeight > 80}`);
+        println(`em square is ${alphabetic.emHeightAscent + alphabetic.emHeightDescent}px tall`);
+        const expectedEmAscent = (80 * alphabetic.fontBoundingBoxAscent) / fontHeight;
+        println(`em square divided in the font's proportion: ${Math.abs(alphabetic.emHeightAscent - expectedEmAscent) < 0.01}`);
+
+        for (const baseline of ["top", "middle", "bottom"]) {
+            context.textBaseline = baseline;
+            const metrics = context.measureText("Hello");
+            println(`${baseline}: emHeightAscent ${metrics.emHeightAscent}, emHeightDescent ${metrics.emHeightDescent}`);
+            const offset = alphabetic.emHeightAscent - metrics.emHeightAscent;
+            println(`${baseline}: alphabetic baseline at the expected offset: ${Math.abs(-metrics.alphabeticBaseline - offset) < 0.01}`);
+        }
+        done();
+    });
+</script>

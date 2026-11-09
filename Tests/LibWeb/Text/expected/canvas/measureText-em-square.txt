@@ -1,0 +1,9 @@
+font ascent and descent span more than 80px: true
+em square is 80px tall
+em square divided in the font's proportion: true
+top: emHeightAscent 0, emHeightDescent 80
+top: alphabetic baseline at the expected offset: true
+middle: emHeightAscent 40, emHeightDescent 40
+middle: alphabetic baseline at the expected offset: true
+bottom: emHeightAscent 80, emHeightDescent 0
+bottom: alphabetic baseline at the expected offset: true

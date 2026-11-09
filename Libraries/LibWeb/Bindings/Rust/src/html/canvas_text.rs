@@ -22,7 +22,8 @@ use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D, pa
 use crate::canvas_2d::float;
 use crate::canvas_2d::host::LentFont;
 use crate::canvas_2d::text::{
-    baseline_offset, horizontal_alignment_offset, path_of_runs, replace_ascii_whitespace, shape_text, text_transform,
+    baseline_offset, em_square_ascent_and_descent, horizontal_alignment_offset, path_of_runs, replace_ascii_whitespace,
+    shape_text, text_transform,
 };
 use crate::html::canvas_rendering_context2d::CanvasTextBaseline;
 
@@ -223,6 +224,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let hanging_baseline = ascent * 0.8;
         let text_baseline: CanvasTextBaseline = self.drawing_state().text_baseline;
         let baseline_offset = baseline_offset(text_baseline, &first_font);
+        let (em_ascent, em_descent) = em_square_ascent_and_descent(&first_font);
 
         // NB: The bounding rectangle of the given text is that of the ink of its glyphs, which is relative to the
         //     alphabetic baseline at the start of the inline box. Text without ink has that of the inline box.
@@ -270,12 +272,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             // the given baseline is below the top of that em square (so this value will usually be positive). Zero if
             // the given baseline is the top of that em square; half the font size if the given baseline is the middle
             // of that em square.
-            em_height_ascent: f64::from(ascent - baseline_offset),
+            em_height_ascent: f64::from(em_ascent - baseline_offset),
             // emHeightDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute
             // to the lowest bottom of the em squares in the inline box, in CSS pixels; positive numbers indicating
             // that the given baseline is above the bottom of that em square. (Zero if the given baseline is the bottom
             // of that em square.)
-            em_height_descent: f64::from(descent + baseline_offset),
+            em_height_descent: f64::from(em_descent + baseline_offset),
             // hangingBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute
             // to the hanging baseline of the inline box, in CSS pixels; positive numbers indicating that the given
             // baseline is below the hanging baseline. (Zero if the given baseline is the hanging baseline.)
