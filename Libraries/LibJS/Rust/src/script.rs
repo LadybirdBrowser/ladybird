@@ -374,7 +374,7 @@ impl Script {
                 }
 
                 // a. Let fnDefinable be ? env.CanDeclareGlobalVar(F).
-                let function_definable = global_environment.can_declare_global_function(vm, &function_name)?;
+                let function_definable = global_environment.can_declare_global_var(vm, &function_name)?;
                 // b. If fnDefinable is true, then
                 if !function_definable {
                     continue;
