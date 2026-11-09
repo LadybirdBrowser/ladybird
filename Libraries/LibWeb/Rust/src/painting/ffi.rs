@@ -209,21 +209,25 @@ pub struct FfiBoxModelMetrics {
     pub inset: crate::painting::paintable_data::FfiPixelBox,
 }
 
+/// The geometry the box of an SVG element committed, in the user units of the SVG viewport it is laid out in. Returns
+/// false, writing nothing, for a box without one.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_paintable_svg_viewport_size(
+pub extern "C" fn render_state_svg_geometry(
     host: &DocumentHost,
     slot: NodeSlotId,
-    out: &mut FfiCssPixelSize,
-) {
-    *out = {
-        read_arena(host, node_read(), slot, |arena, slot| {
-            let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(slot) {
-                return FfiCssPixelSize::default();
-            }
-            crate::painting::paintable_geometry::committed_svg_viewport_size(&paintable_rows, slot)
-        })
+    out: &mut svg_formatting_context::SvgGeometry,
+) -> bool {
+    let geometry = read_arena(host, node_read(), slot, |arena, slot| {
+        if !arena.paintable_row_is_populated(slot) {
+            return None;
+        }
+        crate::painting::paintable_geometry::committed_svg_geometry(arena, slot)
+    });
+    let Some(geometry) = geometry else {
+        return false;
     };
+    *out = geometry;
+    true
 }
 
 #[repr(C)]
@@ -250,19 +254,16 @@ pub extern "C" fn render_state_paintable_svg_viewport_transform(
     })
 }
 
-/// The transform an SVG element's box was laid out with: its own CSS transform reduced to 2D, with a <use> element's
-/// x/y translation multiplied in.
+/// The transform an SVG element's box was laid out with: its own CSS transform about its transform origin, reduced to
+/// 2D, with a <use> element's x/y translation multiplied in.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_paintable_svg_element_transform(
     host: &DocumentHost,
     slot: NodeSlotId,
 ) -> svg_formatting_context::FfiAffineTransform {
-    read_arena(host, node_read(), slot, |arena, slot| {
-        if !arena.paintable_row_is_populated(slot) {
-            return svg_formatting_context::FfiAffineTransform::default();
-        }
-        crate::painting::paintable_geometry::committed_svg_element_transform(arena, slot).unwrap_or_default()
-    })
+    let mut geometry = svg_formatting_context::SvgGeometry::default();
+    render_state_svg_geometry(host, slot, &mut geometry);
+    geometry.local_transform
 }
 
 #[unsafe(no_mangle)]
@@ -684,28 +685,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         );
     }
-}
-
-/// The bounds of the geometry that a path-like SVG element's box committed. Returns false for any other box.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_paintable_computed_svg_path_bounding_box(
-    host: &DocumentHost,
-    paintable: NodeSlotId,
-    out: &mut libgfx_rust::FloatRect,
-) -> bool {
-    let bounding_box = read_arena(host, node_read(), paintable, |arena, paintable| {
-        let paintable_rows = arena.paintable_rows();
-        if !paintable_rows.paintable_row_is_populated(paintable) {
-            return None;
-        }
-        crate::painting::paintable_geometry::committed_svg_path(&paintable_rows, paintable)
-            .map(|path| path.bounding_box())
-    });
-    let Some(bounding_box) = bounding_box else {
-        return false;
-    };
-    *out = libgfx_rust::FloatRect::from_array(bounding_box);
-    true
 }
 
 /// The glyph cells a text content element's box committed for its own characters, one per code

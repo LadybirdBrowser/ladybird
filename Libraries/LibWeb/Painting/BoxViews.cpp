@@ -291,11 +291,6 @@ static bool is_inline_paintable(Layout::Node const& node)
     return has_committed_box(node) && node.is_fragmented_inline();
 }
 
-bool is_svg_svg_paintable(Layout::Node const& node)
-{
-    return has_committed_box(node) && node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox;
-}
-
 bool has_accumulated_visual_context(Layout::Node const& node)
 {
     auto row = committed_row(node);
@@ -320,12 +315,12 @@ Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
     return row.has_value() ? row->own_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
 }
 
-Optional<Gfx::FloatRect> committed_svg_path_bounding_box(Layout::Node const& node)
+Optional<Layout::RustFFI::SvgGeometry> svg_geometry(Layout::Node const& node)
 {
-    Gfx::FloatRect bounding_box;
-    if (!Layout::RustFFI::render_state_paintable_computed_svg_path_bounding_box(node.document_host(), committed_row_slot(node), &bounding_box))
+    Layout::RustFFI::SvgGeometry geometry;
+    if (!Layout::RustFFI::render_state_svg_geometry(node.document_host(), committed_row_slot(node), &geometry))
         return {};
-    return bounding_box;
+    return geometry;
 }
 
 // The glyph cells a text content element's box committed for its own characters, one per code unit, copied out
@@ -338,13 +333,6 @@ Vector<Layout::RustFFI::FfiSvgTextCharacterCell> svg_text_character_cells(Layout
     for (size_t index = 0; index < result.count; ++index)
         cells.unchecked_append(result.cells[index]);
     return cells;
-}
-
-CSSPixelSize svg_viewport_size(Layout::Node const& node)
-{
-    CSSPixelSize size;
-    Layout::RustFFI::render_state_paintable_svg_viewport_size(node.document_host(), committed_row_slot(node), &size);
-    return size;
 }
 
 Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)

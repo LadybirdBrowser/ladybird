@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox for non-rendered elements</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<link rel="help" href="https://github.com/w3c/svgwg/issues/1018">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500px" height="500px">
+  <symbol id="symbol1">
+    <rect id="symbol1_rect" x="50" y="60" width="100" height="150"></rect>
+  </symbol>
+  <g id="g_none" style="display:none">
+    <rect id="g_none_rect" x="70" y="80" width="200" height="250"></rect>
+  </g>
+  <rect id="none_rect" x="90" y="100" width="20" height="25" display="none"></rect>
+</svg>
+<script>
+  function assert_bbox(id, x, y, width, height) {
+    let bbox = document.getElementById(id).getBBox();
+    assert_equals(bbox.x, x, id + ".getBBox().x");
+    assert_equals(bbox.y, y, id + ".getBBox().y");
+    assert_equals(bbox.width, width, id + ".getBBox().width");
+    assert_equals(bbox.height, height, id + ".getBBox().height");
+  }
+
+  // Per resolution (issue #1018): non-rendered elements return zero bbox
+  // instead of throwing InvalidStateError.
+
+  test(() => {
+    assert_bbox("symbol1", 0, 0, 0, 0);
+    assert_bbox("symbol1_rect", 0, 0, 0, 0);
+  }, "Non-rendered symbol with rect returns zero bbox");
+
+  test(() => {
+    assert_bbox("g_none", 0, 0, 0, 0);
+    assert_bbox("g_none_rect", 0, 0, 0, 0);
+  }, "display:none <g> with rect returns zero bbox");
+
+  test(() => {
+    assert_bbox("none_rect", 0, 0, 0, 0);
+  }, "display:none <rect> returns zero bbox");
+</script>

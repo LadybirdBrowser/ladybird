@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Non-rendered symbol with rect returns zero bbox
+Pass	display:none <g> with rect returns zero bbox
+Pass	display:none <rect> returns zero bbox

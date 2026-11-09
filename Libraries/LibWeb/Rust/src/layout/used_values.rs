@@ -120,8 +120,6 @@ impl LineDataState {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct CommittedSvgFacts {
     pub(crate) viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) viewport_size: Option<FfiCssPixelSize>,
-    pub(crate) element_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
     pub(crate) resource_content_units_are_object_bounding_box: bool,

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox for containers that have children added/removed</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<svg>
+  <g>
+    <rect width="10" height="20"/>
+    <rect x="20" y="20" width="20" height="20"/>
+  </g>
+  <rect x="50" y="50" width="50" height="50"/>
+</svg>
+<script>
+function assert_bbox(element, x, y, width, height, description) {
+  const bbox = element.getBBox();
+  assert_equals(bbox.x, x, `x:${description ?? ''}`);
+  assert_equals(bbox.y, y, `y:${description ?? ''}`);
+  assert_equals(bbox.width, width, `width:${description ?? ''}`);
+  assert_equals(bbox.height, height, `height:${description ?? ''}`);
+}
+
+test(t => {
+  const svg = document.querySelector('svg');
+  const g = document.querySelector('svg > g');
+  const rects = Array.from(document.getElementsByTagName('rect'));
+  assert_bbox(g, 0, 0, 40, 40);
+  assert_bbox(svg, 0, 0, 100, 100);
+
+  rects[0].remove();
+  assert_bbox(g, 20, 20, 20, 20, 'removed rect 1');
+  assert_bbox(svg, 20, 20, 80, 80, 'removed rect 1');
+
+  rects[2].remove();
+  assert_bbox(g, 20, 20, 20, 20, 'removed rect 3');
+  assert_bbox(svg, 20, 20, 20, 20, 'removed rect 3');
+
+  rects[1].remove();
+  assert_bbox(g, 0, 0, 0, 0, 'removed rect 2');
+  assert_bbox(svg, 0, 0, 0, 0, 'removed rect 2');
+
+  g.appendChild(rects[1]);
+  assert_bbox(g, 20, 20, 20, 20, 'added rect 2');
+  assert_bbox(svg, 20, 20, 20, 20, 'added rect 2');
+
+  svg.appendChild(rects[2]);
+  assert_bbox(g, 20, 20, 20, 20, 'added rect 3');
+  assert_bbox(svg, 20, 20, 80, 80, 'added rect 3');
+
+  g.appendChild(rects[0]);
+  assert_bbox(g, 0, 0, 40, 40, 'added rect 1');
+  assert_bbox(svg, 0, 0, 100, 100, 'added rect 1');
+});
+</script>
