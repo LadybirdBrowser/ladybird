@@ -1015,7 +1015,7 @@ pub enum FormattingContextType {
 }
 
 impl FormattingContextType {
-    fn registers_abspos_children_against_its_final_block_size(self) -> bool {
+    pub(crate) fn registers_abspos_children_against_its_final_block_size(self) -> bool {
         matches!(self, Self::Flex | Self::Grid)
     }
 
@@ -1070,10 +1070,6 @@ pub(crate) struct RunRootOutcome {
 }
 
 impl RunRootOutcome {
-    pub(super) fn parent_owns_root_input_cells(&self) -> bool {
-        self.input_cells_left_by_run.is_none()
-    }
-
     /// What the parent keeps of the root once its run returned `result`, given the input cells it handed the run.
     fn laid_out_child_box(
         &self,
@@ -1099,12 +1095,10 @@ pub(crate) struct RunOutputs {
     /// The fragment of the root, where the run builds fragments and is not a fragmentainer's.
     pub(crate) root: Option<fragment_tree::RunRootFragment>,
     pub(crate) root_outcome: RunRootOutcome,
-    pub(crate) inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
+    /// Which of its inputs the run observed, which the run cache reuses its outputs by.
+    pub(crate) observed: fc_run_cache::RunObservations,
     /// Boxed, as most runs find out nothing for the host.
     pub(crate) host_findings: Option<Box<super::run_state::HostFindings>>,
-    /// Whether the run laid out absolutely positioned boxes against the final sizes and box sides of its root, which
-    /// its outputs then depend on.
-    pub(crate) laid_out_abspos_contained_by_root: bool,
 }
 
 /// The outputs of a run its parent takes in: those the run cache stored, which it lends, or the run's own.
@@ -1125,7 +1119,7 @@ struct RunOutputParts {
     result: ChildLayoutResult,
     root: Option<fragment_tree::RunRootFragment>,
     root_outcome: RunRootOutcome,
-    inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
+    observed: fc_run_cache::RunObservations,
     host_findings: Option<Box<super::run_state::HostFindings>>,
 }
 
@@ -1136,14 +1130,14 @@ impl RunOutputsHandle {
                 result: outputs.result,
                 root: outputs.root.filter(|_| takes_root),
                 root_outcome: outputs.root_outcome,
-                inputs_never_observed: outputs.inputs_never_observed,
+                observed: outputs.observed,
                 host_findings: outputs.host_findings,
             },
             Self::Stored(entry) | Self::Reused(entry) => RunOutputParts {
                 result: entry.outputs.result,
                 root: entry.outputs.root.as_ref().filter(|_| takes_root).cloned(),
                 root_outcome: entry.outputs.root_outcome.clone(),
-                inputs_never_observed: entry.outputs.inputs_never_observed,
+                observed: entry.outputs.observed,
                 host_findings: entry.outputs.host_findings.clone(),
             },
         }
@@ -1450,7 +1444,7 @@ impl<'pass> FormattingContextRun<'pass> {
         root: Option<fragment_tree::RunRootFragment>,
         root_cells_left_by_run: used_values::RootInputCells,
         root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-        inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
+        observed: fc_run_cache::RunObservations,
         parent_owns_root_input_cells: bool,
     ) -> RunOutputs {
         let root_outcome = RunRootOutcome {
@@ -1461,9 +1455,8 @@ impl<'pass> FormattingContextRun<'pass> {
             result,
             root,
             root_outcome,
-            inputs_never_observed,
+            observed,
             host_findings: self.state.take_host_findings(),
-            laid_out_abspos_contained_by_root: false,
         }
     }
 }
@@ -2751,26 +2744,6 @@ fn lay_out_run_root_and_contents<'pass>(
             }
         });
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
-    let item_run_observations_are_known = !run_is_handed_table_inline_layout_outside_its_key;
-    let table_wrapper_sized_by_its_parent = is_run_of_table_wrapper_sized_by_its_parent(run, fc_type, input);
-    let inputs_never_observed = fc_run_cache::RunInputsTheStoredRunNeverObserved {
-        percentage_block_basis_and_block_size_definiteness: !result.depends_on_percentage_block_size,
-        definite_available_inline_sizes_at_or_above: atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        percentage_inline_basis: atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above.is_some()
-            || (item_run_observations_are_known
-                && item_run_never_observes_percentage_inline_basis(run, fc_type, input))
-            || (table_wrapper_sized_by_its_parent
-                && table_in_wrapper_never_observes_percentage_inline_basis(run, run.box_)),
-        own_block_size: if item_run_observations_are_known {
-            own_block_size_observation_of_item_run(run, fc_type, input, &result)
-        } else {
-            OwnBlockSizeObservation::Observed
-        },
-        inline_space_around_root: table_wrapper_sized_by_its_parent,
-        content_block_size_adopted_after_run: input.participation == ParticipationInParentFormattingContext::Item
-            && !fc_type.registers_abspos_children_against_its_final_block_size(),
-    };
-
     // NB: The root's descendants are laid out in the frame the root establishes. A fragmentainer has no fragment of its
     //     own, so the run hands what it laid out there to the run of the box the fragmentainer belongs to. Any other
     //     run builds its root's fragment around what it laid out inside it.
@@ -2793,53 +2766,40 @@ fn lay_out_run_root_and_contents<'pass>(
         ))
     };
 
-    let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
-    if registered_abspos_children_could_never_be_laid_out {
-        let outputs = run.outputs(
-            result,
-            take_run_fragments(),
-            root_cells_left_by_run,
-            root_line_data,
-            inputs_never_observed,
-            parent_owns_root_input_cells,
-        );
-        return (outputs, root_cells_left_by_run);
-    }
-    if algorithm.as_ref().is_some_and(|algorithm| {
-        algorithm.after_root_is_dimensioned(body_run, root_in_own_frame_left_by_run)
-            == AfterDimensioning::LaysOutNothingMore
-    }) {
-        let outputs = run.outputs(
-            result,
-            take_run_fragments(),
-            root_cells_left_by_run,
-            root_line_data,
-            inputs_never_observed,
-            parent_owns_root_input_cells,
-        );
-        return (outputs, root_cells_left_by_run);
-    }
-    // NB: The absolutely positioned boxes whose containing block is the root are laid out against its final sizes and
-    //     box sides, in the frame its contents are laid out in, so that the root's fragment holds them. The columns of
-    //     a fragmentainer run leave them to the run of the box they belong to.
-    let laid_out_abspos_contained_by_root = run.fragmentainer.is_none()
+    // NB: A run that builds no fragments could never lay out the absolutely positioned boxes it registers. Those whose
+    //     containing block is the root are laid out against its final sizes and box sides, in the frame its contents
+    //     are laid out in, so that the root's fragment holds them. The columns of a fragmentainer run leave them to the
+    //     run of the box they belong to.
+    let lays_out_abspos_contained_by_root = run.fragments.is_some()
+        && algorithm.as_ref().is_none_or(|algorithm| {
+            algorithm.after_root_is_dimensioned(body_run, root_in_own_frame_left_by_run)
+                == AfterDimensioning::LaysOutAbsposContainedByRoot
+        });
+    let laid_out_abspos_contained_by_root = lays_out_abspos_contained_by_root
+        && run.fragmentainer.is_none()
         && lay_out_abspos_contained_by_run_root(body_run, root_in_own_frame_left_by_run, own_frame);
-    let inputs_never_observed = if laid_out_abspos_contained_by_root {
-        inputs_never_observed.once_abspos_contained_by_root_are_laid_out()
-    } else {
-        inputs_never_observed
-    };
-    let outputs = RunOutputs {
-        laid_out_abspos_contained_by_root,
-        ..run.outputs(
-            result,
-            take_run_fragments(),
-            root_cells_left_by_run,
-            root_line_data,
-            inputs_never_observed,
+    let root = take_run_fragments();
+    let observed = fc_run_cache::observations_of(
+        run,
+        request,
+        &result,
+        fc_run_cache::RunObservationFacts {
+            definite_available_inline_sizes_at_or_above:
+                atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            handed_table_inline_layout: run_is_handed_table_inline_layout_outside_its_key,
+            laid_out_abspos_contained_by_root,
+            root: root.as_ref(),
             parent_owns_root_input_cells,
-        )
-    };
+        },
+    );
+    let outputs = run.outputs(
+        result,
+        root,
+        root_cells_left_by_run,
+        root_line_data,
+        observed,
+        parent_owns_root_input_cells,
+    );
     (outputs, root_cells_left_by_run)
 }
 
@@ -3562,103 +3522,6 @@ pub(super) fn parent_owns_root_input_cells(pass: &LayoutPass<'_>, box_: Node, in
         && !frame_established_by(pass, box_).is_orthogonal_to(pass.frame)
 }
 
-fn own_block_size_observation_of_item_run(
-    run: &FormattingContextRun,
-    fc_type: FormattingContextType,
-    input: &LayoutInput,
-    result: &ChildLayoutResult,
-) -> OwnBlockSizeObservation {
-    let item_is_plain_block_container_laid_out_without_its_own_block_size = fc_type == FormattingContextType::Block
-        && !run.pass.frame.is_transposed()
-        && parent_owns_root_input_cells(&run.pass, run.box_, input)
-        && !result.depends_on_percentage_block_size
-        && !run
-            .state
-            .percentage_block_size_dependency_of(run.box_)
-            .has_descendant_that_depends_on_percentage_block_size
-        && !block_formatting_context::root_lays_out_content_against_its_own_block_size(&run.sizing(), run.box_)
-        && !root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(&run.pass, run.box_);
-    if item_is_plain_block_container_laid_out_without_its_own_block_size {
-        OwnBlockSizeObservation::Unobserved
-    } else {
-        OwnBlockSizeObservation::Observed
-    }
-}
-
-fn root_content_includes_an_orthogonal_flow_sized_by_the_root_block_size(pass: &LayoutPass<'_>, root: Node) -> bool {
-    let mut boxes_whose_children_the_root_contains: smallvec::SmallVec<[Node; 8]> = smallvec::smallvec![root];
-    while let Some(container) = boxes_whose_children_the_root_contains.pop() {
-        for child in pass.children(container) {
-            let facts = NodeFacts::new(pass, child);
-            if facts.is_text_node() || facts.is_absolutely_positioned() {
-                continue;
-            }
-            if frame_established_by(pass, child).is_orthogonal_to(pass.frame) {
-                return true;
-            }
-            if facts.is_anonymous() || (facts.is_inline() && !facts.is_atomic_inline()) {
-                boxes_whose_children_the_root_contains.push(child);
-            }
-        }
-    }
-    false
-}
-
-fn is_run_of_table_wrapper_sized_by_its_parent(
-    run: &FormattingContextRun,
-    fc_type: FormattingContextType,
-    input: &LayoutInput,
-) -> bool {
-    fc_type == FormattingContextType::Block
-        && input.participation == ParticipationInParentFormattingContext::BlockLevel
-        && NodeFacts::new(&run.pass, run.box_).is_table_wrapper()
-}
-
-fn table_in_wrapper_never_observes_percentage_inline_basis(run: &FormattingContextRun, wrapper: Node) -> bool {
-    let mut children_of_wrapper = run.pass.children(wrapper);
-    let (Some(table_box), None) = (children_of_wrapper.next(), children_of_wrapper.next()) else {
-        return false;
-    };
-    let resolves_percentage_against_inline_basis = |node| {
-        sizing_context::SizingContext::own_box_resolves_percentage_against_inline_basis(StyleValues::for_node(
-            &run.pass, node,
-        ))
-    };
-    if resolves_percentage_against_inline_basis(table_box) {
-        return false;
-    }
-    let mut boxes_whose_children_are_internal_table_boxes = vec![table_box];
-    while let Some(parent) = boxes_whose_children_are_internal_table_boxes.pop() {
-        for child in run.pass.children(parent) {
-            let facts = NodeFacts::new(&run.pass, child);
-            if facts.is_text_node() {
-                continue;
-            }
-            if resolves_percentage_against_inline_basis(child) {
-                return false;
-            }
-            if facts.is_table_row_group_kind() || facts.is_table_row() || facts.is_table_column_group() {
-                boxes_whose_children_are_internal_table_boxes.push(child);
-            }
-        }
-    }
-    true
-}
-
-/// Whether the run is of an item block, flex or grid container whose content resolves percentages against the
-/// container itself.
-fn item_run_never_observes_percentage_inline_basis(
-    run: &FormattingContextRun,
-    fc_type: FormattingContextType,
-    input: &LayoutInput,
-) -> bool {
-    matches!(
-        fc_type,
-        FormattingContextType::Block | FormattingContextType::Flex | FormattingContextType::Grid
-    ) && parent_owns_root_input_cells(&run.pass, run.box_, input)
-        && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_)
-}
-
 /// The content block size an item takes once its contents are laid out, which its run gives its root at its end.
 pub(super) fn content_block_size_adopted_after_run(
     input: &LayoutInput,
@@ -3696,7 +3559,7 @@ fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, output
         result,
         root,
         root_outcome,
-        inputs_never_observed,
+        observed,
         host_findings,
     } = outputs.into_parts(request.caller.collects_fragments());
     pass.receive_host_findings(host_findings);
@@ -3704,7 +3567,7 @@ fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, output
         content_block_size_adopted_after_run(input, result.automatic_content_block_size);
     let mut laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
     if outputs_are_stored_ones {
-        keep_inline_margins_resolved_now_where_unobserved(&mut laid_out_box, root_cells, inputs_never_observed);
+        keep_inline_margins_resolved_now_where_unobserved(&mut laid_out_box, root_cells, observed.never_observed);
     }
     let fragment_arrival = root.map(|root| {
         debug_assert!(

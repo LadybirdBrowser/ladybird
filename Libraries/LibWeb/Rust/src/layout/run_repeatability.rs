@@ -190,7 +190,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         return;
     }
     let checked = format!("the run of {box_:?}, which never observed its own block size or block margins,");
-    let own_block_size = outputs.inputs_never_observed.own_block_size;
+    let own_block_size = outputs.observed.never_observed.own_block_size;
     let mut reference_inputs = root_inputs_at_other_own_block_sizes(
         root_cells,
         input.clone(),
@@ -251,7 +251,7 @@ impl ComparedLayouts<'_> {
             "{checked} left line data {reference} does not"
         );
         assert_eq!(
-            checked_outputs.inputs_never_observed, reference_outputs.inputs_never_observed,
+            checked_outputs.observed, reference_outputs.observed,
             "{checked} claims to have never observed inputs {reference} does not"
         );
         assert!(
