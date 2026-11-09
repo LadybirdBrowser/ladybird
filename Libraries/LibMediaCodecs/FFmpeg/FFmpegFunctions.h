@@ -71,7 +71,9 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(av_buffer_unref)                      \
     F(av_hwdevice_ctx_alloc)                \
     F(av_hwdevice_ctx_init)                 \
+    F(av_hwframe_ctx_alloc)                 \
     F(av_hwframe_ctx_init)                  \
+    F(av_hwframe_get_buffer)                \
     F(av_hwframe_map)                       \
     F(av_malloc)                            \
     F(av_opt_set_int)                       \

@@ -193,6 +193,7 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     auto transfer_family = first_queue_family_with(queue_families, VK_QUEUE_TRANSFER_BIT);
     if (!decode_family.has_value() || !compute_family.has_value() || !transfer_family.has_value())
         return Error::from_string_literal("The Vulkan device lacks a decode, compute or transfer queue");
+    device->m_compute_queue_family = *compute_family;
 
     Vector<VkDeviceQueueCreateInfo> queue_infos;
     float const queue_priority = 1.0f;
