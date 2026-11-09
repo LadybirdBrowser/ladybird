@@ -32,9 +32,9 @@ static void register_source(ClassicScript& script, ScriptRegistry::IsInlineSourc
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
-GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors, ScriptRegistry::IsInlineSource is_inline_source)
+GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16String source, EnvironmentSettingsObject& settings, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors, ScriptRegistry::IsInlineSource is_inline_source)
 {
-    // 1. If muted errors is true, then set baseURL to about:blank.
+    // 1. If mutedErrors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
         base_url = URL::about_blank();
 
@@ -50,21 +50,24 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View sour
     // 6. Set script's fetch options to options.
     // NB: Callers set the script's fetch options once it has been created.
 
-    // 7. Set script's muted errors to muted errors.
+    // 7. Set script's muted errors to mutedErrors.
     script->m_muted_errors = muted_errors;
 
     // 8. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts .
+    // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts.
 
     // 10. Let result be ParseScript(source, settings's realm, script).
+    // Note: Passing script as the last parameter here ensures result.[[HostDefined]] will be script.
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::parse(source, settings.realm(), script->filename(), script->display_filename(), script.ptr(), source_line_number);
+    auto source_code = JS::SourceCode::create(script->display_filename(), source);
+    auto parsed = JS::ParsedProgram::parse(move(source), JS::ProgramType::Script, source_line_number);
+    auto result = JS::create_script(move(parsed), move(source_code), settings.realm(), script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
-    // 11. If result is a list of errors, then:
+    // 11. If result is a list of errors:
     if (result.is_error()) {
         auto& parse_error = result.error().first();
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_utf16_string());

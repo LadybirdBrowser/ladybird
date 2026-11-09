@@ -427,7 +427,7 @@ public:
     {
         auto source = Utf16String::from_utf8_without_validation(AGENT_SCRIPT.bytes());
         auto url = *URL::Parser::basic_parse("https://agent.test/worker.js"sv);
-        auto script = Web::HTML::ClassicScript::create("worker.js"sv, source.utf16_view(), *m_settings, url);
+        auto script = Web::HTML::ClassicScript::create("worker.js"sv, move(source), *m_settings, url);
         (void)script->run();
 
         auto& global_object = m_settings->realm().global_object();

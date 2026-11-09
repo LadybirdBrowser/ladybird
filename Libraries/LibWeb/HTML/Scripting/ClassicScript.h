@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
+#include <AK/Utf16String.h>
 #include <LibJS/Script.h>
 #include <LibJS/ScriptCompilation.h>
 #include <LibWeb/Export.h>
@@ -27,7 +27,7 @@ public:
         No,
         Yes,
     };
-    static GC::Ref<ClassicScript> create(ByteString filename, Utf16View source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
+    static GC::Ref<ClassicScript> create(ByteString filename, Utf16String source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
     static GC::Ref<ClassicScript> create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::ParsedProgram, MutedErrors = MutedErrors::No);
     static GC::Ref<ClassicScript> create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::CompiledProgram, MutedErrors = MutedErrors::No);
 
