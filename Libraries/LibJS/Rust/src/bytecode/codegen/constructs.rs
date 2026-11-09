@@ -578,6 +578,7 @@ impl Generator<'_> {
 
     /// A static block, which runs as a function of its own.
     pub(super) fn sweep_static_block(&mut self, block: NodeId) -> Result<(), OutOfStack> {
+        self.create_arguments_object_of_static_block();
         self.sweep_rows(FIRST_ROW_OF_REPARSED_FUNCTION, block.index())?;
         self.end_disposal();
         Ok(())
