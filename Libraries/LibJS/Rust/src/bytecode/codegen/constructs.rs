@@ -27,7 +27,6 @@ use crate::bytecode::instruction::typed as op;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::parser::OutOfStack;
-use crate::parser::columns::NONE;
 use crate::parser::columns::tag;
 use crate::parser::literals::EscapeMode;
 use crate::u32_from_usize;
@@ -50,7 +49,7 @@ use super::stream::OpenIterator;
 use super::stream::ScopeEnvironment;
 use super::stream::ValKind;
 use super::sweep::declaration_kind_of_mark;
-use super::sweep::is_anonymous;
+use super::sweep::is_anonymous_function_definition;
 use super::sweep::next_tag;
 use super::sweep::resource_of_mark;
 use crate::parser::literals::raw_template_value;
@@ -515,22 +514,15 @@ impl Generator<'_> {
         let initializer = NodeId(tree.node_a(NodeId(tree.node_b(field))));
         let is_computed = tree.node_tag(field) == tag::COMPUTED_CLASS_FIELD;
         let first_row = key.index() + 1 + usize::from(is_computed || tree.node_tag(key) == tag::BIGINT);
-        let bare_initializer = tree.skip_parens(initializer);
-        let initializer_tag = tree.node_tag(bare_initializer);
-        let is_anonymous_definition = match initializer_tag {
-            tag::FUNCTION => is_anonymous(tree, bare_initializer),
-            tag::CLASS => tree.node_a(bare_initializer) == NONE,
-            _ => false,
-        };
         let value = if let Some(name) = class_field_name(tree, field) {
             let name = self.intern_identifier_text(crate::utf16::Utf16View::of_string(&name));
             self.set_pending_function_name(initializer, Some(name));
             self.sweep_value(first_row, initializer)?
-        } else if is_anonymous_definition {
+        } else if is_anonymous_function_definition(tree, initializer) {
             // NB: A computed key is only known once the class is defined, so the function reads it.
             let name = self.temporary();
             self.put(op::GetClassFieldInitializerName { dst: name });
-            if initializer_tag == tag::CLASS {
+            if tree.node_tag(tree.skip_parens(initializer)) == tag::CLASS {
                 self.context.stream.pending_computed_class_name = Some(name);
                 self.sweep_value(first_row, initializer)?
             } else {
@@ -1669,8 +1661,7 @@ impl Generator<'_> {
 
     /// Whatever anonymous function or class `value` is takes `name` as its name.
     fn set_pending_function_name(&mut self, value: NodeId, name: Option<IdentifierTableIndex>) {
-        let tree = self.tree;
-        if matches!(tree.node_tag(tree.skip_parens(value)), tag::FUNCTION | tag::CLASS) {
+        if is_anonymous_function_definition(self.tree, value) {
             self.context.stream.pending_function_name = name;
         }
     }

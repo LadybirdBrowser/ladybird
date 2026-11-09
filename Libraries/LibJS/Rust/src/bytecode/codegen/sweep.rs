@@ -638,6 +638,42 @@ pub(super) fn is_anonymous(tree: &SyntaxTree, function: NodeId) -> bool {
     tree.script.index.name[tree.node_b(function) as usize] == NONE
 }
 
+/// https://tc39.es/ecma262/#sec-static-semantics-isfunctiondefinition
+#[inline(always)]
+fn is_function_definition(tree: &SyntaxTree, expression: NodeId) -> bool {
+    matches!(tree.node_tag(expression), tag::FUNCTION | tag::CLASS)
+}
+
+/// https://tc39.es/ecma262/#sec-static-semantics-hasname
+#[inline(always)]
+fn has_name(tree: &SyntaxTree, expression: NodeId) -> bool {
+    match tree.node_tag(expression) {
+        tag::FUNCTION => !is_anonymous(tree, expression),
+        tag::CLASS => tree.node_a(expression) != NONE,
+        _ => false,
+    }
+}
+
+/// https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition
+pub(super) fn is_anonymous_function_definition(tree: &SyntaxTree, expression: NodeId) -> bool {
+    // NB: IsFunctionDefinition and HasName of a ParenthesizedExpression are those of the expression in it.
+    let expression = tree.skip_parens(expression);
+
+    // 1. If IsFunctionDefinition of expr is false, return false.
+    if !is_function_definition(tree, expression) {
+        return false;
+    }
+
+    // 2. Let hasName be HasName of expr.
+    // 3. If hasName is true, return false.
+    if has_name(tree, expression) {
+        return false;
+    }
+
+    // 4. Return true.
+    true
+}
+
 /// The operator of a logical assignment, by the token that it is.
 fn logical_operator_of_assignment(token: u8) -> crate::ast::LogicalOp {
     use crate::parser::token::T;
