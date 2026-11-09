@@ -96,30 +96,25 @@ static Optional<CompiledScriptCacheKey> compiled_script_cache_key(Fetch::Infrast
 // come back as a ParsedProgram so the main thread can report them through the same Script/ModuleScript construction
 // paths; successful programs come back as CompiledProgram artifacts whose GC-backed Executable materialization must
 // still happen on the main thread.
-// NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives its
-//     code, which is thread-safe to share.
 // With a cache key, a program that the cache of compiled scripts has for the source code skips all of this, and
 // otherwise the program goes there before anything runs it.
-static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::ProgramType type, size_t line_number_offset, Optional<CompiledScriptCacheKey> cache_key, GC::Ref<GC::Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)>> on_compiled)
+static void compile_off_thread(EnvironmentSettingsObject& settings_object, Utf16String source_filename, Utf16String source_text, JS::ProgramType type, size_t line_number_offset, Optional<CompiledScriptCacheKey> cache_key, GC::Ref<GC::Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)>> on_compiled)
 {
-    // Take the code the parser needs while still on the main thread.
-    auto source_text = source_code->code();
-
-    auto cached_program = cache_key.has_value() ? CompiledScriptCache::the().find(*cache_key, source_text) : OptionalNone {};
-
-    // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
     // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
     // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
     // module linking) are drained after it.
-    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
+    auto run_callback = [settings_object = GC::make_root(settings_object), on_compiled = GC::make_root(on_compiled), source_filename = move(source_filename)](OffThreadCompiledProgram result, Utf16String source_text) mutable {
+        auto source_code = JS::SourceCode::create(move(source_filename), move(source_text));
         queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), GC::captures(on_compiled, move(source_code), move(result)), [](auto& on_compiled, auto& source_code, auto& result) {
             on_compiled->function()(move(result), move(source_code));
         }));
     };
 
-    if (cached_program.has_value()) {
-        run_callback(OffThreadCompiledProgram { .compiled = cached_program.release_value() });
-        return;
+    if (cache_key.has_value()) {
+        if (auto hit = CompiledScriptCache::the().find(*cache_key, source_text); hit.has_value()) {
+            run_callback(OffThreadCompiledProgram { .compiled = move(hit->program) }, move(hit->source_text));
+            return;
+        }
     }
 
     struct OffThreadCompilation {
@@ -138,13 +133,15 @@ static void compile_off_thread(EnvironmentSettingsObject& settings_object, Nonnu
             auto result = move(compilation.result);
             if (cache_key.has_value() && result.compiled) {
                 // NB: Another load of the script may have stored it while this one compiled.
-                if (auto cached_program = CompiledScriptCache::the().find(*cache_key, compilation.source_text); cached_program.has_value())
-                    result.compiled = cached_program.release_value();
-                else
-                    CompiledScriptCache::the().store(cache_key.release_value(), move(compilation.source_text), result.compiled);
+                if (auto hit = CompiledScriptCache::the().find(*cache_key, compilation.source_text); hit.has_value()) {
+                    result.compiled = move(hit->program);
+                    compilation.source_text = move(hit->source_text);
+                } else {
+                    CompiledScriptCache::the().store(cache_key.release_value(), compilation.source_text, result.compiled);
+                }
             }
 
-            run_callback(move(result));
+            run_callback(move(result), move(compilation.source_text));
         });
 }
 
@@ -499,11 +496,11 @@ void fetch_classic_script(JS::Realm& realm, URL::URL const& url, EnvironmentSett
         // NB: The filename is the request's URL. The response's URL could reveal where a cross-origin request was
         //     redirected.
         auto filename = request->url().to_byte_string();
-        auto source_code = JS::SourceCode::create(utf16_string_from_url_ascii(filename.view()), move(source_text));
+        auto source_filename = utf16_string_from_url_ascii(filename.view());
 
         auto cache_key = compiled_script_cache_key(request, request->url(), response->status(), response->header_list(), JS::ProgramType::Script, 1);
 
-        compile_off_thread(settings_object, move(source_code), JS::ProgramType::Script, 1, move(cache_key),
+        compile_off_thread(settings_object, move(source_filename), move(source_text), JS::ProgramType::Script, 1, move(cache_key),
             GC::create_function(GC::Heap::the(), GC::captures(move(response_url), move(filename), muted_errors, on_complete, settings_object), [](URL::URL& response_url, ByteString& filename, ClassicScript::MutedErrors muted_errors, OnFetchScriptComplete& on_complete, EnvironmentSettingsObject& settings_object, OffThreadCompiledProgram result, NonnullRefPtr<JS::SourceCode const> source_code) {
                 auto script = result.compiled
                     ? ClassicScript::create_from_pre_compiled(move(filename), source_code, settings_object, move(response_url), move(result.compiled), muted_errors)
@@ -880,11 +877,11 @@ void fetch_single_module_script(JS::Realm& realm,
                 auto url_string = url.to_byte_string();
                 auto response_url = response->url().value_or({});
                 auto module_type_string = module_type;
-                auto source_code = JS::SourceCode::create(utf16_string_from_url_ascii(url_string.view()), move(source_text));
+                auto source_filename = utf16_string_from_url_ascii(url_string.view());
 
                 auto cache_key = compiled_script_cache_key(request, url, internal_response->status(), internal_response->header_list(), JS::ProgramType::Module, 0);
 
-                compile_off_thread(settings_object, move(source_code), JS::ProgramType::Module, 0, move(cache_key),
+                compile_off_thread(settings_object, move(source_filename), move(source_text), JS::ProgramType::Module, 0, move(cache_key),
                     GC::create_function(GC::Heap::the(), GC::captures(url, move(url_string), move(response_url), move(module_type_string), options, settings_object), [](URL::URL& url, ByteString& url_string, URL::URL& response_url, Utf16String& module_type_string, ScriptFetchOptions& options, EnvironmentSettingsObject& settings_object, OffThreadCompiledProgram result, NonnullRefPtr<JS::SourceCode const> source_code) {
                         auto module_script = result.compiled
                             ? ModuleScript::create_from_pre_compiled(url_string, source_code, settings_object, move(response_url), move(result.compiled)).release_value_but_fixme_should_propagate_errors()

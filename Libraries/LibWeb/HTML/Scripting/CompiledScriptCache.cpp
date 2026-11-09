@@ -18,18 +18,18 @@ CompiledScriptCache& CompiledScriptCache::the()
     return *cache;
 }
 
-Optional<JS::CompiledProgram> CompiledScriptCache::find(CompiledScriptCacheKey const& key, Utf16String const& source_text)
+Optional<CompiledScriptCache::Hit> CompiledScriptCache::find(CompiledScriptCacheKey const& key, Utf16String const& source_text)
 {
     auto entry = m_entries.get(key);
     if (!entry.has_value() || entry->source_text != source_text)
         return {};
 
     entry->touch_serial = ++m_next_touch_serial;
-    auto program = entry->program.clone();
+    Hit hit { entry->program.clone(), entry->source_text };
 
     // NB: Entries grow as their functions compile, which no store sees.
     evict_until_within_limit();
-    return program;
+    return hit;
 }
 
 void CompiledScriptCache::store(CompiledScriptCacheKey key, Utf16String source_text, JS::CompiledProgram const& program)

@@ -32,9 +32,14 @@ struct CompiledScriptCacheKey {
 // with, so they answer nothing that the checks of a fetch decide, and can not stand in for different source text.
 class WEB_API CompiledScriptCache {
 public:
+    struct Hit {
+        JS::CompiledProgram program;
+        Utf16String source_text;
+    };
+
     static CompiledScriptCache& the();
 
-    Optional<JS::CompiledProgram> find(CompiledScriptCacheKey const&, Utf16String const& source_text);
+    Optional<Hit> find(CompiledScriptCacheKey const&, Utf16String const& source_text);
 
     // From here on, the program keeps the functions that get compiled for it. Replaces what the key held before.
     void store(CompiledScriptCacheKey, Utf16String source_text, JS::CompiledProgram const&);
