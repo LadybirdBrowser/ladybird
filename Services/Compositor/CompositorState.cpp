@@ -1710,7 +1710,8 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Context
 #ifdef AK_OS_MACOS
     // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it. Handing the
     // frame to the client before that work finishes keeps it ahead of the window server's deadline for the next refresh.
-    if (context.presents_to_client() && m_skia_backend_context) {
+    // A client that reads frames from CPU memory does not wait for that work, so it gets each frame once it is done.
+    if (context.presents_to_client() && m_skia_backend_context && !context.presents_from_cpu_memory()) {
         m_skia_backend_context->metal_context().when_committed_work_is_scheduled([self = NonnullRefPtr { *this }, &event_loop, pending_present]() mutable {
             event_loop.deferred_invoke([self = move(self), pending_present] {
                 for (auto& entry : self->m_pending_async_presents) {
