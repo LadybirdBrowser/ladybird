@@ -1660,20 +1660,15 @@ impl<'pass> FormattingContextAlgorithms<'pass> {
         subgrid_parent: Option<&grid_formatting_context::SubgridParent<'pass>>,
         fc_type: FormattingContextType,
         previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-        inline_layout_of_child_table_box: Option<table_formatting_context::TableInlineLayout>,
+        inline_layout_of_child_table_box: Option<std::sync::Arc<table_formatting_context::TableInlineLayout>>,
     ) -> &mut dyn FormattingContextAlgorithm<'pass> {
         match fc_type {
-            FormattingContextType::Block => {
-                let context = self.block.insert(block_formatting_context::BlockFormattingContext::new(
-                    run,
-                    root_cells_in_own_frame,
-                    previous_line_data,
-                ));
-                if let Some(layout) = inline_layout_of_child_table_box {
-                    context.keep_table_inline_layout_of(layout.table_box(), layout);
-                }
-                context
-            }
+            FormattingContextType::Block => self.block.insert(block_formatting_context::BlockFormattingContext::new(
+                run,
+                root_cells_in_own_frame,
+                previous_line_data,
+                inline_layout_of_child_table_box,
+            )),
             FormattingContextType::Flex => self.flex.insert(flex_formatting_context::FlexFormattingContext::new(
                 run,
                 root_cells_in_own_frame,
@@ -2201,7 +2196,8 @@ impl RunCaller {
 #[derive(Clone, Default)]
 pub(crate) struct RunSideInputs<'a> {
     pub(crate) subgrid_parent: Option<&'a grid_formatting_context::SubgridParent<'a>>,
-    pub(crate) table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
+    /// For a table wrapper or its table box, the inline layout of the table box its parent found while sizing it.
+    pub(crate) table_inline_layout: Option<std::sync::Arc<table_formatting_context::TableInlineLayout>>,
     pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
 }
 
@@ -2609,7 +2605,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 root_input: input,
                 root_cells: own_root.get(),
                 flex_self_block_size_resolution_space,
-                table_inline_layout: inline_layout_of_root_table_box,
+                table_inline_layout: inline_layout_of_root_table_box.map(std::sync::Arc::unwrap_or_clone),
             },
         )
     };
@@ -3150,8 +3146,9 @@ impl ChildLayout {
     }
 }
 
-/// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, or sizes the child in
-/// them here where it needs no run of its own.
+/// Lays out `child` with the input cells its parent sized it to: hands them to the child's run, with the inline layout
+/// `table_inline_layout` the parent found for a table wrapper or table box, or sizes the child in them here where it
+/// needs no run of its own.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_inside_child_with_input_cells(
     run: &FormattingContextRun,
@@ -3160,6 +3157,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     child: Node,
     input: LayoutInput,
     child_input_cells: used_values::RootInputCells,
+    table_inline_layout: Option<std::sync::Arc<table_formatting_context::TableInlineLayout>>,
     force_independent_context_run: bool,
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
@@ -3212,9 +3210,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         .and_then(|grid| grid.subgrid_parent_of(child));
     let side = RunSideInputs {
         subgrid_parent: subgrid_parent.as_ref(),
-        table_inline_layout: parent_block
-            .and_then(|block| block.take_table_inline_layout_of(child))
-            .or_else(|| parent_grid.and_then(|grid| grid.take_table_inline_layout_of(child))),
+        table_inline_layout,
         fragmentainer: None,
     };
     run_formatting_context(

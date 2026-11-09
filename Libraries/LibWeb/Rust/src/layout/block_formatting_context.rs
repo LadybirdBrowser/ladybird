@@ -781,7 +781,7 @@ fn lay_out_in_flow_child_ahead(pass: LayoutPass<'_>, job: InFlowChildJob) -> Opt
                 treat_block_axis_percentage_insets_as_auto_beyond_root,
                 None,
             );
-            let flow = BlockFormattingContext::new(&run, root_cells, None);
+            let flow = BlockFormattingContext::new(&run, root_cells, None, None);
             flow.block_offset_of_current_block_container
                 .set(Some(CssPixels::default()));
             let containing_block_position_in_root = FfiCssPixelPoint {
@@ -1037,7 +1037,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
     /// The inline layout of the table box inside a table wrapper child, as sizing the wrapper last found it, which the
     /// child's run can reuse.
-    table_inline_layout_of_child: Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
+    table_inline_layout_of_child: Cell<Option<(Node, std::sync::Arc<table_formatting_context::TableInlineLayout>)>>,
     is_line_clamp_container: bool,
     clamped_content_is_scrollable_overflow: bool,
     max_lines: Cell<Option<usize>>,
@@ -1225,6 +1225,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         run: &FormattingContextRun<'pass>,
         root_cells: used_values::RootInputCells,
         previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+        inline_layout_of_child_table_box: Option<std::sync::Arc<table_formatting_context::TableInlineLayout>>,
     ) -> Self {
         let style = StyleValues::for_node(&run.pass, run.box_);
         let computed_continue = style.continue_();
@@ -1253,7 +1254,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_inline_size: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
-            table_inline_layout_of_child: Cell::new(None),
+            // NB: A table wrapper's run hands the inline layout of its table box on to the run of that box.
+            table_inline_layout_of_child: Cell::new(
+                inline_layout_of_child_table_box.map(|layout| (layout.table_box(), layout)),
+            ),
             is_line_clamp_container,
             clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
@@ -1355,15 +1359,16 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// Keeps `layout`, the inline layout of the table box inside `child`, for the run of `child`.
-    pub(crate) fn keep_table_inline_layout_of(&self, child: Node, layout: table_formatting_context::TableInlineLayout) {
-        self.table_inline_layout_of_child.set(Some((child, layout)));
+    fn keep_table_inline_layout_of(&self, child: Node, layout: table_formatting_context::TableInlineLayout) {
+        self.table_inline_layout_of_child
+            .set(Some((child, std::sync::Arc::new(layout))));
     }
 
     /// The inline layout of the table box inside `child` this formatting context keeps for the run of `child`, if any.
     pub(crate) fn take_table_inline_layout_of(
         &self,
         child: Node,
-    ) -> Option<table_formatting_context::TableInlineLayout> {
+    ) -> Option<std::sync::Arc<table_formatting_context::TableInlineLayout>> {
         take_table_inline_layout_kept_for(&self.table_inline_layout_of_child, child)
     }
 
@@ -3058,6 +3063,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
             marker_cells,
+            None,
             true,
             list_item.percentage_block_insets_have_definite_basis,
         );
@@ -3158,6 +3164,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             sized_child.node,
             input,
             self.metrics_of(sized_child),
+            self.take_table_inline_layout_of(sized_child.node),
             force_independent_context_run,
             block_container.percentage_block_insets_have_definite_basis,
         );
@@ -7553,9 +7560,9 @@ pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
 /// The inline layout of the table box inside `child` that `kept` holds for the run of `child`, which stays kept for
 /// another child.
 pub(crate) fn take_table_inline_layout_kept_for(
-    kept: &Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
+    kept: &Cell<Option<(Node, std::sync::Arc<table_formatting_context::TableInlineLayout>)>>,
     child: Node,
-) -> Option<table_formatting_context::TableInlineLayout> {
+) -> Option<std::sync::Arc<table_formatting_context::TableInlineLayout>> {
     let (kept_for, layout) = kept.take()?;
     if kept_for != child {
         kept.set(Some((kept_for, layout)));
