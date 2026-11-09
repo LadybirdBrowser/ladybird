@@ -1141,15 +1141,15 @@ impl Store {
         gc::trace_of(ty, &self.types)
     }
 
-    /// The same, or None for a concrete type that is not an identity of this store.
-    pub fn trace_of_known(&self, ty: ValType) -> Option<u8> {
-        if let ValType::Ref(reference) = ty
-            && let HeapType::Concrete(identity) = reference.heap
-            && self.types.get(identity as usize).is_none()
-        {
-            return None;
+    /// Whether a type is one of this store, which a concrete type is if it names an identity of the store.
+    pub fn knows_type(&self, ty: ValType) -> bool {
+        match ty {
+            ValType::Ref(RefType {
+                heap: HeapType::Concrete(identity),
+                ..
+            }) => (identity as usize) < self.types.len(),
+            _ => true,
         }
-        Some(self.trace_of(ty))
     }
 
     pub fn function_reference(&self, address: FunctionAddress) -> u64 {

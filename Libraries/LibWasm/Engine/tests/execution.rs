@@ -553,3 +553,27 @@ fn a_change_of_the_word_does_not_end_a_wait() {
     unsafe { &*(address as *const std::sync::atomic::AtomicU32) }.store(1, std::sync::atomic::Ordering::SeqCst);
     assert_eq!(waiter.join().unwrap(), Ok(vec![Value::I32(2)]));
 }
+
+#[test]
+fn knows_the_types_of_its_own_identities() {
+    use libwasm_engine::types::{FuncType, HeapType, RefType, ValType};
+    let mut store = Store::new();
+    let reference_to = |identity| {
+        ValType::Ref(RefType {
+            nullable: true,
+            heap: HeapType::Concrete(identity),
+        })
+    };
+    assert!(store.knows_type(ValType::I32));
+    assert!(!store.knows_type(reference_to(0)));
+
+    store.allocate_host_function(
+        FuncType {
+            params: vec![],
+            results: vec![],
+        },
+        std::rc::Rc::new(|_: &mut Store, _: &[Value]| Ok(vec![])),
+    );
+    assert!(store.knows_type(reference_to(0)));
+    assert!(!store.knows_type(reference_to(1)));
+}
