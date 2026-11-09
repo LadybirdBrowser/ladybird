@@ -1,0 +1,12 @@
+Ladybird places the “top”, “middle”, and “bottom” canvas text baselines
+on an em square as tall as the font size, divided at the alphabetic
+baseline in the proportion of the font’s ascent and descent. Gecko does
+the same: gfxFont::CalculateDerivedMetrics() derives emAscent and
+emDescent that way, and CanvasRenderingContext2D uses them for those
+three baselines. Blink scales the OS/2 typo ascent and descent to the
+font size instead, in SimpleFontData::NormalizedTypoAscentAndDescent(),
+which TextMetrics::GetFontBaseline() uses. And WebKit places them on an
+em square too, one that emHeightAscentAndDescent() supplies to its
+CanvasRenderingContext2DBase::textOffset(). For bold 80px Arial, the
+alphabetic baseline is now 64.8px below “top” in Ladybird, 64.9px in
+Firefox, and 62.1px in Chrome.
