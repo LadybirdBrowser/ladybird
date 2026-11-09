@@ -480,6 +480,19 @@ impl FcRunCacheStore {
         })
     }
 
+    fn entry_is_the_only_one_its_box_holds(&self, slot: u32, entry: &std::sync::Arc<FcRunCacheEntry>) -> bool {
+        self.slots.with_row(slot as usize, |entries| {
+            entries.is_some_and(|entries| {
+                entries.committed.is_none()
+                    && entries.earlier.is_empty()
+                    && entries
+                        .latest
+                        .as_ref()
+                        .is_some_and(|latest| std::sync::Arc::ptr_eq(latest, entry))
+            })
+        })
+    }
+
     pub(crate) fn note_invalidated_entry(&mut self, node: Node) {
         if self.slot_holds_entries(node.slot_index()) {
             self.enqueue_for_sweep(node.slot_index());
@@ -811,8 +824,11 @@ impl FcRunCacheAttempt {
             |summary| summary.may_answer_probe(validity, true),
             |entry| entry.validity == validity && entry.outputs.root.is_some() && entry.answers_probe_for(key),
         ) {
-            // NB: Once the replayed fragments are committed, the sweep keeps the entry beside later ones.
-            store.enqueue_for_sweep(box_.slot_index());
+            // NB: Once the replayed fragments are committed, the sweep keeps the entry beside later ones. A store that
+            //     replaces the latest entry checks whether its fragments were committed itself.
+            if !store.entry_is_the_only_one_its_box_holds(box_.slot_index(), &entry) {
+                store.enqueue_for_sweep(box_.slot_index());
+            }
             entry.note_used_at_layout_commit(pass.arena().layout_commit_count());
             return Err(FcRunCacheHit { entry });
         }
