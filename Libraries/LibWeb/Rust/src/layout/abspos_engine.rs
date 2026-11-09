@@ -3327,15 +3327,16 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
     entry_fragments: &fragment_tree::RunFragmentBuilder,
 ) {
     let accumulator_root = entry_fragments.root_node();
-    let run = FormattingContextRun {
+    let run = FormattingContextRun::new(
         state,
-        box_: accumulator_root,
+        accumulator_root,
         pass,
-        should_collect_devtools_layout_data,
-        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-        fragments: Some(entry_fragments),
-        fragmentainer: None,
-    };
+        formatting_context::RunMode::Commit {
+            devtools: should_collect_devtools_layout_data,
+        },
+        false,
+        None,
+    );
     loop {
         let batch = entry_fragments.take_drainable_abspos(accumulator_root, &pass);
         if batch.is_empty() {

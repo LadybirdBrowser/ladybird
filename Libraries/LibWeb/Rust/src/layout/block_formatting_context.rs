@@ -773,15 +773,14 @@ fn lay_out_in_flow_child_ahead(pass: LayoutPass<'_>, job: InFlowChildJob) -> Opt
         None,
         Some(fragments),
         |state, pass| {
-            let run = FormattingContextRun {
+            let run = FormattingContextRun::new(
                 state,
-                box_: run_root,
+                run_root,
                 pass,
-                should_collect_devtools_layout_data: false,
+                formatting_context::RunMode::Commit { devtools: false },
                 treat_block_axis_percentage_insets_as_auto_beyond_root,
-                fragments: state.fragments(),
-                fragmentainer: None,
-            };
+                None,
+            );
             let flow = BlockFormattingContext::new(&run, root_cells, None);
             flow.block_offset_of_current_block_container
                 .set(Some(CssPixels::default()));
@@ -4285,7 +4284,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> bool {
         let facts = self.facts(node);
         let container_facts = self.facts(block_container);
-        !self.run.should_collect_devtools_layout_data
+        !self.run.collects_devtools_layout_data()
             && containing_line_box_fragment.is_none()
             && !self.is_line_clamp_container
             && self.max_lines.get().is_none()
@@ -4995,7 +4994,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let pass = self.run.pass;
         if pass.lays_out_with_position_option()
             || self.run.fragments.is_none()
-            || self.run.should_collect_devtools_layout_data
+            || self.run.collects_devtools_layout_data()
             || self.is_line_clamp_container
             || self.max_lines.get().is_some()
             || self.facts(block_container.node).is_fieldset_box()

@@ -3202,7 +3202,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn offers_item_runs_to_block_size_measurements(&self) -> bool {
         let space = self.available_space_for_items.unwrap().space;
-        !self.run.should_collect_devtools_layout_data
+        !self.run.collects_devtools_layout_data()
             && !space.inline_size.is_intrinsic_sizing_constraint()
             && self.container.inline_axis_is_horizontal
     }
@@ -4137,7 +4137,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         self.layout_items_and_derive_baselines(run, container_cross_size_is_auto);
 
-        if self.run.should_collect_devtools_layout_data {
+        if self.run.collects_devtools_layout_data() {
             self.save_flex_layout_data();
         }
     }
@@ -4663,15 +4663,14 @@ mod stretch_cross_limit_tests {
         };
         let container_cells = used_values::cells_before_sizing(&pass, container, constraints);
         RunState::with_root(pass, container, Node::INVALID, None, |state, pass| {
-            let run = FormattingContextRun {
+            let run = FormattingContextRun::new(
                 state,
-                box_: container,
+                container,
                 pass,
-                should_collect_devtools_layout_data: false,
-                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                fragments: None,
-                fragmentainer: None,
-            };
+                formatting_context::RunMode::Measure,
+                false,
+                None,
+            );
             let mut flex = FlexFormattingContext::new(&run, container_cells);
             let available = AvailableSpace {
                 inline_size: if column && !definite_cross_basis {
