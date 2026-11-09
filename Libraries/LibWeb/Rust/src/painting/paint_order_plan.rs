@@ -155,7 +155,7 @@ impl PaintOrderInputs {
         let (collapsed_borders, hidden_columns) = arena.with_committed_fragment_link(row, |link| {
             link.map_or((false, false), |link| {
                 (
-                    link.fragment.collapsed_table_borders.is_some(),
+                    link.fragment.collapsed_table_borders().is_some(),
                     link.placement.shown_as.facts.hidden_by_collapsed_columns,
                 )
             })

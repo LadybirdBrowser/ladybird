@@ -1611,8 +1611,8 @@ impl<'pass> TableFormattingContext<'pass> {
             horizontal_edges,
             vertical_edges,
         });
-        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
-            payloads.collapsed_table_borders = Some(collapsed_table_borders);
+        self.run.set_fragment_payload_of(self.run.box_, || {
+            fragment_tree::FcPayload::Table(collapsed_table_borders)
         });
     }
 

@@ -1364,13 +1364,27 @@ impl<'pass> FormattingContextRun<'pass> {
 
     /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
     /// fragments.
-    pub(crate) fn update_fragment_payloads_of(
-        &self,
-        node: Node,
-        update: impl FnOnce(&mut fragment_tree::FragmentPayloads),
-    ) {
+    pub(crate) fn set_fragment_payload_of(&self, node: Node, payload: impl FnOnce() -> fragment_tree::FcPayload) {
         if let Some(fragments) = self.fragments {
-            fragments.update_fragment_payloads_of(node, update);
+            fragments.update_fragment_payload_of(node, |pending| pending.set(payload()));
+        }
+    }
+
+    pub(crate) fn update_grid_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::GridPayload)) {
+        if let Some(fragments) = self.fragments {
+            fragments.update_fragment_payload_of(node, |pending| update(pending.grid_mut()));
+        }
+    }
+
+    pub(crate) fn update_svg_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::SvgPayload)) {
+        if let Some(fragments) = self.fragments {
+            fragments.update_fragment_payload_of(node, |pending| update(pending.svg_mut()));
+        }
+    }
+
+    pub(crate) fn set_line_clamp_facts_of(&self, node: Node, facts: fragment_tree::LineClampFacts) {
+        if let Some(fragments) = self.fragments {
+            fragments.update_fragment_payload_of(node, |pending| pending.line_clamp = facts);
         }
     }
 

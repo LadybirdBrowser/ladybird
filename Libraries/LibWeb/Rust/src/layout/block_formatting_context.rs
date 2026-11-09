@@ -5904,8 +5904,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
         let multicol_layout_data = std::sync::Arc::new(fragmentation::MulticolLayoutData { geometry, rows });
-        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
-            payloads.multicol_layout_data = Some(multicol_layout_data);
+        self.run.set_fragment_payload_of(self.run.box_, || {
+            fragment_tree::FcPayload::Multicol(multicol_layout_data)
         });
         self.multicol_automatic_content_block_size.set(Some(row_block_offset));
         self.record_derived_baselines_of_root_box(baselines);
@@ -6379,12 +6379,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.lay_out_root_contents(run, input);
         let has_line_clamp_point = self.line_clamp_point_found.get();
         if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
-            run.update_fragment_payloads_of(self.run.box_, |payloads| {
-                payloads.line_clamp = fragment_tree::LineClampFacts {
+            run.set_line_clamp_facts_of(
+                self.run.box_,
+                fragment_tree::LineClampFacts {
                     has_line_clamp_point,
                     clamped_content_is_scrollable_overflow: self.clamped_content_is_scrollable_overflow,
-                };
-            });
+                },
+            );
         }
     }
 

@@ -67,21 +67,156 @@ pub(crate) struct LineClampFacts {
     pub(crate) clamped_content_is_scrollable_overflow: bool,
 }
 
+/// What the layout of a box hands its fragment for painting and the devtools besides its geometry, by the kind of
+/// layout that produced it.
+#[derive(Clone)]
+pub(crate) enum FcPayload {
+    Table(std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>),
+    Grid(GridPayload),
+    Flex(std::sync::Arc<formatting_context::FlexLayoutData>),
+    Multicol(std::sync::Arc<fragmentation::MulticolLayoutData>),
+    Math(std::sync::Arc<math_formatting_context::MathPaintData>),
+    Svg(SvgPayload),
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct GridPayload {
+    pub(crate) layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
+    pub(crate) used_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct SvgPayload {
+    pub(crate) facts: CommittedSvgFacts,
+    pub(crate) path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
+    pub(crate) text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+}
+
+/// Compares payloads as painting needs: the layout data painting reads through its allocation as the same allocations,
+/// and the facts it copies as equal values.
+impl PartialEq for FcPayload {
+    fn eq(&self, other: &Self) -> bool {
+        use std::sync::Arc;
+        match (self, other) {
+            (Self::Table(left), Self::Table(right)) => Arc::ptr_eq(left, right),
+            (Self::Grid(left), Self::Grid(right)) => {
+                same_allocation(left.layout_data.as_ref(), right.layout_data.as_ref())
+                    && same_allocation(left.used_tracks.as_ref(), right.used_tracks.as_ref())
+            }
+            (Self::Flex(left), Self::Flex(right)) => Arc::ptr_eq(left, right),
+            (Self::Multicol(left), Self::Multicol(right)) => left == right,
+            (Self::Math(left), Self::Math(right)) => left == right,
+            (Self::Svg(left), Self::Svg(right)) => {
+                left.facts == right.facts
+                    && same_allocation(left.path.as_ref(), right.path.as_ref())
+                    && same_allocation(left.text_character_cells.as_ref(), right.text_character_cells.as_ref())
+            }
+            _ => false,
+        }
+    }
+}
+
+impl FcPayload {
+    /// Whether the payloads hold equal values, as two layouts of one box do.
+    pub(crate) fn same_value(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Table(left), Self::Table(right)) => left == right,
+            (Self::Grid(left), Self::Grid(right)) => {
+                left.layout_data == right.layout_data && left.used_tracks == right.used_tracks
+            }
+            (Self::Flex(left), Self::Flex(right)) => left == right,
+            (Self::Multicol(left), Self::Multicol(right)) => left == right,
+            (Self::Math(left), Self::Math(right)) => left == right,
+            (Self::Svg(left), Self::Svg(right)) => {
+                left.facts == right.facts
+                    && left.path == right.path
+                    && left.text_character_cells == right.text_character_cells
+            }
+            _ => false,
+        }
+    }
+
+    fn holds_nothing(&self) -> bool {
+        match self {
+            Self::Grid(grid) => grid.layout_data.is_none() && grid.used_tracks.is_none(),
+            Self::Svg(svg) => {
+                svg.facts == CommittedSvgFacts::default() && svg.path.is_none() && svg.text_character_cells.is_none()
+            }
+            Self::Table(_) | Self::Flex(_) | Self::Multicol(_) | Self::Math(_) => false,
+        }
+    }
+}
+
+/// What the layout of a box hands the box's fragment besides its geometry, until the fragment is built.
+#[derive(Clone, Default)]
+pub(crate) struct PendingPayload {
+    payload: Option<std::sync::Arc<FcPayload>>,
+    pub(crate) line_clamp: LineClampFacts,
+}
+
+impl PendingPayload {
+    fn of_fragment(fragment: &Fragment) -> Self {
+        Self {
+            payload: fragment.payload.clone(),
+            line_clamp: fragment.line_clamp,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.payload.is_none() && self.line_clamp == LineClampFacts::default()
+    }
+
+    pub(crate) fn set(&mut self, payload: FcPayload) {
+        debug_assert!(
+            self.payload
+                .as_deref()
+                .is_none_or(|held| std::mem::discriminant(held) == std::mem::discriminant(&payload)),
+            "the fragment of a box gets payloads of two kinds"
+        );
+        self.payload = Some(std::sync::Arc::new(payload));
+    }
+
+    fn variant_mut<Variant>(
+        &mut self,
+        empty: fn() -> FcPayload,
+        variant: fn(&mut FcPayload) -> Option<&mut Variant>,
+    ) -> &mut Variant {
+        let payload = std::sync::Arc::make_mut(self.payload.get_or_insert_with(|| std::sync::Arc::new(empty())));
+        let holds_other_kind = variant(payload).is_none();
+        debug_assert!(!holds_other_kind, "the fragment of a box gets payloads of two kinds");
+        if holds_other_kind {
+            *payload = empty();
+        }
+        variant(payload).expect("the payload is of the kind just made")
+    }
+
+    pub(crate) fn grid_mut(&mut self) -> &mut GridPayload {
+        self.variant_mut(
+            || FcPayload::Grid(GridPayload::default()),
+            |payload| match payload {
+                FcPayload::Grid(grid) => Some(grid),
+                _ => None,
+            },
+        )
+    }
+
+    pub(crate) fn svg_mut(&mut self) -> &mut SvgPayload {
+        self.variant_mut(
+            || FcPayload::Svg(SvgPayload::default()),
+            |payload| match payload {
+                FcPayload::Svg(svg) => Some(svg),
+                _ => None,
+            },
+        )
+    }
+}
+
 pub(crate) struct Fragment {
     pub(crate) identity: u64,
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) sides: BoxSides,
-    pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
-    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
-    pub(crate) math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
-    pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
-    /// Boxed, as only SVG boxes have any and the facts are larger than the rest of the fragment's box.
-    pub(crate) svg: Option<Box<CommittedSvgFacts>>,
-    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
-    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
+    pub(crate) payload: Option<std::sync::Arc<FcPayload>>,
     pub(crate) line_clamp: LineClampFacts,
     pub(crate) breaks: BreakFacts,
     pub(crate) scrollable_overflow: fragment_overflow::FragmentScrollableOverflow,
@@ -187,24 +322,51 @@ fn same_allocation<T>(left: Option<&std::sync::Arc<T>>, right: Option<&std::sync
     }
 }
 
-/// How two fragments' shared payloads compare: as the same allocations, as painting needs, or as equal values, as
-/// two layouts of one box do.
-#[derive(Clone, Copy)]
-enum PayloadComparison {
-    SameAllocation,
-    SameValue,
-}
-
-impl PayloadComparison {
-    fn matches<T: PartialEq>(self, left: Option<&std::sync::Arc<T>>, right: Option<&std::sync::Arc<T>>) -> bool {
-        match self {
-            Self::SameAllocation => same_allocation(left, right),
-            Self::SameValue => left.map(|left| &**left) == right.map(|right| &**right),
+impl Fragment {
+    pub(crate) fn collapsed_table_borders(
+        &self,
+    ) -> Option<&std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>> {
+        match self.payload.as_deref()? {
+            FcPayload::Table(borders) => Some(borders),
+            _ => None,
         }
     }
-}
 
-impl Fragment {
+    pub(crate) fn grid(&self) -> Option<&GridPayload> {
+        match self.payload.as_deref()? {
+            FcPayload::Grid(grid) => Some(grid),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn flex_layout_data(&self) -> Option<&std::sync::Arc<formatting_context::FlexLayoutData>> {
+        match self.payload.as_deref()? {
+            FcPayload::Flex(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn multicol_layout_data(&self) -> Option<&std::sync::Arc<fragmentation::MulticolLayoutData>> {
+        match self.payload.as_deref()? {
+            FcPayload::Multicol(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn math_paint_data(&self) -> Option<&std::sync::Arc<math_formatting_context::MathPaintData>> {
+        match self.payload.as_deref()? {
+            FcPayload::Math(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn svg(&self) -> Option<&SvgPayload> {
+        match self.payload.as_deref()? {
+            FcPayload::Svg(svg) => Some(svg),
+            _ => None,
+        }
+    }
+
     fn builds_identically_to(&self, previous: &Fragment) -> bool {
         std::ptr::eq(self, previous)
             || self.scrollable_overflow == previous.scrollable_overflow
@@ -231,16 +393,8 @@ impl Fragment {
             identity: self.identity,
             node: self.node,
             sides: self.sides,
-            collapsed_table_borders: self.collapsed_table_borders.clone(),
             line_data: self.line_data.clone(),
-            grid_layout_data: self.grid_layout_data.clone(),
-            flex_layout_data: self.flex_layout_data.clone(),
-            multicol_layout_data: self.multicol_layout_data.clone(),
-            math_paint_data: self.math_paint_data.clone(),
-            used_grid_tracks: self.used_grid_tracks.clone(),
-            svg: self.svg.clone(),
-            computed_svg_path: self.computed_svg_path.clone(),
-            svg_text_character_cells: self.svg_text_character_cells.clone(),
+            payload: self.payload.clone(),
             line_clamp: self.line_clamp,
             breaks: self.breaks,
             scrollable_overflow,
@@ -263,34 +417,37 @@ impl Fragment {
     /// Box properties excluding inline content and child fragments. Painting compares those
     /// separately: a new descendant fragment does not necessarily change this box's commands.
     pub(crate) fn has_same_box_properties(&self, previous: &Fragment) -> bool {
-        self.has_same_box_properties_comparing_payloads(previous, PayloadComparison::SameAllocation)
+        self.has_same_box_properties_comparing_payloads(previous, FcPayload::eq)
     }
 
     /// Box properties excluding inline content and child fragments, with payloads compared by value.
     pub(crate) fn has_same_box_properties_comparing_payloads_by_value(&self, previous: &Fragment) -> bool {
-        self.has_same_box_properties_comparing_payloads(previous, PayloadComparison::SameValue)
+        self.has_same_box_properties_comparing_payloads(previous, FcPayload::same_value)
     }
 
-    fn has_same_box_properties_comparing_payloads(&self, previous: &Fragment, payloads: PayloadComparison) -> bool {
+    /// Whether the layout handed the fragment payloads of the same values as `previous`.
+    pub(crate) fn has_payloads_of_same_value_as(&self, previous: &Fragment) -> bool {
+        self.has_payloads_matching(previous, FcPayload::same_value)
+    }
+
+    fn has_payloads_matching(&self, previous: &Fragment, same_payload: fn(&FcPayload, &FcPayload) -> bool) -> bool {
+        self.line_clamp == previous.line_clamp
+            && match (self.payload.as_deref(), previous.payload.as_deref()) {
+                (None, None) => true,
+                (Some(payload), Some(previous_payload)) => same_payload(payload, previous_payload),
+                _ => false,
+            }
+    }
+
+    fn has_same_box_properties_comparing_payloads(
+        &self,
+        previous: &Fragment,
+        same_payload: fn(&FcPayload, &FcPayload) -> bool,
+    ) -> bool {
         self.node == previous.node
             && self.sides == previous.sides
-            && payloads.matches(
-                self.collapsed_table_borders.as_ref(),
-                previous.collapsed_table_borders.as_ref(),
-            )
-            && payloads.matches(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
-            && payloads.matches(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
-            && self.multicol_layout_data == previous.multicol_layout_data
-            && self.math_paint_data == previous.math_paint_data
-            && payloads.matches(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
-            && self.svg == previous.svg
-            && payloads.matches(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
-            && payloads.matches(
-                self.svg_text_character_cells.as_ref(),
-                previous.svg_text_character_cells.as_ref(),
-            )
-            && self.line_clamp == previous.line_clamp
             && self.breaks == previous.breaks
+            && self.has_payloads_matching(previous, same_payload)
     }
 
     pub(crate) fn has_same_child_placements(&self, previous: &Fragment) -> bool {
@@ -321,16 +478,8 @@ impl FragmentLink {
                 identity: 1,
                 node,
                 sides: BoxSides::default(),
-                collapsed_table_borders: None,
                 line_data: None,
-                grid_layout_data: None,
-                flex_layout_data: None,
-                multicol_layout_data: None,
-                math_paint_data: None,
-                used_grid_tracks: None,
-                svg: None,
-                computed_svg_path: None,
-                svg_text_character_cells: None,
+                payload: None,
                 line_clamp: LineClampFacts::default(),
                 breaks: BreakFacts::default(),
                 scrollable_overflow: Default::default(),
@@ -676,38 +825,6 @@ fn previously_committed_fragment_where(
         })
 }
 
-/// What the layout of a box hands its fragment for painting and the devtools besides its geometry.
-#[derive(Clone, Default, PartialEq)]
-pub(crate) struct FragmentPayloads {
-    pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
-    pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
-    pub(crate) multicol_layout_data: Option<std::sync::Arc<fragmentation::MulticolLayoutData>>,
-    pub(crate) math_paint_data: Option<std::sync::Arc<math_formatting_context::MathPaintData>>,
-    pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
-    pub(crate) svg: CommittedSvgFacts,
-    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
-    pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
-    pub(crate) line_clamp: LineClampFacts,
-}
-
-impl FragmentPayloads {
-    pub(crate) fn of_fragment(fragment: &Fragment) -> Self {
-        Self {
-            collapsed_table_borders: fragment.collapsed_table_borders.clone(),
-            grid_layout_data: fragment.grid_layout_data.clone(),
-            flex_layout_data: fragment.flex_layout_data.clone(),
-            multicol_layout_data: fragment.multicol_layout_data.clone(),
-            math_paint_data: fragment.math_paint_data.clone(),
-            used_grid_tracks: fragment.used_grid_tracks.clone(),
-            svg: fragment.svg.as_deref().copied().unwrap_or_default(),
-            computed_svg_path: fragment.computed_svg_path.clone(),
-            svg_text_character_cells: fragment.svg_text_character_cells.clone(),
-            line_clamp: fragment.line_clamp,
-        }
-    }
-}
-
 /// What the placement of a box shows of the box's own layout, in the frame of the run that places it: the fragment shows
 /// its sizes, borders, paddings and lines, and the link shows its margins.
 #[derive(Clone)]
@@ -729,21 +846,10 @@ fn snapshot_fragment(
     mut children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
     breaks: BreakFacts,
-    payloads: Option<Box<FragmentPayloads>>,
+    payload: PendingPayload,
 ) -> std::sync::Arc<Fragment> {
     let FragmentGeometry { cells, line_data } = geometry;
-    let FragmentPayloads {
-        collapsed_table_borders,
-        grid_layout_data,
-        flex_layout_data,
-        multicol_layout_data,
-        math_paint_data,
-        used_grid_tracks,
-        svg,
-        computed_svg_path,
-        svg_text_character_cells,
-        line_clamp,
-    } = payloads.map(|payloads| *payloads).unwrap_or_default();
+    let PendingPayload { payload, line_clamp } = payload;
     if line_clamp.has_line_clamp_point && !breaks.continues_in_next {
         line_clamp_edge::clip_floats_at_block_end_content_edge(
             pass,
@@ -758,16 +864,8 @@ fn snapshot_fragment(
         identity: 0,
         node,
         sides: cells.box_sides(),
-        collapsed_table_borders,
         line_data,
-        grid_layout_data,
-        flex_layout_data,
-        multicol_layout_data,
-        math_paint_data,
-        used_grid_tracks,
-        svg: (svg != CommittedSvgFacts::default()).then(|| Box::new(svg)),
-        computed_svg_path,
-        svg_text_character_cells,
+        payload: payload.filter(|payload| !payload.holds_nothing()),
         line_clamp,
         breaks,
         scrollable_overflow: Default::default(),
@@ -817,10 +915,10 @@ fn fragment_of_placed_box(
     children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
     breaks: BreakFacts,
-    payloads: Option<Box<FragmentPayloads>>,
+    payload: PendingPayload,
 ) -> std::sync::Arc<Fragment> {
     let Some(arrived) = arrived else {
-        return snapshot_fragment(pass, node, children, geometry, breaks, payloads);
+        return snapshot_fragment(pass, node, children, geometry, breaks, payload);
     };
     let shows_box_as_placed =
         children.is_empty() && geometry.shows_box_of_fragment(&arrived) && arrived.breaks == breaks;
@@ -835,7 +933,7 @@ fn fragment_of_placed_box(
         all_children,
         geometry,
         breaks,
-        Some(Box::new(FragmentPayloads::of_fragment(&arrived))),
+        PendingPayload::of_fragment(&arrived),
     )
 }
 
@@ -891,7 +989,7 @@ pub(crate) struct RunContents {
     pub(crate) holds_links_beside_their_sealed_containing_blocks: bool,
     pub(crate) payloads_past_run: PayloadsPastRun,
     /// What the run's layout of its root hands the root's fragment.
-    pub(crate) root_payloads: Option<Box<FragmentPayloads>>,
+    pub(crate) root_payload: PendingPayload,
 }
 
 impl RunContents {
@@ -902,7 +1000,7 @@ impl RunContents {
             mut scoped_descendants,
             holds_links_beside_their_sealed_containing_blocks,
             payloads_past_run,
-            root_payloads,
+            root_payload,
         } = self;
         if holds_links_beside_their_sealed_containing_blocks {
             fragment_overflow::include_links_held_beside_their_containing_blocks(
@@ -918,7 +1016,7 @@ impl RunContents {
                 scoped_descendants,
                 geometry,
                 BreakFacts::default(),
-                root_payloads,
+                root_payload,
             ),
             payloads_past_run,
         )
@@ -983,7 +1081,7 @@ struct PendingFragment {
     pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
     anchor_candidates: Vec<AnchorCandidate>,
     inline_containing_block_rects: Vec<InlineContainingBlockRect>,
-    payloads: Option<Box<FragmentPayloads>>,
+    payload: PendingPayload,
 }
 
 impl PendingFragment {
@@ -995,7 +1093,7 @@ impl PendingFragment {
             pending_abspos: Vec::new(),
             anchor_candidates: Vec::new(),
             inline_containing_block_rects: Vec::new(),
-            payloads: None,
+            payload: PendingPayload::default(),
         }
     }
 }
@@ -1022,7 +1120,7 @@ struct RunFragmentBuilderInner {
     /// the top of the run's fragments.
     children_left_unplaced: Vec<ChildLeftUnplaced>,
     /// What the run's layout of its root hands the root's fragment.
-    root_payloads: Option<Box<FragmentPayloads>>,
+    root_payload: PendingPayload,
     /// Where the run placed each box it placed so far, from the moment it places the box, before the placement drains
     /// the absolutely positioned boxes the box contains.
     placed_boxes: PlacedBoxes,
@@ -1619,18 +1717,19 @@ impl RunFragmentBuilder {
         fragment_arrival: Option<RunRootFragment>,
     ) {
         debug_assert!(!self.left_child_unplaced(node), "a child left unplaced is discarded");
-        let arrived_payloads = fragment_arrival.map(|root| Box::new(FragmentPayloads::of_fragment(&root.fragment)));
+        let arrived_payload = fragment_arrival.map(|root| PendingPayload::of_fragment(&root.fragment));
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        let mut payloads_of_box = arrived_payloads;
-        if let Some(pending_fragment) = inner.pending_fragments.remove(&slot) {
-            payloads_of_box = payloads_of_box.or(pending_fragment.payloads);
-        }
-        if payloads_of_box.is_some() {
+        let pending_payload = inner
+            .pending_fragments
+            .remove(&slot)
+            .map(|pending_fragment| pending_fragment.payload)
+            .filter(|payload| !payload.is_empty());
+        if let Some(payload_of_box) = arrived_payload.or(pending_payload) {
             inner.pending_fragments.insert(
                 slot,
                 PendingFragment {
-                    payloads: payloads_of_box,
+                    payload: payload_of_box,
                     ..PendingFragment::new(node)
                 },
             );
@@ -1638,22 +1737,22 @@ impl RunFragmentBuilder {
     }
 
     /// Hands what the layout of `node` produced besides its geometry to the box's fragment.
-    pub(crate) fn update_fragment_payloads_of(
+    pub(crate) fn update_fragment_payload_of(
         &self,
         node: crate::layout::node_data::NodeSlotId,
-        update: impl FnOnce(&mut FragmentPayloads),
+        update: impl FnOnce(&mut PendingPayload),
     ) {
         let mut inner = self.inner.borrow_mut();
-        let payloads = if node == self.root_node && !self.is_entry_accumulator {
-            &mut inner.root_payloads
+        let payload = if node == self.root_node && !self.is_entry_accumulator {
+            &mut inner.root_payload
         } else {
             &mut inner
                 .pending_fragments
                 .entry(node.slot_index())
                 .or_insert_with(|| PendingFragment::new(node))
-                .payloads
+                .payload
         };
-        update(payloads.get_or_insert_with(Default::default));
+        update(payload);
     }
 
     fn merge_child_root_into_pending_fragment(
@@ -1724,7 +1823,7 @@ impl RunFragmentBuilder {
             pending_abspos: pending_abspos_from_placed_box,
             anchor_candidates: anchor_candidates_from_placed_box,
             inline_containing_block_rects: inline_containing_block_rects_from_placed_box,
-            payloads,
+            payload,
         } = inner
             .pending_fragments
             .remove(&slot)
@@ -1744,7 +1843,7 @@ impl RunFragmentBuilder {
             children,
             geometry,
             facts.fragment_facts.breaks,
-            payloads,
+            payload,
         );
         let link = FragmentLink {
             fragment: fragment.clone(),
@@ -1921,7 +2020,7 @@ impl RunFragmentBuilder {
                     Vec::new(),
                     unplaced_child.geometry,
                     facts.fragment_facts.breaks,
-                    None,
+                    PendingPayload::default(),
                 ),
                 committed_offset: FfiCssPixelPoint::default(),
                 placement,
@@ -1963,7 +2062,7 @@ impl RunFragmentBuilder {
             scoped_descendants: inner.top_scope_links,
             holds_links_beside_their_sealed_containing_blocks: inner.holds_links_beside_their_sealed_containing_blocks,
             payloads_past_run,
-            root_payloads: inner.root_payloads,
+            root_payload: inner.root_payload,
         }
     }
 }
