@@ -18,6 +18,8 @@ pub(crate) struct FcRunCacheKey {
     pub(crate) fc_type: formatting_context::FormattingContextType,
     pub(crate) input: LayoutInput,
     pub(crate) root_cells: used_values::RootInputCells,
+    /// The frame of the formatting context the run's root is laid out in, which holds the input and the root's cells.
+    pub(crate) parent_frame: geometry::Frame,
 }
 
 /// The inputs a run never observed, at which its stored outputs are reused as they are.
@@ -116,6 +118,21 @@ fn root_input_cells_match_ignoring_unobserved(
 }
 
 impl FcRunCacheKey {
+    /// The key of a run probed in `pass`, whose frame is that of the formatting context the run's root is laid out in.
+    pub(crate) fn new(
+        pass: &LayoutPass<'_>,
+        fc_type: formatting_context::FormattingContextType,
+        input: LayoutInput,
+        root_cells: used_values::RootInputCells,
+    ) -> Self {
+        Self {
+            fc_type,
+            input,
+            root_cells,
+            parent_frame: pass.frame,
+        }
+    }
+
     /// The key with the root's block paddings left out.
     fn without_root_block_paddings(&self) -> Self {
         let mut key = self.clone();
@@ -125,7 +142,7 @@ impl FcRunCacheKey {
     }
 
     fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
-        if self.fc_type != probe.fc_type {
+        if self.fc_type != probe.fc_type || self.parent_frame != probe.parent_frame {
             return false;
         }
         if self.root_cells == probe.root_cells && self.input == probe.input {
@@ -1014,6 +1031,7 @@ mod tests {
                 ParticipationInParentFormattingContext::AtomicInline,
             ),
             root_cells: used_values::RootInputCells::default(),
+            parent_frame: geometry::Frame::PHYSICAL,
         }
     }
 
@@ -1472,6 +1490,7 @@ mod tests {
             fc_type: formatting_context::FormattingContextType::Block,
             input,
             root_cells,
+            parent_frame: geometry::Frame::PHYSICAL,
         };
         let stored = key_of(item_input.clone());
 
@@ -1606,6 +1625,7 @@ mod tests {
                 ParticipationInParentFormattingContext::Item,
             ),
             root_cells,
+            parent_frame: geometry::Frame::PHYSICAL,
         }
     }
 
