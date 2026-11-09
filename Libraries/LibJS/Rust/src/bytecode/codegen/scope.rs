@@ -30,6 +30,7 @@ use crate::bytecode::executable_data::PendingSharedFunctionData;
 use crate::bytecode::executable_data::PrecompiledFunction;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::operand::*;
+use crate::bytecode::source_map::SourceOffset;
 use crate::parser::EnclosingCode;
 use crate::parser::FunctionRow;
 use crate::parser::columns::NONE;
@@ -1977,9 +1978,15 @@ impl Generator<'_> {
         let context = &mut *self.context;
         let constants = link_block.slice(context.constants.values.drain(..));
         let scope = &context.scope;
-        let local_variable_metadata = block.slice(scope.locals.iter().map(|local| LocalVariableMetadata {
-            is_mutable: local.is_mutable,
-            scope_range: local.block_range.map(|(start, end)| tree.range_between(start, end)),
+        let local_variable_metadata = block.slice(scope.locals.iter().map(|local| {
+            let (start, end) = local
+                .block_range
+                .unwrap_or((SourceOffset::NONE.0, SourceOffset::NONE.0));
+            LocalVariableMetadata {
+                is_mutable: local.is_mutable,
+                scope_start: SourceOffset(start),
+                scope_end: SourceOffset(end),
+            }
         }));
         let local_names = scope.locals.iter().map(|local| (local.name, true));
         let variable_names = block.slice_of_length(

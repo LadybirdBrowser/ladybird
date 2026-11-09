@@ -13,7 +13,7 @@ use ak::Utf16String;
 use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
 use super::operand::PropertyKeyTableIndex;
-use super::source_map::SourceOffsetEntry;
+use super::source_map::{SourceOffset, SourceOffsetEntry};
 use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
 use crate::compile::utf16_string_memory_size;
@@ -164,7 +164,8 @@ pub struct ExecutableCacheCounts {
 pub struct LocalVariableMetadata {
     pub is_mutable: bool,
     /// The part of the source code in which the local variable is in scope.
-    pub scope_range: Option<crate::ast::SourceRange>,
+    pub scope_start: SourceOffset,
+    pub scope_end: SourceOffset,
 }
 
 /// One compiled script, module or function body: everything about it that does not depend on where it runs. Nothing

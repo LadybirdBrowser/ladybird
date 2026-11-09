@@ -1641,16 +1641,21 @@ impl Executable {
     }
 
     pub fn local_variable_scope_range(&self, index: usize) -> Option<LocalVariableScopeRange> {
-        let position = |position: crate::ast::Position| Position {
-            line: position.line,
-            column: position.column,
+        let metadata = self.local_variable_metadata()[index];
+        if metadata.scope_start == SourceOffset::NONE {
+            return None;
+        }
+        let position = |offset: SourceOffset| {
+            let position = self.code.position_source.lines.position(offset.0);
+            Position {
+                line: position.line,
+                column: position.column,
+            }
         };
-        self.local_variable_metadata()[index]
-            .scope_range
-            .map(|range| LocalVariableScopeRange {
-                start: position(range.start),
-                end: position(range.end),
-            })
+        Some(LocalVariableScopeRange {
+            start: position(metadata.scope_start),
+            end: position(metadata.scope_end),
+        })
     }
 
     pub fn local_variable_names(&self) -> &[Utf16FlyString] {
