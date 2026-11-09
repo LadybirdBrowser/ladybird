@@ -24,6 +24,14 @@ const cases = [
     ["1; { let a = 1 }", 1],
     ["1; class C {}", 1],
     ["{ let a = 1; a; let b = (a = 9); }", 1],
+    ["{ let a = 1; a++; }", 1],
+    ["{ let a = 5; a--; }", 5],
+    ["{ let a = '5'; a++ }", 5],
+    ["{ let a = 1n; a-- }", 1n],
+    ["{ let i = 0; while (i < 3) i++; }", 2],
+    ["for (let i = 0; i < 2; i++) { i++; }", 0],
+    ["try { throw 1 } catch (e) { e++ }", 1],
+    ["{ let a = 1; ++a; }", 2],
 ];
 
 test("the value of statements in eval code", () => {

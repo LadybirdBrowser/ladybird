@@ -3264,6 +3264,12 @@ impl Generator<'_> {
 
     // --- Statements ---
 
+    /// Whether the value of an expression statement is what the code completes with, should it be the last one.
+    #[inline(always)]
+    pub(super) fn tracks_completion(&self) -> bool {
+        self.context.stream.completion.is_some()
+    }
+
     /// What the statement evaluated is of no use.
     #[inline(always)]
     pub(super) fn end_of_expression_statement(&mut self) {
