@@ -201,16 +201,10 @@ fn layout_frameset_child(
         x: offset.x + cells.border_left + cells.padding_left,
         y: offset.y + cells.border_top + cells.padding_top,
     };
-    let outcome = formatting_context::run_formatting_context(
-        run.fragments.is_some(),
-        cells,
-        child,
-        run.pass.in_flow_containing_block(child),
-        None,
-        formatting_context::independent_formatting_context_type(child, &run.pass),
-        run.should_collect_devtools_layout_data,
-        run.pass,
-        geometry::LayoutInput {
+    let plan = formatting_context::ChildRunPlan {
+        fc_type: formatting_context::independent_formatting_context_type(child, &run.pass),
+        root_containing_block: run.pass.in_flow_containing_block(child),
+        input: geometry::LayoutInput {
             available_space: geometry::AvailableSpace {
                 inline_size: geometry::AvailableSize::definite(inline_size),
                 block_size: geometry::AvailableSize::definite(block_size),
@@ -219,7 +213,11 @@ fn layout_frameset_child(
             sizing: geometry::RootSizingDirectives::default(),
             participation: geometry::ParticipationInParentFormattingContext::Item,
         },
-        None,
+    };
+    let outcome = formatting_context::run_formatting_context(
+        run.pass,
+        formatting_context::RunRequest::of_child(run, child, plan, cells),
+        formatting_context::RunSideInputs::default(),
     );
     formatting_context::place_child(
         run,

@@ -40,16 +40,10 @@ pub(super) fn layout_replaced_with_children(
     let mut wrapper_cells = used_values::cells_before_sizing(&run.pass, wrapper, wrapper_constraints);
     wrapper_cells.set_content_inline_size(content_inline_size);
 
-    let wrapper_outcome = formatting_context::run_formatting_context(
-        run.fragments.is_some(),
-        wrapper_cells,
-        wrapper,
-        run.pass.in_flow_containing_block(wrapper),
-        None,
-        formatting_context::FormattingContextType::Block,
-        run.should_collect_devtools_layout_data,
-        run.pass,
-        geometry::LayoutInput {
+    let plan = formatting_context::ChildRunPlan {
+        fc_type: formatting_context::FormattingContextType::Block,
+        root_containing_block: run.pass.in_flow_containing_block(wrapper),
+        input: geometry::LayoutInput {
             available_space: child_available_space,
             containing_block_constraints: wrapper_constraints,
             sizing: geometry::RootSizingDirectives {
@@ -58,7 +52,11 @@ pub(super) fn layout_replaced_with_children(
             },
             participation: geometry::ParticipationInParentFormattingContext::Item,
         },
-        None,
+    };
+    let wrapper_outcome = formatting_context::run_formatting_context(
+        run.pass,
+        formatting_context::RunRequest::of_child(run, wrapper, plan, wrapper_cells),
+        formatting_context::RunSideInputs::default(),
     );
     let formatting_context::ChildLayoutOutcome::Created(wrapper_result) = wrapper_outcome.outcome else {
         unreachable!("a run creates its root's result");
