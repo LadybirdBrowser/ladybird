@@ -4912,19 +4912,15 @@ impl<'pass> GridFormattingContext<'pass> {
                     }
                 }
             };
-            let formatting_context::ChildLayout {
-                outcome,
-                fragment_arrival,
-                laid_out_box,
-            } = laid_out;
-            self.update_cells_of(item, |item_cells| *item_cells = laid_out_box.cells);
-            outcome.report_percentage_block_size_dependency_of(run, item.box_);
+            self.update_cells_of(item, |item_cells| *item_cells = laid_out.cells());
+            laid_out.report_percentage_block_size_dependency_of(run, item.box_);
             self.collected_item(item).laid_out.set(Some(LaidOutGridItem {
-                content_baselines: laid_out_box.baselines,
-                orthogonal_flow_baselines: laid_out_box.orthogonal_flow_baselines,
+                content_baselines: laid_out.baselines(),
+                orthogonal_flow_baselines: laid_out.orthogonal_flow_baselines(),
                 content_offset: None,
             }));
-            let placed_item = formatting_context::PlacedChild::of_taken_laid_out_box(laid_out_box);
+            let placed_item = laid_out.placed_child();
+            let fragment_arrival = laid_out.into_fragment_arrival(run);
             let offset = FfiCssPixelPoint {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),

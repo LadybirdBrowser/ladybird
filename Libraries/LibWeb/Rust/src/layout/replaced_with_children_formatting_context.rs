@@ -74,22 +74,15 @@ fn layout_replaced_with_children(
         formatting_context::RunRequest::of_child(run, wrapper, plan, wrapper_cells),
         formatting_context::RunSideInputs::default(),
     );
-    let formatting_context::ChildLayoutOutcome::Created(wrapper_result) = wrapper_outcome.outcome else {
-        unreachable!("a run creates its root's result");
-    };
-    formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
-        run.state,
-        &run.pass,
-        wrapper,
-        wrapper_result.depends_on_percentage_block_size,
-    );
+    let wrapper_result = *wrapper_outcome.result().expect("a run creates its root's result");
+    wrapper_outcome.report_percentage_block_size_dependency_of(run, wrapper);
     formatting_context::place_child(
         run,
         wrapper,
         wrapper_outcome.placed_child(),
         used_values::FfiCssPixelPoint::default(),
         None,
-        wrapper_outcome.fragment_arrival,
+        wrapper_outcome.into_fragment_arrival(run),
     );
 
     formatting_context::ChildLayoutResult {

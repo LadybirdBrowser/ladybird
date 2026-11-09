@@ -2926,11 +2926,7 @@ impl<'pass> TableFormattingContext<'pass> {
             participation: ParticipationInParentFormattingContext::Item,
         };
         let cell = self.cells[cell_index];
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+        let laid_out = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -2942,12 +2938,12 @@ impl<'pass> TableFormattingContext<'pass> {
             // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
             run.percentage_block_insets_of_root_children_have_definite_basis(&self.table_box_cells),
         );
-        self.cell_box_cells[cell_index] = laid_out_box.cells;
-        self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out_box.baselines);
-        outcome.report_percentage_block_size_dependency_of(run, cell.box_);
-        let baselines = laid_out_box.baselines;
-        self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
-        (baselines, fragment_arrival)
+        self.cell_box_cells[cell_index] = laid_out.cells();
+        let baselines = laid_out.baselines();
+        self.content_baselines_of_handed_back_cells[cell_index] = Some(baselines);
+        laid_out.report_percentage_block_size_dependency_of(run, cell.box_);
+        self.placed_cells[cell_index] = Some(laid_out.placed_child());
+        (baselines, laid_out.into_fragment_arrival(run))
     }
 
     fn keep_fragment_arrival_of_cell(
@@ -3530,14 +3526,12 @@ impl<'pass> TableFormattingContext<'pass> {
                 let cell_box = &mut self.cell_box_cells[cell_index];
                 cell_box.padding_top += intrinsic_block_padding.0;
                 cell_box.padding_bottom += intrinsic_block_padding.1;
-                let laid_out = run_state::LaidOutChildBox {
-                    cells: *cell_box,
-                    baselines: measurement.baselines,
-                    orthogonal_flow_baselines: None,
-                    line_data: None,
-                };
-                self.placed_cells[cell_index] = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out));
-                self.content_baselines_of_handed_back_cells[cell_index] = Some(laid_out.baselines);
+                self.placed_cells[cell_index] =
+                    Some(formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
+                        cells: *cell_box,
+                        line_data: None,
+                    }));
+                self.content_baselines_of_handed_back_cells[cell_index] = Some(measurement.baselines);
                 formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                     run.state,
                     &run.pass,

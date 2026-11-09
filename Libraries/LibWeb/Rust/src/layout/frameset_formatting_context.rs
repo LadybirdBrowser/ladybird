@@ -225,7 +225,7 @@ fn layout_frameset_child(
         outcome.placed_child(),
         offset,
         None,
-        outcome.fragment_arrival,
+        outcome.into_fragment_arrival(run),
     );
 }
 

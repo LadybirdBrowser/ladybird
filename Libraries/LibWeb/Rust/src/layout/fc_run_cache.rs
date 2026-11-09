@@ -456,7 +456,7 @@ pub(crate) struct FcRunCacheValidity {
 /// The result of a completed run, which stands for any run with a matching key, whether or not the stored run's own
 /// result was committed. Its fragments are those it produced; where they are what the box committed, a hit keeps the
 /// committed subtree instead of replaying them.
-pub(super) struct FcRunCacheEntry {
+pub(crate) struct FcRunCacheEntry {
     key: LayoutRequest,
     validity: FcRunCacheValidity,
     pub(super) result: formatting_context::LayoutResult,
