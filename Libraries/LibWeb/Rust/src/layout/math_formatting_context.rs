@@ -2656,8 +2656,8 @@ impl<'pass> MathFormattingContext<'pass> {
                         block_size: root_after_epilogue.content_block_size,
                     },
                 },
-                inline_alignment: abspos_inputs::StaticPositionAlignment::Start,
-                block_alignment: abspos_inputs::StaticPositionAlignment::Start,
+                inline_alignment: AxisEdge::Start,
+                block_alignment: AxisEdge::Start,
                 alignment_derives_from_own_computed_values: false,
             };
             formatting_context::register_contained_abspos_child(

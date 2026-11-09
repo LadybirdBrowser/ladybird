@@ -1561,8 +1561,8 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
                     child,
                     abspos_inputs::StaticPositionRect {
                         rect: Default::default(),
-                        inline_alignment: StaticPositionAlignment::Start,
-                        block_alignment: StaticPositionAlignment::Start,
+                        inline_alignment: AxisEdge::Start,
+                        block_alignment: AxisEdge::Start,
                         alignment_derives_from_own_computed_values: false,
                     },
                     None,

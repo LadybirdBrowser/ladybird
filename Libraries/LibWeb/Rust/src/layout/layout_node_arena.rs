@@ -6574,8 +6574,9 @@ const _: () = {
 #[cfg(test)]
 mod tests {
 
+    use crate::layout::AxisEdge;
     use crate::layout::abspos_inputs::{
-        AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment, StaticPositionRect,
+        AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionRect,
     };
     use crate::layout::layout_node_arena::{
         Chunk, DerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
@@ -7615,8 +7616,8 @@ mod tests {
             inline_containing_block: NodeSlotId::INVALID,
             static_position_rect: StaticPositionRect {
                 rect: Default::default(),
-                inline_alignment: StaticPositionAlignment::Center,
-                block_alignment: StaticPositionAlignment::End,
+                inline_alignment: AxisEdge::Center,
+                block_alignment: AxisEdge::End,
                 alignment_derives_from_own_computed_values: true,
             },
             containing_block_info: AbsposContainingBlockInfo {

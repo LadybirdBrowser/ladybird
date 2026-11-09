@@ -13,6 +13,7 @@ pub(crate) use crate::css::display::*;
 pub(crate) mod abspos_engine;
 pub(crate) mod abspos_inputs;
 pub(crate) mod block_formatting_context;
+pub(crate) mod box_alignment;
 pub(crate) mod box_removal;
 pub mod commit;
 pub(crate) mod counters;
@@ -90,7 +91,8 @@ use crate::layout::node_data::NodeData;
 use crate::layout::node_data::NodeFlag;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
-pub(crate) use abspos_inputs::{AbsposAlignment, StaticPositionAlignment};
+pub(crate) use abspos_inputs::AbsposAlignment;
+pub(crate) use box_alignment::AxisEdge;
 pub(crate) use formatting_context::{
     ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, Node, SizingAxis,
     SizingProperty,

@@ -557,11 +557,11 @@ impl GridFormattingContext<'_> {
 
     /// The alignment of an item in the stacking axis, where Start and End are the left/top and right/bottom sides of
     /// its alignment container.
-    pub(super) fn grid_lanes_stacking_axis_item_alignment(&self, item: GridItem, axis: Axis) -> Alignment {
-        let start = if self.axis_is_reversed(axis) {
-            Alignment::End
-        } else {
-            Alignment::Start
+    pub(super) fn grid_lanes_stacking_axis_item_alignment(&self, item: GridItem, axis: Axis) -> SelfAlignment {
+        let alignment = self.item_physical_alignment(item, axis);
+        let start = SelfAlignment {
+            position: SelfPosition::Edge(alignment.container_start),
+            ..alignment
         };
         if !item
             .grid_lanes_stacking_area
@@ -569,13 +569,13 @@ impl GridFormattingContext<'_> {
         {
             return start;
         }
-        match self.item_physical_alignment(item, axis) {
+        match alignment.position {
             // https://drafts.csswg.org/css-grid-3/#grid-lanes-baseline-alignment
             // Baseline alignment is not supported in the stacking axis. The baseline alignment values of the
             // self-alignment properties on grid items are treated as their fallback alignment in this axis.
             // NB: Normal alignment does not stretch an item in the stacking axis.
-            Alignment::Normal | Alignment::Baseline => start,
-            alignment => alignment,
+            SelfPosition::Normal | SelfPosition::Baseline => start,
+            _ => alignment,
         }
     }
 
@@ -646,11 +646,7 @@ impl GridFormattingContext<'_> {
         // https://drafts.csswg.org/css-grid-3/#stacking-content-alignment
         // In the stacking axis, content-distribution is applied to the content as a whole, similarly to how it behaves
         // in block containers. More specifically, the alignment subject is the stacking range.
-        let start = content_start_offset(
-            self.content_alignment(axis),
-            self.grid_container_alignment_size(axis),
-            self.track_sum(axis),
-        );
+        let start = self.content_start_offset(axis, self.grid_container_alignment_size(axis));
         (start + area.offset, area.size)
     }
 }
