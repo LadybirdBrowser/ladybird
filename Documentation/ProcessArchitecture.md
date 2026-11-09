@@ -114,7 +114,7 @@ A renderer that needs a helper it does not have yet asks **Hub** for a connectio
 
 Every process in the table above except **UI** and **Hub** applies a sandbox to itself early in its startup, unless **Hub** was started with `--disable-sandbox`. Each one's sandbox allows only what that process needs, and can be found in the `Sandbox` files in its directory under `Services`. The one of **WebContent** is in `Services/RendererSandbox.h`.
 
-On Linux, sandboxes are built from seccomp and Landlock. On macOS, they use the Seatbelt sandbox. Windows has no sandbox yet.
+On Linux, sandboxes are built from seccomp and Landlock. On kernels without Landlock, seccomp traps every system call that takes a path, and a broker process forked from the helper carries out the ones that the helper's path list permits. On macOS, they use the Seatbelt sandbox. Windows has no sandbox yet.
 
 ## Class overview
 
