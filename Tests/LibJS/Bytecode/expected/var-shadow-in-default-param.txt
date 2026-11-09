@@ -1,4 +1,4 @@
-$eebd2d43 var-shadow-in-default-param.js:7:5
+$ac64a382 var-shadow-in-default-param.js:7:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,15 +8,15 @@ $eebd2d43 var-shadow-in-default-param.js:7:5
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] SetGlobal `shadow`, src:String("outer")
-  [   d] GetGlobal value_feedback:0, dst:reg6, `shadow_in_default`
-  [  16] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  27] GetGlobal value_feedback:2, dst:reg6, `no_conflict`
-  [  30] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  41] End value:reg5
+  [   4] SetGlobal `shadow`, src:String("outer")
+  [   b] GetGlobal value_feedback:0, dst:reg6, `shadow_in_default`
+  [  14] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  1f] GetGlobal value_feedback:2, dst:reg6, `no_conflict`
+  [  28] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  33] End value:reg5
 
 
-shadow_in_default$1b85a199 var-shadow-in-default-param.js:8:28
+shadow_in_default$8378f6a7 var-shadow-in-default-param.js:8:28
   Registers: 6
   Blocks:    3
   Locals:    shadow~0
@@ -29,15 +29,15 @@ block0:
   [   1] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [   c] GetGlobal value_feedback:0, dst:arg0, `shadow`
+  [   b] GetGlobal value_feedback:0, dst:arg0, `shadow`
 
 block2:
-  [  15] Mov dst:shadow~0, src:Undefined
-  [  1a] Mov dst:shadow~0, src:String("inner")
-  [  1f] Return value:arg0
+  [  14] Mov dst:shadow~0, src:Undefined
+  [  17] Mov dst:shadow~0, src:String("inner")
+  [  1a] Return value:arg0
 
 
-no_conflict$8836a16a var-shadow-in-default-param.js:15:22
+no_conflict$06d4a8e2 var-shadow-in-default-param.js:15:22
   Registers: 5
   Blocks:    3
   Locals:    y~0
@@ -51,9 +51,9 @@ block0:
   [   1] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [   c] Mov dst:arg0, src:Int32(1)
+  [   b] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  11] Mov dst:y~0, src:Undefined
-  [  16] Mov dst:y~0, src:Int32(2)
-  [  1b] Return value:y~0
+  [   e] Mov dst:y~0, src:Undefined
+  [  11] Mov dst:y~0, src:Int32(2)
+  [  14] Return value:y~0

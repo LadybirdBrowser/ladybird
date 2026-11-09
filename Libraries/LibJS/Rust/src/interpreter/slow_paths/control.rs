@@ -320,8 +320,11 @@ pub fn get_template_object(
         return SlowPathControl::continue_at(pc + instruction.length());
     }
 
+    let strings = super::operand_list(vm, instruction.strings_are_in_array, strings);
+    let strings = strings.values();
+    let strings = &*strings;
     let realm = current_realm(vm);
-    let count = instruction.strings_count / 2;
+    let count = crate::u32_from_usize(strings.len()) / 2;
     let template_object = Array::create(vm, realm, u64::from(count), None).must();
     let raw_object = Array::create(vm, realm, u64::from(count), None).must();
 

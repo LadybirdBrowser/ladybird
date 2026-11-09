@@ -1,4 +1,4 @@
-$931dc641 debugger-statement.js:6:1
+$bc07ac88 debugger-statement.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,12 @@ $931dc641 debugger-statement.js:6:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `run`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  20] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `run`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  18] End value:reg5
 
 
-run$3abe0df6 debugger-statement.js:2:5
+run$8aea4d07 debugger-statement.js:2:5
   Registers: 5
   Blocks:    1
   Constants:

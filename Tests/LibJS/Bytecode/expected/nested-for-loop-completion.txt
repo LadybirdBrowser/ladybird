@@ -1,4 +1,4 @@
-$cf059991 nested-for-loop-completion.js:4:5
+$43b0405c nested-for-loop-completion.js:4:5
   Registers: 8
   Blocks:    7
   Constants:
@@ -9,32 +9,32 @@ $cf059991 nested-for-loop-completion.js:4:5
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg5, src:Undefined
-  [   b] SetGlobal `n`, src:Int32(4)
-  [  12] Jump target:block5
+  [   4] Mov dst:reg5, src:Undefined
+  [   7] SetGlobal `n`, src:Int32(4)
+  [   e] Jump target:block5
 
 block1:
-  [  17] Mov dst:reg5, src:Undefined
-  [  1c] SetGlobal `depth`, src:Int32(0)
-  [  23] Jump target:block3
+  [  13] Mov dst:reg5, src:Undefined
+  [  16] SetGlobal `depth`, src:Int32(0)
+  [  1d] Jump target:block3
 
 block2:
-  [  28] GetGlobal value_feedback:0, dst:reg6, `depth`
-  [  31] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:2
-  [  3c] SetGlobal `depth`, src:reg7
+  [  22] GetGlobal value_feedback:0, dst:reg6, `depth`
+  [  2b] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:2
+  [  34] SetGlobal `depth`, src:reg7
 
 block3:
-  [  43] GetGlobal value_feedback:1, dst:reg6, `depth`
-  [  4c] JumpLessThanEqualsLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:0, true_target:block2, false_target:block4
+  [  3b] GetGlobal value_feedback:1, dst:reg6, `depth`
+  [  44] JumpLessThanEqualsLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:0, true_target:block2, false_target:block4
 
 block4:
-  [  5d] GetGlobal value_feedback:2, dst:reg6, `n`
-  [  66] AddRhsInt32 arith_feedback:2, dst:reg7, lhs:reg6, rhs:1
-  [  71] SetGlobal `n`, src:reg7
+  [  54] GetGlobal value_feedback:2, dst:reg6, `n`
+  [  5d] AddRhsInt32 arith_feedback:2, dst:reg7, lhs:reg6, rhs:1
+  [  66] SetGlobal `n`, src:reg7
 
 block5:
-  [  78] GetGlobal value_feedback:3, dst:reg6, `n`
-  [  81] JumpLessThanEqualsLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:7, true_target:block1, false_target:block6
+  [  6d] GetGlobal value_feedback:3, dst:reg6, `n`
+  [  76] JumpLessThanEqualsLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:7, true_target:block1, false_target:block6
 
 block6:
-  [  92] End value:reg5
+  [  86] End value:reg5

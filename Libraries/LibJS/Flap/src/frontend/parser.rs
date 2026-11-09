@@ -588,6 +588,8 @@ impl<'a> Parser<'a> {
                 | "ObjectShapeCacheIndex"
                 | "PropertyKeyTableIndex"
                 | "StringTableIndex"
+                | "DebugIdentifierIndex"
+                | "DebugStringIndex"
                 | "TemplateObjectCacheIndex"
         ) {
             Type::U32
@@ -619,7 +621,7 @@ impl<'a> Parser<'a> {
             self.advance();
             self.consume(TokenKind::RightBracket, "']'")?;
             if ty == Type::Operand {
-                ty = Type::U16;
+                ty = Type::U8;
             }
             ty = Type::Sequence(Box::new(ty));
         }

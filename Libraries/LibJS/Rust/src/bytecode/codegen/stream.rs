@@ -29,9 +29,12 @@ use crate::bytecode::executable_data::ConstantValue;
 use crate::bytecode::executable_data::ExceptionHandler;
 use crate::bytecode::executable_data::StrictRange;
 use crate::bytecode::instruction::Instruction;
+use crate::bytecode::instruction::OpCode;
+use crate::bytecode::instruction::instruction_length_from_bytes;
 use crate::bytecode::instruction::specialize_instruction;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::instruction::typed::TypedInstruction;
+use crate::bytecode::instruction::visit_operands_from_bytes;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::bytecode::source_map::SourceOffsetEntry;
@@ -46,8 +49,8 @@ use super::context::Generator;
 use super::emitter::AssembledBytecode;
 use super::emitter::BlockEncoder;
 use super::emitter::BlockPosition;
+use super::emitter::FIRST_WIDE_SLOT;
 use super::emitter::FrameLayout;
-use super::emitter::OPERAND_SIZE;
 use super::emitter::OperandPosition;
 use super::generators::DisposalKind;
 use super::generators::emit_dispose_resources;
@@ -200,6 +203,282 @@ struct LastComparison {
     lhs: Operand,
     rhs: Operand,
 }
+
+impl Stream {
+    /// Rewrites a function with more frame slots than operands can name: what reads or writes one of the others
+    /// goes through a low temporary and a `MovWide`, and instructions are in their final form afterwards.
+    /// The temporaries come right after the reserved registers, and everything else moves up to make room.
+    fn spill_wide_slots(&mut self, frame: FrameLayout, new_constant_indices: &[u32]) -> FrameLayout {
+        let head_size = u32_from_usize(self.head.bytes.len());
+        let mut bytes = core::mem::take(&mut self.head.bytes);
+        bytes.extend_from_slice(&self.current.bytes);
+        let mut noted: Vec<OperandPosition> = self.head.operand_positions.clone();
+        noted.extend(self.current.operand_positions.iter().map(|position| OperandPosition {
+            offset: position.offset + head_size,
+            ..*position
+        }));
+        noted.sort_unstable_by_key(|position| position.offset);
+        let slot_of = |field: &SpilledField, temporaries: u32| match field.operand_type {
+            OperandType::Register if field.index < Register::RESERVED_COUNT => field.index,
+            OperandType::Register => field.index + temporaries,
+            operand_type => frame.start_of(operand_type) + temporaries + field.index,
+        };
+
+        let (instructions, fields) = spilled_instructions(&bytes, &noted, new_constant_indices);
+        let fields_of = |instruction: &SpilledInstruction| &fields[instruction.fields.clone()];
+
+        // NB: More temporaries push more slots out of reach, which can take more temporaries. This ends, because an
+        //     instruction has a limited number of operands.
+        let mut temporaries = 0;
+        loop {
+            let needed = instructions
+                .iter()
+                .map(|instruction| {
+                    let wide = fields_of(instruction)
+                        .iter()
+                        .filter(|field| slot_of(field, temporaries) >= FIRST_WIDE_SLOT);
+                    u32_from_usize(wide.count())
+                })
+                .max()
+                .unwrap_or(0);
+            if needed <= temporaries {
+                break;
+            }
+            temporaries = needed;
+        }
+
+        let mut result = Vec::with_capacity(bytes.len() + bytes.len() / 4);
+        let mut edits: Vec<SpillEdit> = Vec::new();
+        let mut writes_after = Vec::new();
+        let mut slots = Vec::new();
+        let mut delta = 0;
+        for instruction in &instructions {
+            let (at, length, fields) = (instruction.at, instruction.length, fields_of(instruction));
+            let mut next_temporary = Register::RESERVED_COUNT;
+            slots.clear();
+            for field in fields {
+                let slot = slot_of(field, temporaries);
+                if slot < FIRST_WIDE_SLOT {
+                    slots.push(slot);
+                    continue;
+                }
+                let temporary = next_temporary;
+                next_temporary += 1;
+                if field.reads {
+                    put_wide_move(&mut result, temporary, slot);
+                }
+                if field.writes {
+                    writes_after.push((slot, temporary));
+                }
+                slots.push(temporary);
+            }
+            let copy = u32_from_usize(result.len());
+            result.extend_from_slice(&bytes[at as usize..(at + length) as usize]);
+            for (field, &slot) in fields.iter().zip(&slots) {
+                write_slot(&mut result, field.at - at + copy, slot);
+            }
+            let spilled = next_temporary != Register::RESERVED_COUNT;
+            for (slot, temporary) in writes_after.drain(..) {
+                put_wide_move(&mut result, slot, temporary);
+            }
+            if spilled {
+                let after = u32_from_usize(result.len()) - (at + length);
+                edits.push(SpillEdit {
+                    at,
+                    length,
+                    before: delta,
+                    copy: copy - at,
+                    after,
+                });
+                delta = after;
+            }
+        }
+
+        // NB: Only instructions that got moves around them are in `edits`: the others moved with the one before them.
+        let edit_of = |offset: u32| edits[..edits.partition_point(|edit| edit.at <= offset)].last();
+        let start_of = |offset: u32| match edit_of(offset) {
+            Some(edit) if edit.at == offset => offset + edit.before,
+            Some(edit) => offset + edit.after,
+            None => offset,
+        };
+        for position in &mut self.current.label_positions {
+            let offset = position.offset + head_size;
+            position.offset = match edit_of(offset) {
+                Some(edit) if offset < edit.at + edit.length => offset + edit.copy,
+                Some(edit) => offset + edit.after,
+                None => offset,
+            };
+        }
+        for label in &mut self.labels {
+            if *label != UNBOUND {
+                *label = start_of(*label + head_size);
+            }
+        }
+        for change in &mut self.handler_changes {
+            change.0 = start_of(change.0 + head_size);
+        }
+        // NB: The source entries are in order, so the edit of each one is at or after the edit of the one before.
+        let mut next_edit = 0;
+        let source_entries: Vec<_> = self
+            .head
+            .source_entries
+            .iter()
+            .copied()
+            .chain(
+                self.current
+                    .source_entries
+                    .iter()
+                    .map(|&(offset, source)| (offset + head_size, source)),
+            )
+            .map(|(offset, source)| {
+                while edits.get(next_edit).is_some_and(|edit| edit.at <= offset) {
+                    next_edit += 1;
+                }
+                let start = match next_edit.checked_sub(1).map(|index| &edits[index]) {
+                    Some(edit) if edit.at == offset => offset + edit.before,
+                    Some(edit) => offset + edit.after,
+                    None => offset,
+                };
+                (start, source)
+            })
+            .collect();
+        let strict_ranges: Vec<_> = self
+            .head
+            .strict_ranges
+            .iter()
+            .copied()
+            .chain(self.current.strict_ranges.iter().map(|range| StrictRange {
+                start_offset: range.start_offset + head_size,
+                end_offset: range.end_offset + head_size,
+            }))
+            .map(|range| StrictRange {
+                start_offset: start_of(range.start_offset),
+                end_offset: start_of(range.end_offset),
+            })
+            .collect();
+        self.head.clear();
+        self.current.bytes = result;
+        self.current.operand_positions.clear();
+        self.current.source_entries = source_entries;
+        self.current.strict_ranges = strict_ranges;
+        FrameLayout {
+            register_count: frame.register_count + temporaries,
+            ..frame
+        }
+    }
+}
+
+/// An operand of an instruction that `Stream::spill_wide_slots` is rewriting.
+struct SpilledField {
+    at: u32,
+    reads: bool,
+    writes: bool,
+    operand_type: OperandType,
+    index: u32,
+}
+
+/// An instruction that got moves around it, and how far the code moved.
+struct SpillEdit {
+    at: u32,
+    length: u32,
+    /// How far the instruction before it moved, which is where the moves of this one start.
+    before: u32,
+    /// How far the instruction itself moved.
+    copy: u32,
+    /// How far what comes after it moved.
+    after: u32,
+}
+
+/// An instruction that `Stream::spill_wide_slots` is rewriting, with the range of its operands in the list of them.
+struct SpilledInstruction {
+    at: u32,
+    length: u32,
+    fields: core::ops::Range<usize>,
+}
+
+/// The instructions of `bytes`, and the operands of all of them.
+fn spilled_instructions(
+    bytes: &[u8],
+    noted: &[OperandPosition],
+    new_constant_indices: &[u32],
+) -> (Vec<SpilledInstruction>, Vec<SpilledField>) {
+    let mut instructions = Vec::new();
+    let mut fields = Vec::new();
+    let mut next_noted = 0;
+    let mut at = 0;
+    while at < bytes.len() {
+        let opcode = bytes[at];
+        let length = instruction_length_from_bytes(opcode, bytes, at).expect("a valid instruction");
+        let first_field = fields.len();
+        visit_operands_from_bytes(opcode, bytes, at, &mut |field_at, reads, writes, optional| {
+            let field_at = u32_from_usize(field_at);
+            while noted.get(next_noted).is_some_and(|position| position.offset < field_at) {
+                next_noted += 1;
+            }
+            let (operand_type, index) = match noted.get(next_noted).filter(|position| position.offset == field_at) {
+                Some(position) if position.operand_type == OperandType::Constant => {
+                    (OperandType::Constant, new_constant_indices[position.index as usize])
+                }
+                Some(position) => (position.operand_type, position.index),
+                None => {
+                    let raw = read_slot(bytes, field_at);
+                    if optional && raw == FIRST_WIDE_SLOT {
+                        return;
+                    }
+                    (OperandType::Register, raw)
+                }
+            };
+            fields.push(SpilledField {
+                at: field_at,
+                reads,
+                writes,
+                operand_type,
+                index,
+            });
+        });
+        instructions.push(SpilledInstruction {
+            at: u32_from_usize(at),
+            length: u32_from_usize(length),
+            fields: first_field..fields.len(),
+        });
+        at += length;
+    }
+    (instructions, fields)
+}
+
+/// How many operands an instruction with a list of them can hold. Every one of them can need a temporary with a
+/// slot that operands can name, so that this leaves room for those and the other operands of the instruction.
+pub(super) const MAX_OPERAND_LIST_LENGTH: usize = 200;
+
+pub(super) fn operand_list_count(length: usize) -> u32 {
+    assert!(
+        length <= MAX_OPERAND_LIST_LENGTH,
+        "operand lists are short enough to count in a byte"
+    );
+    u32_from_usize(length)
+}
+
+fn read_slot(bytes: &[u8], at: u32) -> u32 {
+    u32::from(bytes[at as usize])
+}
+
+fn write_slot(bytes: &mut [u8], at: u32, slot: u32) {
+    bytes[at as usize] = u8::try_from(slot).expect("an operand holds this slot");
+}
+
+fn put_wide_move(bytes: &mut Vec<u8>, dst_slot: u32, src_slot: u32) {
+    bytes.push(OpCode::MovWide as u8);
+    bytes.extend_from_slice(&dst_slot.to_ne_bytes());
+    bytes.extend_from_slice(&src_slot.to_ne_bytes());
+}
+
+#[cfg(not(test))]
+const _: () = {
+    use crate::bytecode::op::MovWide;
+    assert!(core::mem::offset_of!(MovWide, dst_slot) == 1);
+    assert!(core::mem::offset_of!(MovWide, src_slot) == 5);
+    assert!(size_of::<MovWide>() == 9);
+};
 
 impl Segment {
     /// The end of the segment was cut off, and what comes next must not count as part of a strict range.
@@ -1262,9 +1541,14 @@ impl Generator<'_> {
             && (stream.handler.is_none() || dst.is_register())
         {
             let position = last.position as usize;
-            stream.current.bytes[position..position + OPERAND_SIZE].copy_from_slice(&(dst.raw() as u16).to_ne_bytes());
+            stream.current.bytes[position] = dst.raw() as u8;
             stream.last_destination = None;
-            if !dst.is_register() {
+            if value.index() >= FIRST_WIDE_SLOT {
+                let positions = &mut stream.current.operand_positions;
+                let noted = positions.iter().rposition(|position| position.offset == last.position);
+                positions.remove(noted.expect("a wide register has a position"));
+            }
+            if !dst.is_register() || dst.index() >= FIRST_WIDE_SLOT {
                 stream.current.operand_positions.push(OperandPosition {
                     offset: last.position,
                     operand_type: dst.operand_type(),
@@ -1903,8 +2187,59 @@ impl Generator<'_> {
         operands
     }
 
+    /// Puts an operand list that is too long for an instruction in a new array, which the list then holds in its place.
+    /// Returns whether it did.
+    pub(super) fn fit_operand_list(&mut self, list: &mut Vec<Operand>) -> bool {
+        if list.len() <= MAX_OPERAND_LIST_LENGTH {
+            return false;
+        }
+        let array = self.temporary();
+        self.put_new_array(array, list);
+        *list = vec![array];
+        true
+    }
+
+    /// Puts what `elements` hold in a new array at `dst`, however many there are.
+    pub(super) fn put_new_array(&mut self, dst: Operand, elements: &[Operand]) {
+        let (first, rest) = elements.split_at(elements.len().min(MAX_OPERAND_LIST_LENGTH));
+        self.put(op::NewArray {
+            dst,
+            element_count: operand_list_count(first.len()),
+            elements: first,
+        });
+        for &src in rest {
+            self.put(op::ArrayAppend {
+                dst,
+                src,
+                is_spread: false,
+            });
+        }
+    }
+
+    /// Replaces the `count` values on top of the stack with an array of them, for a list too long for an instruction.
+    fn replace_operands_with_array(&mut self, count: usize) {
+        let values = &self.context.stream.values;
+        let first_temporary = values[values.len() - count].first_temporary;
+        let operands = self.take_operands(count);
+        let array = self.temporary();
+        self.put_new_array(array, &operands);
+        self.context.stream.operands = operands;
+        self.release_temporaries_from(first_temporary);
+        let dst = self.temporary();
+        self.put(op::Mov { dst, src: array });
+        self.push_value(dst, first_temporary);
+    }
+
     #[inline(always)]
     pub(super) fn call(&mut self, argument_count: usize) {
+        let values = &self.context.stream.values;
+        if argument_count > MAX_OPERAND_LIST_LENGTH
+            && values[values.len() - argument_count - 1].kind != ValKind::BuiltinCallee
+        {
+            self.replace_operands_with_array(argument_count);
+            self.call_with_array();
+            return;
+        }
         let arguments = self.take_operands(argument_count);
         let callee = self.pop_value();
         if callee.kind == ValKind::BuiltinCallee {
@@ -1931,7 +2266,7 @@ impl Generator<'_> {
                 dst,
                 callee: callee_operand,
                 this_value,
-                argument_count: u32_from_usize(arguments.len()),
+                argument_count: operand_list_count(arguments.len()),
                 expression_string: None,
                 arguments: &arguments,
             },
@@ -1942,6 +2277,11 @@ impl Generator<'_> {
     }
 
     pub(super) fn construct(&mut self, argument_count: usize) {
+        if argument_count > MAX_OPERAND_LIST_LENGTH {
+            self.replace_operands_with_array(argument_count);
+            self.construct_with_array();
+            return;
+        }
         let arguments = self.take_operands(argument_count);
         let (callee, first_temporary) = self.pop_operand();
         self.release_temporaries_from(first_temporary);
@@ -1954,7 +2294,7 @@ impl Generator<'_> {
                 call_feedback,
                 dst,
                 callee,
-                argument_count: u32_from_usize(arguments.len()),
+                argument_count: operand_list_count(arguments.len()),
                 expression_string: None,
                 arguments: &arguments,
             },
@@ -1967,6 +2307,11 @@ impl Generator<'_> {
     /// A call of what is below the array of arguments on top of the stack.
     /// A call of the name `eval`, which is a direct eval if that is what the name means by then.
     pub(super) fn direct_eval(&mut self, argument_count: usize) {
+        if argument_count > MAX_OPERAND_LIST_LENGTH {
+            self.replace_operands_with_array(argument_count);
+            self.direct_eval_with_array();
+            return;
+        }
         let arguments = self.take_operands(argument_count);
         let callee = self.pop_value();
         let (callee_operand, this_value) = if callee.kind == ValKind::Callee {
@@ -1985,7 +2330,7 @@ impl Generator<'_> {
                 dst,
                 callee: callee_operand,
                 this_value,
-                argument_count: u32_from_usize(arguments.len()),
+                argument_count: operand_list_count(arguments.len()),
                 expression_string: None,
                 arguments: &arguments,
             },
@@ -2083,11 +2428,7 @@ impl Generator<'_> {
         };
         let elements = self.take_operands(count);
         let dst = self.temporary();
-        self.put(op::NewArray {
-            dst,
-            element_count: u32_from_usize(elements.len()),
-            elements: &elements,
-        });
+        self.put_new_array(dst, &elements);
         self.context.stream.operands = elements;
         self.release_temporaries_from(dst.index() + 1);
         self.push_value(dst, first_temporary);
@@ -3120,14 +3461,18 @@ impl Generator<'_> {
             self.push_value(dst, first_temporary);
             return;
         }
-        self.put_with_destination(
-            op::NewArray {
+        if elements.len() > MAX_OPERAND_LIST_LENGTH {
+            self.put_new_array(dst, &elements);
+        } else {
+            self.put_with_destination(
+                op::NewArray {
+                    dst,
+                    element_count: operand_list_count(elements.len()),
+                    elements: &elements,
+                },
                 dst,
-                element_count: u32_from_usize(elements.len()),
-                elements: &elements,
-            },
-            dst,
-        );
+            );
+        }
         self.context.stream.operands = elements;
         self.release_temporaries_from(dst.index() + 1);
         self.push_value(dst, first_temporary);
@@ -3755,11 +4100,34 @@ impl Generator<'_> {
         self.insert_body_head();
     }
 
+    /// Gives the constants that are used the most the slots that instructions can name.
+    fn order_constants_by_use(&mut self, constant_uses: &[u32], new_constant_indices: &mut [u32]) {
+        let mut used: Vec<usize> = (0..constant_uses.len())
+            .filter(|&index| constant_uses[index] != 0)
+            .collect();
+        used.sort_by_key(|&index| core::cmp::Reverse(constant_uses[index]));
+        let mut values: Vec<Option<ConstantValue>> = core::mem::take(&mut self.context.constants.values)
+            .into_iter()
+            .map(Some)
+            .collect();
+        self.context.constants.values = used
+            .iter()
+            .map(|&index| {
+                values[new_constant_indices[index] as usize]
+                    .take()
+                    .expect("each constant once")
+            })
+            .collect();
+        for (new_index, &index) in used.iter().enumerate() {
+            new_constant_indices[index] = u32_from_usize(new_index);
+        }
+    }
+
     /// Assembles what was emitted into a new block, which has `other_tables_size` bytes left: the operands that come
     /// after the registers get their place in the frame, and labels their offsets.
     pub(super) fn finish_stream(&mut self, other_tables_size: usize) -> (AssembledBytecode, SliceBlockBuilder) {
         // NB: Folding leaves constants that nothing uses, and they would take up slots in every frame.
-        let mut constant_is_used = vec![false; self.context.constants.values.len()];
+        let mut constant_uses = vec![0u32; self.context.constants.values.len()];
         let stream = &self.context.stream;
         for position in stream
             .head
@@ -3768,28 +4136,32 @@ impl Generator<'_> {
             .chain(&stream.current.operand_positions)
         {
             if position.operand_type == OperandType::Constant {
-                constant_is_used[position.index as usize] = true;
+                constant_uses[position.index as usize] += 1;
             }
         }
         let mut used_constant_count = 0;
-        let new_constant_indices: Vec<u32> = constant_is_used
+        let mut new_constant_indices: Vec<u32> = constant_uses
             .iter()
-            .map(|&is_used| {
+            .map(|&uses| {
                 let new_index = used_constant_count;
-                used_constant_count += u32::from(is_used);
+                used_constant_count += u32::from(uses != 0);
                 new_index
             })
             .collect();
-        let mut is_used = constant_is_used.iter();
+        let mut uses = constant_uses.iter();
         self.context
             .constants
             .values
-            .retain(|_| *is_used.next().expect("a flag per constant"));
-        let frame = FrameLayout {
+            .retain(|_| *uses.next().expect("a count per constant") != 0);
+        let mut frame = FrameLayout {
             register_count: self.context.stream.temporary_count.max(Register::RESERVED_COUNT),
             local_count: self.context.scope.local_count(),
             constant_count: used_constant_count,
         };
+        if frame.start_of(OperandType::Argument) + self.context.stream.number_of_arguments > FIRST_WIDE_SLOT {
+            self.order_constants_by_use(&constant_uses, &mut new_constant_indices);
+            frame = self.context.stream.spill_wide_slots(frame, &new_constant_indices);
+        }
         let stream = &mut self.context.stream;
         let head = &stream.head;
         let segment = &mut stream.current;
@@ -3831,15 +4203,12 @@ impl Generator<'_> {
             .iter()
             .map(|position| (position.offset + head_size, *position));
         for (offset, position) in head_positions.chain(positions) {
-            let at = offset as usize;
-            let bytes = &mut bytecode[at..at + OPERAND_SIZE];
             let index = match position.operand_type {
                 OperandType::Constant => new_constant_indices[position.index as usize],
                 _ => position.index,
             };
             let slot = index + frame.start_of(position.operand_type);
-            let slot = u16::try_from(slot).expect("frame slots fit in 16 bits");
-            bytes.copy_from_slice(&slot.to_ne_bytes());
+            bytecode[offset as usize] = u8::try_from(slot).expect("frame slots that instructions name fit in 8 bits");
         }
         for position in &segment.label_positions {
             let at = (position.offset + head_size) as usize;

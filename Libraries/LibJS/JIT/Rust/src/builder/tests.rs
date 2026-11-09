@@ -221,11 +221,11 @@ fn straight_line_code_renames_moves_and_passes_values_to_slow_paths() {
         [[B1]] (pc 0) <- [[B0]]:
           [[V5]] = LoadSlot a0
           InitializeFrame
-          [[V6]] = CallSlowPath Exp @11 (#10, [[V5]]) [[[FS0]]]
+          [[V6]] = CallSlowPath Exp @7 (#10, [[V5]]) [[[FS0]]]
           [[V7]] = EmptyToUndefined ([[V6]])
           Return ([[V7]])
         frame states:
-          [[FS0]]: pc 11 after -> r7 {} frame [r7]
+          [[FS0]]: pc 7 after -> r7 {} frame [r7]
         ",
     );
 }
@@ -272,17 +272,17 @@ fn if_else_merges_with_phis() {
           Jump [[B8]]
         [[B6]] <- [[B4]]:
           Jump [[B7]]
-        [[B7]] (pc 26) <- [[B3]], [[B6]]:
+        [[B7]] (pc 21) <- [[B3]], [[B6]]:
           Jump [[B9]]
-        [[B8]] (pc 16) <- [[B2]], [[B5]]:
+        [[B8]] (pc 13) <- [[B2]], [[B5]]:
           Jump [[B9]]
-        [[B9]] (pc 31) <- [[B7]], [[B8]]:
+        [[B9]] (pc 24) <- [[B7]], [[B8]]:
           [[V14]] = Phi (#10, #0)
-          [[V15]] = CallSlowPath Exp @31 ([[V14]], [[V1]]) [[[FS0]]]
+          [[V15]] = CallSlowPath Exp @24 ([[V14]], [[V1]]) [[[FS0]]]
           [[V16]] = EmptyToUndefined ([[V15]])
           Return ([[V16]])
         frame states:
-          [[FS0]]: pc 31 after -> r6 {} frame [r6]
+          [[FS0]]: pc 24 after -> r6 {} frame [r6]
         ",
     );
 }
@@ -307,12 +307,12 @@ fn writes_to_constant_operands_go_to_the_frame() {
           [[V1]] = LoadSlot a0
           StoreSlot c0 ([[V1]])
           [[V3]] = LoadSlot c0
-          CallSlowPath ToString @5 ([[V3]]) [[[FS0]]]
+          CallSlowPath ToString @3 ([[V3]]) [[[FS0]]]
           [[V5]] = LoadSlot c1
           [[V6]] = EmptyToUndefined ([[V5]])
           Return ([[V6]])
         frame states:
-          [[FS0]]: pc 5 after -> c1 {}
+          [[FS0]]: pc 3 after -> c1 {}
         ",
     );
 }
@@ -451,38 +451,38 @@ fn nested_loops_get_phis_for_slots_slow_paths_assign() {
         [[B1]] (pc 0) <- [[B0]]:
           [[V7]] = LoadSlot a0
           Jump [[B2]]
-        [[B2]] (pc 6) <- [[B1]], [[B10]] loop:
+        [[B2]] (pc 4) <- [[B1]], [[B10]] loop:
           [[V6]] = Phi (#0, [[V20]])
           EnsureFrameInitialized
-          [[V8]]:int32 = CallSlowPath JumpLessThan @6 ([[V6]], [[V7]]) [[[FS0]]]
-          BranchOnPc @21 ([[V8]]) -> [[B3]], [[B4]]
+          [[V8]]:int32 = CallSlowPath JumpLessThan @4 ([[V6]], [[V7]]) [[[FS0]]]
+          BranchOnPc @17 ([[V8]]) -> [[B3]], [[B4]]
         [[B3]] <- [[B2]]:
           Jump [[B6]]
         [[B4]] <- [[B2]]:
           Jump [[B5]]
-        [[B5]] (pc 69) <- [[B4]]:
+        [[B5]] (pc 55) <- [[B4]]:
           Return ([[V6]])
-        [[B6]] (pc 21) <- [[B3]]:
+        [[B6]] (pc 17) <- [[B3]]:
           Jump [[B7]]
-        [[B7]] (pc 26) <- [[B6]], [[B11]] loop:
+        [[B7]] (pc 20) <- [[B6]], [[B11]] loop:
           [[V14]] = Phi (#0, [[V22]])
-          [[V15]]:int32 = CallSlowPath JumpLessThan @26 ([[V14]], [[V7]]) [[[FS1]]]
-          BranchOnPc @41 ([[V15]]) -> [[B8]], [[B9]]
+          [[V15]]:int32 = CallSlowPath JumpLessThan @20 ([[V14]], [[V7]]) [[[FS1]]]
+          BranchOnPc @33 ([[V15]]) -> [[B8]], [[B9]]
         [[B8]] <- [[B7]]:
           Jump [[B11]]
         [[B9]] <- [[B7]]:
           Jump [[B10]]
-        [[B10]] (pc 55) <- [[B9]]:
-          [[V20]] = CallSlowPath Exp @55 ([[V6]], #10) [[[FS2]]]
+        [[B10]] (pc 44) <- [[B9]]:
+          [[V20]] = CallSlowPath Exp @44 ([[V6]], #10) [[[FS2]]]
           Jump [[B2]]
-        [[B11]] (pc 41) <- [[B8]]:
-          [[V22]] = CallSlowPath Exp @41 ([[V14]], #10) [[[FS3]]]
+        [[B11]] (pc 33) <- [[B8]]:
+          [[V22]] = CallSlowPath Exp @33 ([[V14]], #10) [[[FS3]]]
           Jump [[B7]]
         frame states:
-          [[FS0]]: pc 6 after {r5=[[V6]]} frame [a0]
-          [[FS1]]: pc 26 after {r5=[[V6]], r6=[[V14]]} frame [a0]
-          [[FS2]]: pc 55 after -> r5 {r5=[[V6]]} frame [a0]
-          [[FS3]]: pc 41 after -> r6 {r5=[[V6]], r6=[[V14]]} frame [a0]
+          [[FS0]]: pc 4 after {r5=[[V6]]} frame [a0]
+          [[FS1]]: pc 20 after {r5=[[V6]], r6=[[V14]]} frame [a0]
+          [[FS2]]: pc 44 after -> r5 {r5=[[V6]]} frame [a0]
+          [[FS3]]: pc 33 after -> r6 {r5=[[V6]], r6=[[V14]]} frame [a0]
         ",
     );
 }
@@ -527,9 +527,9 @@ fn truthiness_values_and_tag_branches() {
           Jump [[B11]]
         [[B9]] <- [[B7]]:
           Jump [[B10]]
-        [[B10]] (pc 19) <- [[B9]]:
+        [[B10]] (pc 15) <- [[B9]]:
           Return ([[V1]])
-        [[B11]] (pc 16) <- [[B8]]:
+        [[B11]] (pc 13) <- [[B8]]:
           Return ([[V11]])
         ",
     );
@@ -612,7 +612,7 @@ fn numeric_feedback_and_failed_speculations_use_double_arithmetic() {
     );
     assert!(!text.contains("CallSlowPath"), "{text}");
     // An overflow at the addition: it adds doubles.
-    let text = counting_loop(1, vec![(21, ExitKind::Overflow)]);
+    let text = counting_loop(1, vec![(17, ExitKind::Overflow)]);
     assert!(text.contains("Int32LessThan"), "{text}");
     assert!(text.contains("Float64Add") && !text.contains("Int32Add"), "{text}");
 }
@@ -706,7 +706,7 @@ fn instructions_that_never_ran_exit_with_the_live_values() {
           [[V2]] = LoadSlot a0
           Exit NoFeedback [[[FS0]]]
         frame states:
-          [[FS0]]: pc 10 at {r5=#10, r6=[[V2]]}
+          [[FS0]]: pc 6 at {r5=#10, r6=[[V2]]}
         ",
     );
 }
@@ -738,10 +738,10 @@ fn calls_write_back_their_arguments_and_values_survive_them() {
         [[B1]] (pc 0) <- [[B0]]:
           [[V1]] = LoadSlot a0
           [[V2]] = LoadSlot r5
-          [[V3]] = CallSlowPath Call @5 ([[V2]], [[V2]], [[V1]]) [[[FS0]]]
+          [[V3]] = CallSlowPath Call @3 ([[V2]], [[V2]], [[V1]]) [[[FS0]]]
           Return ([[V1]])
         frame states:
-          [[FS0]]: pc 5 after -> r7 {r6=[[V1]]} frame [r7]
+          [[FS0]]: pc 3 after -> r7 {r6=[[V1]]} frame [r7]
         ",
     );
 }
@@ -774,10 +774,10 @@ fn trivial_frame_operations_are_native() {
           [[V5]] = IsCallable ([[V2]])
           [[V6]]:pointer = SetLexicalEnvironment ([[V2]])
           LeavePrivateEnvironment
-          CallSlowPath Throw @33 ([[V5]]) [[[FS0]]]
+          CallSlowPath Throw @21 ([[V5]]) [[[FS0]]]
           Unreachable
         frame states:
-          [[FS0]]: pc 33 after {}
+          [[FS0]]: pc 21 after {}
         ",
     );
 }
@@ -898,7 +898,7 @@ pub(crate) mod property_access {
               Return ([[V17]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 26 at {r5=[[V6]], r6=[[V6]]} frame [a0]
+              [[FS1]]: pc 24 at {r5=[[V6]], r6=[[V6]]} frame [a0]
             ",
         );
     }
@@ -941,7 +941,7 @@ pub(crate) mod property_access {
               Return ([[V19]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 13 at {r5=[[V6]]} frame [a0]
+              [[FS1]]: pc 12 at {r5=[[V6]]} frame [a0]
             ",
         );
     }
@@ -1351,7 +1351,7 @@ pub(crate) mod property_access {
             (1 | (1 << 5) | (1 << 9), Vec::new()),
             (
                 1 | (1 << 5),
-                vec![(0, ExitKind::BadElements), (15, ExitKind::OutOfBounds)],
+                vec![(0, ExitKind::BadElements), (12, ExitKind::OutOfBounds)],
             ),
         ] {
             let text = dump_element_loads(bits, exit_sites);
@@ -1554,15 +1554,15 @@ pub(crate) mod property_access {
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS0]]]
               StoreNamed +2 ([[V1]], #10, [[V4]]) [[[FS0]]]
               [[V13]] = LoadSlot l1
-              [[V14]] = CallSlowPath Exp @28 ([[V13]], #10) [[[FS1]]]
+              [[V14]] = CallSlowPath Exp @26 ([[V13]], #10) [[[FS1]]]
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS2]]]
               [[V19]] = LoadNamed +2 ([[V1]], [[V4]]) [[[FS2]]]
               [[V20]] = EmptyToUndefined ([[V19]])
               Return ([[V20]])
             frame states:
               [[FS0]]: pc 0 at {} frame [l1, a0]
-              [[FS1]]: pc 28 after -> l1 {r5=#10} frame [a0]
-              [[FS2]]: pc 37 at {r5=#10} frame [a0]
+              [[FS1]]: pc 26 after -> l1 {r5=#10} frame [a0]
+              [[FS2]]: pc 32 at {r5=#10} frame [a0]
             ",
         );
     }
@@ -1972,12 +1972,12 @@ pub(crate) mod inlining {
             [[B9]] <- [[B4]] cold:
               Jump [[B10]]
             [[B10]] <- [[B8]], [[B9]] cold:
-              CallSlowPath SetLexicalBinding @34 ([[V16]]) [[[FS2]]]
+              CallSlowPath SetLexicalBinding @31 ([[V16]]) [[[FS2]]]
               Jump [[B6]]
             frame states:
               [[FS0]]: pc 16 at {r5=[[V6]]}
               [[FS1]]: pc 25 after -> r7 {} frame [r7]
-              [[FS2]]: pc 34 at {r7=[[V16]]}
+              [[FS2]]: pc 31 at {r7=[[V16]]}
             ",
         );
         // Inlined callees have constant ones: those of their function.
@@ -2022,14 +2022,14 @@ pub(crate) mod inlining {
             [[B11]] <- [[B5]] cold:
               Jump [[B12]]
             [[B12]] <- [[B10]], [[B11]] cold:
-              CallSlowPath SetLexicalBinding @e1:34 ([[V21]]) [[[FS4]]]
+              CallSlowPath SetLexicalBinding @e1:31 ([[V21]]) [[[FS4]]]
               Jump [[B7]]
             frame states:
               [[FS0]]: pc 1 at {} frame [a0]
               [[FS1]]: pc 1 after -> r5 {}
               [[FS2]]: e1 pc 16 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r5=[[V11]]} in [[FS1]]
               [[FS3]]: e1 pc 25 after -> r7 {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=#empty} in [[FS1]]
-              [[FS4]]: e1 pc 34 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
+              [[FS4]]: e1 pc 31 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
             ",
         );
     }
@@ -2079,9 +2079,9 @@ pub(crate) mod inlining {
             [[B2]] (pc 0) <- [[B1]]:
               Exit NoFeedback [[[FS2]]]
             frame states:
-              [[FS0]]: pc 6 at {r6=#0} frame [a0]
-              [[FS1]]: pc 6 after -> r5 {r6=#0}
-              [[FS2]]: e1 pc 6 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, l0=#10} in [[FS1]]
+              [[FS0]]: pc 4 at {r6=#0} frame [a0]
+              [[FS1]]: pc 4 after -> r5 {r6=#0}
+              [[FS2]]: e1 pc 4 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, l0=#10} in [[FS1]]
             ",
         );
     }

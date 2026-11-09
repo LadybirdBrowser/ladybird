@@ -1,4 +1,4 @@
-$61807403 destructuring-param-no-param-expressions.js:10:1
+$b8dc22b1 destructuring-param-no-param-expressions.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,16 +9,16 @@ $61807403 destructuring-param-no-param-expressions.js:10:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `f`
-  [   f] NewObject dst:reg7
-  [  14] InitObjectLiteralProperty object:reg7, `captured`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  23] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  32] CacheObjectShape object:reg7
-  [  37] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  4a] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `f`
+  [   d] NewObject dst:reg7
+  [  11] InitObjectLiteralProperty object:reg7, `captured`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  1f] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  2d] CacheObjectShape object:reg7
+  [  31] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  3d] End value:reg5
 
 
-f$48e06689 destructuring-param-no-param-expressions.js:6:12
+f$67d6ec23 destructuring-param-no-param-expressions.js:6:12
   Registers: 7
   Blocks:    1
   Locals:    local~0
@@ -26,10 +26,10 @@ f$48e06689 destructuring-param-no-param-expressions.js:6:12
 block0:
   [   0] Enter
   [   1] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
-  [   b] ThrowIfNullish src:arg0
+  [   c] ThrowIfNullish src:arg0
   [   e] Mov dst:reg5, src:arg0
-  [  13] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
-  [  20] InitializeLexicalBinding `captured`, src:reg6
-  [  2d] GetById value_feedback:1, dst:local~0, base:reg5, `local`
-  [  3a] NewFunction dst:reg5, shared_function_data_index:0
-  [  45] Return value:reg5
+  [  11] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
+  [  1d] InitializeLexicalBinding `captured`, src:reg6
+  [  2a] GetById value_feedback:1, dst:local~0, base:reg5, `local`
+  [  36] NewFunction dst:reg5, shared_function_data_index:0
+  [  40] Return value:reg5

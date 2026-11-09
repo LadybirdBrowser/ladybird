@@ -1,4 +1,4 @@
-$22895847 private-logical-assignment-register-order.js:1:1
+$97bf28fc private-logical-assignment-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,23 +8,23 @@ $22895847 private-logical-assignment-register-order.js:1:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  21] CreatePrivateEnvironment
-  [  22] AddPrivateName `#x`
-  [  25] SetLexicalEnvironment environment:reg4
-  [  28] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("f")]
-  [  41] LeavePrivateEnvironment
-  [  42] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  49] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  52] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  61] GetById value_feedback:2, dst:reg7, base:reg6, `f`
-  [  6e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  7f] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] CreatePrivateEnvironment
+  [  1e] AddPrivateName `#x`
+  [  22] SetLexicalEnvironment environment:reg4
+  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("f")]
+  [  35] LeavePrivateEnvironment
+  [  36] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  3d] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  46] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  50] GetById value_feedback:2, dst:reg7, base:reg6, `f`
+  [  5c] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  67] End value:reg5
 
 
-C$259e8512
+C$16234245
   Registers: 5
   Blocks:    1
   Constants:
@@ -35,7 +35,7 @@ block0:
   [   1] End value:Undefined
 
 
-f$1b379b9b private-logical-assignment-register-order.js:3:16
+f$9711b203 private-logical-assignment-register-order.js:3:16
   Registers: 7
   Blocks:    3
   Constants:
@@ -45,12 +45,12 @@ f$1b379b9b private-logical-assignment-register-order.js:3:16
 block0:
   [   0] Enter
   [   1] GetPrivateById dst:reg5, base:this, `#x`
-  [   8] Mov dst:reg6, src:reg5
-  [   d] JumpFalse condition:reg6, target:block2
+  [   7] Mov dst:reg6, src:reg5
+  [   a] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  14] Mov dst:reg6, src:Int32(1)
-  [  19] PutPrivateById base:this, `#x`, src:reg6
+  [  10] Mov dst:reg6, src:Int32(1)
+  [  13] PutPrivateById base:this, `#x`, src:reg6
 
 block2:
-  [  20] End value:Undefined
+  [  19] End value:Undefined

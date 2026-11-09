@@ -79,14 +79,8 @@ impl GraphBuilder<'_> {
                     reason: "operand field outside the bytecode",
                 })
         };
-        let read_operand = |offset: u32| -> Result<u32, CompileFailure> {
-            let raw = u16::from_ne_bytes(bytes_at(offset, 2)?.try_into().expect("two bytes"));
-            Ok(if raw == u16::MAX {
-                Operand::INVALID
-            } else {
-                u32::from(raw)
-            })
-        };
+        let read_operand =
+            |offset: u32| -> Result<u32, CompileFailure> { Ok(Operand::raw_from_byte(bytes_at(offset, 1)?[0])) };
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
         for (index, field) in layout.fields.iter().enumerate() {
@@ -99,9 +93,8 @@ impl GraphBuilder<'_> {
             }
         }
         if let Some(array) = layout.array {
-            let count = u32::from_ne_bytes(bytes_at(array.count_offset, 4)?.try_into().expect("four bytes"));
-            for element in 0..count {
-                inputs.push(read_operand(array.instruction_offset + 2 * element)?);
+            for element in 0..u32::from(bytes_at(array.count_offset, 1)?[0]) {
+                inputs.push(read_operand(array.instruction_offset + element)?);
             }
         }
         Ok(SlowPathOperands { inputs, outputs })

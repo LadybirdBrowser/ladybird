@@ -1,4 +1,4 @@
-$22895847 postfix-increment-private-member.js:1:1
+$97bf28fc postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,23 +8,23 @@ $22895847 postfix-increment-private-member.js:1:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  21] CreatePrivateEnvironment
-  [  22] AddPrivateName `#c`
-  [  25] SetLexicalEnvironment environment:reg4
-  [  28] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("nextId")]
-  [  41] LeavePrivateEnvironment
-  [  42] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  49] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  52] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  61] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
-  [  6e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  7f] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] CreatePrivateEnvironment
+  [  1e] AddPrivateName `#c`
+  [  22] SetLexicalEnvironment environment:reg4
+  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("nextId")]
+  [  35] LeavePrivateEnvironment
+  [  36] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  3d] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  46] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  50] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
+  [  5c] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  67] End value:reg5
 
 
-C$259e8512
+C$16234245
   Registers: 5
   Blocks:    1
   Constants:
@@ -35,7 +35,7 @@ block0:
   [   1] End value:Undefined
 
 
-nextId$9d329af8 postfix-increment-private-member.js:4:9
+nextId$1384cf40 postfix-increment-private-member.js:4:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -44,7 +44,7 @@ nextId$9d329af8 postfix-increment-private-member.js:4:9
 block0:
   [   0] Enter
   [   1] GetPrivateById dst:reg5, base:this, `#c`
-  [   8] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
-  [   f] PutPrivateById base:this, `#c`, src:reg5
-  [  16] Add arith_feedback:1, dst:reg5, lhs:String("id-"), rhs:reg6
-  [  1f] Return value:reg5
+  [   7] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
+  [   c] PutPrivateById base:this, `#c`, src:reg5
+  [  12] Add arith_feedback:1, dst:reg5, lhs:String("id-"), rhs:reg6
+  [  18] Return value:reg5

@@ -305,10 +305,10 @@ fn call_instruction_shape(executable: &Executable, pc: u32) -> (u32, u32, bool) 
     }
     if opcode == OpCode::CallConstruct as u8 {
         let call = instruction_at::<op::CallConstruct>(executable, pc);
-        return (call.argument_count, call.length(), true);
+        return (u32::from(call.argument_count), call.length(), true);
     }
     let call = instruction_at::<op::Call>(executable, pc);
-    (call.argument_count, call.length(), false)
+    (u32::from(call.argument_count), call.length(), false)
 }
 
 /// The linkage of the frame of `executable` at the call of `frame_state`: its frame continues after the call (or

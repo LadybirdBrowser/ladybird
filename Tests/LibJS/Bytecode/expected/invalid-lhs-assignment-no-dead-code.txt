@@ -1,4 +1,4 @@
-$e4f90765 invalid-lhs-assignment-no-dead-code.js:8:1
+$f2ccbcb5 invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 8
   Blocks:    4
   Constants:
@@ -7,27 +7,27 @@ $e4f90765 invalid-lhs-assignment-no-dead-code.js:8:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg5, src:Undefined
+  [   4] Mov dst:reg5, src:Undefined
 
 block1:
-  [   b] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  14] NewFunction dst:reg7, shared_function_data_index:0
-  [  1f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  32] Jump target:block3
+  [   7] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  10] NewFunction dst:reg7, shared_function_data_index:0
+  [  1a] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  26] Jump target:block3
 
 block2:
-  [  37] Catch value_feedback:2, dst:reg6
-  [  3c] Mov dst:reg5, src:Undefined
-  [  41] Jump target:block3
+  [  2b] Catch value_feedback:2, dst:reg6
+  [  2f] Mov dst:reg5, src:Undefined
+  [  32] Jump target:block3
 
 block3:
-  [  46] End value:reg5
+  [  37] End value:reg5
 
 Exception handlers:
-  [   b ..   37] => handler block2
+  [   7 ..   2b] => handler block2
 
 
-f$dc75e942 invalid-lhs-assignment-no-dead-code.js:5:6
+f$ae0420db invalid-lhs-assignment-no-dead-code.js:5:6
   Registers: 6
   Blocks:    1
   Constants:
@@ -36,11 +36,11 @@ f$dc75e942 invalid-lhs-assignment-no-dead-code.js:5:6
 block0:
   [   0] Enter
   [   1] Call value_feedback:0, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined
-  [  12] NewReferenceError dst:reg5, Invalid left-hand side in assignment
-  [  17] Throw src:reg5
+  [   c] NewReferenceError dst:reg5, Invalid left-hand side in assignment
+  [  11] Throw src:reg5
 
 
-$0ae4f8d1
+$9bc23426
   Registers: 5
   Blocks:    1
   Constants:

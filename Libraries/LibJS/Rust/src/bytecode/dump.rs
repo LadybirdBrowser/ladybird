@@ -14,8 +14,6 @@ use super::instruction::instruction_name_from_opcode;
 use super::instruction::visit_labels_from_bytes;
 use super::native_disassembler::disassemble;
 use super::operand::Operand;
-use super::operand::narrow_index;
-use super::operand::read_u16;
 use super::operand::read_u32;
 use crate::bytecode::encoded_value::EncodedValue;
 use crate::bytecode::encoded_value::EncodedValueKind;
@@ -292,7 +290,7 @@ impl BytecodeDumper<'_> {
     pub fn append_property_key_quoted(&mut self, index: u32) {
         let key = self
             .executable
-            .get_property_key(PropertyKeyTableIndex(narrow_index(index)))
+            .get_property_key(PropertyKeyTableIndex::from_index(index))
             .to_utf16_string();
         self.append_quoted(Utf16View::of_string(&key));
     }
@@ -300,7 +298,7 @@ impl BytecodeDumper<'_> {
     pub fn append_property_key_plain(&mut self, index: u32) {
         let key = self
             .executable
-            .get_property_key(PropertyKeyTableIndex(narrow_index(index)))
+            .get_property_key(PropertyKeyTableIndex::from_index(index))
             .to_utf16_string();
         Utf16View::of_string(&key).append_as_wtf8_to(self.output);
     }
@@ -343,7 +341,7 @@ impl BytecodeDumper<'_> {
             if i != 0 {
                 self.append(", ");
             }
-            self.append_operand("", Operand::from_raw(u32::from(read_u16(bytes, offset + i * 2))));
+            self.append_operand("", Operand::from_raw(u32::from(bytes[offset + i])));
         }
         self.append("]");
     }
@@ -353,8 +351,8 @@ impl BytecodeDumper<'_> {
         self.append(":[");
         let mut first_elem = true;
         for i in 0..count {
-            let raw = read_u16(bytes, offset + i * 2);
-            if raw == u16::MAX {
+            let raw = bytes[offset + i];
+            if raw == u8::MAX {
                 continue;
             }
             let operand = Operand::from_raw(u32::from(raw));

@@ -1,4 +1,4 @@
-$4f03e762 class-computed-field-lhs-name.js:1:5
+$019b9961 class-computed-field-lhs-name.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,17 +8,17 @@ $4f03e762 class-computed-field-lhs-name.js:1:5
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
-  [  17] SetLexicalEnvironment environment:reg4
-  [  1a] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
-  [  31] SetGlobal `C`, src:reg6
-  [  38] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  41] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
-  [  50] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [  12] SetLexicalEnvironment environment:reg4
+  [  14] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0 (C), element_keys_are_in_array:false, element_keys:[element_keys:Int32(3)]
+  [  24] SetGlobal `C`, src:reg6
+  [  2b] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  34] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  3e] End value:reg5
 
 
-C$259e8512
+C$16234245
   Registers: 5
   Blocks:    1
   Constants:
@@ -29,13 +29,13 @@ block0:
   [   1] End value:Undefined
 
 
-field$12ef1971 class-computed-field-lhs-name.js:2:15
+field$84d5cf2c class-computed-field-lhs-name.js:2:15
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetClassFieldInitializerName dst:reg5
-  [   4] NewFunction dst:reg6, shared_function_data_index:0
-  [   f] SetFunctionName function:reg6, name:reg5
-  [  18] Return value:reg6
+  [   3] NewFunction dst:reg6, shared_function_data_index:0
+  [   d] SetFunctionName function:reg6, name:reg5
+  [  14] Return value:reg6

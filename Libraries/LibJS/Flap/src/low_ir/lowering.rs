@@ -3593,7 +3593,7 @@ fn machine_instruction(operation: MachineOperation, operands: Vec<Operand>) -> I
 }
 
 /// How wide the loads of operand fields are, which `metadata::OPERAND_SIZE` lays out.
-const OPERAND_FIELD_WIDTH: MemoryWidth = MemoryWidth::HalfWord;
+const OPERAND_FIELD_WIDTH: MemoryWidth = MemoryWidth::Byte;
 
 fn bytecode_field_memory(field: &BytecodeFieldId) -> Operand {
     Operand::Address(MemoryAddress {

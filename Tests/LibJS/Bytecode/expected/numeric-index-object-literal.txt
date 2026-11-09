@@ -1,4 +1,4 @@
-$2cb5e223 numeric-index-object-literal.js:4:1
+$559fc86a numeric-index-object-literal.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,12 @@ $2cb5e223 numeric-index-object-literal.js:4:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `test`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  20] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `test`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  18] End value:reg5
 
 
-test$a0dfe300 numeric-index-object-literal.js:2:5
+test$b31f16dd numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -26,7 +26,7 @@ test$a0dfe300 numeric-index-object-literal.js:2:5
 block0:
   [   0] Enter
   [   1] NewObject dst:reg5
-  [   6] PutByValue keyed_feedback:0, base:reg5, property:Int32(100), src:Int32(1), kind:Own
-  [  17] PutByValue keyed_feedback:1, base:reg5, property:Int32(200), src:Int32(2), kind:Own
-  [  28] PutByValue keyed_feedback:2, base:reg5, property:Int32(300), src:Int32(3), kind:Own
-  [  39] Return value:reg5
+  [   5] PutByValue keyed_feedback:0, base:reg5, property:Int32(100), src:Int32(1), kind:Own
+  [  13] PutByValue keyed_feedback:1, base:reg5, property:Int32(200), src:Int32(2), kind:Own
+  [  21] PutByValue keyed_feedback:2, base:reg5, property:Int32(300), src:Int32(3), kind:Own
+  [  2f] Return value:reg5

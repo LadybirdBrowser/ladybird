@@ -24,6 +24,15 @@ impl Operand {
     /// The encoding of an absent `Optional<Operand>`.
     pub const INVALID: u32 = 0xFFFF_FFFF;
 
+    /// The raw operand that an operand byte of the bytecode stands for, `INVALID` for an absent one.
+    pub fn raw_from_byte(byte: u8) -> u32 {
+        if byte == u8::MAX {
+            Self::INVALID
+        } else {
+            u32::from(byte)
+        }
+    }
+
     pub fn from_raw(raw: u32) -> Self {
         Self(raw)
     }
@@ -142,7 +151,7 @@ pub struct SlowPathField {
 pub struct SlowPathArray {
     /// Byte offset of the first operand of the array within the instruction.
     pub instruction_offset: u32,
-    /// Byte offset of the u32 element count within the instruction.
+    /// Byte offset of the one-byte element count within the instruction.
     pub count_offset: u32,
     pub optional: bool,
 }
@@ -222,6 +231,21 @@ fn narrow_index(index: u32) -> u16 {
     u16::try_from(index).expect("bytecode indices fit in 16 bits")
 }
 
+#[cfg(test)]
+fn name_index_bytes(index: u32) -> [u8; 3] {
+    let [low, middle, high, _] = index.to_le_bytes();
+    [low, middle, high]
+}
+
+#[cfg(test)]
+fn debug_name_index(index: Option<u32>) -> u16 {
+    index.and_then(|index| u16::try_from(index).ok()).unwrap_or(u16::MAX)
+}
+
+fn read_u24(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], 0])
+}
+
 fn read_u16(bytes: &[u8], at: usize) -> u16 {
     u16::from_ne_bytes(bytes[at..at + 2].try_into().unwrap())
 }
@@ -247,7 +271,14 @@ pub fn decode_instruction(bytes: &[u8], pc: u32) -> Result<DecodedInstruction, D
         return Err(error(DecodeErrorKind::TruncatedInstruction));
     }
     let length_u32 = u32::try_from(length).map_err(|_| error(DecodeErrorKind::InvalidLength))?;
-    let instruction = decode_fields(opcode, bytes, at, length).map_err(error)?;
+    let instruction = match decode_fields(opcode, bytes, at, length).map_err(error)? {
+        // NB: The rest of the compiler has no reason to care how far up the frame a move reaches.
+        Instruction::MovWide { dst_slot, src_slot } => Instruction::Mov {
+            dst: Operand::from_raw(dst_slot),
+            src: Operand::from_raw(src_slot),
+        },
+        instruction => instruction,
+    };
     Ok(DecodedInstruction {
         pc,
         length: length_u32,
@@ -294,12 +325,12 @@ mod tests {
     #[test]
     fn decodes_hand_assembled_mov() {
         let mut bytes = vec![OpCode::Mov as u8];
-        bytes.extend(7u16.to_ne_bytes()); // dst
-        bytes.extend(12u16.to_ne_bytes()); // src
+        bytes.push(7); // dst
+        bytes.push(12); // src
 
         let decoded = decode_instruction(&bytes, 0).unwrap();
         assert_eq!(decoded.pc, 0);
-        assert_eq!(decoded.length, 5);
+        assert_eq!(decoded.length, 3);
         assert_eq!(
             decoded.instruction,
             Instruction::Mov {
@@ -320,15 +351,15 @@ mod tests {
     fn decodes_hand_assembled_jump_if() {
         let mut bytes = vec![0; 16];
         let mut jump = vec![OpCode::JumpIf as u8];
-        jump.extend(5u16.to_ne_bytes()); // condition
+        jump.push(5); // condition
         jump.extend(32u32.to_ne_bytes()); // true_target
         jump.extend(48u32.to_ne_bytes()); // false_target
         bytes.extend(jump);
 
         let decoded = decode_instruction(&bytes, 16).unwrap();
         assert_eq!(decoded.pc, 16);
-        assert_eq!(decoded.length, 11);
-        assert_eq!(decoded.next_pc(), 27);
+        assert_eq!(decoded.length, 10);
+        assert_eq!(decoded.next_pc(), 26);
         assert_eq!(
             decoded.instruction,
             Instruction::JumpIf {
@@ -390,6 +421,7 @@ mod tests {
                 elements: vec![0x7ff8_0000_0000_0001, 42],
             },
             Instruction::NewClass {
+                element_keys_are_in_array: false,
                 dst: operand(6),
                 super_class: None,
                 proto_parent: None,
@@ -486,7 +518,7 @@ mod tests {
             src: operand(6),
         }
         .encode(&mut mov);
-        assert_eq!(error(&mov[..4]), DecodeErrorKind::TruncatedInstruction);
+        assert_eq!(error(&mov[..2]), DecodeErrorKind::TruncatedInstruction);
 
         let mut call = Vec::new();
         Instruction::Call {
@@ -500,18 +532,18 @@ mod tests {
             arguments: vec![operand(8)],
         }
         .encode(&mut call);
-        // Call's layout: header, value and call feedback slots, dst, callee, this_value, argument_count at 11.
+        // Call's layout: header, value and call feedback slots, dst, callee, this_value, argument_count at 8.
         let mut too_many_arguments = call.clone();
-        too_many_arguments[11..15].copy_from_slice(&100u32.to_ne_bytes());
+        too_many_arguments[8] = 100;
         assert_eq!(error(&too_many_arguments), DecodeErrorKind::TruncatedInstruction);
-        assert_eq!(error(&call[..call.len() - 2]), DecodeErrorKind::TruncatedInstruction);
+        assert_eq!(error(&call[..call.len() - 1]), DecodeErrorKind::TruncatedInstruction);
 
         let mut stream = mov.clone();
-        stream.extend(&mov[..4]);
+        stream.extend(&mov[..2]);
         assert_eq!(
             decode_all(&stream).unwrap_err(),
             DecodeError {
-                pc: 5,
+                pc: 3,
                 kind: DecodeErrorKind::TruncatedInstruction
             }
         );

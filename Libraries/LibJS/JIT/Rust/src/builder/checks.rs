@@ -52,14 +52,17 @@ impl GraphBuilder<'_> {
             Instruction::ThrowIfTDZ { src } => {
                 let value = self.read(src)?;
                 let initialized = self.check_initialized(value)?;
-                if let Some(slot) = self.function.layout.tracked_index(src)
-                    && let SlotState::Value { node, in_sync } = self.frame.slots[slot]
-                    && node == value
-                {
-                    self.frame.slots[slot] = SlotState::Value {
-                        node: initialized,
-                        in_sync,
-                    };
+                // NB: The operand can be a copy of the local that is checked, when the frame is too large for
+                //     instructions to name the local.
+                for slot in &mut self.frame.slots {
+                    if let SlotState::Value { node, in_sync } = *slot
+                        && node == value
+                    {
+                        *slot = SlotState::Value {
+                            node: initialized,
+                            in_sync,
+                        };
+                    }
                 }
                 Ok(Flow::Continue)
             }

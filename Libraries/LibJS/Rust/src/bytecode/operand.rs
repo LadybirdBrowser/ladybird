@@ -14,13 +14,35 @@ pub enum InstructionLengthError {
 /// The last slot of a cache table, which all the sites past it share. It never remembers anything.
 pub const UNCACHED_SITE: u32 = u16::MAX as u32;
 
-/// A table or cache index as an instruction holds it. `u32::MAX` means none, which stays all bits set.
+/// A cache index as an instruction holds it. `u32::MAX` means none, which stays all bits set.
 #[inline]
 pub fn narrow_index(index: u32) -> u16 {
     if index == u32::MAX {
         return u16::MAX;
     }
-    u16::try_from(index).expect("bytecode indices fit in 16 bits")
+    u16::try_from(index).expect("cache indices fit in 16 bits")
+}
+
+/// The name table index an instruction holds. `u32::MAX` means none, which stays all bits set.
+#[inline]
+pub fn name_index_bytes(index: u32) -> [u8; 3] {
+    let [low, middle, high, top] = index.to_le_bytes();
+    assert!(
+        index == u32::MAX || (top == 0 && index != 0xff_ffff),
+        "name table indices fit in 24 bits"
+    );
+    [low, middle, high]
+}
+
+/// The name table index of a debug name as an instruction holds it, or all bits set for none.
+#[inline]
+pub fn debug_name_index(index: Option<u32>) -> u16 {
+    index.and_then(|index| u16::try_from(index).ok()).unwrap_or(u16::MAX)
+}
+
+#[inline]
+pub fn read_u24(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], 0])
 }
 
 #[inline]

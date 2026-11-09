@@ -1,4 +1,4 @@
-$beef2ebb parameter-environment-capacity.js:10:1
+$f521a068 parameter-environment-capacity.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,22 +8,22 @@ $beef2ebb parameter-environment-capacity.js:10:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `Strict`, is_immutable:true, is_global:false, is_strict:true
-  [  21] SetLexicalEnvironment environment:reg4
-  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  3b] DynamicInitializeLexicalBinding `Strict`, src:reg6
-  [  42] GetGlobal value_feedback:0, dst:reg6, `sloppy`
-  [  4b] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  5c] GetGlobal value_feedback:2, dst:reg6, `Strict`
-  [  65] CallConstruct value_feedback:3, call_feedback:1, dst:reg6, callee:reg6
-  [  74] GetById value_feedback:4, dst:reg7, base:reg6, `method`
-  [  81] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
-  [  92] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `Strict`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] SetLexicalEnvironment environment:reg4
+  [  1f] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
+  [  2f] DynamicInitializeLexicalBinding `Strict`, src:reg6
+  [  36] GetGlobal value_feedback:0, dst:reg6, `sloppy`
+  [  3f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  4a] GetGlobal value_feedback:2, dst:reg6, `Strict`
+  [  53] CallConstruct value_feedback:3, call_feedback:1, dst:reg6, callee:reg6
+  [  5d] GetById value_feedback:4, dst:reg7, base:reg6, `method`
+  [  69] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
+  [  74] End value:reg5
 
 
-sloppy$fb58848c parameter-environment-capacity.js:6:17
+sloppy$0ad3c759 parameter-environment-capacity.js:6:17
   Registers: 6
   Blocks:    3
   Constants:
@@ -32,19 +32,19 @@ sloppy$fb58848c parameter-environment-capacity.js:6:17
 block0:
   [   0] Enter
   [   1] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [   b] CreateArguments is_immutable:false, creates_parameter_bindings:false
+  [   c] CreateArguments is_immutable:false, creates_parameter_bindings:false
   [  14] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  1f] Mov dst:arg0, src:Int32(1)
+  [  1e] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  24] InitializeLexicalBinding `a`, src:arg0
-  [  31] NewFunction dst:reg5, shared_function_data_index:0
-  [  3c] Return value:reg5
+  [  21] InitializeLexicalBinding `a`, src:arg0
+  [  2e] NewFunction dst:reg5, shared_function_data_index:0
+  [  38] Return value:reg5
 
 
-Strict$4310f0d2
+Strict$3395ae05
   Registers: 5
   Blocks:    1
   Constants:
@@ -55,7 +55,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$17a59f42 parameter-environment-capacity.js:11:12
+method$082a5c75 parameter-environment-capacity.js:11:12
   Registers: 7
   Blocks:    3
   Constants:
@@ -65,21 +65,21 @@ method$17a59f42 parameter-environment-capacity.js:11:12
 block0:
   [   0] Enter
   [   1] CreateVariable `mode`, is_immutable:false, is_global:false, is_strict:false
-  [   b] CreateVariable `index`, is_immutable:false, is_global:false, is_strict:false
-  [  15] GetLexicalEnvironment dst:reg4
-  [  18] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   c] CreateVariable `index`, is_immutable:false, is_global:false, is_strict:false
+  [  17] GetLexicalEnvironment dst:reg4
+  [  19] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
   [  23] Mov dst:arg0, src:String("x")
 
 block2:
-  [  28] InitializeLexicalBinding `mode`, src:arg0
-  [  35] InitializeLexicalBinding `index`, src:arg1
-  [  42] CreateVariableEnvironment capacity:1
-  [  47] GetLexicalEnvironment dst:reg5
-  [  4a] CreateVariable `active`, is_immutable:true, is_global:false, is_strict:true
-  [  54] GetBinding value_feedback:0, dst:reg6, `mode`
-  [  63] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("a")
-  [  6c] InitializeLexicalBinding `active`, src:reg6
-  [  79] NewFunction dst:reg6, shared_function_data_index:0
-  [  84] Return value:reg6
+  [  26] InitializeLexicalBinding `mode`, src:arg0
+  [  33] InitializeLexicalBinding `index`, src:arg1
+  [  40] CreateVariableEnvironment capacity:1
+  [  45] GetLexicalEnvironment dst:reg5
+  [  47] CreateVariable `active`, is_immutable:true, is_global:false, is_strict:true
+  [  52] GetBinding value_feedback:0, dst:reg6, `mode`
+  [  61] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("a")
+  [  67] InitializeLexicalBinding `active`, src:reg6
+  [  74] NewFunction dst:reg6, shared_function_data_index:0
+  [  7e] Return value:reg6

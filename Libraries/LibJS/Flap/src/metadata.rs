@@ -46,7 +46,7 @@ pub struct SlowPathArray {
     /// The name of the bytecode field that holds the operands.
     pub name: String,
     pub instruction_offset: usize,
-    /// The instruction offset of the operand count.
+    /// The instruction offset of the operand count, which is one byte.
     pub count_offset: usize,
     pub optional: bool,
 }
@@ -236,9 +236,9 @@ impl From<(&'static str, usize, &'static str)> for FieldType {
 }
 
 /// How many bytes an operand takes in an instruction.
-pub const OPERAND_SIZE: usize = 2;
+pub const OPERAND_SIZE: usize = 1;
 /// The encoding of an absent optional operand.
-pub const NO_OPERAND: i64 = u16::MAX as i64;
+pub const NO_OPERAND: i64 = u8::MAX as i64;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -671,6 +671,7 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
     Some(
         match ty {
             "bool" => ("bool", 1, "bool"),
+            "u8" => ("u32", 1, "byte_count"),
             "i32" => ("i32", 4, "i32"),
             "u32" => ("u32", 4, "u32"),
             "u64" => ("u64", 8, "u64"),
@@ -678,11 +679,14 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             "Optional<Operand>" => ("Option<Operand>", OPERAND_SIZE, "optional_operand"),
             "Label" => ("Label", 4, "label"),
             "Optional<Label>" => ("Option<Label>", 5, "optional_label"),
-            "IdentifierTableIndex" => ("IdentifierTableIndex", 2, "u32_newtype"),
-            "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 2, "optional_u32_newtype"),
-            "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 2, "u32_newtype"),
-            "StringTableIndex" => ("StringTableIndex", 2, "u32_newtype"),
-            "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 2, "optional_u32_newtype"),
+            "IdentifierTableIndex" => ("IdentifierTableIndex", 3, "u32_newtype"),
+            "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 3, "optional_u32_newtype"),
+            "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 3, "u32_newtype"),
+            "StringTableIndex" => ("StringTableIndex", 3, "u32_newtype"),
+            "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 3, "optional_u32_newtype"),
+            // NB: These only make error messages better, so a site past 65534 names can go without.
+            "Optional<DebugIdentifierIndex>" => ("Option<IdentifierTableIndex>", 2, "optional_debug_name"),
+            "Optional<DebugStringIndex>" => ("Option<StringTableIndex>", 2, "optional_debug_name"),
             "EnvironmentCoordinate" => ("EnvironmentCoordinate", 8, "env_coord"),
             "Builtin" => ("u8", 1, "u8"),
             "Completion::Type" => ("u32", 4, "u32"),
@@ -731,7 +735,7 @@ fn count_field_index(op: &InstructionDefinition, array_field: &Field) -> Option<
     let singular = array_field.name.strip_suffix('s').map(|name| format!("{name}_count"));
     op.fields.iter().position(|field| {
         !field.is_array
-            && field.ty == "u32"
+            && (field.ty == "u32" || field.ty == "u8")
             && (field.name == plural || singular.as_ref().is_some_and(|name| field.name == *name))
     })
 }
@@ -779,10 +783,16 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
     let array = if let Some(array_index) = array_indices.first().copied() {
         let count_field_index = count_field_index(op, &op.fields[array_index]).ok_or_else(|| {
             format!(
-                "array field '{}' in op '{}' requires a matching u32 count field",
+                "array field '{}' in op '{}' requires a matching u8 or u32 count field",
                 op.fields[array_index].name, op.name
             )
         })?;
+        if op.fields[array_index].ty == "Operand" && op.fields[count_field_index].ty != "u8" {
+            return Err(format!(
+                "operand array field '{}' in op '{}' requires a u8 count field",
+                op.fields[array_index].name, op.name
+            ));
+        }
         let info = try_field_type_info(&op.fields[array_index].ty).expect("field types are checked while parsing");
         field_offsets.insert(op.fields[array_index].name.clone(), offset);
         Some(ArrayLayout {
@@ -896,7 +906,7 @@ mod tests {
     fn lays_out_explicit_helper_values_with_operand_modes() {
         let ops = parse_flap_metadata(
             "test.flap",
-            "handler Call(length: u32, dst: out Operand, callee: in Operand, state: inout Optional<Operand>, argument_count: u32, arguments: Operand[]) = call_slow_path(call);",
+            "handler Call(dst: out Operand, callee: in Operand, state: inout Optional<Operand>, argument_count: u8, arguments: Operand[]) = call_slow_path(call);",
         )
         .unwrap();
         let op = &ops[0];
@@ -949,8 +959,7 @@ mod tests {
             "interpreter.flap",
             r#"
 handler Call(
-    length: u32,
-    argument_count: u32,
+    argument_count: u8,
     arguments: Operand[]
 ) @terminator = call_slow_path(call);
 "#,
@@ -961,8 +970,8 @@ handler Call(
         assert_eq!(ops[0].name, "Call");
         assert!(ops[0].is_terminator);
         assert!(!ops[0].falls_through);
-        assert_eq!(ops[0].fields.len(), 3);
-        assert!(ops[0].fields[2].is_array);
+        assert_eq!(ops[0].fields.len(), 2);
+        assert!(ops[0].fields[1].is_array);
     }
 
     #[test]
@@ -1161,7 +1170,11 @@ specialize JumpLessThan(rhs: Int32);
             ),
             (
                 "handler Array(values: Value[]) { dispatch_next; }\n",
-                "requires a matching u32 count field",
+                "requires a matching u8 or u32 count field",
+            ),
+            (
+                "handler Call(argument_count: u32, arguments: Operand[]) { dispatch_next; }\n",
+                "requires a u8 count field",
             ),
             (
                 "handler Array(length: u32, value_count: u32, values: Value[], tail: u32) { dispatch_next; }\n",

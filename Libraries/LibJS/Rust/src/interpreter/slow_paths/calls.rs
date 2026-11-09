@@ -73,7 +73,7 @@ fn caller_mode_of(strict: Strict) -> CallerMode {
 
 /// Executable::get_string().
 fn get_string(vm: &Vm, index: StringTableIndex) -> Utf16FlyString {
-    vm.current_executable().string_table()[index.0 as usize].clone()
+    vm.current_executable().string_table()[index.index()].clone()
 }
 
 /// Value::as_array_exotic_object(): the arguments the bytecode collected into an Array for a call.
@@ -204,6 +204,9 @@ pub fn new_class(
             *element_key = Value::UNDEFINED;
         }
     }
+    let element_keys = super::operand_list(vm, instruction.element_keys_are_in_array, element_keys);
+    let element_keys = element_keys.values();
+    let element_keys = &*element_keys;
 
     let class_environment = values.class_environment.as_environment();
     let outer_environment = running_execution_context(vm).lexical_environment.get();

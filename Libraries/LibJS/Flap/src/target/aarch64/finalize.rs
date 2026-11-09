@@ -637,7 +637,7 @@ fn operand_store(
 
     load(
         emit,
-        MemoryWidth::HalfWord,
+        MemoryWidth::Byte,
         false,
         index,
         MachineMemoryAddress::offset(X21, offset),
@@ -923,7 +923,7 @@ fn call_with_scalar_values(
         let ready = emit.unique_label("scalar_value_ready");
         call_values_load(
             emit,
-            MemoryWidth::HalfWord,
+            MemoryWidth::Byte,
             X9,
             MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
         )?;
@@ -971,7 +971,7 @@ fn call_with_scalar_values(
     if let Some(output) = layout.fields.iter().find(|field| field.mode == ParameterMode::Out) {
         call_values_load(
             emit,
-            MemoryWidth::HalfWord,
+            MemoryWidth::Byte,
             X9,
             MachineMemoryAddress::offset(X21, output.instruction_offset as i64),
         )?;
@@ -1041,7 +1041,7 @@ fn call_with_values(
         let stack_space_limit = emit.constant(KnownLayoutConstant::VmStackSpaceLimit)?;
         call_values_load(
             emit,
-            MemoryWidth::Word,
+            MemoryWidth::Byte,
             X10,
             MachineMemoryAddress::offset(X21, count_offset as i64),
         )?;
@@ -1110,7 +1110,7 @@ fn call_with_values(
         }
         call_values_load(
             emit,
-            MemoryWidth::HalfWord,
+            MemoryWidth::Byte,
             X12,
             MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
         )?;
@@ -1165,7 +1165,7 @@ fn call_with_values(
         move_immediate(emit, X9, 0, IntegerWidth::U64);
         call_values_load(
             emit,
-            MemoryWidth::Word,
+            MemoryWidth::Byte,
             X10,
             MachineMemoryAddress::offset(X21, count_offset as i64),
         )?;
@@ -1176,15 +1176,7 @@ fn call_with_values(
             Opcode::CompareRegister(IntegerWidth::U64) => [register X9, register X10];
             Opcode::BranchCondition(Condition::UnsignedGreaterOrEqual) => [label end.clone()];
         );
-        call_values_load(
-            emit,
-            MemoryWidth::HalfWord,
-            X12,
-            MachineMemoryAddress {
-                scale: Some(2),
-                ..MachineMemoryAddress::indexed(X3, X9)
-            },
-        )?;
+        call_values_load(emit, MemoryWidth::Byte, X12, MachineMemoryAddress::indexed(X3, X9))?;
         if optional {
             move_immediate(emit, X11, empty, IntegerWidth::U64);
             move_immediate(emit, X13, NO_OPERAND, IntegerWidth::U32);
@@ -1255,7 +1247,7 @@ fn call_with_values(
             let skip = emit.unique_label("skip_output_value");
             call_values_load(
                 emit,
-                MemoryWidth::HalfWord,
+                MemoryWidth::Byte,
                 X12,
                 MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
             )?;
@@ -1316,7 +1308,7 @@ fn call_with_values(
             let skip = emit.unique_label("skip_exceptional_output");
             call_values_load(
                 emit,
-                MemoryWidth::HalfWord,
+                MemoryWidth::Byte,
                 X12,
                 MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
             )?;

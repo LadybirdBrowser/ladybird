@@ -12,22 +12,22 @@ inline fn max(lhs: u32, rhs: u32) -> u32 {
 }
 
 inline fn call_length(
-    argument_count: u32
+    argument_count: u8
 ) -> u32 {
     let mut count: u32;
-    load32(count, [pb, pc, argument_count]);
-    # NB: 17 is what a Call takes up before its arguments, which are 16 bits each. Any call breaks if it goes out of date.
-    let length: u32 = 17 + count + count;
+    load8(count, [pb, pc, argument_count]);
+    # NB: 11 is what a Call takes up before its arguments, which are a byte each. Any call breaks if it goes out of date.
+    let length: u32 = 11 + count;
     length
 }
 
 inline fn call_site_info(
-    argument_count: u32,
+    argument_count: u8,
     dst: out Operand
 ) -> (u32, u32, u32) {
     let instruction_length: u32 = call_length(argument_count);
     let mut destination_index: u32;
-    load16(destination_index, [pb, pc, dst]);
+    load8(destination_index, [pb, pc, dst]);
     let current_pc: u32 = pc;
     let return_pc: u32 = current_pc + instruction_length;
     (current_pc, return_pc, destination_index)
@@ -121,9 +121,9 @@ inline fn load_direct_getter_value(
 
 inline fn move_operand(dst: out Operand, src: in Operand) {
     let mut dst_index: u32;
-    load16(dst_index, [pb, pc, dst]);
+    load8(dst_index, [pb, pc, dst]);
     let mut src_index: u32;
-    load16(src_index, [pb, pc, src]);
+    load8(src_index, [pb, pc, src]);
     values[dst_index] = values[src_index];
 }
 
@@ -1285,6 +1285,15 @@ handler Mov(
 
 specialize Mov(src: Undefined);
 
+# NB: The only way to reach the frame slots that no other instruction can name.
+handler MovWide(
+    dst_slot: u32,
+    src_slot: u32
+) {
+    values[load(dst_slot)] = values[load(src_slot)];
+    dispatch_next;
+}
+
 specialize Add(lhs: Int32);
 specialize Add(rhs: Int32);
 specialize Sub(rhs: Int32);
@@ -1512,7 +1521,8 @@ handler ConcatString(
 handler CopyObjectExcludingProperties(
     dst: out Operand,
     from_object: Operand,
-    excluded_names_count: u32,
+    excluded_names_are_in_array: bool,
+    excluded_names_count: u8,
     excluded_names: Operand[]
 ) @cold = call_slow_path(copy_object_excluding_properties);
 
@@ -1539,7 +1549,8 @@ handler NewClass(
     class_blueprint_index: u32,
     lhs_name: Optional<IdentifierTableIndex>,
     computed_name: Optional<Operand>,
-    element_keys_count: u32,
+    element_keys_are_in_array: bool,
+    element_keys_count: u8,
     element_keys: Optional<Operand>[]
 ) @cold = call_slow_path(new_class);
 
@@ -2938,7 +2949,7 @@ handler PutByValue(
     property: in Operand,
     src: in Operand,
     kind: PutKind,
-    base_identifier: Optional<IdentifierTableIndex>,
+    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3152,7 +3163,7 @@ handler GetById(
     dst: out Operand,
     base: in Operand,
     property: PropertyKeyTableIndex,
-    base_identifier: Optional<IdentifierTableIndex>,
+    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let try_cache = || @cold {
@@ -3260,7 +3271,7 @@ handler GetById(
         native_frame.runs_jit_code = false;
         let native_pc: u32 = pc;
         let mut destination_offset: u32;
-        load16(destination_offset, [pb, pc, dst]);
+        load8(destination_offset, [pb, pc, dst]);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;
         # The exception helper only needs a PC within the current instruction.
@@ -3394,7 +3405,7 @@ handler PutById(
     src: in Operand,
     kind: PutKind,
     cache: PropertyLookupCacheIndex,
-    base_identifier: Optional<IdentifierTableIndex>
+    base_identifier: Optional<DebugIdentifierIndex>
 ) {
     let slow = || @cold {
         call_slow_path(put_by_id);
@@ -3433,7 +3444,7 @@ handler GetByValue(
     dst: out Operand,
     base: in Operand,
     property: in Operand,
-    base_identifier: Optional<IdentifierTableIndex>,
+    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3686,7 +3697,7 @@ handler GetLength(
     keyed_feedback: KeyedFeedbackIndex,
     dst: out Operand,
     base: in Operand,
-    base_identifier: Optional<IdentifierTableIndex>,
+    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3867,8 +3878,8 @@ handler Call(
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
-    argument_count: u32,
-    expression_string: Optional<StringTableIndex>,
+    argument_count: u8,
+    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) {
     let slow = || @cold {
@@ -3897,7 +3908,7 @@ handler Call(
             }
         }
     }
-    let formal_count: u32 = max(u32(metadata), load(argument_count));
+    let formal_count: u32 = max(u32(metadata), u32(load(argument_count)));
     # Construct an interpreter frame for an inline ECMAScript call.
     assert(executable_pointer != 0);
     let registers_and_locals_count = executable_pointer.registers_and_locals_count;
@@ -3922,7 +3933,7 @@ handler Call(
     let frame_values = frame.slots;
     frame.slot_count = frame_slot_count;
     frame.argument_count = formal_count;
-    frame.passed_argument_count = load(argument_count);
+    frame.passed_argument_count = u32(load(argument_count));
     let realm = function.shape.realm;
     frame.function = function;
     frame.realm = realm;
@@ -3964,7 +3975,7 @@ handler Call(
     exec_ctx.program_counter = current_pc;
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
-    let actual_argument_count = load(argument_count);
+    let actual_argument_count = u32(load(argument_count));
     assert(formal_count >= actual_argument_count);
     let mut write_index: u64 = alias(callee_slot_count);
     let caller_values = exec_ctx.slots;
@@ -4012,7 +4023,7 @@ handler Call(
         # Construct the lightweight frame used by raw native functions.
         let flags = function.flags;
         guard flags has OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION else slow;
-        let actual_argument_count = load(argument_count);
+        let actual_argument_count = u32(load(argument_count));
         let native_frame_size: u64 = alias(actual_argument_count) * SIZEOF_VALUE + SIZEOF_EXECUTION_CONTEXT;
         let native_stack_vm = current_vm();
         let frame_base = native_stack_vm.interpreter_stack_top;
@@ -4311,8 +4322,8 @@ handler CallConstruct(
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
-    argument_count: u32,
-    expression_string: Optional<StringTableIndex>,
+    argument_count: u8,
+    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) @cold = call_slow_path(call_construct);
 
@@ -4322,8 +4333,8 @@ handler CallDirectEval(
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
-    argument_count: u32,
-    expression_string: Optional<StringTableIndex>,
+    argument_count: u8,
+    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) @cold = call_slow_path(call_direct_eval);
 
@@ -4334,7 +4345,7 @@ handler CallWithArgumentArray(
     callee: Operand,
     this_value: Operand,
     arguments: Operand,
-    expression_string: Optional<StringTableIndex>
+    expression_string: Optional<DebugStringIndex>
 ) @cold = call_slow_path(call_with_argument_array);
 
 handler CallDirectEvalWithArgumentArray(
@@ -4344,7 +4355,7 @@ handler CallDirectEvalWithArgumentArray(
     callee: Operand,
     this_value: Operand,
     arguments: Operand,
-    expression_string: Optional<StringTableIndex>
+    expression_string: Optional<DebugStringIndex>
 ) @cold = call_slow_path(call_direct_eval_with_argument_array);
 
 handler CallConstructWithArgumentArray(
@@ -4354,7 +4365,7 @@ handler CallConstructWithArgumentArray(
     callee: Operand,
     this_value: Operand,
     arguments: Operand,
-    expression_string: Optional<StringTableIndex>
+    expression_string: Optional<DebugStringIndex>
 ) @cold = call_slow_path(call_construct_with_argument_array);
 
 handler SuperCallWithArgumentArray(
@@ -4390,7 +4401,7 @@ handler InitObjectLiteralProperty(
 
 handler NewArray(
     dst: out Operand,
-    element_count: u32,
+    element_count: u8,
     elements: Operand[]
 ) @cold = call_slow_path(new_array);
 
@@ -4559,7 +4570,8 @@ handler SetCompletionType(
 
 handler GetTemplateObject(
     dst: out Operand,
-    strings_count: u32,
+    strings_are_in_array: bool,
+    strings_count: u8,
     cache: TemplateObjectCacheIndex,
     strings: Operand[]
 ) @cold = call_slow_path(get_template_object);
