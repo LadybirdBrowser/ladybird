@@ -28,7 +28,7 @@ use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, Pri
 use crate::contrib::test262::global_object::Test262GlobalObject;
 use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode, UpdateOriginalBindings};
 use crate::gc::class::{GcCell, cast_ref, define_cell};
-use crate::gc::root::Root;
+use crate::gc::root::{CellRoot, Root};
 use crate::hash_table::HashTable;
 use crate::interpreter::run::set_dump_bytecode;
 use crate::interpreter::vm::Vm;
@@ -417,6 +417,9 @@ thread_local! {
     static REPL_STATEMENTS: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
     /// The completion value of the last script that ran, which `_` of the REPL reads.
     static LAST_VALUE: RefCell<Option<Root<'static, Value>>> = const { RefCell::new(None) };
+    /// The promises that were rejected without handlers and have had none added since, which js warns about once the
+    /// code that rejected them and its promise jobs have run.
+    static UNHANDLED_REJECTIONS: RefCell<Vec<CellRoot<Promise>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// The Error of AK's String::from_utf8() for bytes that are not UTF-8.
@@ -1137,6 +1140,17 @@ fn warn_about_promise(vm: &Vm, warning: &str, promise: Gc<Promise>) {
     eprintln!(")");
 }
 
+/// Warns about the promises that are still rejected without handlers, as browsers do once their microtasks have run.
+fn warn_about_unhandled_rejections(vm: &Vm) {
+    for promise in UNHANDLED_REJECTIONS.take() {
+        warn_about_promise(
+            vm,
+            "WARNING: A promise was rejected without any handlers",
+            promise.cell(),
+        );
+    }
+}
+
 fn print_all_arguments(vm: &Vm, target: PrintTarget, end: PrintEnd) -> io::Result<()> {
     let mut stream = flushed_print_stream(target);
 
@@ -1280,19 +1294,21 @@ fn parse_and_run(
         LAST_VALUE.set(Some(Root::new(vm, value)));
     }
 
-    match result {
+    let ran_without_throwing = match result {
         Err(throw) => {
             handle_exception(vm, throw.value()).map_err(|error| write_error_string(&error))?;
-            Ok(false)
+            false
         }
         Ok(value) => {
             if options.print_last_result {
                 print_value(vm, value, PrintTarget::StandardOutput, PrintEnd::Newline)
                     .map_err(|error| write_error_string(&error))?;
             }
-            Ok(true)
+            true
         }
-    }
+    };
+    warn_about_unhandled_rejections(vm);
+    Ok(ran_without_throwing)
 }
 
 /// How AK formats the Error of a failed write.
@@ -2084,19 +2100,21 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
     }
 
     if !options.disable_debug_printing {
-        // NOTE: These will print out both warnings when using something like Promise.reject().catch(...) -
-        // which is, as far as I can tell, correct - a promise is created, rejected without handler, and a
-        // handler then attached to it. The Node.js REPL doesn't warn in this case, so it's something we
-        // might want to revisit at a later point and disable warnings for promises created this way.
-        vm.set_on_promise_unhandled_rejection(Some(|vm, promise| {
-            warn_about_promise(vm, "WARNING: A promise was rejected without any handlers", promise);
+        vm.set_on_promise_unhandled_rejection(Some(|_, promise| {
+            UNHANDLED_REJECTIONS.with_borrow_mut(|promises| promises.push(CellRoot::new(promise)));
         }));
         vm.set_on_promise_rejection_handled(Some(|vm, promise| {
-            warn_about_promise(
-                vm,
-                "WARNING: A handler was added to an already rejected promise",
-                promise,
-            );
+            let was_pending = UNHANDLED_REJECTIONS.with_borrow_mut(|promises| {
+                let index = promises.iter().rposition(|rejected| rejected.cell() == promise);
+                index.map(|index| promises.remove(index)).is_some()
+            });
+            if !was_pending {
+                warn_about_promise(
+                    vm,
+                    "WARNING: A handler was added to an already rejected promise",
+                    promise,
+                );
+            }
         }));
     }
 
