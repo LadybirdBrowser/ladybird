@@ -42,6 +42,35 @@ pub(crate) struct RunObservations {
     /// so that it stands for runs at any of them, such as the intrinsic block padding its table hands it once its rows
     /// are sized.
     pub(super) table_cell_block_paddings_unobserved: bool,
+    /// Whether the root's parent owns the root's input cells, which the run then leaves as they were handed to it but
+    /// for the content block size the root adopts.
+    pub(super) parent_owns_root_cells: bool,
+}
+
+/// The cells of the root of the run that produced `outputs`, as the root's parent keeps them where `probe`, which the
+/// outputs answer, describes the run: the probe's own cells where the parent owns them, and else those the run left,
+/// either with the content block size the root adopts at the probe and the inline margins the probe resolved where the
+/// run never observed them.
+pub(crate) fn cells_at_probe(
+    outputs: &formatting_context::RunOutputs,
+    probe: &FcRunCacheKey,
+) -> used_values::RootInputCells {
+    let mut cells = if outputs.observed.parent_owns_root_cells {
+        probe.root_cells
+    } else {
+        outputs.cells
+    };
+    if let Some(block_size) = formatting_context::content_block_size_adopted_after_run(
+        &probe.input,
+        outputs.result.automatic_content_block_size,
+    ) {
+        cells.set_content_block_size(block_size);
+    }
+    if outputs.observed.never_observed.inline_space_around_root {
+        cells.margin_left = probe.root_cells.margin_left;
+        cells.margin_right = probe.root_cells.margin_right;
+    }
+    cells
 }
 
 /// What a run did besides its result that decides which of its inputs it observed.
@@ -92,6 +121,7 @@ pub(crate) fn observations_of(
     };
     RunObservations {
         never_observed,
+        parent_owns_root_cells: facts.parent_owns_root_input_cells,
         table_cell_block_paddings_unobserved: facts.parent_owns_root_input_cells
             && NodeFacts::new(&run.pass, run.box_).is_table_cell()
             && !run_observes_root_block_padding(
@@ -453,51 +483,21 @@ impl FcRunCacheEntry {
         if !root.payloads_past_run().pending_abspos.is_empty() || !arena.paintable_row_is_populated(box_) {
             return false;
         }
-        let (content_inline_size, content_block_size) = self.root_content_size_as_its_parent_holds_it();
+        let cells = self.outputs.cells;
         arena
             .with_current_committed_fragment(box_, |committed| {
                 if std::sync::Arc::ptr_eq(committed, &root.fragment) {
                     return true;
                 }
                 let committed_content_size = self.key.parent_frame.size_from_physical(committed.sides.content_size);
-                committed_content_size.width == content_inline_size
-                    && (committed_content_size.height == content_block_size
+                committed_content_size.width == cells.content_inline_size
+                    && (committed_content_size.height == cells.content_block_size
                         || self.outputs.observed.never_observed.own_block_size
                             == formatting_context::OwnBlockSizeObservation::Unobserved)
-                    && same_allocation(
-                        committed.line_data.as_ref(),
-                        self.outputs.root_outcome.line_data.as_ref(),
-                    )
+                    && same_allocation(committed.line_data.as_ref(), self.outputs.line_data.as_ref())
                     && committed.holds_same_contents_as(&root.fragment)
             })
             .unwrap_or(false)
-    }
-
-    fn root_content_size_as_its_parent_holds_it(&self) -> (CssPixels, CssPixels) {
-        match &self.outputs.root_outcome.input_cells_left_by_run {
-            Some(cells) => (cells.content_inline_size, cells.content_block_size),
-            None => (
-                self.key.root_cells.content_inline_size,
-                self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(
-                    &self.key.input,
-                    self.key.root_cells,
-                ),
-            ),
-        }
-    }
-
-    /// The content block size a run with `input` and the parent-owned root input cells `root_cells` leaves its root
-    /// with, where its contents are laid out as the stored run's were.
-    fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
-        &self,
-        input: &LayoutInput,
-        root_cells: used_values::RootInputCells,
-    ) -> CssPixels {
-        formatting_context::content_block_size_run_leaves_root_whose_cells_its_parent_owns(
-            input,
-            root_cells,
-            self.outputs.result.automatic_content_block_size,
-        )
     }
 
     /// Whether the absolutely positioned boxes the stored run laid out against its root would be laid out against the
@@ -505,11 +505,7 @@ impl FcRunCacheEntry {
     fn probe_leaves_root_with_block_size_its_abspos_were_laid_out_against(&self, probe: &FcRunCacheKey) -> bool {
         self.outputs.observed.never_observed.own_block_size
             != formatting_context::OwnBlockSizeObservation::ObservedOnlyByAbsposContainedByRoot
-            || self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(&probe.input, probe.root_cells)
-                == self.content_block_size_run_leaves_root_whose_cells_its_parent_owns(
-                    &self.key.input,
-                    self.key.root_cells,
-                )
+            || cells_at_probe(&self.outputs, probe).content_block_size == self.outputs.cells.content_block_size
     }
 
     fn last_used_at_layout_commit(&self) -> u64 {
@@ -1069,7 +1065,7 @@ impl FcRunCacheAttempt {
         else {
             return None;
         };
-        entry.outputs.root_outcome.line_data.clone()
+        entry.outputs.line_data.clone()
     }
 
     /// Stores `outputs` where the probe asked for it, and hands them back to the run's parent: as the stored entry's, so
@@ -1081,6 +1077,13 @@ impl FcRunCacheAttempt {
         key: &FcRunCacheKey,
         outputs: formatting_context::RunOutputs,
     ) -> formatting_context::RunOutputsHandle {
+        if !matches!(self, Self::Bypass) && (cfg!(debug_assertions) || run_repeatability::verification_is_enabled()) {
+            assert_eq!(
+                cells_at_probe(&outputs, key),
+                outputs.cells,
+                "the stored run of {box_:?} would hand a probe of its own key other root cells than it left"
+            );
+        }
         let store = || {
             pass.fc_run_cache_store()
                 .expect("a run that probed a store concludes where it can store")
@@ -1243,10 +1246,8 @@ mod tests {
             outputs: formatting_context::RunOutputs {
                 result: formatting_context::ChildLayoutResult::default(),
                 root,
-                root_outcome: formatting_context::RunRootOutcome {
-                    input_cells_left_by_run: Some(used_values::RootInputCells::default()),
-                    line_data: None,
-                },
+                cells: used_values::RootInputCells::default(),
+                line_data: None,
                 // NB: As a run whose result depends on no percentage block size proves.
                 observed: RunObservations {
                     never_observed: RunInputsTheStoredRunNeverObserved {
@@ -1254,6 +1255,7 @@ mod tests {
                         ..RunInputsTheStoredRunNeverObserved::default()
                     },
                     table_cell_block_paddings_unobserved: false,
+                    parent_owns_root_cells: false,
                 },
                 host_findings: None,
             },

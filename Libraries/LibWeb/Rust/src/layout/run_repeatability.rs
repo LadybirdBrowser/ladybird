@@ -241,13 +241,17 @@ impl ComparedLayouts<'_> {
             checked_outputs.result, reference_outputs.result,
             "{checked} returned a result {reference} does not"
         );
+        // NB: Where the parent owns the root's cells, they are those of the layout's own input.
+        let cells_left_by_run = |outputs: &formatting_context::RunOutputs| {
+            (!outputs.observed.parent_owns_root_cells).then_some(outputs.cells)
+        };
         assert_eq!(
-            checked_outputs.root_outcome.input_cells_left_by_run,
-            reference_outputs.root_outcome.input_cells_left_by_run,
+            cells_left_by_run(checked_outputs),
+            cells_left_by_run(reference_outputs),
             "{checked} left root cells {reference} does not"
         );
         assert!(
-            checked_outputs.root_outcome.line_data.as_deref() == reference_outputs.root_outcome.line_data.as_deref(),
+            checked_outputs.line_data.as_deref() == reference_outputs.line_data.as_deref(),
             "{checked} left line data {reference} does not"
         );
         assert_eq!(

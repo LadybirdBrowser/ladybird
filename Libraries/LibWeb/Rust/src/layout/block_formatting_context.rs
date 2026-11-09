@@ -6233,7 +6233,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 outcome,
                 consumed_block_size: outputs.result.automatic_content_block_size,
                 baselines: outputs.result.baselines,
-                root_line_data: outputs.root_outcome.line_data,
+                root_line_data: outputs.line_data,
                 contents: fragmentainer.take_contents(),
             };
         }
