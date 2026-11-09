@@ -400,6 +400,8 @@ pub struct HostState {
     /// The host's synchronous font resolver. A step that misses the cache suspends its element;
     /// the round outside the step calls this and the element is retried.
     font_resolver: Option<font_resolution::FontResolverHost>,
+    /// The element whose composition the host is settling, whose moves are told once it has.
+    settling_composition: Option<pipeline::SettlingComposition>,
     /// The element inputs the next transaction takes beside the projection's changes.
     element_inputs: PendingElementInputs,
     /// Exact element reactions retained across rootless flushes until a style root can consume them.
