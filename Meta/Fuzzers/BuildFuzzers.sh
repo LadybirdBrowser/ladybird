@@ -23,6 +23,9 @@ if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
         -DLINKER_FLAGS="$LIB_FUZZING_ENGINE"
     ninja -C "$LADYBIRD_SOURCE_DIR"/Build/fuzzers
     cp "$LADYBIRD_SOURCE_DIR"/Build/fuzzers/bin/Fuzz* "$OUT"/
+    if [ -d "$LADYBIRD_SOURCE_DIR"/Build/fuzzers/share/Lagom/icu ]; then
+        cp "$LADYBIRD_SOURCE_DIR"/Build/fuzzers/share/Lagom/icu/icudt*.dat "$OUT"/
+    fi
 elif [ "$#" -gt "0" ] && [ "--standalone" = "$1" ] ; then
     echo "Building for standalone fuzz configuration..."
     cmake -S "$LADYBIRD_SOURCE_DIR" -GNinja -B "$LADYBIRD_SOURCE_DIR"/Build/lagom-fuzzers-standalone \
