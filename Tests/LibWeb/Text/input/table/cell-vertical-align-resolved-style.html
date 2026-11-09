@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 5px;
+    }
+    td > div {
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<table>
+    <tr style="height: 200px">
+        <td id="top" style="vertical-align: top"><div></div></td>
+        <td id="middle" style="vertical-align: middle"><div></div></td>
+        <td id="bottom" style="vertical-align: bottom"><div></div></td>
+        <td id="baseline" style="vertical-align: baseline"><div></div></td>
+        <td id="align-content-center" style="align-content: center"><div></div></td>
+        <td id="align-content-end" style="align-content: end"><div></div></td>
+        <td id="align-content-start-over-bottom" style="vertical-align: bottom; align-content: start"><div></div></td>
+    </tr>
+</table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const cell of document.querySelectorAll("td")) {
+            const style = getComputedStyle(cell);
+            const contentTop = cell.firstElementChild.getBoundingClientRect().top - cell.getBoundingClientRect().top;
+            println(`${cell.id}: padding ${style.paddingTop} ${style.paddingBottom}, height ${style.height}, client height ${cell.clientHeight}, content top ${contentTop}`);
+        }
+    });
+</script>

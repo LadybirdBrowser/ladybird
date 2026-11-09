@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
               TableWrapper <(anonymous)> at [8,8] [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
                 Box <div.second-part> at [8,8] table-box [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [TFC] children: not-inline
-            BlockContainer <div.third-part> at [58,58] table-cell [0+0+0 50 0+0+0] [0+0+50 0 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.third-part> at [58,8] table-cell [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x66] (z-index: auto)

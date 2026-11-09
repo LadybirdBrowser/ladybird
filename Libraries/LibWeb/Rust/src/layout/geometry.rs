@@ -427,6 +427,9 @@ pub(crate) struct RootSizingDirectives {
     // wrapper) can be placed in wrapper coordinates.
     pub(crate) table_box_content_block_offset_in_wrapper: PackedOptionalCssPixels,
     pub(crate) content_block_size_after_run: ContentBlockSizeAfterRun,
+    // Input-only: how far the run of a table cell moves the contents of its root along the block axis, to align them
+    // in the block size the rows it spans give it after the run (see ContentBlockSizeAfterRun::Given).
+    pub(crate) table_cell_contents_block_offset: CssPixels,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) root_is_measured_for_its_content_block_size: bool,
@@ -443,9 +446,10 @@ pub(crate) enum ContentBlockSizeAfterRun {
     HandedOver,
     /// Its automatic content block size.
     Automatic,
-    /// A flex or grid item lays out its content against the block size transferred through its aspect ratio, then
-    /// takes this block size, which the automatic minimum size grew to fit the content.
-    GrownFromAspectRatioBlockSize(CssPixels),
+    /// This one, once its contents are laid out against the one its container handed it: a flex or grid item laid out
+    /// against the block size transferred through its aspect ratio takes the one its automatic minimum size grew to
+    /// fit the content, and a table cell takes the block size of the rows it spans.
+    Given(CssPixels),
 }
 
 /// The size that MathML layout asks the core operator of an embellished operator to stretch to cover.

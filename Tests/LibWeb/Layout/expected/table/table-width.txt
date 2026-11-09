@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <table.table> at [108,108] table-box [0+100+0 584 0+100+0] [0+100+0 16 0+100+0] [TFC] children: not-inline
           Box <tbody> at [110,110] table-row-group [0+0+0 580 0+0+0] [0+0+0 12 0+0+0] children: not-inline
             Box <tr> at [110,110] table-row [0+0+0 580 0+0+0] [0+0+0 12 0+0+0] children: not-inline
-              BlockContainer <td.cell> at [111,116] table-cell [0+0+1 578 1+0+0] [0+0+6 0 6+0+0] [BFC] children: not-inline
+              BlockContainer <td.cell> at [111,111] table-cell [0+0+1 578 1+0+0] [0+0+1 10 1+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x232] (z-index: auto)

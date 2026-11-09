@@ -458,6 +458,12 @@ impl PlacedChild {
         self
     }
 
+    /// The child, whose laid out contents its parent moves by `shift` in the frame of the run placing it.
+    pub(crate) fn with_contents_shift(mut self, shift: FfiCssPixelPoint) -> Self {
+        self.contents_shift = shift;
+        self
+    }
+
     /// The child, a block-level box, with the offset the relative positioning of the inline boxes it interrupts gives
     /// it.
     pub(crate) fn with_offset_from_relatively_positioned_inline_ancestors(mut self, offset: FfiCssPixelPoint) -> Self {
@@ -2646,19 +2652,28 @@ fn lay_out_run_root_and_contents<'pass>(
     }
     let root_cells_left_by_run = root.get();
     let root_in_own_frame_left_by_run = root_cells_left_by_run.in_frame(parent_frame, own_frame);
-    let content_alignment_offset = FfiCssPixelPoint {
+    let table_cell_contents_offset = FfiCssPixelPoint {
         x: CssPixels::default(),
-        y: match laid_out_content_block_size {
-            Some(content_block_size) if block_formatting_context::aligns_content_in_block_axis(&containment_facts) => {
-                block_formatting_context::content_alignment_offset(
-                    *containment_facts.style(),
-                    root_in_own_frame_left_by_run.content_block_size - content_block_size,
-                )
-            }
-            _ => CssPixels::default(),
-        },
+        y: input.sizing.table_cell_contents_block_offset,
     };
-    if content_alignment_offset.y != CssPixels::default() {
+    let content_alignment_offset = point_add(
+        FfiCssPixelPoint {
+            x: CssPixels::default(),
+            y: match laid_out_content_block_size {
+                Some(content_block_size)
+                    if block_formatting_context::aligns_content_in_block_axis(&containment_facts) =>
+                {
+                    block_formatting_context::content_alignment_offset(
+                        *containment_facts.style(),
+                        root_in_own_frame_left_by_run.content_block_size - content_block_size,
+                    )
+                }
+                _ => CssPixels::default(),
+            },
+        },
+        own_frame.offset_from_physical(parent_frame.offset_to_physical(table_cell_contents_offset)),
+    );
+    if content_alignment_offset != FfiCssPixelPoint::default() {
         if let Some(fragments) = run.fragments {
             fragments.translate_root_contents(&pass, content_alignment_offset);
         }
@@ -2686,7 +2701,7 @@ fn lay_out_run_root_and_contents<'pass>(
             own_frame.writing_mode(),
         )
         .map(|content| {
-            if content_alignment_offset.y == CssPixels::default() {
+            if content_alignment_offset == FfiCssPixelPoint::default() {
                 content
             } else {
                 inline_content::InlineContent::concatenate_translated(&[(content, content_alignment_offset)])
@@ -3120,6 +3135,11 @@ impl ChildLayout {
         );
     }
 
+    /// Whether the child's run laid out absolutely positioned boxes against the final sizes and box sides of the child.
+    pub(crate) fn laid_out_abspos_contained_by_root(&self) -> bool {
+        matches!(self, Self::Laid(layout) if layout.observed.laid_out_abspos_contained_by_root)
+    }
+
     /// What placing the child takes of its layout.
     pub(crate) fn placed_child(&self) -> PlacedChild {
         PlacedChild::of_layout(self)
@@ -3413,37 +3433,6 @@ pub(crate) fn leave_child_unplaced(
     }
 }
 
-/// The run a table cell's committing run will be (see layout_inside_child_with_input_cells), but for the intrinsic
-/// block padding that its table hands it once rows are sized. Laid out ahead of that padding, its outputs stay in the
-/// run cache, and the committing run replays them unless they show that the run observed the root's block padding (see
-/// fc_run_cache::run_observes_root_block_padding).
-pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
-    run: &FormattingContextRun,
-    table_box: &impl BoxMetricCells,
-    cell: Node,
-    cell_input_cells: used_values::RootInputCells,
-    input: LayoutInput,
-) -> ChildRunShape {
-    debug_assert!(matches!(
-        input.participation,
-        ParticipationInParentFormattingContext::Item
-    ));
-    // NB: A table cell is a containing block of its own to the percentage block insets of its descendants.
-    let plan = child_run_plan(
-        run,
-        cell,
-        formatting_context_type_created_by_box(NodeFacts::new(&run.pass, cell)),
-        input,
-        false,
-        run.percentage_block_insets_of_root_children_have_definite_basis(table_box),
-    );
-    ChildRunShape {
-        node: cell,
-        key: fc_run_cache::LayoutRequest::new(&run.pass, plan.fc_type, plan.input, cell_input_cells),
-        root_containing_block: plan.root_containing_block,
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ChildRunShape {
     pub(crate) node: Node,
@@ -3578,7 +3567,7 @@ pub(super) fn content_block_size_adopted_after_run(
     match input.sizing.content_block_size_after_run {
         geometry::ContentBlockSizeAfterRun::HandedOver => None,
         geometry::ContentBlockSizeAfterRun::Automatic => Some(automatic_content_block_size),
-        geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(block_size) => Some(block_size),
+        geometry::ContentBlockSizeAfterRun::Given(block_size) => Some(block_size),
     }
 }
 

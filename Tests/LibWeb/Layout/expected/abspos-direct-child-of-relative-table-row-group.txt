@@ -8,12 +8,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
                 BlockContainer <div.abspos> at [8,8] positioned [0+0+0 50 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
             Box <div.row> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 16 14+0+0] [BFC] children: inline
+              BlockContainer <div.cell> at [8,8] table-cell [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.03125x16] baseline: 13
                     "first"
                 TextNode <#text> (not painted)
             Box <div.row> at [8,38] table-row [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [8,38] table-cell [0+0+0 200 0+0+0] [0+0+0 16 14+0+0] [BFC] children: inline
+              BlockContainer <div.cell> at [8,38] table-cell [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 6, rect: [8,38 54.78125x16] baseline: 13
                     "second"
                 TextNode <#text> (not painted)

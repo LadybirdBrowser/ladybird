@@ -26,7 +26,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 6, rect: [99.140625,31 44.3125x16] baseline: 13
                     "Cell 2"
                 TextNode <#text> (not painted)
-              BlockContainer <td> at [161.5625,41] table-cell [0+1+1 72.796875 1+1+0] [0+1+11 16 11+1+0] [BFC] children: inline
+              BlockContainer <td> at [161.5625,31] table-cell [0+1+1 72.796875 1+1+0] [0+1+1 36 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 6, rect: [175.65625,41 44.59375x16] baseline: 13
                     "Cell 3"
                 TextNode <#text> (not painted)
@@ -61,7 +61,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 7, rect: [95.578125,91 51.4375x16] baseline: 13
                     "Cell 10"
                 TextNode <#text> (not painted)
-              BlockContainer <td> at [161.5625,101] table-cell [0+1+1 72.796875 1+1+0] [0+1+11 16 11+1+0] [BFC] children: inline
+              BlockContainer <td> at [161.5625,91] table-cell [0+1+1 72.796875 1+1+0] [0+1+1 36 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 7, rect: [173.859375,101 48.1875x16] baseline: 13
                     "Cell 11"
                 TextNode <#text> (not painted)

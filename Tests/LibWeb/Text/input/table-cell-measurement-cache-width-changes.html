@@ -16,11 +16,11 @@
         document.getElementById("rows").innerHTML = parts.join("");
         const table = document.getElementById("table");
 
-        // Each cell is laid out once ahead of its intrinsic padding, and its committing run replays that layout.
+        // Each cell is laid out once, by the run that commits it, however its contents are aligned in its row.
         const measure = width => {
             const work = layoutWork(() => table.style.width = `${width}px`);
             const cellRuns = action => work.count(event => event.event === "run" && event.box.startsWith("BlockContainer<TD>") && event.action === action);
-            println(`${width}px: ${cellRuns("RUN AHEAD OF INTRINSIC BLOCK PADDING")} laid out ahead, ${cellRuns("REPLAY FRAGMENTS")} replayed, ${cellRuns("RUN")} laid out again, height ${table.offsetHeight}`);
+            println(`${width}px: ${cellRuns("RUN")} laid out, ${cellRuns("REPLAY FRAGMENTS")} replayed, height ${table.offsetHeight}`);
         };
 
         layoutWork(() => table.style.width = "1000px");

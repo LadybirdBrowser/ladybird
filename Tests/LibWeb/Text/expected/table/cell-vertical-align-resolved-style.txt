@@ -1,0 +1,7 @@
+top: padding 5px 5px, height 190px, client height 200, content top 5
+middle: padding 5px 5px, height 190px, client height 200, content top 90
+bottom: padding 5px 5px, height 190px, client height 200, content top 175
+baseline: padding 5px 5px, height 190px, client height 200, content top 5
+align-content-center: padding 5px 5px, height 190px, client height 200, content top 90
+align-content-end: padding 5px 5px, height 190px, client height 200, content top 175
+align-content-start-over-bottom: padding 5px 5px, height 190px, client height 200, content top 5

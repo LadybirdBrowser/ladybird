@@ -1,5 +1,5 @@
-900px: 60 laid out ahead, 60 replayed, 0 laid out again, height 240
-950px: 60 laid out ahead, 60 replayed, 0 laid out again, height 240
-400px: 60 laid out ahead, 60 replayed, 0 laid out again, height 480
-350px: 40 laid out ahead, 40 replayed, 0 laid out again, height 480
-1000px: 60 laid out ahead, 60 replayed, 0 laid out again, height 240
+900px: 60 laid out, 0 replayed, height 240
+950px: 60 laid out, 0 replayed, height 240
+400px: 60 laid out, 0 replayed, height 480
+350px: 40 laid out, 0 replayed, height 480
+1000px: 60 laid out, 0 replayed, height 240

@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <table> at [9,9] table-box [0+1+0 203 0+1+0] [0+1+0 103 0+1+0] [TFC] children: not-inline
           Box <tbody> at [9,9] table-row-group [0+0+0 203 0+0+0] [0+0+0 103 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 203 0+0+0] [0+0+0 103 0+0+0] children: not-inline
-              BlockContainer <td> at [10,10] table-cell [0+1+1 200 1+1+0] [0+1+1 16 85+1+0] [BFC] children: inline
+              BlockContainer <td> at [10,10] table-cell [0+1+1 200 1+1+0] [0+1+1 100 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 15, rect: [10,10 129.296875x16] baseline: 13
                     "Text at the top"
                 TextNode <#text> (not painted)

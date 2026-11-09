@@ -64,11 +64,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <table.table> at [28,163] inline-table table-box [0+0+0 28.90625 0+0+0] [0+0+0 40 0+0+0] [TFC] children: not-inline
             Box <tbody> at [28,163] table-row-group [0+0+0 28.90625 0+0+0] [0+0+0 40 0+0+0] children: not-inline
               Box <tr> at [28,163] table-row [0+0+0 28.90625 0+0+0] [0+0+0 40 0+0+0] children: not-inline
-                BlockContainer <td.cell> at [28,173] table-cell [0+0+0 14.453125 0+0+0] [0+0+10 20 10+0+0] [BFC] children: inline
+                BlockContainer <td.cell> at [28,163] table-cell [0+0+0 14.453125 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 1, rect: [28,173 14.453125x20] baseline: 16
                       "X"
                   TextNode <#text> (not painted)
-                BlockContainer <td.cell> at [42.453125,163] table-cell [0+0+0 14.453125 0+0+0] [0+0+0 20 20+0+0] [BFC] children: inline
+                BlockContainer <td.cell> at [42.453125,163] table-cell [0+0+0 14.453125 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 1, rect: [42.453125,163 14.453125x20] baseline: 16
                       "X"
                   TextNode <#text> (not painted)
