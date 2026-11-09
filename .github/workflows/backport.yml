@@ -61,6 +61,7 @@ jobs:
           read -r -a requested <<< "${arguments:-}"
           branches=()
           for branch in "${requested[@]}"; do
+            branch="release/${branch#release/}"
             if ! [[ "$branch" =~ ^release/[0-9]{4}\.([1-9]|1[0-2])$ ]]; then
               echo "::error::${branch} isn't a release branch, such as release/2026.11."
               exit 1
