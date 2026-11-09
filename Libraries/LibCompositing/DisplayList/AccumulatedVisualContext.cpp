@@ -181,13 +181,6 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
     return local_point;
 }
 
-Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(SpatialNodeIndex index, Gfx::FloatPoint screen_point) const
-{
-    Gfx::FloatPoint point;
-    Compositing::RustFFI::visual_context_tree_inverse_transform_point(m_rust_tree, index, screen_point, &point);
-    return point;
-}
-
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialNodeIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
     Gfx::FloatRect rect;

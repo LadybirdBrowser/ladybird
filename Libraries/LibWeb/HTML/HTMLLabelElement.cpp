@@ -114,15 +114,10 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event, bool is_inte
 
         // Recompute offsetX/offsetY relative to the control element, since the original values are relative to the label.
         auto const* layout_node = control_element->layout_node(read);
-        if (layout_node && Painting::has_committed_box(*layout_node) && document().navigable()) {
-            auto scroll_offset = document().navigable()->viewport_scroll_offset();
-            auto page_position = CSSPixelPoint {
-                CSSPixels::nearest_value_for(mouse_event.client_x() + scroll_offset.x().to_double()),
-                CSSPixels::nearest_value_for(mouse_event.client_y() + scroll_offset.y().to_double())
-            };
-            auto box_position = Painting::box_type_agnostic_position(*layout_node);
-            click_event->set_offset_x(AK::round((page_position.x() - box_position.x()).to_double()));
-            click_event->set_offset_y(AK::round((page_position.y() - box_position.y()).to_double()));
+        if (layout_node && Painting::has_committed_box(*layout_node)) {
+            auto offset = Painting::mouse_event_offset(*layout_node, { CSSPixels::nearest_value_for(mouse_event.client_x()), CSSPixels::nearest_value_for(mouse_event.client_y()) });
+            click_event->set_offset_x(AK::round(offset.x().to_double()));
+            click_event->set_offset_y(AK::round(offset.y().to_double()));
         }
 
         click_event->set_bubbles(true);

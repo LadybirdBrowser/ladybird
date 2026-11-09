@@ -241,7 +241,8 @@ pub extern "C" fn viewport_mapping_rect_in_space_to_viewport(
         .into();
 }
 
-/// Gives false where [`ViewportMapping::point_to_local`] gives none.
+/// Gives false where [`ViewportMapping::point_to_local`] gives none. Clips are ignored: C++ maps points over a box it hit
+/// or captured, and the corners of a rect it clipped already.
 #[unsafe(no_mangle)]
 pub extern "C" fn viewport_mapping_point_to_local(
     mapping: FfiViewportMapping<'_>,
@@ -252,7 +253,7 @@ pub extern "C" fn viewport_mapping_point_to_local(
 ) -> bool {
     let Some(local) = mapping
         .mapping()
-        .point_to_local(context, point.into(), space, ClipBehavior::Respect)
+        .point_to_local(context, point.into(), space, ClipBehavior::Ignore)
     else {
         return false;
     };

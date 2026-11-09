@@ -371,19 +371,6 @@ pub unsafe extern "C" fn visual_context_tree_transform_point_for_hit_test(
     }
 }
 
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_inverse_transform_point(
-    tree: *const c_void,
-    spatial: SpatialNodeIndex,
-    screen_point: libgfx_rust::FloatPoint,
-    out: &mut libgfx_rust::FloatPoint,
-) {
-    *out = unsafe { tree_from_handle(tree) }.inverse_transform_point(spatial, screen_point);
-}
-
 fn include_visual_viewport_transform_from(include: bool) -> crate::visual_context::IncludeVisualViewportTransform {
     if include {
         crate::visual_context::IncludeVisualViewportTransform::Yes
