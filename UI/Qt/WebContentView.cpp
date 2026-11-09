@@ -1211,7 +1211,7 @@ void WebContentView::paintEvent(QPaintEvent*)
     // Qt still sends paint events to a view that paints on screen, which has no paint engine to paint with.
     if (testAttribute(Qt::WA_PaintOnScreen))
         return;
-    // The page layer covers the view, except before its first frame, which shows the chrome's color.
+    // Qt paints the view only while an overlay hides the page layer, and the chrome color lies behind the overlay.
     QPainter painter(this);
     painter.fillRect(rect(), ChromeStyle::chrome_background(window()->palette()));
 }
