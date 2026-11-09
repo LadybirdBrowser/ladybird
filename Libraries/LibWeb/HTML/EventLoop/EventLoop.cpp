@@ -1515,6 +1515,8 @@ void EventLoop::resume_rendering_update_in_flight()
         update_style_and_layout_for_rendering(update->document(), update->serial);
         update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::UpToDate, update.ptr());
     }
+    for (auto const& page : pages_of_local_roots())
+        page->client().did_finish_rendering_update_in_flight();
     // What the steps asked for, an animation frame of a promise they resolved for one, asks for the next rendering
     // opportunity now, unless a rendering update runs, whose end asks for it.
     if (!m_running_rendering_task) {
@@ -1549,6 +1551,8 @@ bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
         update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::AsItFlew, update.ptr());
     }
     update_whether_font_face_sets_are_pending_on_the_environment(update->docs, TakenLayout::AsItFlew);
+    for (auto const& page : pages_of_local_roots())
+        page->client().did_finish_rendering_update_in_flight();
     return true;
 }
 
@@ -1556,6 +1560,11 @@ void EventLoop::note_script_ran_beside_rendering_update_in_flight()
 {
     if (m_rendering_update_in_flight)
         m_rendering_update_in_flight->script_ran_beside = true;
+}
+
+bool EventLoop::rendering_update_in_flight_renders(DOM::Document const& document) const
+{
+    return m_rendering_update_in_flight && any_of(m_rendering_update_in_flight->docs, [&](auto const& rendered) { return rendered.ptr() == &document; });
 }
 
 u64 EventLoop::first_rendering_update_to_gather_resize_observations_of(DOM::Document const& document) const

@@ -191,6 +191,8 @@ private:
 
     void request_rendering_opportunity_if_needed();
     void hurry_outstanding_rendering_opportunity();
+    bool rendering_update_in_flight_renders_top_level_document() const;
+    void apply_viewport_size_that_waited_for_rendering_update_in_flight();
     void device_pixels_per_css_pixel_did_change();
     Optional<Web::Compositor::CompositorContextHandle&> rendering_opportunity_context();
     bool hosted_documents_are_hidden() const;
@@ -250,6 +252,7 @@ private:
     virtual void will_begin_rendering_update() override;
     virtual bool has_rendering_opportunity() const override;
     virtual void did_finish_rendering_update() override;
+    virtual void did_finish_rendering_update_in_flight() override;
     virtual void set_manual_rendering_opportunities(bool enabled) override;
     virtual void inject_rendering_opportunity(double frame_time) override;
     virtual void page_did_change_title(Utf16String const&) override;
@@ -447,6 +450,7 @@ private:
     Vector<Web::DevicePixelRect> m_all_available_screen_rects { Web::DevicePixelRect {} };
     size_t m_main_screen_index { 0 };
     Web::DevicePixelSize m_viewport_size;
+    bool m_viewport_size_waits_for_rendering_update_in_flight { false };
     double m_device_pixel_ratio { 1.0 };
     Optional<double> m_pending_device_pixel_ratio_for_testing;
     Optional<double> m_pending_browser_zoom;

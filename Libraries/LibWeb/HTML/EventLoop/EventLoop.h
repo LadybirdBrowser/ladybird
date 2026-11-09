@@ -214,6 +214,7 @@ public:
     void note_hover_may_be_stale(LocalNavigable&);
     // Whether a rendering update has let its frame fly and has not run its steps from its style and layout on yet.
     bool has_rendering_update_in_flight() const { return m_rendering_update_in_flight; }
+    bool rendering_update_in_flight_renders(DOM::Document const&) const;
     // Whether the layout of the rendering update in flight runs, or ran, beside the event loop.
     bool lays_out_rendering_update_in_flight() const;
     // Runs the steps of the rendering update whose style update flies, which take the transaction in.

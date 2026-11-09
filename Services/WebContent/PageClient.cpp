@@ -607,12 +607,41 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
     if (m_pending_device_pixel_ratio_for_testing == device_pixel_ratio)
         m_pending_device_pixel_ratio_for_testing.clear();
 
+    m_viewport_size_waits_for_rendering_update_in_flight = invalidate == Web::InvalidateDisplayList::No && rendering_update_in_flight_renders_top_level_document();
+    if (m_viewport_size_waits_for_rendering_update_in_flight)
+        return;
+
     // A viewport can arrive after the tab's document moved to another process, which leaves this page's traversable
     // remote. The page takes the viewport again once it displays the tab anew.
     if (page().has_local_traversable())
         page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
     if (invalidate == Web::InvalidateDisplayList::PaintCommandsAndHitTestList)
         device_pixels_per_css_pixel_did_change();
+    hurry_outstanding_rendering_opportunity();
+}
+
+bool PageClient::rendering_update_in_flight_renders_top_level_document() const
+{
+    if (!page().has_local_traversable())
+        return false;
+    auto traversable = page().local_traversable();
+    if (!traversable->is_top_level_traversable())
+        return false;
+    auto document = traversable->active_document();
+    return document && Web::HTML::main_thread_event_loop().rendering_update_in_flight_renders(*document);
+}
+
+void PageClient::did_finish_rendering_update_in_flight()
+{
+    apply_viewport_size_that_waited_for_rendering_update_in_flight();
+}
+
+void PageClient::apply_viewport_size_that_waited_for_rendering_update_in_flight()
+{
+    if (!exchange(m_viewport_size_waits_for_rendering_update_in_flight, false))
+        return;
+    if (page().has_local_traversable())
+        page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::No);
     hurry_outstanding_rendering_opportunity();
 }
 
@@ -685,6 +714,7 @@ void PageClient::set_zoom_level(double zoom_level)
     m_zoom_level = zoom_level;
     if (m_pending_browser_zoom == zoom_level)
         m_pending_browser_zoom.clear();
+    m_viewport_size_waits_for_rendering_update_in_flight = false;
     // A local root another page's document embeds is sized by that page again at the new zoom level.
     if (page().has_local_traversable())
         page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
@@ -1015,6 +1045,7 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
     clear_pending_dom_mutations();
+    apply_viewport_size_that_waited_for_rendering_update_in_flight();
 
     if (m_web_ui && &m_web_ui->document() != &document)
         m_web_ui.clear();
