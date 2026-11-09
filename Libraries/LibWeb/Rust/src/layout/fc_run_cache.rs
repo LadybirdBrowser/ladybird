@@ -814,17 +814,18 @@ impl FcRunCacheAttempt {
         pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
-        if !can_describe_run(
-            box_,
-            runs_as_subgrid,
-            should_collect_devtools_layout_data,
-            measurement_root_keeps_its_result,
-            pass,
-            key,
-        ) {
+        let Some(store) = pass.fc_run_cache_store().filter(|_| {
+            can_describe_run(
+                box_,
+                runs_as_subgrid,
+                should_collect_devtools_layout_data,
+                measurement_root_keeps_its_result,
+                pass,
+                key,
+            )
+        }) else {
             return Ok(Self::Bypass);
-        }
-        let store = pass.fc_run_cache_store();
+        };
         let validity = run_root_validity(pass, box_);
         if !builds_fragments {
             if let Some(entry) = store.first_entry_where_summary_allows(
@@ -865,18 +866,20 @@ impl FcRunCacheAttempt {
         pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> bool {
-        if !can_describe_run(
-            box_,
-            false,
-            should_collect_devtools_layout_data,
-            measurement_root_keeps_its_result,
-            pass,
-            key,
-        ) {
+        let Some(store) = pass.fc_run_cache_store().filter(|_| {
+            can_describe_run(
+                box_,
+                false,
+                should_collect_devtools_layout_data,
+                measurement_root_keeps_its_result,
+                pass,
+                key,
+            )
+        }) else {
             return false;
-        }
+        };
         let validity = run_root_validity(pass, box_);
-        pass.fc_run_cache_store()
+        store
             .first_entry_where_summary_allows(
                 box_.slot_index(),
                 |summary| summary.may_answer_probe(validity, builds_fragments),
@@ -909,12 +912,15 @@ impl FcRunCacheAttempt {
         key: &FcRunCacheKey,
         outputs: formatting_context::RunOutputs,
     ) -> formatting_context::RunOutputsHandle {
-        let store = pass.fc_run_cache_store();
+        let store = || {
+            pass.fc_run_cache_store()
+                .expect("a run that probed a store concludes where it can store")
+        };
         let (validity, structurally_damaged_entry) = match self {
             Self::Bypass => return formatting_context::RunOutputsHandle::Owned(outputs),
             Self::StoreResultOnly { validity } => {
                 debug_assert!(outputs.root.is_none(), "a run that builds no fragments returned a root");
-                return formatting_context::RunOutputsHandle::Stored(store.store(
+                return formatting_context::RunOutputsHandle::Stored(store().store(
                     box_,
                     FcRunCacheEntry {
                         key: key.clone(),
@@ -951,7 +957,7 @@ impl FcRunCacheAttempt {
             structural_epoch_bumps_when_stored: 0,
         };
         formatting_context::RunOutputsHandle::Stored(
-            store.store(box_, entry, |entry| entry.holds_committed_fragments(pass.arena(), box_)),
+            store().store(box_, entry, |entry| entry.holds_committed_fragments(pass.arena(), box_)),
         )
     }
 }
