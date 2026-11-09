@@ -145,6 +145,11 @@ void GamepadManager::client_disconnected(WebContentClient& client)
     update_polling_state();
 }
 
+void GamepadManager::client_did_connect_test_endpoint(WebContentClient& client)
+{
+    (void)ensure_consumer(client);
+}
+
 void GamepadManager::play_effect(WebContentClient& client, Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect const& effect)
 {
     auto* device = device_announced_to_client(client, handle);
