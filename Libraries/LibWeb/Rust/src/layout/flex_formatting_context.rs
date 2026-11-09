@@ -3501,14 +3501,14 @@ impl<'pass> FlexFormattingContext<'pass> {
             }
         };
         let cross_alignment = if alignment == align_items::CENTER {
-            StaticPositionAlignment::Center
+            AxisEdge::Center
         } else if self
             .cross_alignment_is_at_physical_end(|| style, alignment)
             .unwrap_or(false)
         {
-            StaticPositionAlignment::End
+            AxisEdge::End
         } else {
-            StaticPositionAlignment::Start
+            AxisEdge::Start
         };
         // The main-axis edges of the static-position rectangle are where the margin edges of the child
         // would be positioned if it were the sole flex item in the flex container,
@@ -3519,9 +3519,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         let main_alignment = match justify {
             justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
                 if self.justify_content_position_is_reverse(justify) {
-                    StaticPositionAlignment::End
+                    AxisEdge::End
                 } else {
-                    StaticPositionAlignment::Start
+                    AxisEdge::Start
                 }
             }
             justify_content::STRETCH
@@ -3529,21 +3529,19 @@ impl<'pass> FlexFormattingContext<'pass> {
             | justify_content::FLEX_START
             | justify_content::SPACE_BETWEEN => {
                 if self.is_direction_reverse() {
-                    StaticPositionAlignment::End
+                    AxisEdge::End
                 } else {
-                    StaticPositionAlignment::Start
+                    AxisEdge::Start
                 }
             }
             justify_content::FLEX_END => {
                 if self.is_direction_reverse() {
-                    StaticPositionAlignment::Start
+                    AxisEdge::Start
                 } else {
-                    StaticPositionAlignment::End
+                    AxisEdge::End
                 }
             }
-            justify_content::CENTER | justify_content::SPACE_AROUND | justify_content::SPACE_EVENLY => {
-                StaticPositionAlignment::Center
-            }
+            justify_content::CENTER | justify_content::SPACE_AROUND | justify_content::SPACE_EVENLY => AxisEdge::Center,
             _ => unreachable!("invalid justify-content"),
         };
         let main_size = self.inner_main_size_used(&self.container_cells);

@@ -7,28 +7,11 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StaticPositionAlignment {
-    Start,
-    Center,
-    End,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct StaticPositionRect {
     pub(crate) rect: geometry::LogicalRect,
-    pub(crate) inline_alignment: StaticPositionAlignment,
-    pub(crate) block_alignment: StaticPositionAlignment,
+    pub(crate) inline_alignment: AxisEdge,
+    pub(crate) block_alignment: AxisEdge,
     pub(crate) alignment_derives_from_own_computed_values: bool,
-}
-
-impl StaticPositionAlignment {
-    fn reversed(self) -> Self {
-        match self {
-            Self::Start => Self::End,
-            Self::Center => Self::Center,
-            Self::End => Self::Start,
-        }
-    }
 }
 
 impl StaticPositionRect {
@@ -62,7 +45,7 @@ impl StaticPositionRect {
         };
         // NB: An alignment is towards the left or top of an axis of the frame, which may run along the other
         //     physical axis, or the other way along it, in another frame.
-        let along_physical_axis = |frame: geometry::Frame, alignment: StaticPositionAlignment, horizontal: bool| {
+        let along_physical_axis = |frame: geometry::Frame, alignment: AxisEdge, horizontal: bool| {
             let reversed = if horizontal {
                 frame.horizontal_axis_is_reversed()
             } else {
@@ -103,15 +86,8 @@ pub(crate) enum AbsposAlignment {
     Center,
     End,
     Normal,
-    Safe,
-    SelfEnd,
-    SelfStart,
-    SpaceAround,
-    SpaceBetween,
-    SpaceEvenly,
     Start,
     Stretch,
-    Unsafe,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

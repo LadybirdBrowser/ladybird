@@ -13,140 +13,10 @@ mod grid_lanes;
 
 use grid_lanes::{GridLanes, StackingAxisArea};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Alignment {
-    Normal,
-    Start,
-    End,
-    Center,
-    Stretch,
-    Baseline,
-    SelfStart,
-    SelfEnd,
-    Left,
-    Right,
-    Safe,
-    Unsafe,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly,
-}
-
-pub(crate) fn inline_item_alignment(justify_self_value: u8, container_justify_items: u8) -> Alignment {
-    match justify_self_value {
-        justify_self::AUTO => match container_justify_items {
-            justify_items::BASELINE => Alignment::Baseline,
-            justify_items::CENTER => Alignment::Center,
-            justify_items::END | justify_items::FLEX_END => Alignment::End,
-            justify_items::FLEX_START | justify_items::START => Alignment::Start,
-            justify_items::LEFT => Alignment::Left,
-            justify_items::RIGHT => Alignment::Right,
-            justify_items::NORMAL | justify_items::LEGACY => Alignment::Normal,
-            justify_items::SAFE => Alignment::Safe,
-            justify_items::SELF_END => Alignment::SelfEnd,
-            justify_items::SELF_START => Alignment::SelfStart,
-            justify_items::STRETCH => Alignment::Stretch,
-            justify_items::UNSAFE => Alignment::Unsafe,
-            _ => unreachable!("invalid justify-items value"),
-        },
-        justify_self::BASELINE => Alignment::Baseline,
-        // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
-        // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
-        // center and has no additional effect on how inset properties resolve.
-        justify_self::CENTER | justify_self::ANCHOR_CENTER => Alignment::Center,
-        justify_self::END | justify_self::FLEX_END => Alignment::End,
-        justify_self::FLEX_START | justify_self::START => Alignment::Start,
-        justify_self::LEFT => Alignment::Left,
-        justify_self::RIGHT => Alignment::Right,
-        justify_self::NORMAL => Alignment::Normal,
-        justify_self::SAFE => Alignment::Safe,
-        justify_self::SELF_END => Alignment::SelfEnd,
-        justify_self::SELF_START => Alignment::SelfStart,
-        justify_self::STRETCH => Alignment::Stretch,
-        justify_self::UNSAFE => Alignment::Unsafe,
-        _ => unreachable!("invalid justify-self value"),
-    }
-}
-
-pub(crate) fn block_item_alignment(align_self_value: u8, container_align_items: u8) -> Alignment {
-    match align_self_value {
-        align_self::AUTO => match container_align_items {
-            align_items::BASELINE => Alignment::Baseline,
-            align_items::CENTER => Alignment::Center,
-            align_items::END | align_items::FLEX_END => Alignment::End,
-            align_items::FLEX_START | align_items::START => Alignment::Start,
-            align_items::NORMAL => Alignment::Normal,
-            align_items::SAFE => Alignment::Safe,
-            align_items::SELF_END => Alignment::SelfEnd,
-            align_items::SELF_START => Alignment::SelfStart,
-            align_items::STRETCH => Alignment::Stretch,
-            align_items::UNSAFE => Alignment::Unsafe,
-            _ => unreachable!("invalid align-items value"),
-        },
-        align_self::BASELINE => Alignment::Baseline,
-        // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
-        // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
-        // center and has no additional effect on how inset properties resolve.
-        align_self::CENTER | align_self::ANCHOR_CENTER => Alignment::Center,
-        align_self::END | align_self::FLEX_END => Alignment::End,
-        align_self::FLEX_START | align_self::START => Alignment::Start,
-        align_self::NORMAL => Alignment::Normal,
-        align_self::SAFE => Alignment::Safe,
-        align_self::SELF_END => Alignment::SelfEnd,
-        align_self::SELF_START => Alignment::SelfStart,
-        align_self::STRETCH => Alignment::Stretch,
-        align_self::UNSAFE => Alignment::Unsafe,
-        _ => unreachable!("invalid align-self value"),
-    }
-}
-
-pub(crate) fn inline_content_alignment(value: u8) -> Alignment {
-    match value {
-        justify_content::NORMAL => Alignment::Normal,
-        justify_content::START | justify_content::FLEX_START => Alignment::Start,
-        justify_content::END | justify_content::FLEX_END => Alignment::End,
-        justify_content::LEFT => Alignment::Left,
-        justify_content::RIGHT => Alignment::Right,
-        justify_content::CENTER => Alignment::Center,
-        justify_content::SPACE_BETWEEN => Alignment::SpaceBetween,
-        justify_content::SPACE_AROUND => Alignment::SpaceAround,
-        justify_content::SPACE_EVENLY => Alignment::SpaceEvenly,
-        justify_content::STRETCH => Alignment::Stretch,
-        _ => unreachable!("invalid justify-content value"),
-    }
-}
-
-pub(crate) fn block_content_alignment(value: u8) -> Alignment {
-    match value {
-        align_content::NORMAL => Alignment::Normal,
-        // AD-HOC: Last baseline values align as start rather than with their fallback alignment, matching other
-        //         engines.
-        align_content::START | align_content::FLEX_START | align_content::BASELINE => Alignment::Start,
-        align_content::END | align_content::FLEX_END => Alignment::End,
-        align_content::CENTER => Alignment::Center,
-        align_content::SPACE_BETWEEN => Alignment::SpaceBetween,
-        align_content::SPACE_AROUND => Alignment::SpaceAround,
-        align_content::SPACE_EVENLY => Alignment::SpaceEvenly,
-        align_content::STRETCH => Alignment::Stretch,
-        _ => unreachable!("invalid align-content value"),
-    }
-}
-
-pub(crate) fn content_start_offset(
-    alignment: Alignment,
-    container_size: CssPixels,
-    tracks_and_gaps_size: CssPixels,
-) -> CssPixels {
-    let free_space = container_size - tracks_and_gaps_size;
-    // CSS Align's automatic overflow alignment is unsafe for grid content
-    // alignment, so preserve negative free space here.
-    match alignment {
-        Alignment::Center => free_space / 2,
-        Alignment::SpaceAround | Alignment::SpaceEvenly => CssPixels::default().max(free_space) / 2,
-        Alignment::End => free_space,
-        _ => CssPixels::default(),
-    }
-}
+use super::box_alignment::{
+    AxisDirections, ContentAlignment, ContentDistribution, ContentKeyword, OverflowSafety, SelfAlignment, SelfKeyword,
+    SelfPosition,
+};
 
 /// Whether each gutter between consecutive tracks collapses.
 // https://www.w3.org/TR/css-grid-2/#collapsed-track
@@ -165,8 +35,8 @@ fn collapsed_gutters(tracks: &[Track<'_>]) -> Vec<bool> {
         .collect()
 }
 
-pub(crate) fn distributed_gap_size(
-    alignment: Alignment,
+fn distributed_gap_size(
+    distribution: Option<ContentDistribution>,
     container_size: CssPixels,
     track_size_sum: CssPixels,
     gap_count: usize,
@@ -176,10 +46,10 @@ pub(crate) fn distributed_gap_size(
         return CssPixels::default();
     }
     let available = CssPixels::default().max(container_size - track_size_sum);
-    let distributed = match alignment {
-        Alignment::SpaceBetween => available / gap_count,
-        Alignment::SpaceAround => available / gap_count.saturating_add(1),
-        Alignment::SpaceEvenly => available / gap_count.saturating_add(2),
+    let distributed = match distribution {
+        Some(ContentDistribution::SpaceBetween) => available / gap_count,
+        Some(ContentDistribution::SpaceAround) => available / gap_count.saturating_add(1),
+        Some(ContentDistribution::SpaceEvenly) => available / gap_count.saturating_add(2),
         _ => CssPixels::default(),
     };
     distributed.max(minimum_gap)
@@ -204,7 +74,7 @@ pub(crate) fn align_item(
     used_margin_end: CssPixels,
     margin_start_is_auto: bool,
     margin_end_is_auto: bool,
-    alignment: Alignment,
+    position: SelfPosition,
 ) -> ItemAlignment {
     let mut result = ItemAlignment {
         margin_start: used_margin_start,
@@ -238,17 +108,17 @@ pub(crate) fn align_item(
     }
 
     let alignment_space = containing_block_size - original_size - margin_box_start - margin_box_end;
-    match alignment {
-        Alignment::Center => {
+    match position {
+        SelfPosition::Edge(AxisEdge::Center) => {
             result.margin_start += alignment_space / 2;
             result.margin_end += alignment_space / 2;
             result.size = original_size;
         }
-        Alignment::Baseline | Alignment::Start => {
+        SelfPosition::Baseline | SelfPosition::Edge(AxisEdge::Start) => {
             result.margin_end += alignment_space;
             result.size = original_size;
         }
-        Alignment::End => {
+        SelfPosition::Edge(AxisEdge::End) => {
             result.margin_start += alignment_space;
             result.size = original_size;
         }
@@ -1110,8 +980,10 @@ struct GridItemInputs<'pass> {
     style: StyleValues<'pass>,
     item_preferred_width: &'pass ComputedSize,
     item_preferred_height: &'pass ComputedSize,
-    column_physical_alignment: Alignment,
-    row_physical_alignment: Alignment,
+    /// The item's alignment in each axis, where Start and End are the left/top and right/bottom sides of its grid area,
+    /// as the item's margins, borders and padding are laid out.
+    column_alignment: SelfAlignment,
+    row_alignment: SelfAlignment,
     is_replaced_box: bool,
     is_replaced_box_with_children: bool,
     is_table_wrapper: bool,
@@ -1599,8 +1471,8 @@ impl<'pass> GridFormattingContext<'pass> {
             style,
             item_preferred_width: style_of_preferred_size.width(),
             item_preferred_height: style_of_preferred_size.height(),
-            column_physical_alignment: self.item_physical_alignment_for_node(node, Axis::Column),
-            row_physical_alignment: self.item_physical_alignment_for_node(node, Axis::Row),
+            column_alignment: self.item_alignment_of(node, Axis::Column),
+            row_alignment: self.item_alignment_of(node, Axis::Row),
             is_replaced_box: facts.is_replaced_box(),
             is_replaced_box_with_children: facts.is_replaced_box_with_children(),
             is_table_wrapper,
@@ -2492,17 +2364,27 @@ impl<'pass> GridFormattingContext<'pass> {
         ExplicitGridLines::new(&lines[start..end])
     }
 
-    fn content_alignment(&self, axis: Axis) -> Alignment {
-        let style = self.container_style;
-        let alignment = self.select_grid_axis(
+    /// The content alignment in the given axis, where Start and End are the sides the tracks start and end at.
+    fn content_alignment(&self, axis: Axis) -> ContentAlignment {
+        let style = *self.container_style;
+        let (keyword, _) = self.select_grid_axis(
             axis,
-            inline_content_alignment(style.justify_content()),
-            block_content_alignment(style.align_content()),
+            ContentKeyword::justify_content_of(style),
+            ContentKeyword::align_content_of(style),
         );
-        match alignment {
-            Alignment::Left | Alignment::Right => self.resolve_left_or_right(axis, alignment),
-            _ => alignment,
-        }
+        let line_left_is_at_start = self.line_left_is_left_or_top(axis) != self.axis_is_reversed(axis);
+        keyword.resolve(
+            OverflowSafety::Default,
+            AxisDirections::of(true, Some(line_left_is_at_start)),
+        )
+    }
+
+    /// The offset of the tracks from the content edge they start at, in an alignment container of the given size.
+    fn content_start_offset(&self, axis: Axis, container_size: CssPixels) -> CssPixels {
+        // NB: CSS Align's automatic overflow alignment is unsafe for grid content alignment, so negative free space
+        //     stays.
+        self.content_alignment(axis)
+            .offset(container_size - self.track_sum(axis), OverflowSafety::Unsafe)
     }
 
     fn container_padding_start(&self, axis: Axis) -> CssPixels {
@@ -2724,8 +2606,8 @@ impl<'pass> GridFormattingContext<'pass> {
             && style.width().is_auto()
             && style.height().is_auto()
             && matches!(
-                self.item_alignment(item, Axis::Row),
-                Alignment::Normal | Alignment::Stretch
+                self.item_alignment(item, Axis::Row).position,
+                SelfPosition::Normal | SelfPosition::Stretch
             )
             && !style.margin_top().is_auto()
             && !style.margin_bottom().is_auto()
@@ -3935,127 +3817,65 @@ impl<'pass> GridFormattingContext<'pass> {
         });
     }
 
-    fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
-        let item_style = self.style(node);
-        let container_style = self.container_style;
-        let alignment = self.select_grid_axis(
+    /// The alignment of `node` in the given axis, where Start and End are the left/top and right/bottom sides of its
+    /// grid area.
+    fn item_alignment_of(&self, node: Node, axis: Axis) -> SelfAlignment {
+        let style = self.style(node);
+        let (keyword, safety) = self.select_grid_axis(
             axis,
-            inline_item_alignment(item_style.justify_self(), container_style.justify_items()),
-            block_item_alignment(item_style.align_self(), container_style.align_items()),
+            SelfKeyword::justify_self_of(*style, *self.container_style),
+            SelfKeyword::align_self_of(*style, *self.container_style),
         );
-        match alignment {
-            // https://drafts.csswg.org/css-align-3/#valdef-self-position-self-start
-            // self-start: Aligns the alignment subject to be flush with the edge of the alignment container
-            // corresponding to the alignment subject’s start side in the appropriate axis.
-            // self-end: Aligns the alignment subject to be flush with the edge of the alignment container
-            // corresponding to the alignment subject’s end side in the appropriate axis.
-            Alignment::SelfStart | Alignment::SelfEnd => {
-                let horizontal = axis.is_column();
-                let item_start_is_left_or_top = geometry::start_is_low_side_in_frame(
+        let container_start_is_low = !self.axis_is_reversed(axis);
+        let alignment = keyword.resolve(
+            safety,
+            AxisDirections {
+                self_start_is_low: geometry::start_is_low_side_in_frame(
                     self.run.pass.frame,
-                    item_style.writing_mode(),
-                    item_style.direction(),
-                    horizontal,
-                );
-                let shares_start_side = item_start_is_left_or_top == self.axis_start_is_left_or_top(axis);
-                if shares_start_side == (alignment == Alignment::SelfStart) {
-                    Alignment::Start
-                } else {
-                    Alignment::End
-                }
-            }
-            Alignment::Left | Alignment::Right => self.resolve_left_or_right(axis, alignment),
-            _ => alignment,
-        }
-    }
-
-    /// The item's alignment in the given axis, where Start and End are the left/top and right/bottom sides of its grid
-    /// area, as the item's margins, borders and padding are laid out.
-    fn item_physical_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
-        let alignment = self.item_alignment_for_node(node, axis);
-        if !self.axis_is_reversed(axis) {
-            return alignment;
-        }
-        match alignment {
-            Alignment::Start | Alignment::Baseline => Alignment::End,
-            Alignment::End => Alignment::Start,
-            _ => alignment,
-        }
-    }
-
-    /// An item that is not stretched by normal or stretch alignment is aligned to the start of its grid area, which
-    /// is at the physical end of a reversed axis.
-    fn alignment_for_unstretched_size(&self, axis: Axis, alignment: Alignment, stretches: bool) -> Alignment {
-        if !stretches && self.axis_is_reversed(axis) && matches!(alignment, Alignment::Normal | Alignment::Stretch) {
-            return Alignment::End;
+                    style.writing_mode(),
+                    style.direction(),
+                    axis.is_column(),
+                ),
+                ..AxisDirections::of(container_start_is_low, Some(self.line_left_is_left_or_top(axis)))
+            },
+        );
+        // NB: Along a reversed axis, a baseline-aligned item aligns to the start of its grid area.
+        if alignment.position == SelfPosition::Baseline && !container_start_is_low {
+            return SelfAlignment {
+                position: SelfPosition::Edge(alignment.container_start),
+                ..alignment
+            };
         }
         alignment
     }
 
-    // https://drafts.csswg.org/css-align-3/#overflow-values
-    // safe: If the size of the alignment subject overflows the alignment container, the alignment subject is instead
-    //       aligned as if the alignment mode were flow-start.
-    fn item_alignment_with_overflow(
-        &self,
-        item: GridItem,
-        axis: Axis,
-        alignment: Alignment,
-        alignment_space: CssPixels,
-    ) -> Alignment {
-        if alignment_space >= CssPixels::default() {
-            return alignment;
-        }
-        let style = self.item_style(item);
-        let container_style = self.container_style;
-        let overflow = self.select_grid_axis(
-            axis,
-            if style.justify_self() == justify_self::AUTO {
-                container_style.justify_items_overflow()
-            } else {
-                style.justify_self_overflow()
-            },
-            if style.align_self() == align_self::AUTO {
-                container_style.align_items_overflow()
-            } else {
-                style.align_self_overflow()
-            },
-        );
-        if overflow != crate::css::computed_value_types::OVERFLOW_ALIGNMENT_SAFE {
-            return alignment;
-        }
-        if self.axis_is_reversed(axis) {
-            Alignment::End
-        } else {
-            Alignment::Start
+    /// The position of an item aligned with `alignment` in a grid area that leaves `free_space` beside it. Normal and
+    /// stretch alignment that do not stretch the item align it to the start of its grid area, which is at the physical
+    /// end of a reversed axis.
+    fn aligned_position(alignment: SelfAlignment, stretches: bool, free_space: CssPixels) -> SelfPosition {
+        match alignment.position_for(free_space, OverflowSafety::Unsafe) {
+            SelfPosition::Normal | SelfPosition::Stretch
+                if !stretches && alignment.container_start == AxisEdge::End =>
+            {
+                SelfPosition::Edge(AxisEdge::End)
+            }
+            position => position,
         }
     }
 
     // https://drafts.csswg.org/css-align-3/#valdef-justify-self-left
     // left: Aligns the alignment subject to be flush with the alignment container’s line-left or physical left edge,
     // whichever is in the appropriate axis.
-    // right: Aligns the alignment subject to be flush with the alignment container’s line-right or physical right
-    // edge, whichever is in the appropriate axis.
-    fn resolve_left_or_right(&self, axis: Axis, alignment: Alignment) -> Alignment {
+    fn line_left_is_left_or_top(&self, axis: Axis) -> bool {
         // NB: The Column axis is the inline axis of the frame, whose line-left side is its left side. Along the Row
         //     axis, left and right are physical sides, which a transposed frame may run either way.
         let frame = self.run.pass.frame;
-        let line_left_is_left_or_top = axis.is_column()
+        axis.is_column()
             || !frame.is_transposed()
             || matches!(
                 frame.frame_side(geometry::Side::Left),
                 geometry::Side::Left | geometry::Side::Top
-            );
-        let aligns_to_left_or_top = (alignment == Alignment::Left) == line_left_is_left_or_top;
-        if self.axis_start_is_left_or_top(axis) == aligns_to_left_or_top {
-            Alignment::Start
-        } else {
-            Alignment::End
-        }
-    }
-
-    /// Whether the grid container's start side in the given axis is its left (columns) or top (rows) side.
-    fn axis_start_is_left_or_top(&self, axis: Axis) -> bool {
-        !self.axis_is_reversed(axis)
+            )
     }
 
     /// Whether the given axis runs from right to left or from bottom to top, as the inline axis of a horizontal grid
@@ -4101,9 +3921,11 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             style.margin_top().is_auto() || style.margin_bottom().is_auto()
         };
-        let stretches = match self.item_alignment(item, axis) {
-            Alignment::Stretch => true,
-            Alignment::Normal => !self.is_grid_lanes_stacking_axis(axis) && self.normal_alignment_stretches(item, axis),
+        let stretches = match self.item_alignment(item, axis).position {
+            SelfPosition::Stretch => true,
+            SelfPosition::Normal => {
+                !self.is_grid_lanes_stacking_axis(axis) && self.normal_alignment_stretches(item, axis)
+            }
             _ => false,
         };
         self.item_preferred_size(item, axis).is_auto() && stretches && !has_auto_margin
@@ -4132,16 +3954,16 @@ impl<'pass> GridFormattingContext<'pass> {
         !block_size_is_definite
     }
 
-    fn item_alignment(&self, item: GridItem, axis: Axis) -> Alignment {
+    fn item_alignment(&self, item: GridItem, axis: Axis) -> SelfAlignment {
         if self.is_grid_lanes_stacking_axis(axis) {
             return self.grid_lanes_stacking_axis_item_alignment(item, axis);
         }
         self.item_physical_alignment(item, axis)
     }
 
-    fn item_physical_alignment(&self, item: GridItem, axis: Axis) -> Alignment {
+    fn item_physical_alignment(&self, item: GridItem, axis: Axis) -> SelfAlignment {
         let inputs = self.item_inputs(item);
-        axis.select(inputs.column_physical_alignment, inputs.row_physical_alignment)
+        axis.select(inputs.column_alignment, inputs.row_alignment)
     }
 
     fn item_margin_box_start(&self, item: GridItem, axis: Axis) -> CssPixels {
@@ -4216,7 +4038,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
         let alignment = self.item_alignment(item, Axis::Column);
         if table_style.width().is_auto()
-            && matches!(alignment, Alignment::Normal | Alignment::Stretch)
+            && matches!(alignment.position, SelfPosition::Normal | SelfPosition::Stretch)
             && !wrapper_style.margin_left().is_auto()
             && !wrapper_style.margin_right().is_auto()
         {
@@ -4281,10 +4103,9 @@ impl<'pass> GridFormattingContext<'pass> {
             base_margin_end + item.extra_margin_right,
             wrapper_style.margin_left().is_auto(),
             wrapper_style.margin_right().is_auto(),
-            self.item_alignment_with_overflow(
-                item,
-                Axis::Column,
-                self.alignment_for_unstretched_size(Axis::Column, alignment, false),
+            Self::aligned_position(
+                alignment,
+                false,
                 containing_for_wrapper - wrapper_size - margin_box_start - margin_box_end,
             ),
         )
@@ -4316,7 +4137,7 @@ impl<'pass> GridFormattingContext<'pass> {
     // NB: This applies to replaced items too, which are otherwise sized by their natural size.
     fn replaced_item_is_explicitly_stretched(&self, item: GridItem, axis: Axis) -> bool {
         self.item_facts(item).is_replaced_box()
-            && self.item_alignment(item, axis) == Alignment::Stretch
+            && self.item_alignment(item, axis).position == SelfPosition::Stretch
             && self.item_is_stretched(item, axis)
     }
 
@@ -4422,7 +4243,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // INTEROP: Blink, WebKit, and Gecko instead use replaced sizing for normal-aligned replaced items. Match that
         //          behavior for leaf replaced boxes, while retaining our existing behavior for controls with children.
         let use_replaced = facts.is_replaced_box()
-            && (has_natural || (alignment == Alignment::Normal && !facts.is_replaced_box_with_children()));
+            && (has_natural || (alignment.position == SelfPosition::Normal && !facts.is_replaced_box_with_children()));
 
         if facts.is_table_wrapper() && axis.is_column() {
             // CSS Grid lays out each grid item into its grid-area containing block before alignment. For
@@ -4569,15 +4390,14 @@ impl<'pass> GridFormattingContext<'pass> {
                 used_margin_end,
                 start_auto,
                 end_auto,
-                self.item_alignment_with_overflow(
-                    item,
-                    axis,
-                    self.alignment_for_unstretched_size(axis, alignment, size_is_auto && !facts.is_replaced_box()),
+                Self::aligned_position(
+                    alignment,
+                    size_is_auto && !facts.is_replaced_box(),
                     containing - size - margin_box_start - margin_box_end,
                 ),
             )
         };
-        let size_stretches = alignment != Alignment::Normal || self.normal_alignment_stretches(item, axis);
+        let size_stretches = alignment.position != SelfPosition::Normal || self.normal_alignment_stretches(item, axis);
         let mut resolved = resolve_alignment(size, preferred.is_auto() && size_stretches);
         // https://drafts.csswg.org/css-values-5/#resolving-calc-size
         // NB: A calc-size() with an auto basis resolves against the size auto gives the item, stretched or not.
@@ -4665,11 +4485,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn axis_track_offsets(&self, axis: Axis) -> AxisTrackOffsets {
         let sum_of_tracks_and_gaps = self.track_sum(axis);
-        let mut offset = content_start_offset(
-            self.content_alignment(axis),
-            self.grid_container_alignment_size(axis),
-            sum_of_tracks_and_gaps,
-        );
+        let mut offset = self.content_start_offset(axis, self.grid_container_alignment_size(axis));
         let mut aligned_offset_after_interleaved_entries =
             Vec::with_capacity(self.axis_tracks(axis).len().saturating_mul(2).saturating_add(1));
         aligned_offset_after_interleaved_entries.push(offset);
@@ -4717,11 +4533,11 @@ impl<'pass> GridFormattingContext<'pass> {
             .axis_tracks(axis)
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
-        let alignment = self.content_alignment(axis);
+        let distribution = self.content_alignment(axis).distribution;
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
         let collapsed = collapsed_gutters(self.axis_tracks(axis));
         let gap_count = collapsed.iter().filter(|&&collapse| !collapse).count();
-        let size = distributed_gap_size(alignment, container, track_sum, gap_count, minimum);
+        let size = distributed_gap_size(distribution, container, track_sum, gap_count, minimum);
         let gaps = axis.select(&mut self.column_gaps, &mut self.row_gaps);
         for (gap, collapse) in gaps.iter_mut().zip(collapsed) {
             gap.base_size = if collapse { CssPixels::default() } else { size };
@@ -4865,12 +4681,7 @@ impl<'pass> GridFormattingContext<'pass> {
         //     before it, as in placed_axis_grid_area().
         let explicit_line_position = |line: i32, is_end: bool| {
             let tracks = self.interleaved_tracks(axis);
-            let alignment = self.content_alignment(axis);
-            let mut offset = content_start_offset(
-                alignment,
-                self.axis_available(axis).to_px_or_zero(),
-                self.track_sum(axis),
-            );
+            let mut offset = self.content_start_offset(axis, self.axis_available(axis).to_px_or_zero());
             let entries = if is_end {
                 line.saturating_mul(2).saturating_sub(1)
             } else {
@@ -5191,7 +5002,7 @@ impl<'pass> GridFormattingContext<'pass> {
     // FIXME: Align items by their baselines in the horizontal Column axis and in a reversed Row axis, align by last
     //        baselines, and shim baseline-aligned items for track sizing.
     fn item_participates_in_row_baseline_alignment(&self, item: GridItem) -> bool {
-        if self.rows_are_reversed || self.item_alignment(item, Axis::Row) != Alignment::Baseline {
+        if self.rows_are_reversed || self.item_alignment(item, Axis::Row).position != SelfPosition::Baseline {
             return false;
         }
         // https://drafts.csswg.org/css-grid-2/#auto-margins
@@ -5231,7 +5042,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_participates_in_column_baseline_alignment(&self, item: GridItem) -> bool {
         if !self.run.pass.frame.is_transposed()
             || self.columns_are_reversed
-            || self.item_alignment(item, Axis::Column) != Alignment::Baseline
+            || self.item_alignment(item, Axis::Column).position != SelfPosition::Baseline
         {
             return false;
         }
@@ -5435,7 +5246,9 @@ impl<'pass> GridFormattingContext<'pass> {
             .then(|| {
                 self.items
                     .iter()
-                    .filter(|item| item.row == 0 && self.item_alignment(**item, Axis::Row) == Alignment::Baseline)
+                    .filter(|item| {
+                        item.row == 0 && self.item_alignment(**item, Axis::Row).position == SelfPosition::Baseline
+                    })
                     .min_by_key(row_major_order)
             })
             .flatten();
@@ -5487,13 +5300,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn save_used_tracks(&self, grid_style: &GridValues) {
         // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
         // so they need to be saved in the state, and then assigned to paintables by the Rust commit walk.
-        let start = |axis: Axis| {
-            content_start_offset(
-                self.content_alignment(axis),
-                self.grid_container_alignment_size(axis),
-                self.track_sum(axis),
-            )
-        };
+        let start = |axis: Axis| self.content_start_offset(axis, self.grid_container_alignment_size(axis));
         let column_axis = self.select_grid_axis(Axis::Column, Axis::Column, Axis::Row);
         let tracks = OwnedUsedGridTracks {
             columns: self.used_track_list_data(column_axis, self.is_subgridded(column_axis, grid_style)),
@@ -5523,12 +5330,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let lines = self.axis_lines(axis);
             let explicit_start = axis.select(self.explicit_column_start, self.explicit_row_start);
             let explicit_count = self.explicit_line_count(axis);
-            let alignment = self.content_alignment(axis);
-            let mut start = content_start_offset(
-                alignment,
-                self.grid_container_alignment_size(axis),
-                self.track_sum(axis),
-            );
+            let mut start = self.content_start_offset(axis, self.grid_container_alignment_size(axis));
             let mut name_storage = Vec::with_capacity(lines.len());
             for line in lines {
                 name_storage.push(
@@ -5793,13 +5595,10 @@ impl<'pass> GridFormattingContext<'pass> {
         //       and that, as in most other layout models, the absolutely-positioned child has no effect on the size of
         //       the containing block or layout of its contents.
         let static_position_alignment = |child: Node, axis: Axis| {
-            let reversed = self.axis_is_reversed(axis);
-            match self.item_alignment_for_node(child, axis) {
-                Alignment::Center => StaticPositionAlignment::Center,
-                Alignment::End if reversed => StaticPositionAlignment::Start,
-                Alignment::End => StaticPositionAlignment::End,
-                _ if reversed => StaticPositionAlignment::End,
-                _ => StaticPositionAlignment::Start,
+            let alignment = self.item_alignment_of(child, axis);
+            match alignment.position {
+                SelfPosition::Edge(edge) => edge,
+                _ => alignment.container_start,
             }
         };
         let (horizontal_axis, vertical_axis) = if self.grid_axes_are_transposed {
@@ -5856,10 +5655,17 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    /// The physical alignment of an absolutely positioned item in its grid area. Normal and stretch alignment do not
-    /// stretch such an item, so they align it to the start of its area, as for an unstretched in-flow item.
-    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> Alignment {
-        self.alignment_for_unstretched_size(axis, self.item_physical_alignment_for_node(node, axis), false)
+    /// The alignment of an absolutely positioned item in its grid area. Normal and stretch alignment do not stretch
+    /// such an item, so they align it to the start of its area, as for an unstretched in-flow item.
+    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> AbsposAlignment {
+        match Self::aligned_position(self.item_alignment_of(node, axis), false, CssPixels::default()) {
+            SelfPosition::Normal => AbsposAlignment::Normal,
+            SelfPosition::Stretch => AbsposAlignment::Stretch,
+            SelfPosition::Baseline => AbsposAlignment::Baseline,
+            SelfPosition::Edge(AxisEdge::Start) => AbsposAlignment::Start,
+            SelfPosition::Edge(AxisEdge::Center) => AbsposAlignment::Center,
+            SelfPosition::Edge(AxisEdge::End) => AbsposAlignment::End,
+        }
     }
 
     // https://www.w3.org/TR/css-grid-2/#abspos-items
@@ -5886,29 +5692,11 @@ impl<'pass> GridFormattingContext<'pass> {
             },
             inline_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
             block_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
-            inline_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Column))),
-            block_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Row))),
+            inline_alignment: Some(self.abspos_item_alignment(node, Axis::Column)),
+            block_alignment: Some(self.abspos_item_alignment(node, Axis::Row)),
             derives_from_own_computed_values: true,
             is_position_area: false,
         }
-    }
-}
-
-fn abspos_alignment(alignment: Alignment) -> AbsposAlignment {
-    match alignment {
-        Alignment::Baseline => AbsposAlignment::Baseline,
-        Alignment::Center => AbsposAlignment::Center,
-        Alignment::End | Alignment::Right => AbsposAlignment::End,
-        Alignment::Normal => AbsposAlignment::Normal,
-        Alignment::Safe => AbsposAlignment::Safe,
-        Alignment::SelfEnd => AbsposAlignment::SelfEnd,
-        Alignment::SelfStart => AbsposAlignment::SelfStart,
-        Alignment::SpaceAround => AbsposAlignment::SpaceAround,
-        Alignment::SpaceBetween => AbsposAlignment::SpaceBetween,
-        Alignment::SpaceEvenly => AbsposAlignment::SpaceEvenly,
-        Alignment::Start | Alignment::Left => AbsposAlignment::Start,
-        Alignment::Stretch => AbsposAlignment::Stretch,
-        Alignment::Unsafe => AbsposAlignment::Unsafe,
     }
 }
 

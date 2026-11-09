@@ -1452,11 +1452,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 },
             },
             inline_alignment: if self.style(coordinate_space_box).direction() == direction::RTL {
-                StaticPositionAlignment::End
+                AxisEdge::End
             } else {
-                StaticPositionAlignment::Start
+                AxisEdge::Start
             },
-            block_alignment: StaticPositionAlignment::Start,
+            block_alignment: AxisEdge::Start,
             alignment_derives_from_own_computed_values: false,
         };
         formatting_context::register_contained_abspos_child(

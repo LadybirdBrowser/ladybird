@@ -550,9 +550,8 @@ impl LayoutNodeArena {
     /// geometry, when nothing but that geometry and the box's own style places it.
     fn abspos_layout_inputs_confined_to_parent(&self, node: NodeSlotId) -> Option<AbsposLayoutInputs> {
         use crate::css::css_enums::positioning;
-        use crate::layout::abspos_inputs::{
-            AbsposAxisMode, AbsposContainingBlockInfo, StaticPositionAlignment, StaticPositionRect,
-        };
+        use crate::layout::AxisEdge;
+        use crate::layout::abspos_inputs::{AbsposAxisMode, AbsposContainingBlockInfo, StaticPositionRect};
         use crate::layout::geometry::{LogicalOffset, LogicalRect, LogicalSize};
 
         let data = self.data(node);
@@ -641,8 +640,8 @@ impl LayoutNodeArena {
             inline_containing_block: NodeSlotId::INVALID,
             static_position_rect: StaticPositionRect {
                 rect: LogicalRect::default(),
-                inline_alignment: StaticPositionAlignment::Start,
-                block_alignment: StaticPositionAlignment::Start,
+                inline_alignment: AxisEdge::Start,
+                block_alignment: AxisEdge::Start,
                 alignment_derives_from_own_computed_values: false,
             },
             containing_block_info: AbsposContainingBlockInfo {

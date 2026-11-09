@@ -2741,8 +2741,8 @@ impl<'context> InlineFormattingContext<'context> {
             }
             let mut static_position = abspos_inputs::StaticPositionRect {
                 rect: Default::default(),
-                inline_alignment: StaticPositionAlignment::Start,
-                block_alignment: StaticPositionAlignment::Start,
+                inline_alignment: AxisEdge::Start,
+                block_alignment: AxisEdge::Start,
                 alignment_derives_from_own_computed_values: false,
             };
             'lines: for line in &self.line_data().line_boxes {
@@ -2769,7 +2769,7 @@ impl<'context> InlineFormattingContext<'context> {
                         static_position.rect.offset.block_offset = y;
                     }
                     if containing_style.direction() == direction::RTL {
-                        static_position.inline_alignment = StaticPositionAlignment::End;
+                        static_position.inline_alignment = AxisEdge::End;
                     }
                     break 'lines;
                 }

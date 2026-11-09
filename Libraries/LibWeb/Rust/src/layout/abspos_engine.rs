@@ -33,20 +33,20 @@ pub(crate) fn aligned_static_offset(
 ) -> geometry::LogicalOffset {
     let mut offset = static_position_rect.rect.offset;
     match static_position_rect.inline_alignment {
-        StaticPositionAlignment::Start => {}
-        StaticPositionAlignment::Center => {
+        AxisEdge::Start => {}
+        AxisEdge::Center => {
             offset.inline_offset += (static_position_rect.rect.size.inline_size - margin_box_inline_size) / 2;
         }
-        StaticPositionAlignment::End => {
+        AxisEdge::End => {
             offset.inline_offset += static_position_rect.rect.size.inline_size - margin_box_inline_size;
         }
     }
     match static_position_rect.block_alignment {
-        StaticPositionAlignment::Start => {}
-        StaticPositionAlignment::Center => {
+        AxisEdge::Start => {}
+        AxisEdge::Center => {
             offset.block_offset += (static_position_rect.rect.size.block_size - margin_box_block_size) / 2;
         }
-        StaticPositionAlignment::End => {
+        AxisEdge::End => {
             offset.block_offset += static_position_rect.rect.size.block_size - margin_box_block_size;
         }
     }
@@ -1035,7 +1035,7 @@ impl AbsposEngine<'_> {
                 - containing_block_geometry.padding_left
                 - containing_block_info.rect.offset.inline_offset;
             static_position_rect.rect.size.inline_size = anchor_rect.width;
-            static_position_rect.inline_alignment = StaticPositionAlignment::Center;
+            static_position_rect.inline_alignment = AxisEdge::Center;
             containing_block_info.inline_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
             containing_block_info.inline_alignment = Some(AbsposAlignment::AnchorCenter);
         }
@@ -1044,7 +1044,7 @@ impl AbsposEngine<'_> {
                 - containing_block_geometry.padding_top
                 - containing_block_info.rect.offset.block_offset;
             static_position_rect.rect.size.block_size = anchor_rect.height;
-            static_position_rect.block_alignment = StaticPositionAlignment::Center;
+            static_position_rect.block_alignment = AxisEdge::Center;
             containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
             containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
         }
@@ -1242,8 +1242,8 @@ impl AbsposEngine<'_> {
                         block_size: anchor_rect.height,
                     },
                 },
-                inline_alignment: StaticPositionAlignment::Center,
-                block_alignment: StaticPositionAlignment::Center,
+                inline_alignment: AxisEdge::Center,
+                block_alignment: AxisEdge::Center,
                 alignment_derives_from_own_computed_values: true,
             },
             containing_block_info,
@@ -1907,7 +1907,7 @@ impl AbsposEngine<'_> {
             ),
         };
         let static_end_distance = containing_block_size - static_start - static_size;
-        let static_position_is_at_end = static_alignment == StaticPositionAlignment::End;
+        let static_position_is_at_end = static_alignment == AxisEdge::End;
         let both_auto = start.is_auto() && end.is_auto();
         let start_offset = if !start.is_auto() {
             start.to_px(containing_block_size)
@@ -3206,8 +3206,8 @@ impl<'pass> AbsposEngine<'pass> {
                             ),
                     ),
                     AbsposAlignment::Center => Some(start_inset + available / 2),
-                    AbsposAlignment::Start | AbsposAlignment::SelfStart => Some(start_inset),
-                    AbsposAlignment::End | AbsposAlignment::SelfEnd => Some(start_inset + available),
+                    AbsposAlignment::Start => Some(start_inset),
+                    AbsposAlignment::End => Some(start_inset + available),
                     _ => None,
                 };
                 if let Some(inset) = inset {
