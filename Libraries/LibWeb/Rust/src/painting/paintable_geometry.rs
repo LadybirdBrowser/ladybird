@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{
@@ -244,11 +243,12 @@ pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
     })
 }
 
-pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixels {
-    arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg())
-            .map_or_else(CssPixels::default, |svg| svg.facts.viewport_percentage_basis)
-    })
+/// The geometry the box of an SVG element committed.
+pub(crate) fn committed_svg_geometry(
+    arena: &impl GeometryRead,
+    slot: NodeSlotId,
+) -> Option<svg_formatting_context::SvgGeometry> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| Some(link.fragment.svg()?.geometry)))
 }
 
 /// The `pathLength` the box of a geometry element committed, where its element has one.

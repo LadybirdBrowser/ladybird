@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/pattern-object-bounding-box-view-box-on-stroked-shape-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="200" height="200">
+    <pattern id="p" width="1" height="1" viewBox="0 0 10 10">
+        <rect width="5" height="10" fill="green" />
+        <rect x="5" width="5" height="10" fill="blue" />
+    </pattern>
+    <rect x="50" y="50" width="100" height="100" fill="url(#p)" stroke="black" stroke-width="20" />
+</svg>

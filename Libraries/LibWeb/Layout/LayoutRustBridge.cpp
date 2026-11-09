@@ -56,7 +56,6 @@
 #include <LibWeb/SVG/SVGPolylineElement.h>
 #include <LibWeb/SVG/SVGRectElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
-#include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTextElement.h>
 #include <LibWeb/SVG/SVGTextPathElement.h>
 #include <LibWeb/SVG/SVGTextPositioningElement.h>
@@ -317,8 +316,6 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
     return {
         .is_graphics_element = is<SVG::SVGGraphicsElement>(dom_node),
         .is_use_element = is<SVG::SVGUseElement>(dom_node),
-        .is_svg_svg_element = is<SVG::SVGSVGElement>(dom_node),
-        .is_symbol_element = is<SVG::SVGSymbolElement>(dom_node),
         .is_text_element = is<SVG::SVGTextElement>(dom_node),
         .is_fit_to_view_box = fit_to_view_box != nullptr,
         .has_active_view_box = active_view_box.has_value(),

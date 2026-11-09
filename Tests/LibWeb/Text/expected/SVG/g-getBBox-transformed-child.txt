@@ -1,0 +1,3 @@
+rotated-about-origin: getBBox=(80, 0, 20, 40) getBoundingClientRect=(80, 0, 20, 40)
+rotated-about-fill-box-center: getBBox=(10, -10, 20, 40) getBoundingClientRect=(10, -10, 20, 40)
+translated-by-percentage: getBBox=(20, 10, 40, 20) getBoundingClientRect=(20, 10, 40, 20)

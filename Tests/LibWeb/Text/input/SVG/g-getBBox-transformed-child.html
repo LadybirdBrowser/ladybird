@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+    }
+</style>
+<svg width="200" height="200">
+    <g id="rotated-about-origin">
+        <rect width="40" height="20" style="transform: rotate(90deg); transform-origin: 50px 50px" />
+    </g>
+    <g id="rotated-about-fill-box-center">
+        <rect width="40" height="20" style="transform: rotate(90deg); transform-box: fill-box; transform-origin: center" />
+    </g>
+    <g id="translated-by-percentage">
+        <rect width="40" height="20" style="transform: translate(50%, 50%); transform-box: fill-box" />
+    </g>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const group of document.querySelectorAll("g")) {
+            const bbox = group.getBBox();
+            const rect = group.getBoundingClientRect();
+            println(`${group.id}: getBBox=(${bbox.x}, ${bbox.y}, ${bbox.width}, ${bbox.height}) getBoundingClientRect=(${rect.x}, ${rect.y}, ${rect.width}, ${rect.height})`);
+        }
+    });
+</script>
