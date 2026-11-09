@@ -169,8 +169,9 @@ public:
     void did_free_external_memory(size_t);
 
     // Tells the heap that a large graph of objects, such as a page that went away, has likely just become garbage.
-    // Nothing about allocation shows that, so this brings the next collection forward. It never collects from here,
-    // since the graph is often still on the caller's stack.
+    // Nothing about allocation shows that, so this brings the next collection forward, and hands what that collection
+    // frees back to the system once it has been swept. It never collects from here, since the graph is often still on
+    // the caller's stack.
     void did_abandon_object_graph();
 
 private:
@@ -307,7 +308,8 @@ private:
 
     void start_idle_gc_timer();
     void idle_gc_on_timer();
-    void collect_abandoned_object_graph_on_timer();
+    void on_abandoned_object_graph_timer();
+    void schedule_release_of_abandoned_object_graph_memory();
 
     struct Stats {
         AK_ALLOC_WITH_KMALLOC;
@@ -372,6 +374,12 @@ private:
     RefPtr<Core::Timer> m_incremental_sweep_timer;
 
     RefPtr<Core::Timer> m_idle_gc_timer;
+    enum class AbandonedObjectGraphState : u8 {
+        None,
+        WaitingToCollect,
+        WaitingToReleaseMemory,
+    };
+    AbandonedObjectGraphState m_abandoned_object_graph_state { AbandonedObjectGraphState::None };
     RefPtr<Core::Timer> m_abandoned_object_graph_timer;
     u64 m_total_allocated_bytes { 0 };
     // The context a heap created through LibGC/CAPI.h was created with.
