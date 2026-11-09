@@ -111,6 +111,10 @@ elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
 
+if (NOT WIN32)
+    list(APPEND SOURCES TerminalInputParser.cpp TerminalWebView.cpp)
+endif()
+
 if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     # Web notifications reach the desktop's notification daemon over the session bus.
     pkg_check_modules(DBUS REQUIRED IMPORTED_TARGET dbus-1)
