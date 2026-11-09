@@ -557,14 +557,28 @@ fn point_to_json(point: CssPixelPoint) -> String {
     format!(r#"{{"x":{},"y":{}}}"#, point.x.to_double(), point.y.to_double())
 }
 
+fn int_rect_to_json(rect: IntRect) -> String {
+    format!(
+        r#"{{"x":{},"y":{},"width":{},"height":{}}}"#,
+        rect.x, rect.y, rect.width, rect.height
+    )
+}
+
+fn float_point_to_json(point: FloatPoint) -> String {
+    format!(r#"{{"x":{},"y":{}}}"#, point.x, point.y)
+}
+
 pub fn async_scrolling_state_to_json(state: &AsyncScrollingState) -> String {
     let mut scroll_nodes = Vec::new();
     for scroll_node in &state.scroll_nodes {
         scroll_nodes.push(format!(
-            r#"{{"scrollNodeIndex":{},"parentScrollNodeIndex":{},"isViewport":{}}}"#,
+            r#"{{"scrollNodeIndex":{},"parentScrollNodeIndex":{},"isViewport":{},"scrollportRect":{},"minScrollOffset":{},"maxScrollOffset":{}}}"#,
             scroll_node.scroll_node_index.0,
             scroll_node.parent_scroll_node_index.map_or(0, |index| index.0),
-            scroll_node.is_viewport
+            scroll_node.is_viewport,
+            int_rect_to_json(scroll_node.scrollport_rect),
+            float_point_to_json(scroll_node.min_scroll_offset),
+            float_point_to_json(scroll_node.max_scroll_offset)
         ));
     }
     let mut snap_containers = Vec::new();

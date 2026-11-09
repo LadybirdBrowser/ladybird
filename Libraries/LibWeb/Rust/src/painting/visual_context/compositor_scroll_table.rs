@@ -9,11 +9,12 @@ use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{PhysicalAxes, maximum_scroll_offset, minimum_scroll_offset};
 use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::paint_passes::FfiCompositorScrollRefreshOutcome;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, scroll_snap, style_queries};
 use libcompositing_rust::visual_context::{
     CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorSnapAreaRecord, CompositorSnapContainerRecord,
-    VISUAL_VIEWPORT_NODE_INDEX,
+    SpatialData, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use libgfx_rust::{FloatPoint, IntRect, IntSize};
 
@@ -153,4 +154,142 @@ pub(crate) fn compositor_snap_container_and_area_records(
         });
     });
     Some((container, areas))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct CompositorScrollInputs {
+    pub(crate) device_pixels_per_css_pixel: f64,
+    pub(crate) device_viewport_size: IntSize,
+}
+
+pub(crate) fn refresh_compositor_scroll_table(
+    arena: &mut crate::layout::LayoutNodeArena,
+    state: &mut super::VisualContextState,
+    inputs: CompositorScrollInputs,
+) -> FfiCompositorScrollRefreshOutcome {
+    use crate::painting::record::damage::PaintDamage;
+    use libcompositing_rust::visual_context::CompositorScrollTable;
+    use std::sync::Arc;
+
+    let Some(tree) = state.tree.as_mut() else {
+        return FfiCompositorScrollRefreshOutcome::default();
+    };
+    let previous = tree.compositor_scroll_table();
+    let inputs_changed = state.last_compositor_scroll_inputs != Some(inputs);
+    let new_damage = state.compositor_snap_damage_revision != Some(arena.paint_damage_push_revision());
+    let damage_everywhere = arena.paint_damage_covers_everything() || arena.scroll_metadata_damaged_everywhere();
+    let source = arena.paintable_rows();
+    let wheel_axes = |slot| crate::painting::chrome_geometry::wheel_scrollable_axes(&source, slot);
+    let mut nodes_with_owners = Vec::new();
+    for (index, spatial_node) in tree.spatial_nodes.iter().enumerate() {
+        let SpatialData::Scroll(scroll) = &spatial_node.data else {
+            continue;
+        };
+        let owner = scroll.owner_paintable;
+        if !source.paintable_row_is_populated(owner) {
+            continue;
+        }
+        if let Some(kind) = compositor_scroll_node_kind(&source, owner, wheel_axes) {
+            let node = compositor_scroll_node_record(
+                &source,
+                owner,
+                kind,
+                inputs.device_pixels_per_css_pixel,
+                inputs.device_viewport_size,
+                wheel_axes,
+            );
+            debug_assert_eq!(node.scroll_node_index, SpatialNodeIndex(index as u32));
+            nodes_with_owners.push((node, owner));
+        }
+    }
+    nodes_with_owners.sort_unstable_by_key(|(node, _)| node.scroll_node_index);
+    let mut containers = Vec::new();
+    let mut areas = Vec::new();
+    let mut damaged_subtrees = Vec::new();
+    let mut removed_snap_container_owners = Vec::new();
+    for (node, owner) in &nodes_with_owners {
+        let previous_node = previous
+            .nodes
+            .binary_search_by_key(&node.scroll_node_index, |node| node.scroll_node_index)
+            .ok()
+            .map(|index| &previous.nodes[index]);
+        let same_identity = previous_node.is_some_and(|before| {
+            before.scrollable_node_id == node.scrollable_node_id
+                && before.scroll_node_kind == node.scroll_node_kind
+                && before.pseudo_element_type == node.pseudo_element_type
+        });
+        if !same_identity
+            || previous_node.is_some_and(|before| before.parent_scroll_node_index != node.parent_scroll_node_index)
+        {
+            damaged_subtrees.push(*owner);
+        }
+        let recompute = inputs_changed
+            || !same_identity
+            || (new_damage && (damage_everywhere || !arena.row_paint_state(*owner).damage().is_empty()));
+        let snap_records = if recompute {
+            compositor_snap_container_and_area_records(&source, *owner)
+        } else {
+            previous
+                .snap_containers
+                .binary_search_by_key(&node.scroll_node_index, |container| container.scroll_node_index)
+                .ok()
+                .map(|index| {
+                    let container = previous.snap_containers[index];
+                    let first = container.first_area_index as usize;
+                    let end = first + container.area_count as usize;
+                    (container, previous.snap_areas[first..end].to_vec())
+                })
+        };
+        if snap_records.is_none()
+            && previous
+                .snap_containers
+                .binary_search_by_key(&node.scroll_node_index, |container| container.scroll_node_index)
+                .is_ok()
+        {
+            removed_snap_container_owners.push(*owner);
+        }
+        if let Some((mut container, container_areas)) = snap_records {
+            container.first_area_index = areas.len().try_into().expect("snap area index fits in u32");
+            container.area_count = container_areas.len().try_into().expect("snap area count fits in u32");
+            areas.extend(container_areas);
+            containers.push(container);
+        }
+    }
+    for (before, owner) in previous.nodes.iter().zip(&state.compositor_scroll_owners) {
+        if !nodes_with_owners
+            .binary_search_by_key(&before.scroll_node_index, |(node, _)| node.scroll_node_index)
+            .is_ok_and(|index| nodes_with_owners[index].1 == *owner)
+            && source.paintable_row_is_populated(*owner)
+        {
+            damaged_subtrees.push(*owner);
+        }
+    }
+    state.compositor_scroll_owners = nodes_with_owners.iter().map(|(_, owner)| *owner).collect();
+    let refreshed = CompositorScrollTable {
+        nodes: nodes_with_owners
+            .into_iter()
+            .map(|(node, _)| node)
+            .collect::<Vec<_>>()
+            .into(),
+        snap_containers: containers.into(),
+        snap_areas: areas.into(),
+    };
+    let table_changed = *previous != refreshed;
+    if table_changed {
+        Arc::make_mut(tree).set_compositor_scroll_table(refreshed);
+    }
+    let requires_display_list_recording = !damaged_subtrees.is_empty();
+    for owner in damaged_subtrees {
+        arena.push_paint_damage_to_paint_subtree(owner, PaintDamage::SCROLL_METADATA);
+    }
+    for owner in removed_snap_container_owners {
+        arena.push_paint_damage(owner, PaintDamage::SCROLL_METADATA);
+    }
+    state.last_compositor_scroll_inputs = Some(inputs);
+    state.compositor_snap_damage_revision = Some(arena.paint_damage_push_revision());
+    FfiCompositorScrollRefreshOutcome {
+        table_changed,
+        requires_display_list_recording,
+        ..Default::default()
+    }
 }

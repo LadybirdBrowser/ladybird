@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { width: 100px; height: 100px; overflow: hidden; }
+</style>
+<div id="ancestor"><div id="scroller"><div style="height: 300px"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState(scroller);
+        const node = () => state().scrollNodes.find(node => !node.isViewport);
+        async function until(condition) {
+            while (!condition())
+                await animationFrame();
+        }
+        await until(() => state().document === document && node());
+
+        const initial = node().scrollportRect;
+        const expectedX = initial.x + Math.round(37 * state().devicePixelsPerCssPixel);
+        ancestor.style.marginLeft = "37px";
+        await until(() => node().scrollportRect.x === expectedX);
+        const moved = node().scrollportRect;
+        println(`moved by 37 CSS pixels, rounded to device pixels: ${moved.x === expectedX}`);
+        println(`other dimensions unchanged: ${moved.y === initial.y && moved.width === initial.width && moved.height === initial.height}`);
+    });
+</script>

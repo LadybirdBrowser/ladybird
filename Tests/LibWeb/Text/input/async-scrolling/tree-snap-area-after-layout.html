@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scroller { width: 100px; height: 100px; overflow: hidden; scroll-snap-type: y proximity; }
+    #area { height: 50px; scroll-snap-align: start; }
+</style>
+<div id="scroller"><div id="spacer" style="height: 150px"></div><div id="area"></div><div style="height: 300px"></div></div>
+<script>
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState(scroller);
+        const node = () => state().scrollNodes.find(node => !node.isViewport);
+        async function until(condition) {
+            while (!condition())
+                await animationFrame();
+        }
+        await until(() => state().document === document && node());
+
+        const container = () => state().snapContainers.find(container => container.scrollNodeIndex === node().scrollNodeIndex);
+        await until(() => container()?.areas.length === 1);
+        const initial = container().areas[0].rect;
+        spacer.style.height = "225px";
+        await until(() => container()?.areas[0]?.rect.y === initial.y + 75);
+        const moved = container().areas[0].rect;
+        println(`snap area movement: ${moved.y - initial.y}`);
+        println(`other dimensions unchanged: ${moved.x === initial.x && moved.width === initial.width && moved.height === initial.height}`);
+    });
+</script>

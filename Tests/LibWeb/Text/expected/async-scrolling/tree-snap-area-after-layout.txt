@@ -1,0 +1,2 @@
+snap area movement: 75
+other dimensions unchanged: true

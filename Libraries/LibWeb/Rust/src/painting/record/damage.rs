@@ -153,6 +153,7 @@ pub(crate) struct DamageSet {
     all: u32,
     scroll_metadata_everywhere: u32,
     started_publishing_recordings: u32,
+    push_revision: u64,
 }
 
 impl DamageSet {
@@ -251,6 +252,7 @@ impl LayoutNodeArena {
         if damage.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
+        self.paintable_rows.damage.push_revision += 1;
         let stamp = self.paintable_rows.damage.stamp_for_push();
         // Whole-document damage pushed for the same recording already covers every row.
         if self.paintable_rows.damage.all == stamp {
@@ -362,12 +364,18 @@ impl LayoutNodeArena {
 
     pub(crate) fn push_all_paint_damage(&mut self) {
         let set = &mut self.paintable_rows.damage;
+        set.push_revision += 1;
         set.all = set.stamp_for_push();
     }
 
     pub(crate) fn push_scroll_metadata_damage_everywhere(&mut self) {
         let set = &mut self.paintable_rows.damage;
+        set.push_revision += 1;
         set.scroll_metadata_everywhere = set.stamp_for_push();
+    }
+
+    pub(crate) fn paint_damage_push_revision(&self) -> u64 {
+        self.paintable_rows.damage.push_revision
     }
 
     pub(crate) fn paint_damage_covers_everything(&self) -> bool {
