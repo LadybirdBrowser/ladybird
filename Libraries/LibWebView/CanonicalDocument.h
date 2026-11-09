@@ -95,8 +95,8 @@ public:
 
     bool is_top_level() const;
 
-    // Whether this top-level document may be hosted by one process with the tabs of its origin. A document that asked
-    // to be kept apart from others, by its opener policy or by being origin-keyed, may not.
+    // Whether this top-level document may be hosted by one process with the tabs of its origin. A document that is
+    // origin-keyed or cross-origin isolated may not. Other opener policies only keep cross-origin windows away.
     bool may_share_a_process_with_tabs_of_its_origin() const;
 
     // Whether this is local file content, whose process may read local files: a document created from a file: URL, or
