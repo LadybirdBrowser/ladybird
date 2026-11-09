@@ -220,6 +220,11 @@ protected:
 
     [[nodiscard]] Utf16String get_the_text_steps();
 
+    static void set_own_inline_style(DOM::Element&, CSS::CSSStyleProperties const& defaults);
+
+    // Gives the slider track of a progress or meter element the style of the element's appearance.
+    void update_slider_track_style(DOM::Element& slider_track) const;
+
 private:
     struct RareData;
     virtual OwnPtr<DOM::Node::RareData> create_rare_data() const override;

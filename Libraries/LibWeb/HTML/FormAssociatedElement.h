@@ -326,8 +326,6 @@ protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed();
 
-    static void set_own_inline_style(DOM::Element&, CSS::CSSStyleProperties const& defaults);
-
 private:
     virtual GC::Ref<JS::Cell> as_cell() override;
 

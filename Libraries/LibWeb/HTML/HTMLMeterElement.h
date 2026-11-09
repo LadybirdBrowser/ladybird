@@ -59,10 +59,13 @@ private:
     HTMLMeterElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void computed_properties_changed() override;
+
     void create_shadow_tree_if_needed();
 
     void update_meter_value_element();
 
+    GC::Ptr<DOM::Element> m_meter_bar_element;
     GC::Ptr<DOM::Element> m_meter_value_element;
     ValueState m_cached_value_state { ValueState::Optimal };
 };

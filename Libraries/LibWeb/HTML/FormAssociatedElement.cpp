@@ -11,7 +11,6 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CSS.h>
-#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/DOM/Document.h>
@@ -817,21 +816,6 @@ void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
             visitor.visit(file);
         },
         [](auto&) { });
-}
-
-// A user-agent shadow tree's inner elements share their default declarations, parsed once, but each
-// holds its own copy: a declaration block is an element's own input, and one shared between elements
-// would change every one of them at once while telling none. The element's copy is replaced only
-// when the defaults it should hold differ from the ones it holds.
-void FormAssociatedTextControlElement::set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
-{
-    // Every value change asks again, and nearly always the element holds the defaults already. The element's copy
-    // shares the declarations it was given until either side changes, so sharing answers that without serializing.
-    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->declaration_block().shares_declarations_with(defaults.declaration_block()))
-        return;
-    auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
-    style->set_declarations_from(defaults);
-    element.set_inline_style(style);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

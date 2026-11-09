@@ -40,7 +40,9 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMeterElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
+#include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
@@ -1516,6 +1518,7 @@ enum ElementConstructionFact : u32 {
     IsSvgResourceElement = 1 << 7,
     IsSvgGeometryElement = 1 << 8,
     IsHtmlSelectElement = 1 << 9,
+    IsHtmlProgressOrMeterElement = 1 << 10,
     // The layout algorithm a MathML element's tag name selects, as a MathMLLayoutKind in these bits.
     MathMLLayoutKindShift = 16,
     MathMLLayoutKindMask = 0x1f << MathMLLayoutKindShift,
@@ -1743,6 +1746,7 @@ static u32 kind_construction_facts(DOM::Element const& element)
     set(!is_input && html_element && html_element->uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
     set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
     set(is<HTML::HTMLSelectElement>(element), ElementConstructionFact::IsHtmlSelectElement);
+    set(is<HTML::HTMLProgressElement>(element) || is<HTML::HTMLMeterElement>(element), ElementConstructionFact::IsHtmlProgressOrMeterElement);
     facts |= to_underlying(mathml_layout_kind(element)) << ElementConstructionFact::MathMLLayoutKindShift;
     return facts;
 }

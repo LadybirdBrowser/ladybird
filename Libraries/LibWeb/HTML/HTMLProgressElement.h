@@ -47,12 +47,15 @@ private:
     virtual bool is_html_progress_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void computed_properties_changed() override;
+
     void create_shadow_tree_if_needed();
 
     void update_progress_value_element();
 
     bool is_determinate() const { return has_attribute(HTML::AttributeNames::value); }
 
+    GC::Ptr<DOM::Element> m_progress_bar_element;
     GC::Ptr<DOM::Element> m_progress_value_element;
 };
 
