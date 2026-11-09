@@ -386,7 +386,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
     // The grid is also included in a grid container's scrollable overflow region.
     // INTEROP: Blink only does this when the grid container is a scroll container, so the grid does not reach the
     //          scrollable overflow of its ancestors.
-    if box_is_scroll_container && let Some(tracks) = &fragment.used_grid_tracks {
+    if box_is_scroll_container && let Some(tracks) = fragment.grid().and_then(|grid| grid.used_tracks.as_ref()) {
         let grid_area = tracks.grid_area.translated_by(own.content_box.location());
         // NB: A grid with tracks in one axis only, e.g. columns but no rows, still reaches the overflow in that axis.
         if grid_area.width > CssPixels::default() {
@@ -510,7 +510,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
         let transform = child_has_css_transform
             .then(|| {
                 let svg_additional_element_transform = style_queries::kind_is_svg_element_box(child_row.kind())
-                    .then(|| child.svg.as_ref()?.additional_element_transform)
+                    .then(|| child.svg()?.facts.additional_element_transform)
                     .flatten()
                     .map(Into::into);
                 node_values::compute_transform_against(

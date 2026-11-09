@@ -449,7 +449,7 @@ impl<'tree> Commit<'_, 'tree> {
         }
         let fragment = &link.fragment;
         debug_assert!(
-            fragment.computed_svg_path.is_some()
+            fragment.svg().is_some_and(|svg| svg.path.is_some())
                 || !crate::painting::node_painting::is_svg_path(self.arena().data(node).kind.get()),
             "committed path-like fragment carries no computed SVG path"
         );

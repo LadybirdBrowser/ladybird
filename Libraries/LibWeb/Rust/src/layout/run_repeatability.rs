@@ -267,8 +267,9 @@ impl ComparedLayouts<'_> {
             _ => panic!("{checked} and {reference} do not both build fragments"),
         };
         assert!(
-            fragment_tree::FragmentPayloads::of_fragment(&checked_root.fragment)
-                == fragment_tree::FragmentPayloads::of_fragment(&reference_root.fragment),
+            checked_root
+                .fragment
+                .has_payloads_of_same_value_as(&reference_root.fragment),
             "{checked} hands its root's fragment payloads {reference} does not"
         );
         assert!(

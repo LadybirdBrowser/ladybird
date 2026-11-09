@@ -1849,12 +1849,12 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn set_svg_viewport_transform(&self, node: Node, transform: FfiAffineTransform) {
         self.run
-            .update_fragment_payloads_of(node, |payloads| payloads.svg.viewport_transform = Some(transform));
+            .update_svg_payload_of(node, |svg| svg.facts.viewport_transform = Some(transform));
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
         self.run
-            .update_fragment_payloads_of(node, |payloads| payloads.svg.viewport_size = Some(viewport_size));
+            .update_svg_payload_of(node, |svg| svg.facts.viewport_size = Some(viewport_size));
     }
 
     fn commit_svg_element_facts(&self, node: Node, facts: SvgElementFacts, attributes: FfiSvgAttributeFacts) {
@@ -1865,8 +1865,8 @@ impl<'pass> SvgFormattingContext<'pass> {
             width: attributes.mask_width,
             height: attributes.mask_height,
         });
-        self.run.update_fragment_payloads_of(node, |payloads| {
-            let svg = &mut payloads.svg;
+        self.run.update_svg_payload_of(node, |svg| {
+            let svg = &mut svg.facts;
             svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
             svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
             svg.additional_element_transform =
@@ -2044,7 +2044,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 self.run.box_,
                 |link| {
                     link.is_some_and(|link| {
-                        let committed = link.fragment.svg.as_deref().copied().unwrap_or_default();
+                        let committed = link.fragment.svg().map(|svg| svg.facts).unwrap_or_default();
                         committed.view_box == attributes.has_active_view_box.then_some(attributes.active_view_box)
                             && committed.viewport_size
                                 == Some(FfiCssPixelSize {
@@ -2241,11 +2241,11 @@ impl<'pass> SvgFormattingContext<'pass> {
             .arena()
             .with_current_committed_fragment_link(shape, |link| link.clone())?;
         let fragment = link.fragment.clone();
-        fragment.computed_svg_path.as_ref()?;
+        fragment.svg()?.path.as_ref()?;
         let committed_offset = link.committed_offset;
         // The transforms and the stroke's percentage basis are what the shape's facts take from outside its own
         // geometry.
-        let committed = fragment.svg.as_deref().copied().unwrap_or_default();
+        let committed = fragment.svg().map(|svg| svg.facts).unwrap_or_default();
         if committed.element_transform != (!facts.element_transform.is_identity()).then_some(facts.element_transform)
             || committed.additional_element_transform
                 != (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform)
@@ -2328,9 +2328,9 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        self.run.update_fragment_payloads_of(graphics_box, |payloads| {
-            payloads.computed_svg_path = Some(std::sync::Arc::new(path));
-            payloads.svg_text_character_cells = character_cells.map(std::sync::Arc::new);
+        self.run.update_svg_payload_of(graphics_box, |svg| {
+            svg.path = Some(std::sync::Arc::new(path));
+            svg.text_character_cells = character_cells.map(std::sync::Arc::new);
         });
         self.set_content_rect(graphics_box, cells, bounding_box)
     }

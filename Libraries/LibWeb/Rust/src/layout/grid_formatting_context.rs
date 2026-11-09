@@ -5508,8 +5508,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sum(Axis::Row),
             ),
         };
-        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
-            payloads.used_grid_tracks = Some(std::sync::Arc::new(tracks));
+        self.run.update_grid_payload_of(self.run.box_, |grid| {
+            grid.used_tracks = Some(std::sync::Arc::new(tracks));
         });
     }
 
@@ -5616,8 +5616,8 @@ impl<'pass> GridFormattingContext<'pass> {
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
         };
-        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
-            payloads.grid_layout_data = Some(std::sync::Arc::new(data));
+        self.run.update_grid_payload_of(self.run.box_, |grid| {
+            grid.layout_data = Some(std::sync::Arc::new(data));
         });
     }
 

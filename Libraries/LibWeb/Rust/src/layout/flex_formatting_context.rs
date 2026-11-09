@@ -3671,8 +3671,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                 as u8,
             lines,
         };
-        self.run.update_fragment_payloads_of(self.run.box_, |payloads| {
-            payloads.flex_layout_data = Some(std::sync::Arc::new(data));
+        self.run.set_fragment_payload_of(self.run.box_, || {
+            fragment_tree::FcPayload::Flex(std::sync::Arc::new(data))
         });
     }
 
