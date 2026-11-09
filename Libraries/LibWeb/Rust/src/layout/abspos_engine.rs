@@ -3182,6 +3182,7 @@ impl<'pass> AbsposEngine<'pass> {
             resolved_anchor_insets: resolved,
             resolved_anchor_sizes,
             position_option: None,
+            frame: self.pass.frame,
         }
         .without_static_position_in_axes_placed_by_own_insets();
         (inputs, default_scroll_shift)

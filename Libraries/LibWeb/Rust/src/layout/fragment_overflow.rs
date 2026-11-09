@@ -8,7 +8,7 @@ use crate::css::css_enums::{overflow, positioning, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
-use crate::layout::fragment_tree::{Fragment, FragmentLink};
+use crate::layout::fragment_tree::{Fragment, FragmentLink, OuterLinks};
 use crate::layout::geometry::{Frame, Sides};
 use crate::layout::inline_content::{InlineContent, PhysicalPlane};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
@@ -69,18 +69,7 @@ struct ContainedBoxesRelativeToContainerPaddingBox {
 impl ContainedBoxesRelativeToContainerPaddingBox {
     fn of(link: &FragmentLink, container: &BoxesRelativeToOwnPaddingBox) -> Self {
         let fragment = &link.fragment;
-        let frame = link.placement.frame;
-        let content_size_in_frame = frame.size_from_physical(fragment.sides.content_size);
-        let content_box = frame
-            .rect_to_physical(
-                CssPixelRect::new(
-                    link.committed_offset.x,
-                    link.committed_offset.y,
-                    content_size_in_frame.width,
-                    content_size_in_frame.height,
-                ),
-                container.content_size,
-            )
+        let content_box = CssPixelRect::from_location_and_size(link.offset.into(), fragment.sides.content_size.into())
             .translated_by(container.content_box.location());
         let padding_box = inflated_by(content_box, fragment.sides.padding);
         Self {
@@ -131,9 +120,7 @@ impl TransformGeometry for ContainedBoxTransformGeometry<'_> {
 pub(crate) fn contained_links(fragment: &Fragment) -> impl Iterator<Item = &FragmentLink> {
     let node = fragment.node;
     fragment.children.iter().flat_map(move |link| {
-        let outer_links = link
-            .fragment
-            .holds_links_of_outer_containing_blocks
+        let outer_links = (link.fragment.outer_links != OuterLinks::None)
             .then_some(&link.fragment.children)
             .into_iter()
             .flatten()
@@ -698,7 +685,7 @@ impl LayoutNodeArena {
                     .committed_fragment_link_cloned(holder.slot_index(), holder.generation())
             })
             .map(|holder_link| holder_link.fragment)
-            .filter(|holder_fragment| holder_fragment.holds_links_of_outer_containing_blocks);
+            .filter(|holder_fragment| holder_fragment.outer_links != OuterLinks::None);
         let links_held_beside = holder_fragment
             .iter()
             .flat_map(|holder_fragment| holder_fragment.children.iter())
@@ -854,7 +841,7 @@ mod tests {
             let fragment = std::sync::Arc::get_mut(&mut child_link.fragment).unwrap();
             fragment.sides.content_size.width = CssPixels::from_integer(20);
             fragment.sides.content_size.height = CssPixels::from_integer(20);
-            child_link.committed_offset.y = CssPixels::from_integer(180).into();
+            child_link.offset.y = CssPixels::from_integer(180).into();
             child_link.placement.containing_block = container;
             let overflow = scrollable_overflow_of(&arena, &container_link.fragment, std::iter::once(&child_link));
             assert_eq!(

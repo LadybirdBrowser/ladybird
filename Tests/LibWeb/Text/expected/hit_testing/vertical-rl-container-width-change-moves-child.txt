@@ -1,0 +1,3 @@
+Before: (260, 10) hits <DIV id="child">
+After: (160, 10) hits <DIV id="child">
+After: (260, 10) hits <BODY>

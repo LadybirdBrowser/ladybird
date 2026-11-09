@@ -6,7 +6,6 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
-use crate::layout::geometry::Frame;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{
     formatting_context, grid_formatting_context, svg_formatting_context, table_formatting_context, used_values,
@@ -15,36 +14,6 @@ use crate::painting::node_painting;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::*;
 
-/// The physical rect of a box's content box within its containing block's content box, from the rect its fragment
-/// link holds in the frame the box was laid out in.
-pub(crate) fn physical_content_rect_in_containing_block(
-    arena: &impl GeometryRead,
-    frame: Frame,
-    containing_block: NodeSlotId,
-    rect_in_frame: CssPixelRect,
-) -> CssPixelRect {
-    if frame.is_physical() {
-        return rect_in_frame;
-    }
-    let containing_block_size = if containing_block.is_invalid() || !arena.paintable_row_is_populated(containing_block)
-    {
-        used_values::FfiCssPixelSize::default()
-    } else {
-        committed_content_size(arena, containing_block)
-    };
-    frame.rect_to_physical(rect_in_frame, containing_block_size)
-}
-
-fn link_content_rect(link: &crate::layout::fragment_tree::FragmentLink, frame: Frame) -> CssPixelRect {
-    let content_size_in_frame = frame.size_from_physical(link.fragment.sides.content_size);
-    CssPixelRect::new(
-        link.committed_offset.x,
-        link.committed_offset.y,
-        content_size_in_frame.width,
-        content_size_in_frame.height,
-    )
-}
-
 pub(crate) fn committed_offset(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     // NB: An inline box without pieces keeps the geometry its link gives it.
     if node_painting::is_fragmented_inline(arena, slot)
@@ -52,20 +21,8 @@ pub(crate) fn committed_offset(arena: &impl GeometryRead, slot: NodeSlotId) -> u
     {
         return unions.content.location().into();
     }
-    let data = arena.paintable_data(slot);
-    let frame = data.frame();
-    if !frame.is_physical() {
-        let containing_block = data.containing_block;
-        return arena
-            .with_committed_fragment_link(slot, |link| link.map(|link| link_content_rect(link, frame)))
-            .map_or_else(used_values::FfiCssPixelPoint::default, |rect| {
-                physical_content_rect_in_containing_block(arena, frame, containing_block, rect)
-                    .location()
-                    .into()
-            });
-    }
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(used_values::FfiCssPixelPoint::default, |link| link.committed_offset)
+        link.map_or_else(used_values::FfiCssPixelPoint::default, |link| link.offset)
     })
 }
 
@@ -380,12 +337,7 @@ pub(crate) fn absolute_fragment_rect(arena: &impl GeometryRead, slot: NodeSlotId
     let Some((rect, containing_block_fragment)) = with_later_box_fragment(arena, slot, index, |fragment| {
         let link = &fragment.link;
         (
-            CssPixelRect::new(
-                link.committed_offset.x,
-                link.committed_offset.y,
-                link.fragment.sides.content_size.width,
-                link.fragment.sides.content_size.height,
-            ),
+            CssPixelRect::from_location_and_size(link.offset.into(), link.fragment.sides.content_size.into()),
             fragment.containing_block_fragment,
         )
     }) else {

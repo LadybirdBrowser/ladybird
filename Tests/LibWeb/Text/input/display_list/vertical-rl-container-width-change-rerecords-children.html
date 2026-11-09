@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .container {
+        width: 300px;
+        height: 100px;
+        background: lightgray;
+    }
+
+    #vertical-rl {
+        writing-mode: vertical-rl;
+    }
+
+    #sideways-rl {
+        writing-mode: sideways-rl;
+    }
+
+    .child {
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+</style>
+<div class="container" id="vertical-rl"><div class="child" id="vertical-rl-child"></div></div>
+<div class="container" id="sideways-rl"><div class="child" id="sideways-rl-child"></div></div>
+<script>
+    // The block axes of both containers run right to left, so narrowing them moves their children left, while the
+    // children keep their offsets in the containers' writing modes. The recording has to paint them where they moved.
+    asyncTest(async done => {
+        __outputElement.style.display = "none";
+        await animationFrame();
+        await animationFrame();
+        internals.recordDisplayListForTesting(false, false);
+        for (const container of document.querySelectorAll(".container"))
+            container.style.width = "200px";
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(false, false);
+        const trace = internals.takeDisplayListTrace();
+        __outputElement.style.display = "";
+        for (const child of document.querySelectorAll(".child")) {
+            const rerecorded = trace
+                .split("\n")
+                .some(line => line.includes(`#${child.id}.`) && line.includes("/background RECORD"));
+            println(`#${child.id} background re-recorded: ${rerecorded}`);
+        }
+        done();
+    });
+</script>

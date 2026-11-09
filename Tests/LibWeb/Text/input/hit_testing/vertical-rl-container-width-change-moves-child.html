@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #container {
+        writing-mode: vertical-rl;
+        width: 300px;
+        height: 200px;
+        background: lightgray;
+    }
+
+    #child {
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+</style>
+<div id="container"><div id="child"></div></div>
+<script>
+    function describe(node) {
+        return node.id ? `<${node.nodeName} id="${node.id}">` : `<${node.nodeName}>`;
+    }
+
+    asyncTest(async done => {
+        // NB: Printing adds text to the page, so the output waits until every point is hit tested.
+        const lines = [];
+        await animationFrame();
+        await animationFrame();
+        lines.push(`Before: (260, 10) hits ${describe(internals.hitTest(260, 10).node)}`);
+        container.style.width = "200px";
+        await animationFrame();
+        await animationFrame();
+        lines.push(`After: (160, 10) hits ${describe(internals.hitTest(160, 10).node)}`);
+        lines.push(`After: (260, 10) hits ${describe(internals.hitTest(260, 10).node)}`);
+        for (const line of lines)
+            println(line);
+        done();
+    });
+</script>
