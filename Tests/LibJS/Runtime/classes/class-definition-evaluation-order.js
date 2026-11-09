@@ -93,4 +93,44 @@ describe("class definition evaluation order", () => {
         expect(object.named.name).toBe("named");
         expect(object[symbol].seenName).toBe("[description]");
     });
+
+    test("a static method named prototype throws before the next key is evaluated", () => {
+        const log = [];
+        expect(() => {
+            class C {
+                static ["prototype"]() {}
+                [(log.push("method key"), "x")]() {}
+            }
+        }).toThrow(TypeError);
+        expect(() => {
+            class C {
+                static set ["prototype"](value) {}
+                static [(log.push("static key"), "y")] = 1;
+            }
+        }).toThrow(TypeError);
+        expect(() => {
+            class C {
+                static get ["prototype"]() {}
+                [(() => {
+                    throw new RangeError();
+                })()]() {}
+            }
+        }).toThrow(TypeError);
+        expect(log).toEqual([]);
+
+        function* generator() {
+            class C {
+                static ["prototype"]() {}
+                [yield "reached"]() {}
+            }
+        }
+        expect(() => generator().next()).toThrow(TypeError);
+
+        class D {
+            ["prototype"]() {
+                return "instance";
+            }
+        }
+        expect(D.prototype.prototype()).toBe("instance");
+    });
 });

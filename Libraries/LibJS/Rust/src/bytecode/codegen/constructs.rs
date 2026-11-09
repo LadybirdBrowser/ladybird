@@ -309,7 +309,14 @@ impl Generator<'_> {
             };
             element_keys.push(match key {
                 Some(key) if private_name_of(key).is_none() => {
-                    Some(self.sweep_class_element_key(key, first_element_row)?)
+                    let operand = self.sweep_class_element_key(key, first_element_row)?;
+                    if let ClassElementData::Method { is_static: true, .. } = element_data
+                        && let ClassElementKey::Expression(expression) = key
+                        && !matches!(tree.node_tag(expression), tag::STR_KEY | tag::NUM_KEY)
+                    {
+                        self.throw_if_key_of_static_method_is_prototype(operand);
+                    }
+                    Some(operand)
                 }
                 _ => None,
             });
@@ -395,6 +402,33 @@ impl Generator<'_> {
         self.put(op::LeavePrivateEnvironment {});
         self.put(op::Throw { src: error });
         self.bind_label(end_label);
+    }
+
+    /// A static method gets defined on the class before the key of the next element gets evaluated, which fails for the
+    /// non-configurable `prototype` of the class. `NewClass` defines them all at once, so it has to fail here instead.
+    fn throw_if_key_of_static_method_is_prototype(&mut self, key: Operand) {
+        let prototype = self.add_constant_string_view(crate::utf16::Utf16View::Ascii(b"prototype"));
+        let first_temporary = self.next_temporary();
+        let is_prototype = self.temporary();
+        let arith_feedback = self.next_arith_feedback();
+        self.emit(op::StrictlyEquals {
+            arith_feedback,
+            dst: is_prototype,
+            lhs: key,
+            rhs: prototype,
+        });
+        let not_prototype = self.new_label();
+        self.jump_unless(is_prototype, not_prototype);
+        let error_string = self.intern_string_text(crate::utf16::Utf16View::Ascii(
+            b"Object's [[DefineOwnProperty]] method returned false",
+        ));
+        self.put(op::NewTypeError {
+            dst: is_prototype,
+            error_string,
+        });
+        self.put(op::Throw { src: is_prototype });
+        self.bind_label(not_prototype);
+        self.release_temporaries_from(first_temporary);
     }
 
     /// The key of an element of a class, which `NewClass` turns into a property key.
