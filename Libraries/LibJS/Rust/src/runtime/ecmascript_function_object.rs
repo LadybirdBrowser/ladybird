@@ -494,6 +494,14 @@ impl EcmascriptFunctionObject {
         );
     }
 
+    /// Whether the function has the property `property_key` without having made it yet, which looking it up makes.
+    pub(crate) fn has_lazy_property(&self, vm: &Vm, property_key: &PropertyKey) -> bool {
+        (self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
+            && (*property_key == vm.names.length || *property_key == vm.names.name))
+            || (self.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
+                && *property_key == vm.names.prototype)
+    }
+
     pub(crate) fn reify_lazy_property(&self, vm: &Vm, property_key: &PropertyKey) {
         if self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
             && (*property_key == vm.names.length || *property_key == vm.names.name)
