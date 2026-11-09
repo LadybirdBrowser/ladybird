@@ -148,3 +148,29 @@ describe("static blocks inside a destructuring declaration", () => {
         expect(f()).toBe(1);
     });
 });
+
+test("a direct eval in a static block sees the block's own arguments object", () => {
+    class A {
+        static {
+            this.result = eval("typeof arguments + ',' + arguments.length");
+        }
+    }
+    expect(A.result).toBe("object,0");
+
+    class B {
+        static {
+            this.result = (() => eval("arguments.length"))();
+        }
+    }
+    expect(B.result).toBe(0);
+
+    function outer() {
+        class C {
+            static {
+                this.result = eval("arguments.length");
+            }
+        }
+        return [C.result, arguments.length];
+    }
+    expect(outer(1, 2, 3)).toEqual([0, 3]);
+});

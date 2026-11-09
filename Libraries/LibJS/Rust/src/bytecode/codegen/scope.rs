@@ -1141,6 +1141,15 @@ impl Generator<'_> {
         });
     }
 
+    /// The arguments object of a static block, which FunctionDeclarationInstantiation gives it like any other function.
+    /// `arguments` is an early error in the block, so only an `eval` can see it.
+    pub(super) fn create_arguments_object_of_static_block(&mut self) {
+        let flags = self.context.scope.flags;
+        if flags & function_flag::CONTAINS_EVAL != 0 {
+            self.create_arguments_object(flags, false, false);
+        }
+    }
+
     fn create_arguments_object(&mut self, flags: u32, is_mapped: bool, creates_bindings: bool) {
         let name = Name(N_ARGUMENTS);
         let is_captured = flags & (function_flag::CAPTURES_ARGUMENTS | function_flag::CONTAINS_EVAL) != 0
