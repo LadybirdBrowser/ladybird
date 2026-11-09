@@ -307,6 +307,11 @@ Web::Page const& ConnectionFromClient::page() const
 
 void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself)
 {
+    // Shutting down the agent drains the event queue after the agent state is released, and that can deliver a start
+    // the client sent before the worker was closed. Then there's no page to run the worker in, and nobody waits for it.
+    if (!m_page_host)
+        return;
+
     m_worker_host = make_ref_counted<WorkerHost>(move(url), type, move(name));
 
     bool const is_shared = agent_type == Web::HTML::AgentType::SharedWorker;
