@@ -94,9 +94,15 @@ void WebContentClient::note_hosted_document(CanonicalDocument const& document)
         }
         if (has_hosted_only_tabs_like(document))
             return;
-    } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value() && !origin.is_opaque()
-        && (m_hosted_tabs_are_origin_keyed ? origin.is_same_origin(*m_origin_of_hosted_tabs) : origin.is_same_site(*m_origin_of_hosted_tabs))) {
-        return;
+    } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value()) {
+        // NB: A data: URL iframe is hosted in the process of the document that made it, and holds only what that
+        //     document already had.
+        if (origin.is_opaque()) {
+            if (document.creation_url().scheme() == "data"sv)
+                return;
+        } else if (m_hosted_tabs_are_origin_keyed ? origin.is_same_origin(*m_origin_of_hosted_tabs) : origin.is_same_site(*m_origin_of_hosted_tabs)) {
+            return;
+        }
     }
 
     m_has_hosted_more_than_tabs_of_one_origin = true;
