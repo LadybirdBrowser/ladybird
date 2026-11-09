@@ -63,13 +63,28 @@ if (EXISTS "${icu_data_file}")
     set(icu_data_build_directory "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_DATADIR}/Lagom/icu")
     set(icu_data_build_file "${icu_data_build_directory}/${icu_data_file_name}")
     set(LADYBIRD_ICU_DATA_FILE "${icu_data_build_file}" CACHE INTERNAL "The ICU data file that ships with the resources")
-    add_custom_command(
-        OUTPUT "${icu_data_build_file}"
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${icu_data_build_directory}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${icu_data_file}" "${icu_data_build_file}"
-        DEPENDS "${icu_data_file}"
-        VERBATIM
-    )
+    if (ICU_ICUPKG_EXECUTABLE AND NOT CMAKE_CROSSCOMPILING)
+        set(trim_icu_data_script "${LADYBIRD_SOURCE_DIR}/Meta/CMake/trim_icu_data.cmake")
+        add_custom_command(
+            OUTPUT "${icu_data_build_file}"
+            COMMAND "${CMAKE_COMMAND}"
+                "-DICUPKG=${ICU_ICUPKG_EXECUTABLE}"
+                "-DINPUT=${icu_data_file}"
+                "-DOUTPUT=${icu_data_build_file}"
+                "-DREMOVED_ITEMS_LIST=${CMAKE_CURRENT_BINARY_DIR}/icu_data_removed_items.txt"
+                -P "${trim_icu_data_script}"
+            DEPENDS "${icu_data_file}" "${trim_icu_data_script}"
+            VERBATIM
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${icu_data_build_file}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${icu_data_build_directory}"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${icu_data_file}" "${icu_data_build_file}"
+            DEPENDS "${icu_data_file}"
+            VERBATIM
+        )
+    endif()
     add_custom_target(copy_icu_data_to_build DEPENDS "${icu_data_build_file}")
     add_dependencies(LibUnicode copy_icu_data_to_build)
 else()
