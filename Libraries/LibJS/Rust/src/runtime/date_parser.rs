@@ -572,8 +572,13 @@ impl DateParser {
                 return sign == -1;
             }
             1..=5 => {
-                // Too small to be a signed year;
                 if self.hours.is_none() {
+                    // A negative year of four or five digits is how toString() and toUTCString() write the years from
+                    // -99999 to -1, so it has to parse as that year.
+                    if sign == -1 && number.digits >= 4 && self.year.is_none() {
+                        self.year = Some(-(number.number as i64));
+                        return true;
+                    }
                     // Otherwise a candidate for timezone offset.
                     self.numbers.push(number.number); // Ignore the sign and treat it as a number.
                     return true;
