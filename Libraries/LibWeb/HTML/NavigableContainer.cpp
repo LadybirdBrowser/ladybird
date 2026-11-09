@@ -504,16 +504,11 @@ bool NavigableContainer::currently_delays_the_load_event() const
     return m_content_navigable->delays_the_load_event_of_its_container();
 }
 
-// Clips rect to the document's viewport and to every overflow-clipping containing block above layout_node.
+// Clips rect to the document's viewport and to every clipping containing block above layout_node.
 static CSSPixelRect visible_part_in_document_viewport(Layout::Node const& layout_node, CSSPixelRect rect)
 {
     auto visible = rect.intersected(CSSPixelRect { {}, layout_node.document().viewport_rect().size() });
-    for (auto const* ancestor = layout_node.containing_block(); ancestor && Painting::has_committed_box(*ancestor); ancestor = ancestor->containing_block()) {
-        if (ancestor->overflow_x() == CSS::Overflow::Visible && ancestor->overflow_y() == CSS::Overflow::Visible)
-            continue;
-        visible.intersect(Painting::rect_to_viewport(*ancestor, Painting::absolute_padding_box_rect(*ancestor), Layout::RustFFI::ViewportSpace::VisualViewport));
-    }
-    return visible;
+    return Painting::visible_rect_in_containing_blocks(layout_node, visible, Layout::RustFFI::ViewportSpace::VisualViewport);
 }
 
 // The bounding box, in the coordinates of the content box's document, of a rect in that document's viewport.

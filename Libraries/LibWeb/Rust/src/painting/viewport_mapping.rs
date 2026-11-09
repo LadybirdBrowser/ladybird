@@ -11,10 +11,12 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels, FfiCssPixel
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::hit_test::to_css_point;
 use crate::painting::paint_read::PaintRead;
+use crate::painting::style_queries;
 use crate::painting::visual_context::{
     ClipBehavior, ContextRef, IncludeVisualViewportTransform, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
     VisualContextTree, WorldTransforms,
 };
+use crate::painting::visual_context::{basic_shapes, node_values};
 use libcompositing_rust::ffi::{tree_from_handle, world_transforms_from_handle};
 use libgfx_rust::{FloatPoint, FloatRect};
 use std::ffi::c_void;
@@ -113,6 +115,60 @@ impl<'a> ViewportMapping<'a> {
             width: CssPixels::nearest_value_for_f32(mapped.width * inverse_pixel_ratio),
             height: CssPixels::nearest_value_for_f32(mapped.height * inverse_pixel_ratio),
         }
+    }
+
+    /// The rect `node` clips its content to, in the viewport: its overflow clip and the bounding box of its clip-path.
+    pub(crate) fn content_clip_rect(
+        &self,
+        arena: &impl PaintRead,
+        node: NodeSlotId,
+        space: ViewportSpace,
+    ) -> Option<CssPixelRect> {
+        let overflow_clip = node_values::overflow_clip_rect(arena, node);
+        let clip_path_bounds =
+            basic_shapes::compute_basic_shape_clip_path_data(arena, node, 1.0).map(|(_, bounds, _)| {
+                CssPixelRect::new(
+                    CssPixels::from_integer(bounds.x.into()),
+                    CssPixels::from_integer(bounds.y.into()),
+                    CssPixels::from_integer(bounds.width.into()),
+                    CssPixels::from_integer(bounds.height.into()),
+                )
+            });
+        let clip = match (overflow_clip, clip_path_bounds) {
+            (Some(overflow_clip), Some(clip_path_bounds)) => overflow_clip.intersected(clip_path_bounds),
+            (overflow_clip, clip_path_bounds) => overflow_clip.or(clip_path_bounds)?,
+        };
+        Some(self.rect_to_viewport(arena, node, clip, space))
+    }
+
+    /// `rect`, in the viewport, clipped by the content clip of every box on the containing block chain of `node` below
+    /// `ancestor`, the clip of a scroll container passed through `inflate_scroll_container_clip` first.
+    pub(crate) fn visible_rect_in_ancestor(
+        &self,
+        arena: &impl PaintRead,
+        node: NodeSlotId,
+        rect: CssPixelRect,
+        ancestor: NodeSlotId,
+        space: ViewportSpace,
+        mut inflate_scroll_container_clip: impl FnMut(CssPixelRect) -> CssPixelRect,
+    ) -> CssPixelRect {
+        let mut visible = rect;
+        if !arena.paintable_row_is_populated(node) {
+            return visible;
+        }
+        let mut container = arena.node_containing_block_if_live(node);
+        while let Some(container_slot) =
+            container.filter(|slot| *slot != ancestor && arena.paintable_row_is_populated(*slot))
+        {
+            if let Some(mut clip) = self.content_clip_rect(arena, container_slot, space) {
+                if style_queries::is_scroll_container(arena, container_slot) {
+                    clip = inflate_scroll_container_clip(clip);
+                }
+                visible = visible.intersected(clip);
+            }
+            container = arena.node_containing_block_if_live(container_slot);
+        }
+        visible
     }
 
     /// Maps `point`, in the viewport, into the local space of `context`, or gives none where a clip that
