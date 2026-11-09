@@ -184,13 +184,13 @@ pub(crate) fn run_fragmentainer(
     builds_fragments: bool,
     input: LayoutInput,
     fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
-) -> RunOutputs {
+) -> LayoutResult {
     debug_assert_eq!(input.participation, ParticipationInParentFormattingContext::Root);
     let box_ = outer.box_;
     let root_containing_block = outer.pass.containing_block_for_child_run(box_, &input.participation);
     let request = RunRequest {
         node: box_,
-        key: fc_run_cache::FcRunCacheKey::new(&outer.pass, FormattingContextType::Block, input, outer_root_cells),
+        key: fc_run_cache::LayoutRequest::new(&outer.pass, FormattingContextType::Block, input, outer_root_cells),
         root_containing_block,
         caller: RunCaller::Parent {
             collects_fragments: outer.mode.builds_fragments(),
@@ -1062,81 +1062,81 @@ pub(crate) enum OwnBlockSizeObservation {
     ObservedOnlyByAbsposContainedByRoot,
 }
 
-pub(crate) struct RunOutputs {
-    pub(crate) result: ChildLayoutResult,
-    /// The fragment of the root, where the run builds fragments and is not a fragmentainer's.
-    pub(crate) root: Option<fragment_tree::RunRootFragment>,
+/// What a layout run hands back: what the root's parent takes in of the root, and which inputs the run observed.
+pub(crate) struct LayoutResult {
     /// The root's cells as its parent keeps them once the run is done, in the parent's frame: where the parent owns
     /// them, those it handed the run with the content block size the root adopted, and else those the run left.
     pub(crate) cells: used_values::RootInputCells,
-    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    /// Which of its inputs the run observed, which the run cache reuses its outputs by.
-    pub(crate) observed: fc_run_cache::RunObservations,
+    pub(crate) outcome: ChildLayoutResult,
+    /// The fragment of the root, which holds the lines the run laid out in it, where the run builds fragments and is
+    /// not a fragmentainer's.
+    pub(crate) fragment: Option<fragment_tree::RunRootFragment>,
     /// Boxed, as most runs find out nothing for the host.
-    pub(crate) host_findings: Option<Box<super::run_state::HostFindings>>,
+    pub(crate) residue: Option<Box<run_state::RunResidue>>,
+    /// Which of its inputs the run observed, which the run cache reuses its result by.
+    pub(crate) observed: fc_run_cache::RunObservations,
 }
 
-/// The outputs of a run its parent takes in: those the run cache stored, which it lends, or the run's own.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "returned to the run's parent, which reads it at once, where boxing would allocate for every run the cache \
-              does not store"
-)]
-pub(super) enum RunOutputsHandle {
-    Owned(RunOutputs),
-    /// The run's own outputs, which the run cache stored.
+const _: () = {
+    const fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<LayoutResult>();
+};
+
+impl LayoutResult {
+    /// The lines the run laid out in its root, which its fragment holds.
+    pub(crate) fn line_data(&self) -> Option<&std::sync::Arc<inline_content::InlineContent>> {
+        self.fragment.as_ref()?.fragment.line_data.as_ref()
+    }
+}
+
+/// The result of a run its parent takes in: the run's own, which the run cache stored or not, or that of a stored run
+/// the probe took in place of running.
+pub(super) enum LayoutResultHandle {
+    Owned(LayoutResult),
+    /// The run's own result, which the run cache stored.
     Stored(std::sync::Arc<fc_run_cache::FcRunCacheEntry>),
-    /// The outputs of a stored run that the probe took in place of running.
-    Reused(std::sync::Arc<fc_run_cache::FcRunCacheEntry>),
+    /// The result of a stored run that the probe took in place of running, with the root's cells at the probe.
+    Reused {
+        entry: std::sync::Arc<fc_run_cache::FcRunCacheEntry>,
+        cells: used_values::RootInputCells,
+    },
 }
 
-struct RunOutputParts {
-    result: ChildLayoutResult,
-    root: Option<fragment_tree::RunRootFragment>,
-    cells: used_values::RootInputCells,
-    line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    host_findings: Option<Box<super::run_state::HostFindings>>,
-}
-
-impl RunOutputsHandle {
-    /// The parts of the outputs the parent of a run probed with `probe` takes in, with the root's fragment where
-    /// `takes_root`.
-    fn into_parts(self, takes_root: bool, probe: &fc_run_cache::FcRunCacheKey) -> RunOutputParts {
+impl LayoutResultHandle {
+    /// The root's cells as its parent keeps them.
+    pub(super) fn cells(&self) -> used_values::RootInputCells {
         match self {
-            Self::Owned(outputs) => RunOutputParts {
-                result: outputs.result,
-                root: outputs.root.filter(|_| takes_root),
-                cells: outputs.cells,
-                line_data: outputs.line_data,
-                host_findings: outputs.host_findings,
-            },
-            Self::Stored(entry) => Self::parts_of_stored(&entry.outputs, takes_root, entry.outputs.cells),
-            Self::Reused(entry) => Self::parts_of_stored(
-                &entry.outputs,
-                takes_root,
-                fc_run_cache::cells_at_probe(&entry.outputs, probe),
+            Self::Owned(result) => result.cells,
+            Self::Stored(entry) => entry.result.cells,
+            Self::Reused { cells, .. } => *cells,
+        }
+    }
+
+    /// The root's fragment, where `takes_fragment`, and the residue of the run, which the run's parent takes in.
+    fn into_fragment_and_residue(
+        self,
+        takes_fragment: bool,
+    ) -> (
+        Option<fragment_tree::RunRootFragment>,
+        Option<Box<run_state::RunResidue>>,
+    ) {
+        match self {
+            Self::Owned(result) => (result.fragment.filter(|_| takes_fragment), result.residue),
+            Self::Stored(entry) | Self::Reused { entry, .. } => (
+                entry.result.fragment.as_ref().filter(|_| takes_fragment).cloned(),
+                entry.result.residue.clone(),
             ),
         }
     }
-
-    fn parts_of_stored(outputs: &RunOutputs, takes_root: bool, cells: used_values::RootInputCells) -> RunOutputParts {
-        RunOutputParts {
-            result: outputs.result,
-            root: outputs.root.as_ref().filter(|_| takes_root).cloned(),
-            cells,
-            line_data: outputs.line_data.clone(),
-            host_findings: outputs.host_findings.clone(),
-        }
-    }
 }
 
-impl std::ops::Deref for RunOutputsHandle {
-    type Target = RunOutputs;
+impl std::ops::Deref for LayoutResultHandle {
+    type Target = LayoutResult;
 
-    fn deref(&self) -> &RunOutputs {
+    fn deref(&self) -> &LayoutResult {
         match self {
-            Self::Owned(outputs) => outputs,
-            Self::Stored(entry) | Self::Reused(entry) => &entry.outputs,
+            Self::Owned(result) => result,
+            Self::Stored(entry) | Self::Reused { entry, .. } => &entry.result,
         }
     }
 }
@@ -2123,7 +2123,7 @@ fn body_input_with_inner_available_space(root: &impl BoxMetricCells, input: &Lay
 #[derive(Clone, Debug)]
 pub(crate) struct RunRequest {
     pub(crate) node: Node,
-    pub(crate) key: fc_run_cache::FcRunCacheKey,
+    pub(crate) key: fc_run_cache::LayoutRequest,
     pub(crate) root_containing_block: Node,
     pub(crate) caller: RunCaller,
     pub(crate) mode: RunMode,
@@ -2174,7 +2174,7 @@ impl RunRequest {
         Self {
             node,
             mode: RunMode::of(&input, caller.collects_fragments(), devtools),
-            key: fc_run_cache::FcRunCacheKey::new(pass, fc_type, input, root_cells),
+            key: fc_run_cache::LayoutRequest::new(pass, fc_type, input, root_cells),
             root_containing_block,
             caller,
         }
@@ -2220,7 +2220,7 @@ impl RunRequest {
     /// The request with the root's input cells `root_cells` and the input `input` in place of its own.
     fn at_root_inputs(&self, root_cells: used_values::RootInputCells, input: LayoutInput) -> Self {
         Self {
-            key: fc_run_cache::FcRunCacheKey {
+            key: fc_run_cache::LayoutRequest {
                 root_cells,
                 input,
                 ..self.key.clone()
@@ -2288,7 +2288,7 @@ pub(super) fn run_formatting_context(
 /// Lays out the run `request` asks for: hands out the stored outputs of a run the run cache finds for it, or else runs
 /// the formatting context of its root, verifies the run where a verification asks for that, and stores its outputs
 /// where the probe asked for that.
-pub(super) fn layout(pass: LayoutPass<'_>, request: &RunRequest, side: RunSideInputs<'_>) -> RunOutputsHandle {
+pub(super) fn layout(pass: LayoutPass<'_>, request: &RunRequest, side: RunSideInputs<'_>) -> LayoutResultHandle {
     let attempt = request.probe(&pass, &side);
     layout_after_probe(pass, request, side, attempt)
 }
@@ -2298,7 +2298,7 @@ fn layout_after_probe(
     request: &RunRequest,
     side: RunSideInputs<'_>,
     attempt: Result<fc_run_cache::FcRunCacheAttempt, fc_run_cache::FcRunCacheHit>,
-) -> RunOutputsHandle {
+) -> LayoutResultHandle {
     debug_assert!(
         side.fragmentainer.is_none(),
         "a fragmentainer's run is executed by the run it belongs to"
@@ -2311,7 +2311,10 @@ fn layout_after_probe(
             let _trace = pass
                 .layout_trace()
                 .run(box_, key.fc_type, || request.trace_action_of_reuse(&pass, &hit.entry));
-            return RunOutputsHandle::Reused(hit.entry);
+            return LayoutResultHandle::Reused {
+                cells: fc_run_cache::cells_at_probe(&hit.entry.result, key),
+                entry: hit.entry,
+            };
         }
     };
     let _trace = pass
@@ -2363,10 +2366,10 @@ fn execute_formatting_context_run(
     request: &RunRequest,
     side: RunSideInputs<'_>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-) -> RunOutputs {
+) -> LayoutResult {
     let box_ = request.node;
     let root_containing_block = request.root_containing_block;
-    let fc_run_cache::FcRunCacheKey {
+    let fc_run_cache::LayoutRequest {
         fc_type,
         ref input,
         root_cells,
@@ -2418,7 +2421,7 @@ fn execute_formatting_context_run(
             root_input_cells_the_run_must_leave.has_definite_inline_size = true;
             root_input_cells_the_run_must_leave.has_definite_block_size = true;
         }
-        if content_block_size_adopted_after_run(input, outputs.result.automatic_content_block_size).is_some() {
+        if content_block_size_adopted_after_run(input, outputs.outcome.automatic_content_block_size).is_some() {
             root_input_cells_the_run_must_leave.content_block_size = root_cells_left_by_run.content_block_size;
         }
         assert_eq!(
@@ -2448,9 +2451,9 @@ fn lay_out_run_root_and_contents<'pass>(
     side: RunSideInputs<'pass>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     parent_owns_root_input_cells: bool,
-) -> (RunOutputs, used_values::RootInputCells) {
+) -> (LayoutResult, used_values::RootInputCells) {
     let box_ = request.node;
-    let fc_run_cache::FcRunCacheKey {
+    let fc_run_cache::LayoutRequest {
         fc_type,
         ref input,
         root_cells,
@@ -2696,6 +2699,9 @@ fn lay_out_run_root_and_contents<'pass>(
                 inline_content::InlineContent::concatenate_translated(&[(content, content_alignment_offset)])
             }
         });
+    if let Some(fragmentainer) = &run.fragmentainer {
+        fragmentainer.keep_root_line_data(root_line_data.clone());
+    }
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
     // NB: The root's descendants are laid out in the frame the root establishes. A fragmentainer has no fragment of its
     //     own, so the run hands what it laid out there to the run of the box the fragmentainer belongs to. Any other
@@ -2757,13 +2763,12 @@ fn lay_out_run_root_and_contents<'pass>(
     } else {
         root_cells_left_by_run
     };
-    let outputs = RunOutputs {
-        result,
-        root,
+    let outputs = LayoutResult {
         cells,
-        line_data: root_line_data,
+        outcome: result,
+        fragment: root,
+        residue: state.take_residue(),
         observed,
-        host_findings: state.take_host_findings(),
     };
     (outputs, root_cells_left_by_run)
 }
@@ -3357,7 +3362,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     );
     ChildRunShape {
         node: cell,
-        key: fc_run_cache::FcRunCacheKey::new(&run.pass, plan.fc_type, plan.input, cell_input_cells),
+        key: fc_run_cache::LayoutRequest::new(&run.pass, plan.fc_type, plan.input, cell_input_cells),
         root_containing_block: plan.root_containing_block,
     }
 }
@@ -3365,7 +3370,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ChildRunShape {
     pub(crate) node: Node,
-    pub(crate) key: fc_run_cache::FcRunCacheKey,
+    pub(crate) key: fc_run_cache::LayoutRequest,
     pub(crate) root_containing_block: Node,
 }
 
@@ -3412,7 +3417,7 @@ impl ChildRunShape {
         Self {
             node,
             root_containing_block: pass.containing_block_for_child_run(node, &input.participation),
-            key: fc_run_cache::FcRunCacheKey::new(
+            key: fc_run_cache::LayoutRequest::new(
                 pass,
                 independent_formatting_context_type(node, pass),
                 input,
@@ -3473,14 +3478,11 @@ pub(crate) fn lay_out_measurement_root_for_its_result(
 }
 
 pub(crate) fn lay_out_shape_for_its_result(pass: LayoutPass<'_>, shape: ChildRunShape) -> ChildLayoutResult {
-    let RunOutputParts {
-        result, host_findings, ..
-    } = {
-        let request = RunRequest::of_shape(shape);
-        layout(pass, &request, RunSideInputs::default()).into_parts(false, &request.key)
-    };
-    pass.receive_host_findings(host_findings);
-    result
+    let layout = layout(pass, &RunRequest::of_shape(shape), RunSideInputs::default());
+    let outcome = layout.outcome;
+    let (_, residue) = layout.into_fragment_and_residue(false);
+    pass.receive_residue(residue);
+    outcome
 }
 
 // NB: An item that establishes an orthogonal flow sizes itself along its container's block axis, so its run owns its
@@ -3518,23 +3520,18 @@ pub(super) fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
         })
 }
 
-fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, outputs: RunOutputsHandle) -> ChildLayout {
+fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, layout: LayoutResultHandle) -> ChildLayout {
     let child = request.node;
-    let outputs_are_stored_ones = matches!(outputs, RunOutputsHandle::Reused(_));
-    let RunOutputParts {
-        result,
-        root,
-        cells,
-        line_data,
-        host_findings,
-    } = outputs.into_parts(request.caller.collects_fragments(), &request.key);
-    pass.receive_host_findings(host_findings);
+    let outputs_are_stored_ones = matches!(layout, LayoutResultHandle::Reused { .. });
+    let result = layout.outcome;
     let laid_out_box = run_state::LaidOutChildBox {
-        cells,
+        cells: layout.cells(),
         baselines: result.baselines,
         orthogonal_flow_baselines: result.orthogonal_flow_baselines,
-        line_data,
+        line_data: layout.line_data().cloned(),
     };
+    let (root, residue) = layout.into_fragment_and_residue(request.caller.collects_fragments());
+    pass.receive_residue(residue);
     let fragment_arrival = root.map(|root| {
         debug_assert!(
             root.fragment.node == child,

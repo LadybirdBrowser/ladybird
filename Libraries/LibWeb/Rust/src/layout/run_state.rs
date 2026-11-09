@@ -36,6 +36,12 @@ pub(crate) struct HostFindings {
     pub(crate) container_length_reads: Vec<ContainerLengthRead>,
 }
 
+/// What a run found out besides its result, which the run that takes in its result receives with it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct RunResidue {
+    pub(crate) host_findings: HostFindings,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ContainerLengthRead {
     pub(crate) reader: NodeSlotId,
@@ -442,6 +448,12 @@ impl RunState {
 
     pub(crate) fn fragments(&self) -> Option<&fragment_tree::RunFragmentBuilder> {
         self.fragments.as_ref()
+    }
+
+    /// What this run found out besides its result, which the result carries to the run that takes it in.
+    pub(crate) fn take_residue(&self) -> Option<Box<RunResidue>> {
+        let host_findings = self.host_findings.take();
+        (!host_findings.is_empty()).then(|| Box::new(RunResidue { host_findings }))
     }
 
     /// What this run found out for the host, which its outputs carry to the run that uses its result.

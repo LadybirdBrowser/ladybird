@@ -271,6 +271,8 @@ pub(crate) struct FragmentainerContext {
     /// What the run laid out in the fragmentainer, which the run of the box it belongs to takes in, as the
     /// fragmentainer has no fragment of its own.
     contents: RefCell<Option<super::fragment_tree::RunContents>>,
+    /// The lines the run laid out in the fragmentainer, which the run of the box it belongs to takes in.
+    root_line_data: RefCell<Option<std::sync::Arc<super::inline_content::InlineContent>>>,
 }
 
 impl FragmentainerContext {
@@ -296,6 +298,7 @@ impl FragmentainerContext {
             allows_early_break_requests,
             outcome: RefCell::new(FragmentainerOutcome::default()),
             contents: RefCell::new(None),
+            root_line_data: RefCell::new(None),
         }
     }
 
@@ -305,6 +308,14 @@ impl FragmentainerContext {
 
     pub(crate) fn take_contents(&self) -> Option<super::fragment_tree::RunContents> {
         self.contents.take()
+    }
+
+    pub(crate) fn keep_root_line_data(&self, line_data: Option<std::sync::Arc<super::inline_content::InlineContent>>) {
+        *self.root_line_data.borrow_mut() = line_data;
+    }
+
+    pub(crate) fn take_root_line_data(&self) -> Option<std::sync::Arc<super::inline_content::InlineContent>> {
+        self.root_line_data.take()
     }
 
     pub(crate) fn outcome_mut(&self) -> RefMut<'_, FragmentainerOutcome> {
