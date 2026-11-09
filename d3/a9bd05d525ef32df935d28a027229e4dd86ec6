@@ -1,0 +1,6 @@
+Ladybird gives a text document a “light dark” color-scheme meta element
+and a pre element styled “word-wrap: break-word; white-space: pre-wrap”.
+Blink’s TextDocumentParser::InsertFakePreElement() and WebKit’s
+TextDocumentParser::insertFakePreElement() insert that same meta element
+and give the pre element that same style attribute. Gecko applies the
+same three properties to text documents from its plaintext.css.
