@@ -1090,7 +1090,7 @@ GC::Ref<JS::Object> Internals::compositor_scroll_state(GC::Ptr<DOM::Element> scr
         scroll_state = navigable->compositor_context().scroll_state_for_testing(stretched_scroller);
     auto report = JsonValue::from_string(scroll_state);
     if (report.is_error() || !report.value().is_object())
-        report = JsonValue::from_string(Compositing::async_scrolling_state_as_json(nullptr));
+        report = JsonValue::from_string(Compositing::empty_async_scrolling_state_as_json());
     return scrolling_state_report_to_object(window(), report.value().as_object());
 }
 
@@ -4051,8 +4051,13 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
 
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
 {
-    auto* display_list = window().associated_document().paint_state().display_list_used_as_paint_command_cache_source();
-    auto report = MUST(JsonValue::from_string(Compositing::async_scrolling_state_as_json(display_list)));
+    auto& document = window().associated_document();
+    Layout::ForcedReadScope read { document };
+    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
+    auto json = display_list
+        ? Compositing::async_scrolling_state_as_json(*display_list, document.paint_state().visual_context_tree_without_update(read, document))
+        : Compositing::empty_async_scrolling_state_as_json();
+    auto report = MUST(JsonValue::from_string(json));
     return scrolling_state_report_to_object(window(), report.as_object());
 }
 

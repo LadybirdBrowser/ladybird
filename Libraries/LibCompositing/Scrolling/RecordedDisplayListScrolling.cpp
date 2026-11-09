@@ -14,19 +14,24 @@ namespace Compositing {
 
 using EncodedAsyncScrollingMetadata = IPC::Encoded<Optional<DisplayList::AsyncScrollingMetadata>>;
 
-String async_scrolling_state_as_json(DisplayList const* display_list)
+static void receive_json(void* receiver, ReadonlyBytes bytes)
+{
+    *static_cast<String*>(receiver) = MUST(String::from_utf8(bytes));
+}
+
+String async_scrolling_state_as_json(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
     String json;
-    auto receive_json = [](void* receiver, ReadonlyBytes bytes) {
-        *static_cast<String*>(receiver) = MUST(String::from_utf8(bytes));
-    };
-    if (!display_list) {
-        RustFFI::recorded_display_list_async_scrolling_state_json(nullptr, &json, receive_json);
-        return json;
-    }
-    EncodedAsyncScrollingMetadata async_scrolling_metadata { display_list->async_scrolling_metadata() };
-    auto display_list_for_scroll_logic = display_list->for_scroll_logic(async_scrolling_metadata.bytes());
-    RustFFI::recorded_display_list_async_scrolling_state_json(&display_list_for_scroll_logic, &json, receive_json);
+    EncodedAsyncScrollingMetadata async_scrolling_metadata { display_list.async_scrolling_metadata() };
+    auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
+    RustFFI::recorded_display_list_async_scrolling_state_json(&display_list_for_scroll_logic, visual_context_tree.rust_handle(), &json, receive_json);
+    return json;
+}
+
+String empty_async_scrolling_state_as_json()
+{
+    String json;
+    RustFFI::recorded_display_list_async_scrolling_state_json(nullptr, nullptr, &json, receive_json);
     return json;
 }
 

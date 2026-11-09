@@ -727,7 +727,7 @@ impl ContextState {
             display_list.compatible_visual_context_tree_structural_epoch(),
             visual_context_tree.structural_epoch()
         );
-        let async_scrolling_state = async_scrolling_state_from_display_list(&display_list);
+        let async_scrolling_state = async_scrolling_state_from(&display_list, visual_context_tree.as_arc());
         if !scroll_state_snapshot.has_only_finite_offsets()
             || !async_scrolling_state.has_only_numbers_scrolls_can_be_calculated_with()
         {
