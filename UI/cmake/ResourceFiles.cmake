@@ -167,6 +167,12 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    if (APPLE AND LADYBIRD_ICU_DATA_FILE)
+        copy_resource_set(icu RESOURCES ${LADYBIRD_ICU_DATA_FILE}
+            DESTINATION ${base_directory} TARGET ${bundle_target}
+        )
+    endif()
+
     copy_resource_set(ladybird RESOURCES ${INTERNAL_RESOURCES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -217,6 +223,9 @@ function(install_ladybird_resources destination component)
     install(FILES ${32x32_ICONS} DESTINATION "${destination}/icons/32x32" COMPONENT ${component})
     install(FILES ${48x48_ICONS} DESTINATION "${destination}/icons/48x48" COMPONENT ${component})
     install(FILES ${THEMES} DESTINATION "${destination}/themes" COMPONENT ${component})
+    if (LADYBIRD_ICU_DATA_FILE)
+        install(FILES ${LADYBIRD_ICU_DATA_FILE} DESTINATION "${destination}/icu" COMPONENT ${component})
+    endif()
     install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
     install(FILES ${SITE_COMPATIBILITY_RESOURCES} DESTINATION "${destination}/ladybird/site-compatibility" COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})

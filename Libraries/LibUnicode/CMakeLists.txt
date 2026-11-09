@@ -36,6 +36,46 @@ ladybird_lib(LibUnicode unicode)
 
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
+string(REGEX MATCH "^[0-9]+" icu_version_major "${ICU_VERSION}")
+if (CMAKE_CXX_BYTE_ORDER STREQUAL "BIG_ENDIAN")
+    set(icu_data_file_name "icudt${icu_version_major}b.dat")
+else()
+    set(icu_data_file_name "icudt${icu_version_major}l.dat")
+endif()
+set(icu_data_file "${ICU_INCLUDE_DIR}/../share/icu/${icu_data_file_name}")
+if (EXISTS "${icu_data_file}")
+    cmake_path(NORMAL_PATH icu_data_file)
+
+    target_sources(LibUnicode PRIVATE ICUData.cpp)
+    target_link_libraries(LibUnicode PRIVATE ${CMAKE_DL_LIBS})
+
+    # Nothing references the loader, whose constructor maps the data, so a static link has to be asked to take it.
+    if (NOT BUILD_SHARED_LIBS)
+        if (APPLE)
+            target_link_options(LibUnicode INTERFACE "LINKER:-u,_ladybird_load_icu_data")
+        elseif (WIN32)
+            target_link_options(LibUnicode INTERFACE "LINKER:/INCLUDE:ladybird_load_icu_data")
+        else()
+            target_link_options(LibUnicode INTERFACE "LINKER:-u,ladybird_load_icu_data")
+        endif()
+    endif()
+
+    set(icu_data_build_directory "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_DATADIR}/Lagom/icu")
+    set(icu_data_build_file "${icu_data_build_directory}/${icu_data_file_name}")
+    set(LADYBIRD_ICU_DATA_FILE "${icu_data_build_file}" CACHE INTERNAL "The ICU data file that ships with the resources")
+    add_custom_command(
+        OUTPUT "${icu_data_build_file}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${icu_data_build_directory}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${icu_data_file}" "${icu_data_build_file}"
+        DEPENDS "${icu_data_file}"
+        VERBATIM
+    )
+    add_custom_target(copy_icu_data_to_build DEPENDS "${icu_data_build_file}")
+    add_dependencies(LibUnicode copy_icu_data_to_build)
+else()
+    set(LADYBIRD_ICU_DATA_FILE "" CACHE INTERNAL "The ICU data file that ships with the resources")
+endif()
+
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libunicode_rust FEATURES allocator idna FFI_HEADER RustFFI.h)
 target_link_libraries(LibUnicode PRIVATE libunicode_rust)
 
