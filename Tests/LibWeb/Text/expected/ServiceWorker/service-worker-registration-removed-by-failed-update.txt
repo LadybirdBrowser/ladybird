@@ -1,0 +1,6 @@
+register() with a missing script: rejected with TypeError
+getRegistration() after the failed update: undefined
+Object of the removed registration keeps its scope: true
+Object of the removed registration keeps its updateViaCache: imports
+register() with a missing script: rejected with TypeError
+Registering the scope again gives a new registration object: true

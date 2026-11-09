@@ -793,11 +793,8 @@ GC::Ref<ServiceWorker::ServiceWorkerRegistration> EnvironmentSettingsObject::get
     // 1. Let objectMap be environment’s service worker registration object map.
     auto& object_map = this->m_service_worker_registration_object_map;
 
-    // FIXME: File spec issue asking if this should be keyed on the registration's scope url only or on the url and the storage key
-    auto const key = ServiceWorker::RegistrationKey { registration.storage_key(), registration.scope_url().serialize(URL::ExcludeFragment::Yes).to_byte_string() };
-
     // 2. If objectMap[registration] does not exist, then:
-    if (!object_map.contains(key)) {
+    if (!object_map.contains(&registration)) {
         // 1. Let registrationObject be a new ServiceWorkerRegistration in environment’s Realm.
         // 2. Set registrationObject’s service worker registration to registration.
         // 3. Set registrationObject’s installing attribute to null.
@@ -818,11 +815,11 @@ GC::Ref<ServiceWorker::ServiceWorkerRegistration> EnvironmentSettingsObject::get
             registration_object->set_active(get_service_worker_object(registration.active_worker()));
 
         // 9. Set objectMap[registration] to registrationObject.
-        object_map.set(key, registration_object);
+        object_map.set(&registration, registration_object);
     }
 
     // 3. Return objectMap[registration].
-    return *object_map.get(key);
+    return *object_map.get(&registration);
 }
 
 GC::Ref<ServiceWorker::ServiceWorker> EnvironmentSettingsObject::get_service_worker_object(ServiceWorker::ServiceWorkerRecord* service_worker)

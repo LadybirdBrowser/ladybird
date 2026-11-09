@@ -206,7 +206,7 @@ private:
     // https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
     // An environment settings object has a service worker registration object map,
     // a map where the keys are service worker registrations and the values are ServiceWorkerRegistration objects.
-    HashMap<ServiceWorker::RegistrationKey, GC::Ref<ServiceWorker::ServiceWorkerRegistration>> m_service_worker_registration_object_map;
+    HashMap<ServiceWorker::Registration const*, GC::Ref<ServiceWorker::ServiceWorkerRegistration>> m_service_worker_registration_object_map;
 
     // https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-object-map
     // An environment settings object has a service worker object map,

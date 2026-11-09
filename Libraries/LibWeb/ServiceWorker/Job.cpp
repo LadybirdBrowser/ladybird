@@ -167,7 +167,7 @@ public:
         return GC::Heap::the().allocate<UpdateAlgorithmState>(registration, newest_worker);
     }
 
-    Registration& registration() const { return m_registration; }
+    Registration& registration() const { return *m_registration; }
     ServiceWorkerRecord* newest_worker() const { return m_newest_worker; }
 
     OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::ResponseView>>& updated_resource_map() { return m_map; }
@@ -189,7 +189,7 @@ private:
 
     // NB: The registration and the newest worker are not GC-allocated. The fetch callbacks of the Update algorithm
     //     reach them through this state.
-    Registration& m_registration;
+    NonnullRefPtr<Registration> m_registration;
     ServiceWorkerRecord* m_newest_worker { nullptr };
     OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::ResponseView>> m_map;
     bool m_has_updated_resources { false };

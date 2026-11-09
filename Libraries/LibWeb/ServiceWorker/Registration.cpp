@@ -6,7 +6,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/ServiceWorker/Registration.h>
@@ -15,9 +15,9 @@ namespace Web::ServiceWorker {
 
 // FIXME: Surely this needs hooks to be cleared and manipulated at the UA level
 //        Does this need to be serialized to disk as well?
-static OrderedHashMap<RegistrationKey, NonnullOwnPtr<Registration>>& registration_map()
+static OrderedHashMap<RegistrationKey, NonnullRefPtr<Registration>>& registration_map()
 {
-    static thread_local NeverDestroyed<OrderedHashMap<RegistrationKey, NonnullOwnPtr<Registration>>> registrations;
+    static thread_local NeverDestroyed<OrderedHashMap<RegistrationKey, NonnullRefPtr<Registration>>> registrations;
     return *registrations;
 }
 
@@ -80,7 +80,7 @@ Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::
 
     // FIXME: Is there a way to "ensure but always replace?"
     auto key = RegistrationKey { storage_key, scope.serialize(URL::ExcludeFragment::Yes).to_byte_string() };
-    (void)registration_map().set(key, adopt_own(*new Registration(storage_key, scope, update_via_cache)));
+    (void)registration_map().set(key, adopt_ref(*new Registration(storage_key, scope, update_via_cache)));
     return *registration_map().get(key).value();
 }
 

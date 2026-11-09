@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/ServiceWorker/Registration.h>
 
 namespace Web::ServiceWorker {
 
@@ -19,7 +21,7 @@ class ServiceWorkerRegistration : public DOM::EventTarget {
 public:
     [[nodiscard]] static GC::Ref<ServiceWorkerRegistration> create(Registration const& registration);
 
-    Registration const& registration() { return m_registration; }
+    Registration const& registration() { return *m_registration; }
 
     GC::Ptr<ServiceWorker> installing() const { return m_installing; }
     void set_installing(GC::Ptr<ServiceWorker> installing) { m_installing = installing; }
@@ -36,12 +38,12 @@ public:
     // https://w3c.github.io/ServiceWorker/#dom-serviceworkerregistration-scope
     Utf16String scope() const
     {
-        auto serialized_url = m_registration.scope_url().serialize();
+        auto serialized_url = m_registration->scope_url().serialize();
         return Utf16String::from_ascii_without_validation(serialized_url.bytes());
     }
 
     // https://w3c.github.io/ServiceWorker/#dom-serviceworkerregistration-updateviacache
-    ServiceWorkerUpdateViaCache update_via_cache() const { return m_registration.update_via_cache(); }
+    ServiceWorkerUpdateViaCache update_via_cache() const { return m_registration->update_via_cache(); }
 
     explicit ServiceWorkerRegistration(Registration const&);
     virtual ~ServiceWorkerRegistration() override = default;
@@ -49,7 +51,7 @@ public:
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    Registration const& m_registration;
+    NonnullRefPtr<Registration const> m_registration;
     GC::Ptr<ServiceWorker> m_installing;
     GC::Ptr<ServiceWorker> m_waiting;
     GC::Ptr<ServiceWorker> m_active;
