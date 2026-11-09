@@ -245,6 +245,86 @@ test("var named arguments shares the binding of the arguments object", () => {
     expect(laterBindingsKeepTheirPlaces()).toEqual([2, 2]);
 });
 
+test("var named arguments before its first use keeps the parameters mapped", () => {
+    function writeThroughArguments(a) {
+        var arguments;
+        arguments[0] = 2;
+        return a;
+    }
+    expect(writeThroughArguments(1)).toBe(2);
+    expect(Object.hasOwn(globalThis, "a")).toBeFalse();
+
+    function writeThroughParameter(b) {
+        var arguments;
+        b = 3;
+        return arguments[0];
+    }
+    expect(writeThroughParameter(1)).toBe(3);
+
+    function declaredInBlock(c) {
+        {
+            var arguments;
+        }
+        arguments[0] = 4;
+        return c;
+    }
+    expect(declaredInBlock(1)).toBe(4);
+
+    function outer() {
+        var d = "outer";
+        const keep = () => d;
+        function inner(d) {
+            var arguments;
+            const before = arguments[0];
+            arguments[0] = "inner";
+            return [before, d];
+        }
+        return [...inner(1), d];
+    }
+    expect(outer()).toEqual([1, "inner", "outer"]);
+
+    function outerWithoutTheName() {
+        var unrelated = 1;
+        const keep = () => unrelated;
+        function inner(e) {
+            var arguments;
+            return arguments[0];
+        }
+        return inner(5);
+    }
+    expect(outerWithoutTheName()).toBe(5);
+
+    const object = {
+        method(f) {
+            var arguments;
+            arguments[0] = 6;
+            return f;
+        },
+    };
+    expect(object.method(1)).toBe(6);
+
+    function* generator(g) {
+        var arguments;
+        arguments[0] = 7;
+        yield g;
+    }
+    expect(generator(1).next().value).toBe(7);
+
+    function arrowFunctionVar(h) {
+        return (() => {
+            var arguments;
+            return typeof arguments;
+        })();
+    }
+    expect(arrowFunctionVar(1)).toBe("undefined");
+
+    function generatorDeclaration(i) {
+        function* arguments() {}
+        return typeof arguments;
+    }
+    expect(generatorDeclaration(1)).toBe("function");
+});
+
 test("lexical declaration named arguments takes the place of the arguments object", () => {
     function captured() {
         const before = (() => {
