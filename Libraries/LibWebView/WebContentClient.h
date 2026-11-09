@@ -139,8 +139,9 @@ public:
     Optional<String> const& hosted_web_ui() const { return m_hosted_web_ui; }
     void set_hosted_web_ui(String host) { m_hosted_web_ui = move(host); }
     // A process can take in a tab of an origin only if all it has ever hosted, and so may still hold, is tabs of that
-    // origin with their same-site iframes. An origin-keyed tab keeps apart from the other origins of its site, so it
-    // only joins origin-keyed tabs of its origin, in a process that has not hosted iframes of those other origins.
+    // origin with their same-site and data: URL iframes. An origin-keyed tab keeps apart from the other origins of
+    // its site, so it only joins origin-keyed tabs of its origin, in a process that has not hosted iframes of those
+    // other origins.
     void note_hosted_document(CanonicalDocument const&);
     bool has_hosted_only_tabs_like(CanonicalDocument const&) const;
     bool has_hosted_only_tabs_unlike(CanonicalDocument const&) const;
