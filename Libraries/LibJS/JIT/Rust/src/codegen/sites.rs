@@ -82,8 +82,8 @@ pub(crate) fn site(
                 executable: frame_state.executable,
                 pc: frame_state.pc,
                 mode: frame_state.mode,
-                values,
-                in_frame,
+                values: values.into_boxed_slice(),
+                in_frame: in_frame.into_boxed_slice(),
                 passed_argument_count: frame_state.passed_argument_count,
                 legacy_arguments: frame_state.legacy_arguments.clone(),
             }

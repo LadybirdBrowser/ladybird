@@ -187,10 +187,10 @@ pub struct Site {
     pub kind: SiteKind,
     /// The frames there, innermost first: the frames of the inlined calls
     /// the site is in, and the compiled function's frame.
-    pub frames: Vec<FrameState>,
+    pub frames: Box<[FrameState]>,
     /// The objects the compiled code never allocated, which the frames'
     /// values refer to (as `ValueLocation::VirtualObject`).
-    pub objects: Vec<VirtualObjectDescriptor>,
+    pub objects: Box<[VirtualObjectDescriptor]>,
     /// For a `SiteKind::Call`: the room for the frames of the inlined calls
     /// that the call leaves below its callee's frame (see `Op::CallDirect`).
     pub inlined_frame_bytes: u32,
@@ -234,7 +234,7 @@ pub struct VirtualObjectDescriptor {
     /// same at every site of the code: the runtime may have created the
     /// object at another site of the same frame already, and then uses that.
     pub allocation: u32,
-    pub properties: Vec<ValueLocation>,
+    pub properties: Box<[ValueLocation]>,
 }
 
 /// Set in the return pc (`ExecutionContext::caller_return_pc`) of the frame of
@@ -271,12 +271,12 @@ pub struct FrameState {
     pub mode: ResumeMode,
     /// The value of each frame slot that differs from what the frame already
     /// holds, in slot order.
-    pub values: Vec<(u32, ValueLocation)>,
+    pub values: Box<[(u32, ValueLocation)]>,
     /// The live slots whose value the frame already holds (see
     /// `ir::FrameState::in_frame`), in slot order. Exits clear the registers
     /// and locals listed in neither, except a `ResumeAfter` destination,
     /// which exits never write either.
-    pub in_frame: Vec<u32>,
+    pub in_frame: Box<[u32]>,
     /// See `ir::FrameState::passed_argument_count`.
     pub passed_argument_count: Option<u32>,
     /// The argument slots that the legacy `arguments` of the frame's
