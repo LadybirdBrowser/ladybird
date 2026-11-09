@@ -41,8 +41,6 @@
 
 namespace {
 
-bool s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = false;
-
 void ensure_font_plugin_installed()
 {
     static Web::Platform::FontPlugin font_plugin { false };
@@ -1059,7 +1057,6 @@ TEST_CASE(relevant_global_main_world_wrapper_ignores_preferred_realm)
 
     vm.pop_execution_context();
     vm.pop_execution_context();
-    s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
 }
 
 TEST_CASE(wasm_instance_exports_belong_to_the_realm_of_the_instance)
@@ -1100,5 +1097,4 @@ TEST_CASE(wasm_instance_exports_belong_to_the_realm_of_the_instance)
 
     vm.pop_execution_context();
     vm.pop_execution_context();
-    s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
 }
