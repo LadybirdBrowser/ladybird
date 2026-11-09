@@ -1432,7 +1432,7 @@ impl<'pass> TableFormattingContext<'pass> {
         participant_box.content_offset.set(content_offset);
     }
 
-    fn border_spacing_inline(&mut self) -> CssPixels {
+    fn border_spacing_inline(&self) -> CssPixels {
         let style = self.style(self.run.box_);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
@@ -1443,7 +1443,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn border_spacing_block(&mut self) -> CssPixels {
+    fn border_spacing_block(&self) -> CssPixels {
         let style = self.style(self.run.box_);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
@@ -1830,6 +1830,13 @@ impl<'pass> TableFormattingContext<'pass> {
         sizing_context::SizedBox::new(self.cells[cell_index].box_, &self.cell_layouts[cell_index].box_cells)
     }
 
+    /// What the padding percentages of the cells resolve against once the table is sized: its content inline size
+    /// without the border spacing before the first column and after the last. While the columns are measured, they
+    /// resolve against zero.
+    fn cell_padding_percentage_basis(&self) -> CssPixels {
+        self.table_box_cells.content_inline_size() - self.border_spacing_inline() * 2usize
+    }
+
     /// The cells of the box of the cell at `cell_index` with its paddings, whose percentages resolve against
     /// `inline_basis` in both axes, and in the separated borders model its borders.
     fn cell_box_with_resolved_sides(
@@ -1865,7 +1872,7 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let style = self.style(cell.box_);
-            let cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, inline_basis);
+            let cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, CssPixels::default());
             let inline_offsets = cell_box.border_box_left(collapsed) + cell_box.border_box_right(collapsed);
             let width = style.width();
             let max_width = style.max_width();
@@ -3067,7 +3074,8 @@ impl<'pass> TableFormattingContext<'pass> {
                     .max(height.to_px(CssPixels::default()));
             }
         }
-        let inline_basis = self.participant_constraints.inline_basis();
+        let cell_padding_basis = self.cell_padding_percentage_basis();
+        let fixed = self.use_fixed_mode_layout();
         let participant_block_basis = self.participant_constraints.block_basis();
         let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         let inline_spacing = self.border_spacing_inline();
@@ -3078,7 +3086,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let span_inline = (0..cell.column_span).fold(CssPixels::default(), |sum, index| {
                 sum + self.columns[cell.column_index + index].used_inline_size
             });
-            let mut cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, inline_basis);
+            let mut cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, cell_padding_basis);
             // A cell whose columns all have 'visibility: collapse' is removed from the display along with them, as in
             // other engines: "This value causes the entire row or column to be removed from the display". It is laid
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
@@ -3110,8 +3118,10 @@ impl<'pass> TableFormattingContext<'pass> {
             // specified inline size (https://www.w3.org/TR/css-tables-3/#width-distribution-in-fixed-mode), so a
             // column can be narrower than those. The cell still occupies exactly its columns, with an empty content
             // box, as in other engines: shrink its used padding and borders to fit, so that the box painted for the
-            // cell stays within its columns.
-            Self::shrink_cell_offsets_to_fit(&mut cell_box, collapsed, cell_inline_size);
+            // cell stays within its columns. In auto mode, only percentage paddings, which resolve against zero while
+            // the columns are measured, can be wider than the columns: the end padding shrinks to fit, and the start
+            // padding keeps its used value.
+            Self::shrink_cell_offsets_to_fit(&mut cell_box, collapsed, cell_inline_size, fixed);
             cell_box.set_content_inline_size(
                 cell_inline_size - cell_box.border_box_left(collapsed) - cell_box.border_box_right(collapsed),
             );
@@ -3310,13 +3320,24 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     /// Shrinks the used padding, then the used borders, of a cell so that they fit within `inline_size`, the inline
-    /// size of the columns the cell spans. The end side goes first so that the content keeps its position relative to
-    /// the start of the cell for as long as possible.
-    fn shrink_cell_offsets_to_fit(cell_box: &mut used_values::RootInputCells, collapsed: bool, inline_size: CssPixels) {
+    /// size of the columns the cell spans, or only its end padding unless `shrinks_start_padding_and_borders`. The end
+    /// side goes first so that the content keeps its position relative to the start of the cell for as long as
+    /// possible.
+    fn shrink_cell_offsets_to_fit(
+        cell_box: &mut used_values::RootInputCells,
+        collapsed: bool,
+        inline_size: CssPixels,
+        shrinks_start_padding_and_borders: bool,
+    ) {
         let excess = |cell_box: &used_values::RootInputCells| {
             cell_box.border_box_left(collapsed) + cell_box.border_box_right(collapsed) - inline_size
         };
-        for is_start_side in [false, true] {
+        let shrinking_sides: &[bool] = if shrinks_start_padding_and_borders {
+            &[false, true]
+        } else {
+            &[false]
+        };
+        for &is_start_side in shrinking_sides {
             let reduction = excess(cell_box)
                 .min(if is_start_side {
                     cell_box.padding_left
@@ -3330,6 +3351,9 @@ impl<'pass> TableFormattingContext<'pass> {
                 &mut cell_box.padding_right
             };
             *padding -= reduction;
+        }
+        if !shrinks_start_padding_and_borders {
+            return;
         }
         for is_start_side in [false, true] {
             let remaining = excess(cell_box);
