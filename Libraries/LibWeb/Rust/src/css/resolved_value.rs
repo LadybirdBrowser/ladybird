@@ -35,11 +35,11 @@ use crate::css::style_value::{
 };
 use crate::css::style_value_arc::StyleValueArc;
 use crate::css::table_group_builder::group_index;
+use crate::css::transform_functions::multiply_transform_functions;
 use crate::css::value_codes::{COLOR_SYNTAX_MODERN, COLOR_TYPE_RGB};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::script_entries::FfiAnchorSizedProperty;
 use crate::painting::ffi::FfiBoxModelMetrics;
-use crate::painting::visual_context::node_values::multiply_transform_functions;
 use crate::render_state::DocumentHost;
 
 const VALUE_LIST_SEPARATOR_SPACE: u8 = 0;

@@ -1835,7 +1835,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         additional_element_transform: FfiAffineTransform,
     ) -> FfiAffineTransform {
         let style = self.style(node);
-        let matrix = crate::painting::visual_context::node_values::multiply_transform_functions(
+        let matrix = crate::css::transform_functions::multiply_transform_functions(
             libgfx_rust::FloatMatrix4x4::identity(),
             style.transform().resolved_transforms.as_slice(),
             CssPixelRect::default(),

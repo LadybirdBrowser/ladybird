@@ -404,7 +404,7 @@ fn pattern_paint_style<O: Observer>(
             pattern_box,
         );
         Some(
-            crate::painting::visual_context::node_values::multiply_transform_functions(
+            crate::css::transform_functions::multiply_transform_functions(
                 libgfx_rust::FloatMatrix4x4::identity(),
                 &pattern.css_transform,
                 reference_box,

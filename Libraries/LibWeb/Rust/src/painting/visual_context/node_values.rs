@@ -14,6 +14,7 @@ use crate::css::style_value::BorderRadiusPayload;
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts::{self, NodeShape};
+use crate::layout::used_transform::{TransformGeometry, transform_about_origin, transform_reference_box_of};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::FfiVisualContextTreeInputs;
@@ -49,15 +50,6 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
         establishes_sorting_context: false,
         bounds: libgfx_rust::FloatRect::default(),
     }
-}
-
-pub(crate) trait TransformGeometry {
-    fn content_box(&self) -> CssPixelRect;
-    fn border_box(&self) -> CssPixelRect;
-    fn scrollable_overflow_rect(&self) -> Option<CssPixelRect>;
-    fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect>;
-    fn containing_block_box(&self, coord_box: u16) -> CssPixelRect;
-    fn svg_additional_element_transform(&self) -> Option<AffineTransform>;
 }
 
 pub(crate) struct CommittedTransformGeometry<'arena, Arena> {
@@ -126,83 +118,6 @@ pub(crate) fn transform_reference_box(
     )
 }
 
-pub(crate) fn transform_reference_box_of(
-    style: ComputedValuesView<'_>,
-    is_svg: bool,
-    geometry: &impl TransformGeometry,
-) -> CssPixelRect {
-    use css_enums::transform_box::{BORDER_BOX, CONTENT_BOX, FILL_BOX, STROKE_BOX, VIEW_BOX};
-    let mut transform_box = style.transform().transform_box;
-    if is_svg {
-        transform_box = match transform_box {
-            CONTENT_BOX => FILL_BOX,
-            BORDER_BOX => STROKE_BOX,
-            other => other,
-        };
-    } else {
-        transform_box = match transform_box {
-            FILL_BOX => CONTENT_BOX,
-            STROKE_BOX | VIEW_BOX => BORDER_BOX,
-            other => other,
-        };
-    }
-    match transform_box {
-        CONTENT_BOX | FILL_BOX => geometry.content_box(),
-        VIEW_BOX => geometry
-            .nearest_svg_viewport_user_rect()
-            .unwrap_or_else(|| geometry.border_box()),
-        _ => geometry.border_box(),
-    }
-}
-
-fn resolved_translate_axis_px(px: f32, percentage: &ComputedStyleValueHandle, reference: CssPixels) -> f32 {
-    let Some(length_percentage) = percentage.length_percentage() else {
-        return px;
-    };
-    if length_percentage.is_calculated() {
-        return CssPixels::nearest_value_for(crate::css::computed_value_views::resolve_calc_to_px_without_rounding(
-            length_percentage.calculated_pointer(),
-            reference,
-        ))
-        .to_float();
-    }
-    CssPixels::nearest_value_for(reference.to_double() * length_percentage.as_fraction()).to_float()
-}
-
-fn resolved_transform_to_matrix(
-    entry: &crate::css::computed_value_types::ComputedResolvedTransform,
-    reference_width: CssPixels,
-    reference_height: CssPixels,
-) -> libgfx_rust::FloatMatrix4x4 {
-    if entry.is_translate {
-        return translation_matrix(
-            resolved_translate_axis_px(entry.x_px, &entry.x_percentage, reference_width),
-            resolved_translate_axis_px(entry.y_px, &entry.y_percentage, reference_height),
-            entry.z_px,
-        );
-    }
-    let mut elements = [[0.0f32; 4]; 4];
-    for (index, value) in entry.matrix.into_iter().enumerate() {
-        elements[index / 4][index % 4] = value;
-    }
-    libgfx_rust::FloatMatrix4x4 { elements }
-}
-
-pub(crate) fn multiply_transform_functions(
-    mut matrix: libgfx_rust::FloatMatrix4x4,
-    entries: &[crate::css::computed_value_types::ComputedResolvedTransform],
-    reference_box: CssPixelRect,
-) -> libgfx_rust::FloatMatrix4x4 {
-    for entry in entries {
-        matrix = matrix.multiplied(resolved_transform_to_matrix(
-            entry,
-            reference_box.width,
-            reference_box.height,
-        ));
-    }
-    matrix
-}
-
 // https://drafts.csswg.org/css-transforms-2/#ctm
 pub(crate) fn compute_transform(
     layout_arena: &impl PaintRead,
@@ -240,72 +155,29 @@ pub(crate) fn compute_transform_against(
         return None;
     }
 
-    // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
-    // offset properties as follows:
     let reference_box = transform_reference_box_of(style, node_painting::is_svg(node_kind), geometry);
-    let origin_lp = |handle: &ComputedStyleValueHandle| {
-        handle
-            .length_percentage()
-            .expect("computed transform-origin lost its style value")
-    };
-    let origin_x = origin_lp(&transform_values.transform_origin_x).to_px(reference_box.width);
-    let origin_y = origin_lp(&transform_values.transform_origin_y).to_px(reference_box.height);
-    let origin_z = origin_lp(&transform_values.transform_origin_z)
-        .to_px(CssPixels::from_raw(0))
-        .to_float();
-
-    // 1. Start with the identity matrix.
-    // 2. Translate by the computed X, Y, and Z values of transform-origin.
-    // 3. Translate by the computed X, Y, and Z values of translate.
-    // 4. Rotate by the computed <angle> about the specified axis of rotate.
-    // 5. Scale by the computed X, Y, and Z values of scale.
-    // 6. Translate and rotate by the transform specified by offset.
-    // 7. Multiply by each of the transform functions in transform from left to right.
-    // NB: The resolved transform list carries translate, rotate, scale, and the
-    //     transform functions pre-lowered in exactly that order.
-    let resolved_transforms = transform_values.resolved_transforms.as_slice();
-    let mut matrix = translation_matrix(0.0, 0.0, origin_z);
-    if transform_values.has_offset_path {
-        let individual_transform_count = [
-            &transform_values.translate,
-            &transform_values.rotate,
-            &transform_values.scale,
-        ]
-        .into_iter()
-        .filter(|handle| !handle.pointer.is_null())
-        .count();
-        let (individual_transforms, transform_functions) = resolved_transforms.split_at(individual_transform_count);
-        matrix = multiply_transform_functions(matrix, individual_transforms, reference_box);
-        if let Some(offset_transform) = super::offset_transform::compute_offset_transform(
-            style,
-            layout_arena,
-            node,
-            geometry,
-            reference_box,
-            (origin_x.to_double(), origin_y.to_double()),
-        ) {
-            matrix = matrix.multiplied(offset_transform);
-        }
-        matrix = multiply_transform_functions(matrix, transform_functions, reference_box);
-    } else {
-        matrix = multiply_transform_functions(matrix, resolved_transforms, reference_box);
-    }
-
-    // The x and y properties of <use> define an additional translation applied after any
-    // transformations specified with other properties.
-    if let Some(additional) = additional_element_transform {
-        matrix = matrix.multiplied(affine_to_matrix(additional));
-    }
-
-    // 8. Translate by the negated computed X, Y and Z values of transform-origin.
-    matrix = matrix.multiplied(translation_matrix(0.0, 0.0, -origin_z));
+    let used = transform_about_origin(
+        style,
+        reference_box,
+        |origin| {
+            super::offset_transform::compute_offset_transform(
+                style,
+                layout_arena,
+                node,
+                geometry,
+                reference_box,
+                origin,
+            )
+        },
+        additional_element_transform,
+    );
 
     let scale = pixel_ratio as f32;
     let device_origin = FloatPoint {
-        x: (reference_box.x + origin_x).to_float() * scale,
-        y: (reference_box.y + origin_y).to_float() * scale,
+        x: used.origin.x.to_float() * scale,
+        y: used.origin.y.to_float() * scale,
     };
-    let matrix = scale_matrix_for_device_pixels(matrix, scale);
+    let matrix = scale_matrix_for_device_pixels(used.matrix, scale);
     let is_invertible = matrix.is_invertible();
     let mut bounds = geometry.border_box();
     bounds.unite(reference_box);

@@ -71,6 +71,7 @@ mod tree_builder;
 pub(crate) mod tree_mutation;
 pub(crate) mod tree_update_marks;
 mod update_layout;
+pub(crate) mod used_transform;
 pub mod used_values;
 pub(crate) mod viewport_propagation;
 

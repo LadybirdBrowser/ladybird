@@ -159,7 +159,7 @@ pub(crate) fn compute_offset_transform(
     style: ComputedValuesView<'_>,
     arena: &impl PaintRead,
     node: NodeSlotId,
-    geometry: &impl super::node_values::TransformGeometry,
+    geometry: &impl crate::layout::used_transform::TransformGeometry,
     reference_box: CssPixelRect,
     origin: (f64, f64),
 ) -> Option<FloatMatrix4x4> {
