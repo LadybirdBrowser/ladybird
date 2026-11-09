@@ -984,16 +984,20 @@ pub fn non_iso_date_until(
 
         // OPTIMIZATION: Skip ahead by estimating the month difference from calendar dates to avoid a large number of
         //               iterations in the NonISODateSurpasses loop below.
+        //               The estimate counts the months of each year in between, as a year of a lunisolar calendar has
+        //               twelve or thirteen, and starts two months short, as constraining the day or a leap month can
+        //               make the difference one month shorter than the month numbers say.
         if largest_unit == Unit::Month {
-            let mut estimated_months = (calendar_two.year.wrapping_sub(calendar_one.year))
-                .wrapping_mul(12)
-                .wrapping_add(i32::from(calendar_two.month) - i32::from(calendar_one.month));
-            if estimated_months != 0 {
-                estimated_months -= i32::from(sign);
-            }
-
-            if estimated_months != 0 {
-                candidate_months = f64::from(estimated_months);
+            let first_year = calendar_one.year.min(calendar_two.year);
+            let last_year = calendar_one.year.max(calendar_two.year);
+            let months_in_years: i64 = (first_year..last_year)
+                .map(|year| i64::from(calendar_months_in_year(calendar, year)))
+                .sum();
+            let estimated_months = i64::from(sign) * months_in_years + i64::from(calendar_two.month)
+                - i64::from(calendar_one.month)
+                - 2 * i64::from(sign);
+            if estimated_months.signum() == i64::from(sign) {
+                candidate_months = estimated_months as f64;
             }
         }
 

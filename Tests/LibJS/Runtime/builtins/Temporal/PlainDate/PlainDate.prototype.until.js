@@ -229,3 +229,9 @@ describe("errors", () => {
         }
     });
 });
+
+test("months across the whole range of a lunisolar calendar", () => {
+    const earliest = Temporal.PlainDate.from("-271821-04-19").withCalendar("hebrew");
+    const latest = Temporal.PlainDate.from("+275760-09-13").withCalendar("hebrew");
+    expect(earliest.until(latest, { largestUnit: "months" }).toString()).toBe("P6772637M7D");
+});
