@@ -1467,11 +1467,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+        let laid_out = formatting_context::layout_inside_child_with_input_cells(
             self.run,
             Some(self.parent),
             None,
@@ -1482,11 +1478,12 @@ impl<'context> InlineFormattingContext<'context> {
             false,
             self.block_container.percentage_block_insets_have_definite_basis,
         );
-        self.keep_atomic_inline_fragment_arrival(node, fragment_arrival);
-        outcome.report_percentage_block_size_dependency_of(self.run, node);
-        let baselines = laid_out_box.baselines;
-        self.keep_placed_atomic_inline(node, formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
-        (baselines, laid_out_box.cells)
+        laid_out.report_percentage_block_size_dependency_of(self.run, node);
+        let baselines = laid_out.baselines();
+        let cells = laid_out.cells();
+        self.keep_placed_atomic_inline(node, laid_out.placed_child());
+        self.keep_atomic_inline_fragment_arrival(node, laid_out.into_fragment_arrival(self.run));
+        (baselines, cells)
     }
 
     /// Lays out `node`, an atomic inline-level box on a line that starts out with the cells `cells`, and returns the

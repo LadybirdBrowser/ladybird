@@ -3361,16 +3361,12 @@ impl<'pass> FlexFormattingContext<'pass> {
         laid_out: formatting_context::ChildLayout,
     ) -> (Option<fragment_tree::RunRootFragment>, formatting_context::PlacedChild) {
         let node = self.flex_items[index].box_;
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = laid_out;
-        self.flex_item_details[index].cells = laid_out_box.cells;
-        self.flex_item_details[index].orthogonal_flow_baselines = laid_out_box.orthogonal_flow_baselines;
-        outcome.report_percentage_block_size_dependency_of(run, node);
-        self.flex_item_details[index].content_baselines = laid_out_box.baselines;
-        let placed_item = formatting_context::PlacedChild::of_taken_laid_out_box(laid_out_box);
+        self.flex_item_details[index].cells = laid_out.cells();
+        self.flex_item_details[index].orthogonal_flow_baselines = laid_out.orthogonal_flow_baselines();
+        laid_out.report_percentage_block_size_dependency_of(run, node);
+        self.flex_item_details[index].content_baselines = laid_out.baselines();
+        let placed_item = laid_out.placed_child();
+        let fragment_arrival = laid_out.into_fragment_arrival(run);
 
         let container = &self.container_cells;
         let insets = abspos_engine::compute_inset_native(

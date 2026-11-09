@@ -150,6 +150,22 @@ impl BlockContainer {
     }
 }
 
+/// A box as its layout left it, in the cells this flow keeps of it, with the baselines of its contents.
+#[derive(Clone, Copy)]
+pub(crate) struct LaidOutBox {
+    pub(crate) cells: used_values::RootInputCells,
+    pub(crate) baselines: DerivedBaselines,
+}
+
+impl LaidOutBox {
+    fn of_layout(layout: &formatting_context::ChildLayout) -> Self {
+        Self {
+            cells: layout.cells(),
+            baselines: layout.baselines(),
+        }
+    }
+}
+
 /// What the layout of a block-level box the parent flow holds leaves for its outcome.
 struct LaidOutBlockLevelBox {
     broken_inside: Option<BrokenInside>,
@@ -157,7 +173,7 @@ struct LaidOutBlockLevelBox {
     collapses_through: bool,
     /// The box as its layout left it: as a run of its own handed it back, or as this flow laid it out in cells its
     /// layout owns.
-    laid_out_box: run_state::LaidOutChildBox,
+    laid_out_box: LaidOutBox,
     /// What this flow decided the box's fragment shows of it.
     fragment_facts: run_state::FragmentFactsDecidedByParent,
     /// The offset of the content box in the containing block, where this flow placed the box.
@@ -170,10 +186,7 @@ struct LaidOutBlockLevelBox {
 impl LaidOutBlockLevelBox {
     /// A box laid out as `laid_out_box` with `fragment_facts`, which neither broke inside nor let margins collapse
     /// through it, and which this flow did not place.
-    fn of_box(
-        laid_out_box: run_state::LaidOutChildBox,
-        fragment_facts: run_state::FragmentFactsDecidedByParent,
-    ) -> Self {
+    fn of_box(laid_out_box: LaidOutBox, fragment_facts: run_state::FragmentFactsDecidedByParent) -> Self {
         Self {
             broken_inside: None,
             has_unbreakable_lines: false,
@@ -209,7 +222,7 @@ struct UnplacedBlockLevelBox {
     fragment_arrival_of_child_with_own_formatting_context: Option<fragment_tree::RunRootFragment>,
     summary_of_children_laid_out_in_this_flow: Option<ChildrenSummary>,
     baselines_of_contents_laid_out_in_this_flow: Option<DerivedBaselines>,
-    laid_out_box_handed_back_by_its_run: Option<run_state::LaidOutChildBox>,
+    laid_out_box_handed_back_by_its_run: Option<LaidOutBox>,
     own_top_margin_group_of_contents: Option<TopMarginGroup>,
     depends_on_percentage_block_size: bool,
     has_unbreakable_lines: bool,
@@ -233,7 +246,7 @@ pub(crate) struct FloatLaidOutAheadOfItsPosition {
     node: Node,
     placed_float: formatting_context::PlacedChild,
     pub(crate) cells: used_values::RootInputCells,
-    laid_out_float_handed_back_by_its_run: Option<run_state::LaidOutChildBox>,
+    laid_out_float_handed_back_by_its_run: Option<LaidOutBox>,
     fragment_arrival: Option<fragment_tree::RunRootFragment>,
 }
 
@@ -992,16 +1005,15 @@ impl OutsideMarkerLine {
 /// An outside marker laid out before the contents of its list item, which is placed once they are laid out.
 struct LaidOutOutsideMarker {
     marker: Node,
-    laid_out_box: run_state::LaidOutChildBox,
-    fragment_arrival: Option<fragment_tree::RunRootFragment>,
+    layout: formatting_context::ChildLayout,
 }
 
 impl LaidOutOutsideMarker {
     fn line(&self) -> Option<OutsideMarkerLine> {
-        let baseline = self.laid_out_box.baselines.first?;
+        let baseline = self.layout.baselines().first?;
         Some(OutsideMarkerLine {
             ascent: baseline,
-            descent: self.laid_out_box.cells.content_block_size() - baseline,
+            descent: self.layout.cells().content_block_size() - baseline,
         })
     }
 }
@@ -3044,11 +3056,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             inline_size: AvailableSize::definite(max_content_inline_size),
             block_size: AvailableSize::Indefinite,
         };
-        let formatting_context::ChildLayout {
-            outcome: marker_outcome,
-            fragment_arrival,
-            laid_out_box: marker_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+        let layout = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -3067,12 +3075,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             true,
             list_item.percentage_block_insets_have_definite_basis,
         );
-        marker_outcome.report_percentage_block_size_dependency_of(run, marker);
-        Some(LaidOutOutsideMarker {
-            marker,
-            laid_out_box: marker_box,
-            fragment_arrival,
-        })
+        layout.report_percentage_block_size_dependency_of(run, marker);
+        Some(LaidOutOutsideMarker { marker, layout })
     }
 
     /// Places the outside `marker` of `list_item`, and returns the block end of the marker's border box in the list
@@ -3085,13 +3089,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         list_item_first_baseline: Option<CssPixels>,
     ) -> CssPixels {
         let marker_line = marker.line();
-        let LaidOutOutsideMarker {
-            marker,
-            laid_out_box: marker_box,
-            fragment_arrival,
-        } = marker;
+        let LaidOutOutsideMarker { marker, layout } = marker;
         let marker_style = self.style(marker);
-        let marker_metrics = marker_box.cells;
+        let marker_metrics = layout.cells();
         let marker_block_size = marker_metrics.content_block_size();
         let marker_inline_size = marker_metrics.content_inline_size();
         let list_item_style = self.style(list_item.node);
@@ -3110,7 +3110,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 - inline_space_used_before_list_item_elements_formatted.right
         };
         let marker_block_offset = if let Some(list_item_first_baseline) = list_item_first_baseline
-            && let Some(marker_first_baseline) = marker_box.baselines.first
+            && let Some(marker_first_baseline) = layout.baselines().first
         {
             list_item_first_baseline - marker_first_baseline
         } else if let Some(marker_line) = marker_line {
@@ -3126,21 +3126,20 @@ impl<'pass> BlockFormattingContext<'pass> {
         formatting_context::place_child(
             &self.run,
             marker,
-            formatting_context::PlacedChild::of_laid_out_box(&marker_box),
+            layout.placed_child(),
             FfiCssPixelPoint {
                 x: round_css_pixels(marker_inline_offset),
                 y: marker_block_offset,
             },
             None,
-            fragment_arrival,
+            layout.into_fragment_arrival(&self.run),
         );
         marker_block_offset
             + marker_block_size
             + marker_metrics.border_box_bottom(marker_metrics.uses_collapsing_borders_model())
     }
 
-    /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its result where a
-    /// run of its own laid it out, the fragments its placement takes, and the child's box as its layout left it.
+    /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its layout.
     fn layout_inside(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -3148,16 +3147,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: BlockContainer,
         input: LayoutInput,
         force_independent_context_run: bool,
-    ) -> (
-        Option<formatting_context::ChildLayoutResult>,
-        Option<fragment_tree::RunRootFragment>,
-        run_state::LaidOutChildBox,
-    ) {
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+    ) -> formatting_context::ChildLayout {
+        let layout = formatting_context::layout_inside_child_with_input_cells(
             run,
             Some(self),
             None,
@@ -3168,12 +3159,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             force_independent_context_run,
             block_container.percentage_block_insets_have_definite_basis,
         );
-        outcome.report_percentage_block_size_dependency_of(run, sized_child.node);
-        let child_layout = match outcome {
-            ChildLayoutOutcome::Skipped { .. } => None,
-            ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
-        };
-        (child_layout, fragment_arrival, laid_out_box)
+        layout.report_percentage_block_size_dependency_of(run, sized_child.node);
+        layout
     }
 
     fn child_layout_input(
@@ -3761,14 +3748,14 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let metrics = self.metrics_of(sized_child);
                 (metrics.border_box_left(false), metrics.border_box_top(false))
             });
-            let (child_layout, fragment_arrival, laid_out_box) =
-                self.layout_inside(run, sized_child, block_container, inside_layout_input, true);
+            let layout = self.layout_inside(run, sized_child, block_container, inside_layout_input, true);
             assert!(
-                child_layout.is_some(),
+                layout.result().is_some(),
                 "a block-level box with a formatting context of its own is laid out by its run"
             );
-            fragment_arrival_of_child_with_own_formatting_context = fragment_arrival;
-            child_handed_back_by_its_run = Some(formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
+            let laid_out_box = LaidOutBox::of_layout(&layout);
+            child_handed_back_by_its_run = Some(layout.placed_child());
+            fragment_arrival_of_child_with_own_formatting_context = layout.into_fragment_arrival(run);
             let table_box = laid_out_box.cells;
             laid_out_box_handed_back_by_its_run = Some(laid_out_box);
             if container_facts.is_table_wrapper() && style.display().is_table_inside() {
@@ -4282,17 +4269,14 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     /// The box `child` as this flow laid it out in cells its layout owns, with the `baselines` of its contents.
-    fn laid_out_box_of_box_laid_out_here(
-        child: ChildSizedHere<'_>,
-        baselines: DerivedBaselines,
-    ) -> run_state::LaidOutChildBox {
-        run_state::LaidOutChildBox::sized_here(
-            child
+    fn laid_out_box_of_box_laid_out_here(child: ChildSizedHere<'_>, baselines: DerivedBaselines) -> LaidOutBox {
+        LaidOutBox {
+            cells: child
                 .cells_laid_out_here()
                 .expect("a box laid out in this flow is laid out in cells its layout owns")
                 .get(),
             baselines,
-        )
+        }
     }
 
     /// Whether the layout of an in-flow child can be stored and reused by `InFlowBlockKey`, and where its position in
@@ -6699,7 +6683,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         fragment_facts: run_state::FragmentFactsDecidedByParent,
     ) -> (
         abspos_engine::InFlowBoxInsets,
-        Option<run_state::LaidOutChildBox>,
+        Option<LaidOutBox>,
         Option<FfiCssPixelPoint>,
     ) {
         let laid_out_float = self.lay_out_float_ahead_of_its_position(
@@ -6771,14 +6755,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         let node = sized_float.node;
         let float_input =
             self.size_float_for_its_run(sized_float, block_container, &input, containing_block_position_in_root);
-        let (float_layout, fragment_arrival, float_box) =
-            self.layout_inside(run, sized_float, block_container, float_input, false);
+        let layout = self.layout_inside(run, sized_float, block_container, float_input, false);
         FloatLaidOutAheadOfItsPosition {
             node,
-            placed_float: formatting_context::PlacedChild::of_laid_out_box(&float_box),
-            cells: float_box.cells,
-            laid_out_float_handed_back_by_its_run: float_layout.is_some().then_some(float_box),
-            fragment_arrival,
+            placed_float: layout.placed_child(),
+            cells: layout.cells(),
+            laid_out_float_handed_back_by_its_run: layout.result().is_some().then(|| LaidOutBox::of_layout(&layout)),
+            fragment_arrival: layout.into_fragment_arrival(run),
         }
     }
 
@@ -6796,7 +6779,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         fragment_facts: run_state::FragmentFactsDecidedByParent,
     ) -> (
         abspos_engine::InFlowBoxInsets,
-        Option<run_state::LaidOutChildBox>,
+        Option<LaidOutBox>,
         Option<FfiCssPixelPoint>,
     ) {
         let FloatLaidOutAheadOfItsPosition {

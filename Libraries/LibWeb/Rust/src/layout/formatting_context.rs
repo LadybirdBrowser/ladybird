@@ -160,21 +160,12 @@ pub(crate) fn run_root_without_parent_fragments(
         },
         false,
     );
-    let ChildLayout {
-        outcome: ChildLayoutOutcome::Created(result),
-        laid_out_box,
-        fragment_arrival,
-    } = run_formatting_context(pass, request, RunSideInputs::default())
-    else {
+    let ChildLayout::Laid(layout) = run_formatting_context(pass, request, RunSideInputs::default()) else {
         unreachable!("a run creates its root's result");
     };
-    debug_assert!(
-        fragment_arrival.is_none(),
-        "a run without parent fragments hands its placement nothing"
-    );
     RootLaidOutWithoutParentFragments {
-        result,
-        root_cells_left_by_run: laid_out_box.cells,
+        result: layout.outcome,
+        root_cells_left_by_run: layout.cells(),
     }
 }
 
@@ -388,18 +379,15 @@ impl PlacedChild {
         }
     }
 
-    /// A child whose run handed back the box `laid_out`, before its parent decided anything about it.
-    pub(crate) fn of_laid_out_box(laid_out: &run_state::LaidOutChildBox) -> Self {
+    /// A child laid out as `layout` shows it, with the lines its run laid out in it, before its parent decided anything
+    /// about it.
+    pub(crate) fn of_layout(layout: &ChildLayout) -> Self {
         Self::new(fragment_tree::FragmentGeometry {
-            cells: laid_out.cells,
-            line_data: laid_out.line_data.clone(),
-        })
-    }
-
-    pub(crate) fn of_taken_laid_out_box(laid_out: run_state::LaidOutChildBox) -> Self {
-        Self::new(fragment_tree::FragmentGeometry {
-            cells: laid_out.cells,
-            line_data: laid_out.line_data,
+            cells: layout.cells(),
+            line_data: match layout {
+                ChildLayout::SizedInParentRun { .. } => None,
+                ChildLayout::Laid(layout) => layout.line_data().cloned(),
+            },
         })
     }
 
@@ -1091,7 +1079,7 @@ impl LayoutResult {
 
 /// The result of a run its parent takes in: the run's own, which the run cache stored or not, or that of a stored run
 /// the probe took in place of running.
-pub(super) enum LayoutResultHandle {
+pub(crate) enum LayoutResultHandle {
     Owned(LayoutResult),
     /// The run's own result, which the run cache stored.
     Stored(std::sync::Arc<fc_run_cache::FcRunCacheEntry>),
@@ -1112,20 +1100,11 @@ impl LayoutResultHandle {
         }
     }
 
-    /// The root's fragment, where `takes_fragment`, and the residue of the run, which the run's parent takes in.
-    fn into_fragment_and_residue(
-        self,
-        takes_fragment: bool,
-    ) -> (
-        Option<fragment_tree::RunRootFragment>,
-        Option<Box<run_state::RunResidue>>,
-    ) {
+    /// What the run found out besides its result, which the run that takes in its result receives.
+    fn take_residue(&mut self) -> Option<Box<run_state::RunResidue>> {
         match self {
-            Self::Owned(result) => (result.fragment.filter(|_| takes_fragment), result.residue),
-            Self::Stored(entry) | Self::Reused { entry, .. } => (
-                entry.result.fragment.as_ref().filter(|_| takes_fragment).cloned(),
-                entry.result.residue.clone(),
-            ),
+            Self::Owned(result) => result.residue.take(),
+            Self::Stored(entry) | Self::Reused { entry, .. } => entry.result.residue.clone(),
         }
     }
 }
@@ -1138,40 +1117,6 @@ impl std::ops::Deref for LayoutResultHandle {
             Self::Owned(result) => result,
             Self::Stored(entry) | Self::Reused { entry, .. } => &entry.result,
         }
-    }
-}
-
-pub(crate) enum ChildLayoutOutcome {
-    Skipped {
-        depends_on_percentage_block_size: bool,
-        /// For an absolutely positioned child, the used values of its inset properties.
-        out_of_flow_root_used_insets: Option<run_state::UsedInsets>,
-    },
-    Created(ChildLayoutResult),
-}
-
-impl ChildLayoutOutcome {
-    /// Whether the laid out child depends on the block size its percentages resolve against, which the box containing
-    /// it hears of.
-    pub(crate) fn child_depends_on_percentage_block_size(&self) -> bool {
-        match self {
-            Self::Skipped {
-                depends_on_percentage_block_size,
-                ..
-            } => *depends_on_percentage_block_size,
-            Self::Created(result) => result.depends_on_percentage_block_size,
-        }
-    }
-
-    /// Notes for the box containing `child` whether `child`, laid out with this outcome, depends on the block size its
-    /// percentages resolve against.
-    pub(crate) fn report_percentage_block_size_dependency_of(&self, run: &FormattingContextRun, child: Node) {
-        propagate_percentage_block_size_dependency_to_containing_block(
-            run.state,
-            &run.pass,
-            child,
-            self.child_depends_on_percentage_block_size(),
-        );
     }
 }
 
@@ -3052,27 +2997,111 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     state.note_descendant_depends_on_percentage_block_size(box_resolving_the_dependency);
 }
 
-/// The layout of a child: its outcome, the root fragment its placement takes, and the child's box as its layout left
-/// it, unless the parent lays out the child's contents itself.
+/// What the run of a parent knows of a child it sized itself, besides the child's cells.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SkippedChild {
+    pub(crate) depends_on_percentage_block_size: bool,
+    /// For an absolutely positioned child, the used values of its inset properties.
+    pub(crate) out_of_flow_root_used_insets: Option<run_state::UsedInsets>,
+}
+
+/// The layout of a child its parent takes in: the cells the parent's own run sized it in, or the result of the child's
+/// own run, whose root fragment the child's placement takes.
 #[must_use]
-pub(crate) struct ChildLayout {
-    pub(crate) outcome: ChildLayoutOutcome,
-    pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
-    pub(crate) laid_out_box: run_state::LaidOutChildBox,
+pub(crate) enum ChildLayout {
+    SizedInParentRun {
+        cells: used_values::RootInputCells,
+        skipped: SkippedChild,
+    },
+    Laid(LayoutResultHandle),
 }
 
 impl ChildLayout {
-    /// What placing the child takes of the box its layout handed back.
-    pub(crate) fn placed_child(&self) -> PlacedChild {
-        PlacedChild::of_laid_out_box(&self.laid_out_box)
+    /// The result of the child's run, where a run of its own laid it out.
+    pub(crate) fn result(&self) -> Option<&ChildLayoutResult> {
+        match self {
+            Self::SizedInParentRun { .. } => None,
+            Self::Laid(layout) => Some(&layout.outcome),
+        }
     }
 
-    fn of_child_sized_in_parent_run(outcome: ChildLayoutOutcome, cells: used_values::RootInputCells) -> Self {
-        Self {
-            outcome,
-            fragment_arrival: None,
-            laid_out_box: run_state::LaidOutChildBox::sized_here(cells, DerivedBaselines::default()),
+    /// The child's cells as its parent keeps them, in the parent's frame.
+    pub(crate) fn cells(&self) -> used_values::RootInputCells {
+        match self {
+            Self::SizedInParentRun { cells, .. } => *cells,
+            Self::Laid(layout) => layout.cells(),
         }
+    }
+
+    /// The baselines of the child's contents, which the parent's run lays out none of where it sizes the child itself.
+    pub(crate) fn baselines(&self) -> DerivedBaselines {
+        self.result()
+            .map_or_else(DerivedBaselines::default, |result| result.baselines)
+    }
+
+    /// For a child that establishes an orthogonal flow, its baselines along the horizontal axis of the parent's frame.
+    pub(crate) fn orthogonal_flow_baselines(&self) -> Option<DerivedBaselines> {
+        self.result()?.orthogonal_flow_baselines
+    }
+
+    /// For an absolutely positioned child, the used values of its inset properties.
+    pub(crate) fn out_of_flow_root_used_insets(&self) -> Option<run_state::UsedInsets> {
+        match self {
+            Self::SizedInParentRun { skipped, .. } => skipped.out_of_flow_root_used_insets,
+            Self::Laid(layout) => layout.outcome.out_of_flow_root_used_insets,
+        }
+    }
+
+    /// Whether the child depends on the block size its percentages resolve against, which the box containing it hears
+    /// of.
+    pub(crate) fn child_depends_on_percentage_block_size(&self) -> bool {
+        match self {
+            Self::SizedInParentRun { skipped, .. } => skipped.depends_on_percentage_block_size,
+            Self::Laid(layout) => layout.outcome.depends_on_percentage_block_size,
+        }
+    }
+
+    /// Notes for the box containing `child`, laid out as this, whether `child` depends on the block size its
+    /// percentages resolve against.
+    pub(crate) fn report_percentage_block_size_dependency_of(&self, run: &FormattingContextRun, child: Node) {
+        propagate_percentage_block_size_dependency_to_containing_block(
+            run.state,
+            &run.pass,
+            child,
+            self.child_depends_on_percentage_block_size(),
+        );
+    }
+
+    /// What placing the child takes of its layout.
+    pub(crate) fn placed_child(&self) -> PlacedChild {
+        PlacedChild::of_layout(self)
+    }
+
+    /// The root fragment of the child's run that the child's placement in `run` takes, where `run` builds fragments. A
+    /// stored run's fragment can show the box as it was committed since through another fragment, which it then is.
+    pub(crate) fn into_fragment_arrival(self, run: &FormattingContextRun) -> Option<fragment_tree::RunRootFragment> {
+        let takes_fragment = run.fragments.is_some();
+        let (root, reuses_stored_run) = match self {
+            Self::SizedInParentRun { .. } => return None,
+            Self::Laid(LayoutResultHandle::Owned(result)) => (result.fragment.filter(|_| takes_fragment), false),
+            Self::Laid(LayoutResultHandle::Stored(entry)) => (
+                entry.result.fragment.as_ref().filter(|_| takes_fragment).cloned(),
+                false,
+            ),
+            Self::Laid(LayoutResultHandle::Reused { entry, .. }) => {
+                (entry.result.fragment.as_ref().filter(|_| takes_fragment).cloned(), true)
+            }
+        };
+        root.map(|root| {
+            let fragment = reuses_stored_run
+                .then(|| fragment_tree::previously_committed_fragment_matching(&run.pass, &root.fragment))
+                .flatten()
+                .unwrap_or(root.fragment);
+            fragment_tree::RunRootFragment {
+                fragment,
+                payloads_past_run: root.payloads_past_run,
+            }
+        })
     }
 }
 
@@ -3094,9 +3123,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
     let facts = NodeFacts::new(&run.pass, child);
     let created_fc_type = formatting_context_type_created_by_box(facts);
     let child_run_builds_fragments = RunMode::of(&input, run.mode.builds_fragments(), false).builds_fragments();
-    let skipped = |out_of_flow_root_used_insets| ChildLayoutOutcome::Skipped {
-        depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
-        out_of_flow_root_used_insets,
+    let sized_in_parent_run = |cells, out_of_flow_root_used_insets| ChildLayout::SizedInParentRun {
+        cells,
+        skipped: SkippedChild {
+            depends_on_percentage_block_size: run.sizing().skipped_child_depends_on_percentage_block_size(child),
+            out_of_flow_root_used_insets,
+        },
     };
     if is_empty_atomic_block_sized_in_parent_run(
         run,
@@ -3115,16 +3147,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
             input.containing_block_constraints,
             child_run_builds_fragments,
         );
-        return ChildLayout::of_child_sized_in_parent_run(skipped(None), cells_of_this_layout.get());
+        return sized_in_parent_run(cells_of_this_layout.get(), None);
     }
     if is_childless_box_sized_in_parent_run(facts, created_fc_type) {
         let cells_of_this_layout = Cell::new(child_input_cells);
         let out_of_flow_root_used_insets =
             size_skipped_independent_root(run, parent_block, child, &cells_of_this_layout, &input);
-        return ChildLayout::of_child_sized_in_parent_run(
-            skipped(out_of_flow_root_used_insets),
-            cells_of_this_layout.get(),
-        );
+        return sized_in_parent_run(cells_of_this_layout.get(), out_of_flow_root_used_insets);
     }
 
     let plan = child_run_plan(
@@ -3478,11 +3507,9 @@ pub(crate) fn lay_out_measurement_root_for_its_result(
 }
 
 pub(crate) fn lay_out_shape_for_its_result(pass: LayoutPass<'_>, shape: ChildRunShape) -> ChildLayoutResult {
-    let layout = layout(pass, &RunRequest::of_shape(shape), RunSideInputs::default());
-    let outcome = layout.outcome;
-    let (_, residue) = layout.into_fragment_and_residue(false);
-    pass.receive_residue(residue);
-    outcome
+    let mut layout = layout(pass, &RunRequest::of_shape(shape), RunSideInputs::default());
+    pass.receive_residue(layout.take_residue());
+    layout.outcome
 }
 
 // NB: An item that establishes an orthogonal flow sizes itself along its container's block axis, so its run owns its
@@ -3520,38 +3547,21 @@ pub(super) fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
         })
 }
 
-fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, layout: LayoutResultHandle) -> ChildLayout {
-    let child = request.node;
-    let outputs_are_stored_ones = matches!(layout, LayoutResultHandle::Reused { .. });
-    let result = layout.outcome;
-    let laid_out_box = run_state::LaidOutChildBox {
-        cells: layout.cells(),
-        baselines: result.baselines,
-        orthogonal_flow_baselines: result.orthogonal_flow_baselines,
-        line_data: layout.line_data().cloned(),
-    };
-    let (root, residue) = layout.into_fragment_and_residue(request.caller.collects_fragments());
-    pass.receive_residue(residue);
-    let fragment_arrival = root.map(|root| {
-        debug_assert!(
-            root.fragment.node == child,
-            "a child run returned a root for a different box"
-        );
-        // NB: A stored run's fragment can show the box as it was committed since through another fragment.
-        let fragment = outputs_are_stored_ones
-            .then(|| fragment_tree::previously_committed_fragment_matching(pass, &root.fragment))
-            .flatten()
-            .unwrap_or(root.fragment);
-        fragment_tree::RunRootFragment {
-            fragment,
-            payloads_past_run: root.payloads_past_run,
-        }
-    });
-    ChildLayout {
-        outcome: ChildLayoutOutcome::Created(result),
-        laid_out_box,
-        fragment_arrival,
-    }
+/// The layout of the child of the run `request` asked for, whose parent hears at once of what the run found out.
+fn child_layout_from_outputs(
+    pass: &LayoutPass<'_>,
+    request: &RunRequest,
+    mut layout: LayoutResultHandle,
+) -> ChildLayout {
+    debug_assert!(
+        layout
+            .fragment
+            .as_ref()
+            .is_none_or(|root| root.fragment.node == request.node),
+        "a child run returned a root for a different box"
+    );
+    pass.receive_residue(layout.take_residue());
+    ChildLayout::Laid(layout)
 }
 
 pub(super) fn independent_formatting_context_type(box_: Node, pass: &LayoutPass<'_>) -> FormattingContextType {
@@ -3823,14 +3833,14 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
                 },
                 should_collect_devtools_layout_data,
             );
-            let root_outcome = run_formatting_context(pass, request, RunSideInputs::default());
+            let root_layout = run_formatting_context(pass, request, RunSideInputs::default());
             place_child(
                 &entry_run,
                 root_for_layout,
-                root_outcome.placed_child(),
+                root_layout.placed_child(),
                 FfiCssPixelPoint::default(),
                 None,
-                root_outcome.fragment_arrival,
+                root_layout.into_fragment_arrival(&entry_run),
             );
             finish_entry_pass(
                 entry_run_state,
@@ -3983,21 +3993,14 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         },
         run.collects_devtools_layout_data(),
     );
-    let root_outcome = run_formatting_context(*pass, request, RunSideInputs::default());
-    let ChildLayout {
-        laid_out_box: root_box,
-        fragment_arrival,
-        ..
-    } = root_outcome;
+    let root_layout = run_formatting_context(*pass, request, RunSideInputs::default());
     assert_eq!(
-        sizes_and_box_sides(root_box.cells),
+        sizes_and_box_sides(root_layout.cells()),
         sizes_and_box_sides(root_cells),
         "the run of {root:?} changed the committed geometry of its root"
     );
-    let root_geometry = fragment_tree::FragmentGeometry {
-        cells: root_box.cells,
-        line_data: root_box.line_data,
-    };
+    let root_geometry = root_layout.placed_child().geometry;
+    let fragment_arrival = root_layout.into_fragment_arrival(run);
     let facts_decided_by_parent = run_state::FactsDecidedByParent::of_committed_link(
         &committed_root_link,
         pass.frame,

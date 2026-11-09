@@ -2109,11 +2109,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 },
                 ..self.nested_layout_input()
             };
-            let formatting_context::ChildLayout {
-                outcome,
-                fragment_arrival,
-                laid_out_box,
-            } = formatting_context::layout_inside_child_with_input_cells(
+            let laid_out = formatting_context::layout_inside_child_with_input_cells(
                 run,
                 None,
                 None,
@@ -2124,27 +2120,28 @@ impl<'pass> SvgFormattingContext<'pass> {
                 true,
                 self.percentage_block_insets_of_run_root_children_have_definite_basis,
             );
-            outcome.report_percentage_block_size_dependency_of(run, child);
+            laid_out.report_percentage_block_size_dependency_of(run, child);
             assert!(
-                matches!(outcome, ChildLayoutOutcome::Created(_)),
+                laid_out.result().is_some(),
                 "SVG foreign object did not create an independent formatting context"
             );
+            let cells = laid_out.cells();
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_laid_out_child(
                 child,
-                formatting_context::PlacedChild::of_laid_out_box(&laid_out_box),
+                laid_out.placed_child(),
                 rect.x,
                 rect.y,
-                fragment_arrival,
+                laid_out.into_fragment_arrival(run),
             );
             if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
-                self.layout_mask_or_clip(run, mask, &laid_out_box.cells);
+                self.layout_mask_or_clip(run, mask, &cells);
             }
             if let Some(clip) = self.first_child_of_kind(child, NodeKind::SVGClipBox) {
-                self.layout_mask_or_clip(run, clip, &laid_out_box.cells);
+                self.layout_mask_or_clip(run, clip, &cells);
             }
             return Some(LaidOutSvgElement {
-                cells: laid_out_box.cells,
+                cells,
                 content_offset: FfiCssPixelPoint { x: rect.x, y: rect.y },
             });
         } else if kind_is_svg_graphics_box(kind) {

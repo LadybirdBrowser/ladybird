@@ -2199,11 +2199,7 @@ impl<'pass> MathFormattingContext<'pass> {
             ParticipationInParentFormattingContext::AtomicInline,
         );
         input.sizing.math_stretch_size_constraint = stretch_size_constraint;
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+        let laid_out = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -2214,15 +2210,13 @@ impl<'pass> MathFormattingContext<'pass> {
             true,
             run.percentage_block_insets_of_root_children_have_definite_basis(&self.root_cells),
         );
-        if let Some(fragment_arrival) = fragment_arrival {
+        laid_out.report_percentage_block_size_dependency_of(run, child);
+        let metrics = laid_out.cells();
+        let baselines = laid_out.baselines();
+        self.placed_children.borrow_mut().insert(child, laid_out.placed_child());
+        if let Some(fragment_arrival) = laid_out.into_fragment_arrival(run) {
             self.fragment_arrivals_of_children.borrow_mut().push(fragment_arrival);
         }
-        self.placed_children
-            .borrow_mut()
-            .insert(child, formatting_context::PlacedChild::of_laid_out_box(&laid_out_box));
-        outcome.report_percentage_block_size_dependency_of(run, child);
-        let metrics = laid_out_box.cells;
-        let baselines = laid_out_box.baselines;
         let collapsed = metrics.uses_collapsing_borders_model();
         let block_size = metrics.margin_box_block_size(collapsed);
         // NB: A box without a baseline is aligned by its line-under margin edge.

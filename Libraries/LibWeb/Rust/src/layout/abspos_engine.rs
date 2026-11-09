@@ -2636,11 +2636,7 @@ impl<'pass> AbsposEngine<'pass> {
         let (available_space, constraints) = out_of_flow_root_space(&inputs);
         let inputs = std::sync::Arc::new(inputs);
 
-        let formatting_context::ChildLayout {
-            outcome,
-            fragment_arrival,
-            laid_out_box,
-        } = formatting_context::layout_inside_child_with_input_cells(
+        let laid_out = formatting_context::layout_inside_child_with_input_cells(
             run,
             None,
             None,
@@ -2658,19 +2654,12 @@ impl<'pass> AbsposEngine<'pass> {
             //  with respect to that element."
             true,
         );
-        outcome.report_percentage_block_size_dependency_of(run, node);
-        let mut used_insets = match outcome {
-            ChildLayoutOutcome::Created(result) => result
-                .out_of_flow_root_used_insets
-                .expect("the run of an absolutely positioned box gives it used insets"),
-            ChildLayoutOutcome::Skipped {
-                out_of_flow_root_used_insets,
-                ..
-            } => out_of_flow_root_used_insets
-                .expect("the layout of a skipped absolutely positioned box gives it used insets"),
-        };
+        laid_out.report_percentage_block_size_dependency_of(run, node);
+        let mut used_insets = laid_out
+            .out_of_flow_root_used_insets()
+            .expect("the layout of an absolutely positioned box gives it used insets");
 
-        let metrics = laid_out_box.cells;
+        let metrics = laid_out.cells();
         let collapsed = metrics.uses_collapsing_borders_model();
         let static_offset = aligned_static_offset(
             inputs.static_position_rect,
@@ -2716,7 +2705,7 @@ impl<'pass> AbsposEngine<'pass> {
                 used_insets.bottom = style.inset_bottom().to_px(containing_block_size.block_size);
             }
         }
-        let mut placed_child = formatting_context::PlacedChild::of_laid_out_box(&laid_out_box);
+        let mut placed_child = laid_out.placed_child();
         placed_child.facts_decided_by_parent.used_insets = used_insets;
         placed_child.facts_decided_by_parent.default_scroll_shift = default_scroll_shift;
         placed_child.abspos_layout_inputs = Some(inputs);
@@ -2729,7 +2718,7 @@ impl<'pass> AbsposEngine<'pass> {
                 y: used_offset.block_offset,
             },
             None,
-            fragment_arrival,
+            laid_out.into_fragment_arrival(run),
         );
         used_offset.block_offset + metrics.content_block_size() + metrics.border_box_bottom(collapsed)
     }

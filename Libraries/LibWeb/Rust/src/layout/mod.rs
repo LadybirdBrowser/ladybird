@@ -94,8 +94,7 @@ use crate::layout::node_data::NodeSlotId;
 pub(crate) use abspos_inputs::AbsposAxisAlignment;
 pub(crate) use box_alignment::AxisEdge;
 pub(crate) use formatting_context::{
-    ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, Node, SizingAxis,
-    SizingProperty,
+    DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, Node, SizingAxis, SizingProperty,
 };
 pub(crate) use fragment_tree::FragmentLink;
 pub(crate) use geometry::{
