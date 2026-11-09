@@ -227,70 +227,38 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     auto const* self_layout_node = layout_node(read);
     if (!self_layout_node)
         return Geometry::DOMRect::create();
+
     auto owner_svg_element = this->owner_svg_element();
-
-    // The outermost svg element has no ancestor svg element to measure against; per the bounding box
-    // algorithm its bounding box is the union of its children's bounding boxes in its own user
-    // coordinate system, with each child's own transforms kept.
-    if (!owner_svg_element) {
-        if (!is<SVGSVGElement>(*this))
-            return Geometry::DOMRect::create();
-        if (!Painting::has_committed_box(*self_layout_node))
-            return Geometry::DOMRect::create();
-        Gfx::FloatRect united_rect;
-        for (auto const* child = self_layout_node->first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            switch (child->kind()) {
-            case Layout::RustFFI::NodeKind::SVGMaskBox:
-            case Layout::RustFFI::NodeKind::SVGClipBox:
-            case Layout::RustFFI::NodeKind::SVGPatternBox:
-                continue;
-            default:
-                break;
-            }
-            if (!Painting::has_committed_box(*child))
-                continue;
-            auto child_rect = Painting::svg_element_transform(*child).map(Painting::absolute_rect(*child).to_type<float>());
-            united_rect.unite(child_rect);
+    if (owner_svg_element) {
+        auto const* owner_layout_node = owner_svg_element->layout_node(read);
+        if (!owner_layout_node || !Painting::has_committed_box(*owner_layout_node) || !Painting::has_committed_box(*self_layout_node)) {
+            // Throw only for non-rendered *graphics* elements where geometry isn't computable
+            // (e.g. elements inside <marker>, <pattern>, etc.).
+            if (is<SVGSVGElement>(*this))
+                return Geometry::DOMRect::create();
+            return WebIDL::InvalidStateError::create(
+                HTML::relevant_realm(*this),
+                "Element is not rendered and geometry is not computable"_utf16);
         }
-        if (united_rect.is_empty())
-            return Geometry::DOMRect::create();
-        return Geometry::DOMRect::create(united_rect);
-    }
-
-    auto const* owner_layout_node = owner_svg_element->layout_node(read);
-    if (!owner_layout_node || !Painting::has_committed_box(*owner_layout_node) || !Painting::has_committed_box(*self_layout_node)) {
-        // Throw only for non-rendered *graphics* elements where geometry isn't computable
-        // (e.g. elements inside <marker>, <pattern>, etc.).
-        if (is<SVGSVGElement>(*this))
-            return Geometry::DOMRect::create();
-        return WebIDL::InvalidStateError::create(
-            HTML::relevant_realm(*this),
-            "Element is not rendered and geometry is not computable"_utf16);
+    } else if (!is<SVGSVGElement>(*this)) {
+        return Geometry::DOMRect::create();
     }
 
     // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
-    // Let fill-shape be the equivalent path of element if it is a shape, or a shape that includes each of the glyph
-    // cells corresponding to the text within the elements otherwise.
-    // NB: Layout sizes a text content element's box to exactly that: The glyph cells of all the text within it.
-    if (self_layout_node->kind() == Layout::RustFFI::NodeKind::SVGTextBox || self_layout_node->kind() == Layout::RustFFI::NodeKind::SVGTextPathBox) {
-        auto rect = Painting::absolute_rect(*self_layout_node).to_type<float>();
-        if (rect.is_empty())
-            return Geometry::DOMRect::create();
-        return Geometry::DOMRect::create(rect);
-    }
-
-    // A path-like element's bounding box covers its geometry alone; the committed content rect is
-    // inflated by the visible stroke width, so take the unstroked path bounds directly.
-    if (auto committed_path_bounding_box = Painting::committed_svg_path_bounding_box(*self_layout_node); committed_path_bounding_box.has_value())
-        return Geometry::DOMRect::create(*committed_path_bounding_box);
-
-    auto rect = Painting::absolute_rect(*self_layout_node).to_type<float>();
-    // An element with a non-positive geometry dimension is not rendered and
-    // therefore contributes an empty bounding box, regardless of its
-    // positioning rectangle's origin.
-    if (rect.width() <= 0 || rect.height() <= 0)
+    // NB: Layout commits each element's object bounding box in its user coordinate system: a shape's path, the glyph
+    //     cells of text, and for a container, including the outermost svg element, the union of its children's, each
+    //     through the child's own transform. A foreign object's box comes from a layout of its own, which commits no SVG
+    //     geometry; the box is its bounding box.
+    auto geometry = Painting::svg_geometry(*self_layout_node);
+    if (!geometry.has_value() && !owner_svg_element)
         return Geometry::DOMRect::create();
-    return Geometry::DOMRect::create(rect);
+    auto bounding_box = geometry.has_value() ? geometry->object_bounding_box : Painting::absolute_rect(*self_layout_node).to_type<float>();
+    // An element other than a shape or a container with a non-positive geometry dimension is not rendered and
+    // therefore contributes an empty bounding box, regardless of its positioning rectangle's origin.
+    auto kind = self_layout_node->kind();
+    if (kind != Layout::RustFFI::NodeKind::SVGGeometryBox && kind != Layout::RustFFI::NodeKind::SVGGraphicsBox && bounding_box.is_empty())
+        return Geometry::DOMRect::create();
+    return Geometry::DOMRect::create(bounding_box);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__transform

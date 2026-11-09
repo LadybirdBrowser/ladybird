@@ -1,0 +1,13 @@
+attribute-transform-with-origin: getCTM=[0, 1, -1, 0, 100, 0] getScreenCTM=[0, 1, -1, 0, 100, 0]
+    getBoundingClientRect=(80, 0, 20, 40)
+style-transform-with-origin: getCTM=[0, 1, -1, 0, 100, 0] getScreenCTM=[0, 1, -1, 0, 100, 0]
+    getBoundingClientRect=(80, 0, 20, 40)
+fill-box-center: getCTM=[0, 1, -1, 0, 30, -10] getScreenCTM=[0, 1, -1, 0, 30, -10]
+    getBoundingClientRect=(10, -10, 20, 40)
+stroked-stroke-box-top-left: getCTM=[0, 1, -1, 0, -10, 0] getScreenCTM=[0, 1, -1, 0, -10, 0]
+offset-svg-fill-box-center: getCTM=[0, 1, -1, 0, 60, 0] getScreenCTM=[0, 1, -1, 0, 110, 230]
+    getBoundingClientRect=(70, 240, 20, 40)
+nested-viewport-view-box-center: getCTM=[0, 2, -2, 0, 120, 10] getScreenCTM=[0, 2, -2, 0, 170, 240]
+    getBoundingClientRect=(150, 240, 20, 20)
+nested-viewport-in-scaled-group: getCTM=[4, 0, 0, 4, 20, -10] getScreenCTM=[4, 0, 0, 4, 70, 220]
+    getBoundingClientRect=(70, 220, 40, 40)

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+    }
+</style>
+<svg width="200" height="200">
+    <rect id="attribute-transform-with-origin" width="40" height="20" transform="rotate(90)" style="transform-origin: 50px 50px" />
+    <rect id="style-transform-with-origin" width="40" height="20" style="transform: rotate(90deg); transform-origin: 50px 50px" />
+    <rect id="fill-box-center" width="40" height="20" style="transform: rotate(90deg); transform-box: fill-box; transform-origin: center" />
+    <rect id="stroked-stroke-box-top-left" width="40" height="20" stroke="black" stroke-width="10" style="transform: rotate(90deg); transform-box: stroke-box; transform-origin: left top" />
+</svg>
+<svg width="200" height="200" style="margin: 30px 0 0 50px">
+    <rect id="offset-svg-fill-box-center" x="10" y="20" width="40" height="20" style="transform: rotate(90deg); transform-box: fill-box; transform-origin: center" />
+    <svg x="20" y="10" width="100" height="100" viewBox="0 0 50 50">
+        <rect id="nested-viewport-view-box-center" width="10" height="10" style="transform: rotate(90deg); transform-box: view-box; transform-origin: center" />
+        <g style="transform: scale(2); transform-origin: 10px 10px">
+            <rect id="nested-viewport-in-scaled-group" width="10" height="10" style="transform: translate(50%, 0); transform-box: fill-box" />
+        </g>
+    </svg>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const round = value => Math.round(value * 1000) / 1000 || 0;
+        const matrix = m => `[${[m.a, m.b, m.c, m.d, m.e, m.f].map(round).join(", ")}]`;
+        for (const element of document.querySelectorAll("rect[id]")) {
+            println(`${element.id}: getCTM=${matrix(element.getCTM())} getScreenCTM=${matrix(element.getScreenCTM())}`);
+            // NB: Only the transforms of the stroked shape are checked.
+            if (!element.hasAttribute("stroke")) {
+                const rect = element.getBoundingClientRect();
+                println(`    getBoundingClientRect=(${rect.x}, ${rect.y}, ${rect.width}, ${rect.height})`);
+            }
+        }
+    });
+</script>

@@ -186,25 +186,6 @@ pub(crate) fn committed_svg_viewport_transform(
     })
 }
 
-pub(crate) fn committed_svg_viewport_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
-    if arena.node_kind_if_live(slot) != Some(crate::layout::node_data::NodeKind::SVGSVGBox) {
-        return used_values::FfiCssPixelSize::default();
-    }
-    arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg()?.facts.viewport_size)
-            .unwrap_or_default()
-    })
-}
-
-pub(crate) fn committed_svg_element_transform(
-    arena: &impl GeometryRead,
-    slot: NodeSlotId,
-) -> Option<svg_formatting_context::FfiAffineTransform> {
-    arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.fragment.svg()?.facts.element_transform)
-    })
-}
-
 pub(crate) fn committed_svg_additional_element_transform(
     arena: &impl GeometryRead,
     slot: NodeSlotId,
