@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scope = server.echoURL("/scope/");
+
+        async function getRegistrationWhileScriptIsMissing() {
+            const token = uniqueID();
+            const scriptURL = await server.createEcho("GET", `/missing-${token}.js`, {
+                status: 404,
+                headers: { "Content-Type": "text/javascript" },
+                body: "",
+                wait_for_unblock: token,
+            });
+            const registered = navigator.serviceWorker.register(scriptURL, { scope });
+            await server.waitForRequest(scriptURL);
+            const registration = await navigator.serviceWorker.getRegistration(scope);
+            await fetch(`${server.baseURL}/unblock/${token}`);
+            try {
+                await registered;
+                println("register() with a missing script: resolved");
+            } catch (error) {
+                println(`register() with a missing script: rejected with ${error.name}`);
+            }
+            return registration;
+        }
+
+        const first = await getRegistrationWhileScriptIsMissing();
+        println(`getRegistration() after the failed update: ${await navigator.serviceWorker.getRegistration(scope)}`);
+        println(`Object of the removed registration keeps its scope: ${first.scope === scope}`);
+        println(`Object of the removed registration keeps its updateViaCache: ${first.updateViaCache}`);
+
+        const second = await getRegistrationWhileScriptIsMissing();
+        println(`Registering the scope again gives a new registration object: ${second !== first}`);
+    });
+</script>

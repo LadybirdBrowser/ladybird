@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <AK/Time.h>
 #include <AK/Traits.h>
 #include <AK/Vector.h>
-#include <AK/kmalloc.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/Forward.h>
@@ -23,11 +23,7 @@ namespace Web::ServiceWorker {
 // This class corresponds to "service worker registration", not "ServiceWorkerRegistration"
 // FIXME: This object needs to live at the user-agent level, in LibWebView, not in LibWeb
 //        .. And it will need some way to synchronize updates to each 'client' (aka process aka ESO)
-class Registration {
-    AK_MAKE_NONCOPYABLE(Registration);
-    AK_MAKE_DEFAULT_MOVABLE(Registration);
-    AK_ALLOC_WITH_KMALLOC;
-
+class Registration : public RefCounted<Registration> {
 public:
     static void forget_registrations_of_this_agent();
 
