@@ -1,0 +1,14 @@
+diff --git a/source/data/Makefile.in b/source/data/Makefile.in
+index a362715..93ff397 100644
+--- a/source/data/Makefile.in
++++ b/source/data/Makefile.in
+@@ -234,8 +234,8 @@ else
+ build-local: $(SO_VERSION_DATA) $(PKGDATA_LIST)
+ 	echo timestamp > $@
+ $(PKGDATA_LIST): $(SRCLISTDEPS) $(ICUDATA_SOURCE_ARCHIVE)
+-ifneq ($(ICUDATA_SOURCE_IS_NATIVE_TARGET),YES)
+ 	$(MKINSTALLDIRS) $(OUTTMPDIR) $(BUILDDIR)
++ifneq ($(ICUDATA_SOURCE_IS_NATIVE_TARGET),YES)
+ 	@echo "Unpacking $(ICUDATA_SOURCE_ARCHIVE) and generating $@ (list of data files)"
+ 	@-$(RMV) $@
+ 	$(INVOKE) $(TOOLBINDIR)/icupkg -d $(BUILDDIR) --list -x \* $(ICUDATA_SOURCE_ARCHIVE) -o $@
