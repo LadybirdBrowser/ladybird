@@ -1,4 +1,4 @@
-$e6a5b48c computed-string-to-ById.js:17:1
+$6d8f8f34 computed-string-to-ById.js:17:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -10,16 +10,16 @@ block0:
   [   6] GetGlobal value_feedback:0, dst:reg6, `get_string_prop`
   [   f] NewObject dst:reg7
   [  14] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  2b] GetGlobal value_feedback:2, dst:reg6, `set_string_prop`
-  [  34] NewObject dst:reg7
-  [  39] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  50] GetGlobal value_feedback:4, dst:reg6, `get_index_prop`
-  [  59] NewArray dst:reg7
-  [  64] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  7b] GetGlobal value_feedback:6, dst:reg6, `get_length_prop`
-  [  84] NewArray dst:reg7
-  [  8f] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  a6] End value:reg5
+  [  27] GetGlobal value_feedback:2, dst:reg6, `set_string_prop`
+  [  30] NewObject dst:reg7
+  [  35] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  48] GetGlobal value_feedback:4, dst:reg6, `get_index_prop`
+  [  51] NewArray dst:reg7
+  [  58] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  6b] GetGlobal value_feedback:6, dst:reg6, `get_length_prop`
+  [  74] NewArray dst:reg7
+  [  7b] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  8e] End value:reg5
 
 
 get_string_prop$026204fa computed-string-to-ById.js:5:5

@@ -1,4 +1,4 @@
-$85d2e5ef for-in-block-order.js:5:1
+$4521e9ab for-in-block-order.js:5:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [   6] GetGlobal value_feedback:0, dst:reg6, `foo`
   [   f] NewObject dst:reg7
   [  14] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  2b] End value:reg5
+  [  27] End value:reg5
 
 
 foo$8f61d69a for-in-block-order.js:2:14

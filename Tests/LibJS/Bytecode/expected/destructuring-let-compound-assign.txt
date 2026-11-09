@@ -1,4 +1,4 @@
-$11283f24 destructuring-let-compound-assign.js:5:1
+$d07742e0 destructuring-let-compound-assign.js:5:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -11,7 +11,7 @@ block0:
   [   f] NewObject dst:reg7
   [  14] NewObject dst:reg8
   [  19] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
-  [  32] End value:reg5
+  [  2e] End value:reg5
 
 
 f$7246d521 destructuring-let-compound-assign.js:2:5

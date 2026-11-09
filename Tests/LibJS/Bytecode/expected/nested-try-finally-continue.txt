@@ -1,4 +1,4 @@
-$7032440d nested-try-finally-continue.js:14:1
+$2f8147c9 nested-try-finally-continue.js:14:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,10 +9,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `nestedTryFinallyContinue`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] End value:reg5
+  [  20] End value:reg5
 
 
-nestedTryFinallyContinue$3850225e nested-try-finally-continue.js:2:10
+nestedTryFinallyContinue$b6ee29d6 nested-try-finally-continue.js:2:10
   Registers: 11
   Blocks:    18
   Locals:    i~0
@@ -48,53 +48,53 @@ block5:
   [  3a] GetGlobal value_feedback:1, dst:reg9, `console`
   [  43] GetById value_feedback:2, dst:reg10, base:reg9, `log`
   [  50] Call value_feedback:3, call_feedback:0, dst:reg9, callee:reg10, this_value:reg9, arguments:[String("inner"), i~0]
-  [  69] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:0, true_target:block9, false_target:block6
+  [  65] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:0, true_target:block9, false_target:block6
 
 block6:
-  [  7a] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:2, true_target:block7, false_target:block8
+  [  76] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [  8b] Mov dst:reg5, src:Int32(2)
-  [  90] Jump target:block11
+  [  87] Mov dst:reg5, src:Int32(2)
+  [  8c] Jump target:block11
 
 block8:
-  [  95] Throw src:reg8
+  [  91] Throw src:reg8
 
 block9:
-  [  98] Mov dst:reg5, src:Int32(0)
-  [  9d] Jump target:block11
+  [  94] Mov dst:reg5, src:Int32(0)
+  [  99] Jump target:block11
 
 block10:
-  [  a2] Catch value_feedback:4, dst:reg6
-  [  a7] Mov dst:reg5, src:Int32(1)
+  [  9e] Catch value_feedback:4, dst:reg6
+  [  a3] Mov dst:reg5, src:Int32(1)
 
 block11:
-  [  ac] GetGlobal value_feedback:5, dst:reg7, `console`
-  [  b5] GetById value_feedback:6, dst:reg8, base:reg7, `log`
-  [  c2] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[String("outer"), i~0]
-  [  db] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:0, true_target:block15, false_target:block12
+  [  a8] GetGlobal value_feedback:5, dst:reg7, `console`
+  [  b1] GetById value_feedback:6, dst:reg8, base:reg7, `log`
+  [  be] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[String("outer"), i~0]
+  [  d3] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:0, true_target:block15, false_target:block12
 
 block12:
-  [  ec] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:2, true_target:block13, false_target:block14
+  [  e4] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg5, rhs:2, true_target:block13, false_target:block14
 
 block13:
-  [  fd] Jump target:block15
+  [  f5] Jump target:block15
 
 block14:
-  [ 102] Throw src:reg6
+  [  fa] Throw src:reg6
 
 block15:
-  [ 105] Increment arith_feedback:5, dst:i~0
+  [  fd] Increment arith_feedback:5, dst:i~0
 
 block16:
-  [ 10a] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~0, rhs:3, true_target:block1, false_target:block17
+  [ 102] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~0, rhs:3, true_target:block1, false_target:block17
 
 block17:
-  [ 11b] End value:Undefined
+  [ 113] End value:Undefined
 
 Exception handlers:
   [   b ..   30] => handler block4
-  [  30 ..   a2] => handler block10
+  [  30 ..   9e] => handler block10
 
 
 "inner" 0

@@ -1,4 +1,4 @@
-$16e60572 global-variables.js:4:5
+$579701b6 global-variables.js:4:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -13,7 +13,7 @@ block0:
   [  16] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  23] GetGlobal value_feedback:2, dst:reg8, `x`
   [  2c] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  43] End value:reg5
+  [  3f] End value:reg5
 
 
 1

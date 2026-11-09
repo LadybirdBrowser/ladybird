@@ -11,12 +11,21 @@ inline fn max(lhs: u32, rhs: u32) -> u32 {
     }
 }
 
+inline fn call_length(
+    argument_count: u32
+) -> u32 {
+    let mut count: u32;
+    load32(count, [pb, pc, argument_count]);
+    # NB: 17 is what a Call takes up before its arguments, which are 16 bits each. Any call breaks if it goes out of date.
+    let length: u32 = 17 + count + count;
+    length
+}
+
 inline fn call_site_info(
-    length: u32,
+    argument_count: u32,
     dst: out Operand
 ) -> (u32, u32, u32) {
-    let mut instruction_length: u32;
-    load32(instruction_length, [pb, pc, length]);
+    let instruction_length: u32 = call_length(argument_count);
     let mut destination_index: u32;
     load16(destination_index, [pb, pc, dst]);
     let current_pc: u32 = pc;
@@ -1501,7 +1510,6 @@ handler ConcatString(
 ) @cold = call_slow_path(concat_string);
 
 handler CopyObjectExcludingProperties(
-    length: u32,
     dst: out Operand,
     from_object: Operand,
     excluded_names_count: u32,
@@ -1524,7 +1532,6 @@ handler GetClassProtoParent(
 ) @cold = call_slow_path(get_class_proto_parent);
 
 handler NewClass(
-    length: u32,
     dst: out Operand,
     super_class: Optional<Operand>,
     proto_parent: Optional<Operand>,
@@ -3857,7 +3864,6 @@ handler SetGlobal(
 handler Call(
     value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
-    length: u32,
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
@@ -3953,7 +3959,7 @@ handler Call(
     frame.returns_to_native_caller = false;
     frame.runs_jit_code = false;
     frame.caller_frame = exec_ctx;
-    let [current_pc, return_pc, return_destination] = call_site_info(length, dst);
+    let [current_pc, return_pc, return_destination] = call_site_info(argument_count, dst);
     # NB: Stack traces show the caller at its program counter.
     exec_ctx.program_counter = current_pc;
     frame.caller_return_pc = return_pc;
@@ -4053,7 +4059,7 @@ handler Call(
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
-        let [native_pc, after_pc, destination_offset] = call_site_info(length, dst);
+        let [native_pc, after_pc, destination_offset] = call_site_info(argument_count, dst);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;
         native_frame.caller_return_pc = after_pc;
@@ -4113,7 +4119,8 @@ handler Call(
         values = exec_ctx.slots;
         store(dst, native_payload);
         record_value_feedback(value_feedback, native_payload);
-        dispatch_variable(load(length));
+        let length: u32 = call_length(argument_count);
+        dispatch_variable(length);
     };
 }
 
@@ -4302,7 +4309,6 @@ handler IteratorToArray(
 handler CallConstruct(
     value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
-    length: u32,
     dst: out Operand,
     callee: Operand,
     argument_count: u32,
@@ -4313,7 +4319,6 @@ handler CallConstruct(
 handler CallDirectEval(
     value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
-    length: u32,
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
@@ -4384,14 +4389,12 @@ handler InitObjectLiteralProperty(
 ) @cold = call_slow_path(init_object_literal_property);
 
 handler NewArray(
-    length: u32,
     dst: out Operand,
     element_count: u32,
     elements: Operand[]
 ) @cold = call_slow_path(new_array);
 
 handler NewPrimitiveArray(
-    length: u32,
     dst: out Operand,
     element_count: u32,
     elements: Value[]
@@ -4555,7 +4558,6 @@ handler SetCompletionType(
 ) @cold = call_slow_path(set_completion_type);
 
 handler GetTemplateObject(
-    length: u32,
     dst: out Operand,
     strings_count: u32,
     cache: TemplateObjectCacheIndex,

@@ -1,4 +1,4 @@
-$b4d83ceb delete-expression-register.js:6:1
+$742740a7 delete-expression-register.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,7 +10,7 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  26] End value:reg5
+  [  22] End value:reg5
 
 
 f$3370d63f delete-expression-register.js:2:9

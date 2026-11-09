@@ -1,4 +1,4 @@
-$41dc9833 for-in-object-property-iterator-next.js:8:1
+$828d9477 for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -18,10 +18,10 @@ block0:
   [  25] PutById base:reg7, `foo`, src:String("foo"), kind:Own
   [  34] PutByValue keyed_feedback:1, base:reg7, property:Int32(7), src:String("seven"), kind:Own
   [  45] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  5c] End value:reg5
+  [  58] End value:reg5
 
 
-collect$507c2097 for-in-object-property-iterator-next.js:2:18
+collect$d4a20a2f for-in-object-property-iterator-next.js:2:18
   Registers: 12
   Blocks:    5
   Locals:    keys~0, key~1
@@ -32,23 +32,23 @@ collect$507c2097 for-in-object-property-iterator-next.js:2:18
 block0:
   [   0] Enter
   [   1] NewArray dst:keys~0
-  [   c] Mov dst:key~1, src:<Empty>
-  [  11] Mov dst:reg5, src:arg0
-  [  16] JumpNullish condition:reg5, true_target:block4, false_target:block1
+  [   8] Mov dst:key~1, src:<Empty>
+  [   d] Mov dst:reg5, src:arg0
+  [  12] JumpNullish condition:reg5, true_target:block4, false_target:block1
 
 block1:
-  [  21] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
-  [  2c] Mov dst:reg8, src:Int32(0)
+  [  1d] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  28] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  31] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  3c] JumpTrue condition:reg10, target:block4
+  [  2d] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
+  [  38] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  43] Mov dst:key~1, src:reg9
-  [  48] GetById value_feedback:0, dst:reg11, base:keys~0, `push`
-  [  55] Call value_feedback:1, call_feedback:0, dst:reg11, callee:reg11, this_value:keys~0, arguments:[key~1]
-  [  6c] JumpLoop target:block2
+  [  3f] Mov dst:key~1, src:reg9
+  [  44] GetById value_feedback:0, dst:reg11, base:keys~0, `push`
+  [  51] Call value_feedback:1, call_feedback:0, dst:reg11, callee:reg11, this_value:keys~0, arguments:[key~1]
+  [  64] JumpLoop target:block2
 
 block4:
-  [  71] Return value:keys~0
+  [  69] Return value:keys~0

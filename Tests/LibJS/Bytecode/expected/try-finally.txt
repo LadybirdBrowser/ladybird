@@ -1,4 +1,4 @@
-$0c3b602f try-finally.js:8:1
+$c33e90bb try-finally.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,14 +9,14 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `basicTryFinally`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] GetGlobal value_feedback:2, dst:reg6, `breakThroughFinally`
-  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  42] GetGlobal value_feedback:4, dst:reg6, `nestedTryFinallyWithBreak`
-  [  4b] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
-  [  60] End value:reg5
+  [  20] GetGlobal value_feedback:2, dst:reg6, `breakThroughFinally`
+  [  29] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  3a] GetGlobal value_feedback:4, dst:reg6, `nestedTryFinallyWithBreak`
+  [  43] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
+  [  54] End value:reg5
 
 
-basicTryFinally$d4c36740 try-finally.js:2:9
+basicTryFinally$999a4d1c try-finally.js:2:9
   Registers: 9
   Blocks:    8
   Constants:
@@ -41,25 +41,25 @@ block3:
   [  1a] GetGlobal value_feedback:1, dst:reg7, `console`
   [  23] GetById value_feedback:2, dst:reg8, base:reg7, `log`
   [  30] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg8, this_value:reg7, arguments:[String("finally")]
-  [  47] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block7, false_target:block4
+  [  43] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg5, rhs:0, true_target:block7, false_target:block4
 
 block4:
-  [  58] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block5, false_target:block6
+  [  54] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:2, true_target:block5, false_target:block6
 
 block5:
-  [  69] Return value:reg6
+  [  65] Return value:reg6
 
 block6:
-  [  6c] Throw src:reg6
+  [  68] Throw src:reg6
 
 block7:
-  [  6f] End value:Undefined
+  [  6b] End value:Undefined
 
 Exception handlers:
   [   1 ..   10] => handler block2
 
 
-breakThroughFinally$850614a3 try-finally.js:11:10
+breakThroughFinally$4719096f try-finally.js:11:10
   Registers: 9
   Blocks:    12
   Locals:    i~0
@@ -93,31 +93,31 @@ block5:
   [  3a] GetGlobal value_feedback:1, dst:reg7, `console`
   [  43] GetById value_feedback:2, dst:reg8, base:reg7, `log`
   [  50] Call value_feedback:3, call_feedback:0, dst:reg7, callee:reg8, this_value:reg7, arguments:[i~0]
-  [  67] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:0, true_target:block9, false_target:block6
+  [  63] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg5, rhs:0, true_target:block9, false_target:block6
 
 block6:
-  [  78] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [  74] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [  89] Jump target:block11
+  [  85] Jump target:block11
 
 block8:
-  [  8e] Throw src:reg6
+  [  8a] Throw src:reg6
 
 block9:
-  [  91] Increment arith_feedback:3, dst:i~0
+  [  8d] Increment arith_feedback:3, dst:i~0
 
 block10:
-  [  96] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:i~0, rhs:10, true_target:block1, false_target:block11
+  [  92] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:i~0, rhs:10, true_target:block1, false_target:block11
 
 block11:
-  [  a7] End value:Undefined
+  [  a3] End value:Undefined
 
 Exception handlers:
   [   b ..   30] => handler block4
 
 
-nestedTryFinallyWithBreak$30740cc6 try-finally.js:22:21
+nestedTryFinallyWithBreak$b1d6054e try-finally.js:22:21
   Registers: 11
   Blocks:    15
   Locals:    i~0
@@ -145,51 +145,51 @@ block3:
   [  1a] GetGlobal value_feedback:1, dst:reg9, `console`
   [  23] GetById value_feedback:2, dst:reg10, base:reg9, `log`
   [  30] Call value_feedback:3, call_feedback:0, dst:reg9, callee:reg10, this_value:reg9, arguments:[String("inner")]
-  [  47] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block7, false_target:block4
+  [  43] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block7, false_target:block4
 
 block4:
-  [  58] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:2, true_target:block5, false_target:block6
+  [  54] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:2, true_target:block5, false_target:block6
 
 block5:
-  [  69] Mov dst:reg5, src:Int32(2)
-  [  6e] Jump target:block9
+  [  65] Mov dst:reg5, src:Int32(2)
+  [  6a] Jump target:block9
 
 block6:
-  [  73] Throw src:reg8
+  [  6f] Throw src:reg8
 
 block7:
-  [  76] Mov dst:reg5, src:Int32(0)
-  [  7b] Jump target:block9
+  [  72] Mov dst:reg5, src:Int32(0)
+  [  77] Jump target:block9
 
 block8:
-  [  80] Catch value_feedback:4, dst:reg6
-  [  85] Mov dst:reg5, src:Int32(1)
+  [  7c] Catch value_feedback:4, dst:reg6
+  [  81] Mov dst:reg5, src:Int32(1)
 
 block9:
-  [  8a] GetGlobal value_feedback:5, dst:reg7, `console`
-  [  93] GetById value_feedback:6, dst:reg8, base:reg7, `log`
-  [  a0] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[String("outer")]
-  [  b7] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:0, true_target:block13, false_target:block10
+  [  86] GetGlobal value_feedback:5, dst:reg7, `console`
+  [  8f] GetById value_feedback:6, dst:reg8, base:reg7, `log`
+  [  9c] Call value_feedback:7, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7, arguments:[String("outer")]
+  [  af] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg5, rhs:0, true_target:block13, false_target:block10
 
 block10:
-  [  c8] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:2, true_target:block11, false_target:block12
+  [  c0] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg5, rhs:2, true_target:block11, false_target:block12
 
 block11:
-  [  d9] Jump target:block14
+  [  d1] Jump target:block14
 
 block12:
-  [  de] Throw src:reg6
+  [  d6] Throw src:reg6
 
 block13:
-  [  e1] Increment arith_feedback:4, dst:i~0
-  [  e6] JumpLoop target:block1
+  [  d9] Increment arith_feedback:4, dst:i~0
+  [  de] JumpLoop target:block1
 
 block14:
-  [  eb] End value:Undefined
+  [  e3] End value:Undefined
 
 Exception handlers:
   [   6 ..   10] => handler block2
-  [  10 ..   80] => handler block8
+  [  10 ..   7c] => handler block8
 
 
 "finally"

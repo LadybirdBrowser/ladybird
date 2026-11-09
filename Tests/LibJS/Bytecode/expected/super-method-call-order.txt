@@ -1,4 +1,4 @@
-$a7593e27 super-method-call-order.js:1:5
+$25f7459f super-method-call-order.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -24,15 +24,15 @@ block0:
   [  9e] GetGlobal value_feedback:1, dst:reg6, `obj`
   [  a7] GetById value_feedback:2, dst:reg7, base:reg6, `test`
   [  b4] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6
-  [  c9] GetGlobal value_feedback:4, dst:reg6, `obj`
-  [  d2] GetById value_feedback:5, dst:reg5, base:reg6, `x`
-  [  df] GetGlobal value_feedback:6, dst:reg6, `obj`
-  [  e8] GetById value_feedback:7, dst:reg7, base:reg6, `test2`
-  [  f5] Call value_feedback:8, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [ 10a] End value:reg5
+  [  c5] GetGlobal value_feedback:4, dst:reg6, `obj`
+  [  ce] GetById value_feedback:5, dst:reg5, base:reg6, `x`
+  [  db] GetGlobal value_feedback:6, dst:reg6, `obj`
+  [  e4] GetById value_feedback:7, dst:reg7, base:reg6, `test2`
+  [  f1] Call value_feedback:8, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [ 102] End value:reg5
 
 
-test$c2b0bced super-method-call-order.js:5:9
+test$009dc821 super-method-call-order.js:5:9
   Registers: 7
   Blocks:    1
 
@@ -42,7 +42,7 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   5] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [  12] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  27] Return value:reg5
+  [  23] Return value:reg5
 
 
 m$2a6b6cac
@@ -56,7 +56,7 @@ block0:
   [   1] End value:Undefined
 
 
-get x$f46ae930 super-method-call-order.js:8:9
+get x$b67dddfc super-method-call-order.js:8:9
   Registers: 7
   Blocks:    1
 
@@ -66,10 +66,10 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   5] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [  12] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  27] Return value:reg5
+  [  23] Return value:reg5
 
 
-test2$d032d089 super-method-call-order.js:11:9
+test2$8f81d445 super-method-call-order.js:11:9
   Registers: 7
   Blocks:    1
 
@@ -79,4 +79,4 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   5] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [  12] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  27] Return value:reg5
+  [  23] Return value:reg5

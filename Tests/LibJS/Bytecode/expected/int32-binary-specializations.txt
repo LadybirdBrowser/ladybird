@@ -1,4 +1,4 @@
-$3b769b59 int32-binary-specializations.js:20:1
+$fac59f15 int32-binary-specializations.js:20:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,10 +10,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `int32_binary_specializations`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(8)]
-  [  26] End value:reg5
+  [  22] End value:reg5
 
 
-int32_binary_specializations$2122cd50 int32-binary-specializations.js:2:5
+int32_binary_specializations$dae9eeec int32-binary-specializations.js:2:5
   Registers: 20
   Blocks:    1
   Constants:
@@ -36,4 +36,4 @@ block0:
   [  85] ModRhsInt32 arith_feedback:12, dst:reg17, lhs:arg0, rhs:2
   [  90] Add arith_feedback:13, dst:reg18, lhs:arg0, rhs:Double(2.5)
   [  99] NewArray dst:reg19, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14, reg15, reg16, reg17, reg18]
-  [  c0] Return value:reg19
+  [  bc] Return value:reg19

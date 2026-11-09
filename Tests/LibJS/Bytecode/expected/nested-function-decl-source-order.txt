@@ -1,4 +1,4 @@
-$edcdaf93 nested-function-decl-source-order.js:15:1
+$31429ce7 nested-function-decl-source-order.js:15:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -12,13 +12,13 @@ block0:
   [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  1c] GetGlobal value_feedback:2, dst:reg8, `outer`
   [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
-  [  3a] GetById value_feedback:4, dst:reg9, base:reg8, `join`
-  [  47] Call value_feedback:5, call_feedback:1, dst:reg8, callee:reg9, this_value:reg8, arguments:[String(",")]
-  [  5e] Call value_feedback:6, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  75] End value:reg5
+  [  36] GetById value_feedback:4, dst:reg9, base:reg8, `join`
+  [  43] Call value_feedback:5, call_feedback:1, dst:reg8, callee:reg9, this_value:reg8, arguments:[String(",")]
+  [  56] Call value_feedback:6, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  69] End value:reg5
 
 
-outer$9ab70be2 nested-function-decl-source-order.js:6:5
+outer$1edcf57a nested-function-decl-source-order.js:6:5
   Registers: 11
   Blocks:    1
   Locals:    alpha~0, beta~1, dup~2, gamma~3, delta~4
@@ -39,12 +39,12 @@ block0:
   [  4c] Mov dst:delta~4, src:Undefined
   [  51] NewFunction dst:delta~4, shared_function_data_index:5
   [  5c] Call value_feedback:0, call_feedback:0, dst:reg5, callee:alpha~0, this_value:Undefined
-  [  71] Call value_feedback:1, call_feedback:1, dst:reg6, callee:beta~1, this_value:Undefined
-  [  86] Call value_feedback:2, call_feedback:2, dst:reg7, callee:gamma~3, this_value:Undefined
-  [  9b] Call value_feedback:3, call_feedback:3, dst:reg8, callee:delta~4, this_value:Undefined
-  [  b0] Call value_feedback:4, call_feedback:4, dst:reg9, callee:dup~2, this_value:Undefined
-  [  c5] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
-  [  da] Return value:reg10
+  [  6d] Call value_feedback:1, call_feedback:1, dst:reg6, callee:beta~1, this_value:Undefined
+  [  7e] Call value_feedback:2, call_feedback:2, dst:reg7, callee:gamma~3, this_value:Undefined
+  [  8f] Call value_feedback:3, call_feedback:3, dst:reg8, callee:delta~4, this_value:Undefined
+  [  a0] Call value_feedback:4, call_feedback:4, dst:reg9, callee:dup~2, this_value:Undefined
+  [  b1] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
+  [  c2] Return value:reg10
 
 
 alpha$1bdef4d3 nested-function-decl-source-order.js:6:24

@@ -1,4 +1,4 @@
-$fdb7ffbd for-of-continue-with-block-scope.js:13:1
+$7f19f845 for-of-continue-with-block-scope.js:13:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,11 +9,11 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] NewArray dst:reg7
-  [  1a] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  31] End value:reg5
+  [  16] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  29] End value:reg5
 
 
-f$8cc5b2c8 for-of-continue-with-block-scope.js:2:15
+f$4c14b684 for-of-continue-with-block-scope.js:2:15
   Registers: 14
   Blocks:    7
   Locals:    t~0, o~1
@@ -22,47 +22,47 @@ block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
   [   4] NewArray dst:t~0
-  [   f] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
-  [  1d] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
-  [  27] Mov dst:reg5, src:arg0
-  [  2c] SetLexicalEnvironment environment:reg4
-  [  2f] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [   b] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  19] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
+  [  23] Mov dst:reg5, src:arg0
+  [  28] SetLexicalEnvironment environment:reg4
+  [  2b] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block1:
-  [  3f] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  4a] JumpTrue condition:reg10, target:block6
+  [  3b] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  46] JumpTrue condition:reg10, target:block6
 
 block2:
-  [  51] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:1, is_catch_environment:false
-  [  5f] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
-  [  69] InitializeLexicalBinding `r`, src:reg9
-  [  76] GetBinding value_feedback:0, dst:reg12, `r`
-  [  85] Not dst:reg12, src:reg12
-  [  8a] JumpFalse condition:reg12, target:block4
+  [  4d] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:1, is_catch_environment:false
+  [  5b] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
+  [  65] InitializeLexicalBinding `r`, src:reg9
+  [  72] GetBinding value_feedback:0, dst:reg12, `r`
+  [  81] Not dst:reg12, src:reg12
+  [  86] JumpFalse condition:reg12, target:block4
 
 block3:
-  [  91] GetById value_feedback:1, dst:reg12, base:t~0, `push`
-  [  9e] GetBinding value_feedback:2, dst:reg13, `r`
-  [  ad] Call value_feedback:3, call_feedback:0, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
-  [  c4] SetLexicalEnvironment environment:reg4
-  [  c7] Jump target:block1
+  [  8d] GetById value_feedback:1, dst:reg12, base:t~0, `push`
+  [  9a] GetBinding value_feedback:2, dst:reg13, `r`
+  [  a9] Call value_feedback:3, call_feedback:0, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
+  [  bc] SetLexicalEnvironment environment:reg4
+  [  bf] Jump target:block1
 
 block4:
-  [  cc] GetById value_feedback:4, dst:reg12, base:t~0, `find`
-  [  d9] NewFunction dst:reg13, shared_function_data_index:0
-  [  e4] Call value_feedback:5, call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
-  [  fb] Mov dst:o~1, src:reg12
-  [ 100] SetLexicalEnvironment environment:reg4
-  [ 103] JumpLoop target:block1
+  [  c4] GetById value_feedback:4, dst:reg12, base:t~0, `find`
+  [  d1] NewFunction dst:reg13, shared_function_data_index:0
+  [  dc] Call value_feedback:5, call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
+  [  ef] Mov dst:o~1, src:reg12
+  [  f4] SetLexicalEnvironment environment:reg4
+  [  f7] JumpLoop target:block1
 
 block5:
-  [ 108] Catch value_feedback:6, dst:reg11
-  [ 10d] SetLexicalEnvironment environment:reg4
-  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [ 11f] Throw src:reg11
+  [  fc] Catch value_feedback:6, dst:reg11
+  [ 101] SetLexicalEnvironment environment:reg4
+  [ 104] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [ 113] Throw src:reg11
 
 block6:
-  [ 122] Return value:t~0
+  [ 116] Return value:t~0
 
 Exception handlers:
-  [  51 ..  108] => handler block5
+  [  4d ..   fc] => handler block5

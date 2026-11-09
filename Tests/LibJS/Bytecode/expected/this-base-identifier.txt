@@ -1,4 +1,4 @@
-$f07f4d98 this-base-identifier.js:16:1
+$afce5154 this-base-identifier.js:16:1
   Registers: 7
   Blocks:    4
   Constants:
@@ -9,25 +9,25 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `get_from_this`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] GetGlobal value_feedback:2, dst:reg6, `set_on_this`
-  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  42] Mov dst:reg5, src:Undefined
+  [  20] GetGlobal value_feedback:2, dst:reg6, `set_on_this`
+  [  29] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  3a] Mov dst:reg5, src:Undefined
 
 block1:
-  [  47] GetGlobal value_feedback:4, dst:reg6, `chained_this_access`
-  [  50] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
-  [  65] Jump target:block3
+  [  3f] GetGlobal value_feedback:4, dst:reg6, `chained_this_access`
+  [  48] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
+  [  59] Jump target:block3
 
 block2:
-  [  6a] Catch value_feedback:6, dst:reg6
-  [  6f] Mov dst:reg5, src:Undefined
-  [  74] Jump target:block3
+  [  5e] Catch value_feedback:6, dst:reg6
+  [  63] Mov dst:reg5, src:Undefined
+  [  68] Jump target:block3
 
 block3:
-  [  79] End value:reg5
+  [  6d] End value:reg5
 
 Exception handlers:
-  [  47 ..   6a] => handler block2
+  [  3f ..   5e] => handler block2
 
 
 get_from_this$b4ceee1a this-base-identifier.js:5:5

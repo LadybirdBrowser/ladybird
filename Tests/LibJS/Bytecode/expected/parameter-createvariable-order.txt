@@ -1,4 +1,4 @@
-$3c67091e parameter-createvariable-order.js:7:1
+$fbb60cda parameter-createvariable-order.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -12,10 +12,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  2a] End value:reg5
+  [  26] End value:reg5
 
 
-f$d834d2ee parameter-createvariable-order.js:2:9
+f$9783d6aa parameter-createvariable-order.js:2:9
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -33,7 +33,7 @@ block0:
   [  46] Mov dst:inner~0, src:Undefined
   [  4b] NewFunction dst:inner~0, shared_function_data_index:0 (inner)
   [  56] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  6b] Return value:reg5
+  [  67] Return value:reg5
 
 
 inner$f7041d92 parameter-createvariable-order.js:3:9

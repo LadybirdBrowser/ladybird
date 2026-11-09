@@ -1,4 +1,4 @@
-$147fbec9 for-of-cond-rhs-block-order.js:6:1
+$d3cec285 for-of-cond-rhs-block-order.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,10 +10,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null, Null]
-  [  28] End value:reg5
+  [  24] End value:reg5
 
 
-f$4ed8a794 for-of-cond-rhs-block-order.js:2:15
+f$8cc5b2c8 for-of-cond-rhs-block-order.js:2:15
   Registers: 16
   Blocks:    22
   Locals:    r~0, n~1
@@ -40,73 +40,73 @@ block3:
   [  32] GetById value_feedback:2, dst:reg8, base:reg7, `entries`
   [  3f] NewObject dst:reg9
   [  44] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg8, this_value:reg7, arguments:[reg9]
-  [  5b] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  57] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block4:
-  [  6b] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  76] JumpTrue condition:reg10, target:block21
+  [  67] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  72] JumpTrue condition:reg10, target:block21
 
 block5:
-  [  7d] Mov dst:reg11, src:Bool(false)
-  [  82] GetIterator dst_iterator_object:reg12, dst_iterator_next:reg13, dst_iterator_done:reg14, iterable:reg9, fast_array_mode_allowed:true
+  [  79] Mov dst:reg11, src:Bool(false)
+  [  7e] GetIterator dst_iterator_object:reg12, dst_iterator_next:reg13, dst_iterator_done:reg14, iterable:reg9, fast_array_mode_allowed:true
 
 block6:
-  [  92] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
+  [  8e] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
 
 block7:
-  [  9d] JumpFalse condition:reg11, target:block9
+  [  99] JumpFalse condition:reg11, target:block9
 
 block8:
-  [  a4] Mov dst:reg15, src:Undefined
+  [  a0] Mov dst:reg15, src:Undefined
 
 block9:
-  [  a9] Mov dst:r~0, src:reg15
-  [  ae] JumpTrue condition:reg11, target:block12
+  [  a5] Mov dst:r~0, src:reg15
+  [  aa] JumpTrue condition:reg11, target:block12
 
 block10:
-  [  b5] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
+  [  b1] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
 
 block11:
-  [  c0] JumpFalse condition:reg11, target:block13
+  [  bc] JumpFalse condition:reg11, target:block13
 
 block12:
-  [  c7] Mov dst:reg15, src:Undefined
+  [  c3] Mov dst:reg15, src:Undefined
 
 block13:
-  [  cc] Mov dst:n~1, src:reg15
+  [  c8] Mov dst:n~1, src:reg15
 
 block14:
-  [  d1] JumpTrue condition:reg14, target:block19
+  [  cd] JumpTrue condition:reg14, target:block19
 
 block15:
-  [  d8] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:Undefined
-  [  e7] Jump target:block19
+  [  d4] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:Undefined
+  [  e3] Jump target:block19
 
 block16:
-  [  ec] Catch value_feedback:4, dst:reg15
-  [  f1] JumpTrue condition:reg14, target:block18
+  [  e8] Catch value_feedback:4, dst:reg15
+  [  ed] JumpTrue condition:reg14, target:block18
 
 block17:
-  [  f8] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:reg15
+  [  f4] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:reg15
 
 block18:
-  [ 107] Throw src:reg15
+  [ 103] Throw src:reg15
 
 block19:
-  [ 10a] JumpLoop target:block4
+  [ 106] JumpLoop target:block4
 
 block20:
-  [ 10f] Catch value_feedback:5, dst:reg11
-  [ 114] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [ 123] Throw src:reg11
+  [ 10b] Catch value_feedback:5, dst:reg11
+  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [ 11f] Throw src:reg11
 
 block21:
-  [ 126] End value:Undefined
+  [ 122] End value:Undefined
 
 Exception handlers:
-  [  7d ..   92] => handler block20
-  [  92 ..   9d] => handler block20
-  [  9d ..   b5] => handler block16
-  [  b5 ..   c0] => handler block20
-  [  c0 ..   d1] => handler block16
-  [  d1 ..  10f] => handler block20
+  [  79 ..   8e] => handler block20
+  [  8e ..   99] => handler block20
+  [  99 ..   b1] => handler block16
+  [  b1 ..   bc] => handler block20
+  [  bc ..   cd] => handler block16
+  [  cd ..  10b] => handler block20

@@ -1,4 +1,4 @@
-$633a548b postfix-increment-private-member.js:1:1
+$22895847 postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,13 +15,13 @@ block0:
   [  22] AddPrivateName `#c`
   [  25] SetLexicalEnvironment environment:reg4
   [  28] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("nextId")]
-  [  45] LeavePrivateEnvironment
-  [  46] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  4d] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  56] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  69] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
-  [  76] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  8b] End value:reg5
+  [  41] LeavePrivateEnvironment
+  [  42] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  49] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  52] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  61] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
+  [  6e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  7f] End value:reg5
 
 
 C$259e8512

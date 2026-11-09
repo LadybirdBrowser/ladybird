@@ -1,4 +1,4 @@
-$b6eed7c5 delete-super-eval-order.js:4:1
+$ef5400d9 delete-super-eval-order.js:4:1
   Registers: 8
   Blocks:    4
   Constants:
@@ -14,27 +14,27 @@ block0:
   [  17] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  21] SetLexicalEnvironment environment:reg4
   [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("m")]
-  [  3f] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  46] Mov dst:reg5, src:Undefined
+  [  3b] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  42] Mov dst:reg5, src:Undefined
 
 block1:
-  [  4b] GetGlobal value_feedback:0, dst:reg6, `A`
-  [  54] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  67] GetById value_feedback:2, dst:reg7, base:reg6, `m`
-  [  74] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
-  [  8b] Jump target:block3
+  [  47] GetGlobal value_feedback:0, dst:reg6, `A`
+  [  50] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  5f] GetById value_feedback:2, dst:reg7, base:reg6, `m`
+  [  6c] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
+  [  7f] Jump target:block3
 
 block2:
-  [  90] Catch value_feedback:4, dst:reg6
-  [  95] SetLexicalEnvironment environment:reg4
-  [  98] Mov dst:reg5, src:Undefined
-  [  9d] Jump target:block3
+  [  84] Catch value_feedback:4, dst:reg6
+  [  89] SetLexicalEnvironment environment:reg4
+  [  8c] Mov dst:reg5, src:Undefined
+  [  91] Jump target:block3
 
 block3:
-  [  a2] End value:reg5
+  [  96] End value:reg5
 
 Exception handlers:
-  [  4b ..   90] => handler block2
+  [  47 ..   84] => handler block2
 
 
 A$2cf29520

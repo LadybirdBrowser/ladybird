@@ -1,4 +1,4 @@
-$b444ae56 var-env-capacity-with-param-expressions.js:5:1
+$7393b212 var-env-capacity-with-param-expressions.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,10 +9,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] End value:reg5
+  [  20] End value:reg5
 
 
-f$6b4c8754 var-env-capacity-with-param-expressions.js:1:12
+f$b9d138e8 var-env-capacity-with-param-expressions.js:1:12
   Registers: 10
   Blocks:    3
   Constants:
@@ -44,7 +44,7 @@ block2:
   [  90] InitializeVariableBinding `c`, src:Undefined
   [  9d] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
   [  a8] CallDirectEval value_feedback:1, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("")]
-  [  bf] End value:Undefined
+  [  bb] End value:Undefined
 
 
 eval$66f502e2

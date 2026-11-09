@@ -1,4 +1,4 @@
-$371fc4c3 argument-variables.js:12:1
+$b881bd4b argument-variables.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,9 +11,9 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `identity`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  26] GetGlobal value_feedback:2, dst:reg6, `swap`
-  [  2f] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2)]
-  [  48] End value:reg5
+  [  22] GetGlobal value_feedback:2, dst:reg6, `swap`
+  [  2b] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2)]
+  [  40] End value:reg5
 
 
 identity$348e99d7 argument-variables.js:5:5

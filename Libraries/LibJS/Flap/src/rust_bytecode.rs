@@ -204,8 +204,7 @@ pub fn generate_instruction_is_terminator_from_opcode(
 }
 
 /// Emit `instruction_length_from_bytes(opcode, bytes, at)`. `error` is the path
-/// of an error enum with `TruncatedInstruction`, `InvalidLength` and
-/// `UnknownOpcode` variants.
+/// of an error enum with `TruncatedInstruction` and `UnknownOpcode` variants.
 pub fn generate_instruction_length_from_bytes(
     mut w: impl Write,
     ops: &[InstructionDefinition],
@@ -217,7 +216,7 @@ pub fn generate_instruction_length_from_bytes(
     )?;
     writeln!(
         w,
-        "/// Reads `m_length` from the buffer for variable-length instructions; for fixed-"
+        "/// Works out the size of variable-length instructions from their count; for fixed-"
     )?;
     writeln!(w, "/// length instructions, returns the statically-known size.")?;
     writeln!(
@@ -232,24 +231,20 @@ pub fn generate_instruction_length_from_bytes(
             writeln!(w, "        {i} => Ok({final_size}), // {op_name}")?;
         } else {
             let minimum_length = op.layout.minimum_size;
-            let m_length_offset = op
-                .layout
-                .m_length_offset
-                .expect("the parser requires m_length for array ops");
+            let array = op.array.as_ref().expect("variable op missing array metadata");
+            let count_offset = op.layout.field_offsets[&op.fields[array.count_field_index].name];
+            let element_size = array.element_size;
             let op_name = &op.name;
             writeln!(w, "        {i} => {{ // {op_name} (variable-length)")?;
-            writeln!(w, "            let m_length_end = at + {m_length_offset} + 4;")?;
-            writeln!(w, "            if m_length_end > bytes.len() {{")?;
+            writeln!(w, "            let count_end = at + {count_offset} + 4;")?;
+            writeln!(w, "            if count_end > bytes.len() {{")?;
             writeln!(w, "                return Err({error}::TruncatedInstruction);")?;
             writeln!(w, "            }}")?;
             writeln!(
                 w,
-                "            let raw = u32::from_ne_bytes(bytes[at + {m_length_offset}..m_length_end].try_into().unwrap());"
+                "            let count = u32::from_ne_bytes(bytes[at + {count_offset}..count_end].try_into().unwrap());"
             )?;
-            writeln!(w, "            if raw < {minimum_length} {{")?;
-            writeln!(w, "                return Err({error}::InvalidLength);")?;
-            writeln!(w, "            }}")?;
-            writeln!(w, "            Ok(raw as usize)")?;
+            writeln!(w, "            Ok({minimum_length} + count as usize * {element_size})")?;
             writeln!(w, "        }}")?;
         }
     }
@@ -433,7 +428,7 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
 
     // NB: Only the user fields get written; the opcode is written above.
     for f in &op.fields {
-        if f.is_array || f.name == "m_type" || f.name == "m_strict" || f.name == "m_length" {
+        if f.is_array || f.name == "m_type" || f.name == "m_strict" {
             continue;
         }
         let info = field_type_info(&f.ty);
@@ -464,18 +459,6 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
             op.layout.minimum_size, rname, array.element_size
         )?;
         writeln!(w, "                encoder.bytes.resize(start + target, 0);")?;
-
-        let m_length_offset = op
-            .layout
-            .m_length_offset
-            .expect("the parser requires m_length for array ops");
-        writeln!(w, "                let total_len = target as u32;")?;
-        writeln!(
-            w,
-            "                encoder.bytes[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
-            m_length_offset,
-            m_length_offset + 4
-        )?;
     } else {
         writeln!(w, "                let _ = start;")?;
     }

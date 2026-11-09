@@ -1,4 +1,4 @@
-$9643914d tdz-reset-in-loop.js:22:1
+$937fa03d tdz-reset-in-loop.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,14 +9,14 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `checked`
   [   f] NewArray dst:reg7
-  [  1a] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  31] GetGlobal value_feedback:2, dst:reg6, `nested`
-  [  3a] NewArray dst:reg7
-  [  45] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  5c] End value:reg5
+  [  16] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  29] GetGlobal value_feedback:2, dst:reg6, `nested`
+  [  32] NewArray dst:reg7
+  [  39] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  4c] End value:reg5
 
 
-checked$27eda028 tdz-reset-in-loop.js:5:10
+checked$a3c7b690 tdz-reset-in-loop.js:5:10
   Registers: 8
   Blocks:    4
   Locals:    i~0, value~1, plain~2
@@ -37,21 +37,21 @@ block1:
   [  2a] ThrowIfTDZ src:value~1
   [  2d] Typeof dst:reg7, src:value~1
   [  32] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:arg0, arguments:[reg6, reg7]
-  [  4b] Mov dst:value~1, src:i~0
-  [  50] AddRhsInt32 arith_feedback:0, dst:plain~2, lhs:value~1, rhs:1
-  [  5b] GetByValue value_feedback:2, keyed_feedback:1, dst:reg5, base:arg0, property:i~0
-  [  6a] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, this_value:arg0, arguments:[plain~2]
-  [  81] Increment arith_feedback:1, dst:i~0
+  [  47] Mov dst:value~1, src:i~0
+  [  4c] AddRhsInt32 arith_feedback:0, dst:plain~2, lhs:value~1, rhs:1
+  [  57] GetByValue value_feedback:2, keyed_feedback:1, dst:reg5, base:arg0, property:i~0
+  [  66] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, this_value:arg0, arguments:[plain~2]
+  [  79] Increment arith_feedback:1, dst:i~0
 
 block2:
-  [  86] GetLength value_feedback:4, keyed_feedback:2, dst:reg5, base:arg0
-  [  93] JumpLessThanLoop arith_feedback:2, lhs:i~0, rhs:reg5, true_target:block1, false_target:block3
+  [  7e] GetLength value_feedback:4, keyed_feedback:2, dst:reg5, base:arg0
+  [  8b] JumpLessThanLoop arith_feedback:2, lhs:i~0, rhs:reg5, true_target:block1, false_target:block3
 
 block3:
-  [  a2] End value:Undefined
+  [  9a] End value:Undefined
 
 
-nested$96f4b21b tdz-reset-in-loop.js:14:5
+nested$1856aaa3 tdz-reset-in-loop.js:14:5
   Registers: 12
   Blocks:    8
   Locals:    value~0, item~1
@@ -81,20 +81,20 @@ block4:
   [  4b] ThrowIfTDZ src:value~0
   [  4e] Typeof dst:reg11, src:value~0
   [  53] Call value_feedback:1, call_feedback:0, dst:reg11, callee:item~1, this_value:Undefined, arguments:[reg11]
-  [  6a] JumpLoop target:block3
+  [  66] JumpLoop target:block3
 
 block5:
-  [  6f] Catch value_feedback:2, dst:reg11
-  [  74] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  83] Throw src:reg11
+  [  6b] Catch value_feedback:2, dst:reg11
+  [  70] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  7f] Throw src:reg11
 
 block6:
-  [  86] GetById value_feedback:3, dst:reg5, base:arg0, `pop`
-  [  93] Call value_feedback:4, call_feedback:1, dst:value~0, callee:reg5, this_value:arg0
-  [  a8] JumpLoop target:block1
+  [  82] GetById value_feedback:3, dst:reg5, base:arg0, `pop`
+  [  8f] Call value_feedback:4, call_feedback:1, dst:value~0, callee:reg5, this_value:arg0
+  [  a0] JumpLoop target:block1
 
 block7:
-  [  ad] End value:Undefined
+  [  a5] End value:Undefined
 
 Exception handlers:
-  [  46 ..   6f] => handler block5
+  [  46 ..   6b] => handler block5

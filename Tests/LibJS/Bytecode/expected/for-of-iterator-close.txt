@@ -1,4 +1,4 @@
-$7543a43a for-of-iterator-close.js:6:1
+$6cf7d10a for-of-iterator-close.js:6:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -9,15 +9,15 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `forOfBreak`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] GetGlobal value_feedback:2, dst:reg6, `forOfReturn`
-  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  42] GetGlobal value_feedback:4, dst:reg6, `forAwaitOfBreak`
-  [  4b] NewPrimitiveArray dst:reg7, elements:[1, 2, 3]
-  [  6e] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  85] End value:reg5
+  [  20] GetGlobal value_feedback:2, dst:reg6, `forOfReturn`
+  [  29] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  3a] GetGlobal value_feedback:4, dst:reg6, `forAwaitOfBreak`
+  [  43] NewPrimitiveArray dst:reg7, elements:[1, 2, 3]
+  [  62] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  75] End value:reg5
 
 
-forOfBreak$ccfdb1de for-of-iterator-close.js:2:16
+forOfBreak$8c4cb59a for-of-iterator-close.js:2:16
   Registers: 12
   Blocks:    7
   Locals:    x~0
@@ -29,37 +29,37 @@ block0:
   [   0] Enter
   [   1] Mov dst:x~0, src:<Empty>
   [   6] NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
-  [  29] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  25] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block1:
-  [  39] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  44] JumpTrue condition:reg10, target:block6
+  [  35] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  40] JumpTrue condition:reg10, target:block6
 
 block2:
-  [  4b] Mov dst:x~0, src:reg9
-  [  50] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:x~0, rhs:2, true_target:block3, false_target:block4
+  [  47] Mov dst:x~0, src:reg9
+  [  4c] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:x~0, rhs:2, true_target:block3, false_target:block4
 
 block3:
-  [  61] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [  70] Jump target:block6
+  [  5d] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [  6c] Jump target:block6
 
 block4:
-  [  75] JumpLoop target:block1
+  [  71] JumpLoop target:block1
 
 block5:
-  [  7a] Catch value_feedback:0, dst:reg11
-  [  7f] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  8e] Throw src:reg11
+  [  76] Catch value_feedback:0, dst:reg11
+  [  7b] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  8a] Throw src:reg11
 
 block6:
-  [  91] End value:Undefined
+  [  8d] End value:Undefined
 
 Exception handlers:
-  [  4b ..   61] => handler block5
-  [  75 ..   7a] => handler block5
+  [  47 ..   5d] => handler block5
+  [  71 ..   76] => handler block5
 
 
-forOfReturn$8832ea30 for-of-iterator-close.js:9:16
+forOfReturn$c8e3e674 for-of-iterator-close.js:9:16
   Registers: 12
   Blocks:    5
   Locals:    x~0
@@ -71,30 +71,30 @@ block0:
   [   0] Enter
   [   1] Mov dst:x~0, src:<Empty>
   [   6] NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
-  [  29] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
-  [  39] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  44] JumpTrue condition:reg10, target:block4
+  [  25] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  35] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  40] JumpTrue condition:reg10, target:block4
 
 block1:
-  [  4b] Mov dst:x~0, src:reg9
+  [  47] Mov dst:x~0, src:reg9
 
 block2:
-  [  50] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [  5f] Return value:x~0
+  [  4c] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [  5b] Return value:x~0
 
 block3:
-  [  62] Catch value_feedback:0, dst:reg11
-  [  67] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  76] Throw src:reg11
+  [  5e] Catch value_feedback:0, dst:reg11
+  [  63] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  72] Throw src:reg11
 
 block4:
-  [  79] End value:Undefined
+  [  75] End value:Undefined
 
 Exception handlers:
-  [  4b ..   50] => handler block3
+  [  47 ..   4c] => handler block3
 
 
-forAwaitOfBreak$2e77b0ed for-of-iterator-close.js:16:22
+forAwaitOfBreak$f34e96c9 for-of-iterator-close.js:16:22
   Registers: 18
   Blocks:    23
   Locals:    x~0
@@ -110,91 +110,91 @@ block0:
 
 block1:
   [  1b] Call value_feedback:0, call_feedback:0, dst:reg11, callee:reg7, this_value:reg6
-  [  30] Mov dst:reg12, src:reg0
-  [  35] Await continuation_label:block2, argument:reg11
+  [  2c] Mov dst:reg12, src:reg0
+  [  31] Await continuation_label:block2, argument:reg11
 
 block2:
-  [  3c] Mov dst:reg12, src:reg0
-  [  41] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
-  [  48] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg15, lhs:reg13, rhs:1
-  [  53] JumpIf condition:reg15, true_target:block4, false_target:block3
+  [  38] Mov dst:reg12, src:reg0
+  [  3d] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
+  [  44] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg15, lhs:reg13, rhs:1
+  [  4f] JumpIf condition:reg15, true_target:block4, false_target:block3
 
 block3:
-  [  5e] Throw src:reg14
+  [  5a] Throw src:reg14
 
 block4:
-  [  61] ThrowIfNotObject src:reg14
-  [  64] GetById value_feedback:1, dst:reg10, base:reg14, `done`
-  [  71] JumpTrue condition:reg10, target:block22
+  [  5d] ThrowIfNotObject src:reg14
+  [  60] GetById value_feedback:1, dst:reg10, base:reg14, `done`
+  [  6d] JumpTrue condition:reg10, target:block22
 
 block5:
-  [  78] GetById value_feedback:2, dst:reg9, base:reg14, `value`
+  [  74] GetById value_feedback:2, dst:reg9, base:reg14, `value`
 
 block6:
-  [  85] Mov dst:x~0, src:reg9
-  [  8a] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:x~0, rhs:2, true_target:block7, false_target:block13
+  [  81] Mov dst:x~0, src:reg9
+  [  86] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:x~0, rhs:2, true_target:block7, false_target:block13
 
 block7:
-  [  9b] GetMethod dst:reg11, object:reg6, `return`
-  [  a4] JumpUndefined condition:reg11, true_target:block12, false_target:block8
+  [  97] GetMethod dst:reg11, object:reg6, `return`
+  [  a0] JumpUndefined condition:reg11, true_target:block12, false_target:block8
 
 block8:
-  [  af] Call value_feedback:3, call_feedback:1, dst:reg12, callee:reg11, this_value:reg6
-  [  c4] Mov dst:reg13, src:reg0
-  [  c9] Await continuation_label:block9, argument:reg12
+  [  ab] Call value_feedback:3, call_feedback:1, dst:reg12, callee:reg11, this_value:reg6
+  [  bc] Mov dst:reg13, src:reg0
+  [  c1] Await continuation_label:block9, argument:reg12
 
 block9:
-  [  d0] Mov dst:reg13, src:reg0
-  [  d5] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
-  [  dc] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg16, lhs:reg14, rhs:1
-  [  e7] JumpIf condition:reg16, true_target:block11, false_target:block10
+  [  c8] Mov dst:reg13, src:reg0
+  [  cd] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
+  [  d4] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg16, lhs:reg14, rhs:1
+  [  df] JumpIf condition:reg16, true_target:block11, false_target:block10
 
 block10:
-  [  f2] Throw src:reg15
+  [  ea] Throw src:reg15
 
 block11:
-  [  f5] ThrowIfNotObject src:reg15
+  [  ed] ThrowIfNotObject src:reg15
 
 block12:
-  [  f8] Jump target:block22
+  [  f0] Jump target:block22
 
 block13:
-  [  fd] JumpLoop target:block1
+  [  f5] JumpLoop target:block1
 
 block14:
-  [ 102] Catch value_feedback:4, dst:reg11
+  [  fa] Catch value_feedback:4, dst:reg11
 
 block15:
-  [ 107] GetMethod dst:reg12, object:reg6, `return`
-  [ 110] JumpUndefined condition:reg12, true_target:block21, false_target:block16
+  [  ff] GetMethod dst:reg12, object:reg6, `return`
+  [ 108] JumpUndefined condition:reg12, true_target:block21, false_target:block16
 
 block16:
-  [ 11b] Call value_feedback:5, call_feedback:2, dst:reg13, callee:reg12, this_value:reg6
-  [ 130] Mov dst:reg14, src:reg0
-  [ 135] Await continuation_label:block17, argument:reg13
+  [ 113] Call value_feedback:5, call_feedback:2, dst:reg13, callee:reg12, this_value:reg6
+  [ 124] Mov dst:reg14, src:reg0
+  [ 129] Await continuation_label:block17, argument:reg13
 
 block17:
-  [ 13c] Mov dst:reg14, src:reg0
-  [ 141] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [ 148] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg17, lhs:reg15, rhs:1
-  [ 153] JumpIf condition:reg17, true_target:block19, false_target:block18
+  [ 130] Mov dst:reg14, src:reg0
+  [ 135] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+  [ 13c] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg17, lhs:reg15, rhs:1
+  [ 147] JumpIf condition:reg17, true_target:block19, false_target:block18
 
 block18:
-  [ 15e] Throw src:reg16
+  [ 152] Throw src:reg16
 
 block19:
-  [ 161] Jump target:block21
+  [ 155] Jump target:block21
 
 block20:
-  [ 166] Catch value_feedback:6, dst:reg12
+  [ 15a] Catch value_feedback:6, dst:reg12
 
 block21:
-  [ 16b] Throw src:reg11
+  [ 15f] Throw src:reg11
 
 block22:
-  [ 16e] Yield value:Undefined
+  [ 162] Yield value:Undefined
 
 Exception handlers:
-  [  85 ..   9b] => handler block14
-  [  fd ..  102] => handler block14
-  [ 107 ..  166] => handler block20
+  [  81 ..   97] => handler block14
+  [  f5 ..   fa] => handler block14
+  [  ff ..  15a] => handler block20

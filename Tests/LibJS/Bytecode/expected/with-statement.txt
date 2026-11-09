@@ -1,4 +1,4 @@
-$1aac9274 with-statement.js:7:1
+$d9fb9630 with-statement.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,10 +9,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `withBlock`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] End value:reg5
+  [  20] End value:reg5
 
 
-withBlock$21908f56 with-statement.js:2:9
+withBlock$59f5b86a with-statement.js:2:9
   Registers: 9
   Blocks:    1
   Locals:    obj~0
@@ -32,8 +32,8 @@ block0:
   [  30] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  3d] DynamicGetBinding value_feedback:2, dst:reg8, `x`
   [  46] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  5d] SetLexicalEnvironment environment:reg4
-  [  60] End value:Undefined
+  [  59] SetLexicalEnvironment environment:reg4
+  [  5c] End value:Undefined
 
 
 42

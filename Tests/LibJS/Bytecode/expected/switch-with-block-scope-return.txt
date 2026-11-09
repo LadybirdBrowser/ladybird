@@ -1,4 +1,4 @@
-$a75eed01 switch-with-block-scope-return.js:12:1
+$6971e1cd switch-with-block-scope-return.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -10,10 +10,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  26] End value:reg5
+  [  22] End value:reg5
 
 
-f$d64bb797 switch-with-block-scope-return.js:2:13
+f$35680f8b switch-with-block-scope-return.js:2:13
   Registers: 8
   Blocks:    6
   Constants:
@@ -46,9 +46,9 @@ block4:
   [  4a] InitializeLexicalBinding `y`, src:String("two")
   [  57] NewFunction dst:reg7, shared_function_data_index:0
   [  62] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
-  [  77] SetLexicalEnvironment environment:reg4
-  [  7a] Return value:reg7
+  [  73] SetLexicalEnvironment environment:reg4
+  [  76] Return value:reg7
 
 block5:
-  [  7d] SetLexicalEnvironment environment:reg4
-  [  80] Return value:String("other")
+  [  79] SetLexicalEnvironment environment:reg4
+  [  7c] Return value:String("other")

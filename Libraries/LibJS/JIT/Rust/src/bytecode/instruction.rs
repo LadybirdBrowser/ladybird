@@ -500,14 +500,10 @@ mod tests {
             arguments: vec![operand(8)],
         }
         .encode(&mut call);
-        // Call's layout: header, value and call feedback slots, m_length at 5, dst, callee, this_value,
-        // argument_count at 15.
-        let mut short_length = call.clone();
-        short_length[5..9].copy_from_slice(&4u32.to_ne_bytes());
-        assert_eq!(error(&short_length), DecodeErrorKind::InvalidLength);
+        // Call's layout: header, value and call feedback slots, dst, callee, this_value, argument_count at 11.
         let mut too_many_arguments = call.clone();
-        too_many_arguments[15..19].copy_from_slice(&100u32.to_ne_bytes());
-        assert_eq!(error(&too_many_arguments), DecodeErrorKind::InvalidLength);
+        too_many_arguments[11..15].copy_from_slice(&100u32.to_ne_bytes());
+        assert_eq!(error(&too_many_arguments), DecodeErrorKind::TruncatedInstruction);
         assert_eq!(error(&call[..call.len() - 2]), DecodeErrorKind::TruncatedInstruction);
 
         let mut stream = mov.clone();
