@@ -50,7 +50,7 @@ static Outcome restrict_filesystem_when_version_probe_returns(u32 error)
         if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0 || prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) < 0)
             _exit(2);
 
-        auto result = Sandbox::restrict_filesystem_with_landlock();
+        auto result = Sandbox::restrict_filesystem();
         _exit(result.is_error() ? 0 : 1);
     }
 
@@ -100,7 +100,7 @@ TEST_CASE(a_missing_landlock_can_be_allowed_explicitly)
         if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0 || prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) < 0)
             _exit(2);
 
-        auto result = Sandbox::restrict_filesystem_with_landlock();
+        auto result = Sandbox::restrict_filesystem();
         _exit(result.is_error() ? 1 : 0);
     }
 
@@ -130,7 +130,7 @@ TEST_CASE(a_process_with_a_second_thread_refuses_the_sandbox)
         if (pthread_create(&thread, nullptr, wait_for_pipe, &pipe_fds[0]) != 0)
             _exit(2);
 
-        auto result = Sandbox::restrict_filesystem_with_landlock();
+        auto result = Sandbox::restrict_filesystem();
         _exit(result.is_error() ? 0 : 1);
     }
 
@@ -172,7 +172,7 @@ TEST_CASE(abstract_unix_sockets_outside_the_landlock_domain_are_unreachable)
     VERIFY(child >= 0);
     if (child == 0) {
         MUST(Sandbox::install_no_new_privileges());
-        MUST(Sandbox::restrict_filesystem_with_landlock());
+        MUST(Sandbox::restrict_filesystem());
 
         // No seccomp policy is installed: these refusals must come from Landlock.
         VERIFY(connect(sender, reinterpret_cast<sockaddr*>(&address), address_length) == -1);
@@ -225,7 +225,7 @@ TEST_CASE(signals_stay_within_the_landlock_process_tree)
     VERIFY(child >= 0);
     if (child == 0) {
         MUST(Sandbox::install_no_new_privileges());
-        MUST(Sandbox::restrict_filesystem_with_landlock());
+        MUST(Sandbox::restrict_filesystem());
         Sandbox::SeccompPolicy policy;
         policy.allow_common_runtime();
         policy.allow_process_creation();

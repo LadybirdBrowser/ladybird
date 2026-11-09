@@ -21,15 +21,15 @@ ErrorOr<void> apply_sandbox(StringView)
     auto executable_path = TRY(Core::System::current_executable_path());
     auto build_root = LexicalPath::dirname(LexicalPath::dirname(executable_path));
 
-    Vector<Sandbox::LandlockPath> paths;
-    TRY(Sandbox::add_landlock_path_if_exists(paths, WebView::s_ladybird_resource_root, Sandbox::LandlockPath::Access::ReadOnly));
+    Vector<Sandbox::PathRule> paths;
+    TRY(Sandbox::add_path_if_exists(paths, WebView::s_ladybird_resource_root, Sandbox::PathRule::Access::ReadOnly));
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces.
-    TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, executable_path, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::PathRule::Access::ReadOnly));
     TRY(Sandbox::add_loaded_library_directories(paths, build_root));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/proc/self"sv, Sandbox::PathRule::Access::ReadOnly));
 
-    TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
+    TRY(Sandbox::restrict_filesystem(paths.span()));
 
     Sandbox::SeccompPolicy policy;
     policy.allow_readonly_file_opens();
