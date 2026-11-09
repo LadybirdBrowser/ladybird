@@ -1,0 +1,9 @@
+When one of the items of a wrapping column flex container has an aspect
+ratio, Ladybird sizes them all in the width of the widest item’s
+max-content contribution before it measures the container’s lines.
+Blink also takes its items’ intrinsic contributions first, in its
+FlexLayoutAlgorithm::ComputeMinMaxSizeOfMultilineColumnContainer().
+Gecko’s nsFlexContainerFrame::ComputeIntrinsicISize() takes the largest
+contribution for a column container. And WebKit establishes the items’
+widths first, before it measures the lines, in its FlexLayout::
+maximumContentSizeForMultilineColumn().
