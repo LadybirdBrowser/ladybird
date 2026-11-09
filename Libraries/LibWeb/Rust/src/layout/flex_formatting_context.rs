@@ -2190,7 +2190,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let (keyword, _) = SelfKeyword::align_items_of(*self.container.style);
             (keyword, OverflowSafety::Unsafe)
         } else {
-            SelfKeyword::align_self_of(*style, *self.container.style)
+            SelfKeyword::align_self_of(*style, Some(*self.container.style))
         };
         let self_start_is_low = geometry::start_is_low_side_in_frame(
             self.run.pass.frame,

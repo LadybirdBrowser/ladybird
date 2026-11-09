@@ -121,13 +121,17 @@ pub(crate) enum SelfKeyword {
 
 impl SelfKeyword {
     /// The justify-self keyword of a box styled `style` and its safety, where auto takes the justify-items value of
-    /// the container styled `container_style`.
+    /// the container styled `container_style`, or behaves as normal for an absolutely positioned box, which passes
+    /// none.
     pub(crate) fn justify_self_of(
         style: ComputedValuesView<'_>,
-        container_style: ComputedValuesView<'_>,
+        container_style: Option<ComputedValuesView<'_>>,
     ) -> (Self, OverflowSafety) {
         let keyword = match style.justify_self() {
             justify_self::AUTO => {
+                let Some(container_style) = container_style else {
+                    return (Self::Normal, OverflowSafety::Default);
+                };
                 let keyword = match container_style.justify_items() {
                     justify_items::NORMAL | justify_items::LEGACY => Self::Normal,
                     justify_items::STRETCH => Self::Stretch,
@@ -164,13 +168,15 @@ impl SelfKeyword {
     }
 
     /// The align-self keyword of a box styled `style` and its safety, where auto takes the align-items value of the
-    /// container styled `container_style`.
+    /// container styled `container_style`, or behaves as normal for an absolutely positioned box, which passes none.
     pub(crate) fn align_self_of(
         style: ComputedValuesView<'_>,
-        container_style: ComputedValuesView<'_>,
+        container_style: Option<ComputedValuesView<'_>>,
     ) -> (Self, OverflowSafety) {
         let keyword = match style.align_self() {
-            align_self::AUTO => return Self::align_items_of(container_style),
+            align_self::AUTO => {
+                return container_style.map_or((Self::Normal, OverflowSafety::Default), Self::align_items_of);
+            }
             align_self::NORMAL => Self::Normal,
             align_self::STRETCH => Self::Stretch,
             align_self::BASELINE => Self::Baseline,

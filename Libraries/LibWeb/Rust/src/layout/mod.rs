@@ -91,7 +91,7 @@ use crate::layout::node_data::NodeData;
 use crate::layout::node_data::NodeFlag;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
-pub(crate) use abspos_inputs::AbsposAlignment;
+pub(crate) use abspos_inputs::AbsposAxisAlignment;
 pub(crate) use box_alignment::AxisEdge;
 pub(crate) use formatting_context::{
     ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, Node, SizingAxis,
