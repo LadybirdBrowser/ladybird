@@ -1436,29 +1436,11 @@ impl<'pass> FormattingContextRun<'pass> {
         )
     }
 
-    /// Hands what the layout of `node` produced besides its geometry to the box's fragment, where this run builds
-    /// fragments.
-    pub(crate) fn set_fragment_payload_of(&self, node: Node, payload: impl FnOnce() -> fragment_tree::FcPayload) {
-        if let Some(fragments) = self.fragments {
-            fragments.update_fragment_payload_of(node, |pending| pending.set(payload()));
-        }
-    }
-
-    pub(crate) fn update_grid_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::GridPayload)) {
-        if let Some(fragments) = self.fragments {
-            fragments.update_fragment_payload_of(node, |pending| update(pending.grid_mut()));
-        }
-    }
-
+    /// Hands what the layout of `node`, a box inside the run's root, produced besides its geometry to the box's
+    /// fragment, where this run builds fragments.
     pub(crate) fn update_svg_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::SvgPayload)) {
         if let Some(fragments) = self.fragments {
             fragments.update_fragment_payload_of(node, |pending| update(pending.svg_mut()));
-        }
-    }
-
-    pub(crate) fn set_line_clamp_facts_of(&self, node: Node, facts: fragment_tree::LineClampFacts) {
-        if let Some(fragments) = self.fragments {
-            fragments.update_fragment_payload_of(node, |pending| pending.line_clamp = facts);
         }
     }
 
@@ -1593,6 +1575,8 @@ pub(crate) struct AlgorithmOutput {
     pub(crate) root_lines: used_values::LineDataState,
     /// For a block container, the block size of the contents it laid out, which it aligns in its content box.
     pub(crate) laid_out_content_block_size: Option<CssPixels>,
+    /// What the layout of the root hands the root's fragment besides its geometry, where the run builds fragments.
+    pub(crate) root_payload: fragment_tree::PendingPayload,
 }
 
 impl AlgorithmOutput {
@@ -1603,7 +1587,13 @@ impl AlgorithmOutput {
             root_cells,
             root_lines: used_values::LineDataState::Empty,
             laid_out_content_block_size: None,
+            root_payload: fragment_tree::PendingPayload::default(),
         }
+    }
+
+    /// The output with `root_payload` handed to the root's fragment.
+    pub(crate) fn with_root_payload(self, root_payload: fragment_tree::PendingPayload) -> Self {
+        Self { root_payload, ..self }
     }
 }
 
@@ -2595,6 +2585,7 @@ fn lay_out_run_root_and_contents<'pass>(
         root_cells: own_root_after_body,
         mut root_lines,
         laid_out_content_block_size,
+        root_payload,
     } = if empty_root_needs_no_formatting_context_algorithm(&pass, box_, fc_type, input, request.mode) {
         // An empty root context has no body output. Root sizing and finalization still
         // run through the shared paths around this branch.
@@ -2802,6 +2793,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 cells: root_cells_left_by_run,
                 line_data: root_line_data.clone(),
             },
+            root_payload,
         ))
     };
 

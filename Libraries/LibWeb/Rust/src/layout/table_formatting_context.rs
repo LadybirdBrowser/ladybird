@@ -1048,6 +1048,8 @@ pub(super) struct TableFormattingContext<'pass> {
     available_space: AvailableSpace,
     table_block_size: CssPixels,
     pub(super) automatic_content_block_size: CssPixels,
+    /// The collapsed borders the table box's fragment paints, once they are materialized.
+    collapsed_table_borders: Option<std::sync::Arc<OwnedCollapsedTableBorders>>,
     table_box_content_block_offset_in_wrapper: CssPixels,
     min_border_box_block_size_from_flex_item: Option<CssPixels>,
     needs_fixed_mode_row_measurement: bool,
@@ -1167,6 +1169,10 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for TableForma
         input: formatting_context::AlgorithmInput<'_>,
     ) -> formatting_context::AlgorithmOutput {
         self.run(run, input.body_input, input.table_inline_layout);
+        let mut root_payload = fragment_tree::PendingPayload::default();
+        if let Some(collapsed_table_borders) = self.collapsed_table_borders.take() {
+            root_payload.set(fragment_tree::FcPayload::Table(collapsed_table_borders));
+        }
         formatting_context::AlgorithmOutput::of_root(
             formatting_context::ChildLayoutResult {
                 automatic_content_block_size: self.automatic_content_block_size,
@@ -1175,6 +1181,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for TableForma
             },
             self.table_box_cells(),
         )
+        .with_root_payload(root_payload)
     }
 
     fn after_root_is_dimensioned(
@@ -1211,6 +1218,7 @@ impl<'pass> TableFormattingContext<'pass> {
             available_space: AvailableSpace::default(),
             table_block_size: CssPixels::default(),
             automatic_content_block_size: CssPixels::default(),
+            collapsed_table_borders: None,
             table_box_content_block_offset_in_wrapper: CssPixels::default(),
             min_border_box_block_size_from_flex_item: None,
             needs_fixed_mode_row_measurement: false,
@@ -1632,15 +1640,12 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }));
         let (horizontal_edges, vertical_edges) = grid.take_edges();
-        let collapsed_table_borders = std::sync::Arc::new(OwnedCollapsedTableBorders {
+        self.collapsed_table_borders = Some(std::sync::Arc::new(OwnedCollapsedTableBorders {
             row_offsets,
             column_offsets,
             horizontal_edges,
             vertical_edges,
-        });
-        self.run.set_fragment_payload_of(self.run.box_, || {
-            fragment_tree::FcPayload::Table(collapsed_table_borders)
-        });
+        }));
     }
 
     // Participants resolve percentages against the table's input basis inside this context, so

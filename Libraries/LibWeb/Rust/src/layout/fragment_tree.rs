@@ -229,16 +229,6 @@ impl PendingPayload {
         variant(payload).expect("the payload is of the kind just made")
     }
 
-    pub(crate) fn grid_mut(&mut self) -> &mut GridPayload {
-        self.variant_mut(
-            || FcPayload::Grid(GridPayload::default()),
-            |payload| match payload {
-                FcPayload::Grid(grid) => Some(grid),
-                _ => None,
-            },
-        )
-    }
-
     pub(crate) fn svg_mut(&mut self) -> &mut SvgPayload {
         self.variant_mut(
             || FcPayload::Svg(SvgPayload::default()),
@@ -1296,27 +1286,29 @@ impl PayloadsPastRun {
 }
 
 /// What a run laid out inside its root, before the root's fragment exists: the links at the top of the run's
-/// fragments, what goes past the run, and what the run's layout of its root hands the root's fragment. A normal run
-/// turns them into its root's fragment, a fragmentainer's run hands them to the run of the box it belongs to, and a
-/// whole layout pass hands its links to commit.
+/// fragments and what goes past the run. A normal run turns them into its root's fragment, a fragmentainer's run hands
+/// them to the run of the box it belongs to, and a whole layout pass hands its links to commit.
 pub(crate) struct RunContents {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<PendingLink>,
     pub(crate) holds_links_beside_their_sealed_containing_blocks: bool,
     pub(crate) payloads_past_run: PayloadsPastRun,
-    /// What the run's layout of its root hands the root's fragment.
-    pub(crate) root_payload: PendingPayload,
 }
 
 impl RunContents {
-    /// The root's fragment around what the run laid out inside it, showing the root's own layout `geometry`.
-    pub(crate) fn into_run_root_fragment(self, pass: &LayoutPass<'_>, geometry: FragmentGeometry) -> RunRootFragment {
+    /// The root's fragment around what the run laid out inside it, showing the root's own layout `geometry` and what
+    /// the formatting context of the root handed it as `root_payload`.
+    pub(crate) fn into_run_root_fragment(
+        self,
+        pass: &LayoutPass<'_>,
+        geometry: FragmentGeometry,
+        root_payload: PendingPayload,
+    ) -> RunRootFragment {
         let Self {
             node,
             scoped_descendants,
             holds_links_beside_their_sealed_containing_blocks,
             payloads_past_run,
-            root_payload,
         } = self;
         let content_size = geometry
             .cells
@@ -1465,8 +1457,6 @@ struct RunFragmentBuilderInner {
     /// What the layouts of children the run laid out but never placed handed their placements, which close() links at
     /// the top of the run's fragments.
     children_left_unplaced: Vec<ChildLeftUnplaced>,
-    /// What the run's layout of its root hands the root's fragment.
-    root_payload: PendingPayload,
     /// Where the run placed each box it placed so far, from the moment it places the box, before the placement drains
     /// the absolutely positioned boxes the box contains.
     placed_boxes: PlacedBoxes,
@@ -2088,17 +2078,18 @@ impl RunFragmentBuilder {
         node: crate::layout::node_data::NodeSlotId,
         update: impl FnOnce(&mut PendingPayload),
     ) {
+        debug_assert!(
+            node != self.root_node || self.is_entry_accumulator,
+            "a run's root takes its payload from its formatting context"
+        );
         let mut inner = self.inner.borrow_mut();
-        let payload = if node == self.root_node && !self.is_entry_accumulator {
-            &mut inner.root_payload
-        } else {
+        update(
             &mut inner
                 .pending_fragments
                 .entry(node.slot_index())
                 .or_insert_with(|| PendingFragment::new(node))
-                .payload
-        };
-        update(payload);
+                .payload,
+        );
     }
 
     fn merge_child_root_into_pending_fragment(
@@ -2438,7 +2429,6 @@ impl RunFragmentBuilder {
             scoped_descendants: inner.top_scope_links,
             holds_links_beside_their_sealed_containing_blocks: inner.holds_links_beside_their_sealed_containing_blocks,
             payloads_past_run,
-            root_payload: inner.root_payload,
         }
     }
 }

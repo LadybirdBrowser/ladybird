@@ -813,9 +813,11 @@ fn lay_out_in_flow_child_ahead(pass: LayoutPass<'_>, job: InFlowChildJob) -> Opt
                 outcome.content_offset,
                 containing_block_position_in_root,
             );
-            let root = fragments
-                .take_run_contents(&run.pass)
-                .into_run_root_fragment(&run.pass, outcome.geometry);
+            let root = fragments.take_run_contents(&run.pass).into_run_root_fragment(
+                &run.pass,
+                outcome.geometry,
+                fragment_tree::PendingPayload::default(),
+            );
             let entry = in_flow_block_cache::InFlowBlockEntry {
                 key,
                 validity,
@@ -1056,6 +1058,8 @@ pub(crate) struct BlockFormattingContext<'pass> {
     root_lines: RefCell<used_values::LineDataState>,
     column_early_breaks: RefCell<ColumnEarlyBreaks>,
     multicol_automatic_content_block_size: Cell<Option<CssPixels>>,
+    /// The columns of a multi-column root, which its fragment shows.
+    multicol_layout_data: Cell<Option<std::sync::Arc<fragmentation::MulticolLayoutData>>>,
     discard_block_start_margin_of_next_child: Cell<bool>,
     fragmentainer_has_content: Cell<bool>,
     propagated_break_values: RefCell<HashMap<(Node, bool), u8>>,
@@ -1171,7 +1175,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for BlockForma
         run: &FormattingContextRun<'pass>,
         input: formatting_context::AlgorithmInput<'_>,
     ) -> formatting_context::AlgorithmOutput {
-        self.run(run, input.body_input);
+        self.lay_out_root_contents(run, input.body_input);
         let laid_out_content_block_size = self.block_size_of_contents(false);
         let mut result = formatting_context::ChildLayoutResult {
             automatic_content_block_size: self.automatic_content_block_size(),
@@ -1184,11 +1188,25 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for BlockForma
             ..formatting_context::ChildLayoutResult::default()
         };
         let mut root_cells = input.root_cells;
+        let mut root_payload = fragment_tree::PendingPayload::default();
+        if let Some(multicol_layout_data) = self.multicol_layout_data.take() {
+            root_payload.set(fragment_tree::FcPayload::Multicol(multicol_layout_data));
+        }
+        let has_line_clamp_point = self.line_clamp_point_found.get();
+        if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
+            root_payload.line_clamp = fragment_tree::LineClampFacts {
+                has_line_clamp_point,
+                clamped_content_is_scrollable_overflow: self.clamped_content_is_scrollable_overflow,
+            };
+        }
         // https://w3c.github.io/mathml-core/#layout-of-operators
         // NB: An operator lays out its text in a block formatting context, unless it is drawn with a stretched or large
         //     glyph.
-        if self.facts(run.box_).display().is_math_inside() {
-            math_formatting_context::layout_operator(run, input.root_input, &mut result, &mut root_cells);
+        if self.facts(run.box_).display().is_math_inside()
+            && let Some(paint_data) =
+                math_formatting_context::layout_operator(run, input.root_input, &mut result, &mut root_cells)
+        {
+            root_payload.set(fragment_tree::FcPayload::Math(paint_data));
         }
         formatting_context::AlgorithmOutput {
             result,
@@ -1197,6 +1215,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for BlockForma
             //     them.
             root_lines: std::mem::take(&mut *self.root_lines.borrow_mut()),
             laid_out_content_block_size: Some(laid_out_content_block_size),
+            root_payload,
         }
     }
 }
@@ -1258,6 +1277,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             root_lines: RefCell::new(used_values::LineDataState::Empty),
             column_early_breaks: RefCell::new(ColumnEarlyBreaks::default()),
             multicol_automatic_content_block_size: Cell::new(None),
+            multicol_layout_data: Cell::new(None),
             discard_block_start_margin_of_next_child: Cell::new(false),
             fragmentainer_has_content: Cell::new(false),
             propagated_break_values: RefCell::new(HashMap::default()),
@@ -5924,10 +5944,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 inline_content::InlineContent::concatenate_translated(&root_line_data_of_columns),
             );
         }
-        let multicol_layout_data = std::sync::Arc::new(fragmentation::MulticolLayoutData { geometry, rows });
-        self.run.set_fragment_payload_of(self.run.box_, || {
-            fragment_tree::FcPayload::Multicol(multicol_layout_data)
-        });
+        self.multicol_layout_data
+            .set(Some(std::sync::Arc::new(fragmentation::MulticolLayoutData {
+                geometry,
+                rows,
+            })));
         self.multicol_automatic_content_block_size.set(Some(row_block_offset));
         self.record_derived_baselines_of_root_box(baselines);
     }
@@ -6394,20 +6415,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
         summary
-    }
-
-    fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
-        self.lay_out_root_contents(run, input);
-        let has_line_clamp_point = self.line_clamp_point_found.get();
-        if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
-            run.set_line_clamp_facts_of(
-                self.run.box_,
-                fragment_tree::LineClampFacts {
-                    has_line_clamp_point,
-                    clamped_content_is_scrollable_overflow: self.clamped_content_is_scrollable_overflow,
-                },
-            );
-        }
     }
 
     fn lay_out_root_contents(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
