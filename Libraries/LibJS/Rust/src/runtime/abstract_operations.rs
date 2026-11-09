@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use ak::{ScopeGuard, Utf16FlyString, Utf16String};
+use indexmap::IndexSet;
 use num_bigint::Sign;
 use num_integer::Integer;
 use num_traits::{Signed, Zero};
@@ -21,7 +22,6 @@ use crate::gc::class::{Extends, GcCell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
-use crate::hash_table::Utf16FlyStringHashTable;
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::{CompilationType, EvalMode, Vm};
@@ -1513,10 +1513,35 @@ pub fn eval_declaration_instantiation(
         // 3. Insert variableDecl as the first element of funcsToInitialize.
     }
 
+    // 11. Let declaredVariableNames be a new empty List.
+    let mut declared_var_names = IndexSet::new();
+
+    // 12. For each element variableDecl of variableDecls, do
+    //     a. If variableDecl is either a VariableDeclaration, a ForBinding, or a BindingIdentifier, then
+    //         i. For each String name of the BoundNames of variableDecl, do
+    for name in &data.var_scoped_names {
+        // 1. If declaredFuncNames does not contain name, then
+        if !data.declared_function_names.contains(name) {
+            // a. If variableEnv is a Global Environment Record, then
+            if let Some(global_var_environment) = global_var_environment {
+                // i. Let variableDefinable be ? CanDeclareGlobalVar(variableEnv, name).
+                let variable_definable = global_var_environment.can_declare_global_var(vm, name)?;
+
+                // ii. If variableDefinable is false, throw a TypeError exception.
+                if !variable_definable {
+                    return vm.throw_completion(ErrorKind::TypeError, ErrorType::CannotDeclareGlobalVariable, &[name]);
+                }
+            }
+
+            // b. If declaredVariableNames does not contain name, then
+            //     i. Append name to declaredVariableNames.
+            declared_var_names.insert(name.clone());
+        }
+    }
+
     // 13. If strict is false and the host is a web browser or otherwise supports Block-Level Function Declarations Web Legacy Compatibility Semantics, then
     if !strict {
         // a. Let declaredFuncOrVariableNames be the list-concatenation of declaredFuncNames and declaredVariableNames.
-        // AD-HOC: Steps 11 and 12 come after this step here, so declaredVariableNames is not part of it.
         // NB: The names that step 13.b.ii.7.a.iii appends to it go into hoisted_functions.
         let mut hoisted_functions = HashSet::new();
 
@@ -1581,7 +1606,10 @@ pub fn eval_declaration_instantiation(
 
             // 7. If bindingExists is false and funcDefinable is true, then
             // a. If declaredFuncOrVariableNames does not contain funcName, then
-            if !data.declared_function_names.contains(function_name) && !hoisted_functions.contains(function_name) {
+            if !data.declared_function_names.contains(function_name)
+                && !declared_var_names.contains(function_name)
+                && !hoisted_functions.contains(function_name)
+            {
                 // i. If variableEnv is a Global Environment Record, then
                 if let Some(global_var_environment) = global_var_environment {
                     // 1. Perform ? CreateGlobalVarBinding(variableEnv, funcName, true).
@@ -1602,10 +1630,10 @@ pub fn eval_declaration_instantiation(
                             .must();
                     }
                 }
-            }
 
-            // iii. Append funcName to declaredFuncOrVariableNames.
-            hoisted_functions.insert(function_name.clone());
+                // iii. Append funcName to declaredFuncOrVariableNames.
+                hoisted_functions.insert(function_name.clone());
+            }
 
             // b. When the FunctionDeclaration funcDecl is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
             //     i. Let globalEnv be the running execution context's VariableEnvironment.
@@ -1613,32 +1641,6 @@ pub fn eval_declaration_instantiation(
             //     iii. Let funcObj be ! blockEnv.GetBindingValue(funcName, false).
             //     iv. Perform ? globalEnv.SetMutableBinding(funcName, funcObj, false).
             //     v. Return unused.
-        }
-    }
-
-    // 11. Let declaredVariableNames be a new empty List.
-    let mut declared_var_names = Utf16FlyStringHashTable::default();
-
-    // 12. For each element variableDecl of variableDecls, do
-    //     a. If variableDecl is either a VariableDeclaration, a ForBinding, or a BindingIdentifier, then
-    //         i. For each String name of the BoundNames of variableDecl, do
-    for name in &data.var_scoped_names {
-        // 1. If declaredFuncNames does not contain name, then
-        if !data.declared_function_names.contains(name) {
-            // a. If variableEnv is a Global Environment Record, then
-            if let Some(global_var_environment) = global_var_environment {
-                // i. Let variableDefinable be ? CanDeclareGlobalVar(variableEnv, name).
-                let variable_definable = global_var_environment.can_declare_global_var(vm, name)?;
-
-                // ii. If variableDefinable is false, throw a TypeError exception.
-                if !variable_definable {
-                    return vm.throw_completion(ErrorKind::TypeError, ErrorType::CannotDeclareGlobalVariable, &[name]);
-                }
-            }
-
-            // b. If declaredVariableNames does not contain name, then
-            //     i. Append name to declaredVariableNames.
-            declared_var_names.set(name.clone());
         }
     }
 
@@ -1723,7 +1725,7 @@ pub fn eval_declaration_instantiation(
     }
 
     // 18. For each String variableName of declaredVariableNames, do
-    for var_name in declared_var_names.iter() {
+    for var_name in &declared_var_names {
         // a. If variableEnv is a Global Environment Record, then
         if let Some(global_var_environment) = global_var_environment {
             // i. Perform ? CreateGlobalVarBinding(variableEnv, variableName, true).

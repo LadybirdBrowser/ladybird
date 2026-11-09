@@ -135,3 +135,9 @@ test("indirect eval with syntax error can be called multiple times", function ()
         "Unexpected token '@'. Expected statement or declaration (line: 1, column: 1)"
     );
 });
+
+test("eval code creates its vars in the order it declares them, block functions of those names among them", () => {
+    (0, eval)("var evalOrderZ; var evalOrderA; { function evalOrderM() {} } var evalOrderM;");
+    const names = Object.keys(globalThis).filter(name => name.startsWith("evalOrder"));
+    expect(names).toEqual(["evalOrderZ", "evalOrderA", "evalOrderM"]);
+});
