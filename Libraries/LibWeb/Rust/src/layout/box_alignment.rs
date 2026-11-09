@@ -170,22 +170,7 @@ impl SelfKeyword {
         container_style: ComputedValuesView<'_>,
     ) -> (Self, OverflowSafety) {
         let keyword = match style.align_self() {
-            align_self::AUTO => {
-                let keyword = match container_style.align_items() {
-                    align_items::NORMAL => Self::Normal,
-                    align_items::STRETCH => Self::Stretch,
-                    align_items::BASELINE => Self::Baseline,
-                    align_items::CENTER => Self::Center,
-                    align_items::START => Self::Start,
-                    align_items::END => Self::End,
-                    align_items::SELF_START => Self::SelfStart,
-                    align_items::SELF_END => Self::SelfEnd,
-                    align_items::FLEX_START => Self::FlexStart,
-                    align_items::FLEX_END => Self::FlexEnd,
-                    _ => unreachable!("invalid align-items value"),
-                };
-                return (keyword, OverflowSafety::of(container_style.align_items_overflow()));
-            }
+            align_self::AUTO => return Self::align_items_of(container_style),
             align_self::NORMAL => Self::Normal,
             align_self::STRETCH => Self::Stretch,
             align_self::BASELINE => Self::Baseline,
@@ -200,6 +185,23 @@ impl SelfKeyword {
             _ => unreachable!("invalid align-self value"),
         };
         (keyword, OverflowSafety::of(style.align_self_overflow()))
+    }
+
+    pub(crate) fn align_items_of(style: ComputedValuesView<'_>) -> (Self, OverflowSafety) {
+        let keyword = match style.align_items() {
+            align_items::NORMAL => Self::Normal,
+            align_items::STRETCH => Self::Stretch,
+            align_items::BASELINE => Self::Baseline,
+            align_items::CENTER => Self::Center,
+            align_items::START => Self::Start,
+            align_items::END => Self::End,
+            align_items::SELF_START => Self::SelfStart,
+            align_items::SELF_END => Self::SelfEnd,
+            align_items::FLEX_START => Self::FlexStart,
+            align_items::FLEX_END => Self::FlexEnd,
+            _ => unreachable!("invalid align-items value"),
+        };
+        (keyword, OverflowSafety::of(style.align_items_overflow()))
     }
 
     /// The alignment of a subject along an axis with the directions `directions`.
@@ -295,7 +297,7 @@ impl ContentKeyword {
             justify_content::RIGHT => Self::Right,
             _ => unreachable!("invalid justify-content value"),
         };
-        (keyword, OverflowSafety::Default)
+        (keyword, OverflowSafety::of(style.justify_content_overflow()))
     }
 
     /// The align-content keyword of a container styled `style` and its safety.
@@ -384,6 +386,20 @@ impl ContentAlignment {
             return self.container_start.offset(free_space);
         }
         self.edge.offset(free_space)
+    }
+
+    /// This alignment where the container leaves `free_space` beside its alignment subjects, in a layout mode whose
+    /// overflow alignment is `layout_mode_default` where the style specifies neither safe nor unsafe. A safe alignment
+    /// packs overflowing subjects against the container's start.
+    pub(crate) fn for_free_space(self, free_space: CssPixels, layout_mode_default: OverflowSafety) -> Self {
+        if free_space < CssPixels::default() && self.safety.is_safe(layout_mode_default) {
+            return Self {
+                distribution: None,
+                edge: self.container_start,
+                ..self
+            };
+        }
+        self
     }
 
     /// The free space the distribution places before and between `count` alignment subjects, where the container

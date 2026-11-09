@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#overflow-values">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert"
+  content="safe flex-start allows for overflow past the end edge, which is bottom/right even in the case of row-reverse" />
+
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+
+  .flex {
+    display: flex;
+    flex-flow: row-reverse;
+    width: 90px;
+    height: 90px;
+    align-content: safe flex-start;
+    justify-content: safe flex-start;
+  }
+
+  .item {
+    flex: 0 0 100px;
+    width: 100px;
+    height: 100px;
+    background: green;
+  }
+
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="reference-overlapped-red"></div>
+
+<div class="flex">
+  <div class="item"></div>
+</div>

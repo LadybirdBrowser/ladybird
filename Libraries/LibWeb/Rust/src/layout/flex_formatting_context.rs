@@ -377,8 +377,8 @@ impl<'pass> FlexContainerConstants<'pass> {
             flex_start_is_low: !is_direction_reverse,
             ..AxisDirections::of(!main_axis_writing_mode_start_is_reverse, main_axis_line_left_is_low)
         };
-        let (justify_content, _) = ContentKeyword::justify_content_of(*style);
-        let (align_content, _) = ContentKeyword::align_content_of(*style);
+        let (justify_content, justify_content_safety) = ContentKeyword::justify_content_of(*style);
+        let (align_content, align_content_safety) = ContentKeyword::align_content_of(*style);
         let (main_gap, cross_gap) = if is_row_layout {
             (style.column_gap(), style.row_gap())
         } else {
@@ -393,9 +393,8 @@ impl<'pass> FlexContainerConstants<'pass> {
             used_flex_wrap,
             is_direction_reverse,
             cross_axis_is_reverse,
-            // FIXME: Honor safe and unsafe overflow alignment.
-            justify_content: justify_content.resolve(OverflowSafety::Unsafe, main_axis_directions),
-            align_content: align_content.resolve(OverflowSafety::Unsafe, cross_axis_directions),
+            justify_content: justify_content.resolve(justify_content_safety, main_axis_directions),
+            align_content: align_content.resolve(align_content_safety, cross_axis_directions),
             cross_axis_directions,
             main_gap,
             cross_gap,
@@ -2185,16 +2184,22 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     /// The alignment along the cross axis of a box styled `style`.
     fn cross_alignment_of(&self, style: StyleValues<'_>) -> SelfAlignment {
-        let (keyword, _) = SelfKeyword::align_self_of(*style, *self.container.style);
+        // AD-HOC: The items of a legacy webkit box align as its -webkit-box-align, an alias of align-items, says,
+        //         whatever their align-self and its safety are, matching other engines.
+        let (keyword, safety) = if self.is_legacy_webkit_box() {
+            let (keyword, _) = SelfKeyword::align_items_of(*self.container.style);
+            (keyword, OverflowSafety::Unsafe)
+        } else {
+            SelfKeyword::align_self_of(*style, *self.container.style)
+        };
         let self_start_is_low = geometry::start_is_low_side_in_frame(
             self.run.pass.frame,
             style.writing_mode(),
             style.direction(),
             self.cross_axis_is_horizontal(),
         );
-        // FIXME: Honor safe and unsafe overflow alignment.
         keyword.resolve(
-            OverflowSafety::Unsafe,
+            safety,
             AxisDirections {
                 self_start_is_low,
                 ..self.container.cross_axis_directions
@@ -2774,8 +2779,11 @@ impl<'pass> FlexFormattingContext<'pass> {
             // NB: Where the cursor starts at the right or bottom, the items are placed backwards from there.
             let mut cursor_right = false;
             if auto_margins == 0 && item_count > 0 {
-                let justify = self.container.justify_content;
                 let inner_main_size = self.inner_main_size_used(&self.container_cells);
+                let justify = self
+                    .container
+                    .justify_content
+                    .for_free_space(inner_main_size - used_main_space, OverflowSafety::Unsafe);
                 space_distribution = justify.distributed_space(remaining.unwrap_or_default(), item_count);
                 let leading_space = if justify.distribution.is_none() && justify.edge == AxisEdge::Center {
                     (inner_main_size - used_main_space) / 2
@@ -2892,7 +2900,13 @@ impl<'pass> FlexFormattingContext<'pass> {
                     - item.cross_size.unwrap()
                     - item.margins.cross_after
                     - item.borders_and_padding.cross_after;
-                let offset = match alignment.position {
+                let free_space = self.flex_lines[line_index].cross_size
+                    - item.cross_size.unwrap()
+                    - item.margins.cross_before
+                    - item.borders_and_padding.cross_before
+                    - item.margins.cross_after
+                    - item.borders_and_padding.cross_after;
+                let offset = match alignment.position_for(free_space, OverflowSafety::Unsafe) {
                     SelfPosition::Baseline => {
                         // https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline
                         // NB: Baseline-aligned items are initially placed at the cross-start edge (like flex-start). Their
@@ -2949,8 +2963,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         // CSS-FLEXBOX-2: Account for gap between flex lines.
         sum += self.cross_gap() * self.flex_lines.len().wrapping_sub(1);
         // NB: The leftover free space that align-content distributes around the lines.
-        let align = self.container.align_content;
         let leftover = container_cross_size - sum;
+        let align = self
+            .container
+            .align_content
+            .for_free_space(leftover, OverflowSafety::Unsafe);
         let space_distribution = align.distributed_space(leftover, self.flex_lines.len());
         // NB: Centered lines, and lines that space-around or space-evenly cannot distribute negative leftover free
         //     space around, are placed from the left or top.
@@ -3360,6 +3377,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // would be positioned if it were the sole flex item in the flex container,
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
+        // FIXME: Honor safe overflow alignment, which depends on the size of the child.
         let main_alignment = self.container.justify_content.edge;
         let main_size = self.inner_main_size_used(&self.container_cells);
         let cross_size = self.inner_cross_size_used(&self.container_cells);

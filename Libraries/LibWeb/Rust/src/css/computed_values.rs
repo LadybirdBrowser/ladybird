@@ -5730,6 +5730,7 @@ impl AlignmentValues {
             align_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             justify_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             align_content_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
+            justify_content_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             column_gap: ComputedGap {
                 is_normal: true,
                 value: ComputedStyleValueHandle::empty(),
@@ -6598,7 +6599,7 @@ fn alignment_is_last_baseline(data: &RetainedStyleValueData) -> bool {
             Some(StyleValueData::Keyword { keyword: crate::css::css_enums::keyword::LAST })))
 }
 
-/// The explicit overflow alignment of a computed self-alignment value.
+/// The explicit overflow alignment of a computed alignment value.
 fn alignment_overflow(data: &RetainedStyleValueData) -> u8 {
     use crate::css::css_enums::keyword as k;
     use crate::css::style_value::StyleValueData;
@@ -6676,6 +6677,7 @@ pub(crate) fn rust_build_alignment_group(
             align_self_overflow: alignment_overflow(align_self),
             justify_self_overflow: alignment_overflow(justify_self),
             align_content_overflow: alignment_overflow(align_content),
+            justify_content_overflow: alignment_overflow(justify_content),
             column_gap: ComputedGap::from_data(column_gap),
             row_gap: ComputedGap::from_data(row_gap),
         };
@@ -7124,6 +7126,7 @@ pub(crate) fn copy_fieldset_content_alignment(source: &AlignmentValues, target: 
     target.align_items_is_last_baseline = source.align_items_is_last_baseline;
     target.align_items_overflow = source.align_items_overflow;
     target.justify_content = source.justify_content;
+    target.justify_content_overflow = source.justify_content_overflow;
     target.justify_items = source.justify_items;
     target.justify_items_overflow = source.justify_items_overflow;
     target.row_gap = source.row_gap.clone();

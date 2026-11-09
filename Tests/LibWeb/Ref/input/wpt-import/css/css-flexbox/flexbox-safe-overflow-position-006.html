@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#overflow-values">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="align-self:safe has no effect on -webkit-box" />
+
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+
+  .flex {
+    display: -webkit-box;
+    -webkit-box-align: end;
+    width: 90px;
+    height: 90px;
+    /* Make the green square cover the red square. */
+    translate: 0 10px;
+  }
+
+  .item {
+    min-width: 100px;
+    min-height: 100px;
+    background: green;
+    align-self: safe center;
+  }
+
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="reference-overlapped-red"></div>
+
+<div class="flex">
+  <div class="item"></div>
+</div>

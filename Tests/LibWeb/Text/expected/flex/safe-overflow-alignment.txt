@@ -1,0 +1,19 @@
+{alignItems: safe center} {}: 0,0
+{alignItems: unsafe center} {}: 0,-50
+{} {alignSelf: safe center}: 0,0
+{} {alignSelf: safe center; width: 50px; height: 50px}: 0,25
+{justifyContent: safe center} {}: 0,0
+{justifyContent: unsafe center} {}: -50,0
+{justifyContent: safe flex-end} {}: 0,0
+{flexWrap: wrap; alignContent: safe center} {}: 0,0
+{flexDirection: column; justifyContent: safe center} {}: 0,0
+{flexDirection: row-reverse; justifyContent: safe flex-start} {}: 0,0
+{flexDirection: row-reverse; justifyContent: safe center} {}: 0,0
+{flexDirection: row-reverse; justifyContent: unsafe center} {}: -50,0
+{flexDirection: column-reverse; justifyContent: safe flex-start} {}: 0,0
+{flexDirection: column-reverse; justifyContent: safe center} {}: 0,0
+{flexWrap: wrap-reverse; alignContent: safe flex-start} {}: 0,0
+{flexWrap: wrap-reverse; alignContent: safe center} {}: 0,0
+{flexWrap: wrap-reverse; alignItems: safe flex-start} {}: 0,-100
+{direction: rtl; justifyContent: safe center} {}: -100,0
+{display: -webkit-box; webkitBoxAlign: end} {alignSelf: safe center}: 0,-100
