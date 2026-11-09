@@ -692,7 +692,6 @@ void ViewImplementation::traverse_the_history_to_step(
 
 void ViewImplementation::will_apply_history_traversal_step(Web::HTML::CrossProcessId operation_id)
 {
-    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     if (m_webdriver_navigation_observation.has_value()
         && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
         m_webdriver_navigation_observation->history_operation_id = operation_id;
