@@ -2749,23 +2749,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         sized: SizedBox<'_>,
         constraints: ContainingBlockConstraints,
     ) -> Option<CssPixels> {
-        let node = sized.node;
         if !self.intrinsic_inline_sizes_are_transferred(sized, constraints) {
             return None;
         }
-        let facts = self.facts(node);
         let available_space = self.transferred_intrinsic_inline_sizing_space(sized);
-        // NB: Replaced elements resolve their sizes here without a percentage basis.
-        let sizing_constraints = if facts.is_replaced_box() {
-            ContainingBlockConstraints::default()
-        } else {
-            constraints
-        };
         // https://drafts.csswg.org/css2/#inline-replaced-width
         // "(used height) * (intrinsic ratio)"
-        let inline_size = self.compute_inline_size_for_replaced_element(sized, available_space, sizing_constraints);
+        let inline_size = self.compute_inline_size_for_replaced_element(sized, available_space, constraints);
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
-        let block_size = self.compute_block_size_for_replaced_element(sized, available_space, sizing_constraints);
+        let block_size = self.compute_block_size_for_replaced_element(sized, available_space, constraints);
         let minimum = self.automatic_minimum_size_from_aspect_ratio(
             sized,
             SizingAxis::Inline,
