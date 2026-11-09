@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::layout::replaced_sizing::SizeWithAspectRatio;
 use crate::painting::host::{
     FfiCanvasPaintFacts, FfiFormControlPaintFacts, FfiNavigableContainerPaintFacts, FfiReplacedImagePaintFacts,
     FfiVideoPaintFacts, FfiVideoRepresentation,
 };
 use crate::painting::image_content::ImageContent;
 use crate::painting::record::damage::PaintDamage;
-use crate::painting::record::paint::replaced::SizeWithAspectRatio;
 use libgfx_rust::image_frame::ImageFrameHandle;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

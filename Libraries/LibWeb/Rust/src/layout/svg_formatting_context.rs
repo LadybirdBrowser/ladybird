@@ -2354,7 +2354,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     // does not have an intrinsic size (such as image types with no defined dimensions), it is
     // assumed to have a width of 300px and a height of 150px.
     fn svg_image_bounding_box(&self, image_box: Node) -> SvgCssPixelRect {
-        use crate::painting::record::paint::replaced::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
+        use crate::layout::replaced_sizing::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
         let style = self.style(image_box);
         let specified_width = style
             .width()

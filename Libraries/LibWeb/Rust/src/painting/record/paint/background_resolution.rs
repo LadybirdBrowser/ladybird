@@ -13,6 +13,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::replaced_sizing::{SizeWithAspectRatio, run_default_sizing_algorithm};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, RootBackgroundSource};
 use crate::painting::paint_read::{GeometryRead, PaintRead};
@@ -23,7 +24,6 @@ use crate::painting::paintable_geometry::{
 };
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
-use crate::painting::record::paint::replaced::{SizeWithAspectRatio, run_default_sizing_algorithm};
 use crate::painting::style_queries;
 use crate::painting::visual_context::node_values::{
     border_radii_data, mix_blend_mode_to_compositing_and_blending_operator,
