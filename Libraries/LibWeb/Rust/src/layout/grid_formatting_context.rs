@@ -3498,15 +3498,14 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         let containing_block = self.run.pass.in_flow_containing_block(subgrid.box_);
         RunState::with_root(self.run.pass, subgrid.box_, containing_block, None, |state, pass| {
-            let scratch_run = FormattingContextRun {
+            let scratch_run = FormattingContextRun::new(
                 state,
-                box_: subgrid.box_,
+                subgrid.box_,
                 pass,
-                should_collect_devtools_layout_data: false,
-                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                fragments: None,
-                fragmentainer: None,
-            };
+                formatting_context::RunMode::Measure,
+                false,
+                None,
+            );
             let subgrid_parent = self.subgrid_parent_of(subgrid.box_);
             let mut context = GridFormattingContext::new(&scratch_run, scratch_root, subgrid_parent.as_ref());
             context.subgrid_tracks_act_empty = true;
@@ -4754,8 +4753,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn offers_item_runs_to_row_measurements(&self) -> bool {
-        !self.run.should_collect_devtools_layout_data
-            && self.container_style.writing_mode() == writing_mode::HORIZONTAL_TB
+        !self.run.collects_devtools_layout_data() && self.container_style.writing_mode() == writing_mode::HORIZONTAL_TB
     }
 
     fn item_block_size_is_measured_ahead(&self, item: GridItem, measurements_ahead: RowMeasurementsAhead) -> bool {
@@ -5304,7 +5302,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn save_devtools_data(&self, grid_style: &GridValues) {
-        if !self.run.should_collect_devtools_layout_data {
+        if !self.run.collects_devtools_layout_data() {
             return;
         }
         let serialize = |axis: Axis| {

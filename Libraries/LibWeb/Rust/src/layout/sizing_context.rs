@@ -3800,15 +3800,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             table_box,
             self.pass.in_flow_containing_block(table_box),
             |state, pass| {
-                let table_run = FormattingContextRun {
+                let table_run = FormattingContextRun::new(
                     state,
-                    box_: table_box,
+                    table_box,
                     pass,
-                    should_collect_devtools_layout_data: false,
-                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                    fragments: None,
-                    fragmentainer: None,
-                };
+                    formatting_context::RunMode::Measure,
+                    false,
+                    None,
+                );
                 size_table(&table_run, table_cells)
             },
         )

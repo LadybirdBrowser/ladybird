@@ -59,15 +59,14 @@ impl ContentSizingScope {
             self.node,
             pass.in_flow_containing_block(self.node),
             |state, pass| {
-                size_content(&FormattingContextRun {
+                size_content(&FormattingContextRun::new(
                     state,
-                    box_: self.node,
+                    self.node,
                     pass,
-                    should_collect_devtools_layout_data: false,
-                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                    fragments: None,
-                    fragmentainer: None,
-                })
+                    formatting_context::RunMode::Measure,
+                    false,
+                    None,
+                ))
             },
         )
     }

@@ -808,17 +808,17 @@ impl FcRunCacheAttempt {
     pub(super) fn probe(
         box_: Node,
         runs_as_subgrid: bool,
-        builds_fragments: bool,
-        should_collect_devtools_layout_data: bool,
+        mode: formatting_context::RunMode,
         measurement_root_keeps_its_result: bool,
         pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> Result<Self, FcRunCacheHit> {
+        let builds_fragments = mode.builds_fragments();
         let Some(store) = pass.fc_run_cache_store().filter(|_| {
             can_describe_run(
                 box_,
                 runs_as_subgrid,
-                should_collect_devtools_layout_data,
+                mode.collects_devtools_layout_data(),
                 measurement_root_keeps_its_result,
                 pass,
                 key,
@@ -860,17 +860,17 @@ impl FcRunCacheAttempt {
 
     pub(super) fn would_reuse_stored_run(
         box_: Node,
-        builds_fragments: bool,
-        should_collect_devtools_layout_data: bool,
+        mode: formatting_context::RunMode,
         measurement_root_keeps_its_result: bool,
         pass: &LayoutPass<'_>,
         key: &FcRunCacheKey,
     ) -> bool {
+        let builds_fragments = mode.builds_fragments();
         let Some(store) = pass.fc_run_cache_store().filter(|_| {
             can_describe_run(
                 box_,
                 false,
-                should_collect_devtools_layout_data,
+                mode.collects_devtools_layout_data(),
                 measurement_root_keeps_its_result,
                 pass,
                 key,
