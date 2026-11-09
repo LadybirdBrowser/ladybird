@@ -133,50 +133,12 @@ pub struct OutOfStack;
 
 /// The address that the stack can only go `bytes` below where it is now.
 pub fn stack_limit_for_budget(bytes: usize) -> usize {
-    let marker = 0u8;
-    (&raw const marker as usize).saturating_sub(bytes)
-}
-
-#[cfg(target_os = "linux")]
-fn thread_stack_lowest_address() -> Option<usize> {
-    // SAFETY: The attributes live for the calls, and are destroyed once initialized.
-    unsafe {
-        let mut attributes: libc::pthread_attr_t = std::mem::zeroed();
-        if libc::pthread_getattr_np(libc::pthread_self(), &raw mut attributes) != 0 {
-            return None;
-        }
-        let mut address = std::ptr::null_mut();
-        let mut size = 0;
-        let result = libc::pthread_attr_getstack(&raw const attributes, &raw mut address, &raw mut size);
-        libc::pthread_attr_destroy(&raw mut attributes);
-        (result == 0).then_some(address as usize)
-    }
-}
-
-#[cfg(target_os = "macos")]
-#[allow(clippy::unnecessary_wraps)] // The other platforms' versions can fail.
-fn thread_stack_lowest_address() -> Option<usize> {
-    // SAFETY: These only read the stack of the calling thread.
-    unsafe {
-        let thread = libc::pthread_self();
-        let top = libc::pthread_get_stackaddr_np(thread) as usize;
-        Some(top - libc::pthread_get_stacksize_np(thread))
-    }
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
-fn thread_stack_lowest_address() -> Option<usize> {
-    None
+    ak::stack::limit_for_budget(bytes)
 }
 
 /// How low a VM lets the stack of this thread go, or `None` if that cannot be told.
 pub(crate) fn vm_stack_limit_of_this_thread() -> Option<usize> {
-    // NB: Asking for the stack of the main thread reads /proc/self/maps on Linux, and eval parses a program every time.
-    thread_local! {
-        static LOWEST_ADDRESS: Option<usize> = thread_stack_lowest_address();
-    }
-    LOWEST_ADDRESS
-        .with(|lowest_address| *lowest_address)
+    ak::stack::lowest_address_of_this_thread()
         .map(|lowest_address| lowest_address.saturating_add(crate::build_configuration::VM_STACK_SPACE_LIMIT as usize))
 }
 
