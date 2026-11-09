@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .row {
+        display: flex;
+        width: 600px;
+    }
+    .item {
+        flex: 0 1 50%;
+    }
+    .frame {
+        display: flex;
+        height: 100px;
+        overflow: hidden;
+    }
+    .frame img {
+        height: 100%;
+    }
+</style>
+<div class="row">
+    <div class="item"><div class="frame"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='1000'%3E%3Crect width='2000' height='1000' fill='teal'/%3E%3C/svg%3E"></div></div>
+    <div class="item" id="second">second item</div>
+</div>
+<script src="../include.js"></script>
+<script>
+    // The image's height: 100% resolves against the frame's definite height, so its width comes through its aspect
+    // ratio, and the item holding it can shrink to half the row.
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const image = document.querySelector("img").getBoundingClientRect();
+            const second = document.getElementById("second").getBoundingClientRect();
+            println(`image: ${image.width}x${image.height}`);
+            println(`second item starts at x=${second.left}`);
+            done();
+        });
+    });
+</script>
