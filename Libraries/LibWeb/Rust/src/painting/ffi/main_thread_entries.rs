@@ -1041,9 +1041,9 @@ pub unsafe extern "C" fn layout_hit_test_all(
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
     push_context: *mut c_void,
-    push: unsafe extern "C" fn(*mut c_void, usize),
+    push: unsafe extern "C" fn(*mut c_void, usize, FfiCssPixelPoint),
 ) {
-    let indices = with_hit_test_list_spatial_indexes_and_visual_context_tree(
+    let hits = with_hit_test_list_spatial_indexes_and_visual_context_tree(
         host,
         read,
         false,
@@ -1055,9 +1055,9 @@ pub unsafe extern "C" fn layout_hit_test_all(
             list.hit_test_all(arena, tree, &callbacks.with_world_transforms(&world), point.into())
         },
     );
-    for index in indices {
-        // SAFETY: The C++ sink consumes the index synchronously.
-        unsafe { push(push_context, index) };
+    for hit in hits {
+        // SAFETY: The C++ sink consumes the hit synchronously.
+        unsafe { push(push_context, hit.index, hit.local_point.into()) };
     }
 }
 

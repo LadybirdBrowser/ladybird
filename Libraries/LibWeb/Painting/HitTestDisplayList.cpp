@@ -62,15 +62,6 @@ HitTestDisplayList::Item HitTestDisplayList::item(Layout::BegunRead const& read,
     return { index, facts };
 }
 
-Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Compositing::ContextRef context, CSSPixelPoint point, HitTestQuery const& query) const
-{
-    auto pixel_ratio = static_cast<float>(query.device_pixels_per_css_pixel());
-    auto result = query.visual_context_tree().transform_point_for_hit_test(context, point.to_type<float>() * pixel_ratio, query.scroll_state());
-    if (!result.has_value())
-        return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
-}
-
 struct HitTestDisplayList::QueryContext {
     HitTestQuery const* query { nullptr };
     GC::Ptr<DOM::Document> document;
@@ -154,14 +145,14 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(
     return topmost_item_from(item);
 }
 
-Vector<size_t> HitTestDisplayList::hit_item_indices_topmost_first(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
+Vector<HitTestDisplayList::TopmostItem> HitTestDisplayList::hit_items_topmost_first(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
     QueryContext context { &query, m_arena->document() };
-    Vector<size_t> indices;
-    Layout::RustFFI::layout_hit_test_all(m_arena->host(), &read, context.callbacks(), point, &indices, [](void* sink, size_t index) {
-        static_cast<Vector<size_t>*>(sink)->append(index);
+    Vector<TopmostItem> hits;
+    Layout::RustFFI::layout_hit_test_all(m_arena->host(), &read, context.callbacks(), point, &hits, [](void* sink, size_t index, CSSPixelPoint local_point) {
+        static_cast<Vector<TopmostItem>*>(sink)->append({ index, local_point });
     });
-    return indices;
+    return hits;
 }
 
 Layout::Node const* HitTestDisplayList::layout_node_for_item(Layout::BegunRead const& read, Item item) const
@@ -351,12 +342,8 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(Layout::BegunRead const& re
 
 TraversalDecision HitTestDisplayList::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    for (auto item_index : hit_item_indices_topmost_first(read, point, query)) {
-        auto item_facts = item(read, item_index);
-        auto local_point = local_point_for_visual_context(item_facts.context(), point, query);
-        if (!local_point.has_value())
-            continue;
-        if (callback(hit_test_result_for_item(read, item_facts, *local_point)) == TraversalDecision::Break)
+    for (auto hit : hit_items_topmost_first(read, point, query)) {
+        if (callback(hit_test_result_for_item(read, item(read, hit.index), hit.local_point)) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 

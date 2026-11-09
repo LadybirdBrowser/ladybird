@@ -348,9 +348,9 @@ impl HitTestList {
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
-    ) -> Vec<usize> {
+    ) -> Vec<TopmostItem> {
         debug_assert!(self.spatial_indexes_built);
-        let mut hit_item_indices: Vec<usize> = Vec::new();
+        let mut hits: Vec<TopmostItem> = Vec::new();
         let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
         for (context, spatial_index) in &self.spatial_indexes_by_context {
             let Some(local) =
@@ -365,15 +365,18 @@ impl HitTestList {
             {
                 for item_index in candidate_list {
                     if self.item_contains(layout_arena, callbacks, &self.items[*item_index], local) {
-                        hit_item_indices.push(*item_index);
+                        hits.push(TopmostItem {
+                            index: *item_index,
+                            local_point,
+                        });
                     }
                 }
             }
         }
-        hit_item_indices.sort_by(|a, b| b.cmp(a));
-        hit_item_indices.dedup();
-        self.sort_hits_within_sorting_contexts(visual_context_tree, callbacks, point, &mut hit_item_indices);
-        hit_item_indices
+        hits.sort_by_key(|hit| std::cmp::Reverse(hit.index));
+        hits.dedup_by_key(|hit| hit.index);
+        self.sort_hits_within_sorting_contexts(visual_context_tree, callbacks, point, &mut hits);
+        hits
     }
 
     // Runs of hits on the planes of one 3D rendering context are reordered front to back. A context's items
@@ -383,21 +386,21 @@ impl HitTestList {
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
-        hit_item_indices: &mut [usize],
+        hits: &mut [TopmostItem],
     ) {
         let mut depth_sorting = DepthSortingState::new(callbacks, visual_context_tree, point);
         let mut run_begin = 0;
-        while run_begin < hit_item_indices.len() {
-            let group = depth_sorting.group_for(self.items[hit_item_indices[run_begin]].context.spatial);
+        while run_begin < hits.len() {
+            let group = depth_sorting.group_for(self.items[hits[run_begin].index].context.spatial);
             let mut run_end = run_begin + 1;
             if group.is_some() {
-                while run_end < hit_item_indices.len()
-                    && depth_sorting.group_for(self.items[hit_item_indices[run_end]].context.spatial) == group
+                while run_end < hits.len()
+                    && depth_sorting.group_for(self.items[hits[run_end].index].context.spatial) == group
                 {
                     run_end += 1;
                 }
-                hit_item_indices[run_begin..run_end]
-                    .sort_by_key(|item_index| std::cmp::Reverse(self.depth_sort_key(&mut depth_sorting, *item_index)));
+                hits[run_begin..run_end]
+                    .sort_by_key(|hit| std::cmp::Reverse(self.depth_sort_key(&mut depth_sorting, hit.index)));
             }
             run_begin = run_end;
         }
