@@ -6,7 +6,7 @@ odd min-height: 0px
 odd max-height: none
 odd top: 13px
 odd right: 775px
-odd bottom: -750px
+odd bottom: 30px
 odd left: 7px
 odd margin-top: 784px
 odd margin-right: 0px
@@ -116,7 +116,7 @@ restored min-height: 3px
 restored max-height: none
 restored top: 13px
 restored right: 771px
-restored bottom: -750px
+restored bottom: 30px
 restored left: 7px
 restored margin-top: 784px
 restored margin-right: 0px

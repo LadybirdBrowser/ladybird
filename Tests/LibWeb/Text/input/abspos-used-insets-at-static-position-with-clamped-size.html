@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .container {
+        position: relative;
+        width: 400px;
+        height: 200px;
+    }
+    .abspos {
+        position: absolute;
+        max-width: 100px;
+    }
+    .content {
+        width: 300px;
+        height: 10px;
+    }
+</style>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["flex center, max-width", { display: "flex", justifyContent: "center" }, {}],
+            ["flex end, max-width", { display: "flex", justifyContent: "flex-end" }, {}],
+            ["rtl block, max-width", { direction: "rtl" }, {}],
+            ["flex center, min-width", { display: "flex", justifyContent: "center" }, { maxWidth: "none", minWidth: "350px" }],
+            ["flex center, percentage width", { display: "flex", justifyContent: "center" }, { maxWidth: "none", width: "25%" }],
+            ["flex center, replaced", { display: "flex", justifyContent: "center" }, { maxWidth: "none" }, null, "canvas"],
+            ["flex center, block max-height", { display: "flex", alignItems: "center" }, { maxWidth: "none", maxHeight: "20px" }, { height: "100px" }],
+        ];
+        for (const [label, containerStyle, boxStyle, contentStyle, boxTag] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            Object.assign(container.style, containerStyle);
+            const box = document.createElement(boxTag ?? "div");
+            box.className = "abspos";
+            Object.assign(box.style, boxStyle);
+            if (!boxTag) {
+                const content = document.createElement("div");
+                content.className = "content";
+                Object.assign(content.style, contentStyle);
+                box.appendChild(content);
+            }
+            container.appendChild(box);
+            document.body.appendChild(container);
+            const containerRect = container.getBoundingClientRect();
+            const boxRect = box.getBoundingClientRect();
+            const style = getComputedStyle(box);
+            println(`${label}: box at ${boxRect.left - containerRect.left},${boxRect.top - containerRect.top} size ${boxRect.width}x${boxRect.height}; left ${style.left}, right ${style.right}, top ${style.top}, bottom ${style.bottom}`);
+            container.remove();
+        }
+    });
+</script>

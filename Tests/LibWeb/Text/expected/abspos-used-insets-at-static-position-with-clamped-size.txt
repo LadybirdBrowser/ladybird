@@ -1,0 +1,7 @@
+flex center, max-width: box at 150,0 size 100x10; left 150px, right 150px, top 0px, bottom 190px
+flex end, max-width: box at 300,0 size 100x10; left 300px, right 0px, top 0px, bottom 190px
+rtl block, max-width: box at 300,0 size 100x10; left 300px, right 0px, top 0px, bottom 190px
+flex center, min-width: box at 25,0 size 350x10; left 25px, right 25px, top 0px, bottom 190px
+flex center, percentage width: box at 150,0 size 100x10; left 150px, right 150px, top 0px, bottom 190px
+flex center, replaced: box at 50,0 size 300x150; left 50px, right 50px, top 0px, bottom 50px
+flex center, block max-height: box at 0,90 size 300x20; left 0px, right 100px, top 90px, bottom 90px

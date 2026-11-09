@@ -1624,59 +1624,10 @@ fn auto_px_value(value: AutoPx) -> CssPixels {
     value.unwrap_or_default()
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn solve_abspos_axis_for(
-    available: CssPixels,
-    target: AutoPx,
-    clamp_to_zero: bool,
-    start: AutoPx,
-    margin_start: AutoPx,
-    border_start: CssPixels,
-    padding_start: CssPixels,
-    size: AutoPx,
-    padding_end: CssPixels,
-    border_end: CssPixels,
-    margin_end: AutoPx,
-    end: AutoPx,
-) -> CssPixels {
-    let value = available
-        - auto_px_value(start)
-        - auto_px_value(margin_start)
-        - border_start
-        - padding_start
-        - auto_px_value(size)
-        - padding_end
-        - border_end
-        - auto_px_value(margin_end)
-        - auto_px_value(end)
-        + auto_px_value(target);
-    if clamp_to_zero {
-        value.max(CssPixels::default())
-    } else {
-        value
-    }
-}
-
-// The block-axis unknowns of the absolute positioning equation. Each field is `None` while it is
-// still unresolved, and holds its used value once solved for.
-#[derive(Clone, Copy)]
-struct BlockAxisSolution {
-    block_size: AutoPx,
-    top: AutoPx,
-    bottom: AutoPx,
-    margin_top: AutoPx,
-    margin_bottom: AutoPx,
-}
-
-impl BlockAxisSolution {
-    fn zero_out_auto_margins(&mut self) {
-        self.margin_top = Some(auto_px_value(self.margin_top));
-        self.margin_bottom = Some(auto_px_value(self.margin_bottom));
-    }
-}
-
+/// The insets and margins of an absolutely positioned box along one axis, which the absolute positioning equation
+/// solves for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReplacedAxisSolution {
+pub(crate) struct AxisSolution {
     pub(crate) start: CssPixels,
     pub(crate) end: CssPixels,
     pub(crate) margin_start: CssPixels,
@@ -1703,62 +1654,90 @@ impl AutoMarginOverflow {
     }
 }
 
+/// The absolute positioning equation along one axis of a containing block, with the insets and margins of the box,
+/// None where they are auto.
+/// https://drafts.csswg.org/css-position-3/#abspos-layout
 #[derive(Clone, Copy)]
-pub(crate) struct ReplacedAxisBehavior {
+pub(crate) struct AxisEquation {
+    pub(crate) containing_block_size: CssPixels,
+    pub(crate) start: AutoPx,
+    pub(crate) end: AutoPx,
+    pub(crate) margin_start: AutoPx,
+    pub(crate) margin_end: AutoPx,
+    pub(crate) borders_and_paddings: CssPixels,
     pub(crate) auto_margin_overflow: AutoMarginOverflow,
 }
 
-pub(crate) fn solve_replaced_axis(
-    available: CssPixels,
-    mut start: AutoPx,
-    mut end: AutoPx,
-    mut margin_start: AutoPx,
-    mut margin_end: AutoPx,
-    static_offset: CssPixels,
-    behavior: ReplacedAxisBehavior,
-) -> ReplacedAxisSolution {
-    if start.is_none() && end.is_none() {
-        start = Some(static_offset);
+impl AxisEquation {
+    fn has_both_insets(self) -> bool {
+        self.start.is_some() && self.end.is_some()
     }
-    // https://drafts.csswg.org/css-position-3/#abspos-margins
-    // If either inset property in the relevant axis is auto, then any auto margins resolve to zero.
-    if start.is_none() || end.is_none() {
-        if margin_start.is_none() {
-            margin_start = Some(CssPixels::default());
+
+    /// The content size that fills the space between the insets and the margins, taking auto ones as zero.
+    fn stretch_fit_size(self) -> CssPixels {
+        (self.containing_block_size
+            - auto_px_value(self.start)
+            - auto_px_value(self.end)
+            - auto_px_value(self.margin_start)
+            - auto_px_value(self.margin_end)
+            - self.borders_and_paddings)
+            .max(CssPixels::default())
+    }
+
+    /// The insets and margins of a box whose size along the axis is unresolved: auto ones as zero.
+    fn unresolved(self) -> AxisSolution {
+        AxisSolution {
+            start: auto_px_value(self.start),
+            end: auto_px_value(self.end),
+            margin_start: auto_px_value(self.margin_start),
+            margin_end: auto_px_value(self.margin_end),
         }
-        if margin_end.is_none() {
-            margin_end = Some(CssPixels::default());
+    }
+
+    /// The insets and margins of a box with the content size `size`, whose margin box `static_offset` places at its
+    /// static position where both insets are auto. An over-constrained equation keeps both insets as specified, since
+    /// their resolved values are then their computed values.
+    /// https://drafts.csswg.org/cssom/#resolved-value-special-case-property-like-top
+    fn solve(self, size: CssPixels, static_offset: impl FnOnce() -> CssPixels) -> AxisSolution {
+        let Self {
+            mut start,
+            mut end,
+            mut margin_start,
+            mut margin_end,
+            ..
+        } = self;
+        let available = self.containing_block_size - size - self.borders_and_paddings;
+        if start.is_none() && end.is_none() {
+            start = Some(static_offset());
         }
-    }
-    if margin_start.is_none() && margin_end.is_none() {
-        let remainder = available - auto_px_value(start) - auto_px_value(end);
-        let (start_margin, end_margin) = behavior.auto_margin_overflow.distribute(remainder);
-        margin_start = Some(start_margin);
-        margin_end = Some(end_margin);
-    }
-    if start.is_none() {
-        start = Some(available - auto_px_value(end) - auto_px_value(margin_start) - auto_px_value(margin_end));
-    } else if end.is_none() {
-        end = Some(available - auto_px_value(start) - auto_px_value(margin_start) - auto_px_value(margin_end));
-    } else if margin_start.is_none() {
-        margin_start = Some(available - auto_px_value(start) - auto_px_value(end) - auto_px_value(margin_end));
-    } else if margin_end.is_none() {
-        margin_end = Some(available - auto_px_value(start) - auto_px_value(margin_start) - auto_px_value(end));
-    }
-    if CssPixels::default()
-        != available
-            - auto_px_value(start)
-            - auto_px_value(end)
-            - auto_px_value(margin_start)
-            - auto_px_value(margin_end)
-    {
-        end = Some(available - auto_px_value(start) - auto_px_value(margin_start) - auto_px_value(margin_end));
-    }
-    ReplacedAxisSolution {
-        start: auto_px_value(start),
-        end: auto_px_value(end),
-        margin_start: auto_px_value(margin_start),
-        margin_end: auto_px_value(margin_end),
+        // https://drafts.csswg.org/css-position-3/#abspos-margins
+        // If either inset property in the relevant axis is auto, then any auto margins resolve to zero.
+        if start.is_none() || end.is_none() {
+            margin_start = Some(auto_px_value(margin_start));
+            margin_end = Some(auto_px_value(margin_end));
+        }
+        if margin_start.is_none() && margin_end.is_none() {
+            let remainder = available - auto_px_value(start) - auto_px_value(end);
+            let (start_margin, end_margin) = self.auto_margin_overflow.distribute(remainder);
+            margin_start = Some(start_margin);
+            margin_end = Some(end_margin);
+        }
+        let rest = |a: AutoPx, b: AutoPx, c: AutoPx| available - auto_px_value(a) - auto_px_value(b) - auto_px_value(c);
+        if start.is_none() {
+            start = Some(rest(end, margin_start, margin_end));
+        } else if end.is_none() {
+            end = Some(rest(start, margin_start, margin_end));
+        } else if margin_start.is_none() {
+            margin_start = Some(rest(start, end, margin_end));
+        } else if margin_end.is_none() {
+            margin_end = Some(rest(start, margin_start, end));
+        }
+        AxisSolution {
+            start: auto_px_value(start),
+            end: auto_px_value(end),
+            margin_start: auto_px_value(margin_start),
+            margin_end: auto_px_value(margin_end),
+        }
     }
 }
 
@@ -1884,70 +1863,89 @@ impl AbsposEngine<'_> {
         sizing.resolve_calc_size(sized.sized_box(), axis, size, stretch_fit_size, percentage_basis)
     }
 
-    #[expect(clippy::too_many_arguments)]
-    fn solve_non_replaced_inline_once(
+    /// The absolute positioning equation of the box along an axis, whose percentage margins resolve against
+    /// `margin_basis`.
+    fn axis_equation(
         &self,
         sized: OutOfFlowBox<'_>,
-        containing_block_inline_size: CssPixels,
-        _available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
         inputs: &abspos_inputs::AbsposLayoutInputs,
-        input_inline_size: AutoPx,
+        axis: SizingAxis,
+        containing_block_size: CssPixels,
+        margin_basis: CssPixels,
         auto_margin_overflow: AutoMarginOverflow,
-    ) -> (AutoPx, CssPixels, CssPixels, AutoPx, AutoPx) {
+    ) -> AxisEquation {
         let style = self
             .style_of(sized)
             .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
         let used = sized.cells;
-        let border_left = style.border_left_width();
-        let border_right = style.border_right_width();
-        let padding_left = used.padding_left();
-        let padding_right = used.padding_right();
-        let computed_left = style.inset_left();
-        let computed_right = style.inset_right();
-        let mut left = style.inset_left().to_px(containing_block_inline_size);
-        let mut right = style.inset_right().to_px(containing_block_inline_size);
-        let mut margin_left = resolve_margin_or_auto(style.margin_left(), containing_block_inline_size);
-        let mut margin_right = resolve_margin_or_auto(style.margin_right(), containing_block_inline_size);
-        let mut inline_size = input_inline_size;
+        let (start, end, margin_start, margin_end, borders_and_paddings) = axis.select(
+            (
+                style.inset_left(),
+                style.inset_right(),
+                style.margin_left(),
+                style.margin_right(),
+                style.border_left_width() + used.padding_left() + used.padding_right() + style.border_right_width(),
+            ),
+            (
+                style.inset_top(),
+                style.inset_bottom(),
+                style.margin_top(),
+                style.margin_bottom(),
+                style.border_top_width() + used.padding_top() + used.padding_bottom() + style.border_bottom_width(),
+            ),
+        );
+        AxisEquation {
+            containing_block_size,
+            start: resolve_or_auto(start, containing_block_size),
+            end: resolve_or_auto(end, containing_block_size),
+            margin_start: resolve_margin_or_auto(margin_start, margin_basis),
+            margin_end: resolve_margin_or_auto(margin_end, margin_basis),
+            borders_and_paddings,
+            auto_margin_overflow,
+        }
+    }
 
-        let solve_for_left = |inline_size: AutoPx, margin_left: AutoPx, margin_right: AutoPx, right: CssPixels| {
-            containing_block_inline_size
-                - auto_px_value(margin_left)
-                - border_left
-                - padding_left
-                - auto_px_value(inline_size)
-                - padding_right
-                - border_right
-                - auto_px_value(margin_right)
-                - right
+    /// Whether the box takes its fit-content size along an axis where its insets are both specified, rather than
+    /// fill the space between them.
+    /// https://drafts.csswg.org/css-position-3/#abspos-auto-size
+    fn sizes_to_fit_content(&self, sized: OutOfFlowBox<'_>, equation: AxisEquation, inline_axis: bool) -> bool {
+        !equation.has_both_insets() || self.own_self_alignment_keyword(sized, inline_axis).is_some()
+    }
+
+    /// The content inline size of a non-replaced box: its specified size, or the size that auto gives it in the space
+    /// between its insets and margins, adjusted by calc-size() and its limits.
+    fn non_replaced_inline_size(
+        &self,
+        sized: OutOfFlowBox<'_>,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+        equation: AxisEquation,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        let node = sized.node;
+        let style = self.style_of(sized);
+        let sizing = self.sizing();
+        let inner_size = |size: &ComputedSize| {
+            self.calculate_inner_size(sized, SizingAxis::Inline, size, available_space, constraints, inputs)
         };
-        let solve_for_inline_size = |left: CssPixels, margin_left: AutoPx, margin_right: AutoPx, right: CssPixels| {
-            (containing_block_inline_size
-                - left
-                - auto_px_value(margin_left)
-                - border_left
-                - padding_left
-                - padding_right
-                - border_right
-                - auto_px_value(margin_right)
-                - right)
-                .max(CssPixels::default())
-        };
-        let solve_for_right = |left: CssPixels, inline_size: AutoPx, margin_left: AutoPx, margin_right: AutoPx| {
-            containing_block_inline_size
-                - left
-                - auto_px_value(margin_left)
-                - border_left
-                - padding_left
-                - auto_px_value(inline_size)
-                - padding_right
-                - border_right
-                - auto_px_value(margin_right)
-        };
-        let shrink_to_fit = |left: CssPixels, margin_left: AutoPx, margin_right: AutoPx, right: CssPixels| {
-            let available = solve_for_inline_size(left, margin_left, margin_right, right);
-            let sizing = self.sizing();
+        let mut inline_size = if self.facts(node).is_table_wrapper() {
+            sizing
+                .compute_table_box_inline_size_inside_wrapper(
+                    node,
+                    available_space,
+                    constraints,
+                    None,
+                    formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                )
+                .0
+        } else if !style.width().is_auto() {
+            inner_size(style.width())
+        } else if !self.sizes_to_fit_content(sized, equation, true) {
+            equation.stretch_fit_size()
+        } else {
+            // https://drafts.csswg.org/css-position-3/#abspos-auto-size
+            // For the purpose of computing these sizes, any auto margins are treated as zero.
+            let available = equation.stretch_fit_size();
             let preferred = sizing.calculate_max_content_inline_size(sized.sized_box(), constraints);
             if preferred <= available {
                 preferred
@@ -1956,275 +1954,27 @@ impl AbsposEngine<'_> {
                 preferred_minimum.max(available).min(preferred)
             }
         };
-
-        if computed_left.is_auto() && inline_size.is_none() && computed_right.is_auto() {
-            if margin_left.is_none() {
-                margin_left = Some(CssPixels::default());
-            }
-            if margin_right.is_none() {
-                margin_right = Some(CssPixels::default());
-            }
-            let content_inline_size = shrink_to_fit(left, margin_left, margin_right, right);
-            inline_size = Some(content_inline_size);
-            sized.cells.set_content_inline_size(content_inline_size);
-            left = self
-                .static_offset(sized, static_position_rect_for_sizing(inputs))
-                .inline_offset;
-            right = solve_for_right(left, inline_size, margin_left, margin_right);
-        }
-
-        // https://drafts.csswg.org/css-position-3/#abspos-auto-size
-        // For the purpose of computing these sizes, any auto margins are treated as zero.
-        if inline_size.is_none()
-            && !computed_left.is_auto()
-            && !computed_right.is_auto()
-            && self.own_self_alignment_keyword(sized, true).is_some()
-        {
-            inline_size = Some(shrink_to_fit(left, margin_left, margin_right, right));
-        }
-
-        if !computed_left.is_auto() && inline_size.is_some() && !computed_right.is_auto() {
-            let available_for_margins = containing_block_inline_size
-                - border_left
-                - padding_left
-                - auto_px_value(inline_size)
-                - padding_right
-                - border_right
-                - left
-                - right;
-            if margin_left.is_none() && margin_right.is_none() {
-                let (start, end) = auto_margin_overflow.distribute(available_for_margins);
-                margin_left = Some(start);
-                margin_right = Some(end);
-                return (inline_size, left, right, margin_left, margin_right);
-            }
-            if margin_left.is_none() {
-                margin_left = Some(available_for_margins);
-                return (inline_size, left, right, margin_left, margin_right);
-            }
-            if margin_right.is_none() {
-                margin_right = Some(available_for_margins);
-                return (inline_size, left, right, margin_left, margin_right);
-            }
-            right = solve_for_right(left, inline_size, margin_left, margin_right);
-            return (inline_size, left, right, margin_left, margin_right);
-        }
-
-        if margin_left.is_none() {
-            margin_left = Some(CssPixels::default());
-        }
-        if margin_right.is_none() {
-            margin_right = Some(CssPixels::default());
-        }
-
-        if computed_left.is_auto() && inline_size.is_none() && !computed_right.is_auto() {
-            inline_size = Some(shrink_to_fit(left, margin_left, margin_right, right));
-            left = solve_for_left(inline_size, margin_left, margin_right, right);
-        } else if computed_left.is_auto() && computed_right.is_auto() && inline_size.is_some() {
-            left = self
-                .static_offset(sized, static_position_rect_for_sizing(inputs))
-                .inline_offset;
-            right = solve_for_right(left, inline_size, margin_left, margin_right);
-        } else if inline_size.is_none() && computed_right.is_auto() && !computed_left.is_auto() {
-            inline_size = Some(shrink_to_fit(left, margin_left, margin_right, right));
-            right = solve_for_right(left, inline_size, margin_left, margin_right);
-        } else if computed_left.is_auto() && inline_size.is_some() && !computed_right.is_auto() {
-            left = solve_for_left(inline_size, margin_left, margin_right, right);
-        } else if inline_size.is_none() && !computed_left.is_auto() && !computed_right.is_auto() {
-            inline_size = Some(solve_for_inline_size(left, margin_left, margin_right, right));
-        } else if computed_right.is_auto() && !computed_left.is_auto() && inline_size.is_some() {
-            right = solve_for_right(left, inline_size, margin_left, margin_right);
-        }
-
-        (inline_size, left, right, margin_left, margin_right)
-    }
-
-    fn compute_inline_size_for_non_replaced(
-        &self,
-        sized: OutOfFlowBox<'_>,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-        auto_margin_overflow: AutoMarginOverflow,
-    ) {
-        let node = sized.node;
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let style = self.style_of(sized);
-        let sizing = self.sizing();
-        let initial = if self.facts(node).is_table_wrapper() {
-            Some(
-                sizing
-                    .compute_table_box_inline_size_inside_wrapper(
-                        node,
-                        available_space,
-                        constraints,
-                        None,
-                        formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
-                    )
-                    .0,
-            )
-        } else if style.width().is_auto() {
-            None
-        } else {
-            Some(self.calculate_inner_size(
-                sized,
-                SizingAxis::Inline,
-                style.width(),
-                available_space,
-                constraints,
-                inputs,
-            ))
-        };
-        let (mut used_inline_size, mut left, mut right, mut margin_left, mut margin_right) = self
-            .solve_non_replaced_inline_once(
-                sized,
-                containing_block_inline_size,
-                available_space,
-                constraints,
-                inputs,
-                initial,
-                auto_margin_overflow,
-            );
-
         // NB: A calc-size() with an auto basis resolves against the inline size auto gives the box.
         if style.width().is_auto() && style.width().calc_size().is_some() {
-            let inline_size = sizing.resolve_calc_size(
+            inline_size = sizing.resolve_calc_size(
                 sized.sized_box(),
                 SizingAxis::Inline,
                 style.width(),
-                auto_px_value(used_inline_size),
+                inline_size,
                 constraints.percentage_basis_inline_size,
             );
-            (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
-                sized,
-                containing_block_inline_size,
-                available_space,
-                constraints,
-                inputs,
-                Some(inline_size),
-                auto_margin_overflow,
-            );
         }
-
+        sized.cells.set_content_inline_size(inline_size);
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
-            let max_inline_size = self.calculate_inner_size(
-                sized,
-                SizingAxis::Inline,
-                style.max_width(),
-                available_space,
-                constraints,
-                inputs,
-            );
-            if auto_px_value(used_inline_size) > max_inline_size {
-                (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
-                    sized,
-                    containing_block_inline_size,
-                    available_space,
-                    constraints,
-                    inputs,
-                    Some(max_inline_size),
-                    auto_margin_overflow,
-                );
-            }
+            inline_size = inline_size.min(inner_size(style.max_width()));
         }
         if let Some(limits) = sizing.transferred_inline_size_limits(sized.sized_box(), available_space, constraints) {
-            let value = auto_px_value(used_inline_size);
-            let limited = limits.clamp(value);
-            if limited != value {
-                (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
-                    sized,
-                    containing_block_inline_size,
-                    available_space,
-                    constraints,
-                    inputs,
-                    Some(limited),
-                    auto_margin_overflow,
-                );
-            }
+            inline_size = limits.clamp(inline_size);
         }
         if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
-            let min_inline_size = self.calculate_inner_size(
-                sized,
-                SizingAxis::Inline,
-                style.min_width(),
-                available_space,
-                constraints,
-                inputs,
-            );
-            if auto_px_value(used_inline_size) < min_inline_size {
-                (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
-                    sized,
-                    containing_block_inline_size,
-                    available_space,
-                    constraints,
-                    inputs,
-                    Some(min_inline_size),
-                    auto_margin_overflow,
-                );
-            }
+            inline_size = inline_size.max(inner_size(style.min_width()));
         }
-
-        let used = sized.cells;
-        used.set_content_inline_size(auto_px_value(used_inline_size));
-        Self::set_used_inline_insets(sized, left, right);
-        used.update_cells(|cells| {
-            cells.margin_left = auto_px_value(margin_left);
-            cells.margin_right = auto_px_value(margin_right);
-        });
-    }
-
-    fn compute_inline_size_for_replaced(
-        &self,
-        sized: OutOfFlowBox<'_>,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-        auto_margin_overflow: AutoMarginOverflow,
-    ) {
-        let sizing = self.sizing();
-        // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does not
-        //     know about.
-        let inline_size = if self.style_of(sized).width().is_stretch() {
-            self.calculate_inner_size(
-                sized,
-                SizingAxis::Inline,
-                self.style_of(sized).width(),
-                available_space,
-                constraints,
-                inputs,
-            )
-        } else {
-            sizing.compute_inline_size_for_replaced_element(sized.sized_box(), available_space, constraints)
-        };
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let style = self
-            .style_of(sized)
-            .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
-        let used = sized.cells;
-        let available = containing_block_inline_size
-            - inline_size
-            - style.border_left_width()
-            - used.padding_left()
-            - used.padding_right()
-            - style.border_right_width();
-        let solution = solve_replaced_axis(
-            available,
-            resolve_or_auto(style.inset_left(), containing_block_inline_size),
-            resolve_or_auto(style.inset_right(), containing_block_inline_size),
-            resolve_margin_or_auto(style.margin_left(), containing_block_inline_size),
-            resolve_margin_or_auto(style.margin_right(), containing_block_inline_size),
-            self.static_offset(sized, static_position_rect_for_sizing(inputs))
-                .inline_offset,
-            ReplacedAxisBehavior { auto_margin_overflow },
-        );
-
-        let used = sized.cells;
-        Self::set_used_inline_insets(sized, solution.start, solution.end);
-        used.update_cells(|cells| {
-            cells.margin_left = solution.margin_start;
-            cells.margin_right = solution.margin_end;
-        });
-        used.set_content_inline_size(inline_size);
+        inline_size
     }
 
     fn set_used_inline_insets(sized: OutOfFlowBox<'_>, left: CssPixels, right: CssPixels) {
@@ -2253,20 +2003,39 @@ impl AbsposEngine<'_> {
         inputs: &abspos_inputs::AbsposLayoutInputs,
         auto_margin_overflow: AutoMarginOverflow,
     ) {
-        if self
-            .sizing()
-            .box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints)
-        {
-            self.compute_inline_size_for_replaced(sized, available_space, constraints, inputs, auto_margin_overflow);
+        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+        let equation = self.axis_equation(
+            sized,
+            inputs,
+            SizingAxis::Inline,
+            containing_block_inline_size,
+            containing_block_inline_size,
+            auto_margin_overflow,
+        );
+        let sizing = self.sizing();
+        let inline_size = if sizing.box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints) {
+            // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does
+            //     not know about.
+            let width = self.style_of(sized).width();
+            if width.is_stretch() {
+                self.calculate_inner_size(sized, SizingAxis::Inline, width, available_space, constraints, inputs)
+            } else {
+                sizing.compute_inline_size_for_replaced_element(sized.sized_box(), available_space, constraints)
+            }
         } else {
-            self.compute_inline_size_for_non_replaced(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                auto_margin_overflow,
-            );
-        }
+            self.non_replaced_inline_size(sized, inputs, equation, available_space, constraints)
+        };
+        let used = sized.cells;
+        used.set_content_inline_size(inline_size);
+        let solution = equation.solve(inline_size, || {
+            self.static_offset(sized, static_position_rect_for_sizing(inputs))
+                .inline_offset
+        });
+        Self::set_used_inline_insets(sized, solution.start, solution.end);
+        used.update_cells(|cells| {
+            cells.margin_left = solution.margin_start;
+            cells.margin_right = solution.margin_end;
+        });
     }
 }
 
@@ -2289,34 +2058,6 @@ enum BlockSizePass {
 }
 
 impl AbsposEngine<'_> {
-    fn apply_min_max_block_size_constraints(
-        &self,
-        sized: OutOfFlowBox<'_>,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-        unconstrained: AutoPx,
-    ) -> AutoPx {
-        let style = self.style_of(sized);
-        let mut constrained = unconstrained;
-        let calculate_inner_size = |size: &ComputedSize| {
-            self.calculate_inner_size(sized, SizingAxis::Block, size, available_space, constraints, inputs)
-        };
-        if !style.max_height().is_none() {
-            let maximum = calculate_inner_size(style.max_height());
-            if maximum < auto_px_value(constrained) {
-                constrained = Some(maximum);
-            }
-        }
-        if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
-            let minimum = calculate_inner_size(style.min_height());
-            if minimum > auto_px_value(constrained) {
-                constrained = Some(minimum);
-            }
-        }
-        constrained
-    }
-
     fn automatic_block_size(
         &self,
         sized: OutOfFlowBox<'_>,
@@ -2371,323 +2112,82 @@ impl AbsposEngine<'_> {
         Some(sizing.calculate_fit_content_size(sized.sized_box(), SizingAxis::Block, inner, constraints))
     }
 
-    #[expect(clippy::too_many_arguments)]
-    fn solve_non_replaced_block_once(
+    /// The content block size of a non-replaced box: its specified size, or the size that auto gives it in the space
+    /// between its insets and margins, adjusted by calc-size() and its limits. Where the box's own layout has yet to
+    /// find its automatic block size, the error holds its positive minimum block size, if any.
+    fn non_replaced_block_size(
         &self,
         sized: OutOfFlowBox<'_>,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+        equation: AxisEquation,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
         pass: BlockSizePass,
-        block_size: AutoPx,
-        auto_margin_overflow: AutoMarginOverflow,
-    ) -> BlockAxisSolution {
-        let style = self
-            .style_of(sized)
-            .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let used = sized.cells;
-        let padding_top = used.padding_top();
-        let padding_bottom = used.padding_bottom();
-        let mut solution = BlockAxisSolution {
-            block_size,
-            top: resolve_or_auto(style.inset_top(), containing_block_block_size),
-            bottom: resolve_or_auto(style.inset_bottom(), containing_block_block_size),
-            margin_top: resolve_margin_or_auto(style.margin_top(), containing_block_inline_size),
-            margin_bottom: resolve_margin_or_auto(style.margin_bottom(), containing_block_inline_size),
-        };
-
-        // Solves the block axis equation for `target`, which must be one of the solution's own
-        // fields; every other field contributes its current value.
-        let solve_for = |target: AutoPx, clamp_to_zero: bool, solution: BlockAxisSolution| {
-            solve_abspos_axis_for(
-                containing_block_block_size,
-                target,
-                clamp_to_zero,
-                solution.top,
-                solution.margin_top,
-                style.border_top_width(),
-                padding_top,
-                solution.block_size,
-                padding_bottom,
-                style.border_bottom_width(),
-                solution.margin_bottom,
-                solution.bottom,
-            )
-        };
-
-        // https://drafts.csswg.org/css-position-3/#abspos-auto-size
-        // For the purpose of computing these sizes, any auto margins are treated as zero.
-        if solution.block_size.is_none()
-            && solution.top.is_some()
-            && solution.bottom.is_some()
-            && self.own_self_alignment_keyword(sized, false).is_some()
-        {
-            let Some(automatic) = self.automatic_block_size(
-                sized,
-                available_space,
-                constraints,
-                pass,
-                solve_for(solution.block_size, true, solution),
-            ) else {
-                return solution;
-            };
-            solution.block_size = Some(automatic);
-        }
-
-        if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_none() {
-            solution.zero_out_auto_margins();
-            let Some(automatic) = self.automatic_block_size(
-                sized,
-                available_space,
-                constraints,
-                pass,
-                solve_for(solution.block_size, true, solution),
-            ) else {
-                return solution;
-            };
-            solution.block_size = Some(automatic);
-            let constrained = self.apply_min_max_block_size_constraints(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                solution.block_size,
-            );
-            sized.cells.set_content_block_size(auto_px_value(constrained));
-            solution.top = Some(
-                self.static_offset(sized, static_position_rect_for_sizing(inputs))
-                    .block_offset,
-            );
-            solution.bottom = Some(solve_for(solution.bottom, false, solution));
-        } else if solution.top.is_some() && solution.block_size.is_some() && solution.bottom.is_some() {
-            if solution.margin_top.is_none() && solution.margin_bottom.is_none() {
-                let total = Some(auto_px_value(solution.margin_top) + auto_px_value(solution.margin_bottom));
-                let remainder = solve_for(total, false, solution);
-                let (start, end) = auto_margin_overflow.distribute(remainder);
-                solution.margin_top = Some(start);
-                solution.margin_bottom = Some(end);
-            } else if solution.margin_top.is_none() {
-                solution.margin_top = Some(solve_for(solution.margin_top, false, solution));
-            } else if solution.margin_bottom.is_none() {
-                solution.margin_bottom = Some(solve_for(solution.margin_bottom, false, solution));
-            } else {
-                solution.bottom = Some(solve_for(solution.bottom, false, solution));
-            }
-        } else {
-            solution.zero_out_auto_margins();
-
-            if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_some() {
-                let Some(automatic) = self.automatic_block_size(
-                    sized,
-                    available_space,
-                    constraints,
-                    pass,
-                    solve_for(solution.block_size, true, solution),
-                ) else {
-                    return solution;
-                };
-                solution.block_size = Some(automatic);
-                solution.top = Some(solve_for(solution.top, false, solution));
-            } else if solution.top.is_none() && solution.bottom.is_none() && solution.block_size.is_some() {
-                solution.top = Some(
-                    self.static_offset(sized, static_position_rect_for_sizing(inputs))
-                        .block_offset,
-                );
-                solution.bottom = Some(solve_for(solution.bottom, false, solution));
-            } else if solution.block_size.is_none() && solution.bottom.is_none() && solution.top.is_some() {
-                let Some(automatic) = self.automatic_block_size(
-                    sized,
-                    available_space,
-                    constraints,
-                    pass,
-                    solve_for(solution.block_size, true, solution),
-                ) else {
-                    return solution;
-                };
-                solution.block_size = Some(automatic);
-                solution.bottom = Some(solve_for(solution.bottom, false, solution));
-            } else if solution.top.is_none() && solution.block_size.is_some() && solution.bottom.is_some() {
-                solution.top = Some(solve_for(solution.top, false, solution));
-            } else if solution.block_size.is_none() && solution.top.is_some() && solution.bottom.is_some() {
-                solution.block_size = Some(solve_for(solution.block_size, true, solution));
-            } else if solution.bottom.is_none() && solution.top.is_some() && solution.block_size.is_some() {
-                solution.bottom = Some(solve_for(solution.bottom, false, solution));
-            }
-        }
-        solution
-    }
-
-    fn compute_block_size_for_non_replaced(
-        &self,
-        sized: OutOfFlowBox<'_>,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-        pass: BlockSizePass,
-        auto_margin_overflow: AutoMarginOverflow,
-    ) {
-        let node = sized.node;
+    ) -> Result<CssPixels, AutoPx> {
         let style = self.style_of(sized);
+        let sizing = self.sizing();
         let mut intrinsic_available_space = available_space;
         intrinsic_available_space.inline_size = AvailableSize::definite(sized.cells.content_inline_size());
-        let initial = if self.facts(node).is_table_wrapper() {
-            Some(self.sizing().compute_table_box_block_size_inside_wrapper(
-                sized.sized_box(),
-                available_space,
-                constraints,
-            ))
-        } else if self
-            .sizing()
-            .should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints)
-        {
-            None
-        } else {
-            Some(self.calculate_inner_size(
-                sized,
-                SizingAxis::Block,
-                style.height(),
-                intrinsic_available_space,
-                constraints,
-                inputs,
-            ))
-        };
-        let mut solution = self.solve_non_replaced_block_once(
-            sized,
-            available_space,
-            constraints,
-            inputs,
-            pass,
-            initial,
-            auto_margin_overflow,
-        );
-
-        // NB: As in the inline axis, a calc-size() with an auto basis resolves against the block size auto gives the
-        //     box.
-        if style.height().is_auto()
-            && style.height().calc_size().is_some()
-            && let Some(auto_block_size) = solution.block_size
-        {
-            let block_size = self.sizing().resolve_calc_size(
-                sized.sized_box(),
-                SizingAxis::Block,
-                style.height(),
-                auto_block_size,
-                constraints.percentage_basis_block_size,
-            );
-            solution = self.solve_non_replaced_block_once(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                pass,
-                Some(block_size),
-                auto_margin_overflow,
-            );
-        }
-
-        if solution.block_size.is_some() && !style.max_height().is_none() {
-            let max_block_size = self.calculate_inner_size(
-                sized,
-                SizingAxis::Block,
-                style.max_height(),
-                intrinsic_available_space,
-                constraints,
-                inputs,
-            );
-            if auto_px_value(solution.block_size) > max_block_size {
-                solution = self.solve_non_replaced_block_once(
-                    sized,
-                    available_space,
-                    constraints,
-                    inputs,
-                    pass,
-                    Some(max_block_size),
-                    auto_margin_overflow,
-                );
-            }
-        }
-        if solution.block_size.is_some() && !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
-            let min_block_size = self.calculate_inner_size(
-                sized,
-                SizingAxis::Block,
-                style.min_height(),
-                intrinsic_available_space,
-                constraints,
-                inputs,
-            );
-            if auto_px_value(solution.block_size) < min_block_size {
-                solution = self.solve_non_replaced_block_once(
-                    sized,
-                    available_space,
-                    constraints,
-                    inputs,
-                    pass,
-                    Some(min_block_size),
-                    auto_margin_overflow,
-                );
-            }
-        }
-        if solution.block_size.is_none() {
-            solution.block_size = self.apply_min_max_block_size_constraints(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                solution.block_size,
-            );
-        }
-
-        let used = sized.cells;
-        used.set_content_block_size(auto_px_value(solution.block_size));
-        if style.height().is_auto() && matches!(pass, BlockSizePass::BeforeInsideLayout { .. }) {
-            // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
-            //     which they are at that size.
-            if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
-                used.update_cells(|cells| cells.has_definite_block_size = true);
-            }
-            return;
-        }
-        if !style.height().is_intrinsic_sizing_constraint() {
-            used.update_cells(|cells| cells.has_definite_block_size = true);
-        }
-        Self::set_used_block_insets(sized, auto_px_value(solution.top), auto_px_value(solution.bottom));
-        // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
-        //       the insets against the containing block's block size, but the margins against its inline size.
-        used.update_cells(|cells| {
-            cells.margin_top = auto_px_value(solution.margin_top);
-            cells.margin_bottom = auto_px_value(solution.margin_bottom);
-        });
-    }
-
-    fn compute_block_size_for_replaced(
-        &self,
-        sized: OutOfFlowBox<'_>,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-        inputs: &abspos_inputs::AbsposLayoutInputs,
-        pass: BlockSizePass,
-        auto_margin_overflow: AutoMarginOverflow,
-    ) {
-        // NB: As for the inline axis, a stretch block size fills the inset-modified containing block.
-        let mut block_size = if self.style_of(sized).height().is_stretch() {
+        let inner_size = |size: &ComputedSize| {
             self.calculate_inner_size(
                 sized,
                 SizingAxis::Block,
-                self.style_of(sized).height(),
-                available_space,
+                size,
+                intrinsic_available_space,
                 constraints,
                 inputs,
             )
+        };
+        let block_size = if self.facts(sized.node).is_table_wrapper() {
+            Some(sizing.compute_table_box_block_size_inside_wrapper(sized.sized_box(), available_space, constraints))
+        } else if !sizing.should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints) {
+            Some(inner_size(style.height()))
+        } else if !self.sizes_to_fit_content(sized, equation, false) {
+            Some(equation.stretch_fit_size())
         } else {
-            self.sizing()
-                .compute_block_size_for_replaced_element(sized.sized_box(), available_space, constraints)
+            self.automatic_block_size(sized, available_space, constraints, pass, equation.stretch_fit_size())
+        };
+        let minimum =
+            (!crate::layout::sizing_context::is_plain_auto(style.min_height())).then(|| inner_size(style.min_height()));
+        let Some(mut block_size) = block_size else {
+            return Err(minimum.filter(|&minimum| minimum > CssPixels::default()));
+        };
+        // NB: As in the inline axis, a calc-size() with an auto basis resolves against the block size auto gives the
+        //     box.
+        if style.height().is_auto() && style.height().calc_size().is_some() {
+            block_size = sizing.resolve_calc_size(
+                sized.sized_box(),
+                SizingAxis::Block,
+                style.height(),
+                block_size,
+                constraints.percentage_basis_block_size,
+            );
+        }
+        if !style.max_height().is_none() {
+            block_size = block_size.min(inner_size(style.max_height()));
+        }
+        Ok(minimum.map_or(block_size, |minimum| block_size.max(minimum)))
+    }
+
+    /// The content block size of a replaced box.
+    fn replaced_block_size(
+        &self,
+        sized: OutOfFlowBox<'_>,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        pass: BlockSizePass,
+    ) -> CssPixels {
+        let sizing = self.sizing();
+        // NB: As for the inline axis, a stretch block size fills the inset-modified containing block.
+        let height = self.style_of(sized).height();
+        let mut block_size = if height.is_stretch() {
+            self.calculate_inner_size(sized, SizingAxis::Block, height, available_space, constraints, inputs)
+        } else {
+            sizing.compute_block_size_for_replaced_element(sized.sized_box(), available_space, constraints)
         };
         if let BlockSizePass::AfterInsideLayout { inside_layout } = pass
-            && self
-                .sizing()
-                .block_size_is_ratio_dependent(sized.sized_box(), available_space, constraints)
+            && sizing.block_size_is_ratio_dependent(sized.sized_box(), available_space, constraints)
         {
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
             // NB: A box that is only sized like a replaced element through its aspect ratio grows to fit its content.
@@ -2695,7 +2195,7 @@ impl AbsposEngine<'_> {
             //          zero", but Chrome applies the aspect-ratio minimum to absolutely positioned boxes too.
             let content_block_size =
                 inside_layout.and_then(|inside_layout| inside_layout.content_block_size_for_aspect_ratio_minimum);
-            if let Some(minimum) = self.sizing().automatic_minimum_size_from_aspect_ratio(
+            if let Some(minimum) = sizing.automatic_minimum_size_from_aspect_ratio(
                 sized.sized_box(),
                 SizingAxis::Block,
                 sized.cells.content_inline_size(),
@@ -2707,50 +2207,7 @@ impl AbsposEngine<'_> {
                 block_size = block_size.max(minimum);
             }
         }
-        let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let style = self
-            .style_of(sized)
-            .with_resolved_insets(inputs.resolved_anchor_insets.as_ref());
-        let used = sized.cells;
-        let available = containing_block_block_size
-            - block_size
-            - style.border_top_width()
-            - used.padding_top()
-            - used.padding_bottom()
-            - style.border_bottom_width();
-        let solution = solve_replaced_axis(
-            available,
-            resolve_or_auto(style.inset_top(), containing_block_block_size),
-            resolve_or_auto(style.inset_bottom(), containing_block_block_size),
-            resolve_margin_or_auto(style.margin_top(), containing_block_block_size),
-            resolve_margin_or_auto(style.margin_bottom(), containing_block_block_size),
-            self.static_offset(sized, static_position_rect_for_sizing(inputs))
-                .block_offset,
-            ReplacedAxisBehavior { auto_margin_overflow },
-        );
-
-        let used = sized.cells;
-        used.set_content_block_size(block_size);
-        if style.height().is_auto() && matches!(pass, BlockSizePass::BeforeInsideLayout { .. }) {
-            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
-            // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
-            // the content resolves percentages against it.
-            if !self
-                .sizing()
-                .should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints)
-            {
-                used.update_cells(|cells| cells.has_definite_block_size = true);
-            }
-            return;
-        }
-        if !style.height().is_intrinsic_sizing_constraint() {
-            used.update_cells(|cells| cells.has_definite_block_size = true);
-        }
-        Self::set_used_block_insets(sized, solution.start, solution.end);
-        used.update_cells(|cells| {
-            cells.margin_top = solution.margin_start;
-            cells.margin_bottom = solution.margin_end;
-        });
+        block_size
     }
 
     fn compute_block_size(
@@ -2762,28 +2219,64 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         auto_margin_overflow: AutoMarginOverflow,
     ) {
-        if self
-            .sizing()
-            .box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints)
-        {
-            self.compute_block_size_for_replaced(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                pass,
-                auto_margin_overflow,
-            );
+        let sizing = self.sizing();
+        let is_replaced = sizing.box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints);
+        let containing_block_block_size = available_space.block_size.to_px_or_zero();
+        // NB: The margins of a non-replaced box resolve against the inline size of its containing block, and those of a
+        //     replaced box against its block size.
+        let margin_basis = if is_replaced {
+            containing_block_block_size
         } else {
-            self.compute_block_size_for_non_replaced(
-                sized,
-                available_space,
-                constraints,
-                inputs,
-                pass,
-                auto_margin_overflow,
-            );
+            available_space.inline_size.to_px_or_zero()
+        };
+        let equation = self.axis_equation(
+            sized,
+            inputs,
+            SizingAxis::Block,
+            containing_block_block_size,
+            margin_basis,
+            auto_margin_overflow,
+        );
+        let resolved_block_size = if is_replaced {
+            Ok(self.replaced_block_size(sized, inputs, available_space, constraints, pass))
+        } else {
+            self.non_replaced_block_size(sized, inputs, equation, available_space, constraints, pass)
+        };
+        let block_size = resolved_block_size.map_or_else(|minimum| minimum, Some);
+        let used = sized.cells;
+        used.set_content_block_size(auto_px_value(block_size));
+        let height = self.style_of(sized).height();
+        if height.is_auto() && matches!(pass, BlockSizePass::BeforeInsideLayout { .. }) {
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
+            // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
+            // the content resolves percentages against it.
+            // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
+            //     which they are at that size.
+            let is_definite = if is_replaced {
+                !sizing.should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints)
+            } else {
+                block_size.is_some() && sizing.establishes_orthogonal_flow(sized.node)
+            };
+            if is_definite {
+                used.update_cells(|cells| cells.has_definite_block_size = true);
+            }
+            return;
         }
+        if !height.is_intrinsic_sizing_constraint() {
+            used.update_cells(|cells| cells.has_definite_block_size = true);
+        }
+        let solution = match resolved_block_size {
+            Ok(block_size) => equation.solve(block_size, || {
+                self.static_offset(sized, static_position_rect_for_sizing(inputs))
+                    .block_offset
+            }),
+            Err(_) => equation.unresolved(),
+        };
+        Self::set_used_block_insets(sized, solution.start, solution.end);
+        used.update_cells(|cells| {
+            cells.margin_top = solution.margin_start;
+            cells.margin_bottom = solution.margin_end;
+        });
     }
 }
 
@@ -3895,8 +3388,27 @@ mod tests {
         CssPixels::from_integer(value)
     }
 
+    fn equation(
+        containing_block_size: i64,
+        start: Option<i64>,
+        end: Option<i64>,
+        margin_start: Option<i64>,
+        margin_end: Option<i64>,
+        auto_margin_overflow: AutoMarginOverflow,
+    ) -> AxisEquation {
+        AxisEquation {
+            containing_block_size: px(containing_block_size),
+            start: start.map(px),
+            end: end.map(px),
+            margin_start: margin_start.map(px),
+            margin_end: margin_end.map(px),
+            borders_and_paddings: CssPixels::default(),
+            auto_margin_overflow,
+        }
+    }
+
     #[test]
-    fn replaced_axis_auto_insets_zero_auto_margins() {
+    fn axis_with_an_auto_inset_zeroes_auto_margins() {
         for available in [-50, 50] {
             for (start, end, margin_start, margin_end, expected) in [
                 (None, Some(0), None, None, [available, 0, 0, 0]),
@@ -3913,20 +3425,11 @@ mod tests {
                     AutoMarginOverflow::LowSide,
                     AutoMarginOverflow::HighSide,
                 ] {
-                    let actual = solve_replaced_axis(
-                        px(available),
-                        start.map(px),
-                        end.map(px),
-                        margin_start.map(px),
-                        margin_end.map(px),
-                        px(17),
-                        ReplacedAxisBehavior {
-                            auto_margin_overflow: overflow,
-                        },
-                    );
+                    let actual = equation(available, start, end, margin_start, margin_end, overflow)
+                        .solve(CssPixels::default(), || px(17));
                     assert_eq!(
                         actual,
-                        ReplacedAxisSolution {
+                        AxisSolution {
                             start: px(expected[0]),
                             end: px(expected[1]),
                             margin_start: px(expected[2]),
@@ -3940,7 +3443,7 @@ mod tests {
     }
 
     #[test]
-    fn replaced_axis_definite_insets_preserve_auto_margin_distribution() {
+    fn axis_with_both_insets_distributes_auto_margins() {
         for (overflow, negative_start, negative_end) in [
             (AutoMarginOverflow::Split, -25, -25),
             (AutoMarginOverflow::LowSide, -50, 0),
@@ -3948,18 +3451,8 @@ mod tests {
         ] {
             for (available, margin_start, margin_end) in [(-50, negative_start, negative_end), (50, 25, 25)] {
                 assert_eq!(
-                    solve_replaced_axis(
-                        px(available),
-                        Some(px(0)),
-                        Some(px(0)),
-                        None,
-                        None,
-                        px(17),
-                        ReplacedAxisBehavior {
-                            auto_margin_overflow: overflow,
-                        },
-                    ),
-                    ReplacedAxisSolution {
+                    equation(available, Some(0), Some(0), None, None, overflow).solve(CssPixels::default(), || px(17)),
+                    AxisSolution {
                         start: px(0),
                         end: px(0),
                         margin_start: px(margin_start),
