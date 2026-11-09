@@ -1165,6 +1165,42 @@ pub(crate) fn content_alignment_offset(style: ComputedValuesView<'_>, free_space
         .offset(free_space, box_alignment::OverflowSafety::Safe)
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for BlockFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        self.run(run, input.body_input);
+        let laid_out_content_block_size = self.block_size_of_contents(false);
+        let mut result = formatting_context::ChildLayoutResult {
+            automatic_content_block_size: self.automatic_content_block_size(),
+            automatic_line_clamp_max_lines: self
+                .automatic_line_clamp_max_lines()
+                .map(|lines| u32::try_from(lines).unwrap_or(u32::MAX)),
+            baselines: self.derived_baselines_of_root_box(),
+            table_wrapper_content_inline_size: self.table_box_in_wrapper_border_box_inline_size.get(),
+            table_box_in_wrapper_border_box_block_size: self.table_box_in_wrapper_border_box_block_size.get(),
+            ..formatting_context::ChildLayoutResult::default()
+        };
+        let mut root_cells = input.root_cells;
+        // https://w3c.github.io/mathml-core/#layout-of-operators
+        // NB: An operator lays out its text in a block formatting context, unless it is drawn with a stretched or large
+        //     glyph.
+        if self.facts(run.box_).display().is_math_inside() {
+            math_formatting_context::layout_operator(run, input.root_input, &mut result, &mut root_cells);
+        }
+        formatting_context::AlgorithmOutput {
+            result,
+            root_cells,
+            // NB: The lines are taken after the last read of the automatic content block size, which reads the last of
+            //     them.
+            root_lines: std::mem::take(&mut *self.root_lines.borrow_mut()),
+            laid_out_content_block_size: Some(laid_out_content_block_size),
+        }
+    }
+}
+
 impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn new(
         run: &FormattingContextRun<'pass>,
@@ -1286,10 +1322,6 @@ impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn line_clamp_reached(&self) -> bool {
         let reached = self.has_line_clamp() && self.line_clamp_point_found.get();
         reached && !self.laying_out_invisible_line_clamp_content.get()
-    }
-
-    pub(crate) fn table_box_in_wrapper_border_box_block_size(&self) -> Option<CssPixels> {
-        self.table_box_in_wrapper_border_box_block_size.get()
     }
 
     #[inline]
@@ -1520,14 +1552,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.derived_baselines_of_root_box.set(baselines);
     }
 
-    pub(crate) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+    fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box.get()
-    }
-
-    /// Takes the lines laid out in the run's root, which the run finishes. Call this after the last read of
-    /// `automatic_content_block_size`, which reads the last of these lines.
-    pub(crate) fn take_root_lines(&self) -> used_values::LineDataState {
-        std::mem::take(&mut *self.root_lines.borrow_mut())
     }
 
     /// Resolves the insets of `node`, an in-flow child of `block_container`, keeps them for the box and returns them.
@@ -6370,7 +6396,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         summary
     }
 
-    pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+    fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         self.lay_out_root_contents(run, input);
         let has_line_clamp_point = self.line_clamp_point_found.get();
         if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
@@ -7141,10 +7167,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         CssPixels::default()
     }
 
-    pub(crate) fn table_wrapper_content_inline_size(&self) -> Option<CssPixels> {
-        self.table_box_in_wrapper_border_box_inline_size.get()
-    }
-
     fn resolve_automatic_line_clamp_block_size(&self, input: LayoutInput) -> Option<CssPixels> {
         if self.root_cells.has_definite_block_size {
             return Some(self.root_cells.content_block_size);
@@ -7178,7 +7200,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         Some(block_size)
     }
 
-    pub(crate) fn automatic_line_clamp_max_lines(&self) -> Option<usize> {
+    fn automatic_line_clamp_max_lines(&self) -> Option<usize> {
         // https://drafts.csswg.org/css-overflow-4/#line-clamp-containers
         // The auto clamp point will be set to the last possible clamp point such that, for it and all previous
         // possible clamp points, the line-clamp container's automatic block size is not greater than the block size
@@ -7192,12 +7214,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             .or_else(|| (self.line_clamp_line_count.get() == 0).then_some(0))
     }
 
-    pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
+    fn automatic_content_block_size(&self) -> CssPixels {
         self.block_size_of_contents(self.run.fragmentainer.is_none())
-    }
-
-    pub(crate) fn laid_out_content_block_size(&self) -> CssPixels {
-        self.block_size_of_contents(false)
     }
 
     fn block_size_of_contents(&self, honors_size_containment: bool) -> CssPixels {

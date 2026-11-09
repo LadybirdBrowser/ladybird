@@ -1299,6 +1299,34 @@ pub(super) fn grid_template_declares_a_subgrid_axis(pass: &LayoutPass<'_>, box_:
     grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for GridFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        self.run(run, input.body_input);
+        formatting_context::AlgorithmOutput::of_root(
+            formatting_context::ChildLayoutResult {
+                automatic_content_block_size: self.automatic_content_block_size(),
+                baselines: self.derived_baselines_of_root_box(),
+                in_flow_children_margin_box_block_extent: self.in_flow_items_margin_box_block_extent,
+                ..formatting_context::ChildLayoutResult::default()
+            },
+            input.root_cells,
+        )
+    }
+
+    fn after_root_is_dimensioned(
+        &self,
+        _run: &FormattingContextRun<'pass>,
+        root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> formatting_context::AfterDimensioning {
+        self.parent_did_dimension(root_cells_in_own_frame);
+        formatting_context::AfterDimensioning::LaysOutAbsposContainedByRoot
+    }
+}
+
 impl<'pass> GridFormattingContext<'pass> {
     pub(crate) fn new(
         run: &FormattingContextRun<'pass>,
@@ -5208,10 +5236,6 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     /// For a container with a preferred aspect ratio, the block size of the margin boxes of its in-flow children.
-    pub(crate) fn in_flow_items_margin_box_block_extent(&self) -> Option<CssPixels> {
-        self.in_flow_items_margin_box_block_extent
-    }
-
     // https://drafts.csswg.org/css-grid-2/#grid-baselines
     fn baseline_of_items(&self, baseline_set: formatting_context::BaselineSet) -> Option<CssPixels> {
         if let Some(lanes) = self.lanes
@@ -5505,7 +5529,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.track_sum(Axis::Row)
     }
 
-    pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available = input.available_space;
         let grid_style = self.place_items_and_size_tracks(input, true);
 
@@ -5558,15 +5582,15 @@ impl<'pass> GridFormattingContext<'pass> {
         self.save_devtools_data(grid_style);
     }
 
-    pub(crate) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+    fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box
     }
 
-    pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
+    fn automatic_content_block_size(&self) -> CssPixels {
         self.automatic_content_block_size
     }
 
-    pub(crate) fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
+    fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
         // NB: The static positions and containing blocks of the abspos children use the container as the run sized it.
         self.container_cells.set(root_after_epilogue);
         // https://drafts.csswg.org/css-grid-2/#static-position

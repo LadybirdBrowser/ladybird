@@ -230,7 +230,23 @@ fn layout_frameset_child(
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#frames-and-framesets
-pub(super) fn layout_frameset(
+/// The formatting context of a frameset, which lays its frames out in the grid of its rows and columns.
+#[derive(Default)]
+pub(crate) struct FrameSetFormattingContext;
+
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for FrameSetFormattingContext {
+    fn lay_out(
+        &mut self,
+        run: &formatting_context::FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        let mut root = input.root_cells;
+        let result = layout_frameset(run, &mut root);
+        formatting_context::AlgorithmOutput::of_root(result, root)
+    }
+}
+
+fn layout_frameset(
     run: &formatting_context::FormattingContextRun,
     root: &mut used_values::RootInputCells,
 ) -> formatting_context::ChildLayoutResult {

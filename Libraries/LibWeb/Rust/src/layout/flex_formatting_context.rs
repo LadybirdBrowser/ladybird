@@ -453,6 +453,35 @@ impl formatting_context::ChildRunShapes for FlexFormattingContext<'_> {
     }
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for FlexFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        self.run(run, input.body_input, input.flex_self_block_size_resolution_space);
+        let container_cells = self.container_cells.get();
+        formatting_context::AlgorithmOutput::of_root(
+            formatting_context::ChildLayoutResult {
+                automatic_content_block_size: container_cells.content_block_size,
+                baselines: self.derived_baselines_of_root_box,
+                in_flow_children_margin_box_block_extent: self.in_flow_items_margin_box_block_extent,
+                ..formatting_context::ChildLayoutResult::default()
+            },
+            container_cells,
+        )
+    }
+
+    fn after_root_is_dimensioned(
+        &self,
+        _run: &FormattingContextRun<'pass>,
+        root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> formatting_context::AfterDimensioning {
+        self.parent_did_dimension(root_cells_in_own_frame);
+        formatting_context::AfterDimensioning::LaysOutAbsposContainedByRoot
+    }
+}
+
 impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>, container_cells: used_values::RootInputCells) -> Self {
         Self {
@@ -4077,7 +4106,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn run(
+    fn run(
         &mut self,
         run: &FormattingContextRun<'pass>,
         layout_input: LayoutInput,
@@ -4343,11 +4372,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         Some(block_end - block_start)
     }
 
-    /// For a container with a preferred aspect ratio, the block size of the margin boxes of its in-flow children.
-    pub(super) fn in_flow_items_margin_box_block_extent(&self) -> Option<CssPixels> {
-        self.in_flow_items_margin_box_block_extent
-    }
-
     // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
     fn baseline_of_line(&self, line_index: usize, baseline_set: formatting_context::BaselineSet) -> Option<CssPixels> {
         self.baseline_of_line_for_purpose(line_index, baseline_set, formatting_context::BaselinePurpose::Container)
@@ -4417,7 +4441,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
+    fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
         // NB: The static positions of the abspos children use the container as the run sized it.
         self.container_cells.set(root_after_epilogue);
         for child in self.run.pass.children(self.run.box_) {
@@ -4433,19 +4457,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                 );
             }
         }
-    }
-
-    pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
-        self.derived_baselines_of_root_box
-    }
-
-    /// The cells of the flex container as this context left them.
-    pub(super) fn container_cells(&self) -> used_values::RootInputCells {
-        self.container_cells.get()
-    }
-
-    pub(super) fn automatic_content_block_size(&self) -> CssPixels {
-        self.container_cells.content_block_size()
     }
 }
 

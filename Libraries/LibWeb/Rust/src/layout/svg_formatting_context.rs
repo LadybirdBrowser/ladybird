@@ -598,6 +598,18 @@ pub(super) struct SvgFormattingContext<'pass> {
     current_text_position: FfiFloatPoint,
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for SvgFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        let root = Cell::new(input.root_cells);
+        self.lay_out_contents(run, input.body_input, &root);
+        formatting_context::AlgorithmOutput::of_root(formatting_context::ChildLayoutResult::default(), root.get())
+    }
+}
+
 impl<'pass> SvgFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self::new_nested(run, run.box_, false)
@@ -1936,19 +1948,6 @@ impl<'pass> SvgFormattingContext<'pass> {
             .pass
             .children(node)
             .find(|&child| self.node_kind(child) == kind)
-    }
-
-    /// Lays out the run's root from `root_cells`, which hold it in the frame it lays its contents out in, and returns
-    /// the root's cells after the layout.
-    pub(super) fn run(
-        &mut self,
-        run: &FormattingContextRun<'pass>,
-        input: LayoutInput,
-        root_cells: used_values::RootInputCells,
-    ) -> used_values::RootInputCells {
-        let root = Cell::new(root_cells);
-        self.lay_out_contents(run, input, &root);
-        root.get()
     }
 
     /// Lays out the contents of this context's box, which is laid out in `cells`.
