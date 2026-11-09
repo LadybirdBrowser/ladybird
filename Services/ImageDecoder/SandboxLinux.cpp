@@ -14,7 +14,7 @@ ErrorOr<void> apply_sandbox(StringView)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
-    TRY(Sandbox::restrict_filesystem_with_landlock());
+    TRY(Sandbox::restrict_filesystem());
 
     Sandbox::SeccompPolicy policy;
     policy.deny_readonly_filesystem_probes();

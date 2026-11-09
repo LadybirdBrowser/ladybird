@@ -18,7 +18,7 @@
 namespace Sandbox {
 
 #if defined(AK_OS_LINUX)
-struct LandlockPath {
+struct PathRule {
     enum class Access {
         ReadOnly,
         ReadAndExecute,
@@ -84,10 +84,10 @@ struct SeatbeltProfile {
 [[nodiscard]] ErrorOr<void> configure_runtime();
 
 #if defined(AK_OS_LINUX)
-[[nodiscard]] ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringView path, LandlockPath::Access);
-[[nodiscard]] ErrorOr<void> add_loaded_library_directories(Vector<LandlockPath>& paths, Optional<StringView> root = {});
-[[nodiscard]] ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> = {});
-[[nodiscard]] ErrorOr<void> add_gpu_driver_landlock_paths(Vector<LandlockPath>& paths);
+[[nodiscard]] ErrorOr<void> add_path_if_exists(Vector<PathRule>& paths, StringView path, PathRule::Access);
+[[nodiscard]] ErrorOr<void> add_loaded_library_directories(Vector<PathRule>& paths, Optional<StringView> root = {});
+[[nodiscard]] ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> = {});
+[[nodiscard]] ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths);
 #endif
 
 #if defined(AK_OS_MACOS)

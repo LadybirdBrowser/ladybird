@@ -271,7 +271,7 @@ TEST_CASE(filesystem_write_policy_refuses_timestamp_changes_outside_landlock)
     auto status = run_with_policy(
         [&](auto& policy) {
             VERIFY(close(fd) == 0);
-            MUST(Sandbox::restrict_filesystem_with_landlock());
+            MUST(Sandbox::restrict_filesystem());
             policy.allow_filesystem_writes();
         },
         [&] {
@@ -387,7 +387,7 @@ TEST_CASE(pulseaudio_client_policy_allows_directory_creation_and_record_locks)
     auto status = run_with_policy(
         [&](auto& policy) {
             if (has_landlock)
-                MUST(Sandbox::restrict_filesystem_with_landlock());
+                MUST(Sandbox::restrict_filesystem());
             policy.allow_pulseaudio_client_file_operations();
         },
         [&] {

@@ -22,28 +22,28 @@
 namespace RequestServer {
 
 // Landlock binds to inodes. Open each bundle path to grant its symlink target, including targets outside /etc/ssl.
-static ErrorOr<void> add_certificate_store_paths(Vector<Sandbox::LandlockPath>& paths)
+static ErrorOr<void> add_certificate_store_paths(Vector<Sandbox::PathRule>& paths)
 {
     // OpenSSL may load OPENSSL_CONF during initialization.
     if (auto* config_file = CONF_get1_default_config_file()) {
-        auto result = Sandbox::add_landlock_path_if_exists(paths, StringView { config_file, strlen(config_file) }, Sandbox::LandlockPath::Access::ReadOnly);
+        auto result = Sandbox::add_path_if_exists(paths, StringView { config_file, strlen(config_file) }, Sandbox::PathRule::Access::ReadOnly);
         OPENSSL_free(config_file);
         TRY(result);
     }
 
     if (auto const* version_info = curl_version_info(CURLVERSION_NOW)) {
         if (version_info->cainfo)
-            TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { version_info->cainfo }, Sandbox::LandlockPath::Access::ReadOnly));
+            TRY(Sandbox::add_path_if_exists(paths, ByteString { version_info->cainfo }, Sandbox::PathRule::Access::ReadOnly));
         if (version_info->capath)
-            TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { version_info->capath }, Sandbox::LandlockPath::Access::ReadOnly));
+            TRY(Sandbox::add_path_if_exists(paths, ByteString { version_info->capath }, Sandbox::PathRule::Access::ReadOnly));
     }
 
     // libcurl is built with CURL_CA_FALLBACK, so OpenSSL's default store is consulted when no bundle is set.
-    TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { X509_get_default_cert_file() }, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { X509_get_default_cert_dir() }, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, ByteString { X509_get_default_cert_file() }, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, ByteString { X509_get_default_cert_dir() }, Sandbox::PathRule::Access::ReadOnly));
     for (auto variable : { X509_get_default_cert_file_env(), X509_get_default_cert_dir_env() }) {
         if (auto value = Core::Environment::get(StringView { variable, strlen(variable) }); value.has_value() && !value->is_empty())
-            TRY(Sandbox::add_landlock_path_if_exists(paths, *value, Sandbox::LandlockPath::Access::ReadOnly));
+            TRY(Sandbox::add_path_if_exists(paths, *value, Sandbox::PathRule::Access::ReadOnly));
     }
 
     return {};
@@ -94,31 +94,31 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
 
     preload_nss_host_modules();
 
-    Vector<Sandbox::LandlockPath> paths;
+    Vector<Sandbox::PathRule> paths;
 
     TRY(add_certificate_store_paths(paths));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/hosts"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/nsswitch.conf"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/run/systemd/resolve"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/etc/hosts"sv, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/etc/nsswitch.conf"sv, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/run/systemd/resolve"sv, Sandbox::PathRule::Access::ReadOnly));
     // nss-resolve checks this sysctl to decide whether to ask for AAAA records.
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/sys/net/ipv6/conf/all/disable_ipv6"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/proc/sys/net/ipv6/conf/all/disable_ipv6"sv, Sandbox::PathRule::Access::ReadOnly));
 
     for (auto const& certificate : certificates)
-        TRY(Sandbox::add_landlock_path_if_exists(paths, certificate, Sandbox::LandlockPath::Access::ReadOnly));
+        TRY(Sandbox::add_path_if_exists(paths, certificate, Sandbox::PathRule::Access::ReadOnly));
 
     if (g_resource_substitution_map) {
         TRY(g_resource_substitution_map->for_each_substitution([&](auto const& substitution) -> ErrorOr<void> {
-            TRY(Sandbox::add_landlock_path_if_exists(paths, substitution.file_path, Sandbox::LandlockPath::Access::ReadOnly));
+            TRY(Sandbox::add_path_if_exists(paths, substitution.file_path, Sandbox::PathRule::Access::ReadOnly));
             return {};
         }));
     }
 
     if (disk_cache_directory.has_value())
-        TRY(Sandbox::add_landlock_path_if_exists(paths, *disk_cache_directory, Sandbox::LandlockPath::Access::ReadWrite));
+        TRY(Sandbox::add_path_if_exists(paths, *disk_cache_directory, Sandbox::PathRule::Access::ReadWrite));
 
-    TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
+    TRY(Sandbox::restrict_filesystem(paths.span()));
 
     Sandbox::SeccompPolicy policy;
     policy.allow_readonly_file_opens();

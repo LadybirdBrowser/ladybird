@@ -16,11 +16,11 @@ ErrorOr<void> restrict_filesystem(StringView resource_root)
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
 
-    Vector<Sandbox::LandlockPath> paths;
-    TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("{}/fonts", resource_root)), Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_gpu_driver_landlock_paths(paths));
+    Vector<Sandbox::PathRule> paths;
+    TRY(Sandbox::add_path_if_exists(paths, TRY(String::formatted("{}/fonts", resource_root)), Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_gpu_driver_paths(paths));
 
-    TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
+    TRY(Sandbox::restrict_filesystem(paths.span()));
     return {};
 }
 

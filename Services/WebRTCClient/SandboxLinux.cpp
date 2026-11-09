@@ -16,7 +16,7 @@ ErrorOr<void> apply_sandbox(StringView, NetworkAccess network_access)
     TRY(Sandbox::configure_runtime());
 
     // Nothing on the file system is ours to read. Even host names are looked up by the renderer, through RequestServer.
-    TRY(Sandbox::restrict_filesystem_with_landlock({}));
+    TRY(Sandbox::restrict_filesystem({}));
 
     Sandbox::SeccompPolicy policy;
     policy.allow_readonly_file_opens();
