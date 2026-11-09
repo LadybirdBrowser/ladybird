@@ -7,6 +7,7 @@
 pub mod ffi_types;
 pub mod queries;
 pub mod scroll_state;
+mod scroll_table;
 pub mod serialize;
 pub mod visual_animations;
 pub mod world_transforms;
@@ -25,6 +26,11 @@ pub use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 pub use queries::{ClipBehavior, should_cull_back_face};
+pub use scroll_table::{
+    CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorScrollTable, CompositorSnapAreaRecord,
+    CompositorSnapContainerRecord,
+};
+pub(crate) use scroll_table::{SNAP_ALIGN_COUNT, SNAP_STRICTNESS_COUNT};
 pub use world_transforms::WorldTransforms;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -730,6 +736,7 @@ pub struct VisualContextTree {
     sampled_background_colors: HashMap<u32, libgfx_rust::Color>,
     // The compositor animations the main thread published with this tree, which name its nodes.
     visual_animations: std::sync::Arc<[VisualAnimation]>,
+    compositor_scroll_table: CompositorScrollTable,
 }
 
 // A tree is shared by the arena and by the handles C++ retains; any thread may come to hold it.
@@ -887,6 +894,7 @@ impl VisualContextTree {
             effect_slots: SlotAccounting::default(),
             sampled_background_colors: HashMap::new(),
             visual_animations: std::sync::Arc::from(Vec::new()),
+            compositor_scroll_table: CompositorScrollTable::default(),
         }
     }
 
@@ -916,7 +924,21 @@ impl VisualContextTree {
             structural_epoch,
             sampled_background_colors: HashMap::new(),
             visual_animations: std::sync::Arc::from(Vec::new()),
+            compositor_scroll_table: CompositorScrollTable::default(),
         }
+    }
+
+    pub fn compositor_scroll_table(&self) -> &CompositorScrollTable {
+        &self.compositor_scroll_table
+    }
+
+    pub fn set_compositor_scroll_table(&mut self, table: CompositorScrollTable) -> bool {
+        debug_assert!(table.is_valid_for_tree(self));
+        if self.compositor_scroll_table == table {
+            return false;
+        }
+        self.compositor_scroll_table = table;
+        true
     }
 
     pub fn spatial_is_live(&self, index: SpatialNodeIndex) -> bool {
