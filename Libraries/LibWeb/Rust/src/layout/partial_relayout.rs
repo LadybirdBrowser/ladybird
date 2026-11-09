@@ -438,7 +438,7 @@ impl LayoutNodeArena {
         let committed = if node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned()) {
             self.saved_abspos_layout_inputs(node)?.containing_block
         } else {
-            self.with_committed_fragment_link(node, |link| link.map(|link| link.containing_block))?
+            self.with_committed_fragment_link(node, |link| link.map(|link| link.placement.containing_block))?
         };
         (!committed.is_invalid() && committed == self.containing_block_by_walking_ancestors(node)).then_some(committed)
     }
@@ -1064,7 +1064,7 @@ mod tests {
         arena.populate_paintable_row(svg_root.slot);
         let plan_with_committed_containing_block = |arena: &mut LayoutNodeArena, containing_block| {
             let mut link = crate::layout::fragment_tree::FragmentLink::for_test(svg_root.slot);
-            link.containing_block = containing_block;
+            link.placement.containing_block = containing_block;
             arena.set_committed_fragment_link(svg_root.slot, link, None);
             arena.collect_partial_relayout_roots(&[svg_root.slot], &[])
         };

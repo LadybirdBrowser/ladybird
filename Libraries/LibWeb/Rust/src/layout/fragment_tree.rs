@@ -89,25 +89,45 @@ pub(crate) struct Fragment {
     pub(crate) children: Vec<FragmentLink>,
 }
 
-#[derive(Clone)]
-pub(crate) struct FragmentLink {
-    pub(crate) fragment: std::sync::Arc<Fragment>,
-    pub(crate) committed_offset: FfiCssPixelPoint,
-    pub(crate) inset_left: CssPixels,
-    pub(crate) inset_right: CssPixels,
-    pub(crate) inset_top: CssPixels,
-    pub(crate) inset_bottom: CssPixels,
-    /// The used margins, which the placement of the box decides, so that a change to them alone keeps the fragment.
-    pub(crate) margin_left: CssPixels,
-    pub(crate) margin_right: CssPixels,
-    pub(crate) margin_top: CssPixels,
-    pub(crate) margin_bottom: CssPixels,
-    /// What the parent decided about how the box shows, as `run_state::FragmentFactsDecidedByParent` describes it.
+/// What the layout of its parent decides about how a box shows, which the link placing the box's fragment holds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ParentShowFacts {
+    /// For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
+    /// columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
     pub(crate) table_column_index: u32,
     pub(crate) table_column_span: u32,
+    /// For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
+    /// the display along with the columns (CSS 2.2 §17.5.5).
     pub(crate) hidden_by_collapsed_columns: bool,
+    /// Whether the box lies after the clamp point of a line-clamp container, which hides it.
     pub(crate) is_invisible_for_line_clamp: bool,
+    /// The physical clip an ancestor's layout puts on the box and its contents, relative to the box's border box: empty
+    /// for a box hidden after a clamp point, and the area before the block-end content edge of a line-clamp container
+    /// for a float inside it.
     pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
+}
+
+impl ParentShowFacts {
+    pub(crate) fn hide_after_clamp_point(&mut self) {
+        self.is_invisible_for_line_clamp = true;
+        self.clip_decided_by_parent = Some(CssPixelRect::default());
+    }
+}
+
+/// What a link shows of its box apart from the fragment, which change what painting shows of the box while the
+/// fragment stays the same: the used margins, which the placement of the box decides, and what the parent decided
+/// about how the box shows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ShownAs {
+    pub(crate) margins: geometry::Sides,
+    pub(crate) facts: ParentShowFacts,
+}
+
+/// Where and how a link places its fragment, apart from its offset.
+#[derive(Clone, PartialEq)]
+pub(crate) struct LinkPlacement {
+    pub(crate) insets: geometry::Sides,
+    pub(crate) shown_as: ShownAs,
     pub(crate) containing_line_box_index: Option<u32>,
     /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
     /// layout run cache entries keep copies of links.
@@ -117,6 +137,46 @@ pub(crate) struct FragmentLink {
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
     /// The frame the box was laid out in, in which the link and the fragment hold its geometry.
     pub(crate) frame: geometry::Frame,
+}
+
+impl LinkPlacement {
+    fn of_box(
+        facts: &run_state::FactsDecidedByParent,
+        cells: &used_values::RootInputCells,
+        abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
+        containing_line_box_index: Option<u32>,
+        frame: geometry::Frame,
+    ) -> Self {
+        let insets = facts.used_insets;
+        Self {
+            insets: geometry::Sides {
+                top: insets.top,
+                right: insets.right,
+                bottom: insets.bottom,
+                left: insets.left,
+            },
+            shown_as: ShownAs {
+                margins: cells.margins(),
+                facts: facts.fragment_facts.show,
+            },
+            containing_line_box_index,
+            abspos_layout_inputs,
+            default_scroll_shift: facts.default_scroll_shift,
+            containing_block: facts
+                .placement
+                .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
+                    placement.containing_block
+                }),
+            frame,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct FragmentLink {
+    pub(crate) fragment: std::sync::Arc<Fragment>,
+    pub(crate) committed_offset: FfiCssPixelPoint,
+    pub(crate) placement: LinkPlacement,
 }
 
 fn same_allocation<T>(left: Option<&std::sync::Arc<T>>, right: Option<&std::sync::Arc<T>>) -> bool {
@@ -278,24 +338,15 @@ impl FragmentLink {
                 children: Vec::new(),
             }),
             committed_offset: Default::default(),
-            inset_left: CssPixels::default(),
-            inset_right: CssPixels::default(),
-            inset_top: CssPixels::default(),
-            inset_bottom: CssPixels::default(),
-            margin_left: CssPixels::default(),
-            margin_right: CssPixels::default(),
-            margin_top: CssPixels::default(),
-            margin_bottom: CssPixels::default(),
-            table_column_index: 0,
-            table_column_span: 0,
-            hidden_by_collapsed_columns: false,
-            is_invisible_for_line_clamp: false,
-            clip_decided_by_parent: None,
-            containing_line_box_index: None,
-            abspos_layout_inputs: None,
-            default_scroll_shift: None,
-            containing_block: crate::layout::node_data::NodeSlotId::INVALID,
-            frame: geometry::Frame::PHYSICAL,
+            placement: LinkPlacement {
+                insets: geometry::Sides::default(),
+                shown_as: ShownAs::default(),
+                containing_line_box_index: None,
+                abspos_layout_inputs: None,
+                default_scroll_shift: None,
+                containing_block: crate::layout::node_data::NodeSlotId::INVALID,
+                frame: geometry::Frame::PHYSICAL,
+            },
         }
     }
 
@@ -303,33 +354,10 @@ impl FragmentLink {
         std::sync::Arc::ptr_eq(&self.fragment, &previous.fragment) && self.has_same_placement(previous)
     }
 
-    /// Whether the link shows its fragment with the same margins and the same facts its parent decided about the box,
-    /// which change what painting shows of the box while the fragment stays the same.
-    pub(crate) fn shows_box_as(&self, previous: &FragmentLink) -> bool {
-        self.margin_left == previous.margin_left
-            && self.margin_right == previous.margin_right
-            && self.margin_top == previous.margin_top
-            && self.margin_bottom == previous.margin_bottom
-            && self.table_column_index == previous.table_column_index
-            && self.table_column_span == previous.table_column_span
-            && self.hidden_by_collapsed_columns == previous.hidden_by_collapsed_columns
-            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
-            && self.clip_decided_by_parent == previous.clip_decided_by_parent
-    }
-
     pub(crate) fn has_same_placement(&self, previous: &FragmentLink) -> bool {
         self.fragment.node == previous.fragment.node
             && self.committed_offset == previous.committed_offset
-            && self.inset_left == previous.inset_left
-            && self.inset_right == previous.inset_right
-            && self.inset_top == previous.inset_top
-            && self.inset_bottom == previous.inset_bottom
-            && self.shows_box_as(previous)
-            && self.containing_line_box_index == previous.containing_line_box_index
-            && self.abspos_layout_inputs == previous.abspos_layout_inputs
-            && self.default_scroll_shift == previous.default_scroll_shift
-            && self.containing_block == previous.containing_block
-            && self.frame == previous.frame
+            && self.placement == previous.placement
     }
 }
 
@@ -700,7 +728,7 @@ fn snapshot_fragment(
     node: crate::layout::node_data::NodeSlotId,
     mut children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
-    fragment_facts: run_state::FragmentFactsDecidedByParent,
+    breaks: BreakFacts,
     payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
     let FragmentGeometry { cells, line_data } = geometry;
@@ -716,7 +744,7 @@ fn snapshot_fragment(
         svg_text_character_cells,
         line_clamp,
     } = payloads.map(|payloads| *payloads).unwrap_or_default();
-    if line_clamp.has_line_clamp_point && !fragment_facts.continues_in_next_fragment {
+    if line_clamp.has_line_clamp_point && !breaks.continues_in_next {
         line_clamp_edge::clip_floats_at_block_end_content_edge(
             pass,
             node,
@@ -741,10 +769,7 @@ fn snapshot_fragment(
         computed_svg_path,
         svg_text_character_cells,
         line_clamp,
-        breaks: BreakFacts {
-            continues_from_previous: fragment_facts.continues_from_previous_fragment,
-            continues_in_next: fragment_facts.continues_in_next_fragment,
-        },
+        breaks,
         scrollable_overflow: Default::default(),
         holds_links_of_outer_containing_blocks: fragment_overflow::holds_links_of_outer_containing_blocks(
             node, &children,
@@ -791,16 +816,14 @@ fn fragment_of_placed_box(
     arrived: Option<std::sync::Arc<Fragment>>,
     children: Vec<FragmentLink>,
     geometry: FragmentGeometry,
-    fragment_facts: run_state::FragmentFactsDecidedByParent,
+    breaks: BreakFacts,
     payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
     let Some(arrived) = arrived else {
-        return snapshot_fragment(pass, node, children, geometry, fragment_facts, payloads);
+        return snapshot_fragment(pass, node, children, geometry, breaks, payloads);
     };
-    let shows_box_as_placed = children.is_empty()
-        && geometry.shows_box_of_fragment(&arrived)
-        && arrived.breaks.continues_from_previous == fragment_facts.continues_from_previous_fragment
-        && arrived.breaks.continues_in_next == fragment_facts.continues_in_next_fragment;
+    let shows_box_as_placed =
+        children.is_empty() && geometry.shows_box_of_fragment(&arrived) && arrived.breaks == breaks;
     if shows_box_as_placed {
         return arrived;
     }
@@ -811,7 +834,7 @@ fn fragment_of_placed_box(
         node,
         all_children,
         geometry,
-        fragment_facts,
+        breaks,
         Some(Box::new(FragmentPayloads::of_fragment(&arrived))),
     )
 }
@@ -829,105 +852,6 @@ pub(crate) struct PlacedAbsposBox {
     pub(crate) box_: crate::layout::node_data::NodeSlotId,
     /// The block end of the border box in the containing block.
     pub(crate) border_box_block_end: CssPixels,
-}
-
-pub(crate) struct PlacementData {
-    pub(crate) committed_offset: FfiCssPixelPoint,
-    pub(crate) inset_left: CssPixels,
-    pub(crate) inset_right: CssPixels,
-    pub(crate) inset_top: CssPixels,
-    pub(crate) inset_bottom: CssPixels,
-    pub(crate) margin_left: CssPixels,
-    pub(crate) margin_right: CssPixels,
-    pub(crate) margin_top: CssPixels,
-    pub(crate) margin_bottom: CssPixels,
-    pub(crate) table_column_index: u32,
-    pub(crate) table_column_span: u32,
-    pub(crate) hidden_by_collapsed_columns: bool,
-    pub(crate) is_invisible_for_line_clamp: bool,
-    pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
-    pub(crate) containing_line_box_index: Option<u32>,
-    pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
-    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
-    pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
-    pub(crate) frame: geometry::Frame,
-}
-
-impl PlacementData {
-    fn of_box(
-        facts: &run_state::FactsDecidedByParent,
-        cells: &used_values::RootInputCells,
-        abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
-        containing_line_box_index: Option<u32>,
-        committed_offset: FfiCssPixelPoint,
-        frame: geometry::Frame,
-    ) -> Self {
-        Self {
-            frame,
-            committed_offset,
-            inset_left: facts.used_insets.left,
-            inset_right: facts.used_insets.right,
-            inset_top: facts.used_insets.top,
-            inset_bottom: facts.used_insets.bottom,
-            margin_left: cells.margin_left,
-            margin_right: cells.margin_right,
-            margin_top: cells.margin_top,
-            margin_bottom: cells.margin_bottom,
-            table_column_index: facts.fragment_facts.table_column_index,
-            table_column_span: facts.fragment_facts.table_column_span,
-            hidden_by_collapsed_columns: facts.fragment_facts.hidden_by_collapsed_columns,
-            is_invisible_for_line_clamp: facts.fragment_facts.is_invisible_for_line_clamp,
-            clip_decided_by_parent: facts.fragment_facts.clip_decided_by_parent,
-            containing_line_box_index,
-            abspos_layout_inputs,
-            default_scroll_shift: facts.default_scroll_shift,
-            containing_block: facts
-                .placement
-                .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
-                    placement.containing_block
-                }),
-        }
-    }
-
-    /// The placement data of a child the run left unplaced, which `close()` hands on as `unplaced_child` shows it.
-    fn of_unplaced_child(
-        unplaced_child: &crate::layout::formatting_context::PlacedChild,
-        frame: geometry::Frame,
-    ) -> Self {
-        Self::of_box(
-            &unplaced_child.facts_decided_by_parent,
-            &unplaced_child.geometry.cells,
-            None,
-            None,
-            FfiCssPixelPoint::default(),
-            frame,
-        )
-    }
-}
-
-fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -> FragmentLink {
-    FragmentLink {
-        fragment,
-        committed_offset: placement.committed_offset,
-        inset_left: placement.inset_left,
-        inset_right: placement.inset_right,
-        inset_top: placement.inset_top,
-        inset_bottom: placement.inset_bottom,
-        margin_left: placement.margin_left,
-        margin_right: placement.margin_right,
-        margin_top: placement.margin_top,
-        margin_bottom: placement.margin_bottom,
-        table_column_index: placement.table_column_index,
-        table_column_span: placement.table_column_span,
-        hidden_by_collapsed_columns: placement.hidden_by_collapsed_columns,
-        is_invisible_for_line_clamp: placement.is_invisible_for_line_clamp,
-        clip_decided_by_parent: placement.clip_decided_by_parent,
-        containing_line_box_index: placement.containing_line_box_index,
-        abspos_layout_inputs: placement.abspos_layout_inputs,
-        default_scroll_shift: placement.default_scroll_shift,
-        containing_block: placement.containing_block,
-        frame: placement.frame,
-    }
 }
 
 /// A child the run laid out but does not place: the root fragment its layout handed its placement, and what placing
@@ -993,7 +917,7 @@ impl RunContents {
                 node,
                 scoped_descendants,
                 geometry,
-                run_state::FragmentFactsDecidedByParent::default(),
+                BreakFacts::default(),
                 root_payloads,
             ),
             payloads_past_run,
@@ -1581,8 +1505,8 @@ impl RunFragmentBuilder {
             contents.holds_links_beside_their_sealed_containing_blocks;
         for mut link in contents.scoped_descendants {
             link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
-            if link.containing_block == self.root_node
-                && let Some(line_index) = link.containing_line_box_index.as_mut()
+            if link.placement.containing_block == self.root_node
+                && let Some(line_index) = link.placement.containing_line_box_index.as_mut()
             {
                 *line_index += u32::try_from(root_line_index_offset).expect("a line box index fits in 32 bits");
             }
@@ -1625,7 +1549,7 @@ impl RunFragmentBuilder {
         for link in inner
             .top_scope_links
             .iter_mut()
-            .filter(|link| link.containing_block == root)
+            .filter(|link| link.placement.containing_block == root)
         {
             link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
         }
@@ -1806,16 +1730,27 @@ impl RunFragmentBuilder {
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
         let content_size = (geometry.cells.content_inline_size, geometry.cells.content_block_size);
-        let link_placement = PlacementData::of_box(
+        let link_placement = LinkPlacement::of_box(
             &facts,
             &geometry.cells,
             abspos_layout_inputs,
             containing_line_box_index,
-            committed_offset,
             pass.frame,
         );
-        let fragment = fragment_of_placed_box(pass, node, arrived, children, geometry, facts.fragment_facts, payloads);
-        let link = link_fragment(fragment.clone(), link_placement);
+        let fragment = fragment_of_placed_box(
+            pass,
+            node,
+            arrived,
+            children,
+            geometry,
+            facts.fragment_facts.breaks,
+            payloads,
+        );
+        let link = FragmentLink {
+            fragment: fragment.clone(),
+            committed_offset,
+            placement: link_placement,
+        };
         self.attach(pass, &mut inner, link, containing_block);
         let exports_payloads = !pending_abspos_from_placed_box.is_empty()
             || !anchor_candidates_from_placed_box.is_empty()
@@ -1976,19 +1911,21 @@ impl RunFragmentBuilder {
         //     subtree goes with it.
         for ChildLeftUnplaced { root, unplaced_child } in std::mem::take(&mut inner.children_left_unplaced) {
             let node = root.fragment.node;
-            let placement = PlacementData::of_unplaced_child(&unplaced_child, pass.frame);
-            inner.top_scope_links.push(link_fragment(
-                fragment_of_placed_box(
+            let facts = unplaced_child.facts_decided_by_parent;
+            let placement = LinkPlacement::of_box(&facts, &unplaced_child.geometry.cells, None, None, pass.frame);
+            inner.top_scope_links.push(FragmentLink {
+                fragment: fragment_of_placed_box(
                     pass,
                     node,
                     Some(root.fragment),
                     Vec::new(),
                     unplaced_child.geometry,
-                    unplaced_child.facts_decided_by_parent.fragment_facts,
+                    facts.fragment_facts.breaks,
                     None,
                 ),
+                committed_offset: FfiCssPixelPoint::default(),
                 placement,
-            ));
+            });
         }
         self.with_placements(pass, |placements| {
             for entry in &mut payloads_past_run.pending_abspos {

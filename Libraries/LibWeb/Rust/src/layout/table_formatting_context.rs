@@ -1678,8 +1678,11 @@ impl<'pass> TableFormattingContext<'pass> {
             .cells
             .iter()
             .map(|cell| run_state::FragmentFactsDecidedByParent {
-                table_column_index: cell.column_index as u32,
-                table_column_span: cell.column_span as u32,
+                show: fragment_tree::ParentShowFacts {
+                    table_column_index: cell.column_index as u32,
+                    table_column_span: cell.column_span as u32,
+                    ..fragment_tree::ParentShowFacts::default()
+                },
                 ..run_state::FragmentFactsDecidedByParent::default()
             })
             .collect();
@@ -3062,7 +3065,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.
             // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
             let hidden_by_collapsed_columns = self.visible_spanned_columns(cell) == 0;
-            self.cell_fragment_facts[cell_index].hidden_by_collapsed_columns = hidden_by_collapsed_columns;
+            self.cell_fragment_facts[cell_index].show.hidden_by_collapsed_columns = hidden_by_collapsed_columns;
             let height = style.height();
             if !self.rows[cell.row_index].is_collapsed && height.is_length() {
                 let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
@@ -3740,8 +3743,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 CssPixels::default()
             };
             let fragment_facts = run_state::FragmentFactsDecidedByParent {
-                table_column_index: start as u32,
-                table_column_span: (end - start) as u32,
+                show: fragment_tree::ParentShowFacts {
+                    table_column_index: start as u32,
+                    table_column_span: (end - start) as u32,
+                    ..fragment_tree::ParentShowFacts::default()
+                },
                 ..run_state::FragmentFactsDecidedByParent::default()
             };
             let (column_node, column_box) = &self.column_group_and_column_boxes[placement_index];

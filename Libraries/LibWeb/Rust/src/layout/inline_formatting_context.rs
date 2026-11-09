@@ -1112,6 +1112,7 @@ impl<'context> InlineFormattingContext<'context> {
             placed_child
                 .facts_decided_by_parent
                 .fragment_facts
+                .show
                 .hide_after_clamp_point();
             placed_child
         });
@@ -2261,7 +2262,7 @@ impl<'context> InlineFormattingContext<'context> {
                     }
                     let mut fragment_facts = run_state::FragmentFactsDecidedByParent::default();
                     if state_at_clamp_point.is_some() {
-                        fragment_facts.hide_after_clamp_point();
+                        fragment_facts.show.hide_after_clamp_point();
                     }
                     let laid_out_ahead = self.floats_laid_out_ahead_of_lines.borrow_mut().remove(&item.node);
                     let laid_out_float =

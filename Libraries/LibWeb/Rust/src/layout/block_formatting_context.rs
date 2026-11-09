@@ -3193,7 +3193,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             cells,
             content_baselines,
             collapses_through: laid_out.collapses_through,
-            is_invisible_for_line_clamp: laid_out.fragment_facts.is_invisible_for_line_clamp,
+            is_invisible_for_line_clamp: laid_out.fragment_facts.show.is_invisible_for_line_clamp,
             can_break_inside: self.box_can_break_inside(node, laid_out.has_unbreakable_lines),
             broken_inside: laid_out.broken_inside,
             baselines_in_containing_block,
@@ -3275,7 +3275,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .track_percentage_block_size_dependency_while_laying_out(node);
         let mut fragment_facts = run_state::FragmentFactsDecidedByParent::default();
         if self.laying_out_invisible_line_clamp_content.get() {
-            fragment_facts.hide_after_clamp_point();
+            fragment_facts.show.hide_after_clamp_point();
         }
         if facts.is_anonymous_button_content_wrapper() {
             let only_for_button_content_alignment = block_container
@@ -3317,7 +3317,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 cells.border_top = CssPixels::default();
                 cells.padding_top = CssPixels::default();
             });
-            fragment_facts.continues_from_previous_fragment = true;
+            fragment_facts.breaks.continues_from_previous = true;
         }
 
         if facts.is_floating() {
@@ -3938,7 +3938,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     cells.border_bottom = CssPixels::default();
                     cells.margin_bottom = CssPixels::default();
                 });
-                fragment_facts.continues_in_next_fragment = true;
+                fragment_facts.breaks.continues_in_next = true;
                 std::rc::Rc::make_mut(&mut token).consumed_block_size = continuation
                     .as_ref()
                     .map_or(CssPixels::default(), |continuation| continuation.consumed_block_size)
@@ -4102,7 +4102,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.collapse_margins_after_block_level_box(
             margins_left_by_contents.as_ref(),
             collapses_through,
-            fragment_facts.continues_in_next_fragment,
+            fragment_facts.breaks.continues_in_next,
             metrics.margin_bottom(),
         );
 

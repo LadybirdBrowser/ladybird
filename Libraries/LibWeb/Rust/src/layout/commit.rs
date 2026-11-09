@@ -141,7 +141,7 @@ impl Holder {
     fn placement_of(&self, link: &FragmentLink) -> (Option<u32>, usize) {
         match self.fragment_index {
             None => (None, 0),
-            Some(index) if link.containing_block == self.node => (Some(index), self.line_index_offset),
+            Some(index) if link.placement.containing_block == self.node => (Some(index), self.line_index_offset),
             Some(_) => (Some(0), 0),
         }
     }
@@ -214,7 +214,7 @@ impl<'tree> Commit<'_, 'tree> {
         let number = self.number;
         self.arena_mut()
             .note_committed_link_holder(node, recorded_holder, number);
-        let containing_block = link.containing_block;
+        let containing_block = link.placement.containing_block;
         if !containing_block.is_invalid() {
             let held_by_containing_block = recorded_holder == containing_block
                 || self
@@ -231,7 +231,7 @@ impl<'tree> Commit<'_, 'tree> {
         if holder.node.is_invalid() && !keeps_its_holder && (self.is_full_commit || !was_at_pass_level) {
             self.pass_level_links.push(node);
         }
-        if let Some(inputs) = &link.abspos_layout_inputs {
+        if let Some(inputs) = &link.placement.abspos_layout_inputs {
             self.out_of_flow_boxes.push((node, inputs.clone()));
         }
         let (containing_block_fragment, line_index_offset) = holder.placement_of(link);
@@ -273,7 +273,7 @@ impl<'tree> Commit<'_, 'tree> {
         //     its line root.
         node_facts::kind_is_box(kind)
             && kind != NodeKind::NavigableContainerViewport
-            && !link.containing_block.is_invalid()
+            && !link.placement.containing_block.is_invalid()
             && !(holder.line_root_changes.any()
                 && node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data)))
             && arena.paintable_row_is_populated(node)
@@ -370,15 +370,15 @@ impl<'tree> Commit<'_, 'tree> {
     ) -> Option<Holder> {
         let first = fragments.first().expect("a committed box has a fragment");
         let link_with_merged_line_index;
-        let link = if first.containing_block_line_index_offset != 0 && first.link.containing_line_box_index.is_some() {
-            link_with_merged_line_index = FragmentLink {
-                containing_line_box_index: first.link.containing_line_box_index.map(|index| {
-                    index
-                        + u32::try_from(first.containing_block_line_index_offset)
-                            .expect("a line box index fits in 32 bits")
-                }),
-                ..first.link.clone()
-            };
+        let link = if first.containing_block_line_index_offset != 0
+            && first.link.placement.containing_line_box_index.is_some()
+        {
+            let mut link = first.link.clone();
+            if let Some(index) = link.placement.containing_line_box_index.as_mut() {
+                *index +=
+                    u32::try_from(first.containing_block_line_index_offset).expect("a line box index fits in 32 bits");
+            }
+            link_with_merged_line_index = link;
             &link_with_merged_line_index
         } else {
             first.link
@@ -410,7 +410,7 @@ impl<'tree> Commit<'_, 'tree> {
                 })
             })
             .flatten();
-        if let Some(shift) = link.default_scroll_shift {
+        if let Some(shift) = link.placement.default_scroll_shift {
             self.arena_mut().set_default_scroll_shift(
                 node,
                 shift.anchor,

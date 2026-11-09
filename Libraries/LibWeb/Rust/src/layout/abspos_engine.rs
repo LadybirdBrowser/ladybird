@@ -3904,7 +3904,7 @@ impl<'pass> AbsposEngine<'pass> {
         let default_scroll_shift = self
             .pass
             .committed_fragment_link(node)
-            .and_then(|link| link.default_scroll_shift);
+            .and_then(|link| link.placement.default_scroll_shift);
         self.layout_element(run, node, cells, inputs, default_scroll_shift);
     }
 

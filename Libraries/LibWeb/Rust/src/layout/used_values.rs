@@ -229,6 +229,16 @@ impl RootInputCells {
         }
     }
 
+    /// The used margins of the box.
+    pub(crate) fn margins(&self) -> geometry::Sides {
+        geometry::Sides {
+            top: self.margin_top,
+            right: self.margin_right,
+            bottom: self.margin_bottom,
+            left: self.margin_left,
+        }
+    }
+
     /// The sizes and box sides `link` and its fragment show, with both sizes definite.
     pub(crate) fn of_committed_fragment_link(link: &fragment_tree::FragmentLink) -> Self {
         let mut cells = Self {
@@ -242,12 +252,13 @@ impl RootInputCells {
     /// Takes the sizes and box sides `link` and its fragment show.
     pub(crate) fn take_box_metrics_of_committed_link(&mut self, link: &fragment_tree::FragmentLink) {
         let sides = &link.fragment.sides;
+        let margins = link.placement.shown_as.margins;
         self.set_content_inline_size(sides.content_size.width);
         self.set_content_block_size(sides.content_size.height);
-        self.margin_left = link.margin_left;
-        self.margin_right = link.margin_right;
-        self.margin_top = link.margin_top;
-        self.margin_bottom = link.margin_bottom;
+        self.margin_left = margins.left;
+        self.margin_right = margins.right;
+        self.margin_top = margins.top;
+        self.margin_bottom = margins.bottom;
         self.border_left = sides.border.left;
         self.border_right = sides.border.right;
         self.border_top = sides.border.top;
@@ -687,40 +698,4 @@ pub(crate) fn cells_before_sizing(
     cells.content_block_size = content_block_size.unwrap_or_default();
 
     cells
-}
-
-/// The input cells of a box and what its parent decided about it, as its committed fragment link has them in the frame
-/// of the link, which a run adopts as they are.
-pub(crate) struct CommittedBox {
-    pub(crate) cells: RootInputCells,
-    pub(crate) facts_decided_by_parent: super::run_state::FactsDecidedByParent,
-}
-
-pub(crate) fn committed_box_from_fragment_link(pass: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
-    let link = pass.committed_fragment_link(node)?;
-
-    Some(CommittedBox {
-        cells: RootInputCells::of_committed_fragment_link(&link),
-        facts_decided_by_parent: super::run_state::FactsDecidedByParent {
-            placement: Some(super::run_state::BoxPlacement {
-                content_offset_in_containing_block: link.committed_offset,
-                containing_block: link.containing_block,
-            }),
-            used_insets: super::run_state::UsedInsets {
-                left: link.inset_left,
-                right: link.inset_right,
-                top: link.inset_top,
-                bottom: link.inset_bottom,
-            },
-            default_scroll_shift: None,
-            fragment_facts: super::run_state::FragmentFactsDecidedByParent {
-                table_column_index: link.table_column_index,
-                table_column_span: link.table_column_span,
-                hidden_by_collapsed_columns: link.hidden_by_collapsed_columns,
-                is_invisible_for_line_clamp: link.is_invisible_for_line_clamp,
-                clip_decided_by_parent: link.clip_decided_by_parent,
-                ..super::run_state::FragmentFactsDecidedByParent::default()
-            },
-        },
-    })
 }

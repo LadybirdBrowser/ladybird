@@ -801,9 +801,9 @@ pub extern "C" fn layout_script_anchor_resolved_size(
         }
         arena.with_committed_fragment_link(slot, |link| {
             let link = link?;
-            let sizes = link.abspos_layout_inputs.as_ref()?.resolved_anchor_sizes;
+            let sizes = link.placement.abspos_layout_inputs.as_ref()?.resolved_anchor_sizes;
             // NB: The sizes lie in the frame the box was laid out in, whose axes a vertical writing mode transposes.
-            let (physical_width, physical_height) = if link.frame.is_transposed() {
+            let (physical_width, physical_height) = if link.placement.frame.is_transposed() {
                 ((sizes.min_height, sizes.max_height), (sizes.min_width, sizes.max_width))
             } else {
                 ((sizes.min_width, sizes.max_width), (sizes.min_height, sizes.max_height))

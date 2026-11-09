@@ -107,15 +107,7 @@ pub(crate) fn committed_margin(arena: &impl GeometryRead, slot: NodeSlotId) -> F
     let frame = committed_frame(arena, slot);
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| {
-            sides_to_physical(
-                frame,
-                FfiPixelBox {
-                    top: link.margin_top,
-                    right: link.margin_right,
-                    bottom: link.margin_bottom,
-                    left: link.margin_left,
-                },
-            )
+            sides_to_physical(frame, link.placement.shown_as.margins.into())
         })
     })
 }
@@ -146,15 +138,7 @@ pub(crate) fn committed_inset(arena: &impl GeometryRead, slot: NodeSlotId) -> Ff
     let frame = committed_frame(arena, slot);
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| {
-            sides_to_physical(
-                frame,
-                FfiPixelBox {
-                    top: link.inset_top,
-                    right: link.inset_right,
-                    bottom: link.inset_bottom,
-                    left: link.inset_left,
-                },
-            )
+            sides_to_physical(frame, link.placement.insets.into())
         })
     })
 }
@@ -168,14 +152,21 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl GeometryRead,
 /// For a table cell: whether every column it spans has 'visibility: collapse', which removes the cell from the display
 /// along with the columns (CSS 2.2 §17.5.5).
 pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
-    arena.with_committed_fragment_link(slot, |link| link.is_some_and(|link| link.hidden_by_collapsed_columns))
+    arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| link.placement.shown_as.facts.hidden_by_collapsed_columns)
+    })
 }
 
 /// For a table cell or a table-column(-group) box: the first grid column it occupies and the number of grid columns
 /// it spans.
 pub(crate) fn committed_table_column_range(arena: &impl GeometryRead, slot: NodeSlotId) -> (u32, u32) {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or((0, 0), |link| (link.table_column_index, link.table_column_span))
+        link.map_or((0, 0), |link| {
+            (
+                link.placement.shown_as.facts.table_column_index,
+                link.placement.shown_as.facts.table_column_span,
+            )
+        })
     })
 }
 
@@ -262,7 +253,7 @@ pub(crate) fn committed_svg_text_character_cells(
 
 pub(crate) fn committed_containing_line_box_index(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<usize> {
     arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.containing_line_box_index)
+        link.and_then(|link| link.placement.containing_line_box_index)
             .map(|index| index as usize)
     })
 }
@@ -473,7 +464,7 @@ pub(crate) fn unbroken_box_model(
     );
     if let Some(last) = arena.committed_side_data(slot).box_fragments().last() {
         let fragment = &last.link.fragment;
-        margin.bottom = last.link.margin_bottom;
+        margin.bottom = last.link.placement.shown_as.margins.bottom;
         padding.bottom = fragment.sides.padding.bottom;
         border.bottom = fragment.sides.border.bottom;
     }

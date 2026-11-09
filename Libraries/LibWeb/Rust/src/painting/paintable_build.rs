@@ -235,7 +235,7 @@ impl<'a> PaintableCommit<'a> {
         previous_offset: Option<used_values::FfiCssPixelPoint>,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
-        let frame = link.frame;
+        let frame = link.placement.frame;
         let new_content_size =
             frame.size_to_physical(fragment.sides.content_size.width, fragment.sides.content_size.height);
         let new_offset: used_values::FfiCssPixelPoint = if frame.is_physical() {
@@ -287,7 +287,7 @@ impl<'a> PaintableCommit<'a> {
                     child_sequence_unchanged = fragment.has_same_child_sequence(previous);
                 }
                 own_paint_unchanged &= old_link.has_same_placement(link);
-                link_shows_box_the_same = link.shows_box_as(old_link);
+                link_shows_box_the_same = link.placement.shown_as == old_link.placement.shown_as;
                 (
                     old_link.fragment.identity,
                     frame.size_to_physical(
@@ -546,7 +546,7 @@ impl<'a> PaintableCommit<'a> {
         node: formatting_context::Node,
         link: Option<&fragment_tree::FragmentLink>,
     ) -> NodeSlotId {
-        match link.map(|link| link.containing_block) {
+        match link.map(|link| link.placement.containing_block) {
             Some(containing_block) if !containing_block.is_invalid() => containing_block,
             _ => self.arena().containing_block_by_walking_ancestors(node),
         }
