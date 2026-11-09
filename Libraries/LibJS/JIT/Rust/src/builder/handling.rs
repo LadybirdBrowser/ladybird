@@ -322,6 +322,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetMethod
         | O::GetObjectPropertyIterator
         | O::IteratorNext
+        | O::IteratorStep
         | O::IteratorToArray
         | O::CacheObjectShape
         | O::InitObjectLiteralProperty
