@@ -69,6 +69,7 @@ pub enum Error {
     QuantifierWithoutAtom,
     NothingToRepeat,
     NumberOverflow,
+    TooDeeplyNested,
 }
 
 impl std::fmt::Display for Error {
@@ -100,6 +101,7 @@ impl std::fmt::Display for Error {
             Self::QuantifierWithoutAtom => write!(f, "quantifier without atom"),
             Self::NothingToRepeat => write!(f, "nothing to repeat"),
             Self::NumberOverflow => write!(f, "number overflow"),
+            Self::TooDeeplyNested => write!(f, "pattern is nested too deeply"),
         }
     }
 }
@@ -215,6 +217,9 @@ impl Parser {
     /// been collected.
     /// <https://tc39.es/ecma262/#sec-patterns-static-semantics-early-errors>
     fn validate_backrefs(disj: &Disjunction, group_names: &std::collections::HashSet<&str>) -> Result<(), Error> {
+        if crate::stack::is_exhausted() {
+            return Err(Error::TooDeeplyNested);
+        }
         for alt in &disj.alternatives {
             for term in &alt.terms {
                 match &term.atom {
@@ -286,6 +291,9 @@ impl Parser {
     /// Parse `Disjunction`.
     /// <https://tc39.es/ecma262/#sec-patterns>
     fn parse_disjunction(&mut self) -> Result<Disjunction, Error> {
+        if crate::stack::is_exhausted() {
+            return Err(Error::TooDeeplyNested);
+        }
         let inherited = self.alternative_name_stack.last().cloned().unwrap_or_default();
         self.alternative_name_stack.push(inherited.clone());
         let mut alternatives = vec![self.parse_alternative()?];
@@ -1174,6 +1182,9 @@ impl Parser {
     /// Parse `CharacterClass`.
     /// <https://tc39.es/ecma262/#sec-compilecharacterclass>
     fn parse_character_class(&mut self) -> Result<CharacterClass, Error> {
+        if crate::stack::is_exhausted() {
+            return Err(Error::TooDeeplyNested);
+        }
         self.expect('[')?;
         let negated = self.eat('^');
 
@@ -1189,7 +1200,7 @@ impl Parser {
                 self.parse_class_set_expression()?
             };
             self.in_negated_class = saved_negated;
-            if negated && Self::class_set_expression_may_contain_strings(&expr) {
+            if negated && Self::class_set_expression_may_contain_strings(&expr)? {
                 return Err(Error::InvalidCharacterClass);
             }
             self.expect(']')?;
@@ -1468,27 +1479,43 @@ impl Parser {
     /// - Intersection: may contain strings if ALL operands may contain strings
     ///   (i.e., no operand is "purely characters")
     /// - Subtraction: may contain strings if the leftmost operand may contain strings
-    fn class_set_expression_may_contain_strings(expr: &ClassSetExpression) -> bool {
+    fn class_set_expression_may_contain_strings(expr: &ClassSetExpression) -> Result<bool, Error> {
+        if crate::stack::is_exhausted() {
+            return Err(Error::TooDeeplyNested);
+        }
         match expr {
-            ClassSetExpression::Union(operands) => operands.iter().any(Self::class_set_operand_may_contain_strings),
-            ClassSetExpression::Intersection(operands) => {
-                operands.iter().all(Self::class_set_operand_may_contain_strings)
+            ClassSetExpression::Union(operands) => {
+                for operand in operands {
+                    if Self::class_set_operand_may_contain_strings(operand)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
             }
-            ClassSetExpression::Subtraction(operands) => operands
-                .first()
-                .is_some_and(Self::class_set_operand_may_contain_strings),
+            ClassSetExpression::Intersection(operands) => {
+                for operand in operands {
+                    if !Self::class_set_operand_may_contain_strings(operand)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            ClassSetExpression::Subtraction(operands) => match operands.first() {
+                Some(operand) => Self::class_set_operand_may_contain_strings(operand),
+                None => Ok(false),
+            },
         }
     }
 
-    fn class_set_operand_may_contain_strings(operand: &ClassSetOperand) -> bool {
-        match operand {
+    fn class_set_operand_may_contain_strings(operand: &ClassSetOperand) -> Result<bool, Error> {
+        Ok(match operand {
             ClassSetOperand::NestedClass(class) => {
                 if class.negated {
-                    return false;
+                    return Ok(false);
                 }
                 match &class.body {
                     CharacterClassBody::Ranges(_) => false,
-                    CharacterClassBody::UnicodeSet(expr) => Self::class_set_expression_may_contain_strings(expr),
+                    CharacterClassBody::UnicodeSet(expr) => Self::class_set_expression_may_contain_strings(expr)?,
                 }
             }
             ClassSetOperand::UnicodeProperty(property) => {
@@ -1496,7 +1523,7 @@ impl Parser {
             }
             ClassSetOperand::StringLiteral(chars) => chars.len() != 1,
             ClassSetOperand::Char(_) | ClassSetOperand::Range(_, _) | ClassSetOperand::BuiltinClass(_) => false,
-        }
+        })
     }
 
     /// Parse one `/v` `ClassSetOperand`.
