@@ -108,6 +108,10 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "Canvas2DPaintKind",
             "Canvas2DPatternRepetition",
             "PathGeometryData",
+            "CompositorScrollNodeKind",
+            "CompositorScrollNodeRecord",
+            "CompositorSnapContainerRecord",
+            "CompositorSnapAreaRecord",
         ]
         .map(String::from),
     );
@@ -160,6 +164,13 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("CapStyle", "Gfx::CapStyle"),
         ("JoinStyle", "Gfx::JoinStyle"),
         ("PathGeometryData", "Gfx::FFI::PathGeometryData"),
+        ("CompositorScrollNodeKind", "Compositing::CompositorScrollNodeKind"),
+        ("CompositorScrollNodeRecord", "Compositing::CompositorScrollNodeRecord"),
+        (
+            "CompositorSnapContainerRecord",
+            "Compositing::CompositorSnapContainerRecord",
+        ),
+        ("CompositorSnapAreaRecord", "Compositing::CompositorSnapAreaRecord"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -447,6 +458,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         libgfx_src_dir.join("paint_enums.rs"),
     ];
     let commands_source = manifest_dir.join("src/display_list/commands.rs");
+    let scroll_table_source = manifest_dir.join("src/visual_context/scroll_table.rs");
     let types_sources: Vec<PathBuf> = libgfx_type_sources
         .iter()
         .cloned()
@@ -503,6 +515,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .into_iter()
         .filter(|name| !types_with_existing_cpp_definitions.contains(&name.as_str()))
         .collect();
+    commands_config.export.include.extend(
+        public_type_names(&scroll_table_source)?
+            .into_iter()
+            .filter(|name| name != "CompositorScrollTable"),
+    );
     commands_config.export.exclude = types_with_existing_cpp_definitions
         .iter()
         .map(|name| name.to_string())
@@ -607,7 +624,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     generate_ffi_header_strict(
         commands_config,
-        &[commands_source],
+        &[commands_source, scroll_table_source],
         &out_dir,
         Path::new("DisplayList/DisplayListCommandsGenerated.h"),
     );

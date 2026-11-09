@@ -12,6 +12,7 @@ use libgfx_rust::*;
 
 // The layout of records and runs on the tape, which only Rust reads.
 pub use super::tape::*;
+pub use crate::visual_context::CompositorScrollNodeKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -578,16 +579,6 @@ impl From<text_layout::PlacedGlyph> for DisplayListGlyph {
         }
     }
 }
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum CompositorScrollNodeKind {
-    Viewport,
-    #[default]
-    Element,
-    PseudoElement,
-}
-ffi_enum_bytes!(CompositorScrollNodeKind as u8);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]

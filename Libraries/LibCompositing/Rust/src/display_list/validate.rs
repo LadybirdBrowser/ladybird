@@ -11,6 +11,7 @@
 
 use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, read_header};
 use super::commands::*;
+use crate::visual_context::{SNAP_ALIGN_COUNT, SNAP_STRICTNESS_COUNT};
 use libgfx_rust::{
     CapStyle, Color, CompositingAndBlendingOperator, GradientInterpolationMethod, GradientInterpolationType,
     HueInterpolationMethod, IntRect, InterpolationColorSpace, JoinStyle, LineStyle, MaskKind, Orientation,
@@ -92,10 +93,6 @@ impl TapeEnum for CompositingAndBlendingOperator {
         i32::try_from(raw).ok().and_then(Self::from_i32).is_some()
     }
 }
-
-// The values of SnapStrictness and SnapAlign in scrolling::scroll_snap_selection.
-const SNAP_STRICTNESS_COUNT: u8 = 3;
-const SNAP_ALIGN_COUNT: u8 = 4;
 
 // The bytes of one command payload. Offsets are relative to the payload start, where the command struct begins.
 #[derive(Clone, Copy)]
