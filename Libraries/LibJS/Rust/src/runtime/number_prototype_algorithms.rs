@@ -9,11 +9,14 @@
 
 use num_bigint::BigUint;
 use num_integer::Integer;
-use num_traits::{One, ToPrimitive};
+use num_traits::{FromPrimitive, One, ToPrimitive};
 
 use crate::runtime::string_conversions::{BinaryDecomposition, convert_to_decimal_exponential_form, decompose_double};
 
 const DIGITS: [u8; 36] = *b"0123456789abcdefghijklmnopqrstuvwxyz";
+
+/// 2^64, the smallest double too large for a u64.
+const U64_LIMIT: f64 = 18_446_744_073_709_551_616.0;
 
 const fn count_digits(number: u64) -> u8 {
     match number.checked_ilog10() {
@@ -617,31 +620,30 @@ pub fn to_string_with_radix(number: f64, radix: u32) -> String {
         }
     }
 
-    let mut backwards_characters = Vec::new();
-
-    if int_part == 0.0 {
-        backwards_characters.push(b'0');
-    } else {
-        let radix = f64::from(radix);
-        while int_part > 0.0 {
-            backwards_characters.push(DIGITS[(int_part % radix).floor() as usize]);
-            int_part /= radix;
-            int_part = int_part.floor();
+    // NB: The integer part is converted exactly, as dividing a double by the radix rounds once it has more bits than
+    //     the quotient can hold.
+    let integer_digits: String = if int_part < U64_LIMIT {
+        let mut integer = int_part as u64;
+        let mut backwards_characters = Vec::new();
+        loop {
+            backwards_characters.push(char::from(DIGITS[(integer % u64::from(radix)) as usize]));
+            integer /= u64::from(radix);
+            if integer == 0 {
+                break;
+            }
         }
-    }
+        backwards_characters.iter().rev().collect()
+    } else {
+        BigUint::from_f64(int_part)
+            .expect("the integer part is finite")
+            .to_str_radix(radix)
+    };
 
-    let mut builder = String::with_capacity(backwards_characters.len() + fractional_digits.len() + 2);
+    let mut builder = String::with_capacity(integer_digits.len() + fractional_digits.len() + 2);
     if negative {
         builder.push('-');
     }
-
-    // Reverse characters;
-    builder.extend(
-        backwards_characters
-            .iter()
-            .rev()
-            .map(|character| char::from(*character)),
-    );
+    builder.push_str(&integer_digits);
 
     if !fractional_digits.is_empty() {
         builder.push('.');
