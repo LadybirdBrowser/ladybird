@@ -6,8 +6,8 @@
 
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
-    IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
-    VisualContextTree, device_offset_for_index,
+    IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, ScrollSnap, SpatialData, SpatialNodeIndex,
+    TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, device_offset_for_index,
 };
 use ak::math;
 use libgfx_rust::{
@@ -139,32 +139,23 @@ impl VisualContextTree {
     fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
         let mut current = index;
         loop {
-            let node = &self.spatial_nodes[current.0 as usize];
-            match &node.data {
-                SpatialData::Transform(transform) => {
-                    if !transform.matrix.is_2d_affine() {
-                        return true;
-                    }
-                }
-                SpatialData::Perspective(_) => return true,
-                _ => {}
+            if self.local_transform(current, &[], ScrollSnap::None).kind == LocalTransformKind::Projective {
+                return true;
             }
             if current == VISUAL_VIEWPORT_NODE_INDEX {
-                break;
+                return false;
             }
-            current = node.parent;
+            current = self.spatial_nodes[current.0 as usize].parent;
         }
-        false
     }
 
     fn begin_hit_test_walk(&self, leaf: SpatialNodeIndex, screen_point: FloatPoint) -> SpatialChainWalk {
         let mut chain = self.ancestor_chain(leaf);
         chain.reverse();
         let chain_has_backface_marker = chain.iter().any(|index| {
-            matches!(
-                self.spatial_nodes[index.0 as usize].data,
-                SpatialData::BackfaceVisibility(_)
-            )
+            self.local_transform(*index, &[], ScrollSnap::None)
+                .backface_plane_root
+                .is_some()
         });
         let has_3d_transform = self.chain_contains_3d_transform(leaf);
         let needs_accumulated_matrices = chain_has_backface_marker || has_3d_transform;
@@ -192,22 +183,15 @@ impl VisualContextTree {
         screen_point: FloatPoint,
         scroll_offsets: &[FloatPoint],
     ) -> bool {
-        let node_index = walk.chain[position];
-        let node = &self.spatial_nodes[node_index.0 as usize];
+        let local = self.local_transform(walk.chain[position], scroll_offsets, ScrollSnap::None);
 
         if walk.needs_accumulated_matrices {
-            let local = self.local_spatial_matrix(node_index, scroll_offsets);
-            if position == 0 {
-                walk.accumulated_matrices.push(local.matrix);
-            } else {
-                let parent_matrix = *walk.accumulated_matrices.last().expect("walk has a parent matrix");
-                let inherited = if local.flattens_inherited_transform {
-                    parent_matrix.flattened()
-                } else {
-                    parent_matrix
-                };
-                walk.accumulated_matrices.push(inherited.multiplied(local.matrix));
-            }
+            let parent_matrix = walk
+                .accumulated_matrices
+                .last()
+                .copied()
+                .unwrap_or(FloatMatrix4x4::identity());
+            walk.accumulated_matrices.push(local.applied_to(parent_matrix));
         }
 
         // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
@@ -215,93 +199,55 @@ impl VisualContextTree {
         // whatever culls the plane its context is flattened into. The spec doesn't yet say if a hidden backface culls
         // the 3D rendering contexts nested in it:
         // https://github.com/w3c/csswg-drafts/issues/918
-        if let SpatialData::Transform(transform) = &node.data {
-            if transform.establishes_sorting_context {
-                walk.culled_outside_sorting_context = walk.culled;
-            } else if transform.sorting_context_root_index.is_some() {
-                walk.culled = walk.culled_outside_sorting_context;
-            }
+        if local.establishes_sorting_context {
+            walk.culled_outside_sorting_context = walk.culled;
+        } else if local.sorting_context_root.is_some() {
+            walk.culled = walk.culled_outside_sorting_context;
         }
 
-        if walk.has_3d_transform && !matches!(node.data, SpatialData::BackfaceVisibility(_)) {
-            let Some(inverse) = walk
-                .accumulated_matrices
-                .last()
-                .expect("3D walk accumulates matrices")
-                .flattened()
-                .inverse()
-            else {
-                return false;
-            };
-            let mapped = inverse.map_vector4([screen_point.x, screen_point.y, 0.0, 1.0]);
-            if mapped[3] < MINIMUM_PROJECTION_W {
-                return false;
+        if let Some(plane_root) = local.backface_plane_root {
+            if !walk.culled {
+                let plane_root_position = walk
+                    .chain
+                    .iter()
+                    .position(|index| *index == plane_root)
+                    .expect("the plane root precedes the backface marker on its root path");
+                walk.culled = should_cull_back_face(
+                    *walk
+                        .accumulated_matrices
+                        .last()
+                        .expect("backface walk accumulates matrices"),
+                    walk.accumulated_matrices[plane_root_position],
+                );
             }
-            walk.point = FloatPoint {
-                x: mapped[0] / mapped[3],
-                y: mapped[1] / mapped[3],
-            };
             return true;
         }
 
-        match &node.data {
-            SpatialData::Perspective(perspective) => {
-                let Some(inverse) = perspective.matrix.extract_2d_affine().inverse() else {
-                    return false;
-                };
-                walk.point = inverse.map_point(walk.point);
-                true
-            }
-            SpatialData::BackfaceVisibility(backface) => {
-                if !walk.culled {
-                    let plane_root_position = walk
-                        .chain
-                        .iter()
-                        .position(|index| *index == backface.plane_root_index)
-                        .expect("the plane root precedes the backface marker on its root path");
-                    walk.culled = should_cull_back_face(
-                        *walk
-                            .accumulated_matrices
-                            .last()
-                            .expect("backface walk accumulates matrices"),
-                        walk.accumulated_matrices[plane_root_position],
-                    );
-                }
-                true
-            }
-            SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
-                let offset = device_offset_for_index(scroll_offsets, node_index);
-                walk.point = FloatPoint {
-                    x: walk.point.x - offset.x,
-                    y: walk.point.y - offset.y,
-                };
-                true
-            }
-            SpatialData::Transform(transform) => {
-                let Some(inverse) = transform.matrix.extract_2d_affine().inverse() else {
-                    return false;
-                };
-                let offset_point = FloatPoint {
-                    x: walk.point.x - transform.origin.x,
-                    y: walk.point.y - transform.origin.y,
-                };
-                let transformed = inverse.map_point(offset_point);
-                walk.point = FloatPoint {
-                    x: transformed.x + transform.origin.x,
-                    y: transformed.y + transform.origin.y,
-                };
-                true
-            }
-            SpatialData::AnchorScrollShift(shift) => {
-                let offset = shift.masked_offset(scroll_offsets);
-                walk.point = FloatPoint {
-                    x: walk.point.x - offset.x,
-                    y: walk.point.y - offset.y,
-                };
-                true
-            }
-            SpatialData::Dead => true,
+        if !walk.has_3d_transform {
+            let Some(inverse) = local.matrix.extract_2d_affine().inverse() else {
+                return false;
+            };
+            walk.point = inverse.map_point(walk.point);
+            return true;
         }
+        let Some(inverse) = walk
+            .accumulated_matrices
+            .last()
+            .expect("3D walk accumulates matrices")
+            .flattened()
+            .inverse()
+        else {
+            return false;
+        };
+        let mapped = inverse.map_vector4([screen_point.x, screen_point.y, 0.0, 1.0]);
+        if mapped[3] < MINIMUM_PROJECTION_W {
+            return false;
+        }
+        walk.point = FloatPoint {
+            x: mapped[0] / mapped[3],
+            y: mapped[1] / mapped[3],
+        };
+        true
     }
 
     fn apply_hit_test_spatial_steps_through_node(
@@ -371,10 +317,9 @@ impl VisualContextTree {
                 return true;
             }
 
-            match &node.data {
-                SpatialData::Transform(transform) if transform.matrix != FloatMatrix4x4::identity() => return false,
-                SpatialData::Perspective(_) => return false,
-                _ => {}
+            let local = self.local_transform(spatial_node_index, &[], ScrollSnap::None);
+            if local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity() {
+                return false;
             }
 
             spatial_node_index = node.parent;
@@ -438,29 +383,13 @@ impl VisualContextTree {
         // themselves. The per-node inverses below are only exact for chains of 2D transforms, so a chain containing a
         // 3D transform inverts the flattened accumulated matrix, mapping the screen point onto the plane the content
         // was rendered into.
+        let transforms = chain
+            .iter()
+            .rev()
+            .map(|node_index| self.local_transform(*node_index, &[], ScrollSnap::None))
+            .filter(LocalTransform::is_transform_or_perspective);
         if self.chain_contains_3d_transform(index) {
-            let mut matrix = FloatMatrix4x4::identity();
-            for node_index in chain.iter().rev() {
-                match &self.spatial_nodes[node_index.0 as usize].data {
-                    SpatialData::Transform(transform) => {
-                        let inherited = if transform.flattens_inherited_transform {
-                            matrix.flattened()
-                        } else {
-                            matrix
-                        };
-                        matrix = inherited.multiplied(transform.matrix_including_origin());
-                    }
-                    SpatialData::Perspective(perspective) => {
-                        let inherited = if perspective.flattens_inherited_transform {
-                            matrix.flattened()
-                        } else {
-                            matrix
-                        };
-                        matrix = inherited.multiplied(perspective.matrix);
-                    }
-                    _ => {}
-                }
-            }
+            let matrix = transforms.fold(FloatMatrix4x4::identity(), |matrix, local| local.applied_to(matrix));
             let Some(inverse) = matrix.flattened().inverse() else {
                 return screen_point;
             };
@@ -473,33 +402,13 @@ impl VisualContextTree {
                 y: mapped[1] / mapped[3],
             };
         }
-
-        let mut point = screen_point;
-        for node_index in chain.iter().rev() {
-            match &self.spatial_nodes[node_index.0 as usize].data {
-                SpatialData::Perspective(perspective) => {
-                    if let Some(inverse) = perspective.matrix.extract_2d_affine().inverse() {
-                        point = inverse.map_point(point);
-                    }
-                }
-                SpatialData::Transform(transform) => {
-                    if let Some(inverse) = transform.matrix.extract_2d_affine().inverse() {
-                        let offset_point = FloatPoint {
-                            x: point.x - transform.origin.x,
-                            y: point.y - transform.origin.y,
-                        };
-                        let transformed = inverse.map_point(offset_point);
-                        point = FloatPoint {
-                            x: transformed.x + transform.origin.x,
-                            y: transformed.y + transform.origin.y,
-                        };
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        point
+        transforms.fold(screen_point, |point, local| {
+            local
+                .matrix
+                .extract_2d_affine()
+                .inverse()
+                .map_or(point, |inverse| inverse.map_point(point))
+        })
     }
 
     pub fn transform_rect_to_viewport(
@@ -525,26 +434,11 @@ impl VisualContextTree {
             if current != VISUAL_VIEWPORT_NODE_INDEX
                 || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes
             {
-                match &node.data {
-                    SpatialData::Transform(transform) => {
-                        let affine = transform.matrix.extract_2d_affine();
-                        rect = rect.translated(-transform.origin.x, -transform.origin.y);
-                        rect = affine.map_rect(rect);
-                        rect = rect.translated(transform.origin.x, transform.origin.y);
-                    }
-                    SpatialData::Perspective(perspective) => {
-                        rect = perspective.matrix.extract_2d_affine().map_rect(rect);
-                    }
-                    SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
-                        let offset = device_offset_for_index(scroll_offsets, current);
-                        rect = rect.translated(offset.x, offset.y);
-                    }
-                    SpatialData::AnchorScrollShift(shift) => {
-                        let offset = shift.masked_offset(scroll_offsets);
-                        rect = rect.translated(offset.x, offset.y);
-                    }
-                    SpatialData::BackfaceVisibility(_) | SpatialData::Dead => {}
-                }
+                rect = self
+                    .local_transform(current, scroll_offsets, ScrollSnap::None)
+                    .matrix
+                    .extract_2d_affine()
+                    .map_rect(rect);
             }
             if current == VISUAL_VIEWPORT_NODE_INDEX {
                 break;
@@ -565,18 +459,13 @@ impl VisualContextTree {
         let mut offset = FloatPoint::default();
         let mut current = index;
         while current != VISUAL_VIEWPORT_NODE_INDEX {
-            let node = &self.spatial_nodes[current.0 as usize];
-            let node_offset = match &node.data {
-                SpatialData::Scroll(_) | SpatialData::Sticky(_) => device_offset_for_index(scroll_offsets, current),
-                SpatialData::AnchorScrollShift(shift) => shift.masked_offset(scroll_offsets),
-                SpatialData::Transform(_)
-                | SpatialData::Perspective(_)
-                | SpatialData::BackfaceVisibility(_)
-                | SpatialData::Dead => FloatPoint::default(),
-            };
-            offset.x += node_offset.x;
-            offset.y += node_offset.y;
-            current = node.parent;
+            if let LocalTransformKind::Translation(node_offset) =
+                self.local_transform(current, scroll_offsets, ScrollSnap::None).kind
+            {
+                offset.x += node_offset.x;
+                offset.y += node_offset.y;
+            }
+            current = self.spatial_nodes[current.0 as usize].parent;
         }
         offset
     }
@@ -849,7 +738,7 @@ impl VisualContextTree {
                 let radius = math::hypot(dx, dy);
                 rect = FloatRect::new(origin.x - radius, origin.y - radius, 2.0 * radius, 2.0 * radius);
             } else {
-                let matrix = self.local_spatial_matrix(index, scroll_offsets).matrix;
+                let matrix = self.local_transform(index, scroll_offsets, ScrollSnap::None).matrix;
                 // Projecting a rectangle at each ancestor would discard depth needed by later 3D transforms.
                 if !matrix.is_2d_affine() {
                     return None;

@@ -20,14 +20,14 @@ use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, ContextRef, EffectNodeData, SpatialData, SpatialNode, VisualContextTree, device_offset_for_index,
+    ClipNodeData, ContextRef, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
     AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
-    enclosing_int_rect, multiply_affine, translation_matrix,
+    enclosing_int_rect, multiply_affine,
 };
 use std::cell::RefCell;
 
@@ -375,21 +375,22 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
 // The cull state of the element that establishes the 3D rendering context rooted at root: the cull state of the
 // plane the context is flattened into.
 fn backface_culled_outside_sorting_context(
-    spatial_nodes: &[SpatialNode],
+    tree: &VisualContextTree,
     backface_culled: &[bool],
     root: SpatialNodeIndex,
 ) -> bool {
-    let mut index = root.0 as usize;
+    let mut index = root;
     loop {
-        if let SpatialData::Transform(transform) = &spatial_nodes[index].data
-            && transform.establishes_sorting_context
+        if tree
+            .local_transform(index, &[], ScrollSnap::None)
+            .establishes_sorting_context
         {
-            return backface_culled[index];
+            return backface_culled[index.0 as usize];
         }
-        if index == 0 {
+        if index.0 == 0 {
             return false;
         }
-        index = spatial_nodes[index].parent.0 as usize;
+        index = tree.spatial_nodes[index.0 as usize].parent;
     }
 }
 
@@ -400,101 +401,51 @@ fn fill_replay_palette_in_dependency_order(
     replay_base_matrix: FloatMatrix4x4,
     palette: &mut ReplayPaletteStorage,
 ) {
-    let spatial_nodes = &tree.spatial_nodes;
+    let node_count = tree.spatial_nodes.len();
     palette.to_root_matrices.clear();
-    palette.to_root_matrices.resize(spatial_nodes.len(), replay_base_matrix);
+    palette.to_root_matrices.resize(node_count, replay_base_matrix);
     palette.local_matrices.clear();
-    palette
-        .local_matrices
-        .resize(spatial_nodes.len(), FloatMatrix4x4::identity());
+    palette.local_matrices.resize(node_count, FloatMatrix4x4::identity());
     palette.draw_spaces.clear();
     palette
         .draw_spaces
-        .extend((0..spatial_nodes.len()).map(|index| SpatialNodeIndex(index as u32)));
+        .extend((0..node_count).map(|index| SpatialNodeIndex(index as u32)));
     palette.backface_culled.clear();
-    palette.backface_culled.resize(spatial_nodes.len(), false);
+    palette.backface_culled.resize(node_count, false);
     palette.flattens_inherited_transform.clear();
-    palette.flattens_inherited_transform.resize(spatial_nodes.len(), false);
+    palette.flattens_inherited_transform.resize(node_count, false);
     for &index in spatial_dependency_order {
         let i = index as usize;
-        let node = &spatial_nodes[i];
-        let parent = node.parent.0 as usize;
-        let write_spatial =
-            |palette: &mut ReplayPaletteStorage, local_matrix: FloatMatrix4x4, flattens_inherited_transform: bool| {
-                let parent_matrix = if i == 0 {
-                    replay_base_matrix
-                } else {
-                    palette.to_root_matrices[parent]
-                };
-                let inherited = if flattens_inherited_transform {
-                    parent_matrix.flattened()
-                } else {
-                    parent_matrix
-                };
-                palette.to_root_matrices[i] = inherited.multiplied(local_matrix);
-                palette.local_matrices[i] = local_matrix;
-                palette.flattens_inherited_transform[i] = flattens_inherited_transform;
-                palette.draw_spaces[i] = SpatialNodeIndex(index);
-                palette.backface_culled[i] = if i == 0 { false } else { palette.backface_culled[parent] };
-            };
-        let write_spatial_translation = |palette: &mut ReplayPaletteStorage, offset: FloatPoint| {
-            // Whole device pixels, so scrolled content never lands on subpixel positions.
-            write_spatial(
-                palette,
-                translation_matrix(offset.x as i32 as f32, offset.y as i32 as f32, 0.0),
-                false,
-            );
+        let parent = tree.spatial_nodes[i].parent.0 as usize;
+        // Whole device pixels, so scrolled content never lands on subpixel positions.
+        let local = tree.local_transform(SpatialNodeIndex(index), scroll_offsets, ScrollSnap::Truncate);
+        let parent_matrix = if i == 0 {
+            replay_base_matrix
+        } else {
+            palette.to_root_matrices[parent]
         };
-        match &node.data {
-            SpatialData::Transform(transform) => {
-                write_spatial(
-                    palette,
-                    transform.matrix_including_origin(),
-                    transform.flattens_inherited_transform,
-                );
-                // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
-                // A participant in a 3D rendering context is its own plane, so the hidden backfaces of other planes in
-                // the context don't cull it. But a context is part of the content flattened into the plane its
-                // establishing element sits in, so whatever culls that plane culls the whole context: A participant
-                // starts from the cull state of the element that establishes its context. The spec doesn't yet say if a
-                // hidden backface culls the 3D rendering contexts nested in it:
-                // https://github.com/w3c/csswg-drafts/issues/918
-                if let Some(root) = transform.sorting_context_root_index {
-                    palette.backface_culled[i] =
-                        backface_culled_outside_sorting_context(spatial_nodes, &palette.backface_culled, root);
-                }
-            }
-            SpatialData::Perspective(perspective) => {
-                write_spatial(palette, perspective.matrix, perspective.flattens_inherited_transform);
-            }
-            SpatialData::BackfaceVisibility(backface) => {
-                let parent_matrix = palette.to_root_matrices[parent];
-                palette.to_root_matrices[i] = if backface.flattens_inherited_transform {
-                    parent_matrix.flattened()
-                } else {
-                    parent_matrix
-                };
-                palette.local_matrices[i] = FloatMatrix4x4::identity();
-                palette.flattens_inherited_transform[i] = backface.flattens_inherited_transform;
-                palette.draw_spaces[i] = palette.draw_spaces[parent];
-                let mut culled = palette.backface_culled[parent];
-                if !culled {
-                    let plane_root_matrix = palette.to_root_matrices[backface.plane_root_index.0 as usize];
-                    culled = should_cull_back_face(palette.to_root_matrices[i], plane_root_matrix);
-                }
-                palette.backface_culled[i] = culled;
-            }
-            SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
-                write_spatial_translation(
-                    palette,
-                    device_offset_for_index(scroll_offsets, SpatialNodeIndex(index)),
-                );
-            }
-            SpatialData::AnchorScrollShift(shift) => {
-                write_spatial_translation(palette, shift.masked_offset(scroll_offsets));
-            }
-            SpatialData::Dead => {}
+        palette.to_root_matrices[i] = local.applied_to(parent_matrix);
+        palette.local_matrices[i] = local.matrix;
+        palette.flattens_inherited_transform[i] = local.flattens_inherited_transform;
+        let mut culled = i != 0 && palette.backface_culled[parent];
+        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+        // A participant in a 3D rendering context is its own plane, so the hidden backfaces of other planes in the
+        // context don't cull it. But a context is part of the content flattened into the plane its establishing
+        // element sits in, so whatever culls that plane culls the whole context: A participant starts from the cull
+        // state of the element that establishes its context. The spec doesn't yet say if a hidden backface culls the
+        // 3D rendering contexts nested in it:
+        // https://github.com/w3c/csswg-drafts/issues/918
+        if let Some(root) = local.sorting_context_root {
+            culled = backface_culled_outside_sorting_context(tree, &palette.backface_culled, root);
         }
+        if let Some(plane_root) = local.backface_plane_root {
+            palette.draw_spaces[i] = palette.draw_spaces[parent];
+            if !culled {
+                let plane_root_matrix = palette.to_root_matrices[plane_root.0 as usize];
+                culled = should_cull_back_face(palette.to_root_matrices[i], plane_root_matrix);
+            }
+        }
+        palette.backface_culled[i] = culled;
     }
 }
 
