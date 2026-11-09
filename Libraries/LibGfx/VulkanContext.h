@@ -42,6 +42,9 @@ struct VulkanContext {
 
 // The preferred device is picked when it is present, since memory the context shares can only be imported on the same one.
 ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& preferred_device = {});
+// The device a context would be created on, which the system probe describes without creating one.
+ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance, Optional<GpuDeviceIdentity> const& preferred_device);
+bool device_can_sample_through_ycbcr_conversion(VkPhysicalDevice);
 GpuDeviceIdentity gpu_device_identity_of(VkPhysicalDevice);
 
 }

@@ -53,7 +53,7 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     return instance;
 }
 
-static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance, Optional<GpuDeviceIdentity> const& preferred_device)
+ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance, Optional<GpuDeviceIdentity> const& preferred_device)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
@@ -121,7 +121,7 @@ static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice)
 }
 #endif
 
-static bool device_can_sample_through_ycbcr_conversion(VkPhysicalDevice physical_device)
+bool device_can_sample_through_ycbcr_conversion(VkPhysicalDevice physical_device)
 {
     VkPhysicalDeviceSamplerYcbcrConversionFeatures ycbcr_conversion_features {};
     ycbcr_conversion_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES;
