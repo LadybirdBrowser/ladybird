@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+    .grid {
+        display: grid;
+        grid-template: 200px / 200px;
+    }
+    .lanes {
+        display: grid-lanes;
+        grid-template-columns: 100px;
+    }
+    .lanes > div {
+        height: 80px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["grid", { justifyContent: "safe center", alignContent: "safe center" }],
+            ["grid", { justifyContent: "unsafe center", alignContent: "unsafe center" }],
+            ["grid", { justifyContent: "safe end", alignContent: "safe end" }],
+            ["grid", { justifyContent: "end", alignContent: "end" }],
+            ["grid", { justifyContent: "safe center", alignContent: "safe center", gridTemplate: "50px / 50px" }],
+            ["grid", { direction: "rtl", justifyContent: "safe center" }],
+            ["grid", { direction: "rtl", justifyContent: "unsafe center" }],
+            ["grid", { writingMode: "vertical-rl", justifyContent: "safe center", alignContent: "safe center" }],
+            ["lanes", { alignContent: "safe center" }],
+            ["lanes", { alignContent: "unsafe center" }],
+            ["lanes", { alignContent: "safe end" }],
+        ];
+        for (const [kind, style] of cases) {
+            const container = document.createElement("div");
+            container.className = `container ${kind}`;
+            Object.assign(container.style, style);
+            const itemCount = kind === "lanes" ? 2 : 1;
+            for (let i = 0; i < itemCount; ++i)
+                container.appendChild(document.createElement("div"));
+            document.body.appendChild(container);
+            const containerRect = container.getBoundingClientRect();
+            const itemRect = container.firstChild.getBoundingClientRect();
+            const description = Object.entries(style).map(([name, value]) => `${name}: ${value}`).join("; ");
+            println(`${kind} {${description}}: ${itemRect.left - containerRect.left},${itemRect.top - containerRect.top}`);
+            container.remove();
+        }
+    });
+</script>
