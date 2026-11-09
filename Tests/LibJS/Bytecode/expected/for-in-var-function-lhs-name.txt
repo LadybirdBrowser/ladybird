@@ -1,4 +1,4 @@
-$d9fb9630 for-in-var-function-lhs-name.js:7:1
+$a33dfa99 for-in-var-function-lhs-name.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,12 @@ $d9fb9630 for-in-var-function-lhs-name.js:7:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `fn`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  20] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `fn`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  18] End value:reg5
 
 
-fn$c29bed82 for-in-var-function-lhs-name.js:4:14
+fn$563d19e7 for-in-var-function-lhs-name.js:4:14
   Registers: 11
   Blocks:    5
   Locals:    f~0
@@ -23,22 +23,22 @@ fn$c29bed82 for-in-var-function-lhs-name.js:4:14
 block0:
   [   0] Enter
   [   1] Mov dst:f~0, src:Undefined
-  [   6] NewFunction dst:f~0, shared_function_data_index:0 (f)
-  [  11] NewObject dst:reg6
-  [  16] Mov dst:reg5, src:reg6
-  [  1b] JumpNullish condition:reg5, true_target:block4, false_target:block1
+  [   4] NewFunction dst:f~0, shared_function_data_index:0 (f)
+  [   e] NewObject dst:reg6
+  [  12] Mov dst:reg5, src:reg6
+  [  15] JumpNullish condition:reg5, true_target:block4, false_target:block1
 
 block1:
-  [  26] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
-  [  31] Mov dst:reg8, src:Int32(0)
+  [  1f] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  27] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  36] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  41] JumpTrue condition:reg10, target:block4
+  [  2a] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
+  [  30] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  48] Mov dst:f~0, src:reg9
-  [  4d] JumpLoop target:block2
+  [  36] Mov dst:f~0, src:reg9
+  [  39] JumpLoop target:block2
 
 block4:
-  [  52] End value:Undefined
+  [  3e] End value:Undefined

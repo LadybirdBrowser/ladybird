@@ -1,4 +1,4 @@
-$cd0e6045 bitwise-numeric-preconvert.js:4:1
+$a5cc077b bitwise-numeric-preconvert.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,12 +8,12 @@ $cd0e6045 bitwise-numeric-preconvert.js:4:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `test`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  22] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `test`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  19] End value:reg5
 
 
-test$f957f541 bitwise-numeric-preconvert.js:2:5
+test$3a08f185 bitwise-numeric-preconvert.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -22,4 +22,4 @@ test$f957f541 bitwise-numeric-preconvert.js:2:5
 block0:
   [   0] Enter
   [   1] RightShift arith_feedback:0, dst:reg5, lhs:Double(2147483648), rhs:arg0
-  [   a] Return value:reg5
+  [   7] Return value:reg5

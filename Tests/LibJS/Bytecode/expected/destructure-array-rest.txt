@@ -1,4 +1,4 @@
-$5e28f45e destructure-array-rest.js:9:1
+$24a767b7 destructure-array-rest.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,12 @@ $5e28f45e destructure-array-rest.js:9:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `f`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  20] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `f`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  18] End value:reg5
 
 
-f$dc11e290 destructure-array-rest.js:6:5
+f$cf5a90d3 destructure-array-rest.js:6:5
   Registers: 12
   Blocks:    14
   Locals:    a~0, b~1
@@ -24,54 +24,54 @@ f$dc11e290 destructure-array-rest.js:6:5
 block0:
   [   0] Enter
   [   1] Mov dst:a~0, src:<Empty>
-  [   6] Mov dst:b~1, src:<Empty>
-  [   b] NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
-  [  2a] Mov dst:reg6, src:Bool(false)
-  [  2f] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
-  [  3f] IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [   4] Mov dst:b~1, src:<Empty>
+  [   7] NewPrimitiveArray dst:reg5, elements:[1, 2, 3]
+  [  25] Mov dst:reg6, src:Bool(false)
+  [  28] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5, fast_array_mode_allowed:true
+  [  34] IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
 
 block1:
-  [  4a] JumpFalse condition:reg6, target:block3
+  [  3a] JumpFalse condition:reg6, target:block3
 
 block2:
-  [  51] Mov dst:reg10, src:Undefined
+  [  40] Mov dst:reg10, src:Undefined
 
 block3:
-  [  56] Mov dst:a~0, src:reg10
-  [  5b] JumpTrue condition:reg6, target:block6
+  [  43] Mov dst:a~0, src:reg10
+  [  46] JumpTrue condition:reg6, target:block6
 
 block4:
-  [  62] IteratorToArray dst:reg10, iterator_object:reg7, iterator_next_method:reg8, iterator_done_property:reg9
+  [  4c] IteratorToArray dst:reg10, iterator_object:reg7, iterator_next_method:reg8, iterator_done_property:reg9
 
 block5:
-  [  6b] Jump target:block7
+  [  51] Jump target:block7
 
 block6:
-  [  70] NewArray dst:reg10
+  [  56] NewArray dst:reg10
 
 block7:
-  [  77] Mov dst:b~1, src:reg10
+  [  59] Mov dst:b~1, src:reg10
 
 block8:
-  [  7c] JumpTrue condition:reg9, target:block13
+  [  5c] JumpTrue condition:reg9, target:block13
 
 block9:
-  [  83] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [  92] Jump target:block13
+  [  62] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [  6d] Jump target:block13
 
 block10:
-  [  97] Catch value_feedback:0, dst:reg11
-  [  9c] JumpTrue condition:reg9, target:block12
+  [  72] Catch value_feedback:0, dst:reg11
+  [  76] JumpTrue condition:reg9, target:block12
 
 block11:
-  [  a3] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [  7c] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
 
 block12:
-  [  b2] Throw src:reg11
+  [  87] Throw src:reg11
 
 block13:
-  [  b5] Return value:b~1
+  [  89] Return value:b~1
 
 Exception handlers:
-  [  4a ..   62] => handler block10
-  [  6b ..   7c] => handler block10
+  [  3a ..   4c] => handler block10
+  [  51 ..   5c] => handler block10

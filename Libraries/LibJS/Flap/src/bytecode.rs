@@ -157,13 +157,14 @@ fn bytecode_field_type_name(field: &crate::metadata::Field) -> String {
 fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &Type) -> bool {
     if field.is_array {
         return match field.ty.as_str() {
-            "Operand" | "Optional<Operand>" => *parameter_type == Type::Sequence(Box::new(Type::U16)),
+            "Operand" | "Optional<Operand>" => *parameter_type == Type::Sequence(Box::new(Type::U8)),
             "Value" => *parameter_type == Type::Sequence(Box::new(Type::Value)),
             _ => false,
         };
     }
     match field.ty.as_str() {
         "bool" => *parameter_type == Type::Bool || *parameter_type == Type::U8,
+        "u8" => *parameter_type == Type::U8,
         "u32"
         | "Completion::Type"
         | "IteratorHint"
@@ -178,7 +179,9 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
         | "StringTableIndex"
         | "TemplateObjectCacheIndex"
         | "Optional<IdentifierTableIndex>"
-        | "Optional<StringTableIndex>" => *parameter_type == Type::U32,
+        | "Optional<StringTableIndex>"
+        | "Optional<DebugIdentifierIndex>"
+        | "Optional<DebugStringIndex>" => *parameter_type == Type::U32,
         "ArithFeedbackIndex" => *parameter_type == Type::ArithFeedbackIndex,
         "ValueFeedbackIndex" => *parameter_type == Type::ValueFeedbackIndex,
         "CallFeedbackIndex" => *parameter_type == Type::CallFeedbackIndex,

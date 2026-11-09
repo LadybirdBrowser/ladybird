@@ -1,4 +1,4 @@
-$71a0a85b if-else-register-lifetime.js:11:1
+$e3875e16 if-else-register-lifetime.js:11:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,13 +7,13 @@ $71a0a85b if-else-register-lifetime.js:11:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `test`
-  [   f] NewPrimitiveArray dst:reg7, elements:[1]
-  [  1e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  31] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `test`
+  [   d] NewPrimitiveArray dst:reg7, elements:[1]
+  [  1b] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  27] End value:reg5
 
 
-test$cf851b4c if-else-register-lifetime.js:2:9
+test$3778705a if-else-register-lifetime.js:2:9
   Registers: 7
   Blocks:    10
   Locals:    a~0, i~1, j~2
@@ -25,45 +25,45 @@ test$cf851b4c if-else-register-lifetime.js:2:9
 block0:
   [   0] Enter
   [   1] Mov dst:a~0, src:Undefined
-  [   6] Mov dst:i~1, src:Undefined
-  [   b] Mov dst:j~2, src:Undefined
-  [  10] Mov dst:a~0, src:Int32(1)
-  [  15] Mov dst:i~1, src:Int32(0)
-  [  1a] Jump target:block8
+  [   4] Mov dst:i~1, src:Undefined
+  [   7] Mov dst:j~2, src:Undefined
+  [   a] Mov dst:a~0, src:Int32(1)
+  [   d] Mov dst:i~1, src:Int32(0)
+  [  10] Jump target:block8
 
 block1:
-  [  1f] Mov dst:j~2, src:Int32(0)
-  [  24] Jump target:block6
+  [  15] Mov dst:j~2, src:Int32(0)
+  [  18] Jump target:block6
 
 block2:
-  [  29] JumpLessThanRhsInt32 arith_feedback:0, lhs:j~2, rhs:5, true_target:block3, false_target:block4
+  [  1d] JumpLessThanRhsInt32 arith_feedback:0, lhs:j~2, rhs:5, true_target:block3, false_target:block4
 
 block3:
-  [  3a] Add arith_feedback:1, dst:reg5, lhs:i~1, rhs:j~2
-  [  43] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:reg5
-  [  52] PutByValue keyed_feedback:1, base:arg0, property:j~2, src:reg5, kind:Normal
-  [  63] Jump target:block5
+  [  2d] Add arith_feedback:1, dst:reg5, lhs:i~1, rhs:j~2
+  [  33] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:reg5
+  [  3f] PutByValue keyed_feedback:1, base:arg0, property:j~2, src:reg5, kind:Normal
+  [  4d] Jump target:block5
 
 block4:
-  [  68] GetGlobal value_feedback:1, dst:reg5, `parseInt`
-  [  71] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
-  [  7c] GetByValue value_feedback:2, keyed_feedback:2, dst:reg6, base:arg0, property:reg6
-  [  8b] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
-  [  a0] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
+  [  52] GetGlobal value_feedback:1, dst:reg5, `parseInt`
+  [  5b] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
+  [  64] GetByValue value_feedback:2, keyed_feedback:2, dst:reg6, base:arg0, property:reg6
+  [  70] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
+  [  7d] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
 
 block5:
-  [  b1] Increment arith_feedback:3, dst:j~2
+  [  8b] Increment arith_feedback:3, dst:j~2
 
 block6:
-  [  b6] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
+  [  8f] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
 
 block7:
-  [  c7] Increment arith_feedback:5, dst:i~1
+  [  9f] Increment arith_feedback:5, dst:i~1
 
 block8:
-  [  cc] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
+  [  a3] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
 
 block9:
-  [  dd] GetGlobal value_feedback:4, dst:reg5, `parseInt`
-  [  e6] Call value_feedback:5, call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
-  [  f9] Return value:reg5
+  [  b3] GetGlobal value_feedback:4, dst:reg5, `parseInt`
+  [  bc] Call value_feedback:5, call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
+  [  c8] Return value:reg5

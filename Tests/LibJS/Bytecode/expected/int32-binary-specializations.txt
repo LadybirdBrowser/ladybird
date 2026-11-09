@@ -1,4 +1,4 @@
-$fac59f15 int32-binary-specializations.js:20:1
+$e41aecab int32-binary-specializations.js:20:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,12 +8,12 @@ $fac59f15 int32-binary-specializations.js:20:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `int32_binary_specializations`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(8)]
-  [  22] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `int32_binary_specializations`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(8)]
+  [  19] End value:reg5
 
 
-int32_binary_specializations$dae9eeec int32-binary-specializations.js:2:5
+int32_binary_specializations$d825fddc int32-binary-specializations.js:2:5
   Registers: 20
   Blocks:    1
   Constants:
@@ -22,18 +22,18 @@ int32_binary_specializations$dae9eeec int32-binary-specializations.js:2:5
 block0:
   [   0] Enter
   [   1] AddLhsInt32 arith_feedback:0, dst:reg5, lhs:2, rhs:arg0
-  [   c] AddRhsInt32 arith_feedback:1, dst:reg6, lhs:arg0, rhs:2
-  [  17] SubRhsInt32 arith_feedback:2, dst:reg7, lhs:arg0, rhs:2
-  [  22] MulRhsInt32 arith_feedback:3, dst:reg8, lhs:arg0, rhs:2
-  [  2d] ExpRhsInt32 arith_feedback:4, dst:reg9, lhs:arg0, rhs:2
-  [  38] DivRhsInt32 arith_feedback:5, dst:reg10, lhs:arg0, rhs:2
-  [  43] BitwiseXorRhsInt32 arith_feedback:6, dst:reg11, lhs:arg0, rhs:2
-  [  4e] BitwiseAndRhsInt32 arith_feedback:7, dst:reg12, lhs:arg0, rhs:2
-  [  59] BitwiseOrRhsInt32 arith_feedback:8, dst:reg13, lhs:arg0, rhs:2
-  [  64] LeftShiftRhsInt32 arith_feedback:9, dst:reg14, lhs:arg0, rhs:2
-  [  6f] RightShiftRhsInt32 arith_feedback:10, dst:reg15, lhs:arg0, rhs:2
-  [  7a] UnsignedRightShiftRhsInt32 arith_feedback:11, dst:reg16, lhs:arg0, rhs:2
-  [  85] ModRhsInt32 arith_feedback:12, dst:reg17, lhs:arg0, rhs:2
-  [  90] Add arith_feedback:13, dst:reg18, lhs:arg0, rhs:Double(2.5)
-  [  99] NewArray dst:reg19, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14, reg15, reg16, reg17, reg18]
-  [  bc] Return value:reg19
+  [   a] AddRhsInt32 arith_feedback:1, dst:reg6, lhs:arg0, rhs:2
+  [  13] SubRhsInt32 arith_feedback:2, dst:reg7, lhs:arg0, rhs:2
+  [  1c] MulRhsInt32 arith_feedback:3, dst:reg8, lhs:arg0, rhs:2
+  [  25] ExpRhsInt32 arith_feedback:4, dst:reg9, lhs:arg0, rhs:2
+  [  2e] DivRhsInt32 arith_feedback:5, dst:reg10, lhs:arg0, rhs:2
+  [  37] BitwiseXorRhsInt32 arith_feedback:6, dst:reg11, lhs:arg0, rhs:2
+  [  40] BitwiseAndRhsInt32 arith_feedback:7, dst:reg12, lhs:arg0, rhs:2
+  [  49] BitwiseOrRhsInt32 arith_feedback:8, dst:reg13, lhs:arg0, rhs:2
+  [  52] LeftShiftRhsInt32 arith_feedback:9, dst:reg14, lhs:arg0, rhs:2
+  [  5b] RightShiftRhsInt32 arith_feedback:10, dst:reg15, lhs:arg0, rhs:2
+  [  64] UnsignedRightShiftRhsInt32 arith_feedback:11, dst:reg16, lhs:arg0, rhs:2
+  [  6d] ModRhsInt32 arith_feedback:12, dst:reg17, lhs:arg0, rhs:2
+  [  76] Add arith_feedback:13, dst:reg18, lhs:arg0, rhs:Double(2.5)
+  [  7c] NewArray dst:reg19, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14, reg15, reg16, reg17, reg18]
+  [  8d] Return value:reg19

@@ -1,4 +1,4 @@
-$55669f3b switch-completion-value.js:1:1
+$5946f3de switch-completion-value.js:1:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -10,25 +10,25 @@ $55669f3b switch-completion-value.js:1:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] DynamicGetBinding value_feedback:0, dst:reg6, `console`
-  [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  1c] DynamicGetCalleeAndThisFromEnvironment value_feedback:2, callee:reg8, this_value:reg9, `eval`
-  [  27] CallDirectEval value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
-  [  3a] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  4d] DynamicGetBinding value_feedback:5, dst:reg6, `console`
-  [  56] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  63] DynamicGetCalleeAndThisFromEnvironment value_feedback:7, callee:reg8, this_value:reg9, `eval`
-  [  6e] CallDirectEval value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
-  [  81] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  94] DynamicGetBinding value_feedback:10, dst:reg6, `console`
-  [  9d] GetById value_feedback:11, dst:reg7, base:reg6, `log`
-  [  aa] DynamicGetCalleeAndThisFromEnvironment value_feedback:12, callee:reg8, this_value:reg9, `eval`
-  [  b5] CallDirectEval value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
-  [  c8] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  db] End value:reg5
+  [   4] DynamicGetBinding value_feedback:0, dst:reg6, `console`
+  [   d] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  19] DynamicGetCalleeAndThisFromEnvironment value_feedback:2, callee:reg8, this_value:reg9, `eval`
+  [  23] CallDirectEval value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
+  [  2f] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  3b] DynamicGetBinding value_feedback:5, dst:reg6, `console`
+  [  44] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  50] DynamicGetCalleeAndThisFromEnvironment value_feedback:7, callee:reg8, this_value:reg9, `eval`
+  [  5a] CallDirectEval value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
+  [  66] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  72] DynamicGetBinding value_feedback:10, dst:reg6, `console`
+  [  7b] GetById value_feedback:11, dst:reg7, base:reg6, `log`
+  [  87] DynamicGetCalleeAndThisFromEnvironment value_feedback:12, callee:reg8, this_value:reg9, `eval`
+  [  91] CallDirectEval value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
+  [  9d] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  a9] End value:reg5
 
 
-eval$bd4616f4 line 1, column 8
+eval$0aae64f5 line 1, column 8
   Registers: 8
   Blocks:    4
   Locals:    x~0
@@ -41,23 +41,23 @@ eval$bd4616f4 line 1, column 8
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg6, src:Int32(1)
-  [   b] Mov dst:reg5, src:Undefined
-  [  10] Mov dst:x~0, src:<Empty>
-  [  15] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
+  [   4] Mov dst:reg6, src:Int32(1)
+  [   7] Mov dst:reg5, src:Undefined
+  [   a] Mov dst:x~0, src:<Empty>
+  [   d] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  24] Jump target:block3
+  [  1a] Jump target:block3
 
 block2:
-  [  29] Mov dst:reg5, src:String("hello")
-  [  2e] Mov dst:x~0, src:Int32(1)
+  [  1f] Mov dst:reg5, src:String("hello")
+  [  22] Mov dst:x~0, src:Int32(1)
 
 block3:
-  [  33] End value:reg5
+  [  25] End value:reg5
 
 
-eval$6d19d7e3 line 1, column 8
+eval$5adaa406 line 1, column 8
   Registers: 8
   Blocks:    4
   Constants:
@@ -69,22 +69,22 @@ eval$6d19d7e3 line 1, column 8
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg6, src:Int32(1)
-  [   b] Mov dst:reg5, src:Undefined
-  [  10] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
+  [   4] Mov dst:reg6, src:Int32(1)
+  [   7] Mov dst:reg5, src:Undefined
+  [   a] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  1f] Jump target:block3
+  [  17] Jump target:block3
 
 block2:
-  [  24] Mov dst:reg5, src:String("first")
-  [  29] Mov dst:reg5, src:String("second")
+  [  1c] Mov dst:reg5, src:String("first")
+  [  1f] Mov dst:reg5, src:String("second")
 
 block3:
-  [  2e] End value:reg5
+  [  22] End value:reg5
 
 
-eval$bd4616f4 line 1, column 8
+eval$ebb7df5b line 1, column 8
   Registers: 8
   Blocks:    5
   Constants:
@@ -96,22 +96,22 @@ eval$bd4616f4 line 1, column 8
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg6, src:Int32(1)
-  [   b] Mov dst:reg5, src:Undefined
-  [  10] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
+  [   4] Mov dst:reg6, src:Int32(1)
+  [   7] Mov dst:reg5, src:Undefined
+  [   a] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  1f] Jump target:block3
+  [  17] Jump target:block3
 
 block2:
-  [  24] Mov dst:reg5, src:String("matched")
-  [  29] Jump target:block4
+  [  1c] Mov dst:reg5, src:String("matched")
+  [  1f] Jump target:block4
 
 block3:
-  [  2e] Mov dst:reg5, src:String("default")
+  [  24] Mov dst:reg5, src:String("default")
 
 block4:
-  [  33] End value:reg5
+  [  27] End value:reg5
 
 
 "hello"

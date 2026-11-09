@@ -1,4 +1,4 @@
-$89a42c88 regex-literals.js:2:5
+$f8c6f133 regex-literals.js:2:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,25 +8,25 @@ $89a42c88 regex-literals.js:2:5
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] NewRegExp dst:reg6, foo, 
-  [   d] DynamicInitializeLexicalBinding `a`, src:reg6
-  [  14] NewRegExp dst:reg6, bar, gi
+  [   4] NewRegExp dst:reg6, foo, 
+  [   c] DynamicInitializeLexicalBinding `a`, src:reg6
+  [  13] NewRegExp dst:reg6, bar, gi
   [  1b] DynamicInitializeLexicalBinding `b`, src:reg6
   [  22] NewRegExp dst:reg6, baz, i
-  [  29] AddLhsInt32 arith_feedback:0, dst:reg6, lhs:1, rhs:reg6
-  [  34] DynamicInitializeLexicalBinding `c`, src:reg6
-  [  3b] GetGlobal value_feedback:0, dst:reg6, `matchDigits`
-  [  44] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("abc123")]
-  [  57] End value:reg5
+  [  2a] AddLhsInt32 arith_feedback:0, dst:reg6, lhs:1, rhs:reg6
+  [  33] DynamicInitializeLexicalBinding `c`, src:reg6
+  [  3a] GetGlobal value_feedback:0, dst:reg6, `matchDigits`
+  [  43] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[String("abc123")]
+  [  4f] End value:reg5
 
 
-matchDigits$6910dc2c regex-literals.js:8:5
+matchDigits$e7aee3a4 regex-literals.js:8:5
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] NewRegExp dst:reg5, \d+, g
-  [   8] GetById value_feedback:0, dst:reg6, base:reg5, `test`
+  [   9] GetById value_feedback:0, dst:reg6, base:reg5, `test`
   [  15] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:reg5, arguments:[arg0]
-  [  28] Return value:reg5
+  [  21] Return value:reg5

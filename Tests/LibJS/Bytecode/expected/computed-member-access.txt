@@ -1,4 +1,4 @@
-$1db12149 computed-member-access.js:12:1
+$d77842e5 computed-member-access.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,16 +8,16 @@ $1db12149 computed-member-access.js:12:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `computed_read`
-  [   f] NewPrimitiveArray dst:reg7, elements:[1]
-  [  1e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  31] GetGlobal value_feedback:2, dst:reg6, `computed_read_expression`
-  [  3a] NewPrimitiveArray dst:reg7, elements:[1]
-  [  49] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, Int32(0)]
-  [  5e] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `computed_read`
+  [   d] NewPrimitiveArray dst:reg7, elements:[1]
+  [  1b] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  27] GetGlobal value_feedback:2, dst:reg6, `computed_read_expression`
+  [  30] NewPrimitiveArray dst:reg7, elements:[1]
+  [  3e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, Int32(0)]
+  [  4b] End value:reg5
 
 
-computed_read$3b93c7b2 computed-member-access.js:5:5
+computed_read$fae2cb6e computed-member-access.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -26,14 +26,14 @@ computed_read$3b93c7b2 computed-member-access.js:5:5
 block0:
   [   0] Enter
   [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
-  [  10] Return value:reg5
+  [   d] Return value:reg5
 
 
-computed_read_expression$b79c72d3 computed-member-access.js:9:5
+computed_read_expression$7c7358af computed-member-access.js:9:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:arg1
-  [  10] Return value:reg5
+  [   d] Return value:reg5

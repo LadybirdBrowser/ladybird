@@ -1,4 +1,4 @@
-$8432cd08 switch-scoping.js:15:1
+$ced729f9 switch-scoping.js:15:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -9,20 +9,20 @@ $8432cd08 switch-scoping.js:15:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `console`
-  [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  1c] GetGlobal value_feedback:2, dst:reg8, `switchWithBlockDecl`
-  [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(1)]
-  [  38] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  4b] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  54] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  61] GetGlobal value_feedback:7, dst:reg8, `switchWithBlockDecl`
-  [  6a] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(2)]
-  [  7d] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  90] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `console`
+  [   d] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  19] GetGlobal value_feedback:2, dst:reg8, `switchWithBlockDecl`
+  [  22] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(1)]
+  [  2e] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  3a] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  43] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  4f] GetGlobal value_feedback:7, dst:reg8, `switchWithBlockDecl`
+  [  58] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(2)]
+  [  64] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  70] End value:reg5
 
 
-switchWithBlockDecl$76246e76 switch-scoping.js:2:9
+switchWithBlockDecl$23343e55 switch-scoping.js:2:9
   Registers: 8
   Blocks:    6
   Locals:    result~0
@@ -36,35 +36,35 @@ switchWithBlockDecl$76246e76 switch-scoping.js:2:9
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:result~0, src:Undefined
-  [   9] Mov dst:reg5, src:arg0
-  [   e] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:2, is_catch_environment:false
-  [  1c] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [  26] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  30] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg5, true_target:block3, false_target:block1
+  [   3] Mov dst:result~0, src:Undefined
+  [   6] Mov dst:reg5, src:arg0
+  [   9] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:2, is_catch_environment:false
+  [  15] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [  20] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  2b] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg5, true_target:block3, false_target:block1
 
 block1:
-  [  3f] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:reg5, true_target:block4, false_target:block2
+  [  38] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:reg5, true_target:block4, false_target:block2
 
 block2:
-  [  4e] Jump target:block5
+  [  45] Jump target:block5
 
 block3:
-  [  53] InitializeLexicalBinding `a`, src:String("one")
-  [  60] NewFunction dst:result~0, shared_function_data_index:0 (result)
-  [  6b] Jump target:block5
+  [  4a] InitializeLexicalBinding `a`, src:String("one")
+  [  57] NewFunction dst:result~0, shared_function_data_index:0 (result)
+  [  61] Jump target:block5
 
 block4:
-  [  70] InitializeLexicalBinding `b`, src:String("two")
-  [  7d] NewFunction dst:result~0, shared_function_data_index:1 (result)
+  [  66] InitializeLexicalBinding `b`, src:String("two")
+  [  73] NewFunction dst:result~0, shared_function_data_index:1 (result)
 
 block5:
-  [  88] SetLexicalEnvironment environment:reg4
-  [  8b] Call value_feedback:0, call_feedback:0, dst:reg5, callee:result~0, this_value:Undefined
-  [  9c] Return value:reg5
+  [  7d] SetLexicalEnvironment environment:reg4
+  [  7f] Call value_feedback:0, call_feedback:0, dst:reg5, callee:result~0, this_value:Undefined
+  [  8a] Return value:reg5
 
 
-result$318164ef switch-scoping.js:6:22
+result$e15525de switch-scoping.js:6:22
   Registers: 6
   Blocks:    1
 
@@ -74,7 +74,7 @@ block0:
   [  10] Return value:reg5
 
 
-result$f844ab23 switch-scoping.js:10:22
+result$a8186c12 switch-scoping.js:10:22
   Registers: 6
   Blocks:    1
 

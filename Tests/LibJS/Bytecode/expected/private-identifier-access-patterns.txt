@@ -1,4 +1,4 @@
-$a1b289a9 private-identifier-access-patterns.js:1:1
+$ffb27e0a private-identifier-access-patterns.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -8,13 +8,13 @@ $a1b289a9 private-identifier-access-patterns.js:1:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  21] CreatePrivateEnvironment
-  [  22] AddPrivateName `#x`
-  [  25] SetLexicalEnvironment environment:reg4
-  [  28] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  41] LeavePrivateEnvironment
-  [  42] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  49] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] CreatePrivateEnvironment
+  [  1e] AddPrivateName `#x`
+  [  22] SetLexicalEnvironment environment:reg4
+  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
+  [  35] LeavePrivateEnvironment
+  [  36] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  3d] End value:reg5

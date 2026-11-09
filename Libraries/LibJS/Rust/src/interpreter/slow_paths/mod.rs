@@ -15,6 +15,7 @@ pub mod operators;
 pub mod property_access;
 
 use core::cell::Cell;
+use core::ops::Deref;
 
 use super::runtime_functions::{Runtime, RuntimeFunctions, SlowPathControl, handle_asm_exception};
 use super::vm::Vm;
@@ -22,9 +23,57 @@ use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::feedback::{call_feedback_flags, keyed_feedback_bits};
 use crate::bytecode::op;
 use crate::bytecode::property_access::Strict;
+use crate::gc::root::{MarkedValues, MarkedVec};
 use crate::layout::value::Value;
 use libjs_abi::PutKind;
 use property_access::KeyedSiteCache;
+
+/// An operand list, whose values are in an array when the list is too long for the instruction.
+pub(super) enum OperandList<'a> {
+    Inline(&'a [Value]),
+    InArray(MarkedVec<'a, Value>),
+}
+
+impl OperandList<'_> {
+    /// Lends the values of the list.
+    pub(super) fn values(&self) -> OperandListValues<'_> {
+        match self {
+            Self::Inline(values) => OperandListValues::Inline(values),
+            Self::InArray(values) => OperandListValues::InArray(values.values()),
+        }
+    }
+}
+
+/// The values of an OperandList, which it lends.
+pub(super) enum OperandListValues<'a> {
+    Inline(&'a [Value]),
+    InArray(MarkedValues<'a, Value>),
+}
+
+impl Deref for OperandListValues<'_> {
+    type Target = [Value];
+
+    fn deref(&self) -> &[Value] {
+        match self {
+            Self::Inline(values) => values,
+            Self::InArray(values) => values,
+        }
+    }
+}
+
+/// The operand list of `values`, which are copied out of the array they are in if `is_in_array`.
+pub(super) fn operand_list<'a>(vm: &'a Vm, is_in_array: bool, values: &'a [Value]) -> OperandList<'a> {
+    if !is_in_array {
+        return OperandList::Inline(values);
+    }
+    let array = values[0].as_object();
+    let length = array.indexed_array_like_size();
+    let list = MarkedVec::with_capacity(vm, length as usize);
+    for index in 0..length {
+        list.push(array.indexed_get(index).expect("a dense array").value);
+    }
+    OperandList::InArray(list)
+}
 
 /// Whether the code at the bytecode offset `pc` of the running executable is strict.
 pub(super) fn strict_at(vm: &Vm, pc: u32) -> Strict {

@@ -501,7 +501,7 @@ fn operand_store(emit: &mut Emit<'_>, offset: i64, source: &AllocatedOperand, sc
 
     emit!(emit.output, X86_64;
         Opcode::Load {
-        width: MemoryWidth::HalfWord,
+        width: MemoryWidth::Byte,
         signed: false,
     } => [register index, address MachineMemoryAddress::indexed_offset(R14, R13, offset)];
     );
@@ -655,7 +655,7 @@ fn call_with_scalar_values(
     for (index, field) in inputs.iter().enumerate() {
         let ready = emit.unique_label("scalar_value_ready");
         emit!(emit.output, X86_64;
-            Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register R10, address MachineMemoryAddress::offset(R11, field.instruction_offset as i64)];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(R11, field.instruction_offset as i64)];
         );
         if field.optional {
             let empty = emit.constant(KnownLayoutConstant::EmptyValue)?;
@@ -696,7 +696,7 @@ fn call_with_scalar_values(
     if let Some(output) = layout.fields.iter().find(|field| field.mode == ParameterMode::Out) {
         emit!(emit.output, X86_64;
             Opcode::LoadEffectiveAddress => [register RCX, address MachineMemoryAddress::indexed(R14, R13)];
-            Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, output.instruction_offset as i64)];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, output.instruction_offset as i64)];
             Opcode::Store(MemoryWidth::DoubleWord) => [address MachineMemoryAddress { scale: Some(8), ..MachineMemoryAddress::indexed(RBX, R10) }, register RDX];
         );
     }
@@ -759,7 +759,7 @@ fn call_with_values(
         let base_offset = emit.constant(KnownLayoutConstant::VmStackInfoBase)?;
         let stack_space_limit = emit.constant(KnownLayoutConstant::VmStackSpaceLimit)?;
         emit!(emit.output, X86_64;
-            Opcode::Load { width: MemoryWidth::Word, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, count_offset as i64)];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, count_offset as i64)];
             Opcode::ShiftImmediate { operation: ShiftOperation::Left, width: IntegerWidth::U64 } => [register R10, immediate 3];
             Opcode::AluImmediate { operation: AluOperation::Add, width: IntegerWidth::U64 } => [register R10, immediate fixed_size + 15];
             Opcode::AluImmediate { operation: AluOperation::And, width: IntegerWidth::U64 } => [register R10, immediate -16];
@@ -815,7 +815,7 @@ fn call_with_values(
             emit!(emit.output, X86_64; Opcode::MoveAbsolute64Immediate => [register RAX, immediate empty];);
         }
         emit!(emit.output, X86_64;
-            Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
         );
         if field.optional {
             emit!(emit.output, X86_64;
@@ -857,11 +857,11 @@ fn call_with_values(
         let end = emit.unique_label("array_values_end");
         emit!(emit.output, X86_64;
             Opcode::Move32Immediate => [register R11, immediate 0];
-            Opcode::Load { width: MemoryWidth::Word, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, count_offset as i64)];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, count_offset as i64)];
             Opcode::Label => [label next.clone()];
             Opcode::CompareRegister(IntegerWidth::U64) => [register R11, register R10];
             Opcode::JumpCondition(Condition::UnsignedGreaterOrEqual) => [label end.clone()];
-            Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register RDX, address MachineMemoryAddress { scale: Some(2), ..MachineMemoryAddress::indexed_offset(RCX, R11, array_offset as i64) }];
+            Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register RDX, address MachineMemoryAddress::indexed_offset(RCX, R11, array_offset as i64)];
         );
         if optional {
             emit!(emit.output, X86_64;
@@ -930,7 +930,7 @@ fn call_with_values(
             }
             let skip = emit.unique_label("skip_output_value");
             emit!(emit.output, X86_64;
-                Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
+                Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
             );
             if field.optional {
                 emit!(emit.output, X86_64;
@@ -976,7 +976,7 @@ fn call_with_values(
             let skip = emit.unique_label("skip_exceptional_output");
             emit!(emit.output, X86_64;
                 Opcode::LoadEffectiveAddress => [register RCX, address MachineMemoryAddress::indexed(R14, R13)];
-                Opcode::Load { width: MemoryWidth::HalfWord, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
+                Opcode::Load { width: MemoryWidth::Byte, signed: false } => [register R10, address MachineMemoryAddress::offset(RCX, field.instruction_offset as i64)];
             );
             if field.optional {
                 emit!(emit.output, X86_64;

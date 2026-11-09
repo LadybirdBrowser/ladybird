@@ -14,7 +14,7 @@ use libjs_abi::PutKind;
 use libjs_abi::value as nan_box;
 
 use super::strict_at;
-use crate::bytecode::encoding::{IdentifierTableIndex, OptionalIndex};
+use crate::bytecode::encoding::{IdentifierTableIndex, OptionalDebugIndex};
 use crate::bytecode::executable::{
     Executable, KeyedPropertyLookup, KeyedPropertyLookupCache, ObjectPropertyIteratorCache,
     ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath, PropertyLookupCache, PropertyLookupCacheEntryType,
@@ -65,7 +65,7 @@ fn is_non_negative_int32(value: Value) -> bool {
     value.is_int32() && value.as_i32() >= 0
 }
 
-fn optional_identifier(vm: &Vm, index: &OptionalIndex<IdentifierTableIndex>) -> Option<Utf16FlyString> {
+fn optional_identifier(vm: &Vm, index: &OptionalDebugIndex<IdentifierTableIndex>) -> Option<Utf16FlyString> {
     let Some(index) = index.get() else {
         let program_counter = vm.running_execution_context_ref().program_counter.get();
         return vm.current_executable().base_text_at(program_counter);
@@ -712,6 +712,9 @@ pub fn copy_object_excluding_properties(
     values: &mut op::CopyObjectExcludingPropertiesValues,
     excluded_names: &[Value],
 ) -> SlowPathControl {
+    let excluded_names = super::operand_list(vm, instruction.excluded_names_are_in_array, excluded_names);
+    let excluded_names = excluded_names.values();
+    let excluded_names = &*excluded_names;
     let realm = vm.current_realm().expect("there is a current realm");
     let from_object = values.from_object;
     let to_object = Object::create(vm, realm, Some(realm.object_prototype()));

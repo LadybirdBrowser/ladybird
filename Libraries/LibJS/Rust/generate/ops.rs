@@ -11,6 +11,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use flapc::metadata::{InstructionDefinition, SlowPathLayout, field_type_info};
+use flapc::rust_bytecode::scaled;
 
 const RUST_KEYWORDS: &[&str] = &[
     "abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn", "else", "enum",
@@ -41,6 +42,8 @@ fn rust_type(ty: &str) -> String {
         "IdentifierTableIndex" | "PropertyKeyTableIndex" | "StringTableIndex" => ty.to_string(),
         "Optional<IdentifierTableIndex>" => "OptionalIndex<IdentifierTableIndex>".to_string(),
         "Optional<StringTableIndex>" => "OptionalIndex<StringTableIndex>".to_string(),
+        "Optional<DebugIdentifierIndex>" => "OptionalDebugIndex<IdentifierTableIndex>".to_string(),
+        "Optional<DebugStringIndex>" => "OptionalDebugIndex<StringTableIndex>".to_string(),
         "EnvironmentCoordinate" => "EnvironmentCoordinate".to_string(),
         "Value" => "Value".to_string(),
         "Builtin" => "u8".to_string(),
@@ -48,6 +51,7 @@ fn rust_type(ty: &str) -> String {
             let info = field_type_info(ty);
             match info.kind {
                 "bool" | "u8" | "u16" | "i32" | "u32" | "u64" => info.kind.to_string(),
+                "byte_count" => "u8".to_string(),
                 "cache_index" => "u16".to_string(),
                 other => panic!("no Rust view for bytecode field type {ty} ({other})"),
             }
@@ -123,11 +127,19 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
                 );
             }
             (None, Some(array)) => {
-                let count_field = field_name(&op.fields[array.count_field_index].name);
+                let count_field = &op.fields[array.count_field_index];
+                let count_name = field_name(&count_field.name);
+                let count = if rust_type(&count_field.ty) == "u32" {
+                    format!("self.{count_name}")
+                } else {
+                    format!("u32::from(self.{count_name})")
+                };
                 let _ = writeln!(
                     out,
-                    "impl {} {{\n    /// The instruction's size in the bytecode.\n    pub fn length(&self) -> u32 {{\n        let count = self.{count_field};\n        {} + count * {}\n    }}\n}}",
-                    op.name, op.layout.minimum_size, array.element_size
+                    "impl {} {{\n    /// The instruction's size in the bytecode.\n    pub fn length(&self) -> u32 {{\n        let count = {count};\n        {} + {}\n    }}\n}}",
+                    op.name,
+                    op.layout.minimum_size,
+                    scaled("count", array.element_size)
                 );
             }
             (None, None) => panic!("{} has neither a fixed size nor a count field", op.name),

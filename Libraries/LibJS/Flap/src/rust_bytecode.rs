@@ -16,7 +16,7 @@
 //! named by `field_type_info()` (`Operand`, `Label`, `IdentifierTableIndex`,
 //! `PropertyKeyTableIndex`, `StringTableIndex`,
 //! `EnvironmentCoordinate`) with `from_raw` / `optional_from_raw` constructors,
-//! plus `read_u16(bytes, at)`, `read_u32(bytes, at)` and `read_u64(bytes, at)` helpers reachable
+//! plus `read_u16(bytes, at)`, `read_u24(bytes, at)`, `read_u32(bytes, at)` and `read_u64(bytes, at)` helpers reachable
 //! through the `reader` path prefix passed to the field reading functions.
 
 use crate::metadata::Field;
@@ -65,6 +65,15 @@ impl InstructionSet {
     }
 }
 
+/// The code for `expression` elements of `element_size` bytes, without a multiplication by one.
+pub fn scaled(expression: &str, element_size: usize) -> String {
+    if element_size == 1 {
+        expression.to_string()
+    } else {
+        format!("{expression} * {element_size}")
+    }
+}
+
 /// The Rust name of an instruction field (`m_dst` becomes `dst`).
 pub fn rust_field_name(name: &str) -> String {
     if let Some(stripped) = name.strip_prefix("m_") {
@@ -87,6 +96,7 @@ pub fn count_field_name<'a>(op: &'a InstructionDefinition, array_field: &Field) 
 pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
     match ty {
         "bool" => format!("bytes[{offset}] != 0"),
+        "u8" => format!("u32::from(bytes[{offset}])"),
         "i32" => format!("{reader}read_u32(bytes, {offset}) as i32"),
         "u32"
         | "Completion::Type"
@@ -106,25 +116,31 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
             format!("{reader}read_u16(bytes, {offset})")
         }
         "u64" | "Value" => format!("{reader}read_u64(bytes, {offset})"),
-        "Operand" => format!("Operand::from_raw(u32::from({reader}read_u16(bytes, {offset})))"),
-        "Optional<Operand>" => format!(
-            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(Operand::from_raw(u32::from(raw))) }}"
-        ),
+        "Operand" => format!("Operand::from_raw(u32::from(bytes[{offset}]))"),
+        "Optional<Operand>" => {
+            format!("match bytes[{offset}] {{ u8::MAX => None, raw => Some(Operand::from_raw(u32::from(raw))) }}")
+        }
         "Label" => format!("Label({reader}read_u32(bytes, {offset}))"),
         "Optional<Label>" => {
             format!("if bytes[{offset} + 4] != 0 {{ Some(Label({reader}read_u32(bytes, {offset}))) }} else {{ None }}")
         }
-        "IdentifierTableIndex" => format!("IdentifierTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
+        "IdentifierTableIndex" => format!("IdentifierTableIndex({reader}read_u24(bytes, {offset}))"),
+        "Optional<DebugIdentifierIndex>" => format!(
+            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(IdentifierTableIndex(u32::from(raw))) }}"
+        ),
+        "Optional<DebugStringIndex>" => format!(
+            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(StringTableIndex(u32::from(raw))) }}"
+        ),
         "Optional<IdentifierTableIndex>" => {
             format!(
-                "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(IdentifierTableIndex(u32::from(raw))) }}"
+                "match {reader}read_u24(bytes, {offset}) {{ 0xff_ffff => None, raw => Some(IdentifierTableIndex(raw)) }}"
             )
         }
-        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
-        "StringTableIndex" => format!("StringTableIndex(u32::from({reader}read_u16(bytes, {offset})))"),
+        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex({reader}read_u24(bytes, {offset}))"),
+        "StringTableIndex" => format!("StringTableIndex({reader}read_u24(bytes, {offset}))"),
         "Optional<StringTableIndex>" => {
             format!(
-                "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(StringTableIndex(u32::from(raw))) }}"
+                "match {reader}read_u24(bytes, {offset}) {{ 0xff_ffff => None, raw => Some(StringTableIndex(raw)) }}"
             )
         }
         "EnvironmentCoordinate" => format!(
@@ -236,15 +252,21 @@ pub fn generate_instruction_length_from_bytes(
             let element_size = array.element_size;
             let op_name = &op.name;
             writeln!(w, "        {i} => {{ // {op_name} (variable-length)")?;
-            writeln!(w, "            let count_end = at + {count_offset} + 4;")?;
+            let count_size = field_type_info(&op.fields[array.count_field_index].ty).size;
+            writeln!(w, "            let count_end = at + {count_offset} + {count_size};")?;
             writeln!(w, "            if count_end > bytes.len() {{")?;
             writeln!(w, "                return Err({error}::TruncatedInstruction);")?;
             writeln!(w, "            }}")?;
-            writeln!(
-                w,
-                "            let count = u32::from_ne_bytes(bytes[at + {count_offset}..count_end].try_into().unwrap());"
-            )?;
-            writeln!(w, "            Ok({minimum_length} + count as usize * {element_size})")?;
+            if count_size == 1 {
+                writeln!(w, "            let count = u32::from(bytes[at + {count_offset}]);")?;
+            } else {
+                writeln!(
+                    w,
+                    "            let count = u32::from_ne_bytes(bytes[at + {count_offset}..count_end].try_into().unwrap());"
+                )?;
+            }
+            let length = scaled("count as usize", element_size);
+            writeln!(w, "            Ok({minimum_length} + {length})")?;
             writeln!(w, "        }}")?;
         }
     }
@@ -360,8 +382,9 @@ pub fn generate_encoded_size_method(mut w: impl Write, ops: &[InstructionDefinit
             )?;
             writeln!(
                 w,
-                "                {} + {}.len() * {}",
-                op.layout.minimum_size, arr_name, array.element_size
+                "                {} + {}",
+                op.layout.minimum_size,
+                scaled(&format!("{arr_name}.len()"), array.element_size)
             )?;
             writeln!(w, "            }}")?;
         }
@@ -455,8 +478,9 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
         writeln!(w, "                }}")?;
         writeln!(
             w,
-            "                let target = {} + {}.len() * {};",
-            op.layout.minimum_size, rname, array.element_size
+            "                let target = {} + {};",
+            op.layout.minimum_size,
+            scaled(&format!("{rname}.len()"), array.element_size)
         )?;
         writeln!(w, "                encoder.bytes.resize(start + target, 0);")?;
     } else {
@@ -574,6 +598,10 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
     match kind {
         "bool" => writeln!(w, "{prefix}out[{offset}] = *{name} as u8;")?,
         "u8" => writeln!(w, "{prefix}out[{offset}] = *{name};")?,
+        "byte_count" => writeln!(
+            w,
+            "{prefix}out[{offset}] = u8::try_from(*{name}).expect(\"counts fit in a byte\");"
+        )?,
         "i32" | "u32" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 4))?,
         "u16" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 2))?,
         "u64" => writeln!(w, "{prefix}{}", store(&format!("{name}.to_ne_bytes()"), 8))?,
@@ -581,12 +609,12 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
             w,
             "{prefix}{}",
             store(
-                &format!("(encoder.operand(*{name}, {offset}) as u16).to_ne_bytes()"),
+                &format!("(encoder.operand(*{name}, {offset}) as u8).to_ne_bytes()"),
                 OPERAND_SIZE
             )
         )?,
         "optional_operand" => {
-            let value = format!("{name}.map_or(u16::MAX, |op| encoder.operand(op, {offset}) as u16).to_ne_bytes()");
+            let value = format!("{name}.map_or(u8::MAX, |op| encoder.operand(op, {offset}) as u8).to_ne_bytes()");
             writeln!(w, "{prefix}{}", store(&value, OPERAND_SIZE))?;
         }
         "label" => {
@@ -601,19 +629,19 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
             writeln!(w, "{prefix}    out[{}] = 1;", offset + 4)?;
             writeln!(w, "{prefix}}}")?;
         }
-        "u32_newtype" => writeln!(
-            w,
-            "{prefix}{}",
-            store(&format!("narrow_index({name}.0).to_ne_bytes()"), 2)
-        )?,
+        "u32_newtype" => writeln!(w, "{prefix}{}", store(&format!("name_index_bytes({name}.0)"), 3))?,
         "cache_index" => writeln!(
             w,
             "{prefix}{}",
             store(&format!("narrow_index(*{name}).to_ne_bytes()"), 2)
         )?,
-        "optional_u32_newtype" => {
-            let value = format!("{name}.map_or(u16::MAX, |idx| narrow_index(idx.0)).to_ne_bytes()");
+        "optional_debug_name" => {
+            let value = format!("debug_name_index({name}.map(|idx| idx.0)).to_ne_bytes()");
             writeln!(w, "{prefix}{}", store(&value, 2))?;
+        }
+        "optional_u32_newtype" => {
+            let value = format!("name_index_bytes({name}.map_or(u32::MAX, |idx| idx.0))");
+            writeln!(w, "{prefix}{}", store(&value, 3))?;
         }
         "env_coord" => {
             writeln!(w, "{prefix}{}", store(&format!("{name}.hops.to_ne_bytes()"), 4))?;
@@ -640,19 +668,19 @@ fn emit_field_write(mut w: impl Write, name: &str, kind: &str) -> GeneratorResul
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&{name}.to_ne_bytes());")?
         }
         "operand" => {
-            writeln!(w, "{prefix}let raw = encoder.operand(*{name}, 0) as u16;")?;
+            writeln!(w, "{prefix}let raw = encoder.operand(*{name}, 0) as u8;")?;
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
         }
         "optional_operand" => {
             writeln!(
                 w,
-                "{prefix}let raw = {name}.map_or(u16::MAX, |op| encoder.operand(op, 0) as u16);"
+                "{prefix}let raw = {name}.map_or(u8::MAX, |op| encoder.operand(op, 0) as u8);"
             )?;
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
         }
         "u32_newtype" => writeln!(
             w,
-            "{prefix}encoder.bytes.extend_from_slice(&narrow_index({name}.0).to_ne_bytes());"
+            "{prefix}encoder.bytes.extend_from_slice(&name_index_bytes({name}.0));"
         )?,
         other => panic!("Unknown array element encoding kind: {other}"),
     }

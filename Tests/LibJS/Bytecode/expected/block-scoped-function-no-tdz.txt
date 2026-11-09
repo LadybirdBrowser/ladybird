@@ -1,4 +1,4 @@
-$f2fb2c4d block-scoped-function-no-tdz.js:1:1
+$59d21dc8 block-scoped-function-no-tdz.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,13 +8,13 @@ $f2fb2c4d block-scoped-function-no-tdz.js:1:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg5, src:String("use strict")
-  [   b] GetGlobal value_feedback:0, dst:reg6, `test`
-  [  14] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  25] End value:reg5
+  [   4] Mov dst:reg5, src:String("use strict")
+  [   7] GetGlobal value_feedback:0, dst:reg6, `test`
+  [  10] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  1b] End value:reg5
 
 
-test$dce15e94 block-scoped-function-no-tdz.js:3:9
+test$c0aeca0a block-scoped-function-no-tdz.js:3:9
   Registers: 6
   Blocks:    1
   Locals:    result~0, foo~1
@@ -24,12 +24,12 @@ test$dce15e94 block-scoped-function-no-tdz.js:3:9
 block0:
   [   0] Enter
   [   1] Mov dst:result~0, src:Undefined
-  [   6] NewFunction dst:foo~1, shared_function_data_index:0
-  [  11] Call value_feedback:0, call_feedback:0, dst:result~0, callee:foo~1, this_value:Undefined
-  [  22] Return value:result~0
+  [   4] NewFunction dst:foo~1, shared_function_data_index:0
+  [   e] Call value_feedback:0, call_feedback:0, dst:result~0, callee:foo~1, this_value:Undefined
+  [  19] Return value:result~0
 
 
-foo$351b9748 block-scoped-function-no-tdz.js:5:26
+foo$665150bf block-scoped-function-no-tdz.js:5:26
   Registers: 5
   Blocks:    1
   Constants:

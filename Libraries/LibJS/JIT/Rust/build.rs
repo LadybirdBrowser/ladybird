@@ -31,6 +31,7 @@ use flapc::rust_bytecode::generate_opcode_enum;
 use flapc::rust_bytecode::generate_opcode_method;
 use flapc::rust_bytecode::read_expr_for_type;
 use flapc::rust_bytecode::rust_field_name;
+use flapc::rust_bytecode::scaled;
 use flapc::rust_bytecode::wildcard_pattern;
 use std::env;
 use std::error::Error;
@@ -151,7 +152,11 @@ fn generate_decode_function(mut w: impl Write, ops: &[InstructionDefinition]) ->
             writeln!(w, "            if {name}_end > length {{")?;
             writeln!(w, "                return Err(DecodeErrorKind::InvalidLength);")?;
             writeln!(w, "            }}")?;
-            let element = read_expr_for_type(&field.ty, &format!("at + {offset} + index * {element_size}"), READER);
+            let element = read_expr_for_type(
+                &field.ty,
+                &format!("at + {offset} + {}", scaled("index", element_size)),
+                READER,
+            );
             writeln!(
                 w,
                 "            let {name} = (0..{name}_len).map(|index| {element}).collect::<Vec<_>>();"

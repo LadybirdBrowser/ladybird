@@ -1,4 +1,4 @@
-$02766f1a try-catch-completion-ordering.js:1:1
+$719933c5 try-catch-completion-ordering.js:1:1
   Registers: 7
   Blocks:    4
   Locals:    e~0
@@ -11,21 +11,21 @@ $02766f1a try-catch-completion-ordering.js:1:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] Mov dst:reg5, src:Undefined
+  [   4] Mov dst:reg5, src:Undefined
 
 block1:
-  [   b] Throw src:Null
+  [   7] Throw src:Null
 
 block2:
-  [   e] Catch value_feedback:0, dst:reg6
-  [  13] Mov dst:reg5, src:Undefined
-  [  18] Mov dst:e~0, src:<Empty>
-  [  1d] Mov dst:e~0, src:reg6
-  [  22] Mov dst:reg5, src:Int32(42)
-  [  27] Jump target:block3
+  [   9] Catch value_feedback:0, dst:reg6
+  [   d] Mov dst:reg5, src:Undefined
+  [  10] Mov dst:e~0, src:<Empty>
+  [  13] Mov dst:e~0, src:reg6
+  [  16] Mov dst:reg5, src:Int32(42)
+  [  19] Jump target:block3
 
 block3:
-  [  2c] End value:reg5
+  [  1e] End value:reg5
 
 Exception handlers:
-  [   b ..    e] => handler block2
+  [   7 ..    9] => handler block2

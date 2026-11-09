@@ -1,4 +1,4 @@
-$f33cba27 destructuring-no-base-identifier.js:1:5
+$4d5c59e5 destructuring-no-base-identifier.js:1:5
   Registers: 14
   Blocks:    12
   Constants:
@@ -8,48 +8,48 @@ $f33cba27 destructuring-no-base-identifier.js:1:5
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] NewObject dst:reg6
-  [   b] SetGlobal `x`, src:reg6
-  [  12] NewPrimitiveArray dst:reg7, elements:[42]
-  [  21] Mov dst:reg8, src:Bool(false)
-  [  26] GetIterator dst_iterator_object:reg9, dst_iterator_next:reg10, dst_iterator_done:reg11, iterable:reg7, fast_array_mode_allowed:true
+  [   4] NewObject dst:reg6
+  [   8] SetGlobal `x`, src:reg6
+  [   f] NewPrimitiveArray dst:reg7, elements:[42]
+  [  1d] Mov dst:reg8, src:Bool(false)
+  [  20] GetIterator dst_iterator_object:reg9, dst_iterator_next:reg10, dst_iterator_done:reg11, iterable:reg7, fast_array_mode_allowed:true
 
 block1:
-  [  36] GetGlobal value_feedback:0, dst:reg12, `x`
+  [  2c] GetGlobal value_feedback:0, dst:reg12, `x`
 
 block2:
-  [  3f] IteratorNextUnpack dst_value:reg13, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
+  [  35] IteratorNextUnpack dst_value:reg13, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
 
 block3:
-  [  4a] JumpFalse condition:reg8, target:block5
+  [  3b] JumpFalse condition:reg8, target:block5
 
 block4:
-  [  51] Mov dst:reg13, src:Undefined
+  [  41] Mov dst:reg13, src:Undefined
 
 block5:
-  [  56] PutById base:reg12, `y`, src:reg13, kind:Normal
+  [  44] PutById base:reg12, `y`, src:reg13, kind:Normal
 
 block6:
-  [  65] JumpTrue condition:reg11, target:block11
+  [  52] JumpTrue condition:reg11, target:block11
 
 block7:
-  [  6c] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
-  [  7b] Jump target:block11
+  [  58] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
+  [  63] Jump target:block11
 
 block8:
-  [  80] Catch value_feedback:1, dst:reg12
-  [  85] JumpTrue condition:reg11, target:block10
+  [  68] Catch value_feedback:1, dst:reg12
+  [  6c] JumpTrue condition:reg11, target:block10
 
 block9:
-  [  8c] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
+  [  72] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
 
 block10:
-  [  9b] Throw src:reg12
+  [  7d] Throw src:reg12
 
 block11:
-  [  9e] Mov dst:reg5, src:reg7
-  [  a3] End value:reg5
+  [  7f] Mov dst:reg5, src:reg7
+  [  82] End value:reg5
 
 Exception handlers:
-  [  36 ..   3f] => handler block8
-  [  4a ..   65] => handler block8
+  [  2c ..   35] => handler block8
+  [  3b ..   52] => handler block8

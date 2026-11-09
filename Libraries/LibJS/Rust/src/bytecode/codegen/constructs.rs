@@ -49,6 +49,7 @@ use super::stream::OpenIterator;
 use super::stream::ScopeEnvironment;
 use super::stream::TargetBinding;
 use super::stream::ValKind;
+use super::stream::{MAX_OPERAND_LIST_LENGTH, operand_list_count};
 use super::sweep::declaration_kind_of_mark;
 use super::sweep::is_anonymous_function_definition;
 use super::sweep::next_tag;
@@ -348,6 +349,14 @@ impl Generator<'_> {
             private_environment
         });
         self.end_class_scope(environment);
+        let element_keys_are_in_array = element_keys.len() > MAX_OPERAND_LIST_LENGTH;
+        if element_keys_are_in_array {
+            let undefined = self.context.constants.add_undefined();
+            let keys: Vec<Operand> = element_keys.iter().map(|key| key.unwrap_or(undefined)).collect();
+            let array = self.temporary();
+            self.put_new_array(array, &keys);
+            element_keys = vec![Some(array)];
+        }
         self.put(op::NewClass {
             dst,
             super_class,
@@ -356,7 +365,8 @@ impl Generator<'_> {
             class_environment: environment.register,
             class_blueprint_index: blueprint_index,
             lhs_name,
-            element_keys_count: u32_from_usize(element_keys.len()),
+            element_keys_are_in_array,
+            element_keys_count: operand_list_count(element_keys.len()),
             element_keys: &element_keys,
         });
         if let Some(private_environment) = private_environment {
@@ -634,9 +644,11 @@ impl Generator<'_> {
         let first_temporary = self.next_temporary();
         let dst = self.temporary();
         let cache = self.next_template_object_cache();
+        let strings_are_in_array = self.fit_operand_list(&mut strings);
         self.put(op::GetTemplateObject {
             dst,
-            strings_count: u32_from_usize(strings.len()),
+            strings_are_in_array,
+            strings_count: operand_list_count(strings.len()),
             cache,
             strings: &strings,
         });
@@ -1760,11 +1772,13 @@ impl Generator<'_> {
             if item_tag == tag::REST {
                 let target = NodeId(tree.node_a(item));
                 self.prepare_pattern_target(target, row, mode)?;
+                let excluded_names_are_in_array = self.fit_operand_list(&mut excluded_names);
                 let copy = self.temporary();
                 self.put(op::CopyObjectExcludingProperties {
                     dst: copy,
                     from_object: object,
-                    excluded_names_count: u32_from_usize(excluded_names.len()),
+                    excluded_names_are_in_array,
+                    excluded_names_count: operand_list_count(excluded_names.len()),
                     excluded_names: &excluded_names,
                 });
                 self.bind_target(target, row, copy, mode)?;

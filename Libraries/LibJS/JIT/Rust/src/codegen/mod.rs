@@ -742,7 +742,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     outgoing_bytes = outgoing_bytes.max(8 * stack_arguments);
                     let array_count = layout
                         .array
-                        .map_or(Ok(0), |array| self.read_u32(executable, pc, array.count_offset))?;
+                        .map_or(Ok(0), |array| self.read_array_count(executable, pc, array))?;
                     let record = match layout.abi {
                         SlowPathAbi::Scalar => 0,
                         SlowPathAbi::ScalarInputs => layout.fields.len() as u32,
@@ -914,37 +914,33 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         })
     }
 
-    /// The operand at `offset` in the instruction at `pc` of executable `executable`, `Operand::INVALID` if absent.
-    fn read_operand(&self, executable: u32, pc: u32, offset: u32) -> Result<u32, CompileFailure> {
-        let at = (pc + offset) as usize;
-        let bytes =
-            self.executables[executable as usize]
-                .bytecode
-                .get(at..at + 2)
-                .ok_or(CompileFailure::InvalidBytecode {
-                    pc,
-                    reason: "operand field outside the bytecode",
-                })?;
-        let raw = u16::from_ne_bytes(bytes.try_into().expect("two bytes"));
-        Ok(if raw == u16::MAX {
-            crate::bytecode::Operand::INVALID
-        } else {
-            u32::from(raw)
-        })
+    /// How many elements the array of the instruction at `pc` of executable `executable` holds.
+    fn read_array_count(
+        &self,
+        executable: u32,
+        pc: u32,
+        array: crate::bytecode::SlowPathArray,
+    ) -> Result<u32, CompileFailure> {
+        Ok(u32::from(self.read_u8(executable, pc, array.count_offset)?))
     }
 
-    /// The u32 at `offset` in the instruction at `pc` of executable `executable`.
-    fn read_u32(&self, executable: u32, pc: u32, offset: u32) -> Result<u32, CompileFailure> {
+    /// The byte at `offset` in the instruction at `pc` of executable `executable`.
+    fn read_u8(&self, executable: u32, pc: u32, offset: u32) -> Result<u8, CompileFailure> {
         let at = (pc + offset) as usize;
-        let bytes =
-            self.executables[executable as usize]
-                .bytecode
-                .get(at..at + 4)
-                .ok_or(CompileFailure::InvalidBytecode {
-                    pc,
-                    reason: "operand field outside the bytecode",
-                })?;
-        Ok(u32::from_ne_bytes(bytes.try_into().expect("four bytes")))
+        let byte = self.executables[executable as usize]
+            .bytecode
+            .get(at)
+            .ok_or(CompileFailure::InvalidBytecode {
+                pc,
+                reason: "field outside the bytecode",
+            })?;
+        Ok(*byte)
+    }
+
+    /// The operand at `offset` in the instruction at `pc` of executable `executable`, `Operand::INVALID` if absent.
+    fn read_operand(&self, executable: u32, pc: u32, offset: u32) -> Result<u32, CompileFailure> {
+        let byte = self.read_u8(executable, pc, offset)?;
+        Ok(crate::bytecode::Operand::raw_from_byte(byte))
     }
 
     // Prologue and tails.
@@ -2679,8 +2675,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
             }
             if let Some(array) = layout.array {
-                for element in 0..self.read_u32(executable, pc, array.count_offset)? {
-                    operands.push(self.read_operand(executable, pc, array.instruction_offset + 2 * element)?);
+                for element in 0..self.read_array_count(executable, pc, array)? {
+                    operands.push(self.read_operand(executable, pc, array.instruction_offset + element)?);
                 }
             }
         }
@@ -3001,10 +2997,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
             }
             if let Some(array) = layout.array {
-                let count = self.read_u32(executable, pc, array.count_offset)?;
+                let count = self.read_array_count(executable, pc, array)?;
                 let first_input = input_index(layout.fields.len());
                 for element in 0..count {
-                    let operand = self.read_operand(executable, pc, array.instruction_offset + 2 * element)?;
+                    let operand = self.read_operand(executable, pc, array.instruction_offset + element)?;
                     load(self, scratch, operand, first_input + element as usize)?;
                     let index = layout.fields.len() as u32 + element;
                     let address = self.local_address(self.locals.record + 8 * index);

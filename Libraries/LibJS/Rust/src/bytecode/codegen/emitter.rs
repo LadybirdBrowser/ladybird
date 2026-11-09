@@ -32,10 +32,10 @@ pub(super) struct BlockPosition {
     pub(super) offset: u32,
 }
 
-/// How many bytes an operand takes in an instruction.
-pub(super) const OPERAND_SIZE: usize = 2;
+/// The first frame slot that an operand cannot name, which is what an operand that is left out holds.
+pub(crate) const FIRST_WIDE_SLOT: u32 = 255;
 
-/// Where an operand that is not a register sits in a block, and what kind of operand it is.
+/// Where an operand that is not a low register sits in a block, and what kind of operand it is.
 #[derive(Clone, Copy)]
 pub(super) struct OperandPosition {
     pub(super) offset: u32,
@@ -89,7 +89,9 @@ impl BlockEncoder<'_> {
                     self.watched = Operand::invalid();
                     self.watched_position = u32_from_usize(self.bytes.len() + offset);
                 }
-                assert!(operand.index() < u32::from(u16::MAX), "registers fit in an operand");
+                if operand.index() >= FIRST_WIDE_SLOT {
+                    self.note_operand(offset, operand);
+                }
             }
             OperandType::Argument => {
                 *self.number_of_arguments = (*self.number_of_arguments).max(operand.index() + 1);

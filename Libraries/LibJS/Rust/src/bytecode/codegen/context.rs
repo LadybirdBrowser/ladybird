@@ -27,7 +27,6 @@ use crate::bytecode::instruction::Instruction;
 use crate::bytecode::instruction::OpCode;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::instruction::typed::TypedInstruction;
-use crate::bytecode::operand::UNCACHED_SITE;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::parser::EnclosingCode;

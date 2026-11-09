@@ -1354,15 +1354,15 @@ impl Executable {
     }
 
     pub fn get_identifier(&self, index: IdentifierTableIndex) -> &Utf16FlyString {
-        &self.code.identifier_table[index.0 as usize]
+        &self.code.identifier_table[index.index()]
     }
 
     pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> &PropertyKey {
-        &self.property_keys[index.0 as usize]
+        &self.property_keys[index.index()]
     }
 
     pub fn get_string(&self, index: StringTableIndex) -> &Utf16FlyString {
-        &self.code.string_table[index.0 as usize]
+        &self.code.string_table[index.index()]
     }
 
     /// Forgets the cells the inline caches remember that died in this collection.
@@ -1774,7 +1774,7 @@ impl Executable {
 
     pub fn length_identifier(&self) -> Option<PropertyKeyTableIndex> {
         self.length_identifier
-            .map(|index| PropertyKeyTableIndex((index.get() - 1) as u16))
+            .map(|index| PropertyKeyTableIndex::from_index(index.get() - 1))
     }
 
     fn rare_data_mut(&mut self) -> &mut ExecutableRareData {

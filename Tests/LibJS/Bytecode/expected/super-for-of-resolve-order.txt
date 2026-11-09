@@ -1,4 +1,4 @@
-$2fcbd3ee super-for-of-resolve-order.js:1:1
+$82bc040f super-for-of-resolve-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,18 +7,18 @@ $2fcbd3ee super-for-of-resolve-order.js:1:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  21] SetLexicalEnvironment environment:reg4
-  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0
-  [  39] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  40] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  49] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
-  [  58] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] SetLexicalEnvironment environment:reg4
+  [  1f] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
+  [  2e] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  35] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  3e] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  48] End value:reg5
 
 
-C$fc47be07 super-for-of-resolve-order.js:3:14
+C$8fe8ea6c super-for-of-resolve-order.js:3:14
   Registers: 12
   Blocks:    5
   Constants:
@@ -27,25 +27,25 @@ C$fc47be07 super-for-of-resolve-order.js:3:14
 block0:
   [   0] Enter
   [   1] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [  18] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  17] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block1:
-  [  28] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  33] JumpTrue condition:reg10, target:block4
+  [  23] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  29] JumpTrue condition:reg10, target:block4
 
 block2:
-  [  3a] ResolveThisBinding
-  [  3b] ResolveSuperBase dst:reg11
-  [  3e] PutByIdWithThis base:reg11, this_value:this, `prop`, src:reg9, kind:Normal
-  [  4d] JumpLoop target:block1
+  [  2f] ResolveThisBinding
+  [  30] ResolveSuperBase dst:reg11
+  [  32] PutByIdWithThis base:reg11, this_value:this, `prop`, src:reg9, kind:Normal
+  [  3f] JumpLoop target:block1
 
 block3:
-  [  52] Catch value_feedback:0, dst:reg11
-  [  57] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  66] Throw src:reg11
+  [  44] Catch value_feedback:0, dst:reg11
+  [  48] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  53] Throw src:reg11
 
 block4:
-  [  69] End value:Undefined
+  [  55] End value:Undefined
 
 Exception handlers:
-  [  3a ..   52] => handler block3
+  [  2f ..   44] => handler block3

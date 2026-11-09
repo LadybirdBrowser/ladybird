@@ -1,4 +1,4 @@
-$772115e5 super-computed-eval-order.js:1:1
+$6ff1a648 super-computed-eval-order.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -8,27 +8,27 @@ $772115e5 super-computed-eval-order.js:1:1
 block0:
   [   0] Enter
   [   1] GetLexicalEnvironment dst:reg4
-  [   4] Mov dst:reg5, src:Undefined
-  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
-  [  21] SetLexicalEnvironment environment:reg4
-  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0
-  [  39] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  40] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  4e] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
-  [  58] GetGlobal value_feedback:0, dst:reg9, `Base`
-  [  61] GetClassProtoParent dst:reg10, super_class:reg9
-  [  66] SetLexicalEnvironment environment:reg4
-  [  69] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys:[element_keys:String("test")]
-  [  80] DynamicInitializeLexicalBinding `Derived`, src:reg6
-  [  87] GetGlobal value_feedback:1, dst:reg6, `Derived`
-  [  90] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
-  [  9f] GetById value_feedback:3, dst:reg7, base:reg6, `test`
-  [  ac] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  bd] End value:reg5
+  [   3] Mov dst:reg5, src:Undefined
+  [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
+  [  1d] SetLexicalEnvironment environment:reg4
+  [  1f] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
+  [  2e] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  35] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  41] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
+  [  4c] GetGlobal value_feedback:0, dst:reg9, `Base`
+  [  55] GetClassProtoParent dst:reg10, super_class:reg9
+  [  58] SetLexicalEnvironment environment:reg4
+  [  5a] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys_are_in_array:false, element_keys:[element_keys:String("test")]
+  [  6a] DynamicInitializeLexicalBinding `Derived`, src:reg6
+  [  71] GetGlobal value_feedback:1, dst:reg6, `Derived`
+  [  7a] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
+  [  84] GetById value_feedback:3, dst:reg7, base:reg6, `test`
+  [  90] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  9b] End value:reg5
 
 
-Derived$d57a3260 super-computed-eval-order.js:4:14
+Derived$4760e81b super-computed-eval-order.js:4:14
   Registers: 7
   Blocks:    1
   Constants:
@@ -37,12 +37,12 @@ Derived$d57a3260 super-computed-eval-order.js:4:14
 block0:
   [   0] Enter
   [   1] GetSuperConstructor dst:reg5
-  [   4] NewArray dst:reg6
-  [   b] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [  17] End value:Undefined
+  [   3] NewArray dst:reg6
+  [   6] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [   f] End value:Undefined
 
 
-Base$63b0b4c4
+Base$138475b3
   Registers: 5
   Blocks:    1
   Constants:
@@ -53,7 +53,7 @@ block0:
   [   1] End value:Undefined
 
 
-test$8d7e9246 super-computed-eval-order.js:7:9
+test$309b0178 super-computed-eval-order.js:7:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -63,5 +63,5 @@ block0:
   [   0] Enter
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
-  [   5] GetByValueWithThis value_feedback:0, dst:reg6, base:reg5, property:Int32(0), this_value:this
-  [  10] Return value:reg6
+  [   4] GetByValueWithThis value_feedback:0, dst:reg6, base:reg5, property:Int32(0), this_value:this
+  [   b] Return value:reg6

@@ -1,4 +1,4 @@
-$c91963ab eval-scope-optimization.js:12:1
+$ef3f58e2 eval-scope-optimization.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,12 +7,12 @@ $c91963ab eval-scope-optimization.js:12:1
 block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
-  [   6] GetGlobal value_feedback:0, dst:reg6, `outer`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  20] End value:reg5
+  [   4] GetGlobal value_feedback:0, dst:reg6, `outer`
+  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  18] End value:reg5
 
 
-outer$875b7472 eval-scope-optimization.js:6:5
+outer$b8912de9 eval-scope-optimization.js:6:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -22,9 +22,9 @@ outer$875b7472 eval-scope-optimization.js:6:5
 block0:
   [   0] Enter
   [   1] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [   b] InitializeVariableBinding `inner`, src:Undefined
-  [  18] NewFunction dst:reg5, shared_function_data_index:0
+  [   c] InitializeVariableBinding `inner`, src:Undefined
+  [  19] NewFunction dst:reg5, shared_function_data_index:0
   [  23] SetVariableBinding `inner`, src:reg5
   [  30] GetGlobal value_feedback:0, dst:reg6, `Number`
   [  39] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, arguments:[Int32(42)]
-  [  4a] Return value:reg6
+  [  44] Return value:reg6
