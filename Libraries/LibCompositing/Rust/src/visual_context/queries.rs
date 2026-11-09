@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::world_transforms::MINIMUM_PROJECTION_W;
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
     IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, ScrollSnap, SpatialData, SpatialNodeIndex,
@@ -13,9 +14,6 @@ use ak::math;
 use libgfx_rust::{
     CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, map_rect_through_matrix,
 };
-
-// Homogeneous coordinates this close to the eye plane have no meaningful projection.
-const MINIMUM_PROJECTION_W: f32 = 0.0001;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClipBehavior {

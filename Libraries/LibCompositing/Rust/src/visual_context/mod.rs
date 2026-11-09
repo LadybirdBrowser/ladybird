@@ -9,6 +9,7 @@ pub mod queries;
 pub mod scroll_state;
 pub mod serialize;
 pub mod visual_animations;
+pub mod world_transforms;
 
 use std::collections::HashMap;
 
@@ -24,6 +25,7 @@ pub use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 pub use queries::{ClipBehavior, should_cull_back_face};
+pub use world_transforms::WorldTransforms;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
