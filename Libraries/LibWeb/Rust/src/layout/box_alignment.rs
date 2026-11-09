@@ -385,6 +385,59 @@ impl ContentAlignment {
         }
         self.edge.offset(free_space)
     }
+
+    /// The free space the distribution places before and between `count` alignment subjects, where the container
+    /// leaves `free_space` beside them. It distributes no negative free space.
+    pub(crate) fn distributed_space(self, free_space: CssPixels, count: usize) -> SpaceDistribution {
+        let space = free_space.max(CssPixels::default());
+        match self.distribution {
+            Some(ContentDistribution::SpaceBetween) => SpaceDistribution::new(space, count.saturating_sub(1), 0, 1),
+            Some(ContentDistribution::SpaceAround) => SpaceDistribution::new(space, count * 2, 1, 2),
+            Some(ContentDistribution::SpaceEvenly) => SpaceDistribution::new(space, count + 1, 1, 1),
+            Some(ContentDistribution::Stretch) | None => SpaceDistribution::default(),
+        }
+    }
+}
+
+/// Free space split into equal shares, placed before a run of boxes and between them. Each share is rounded such that
+/// the shares add up to the whole space, instead of losing the rounding remainder of every share.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct SpaceDistribution {
+    space: CssPixels,
+    shares: usize,
+    shares_before_first_box: usize,
+    shares_between_boxes: usize,
+}
+
+impl SpaceDistribution {
+    pub(crate) fn new(
+        space: CssPixels,
+        shares: usize,
+        shares_before_first_box: usize,
+        shares_between_boxes: usize,
+    ) -> Self {
+        Self {
+            space,
+            shares,
+            shares_before_first_box,
+            shares_between_boxes,
+        }
+    }
+
+    /// The space placed before the box at the given position in the run.
+    pub(crate) fn space_before(self, position: usize) -> CssPixels {
+        if self.shares == 0 {
+            return CssPixels::default();
+        }
+        let count = (self.shares_before_first_box + position * self.shares_between_boxes).min(self.shares);
+        let raw = i64::from(self.space.raw_value()) * count as i64 / self.shares as i64;
+        CssPixels::from_raw(raw as i32)
+    }
+
+    /// The space placed between the box at the given position and the next one.
+    pub(crate) fn space_after(self, position: usize) -> CssPixels {
+        self.space_before(position + 1) - self.space_before(position)
+    }
 }
 
 #[cfg(test)]

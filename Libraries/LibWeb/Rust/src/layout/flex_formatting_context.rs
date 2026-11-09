@@ -5,6 +5,10 @@
  */
 
 use super::*;
+use box_alignment::{
+    AxisDirections, ContentAlignment, ContentDistribution, ContentKeyword, OverflowSafety, SelfAlignment, SelfKeyword,
+    SelfPosition, SpaceDistribution,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FlexFactor {
@@ -71,7 +75,8 @@ struct FlexItemInputs<'pass> {
 
 #[derive(Clone, Copy)]
 struct FlexItemAlignmentFacts {
-    alignment: u8,
+    /// The item's alignment along the cross axis, where Start and End are the frame's left/top and right/bottom.
+    alignment: SelfAlignment,
     is_stretched: bool,
     uses_button_layout: bool,
     centers_its_content: bool,
@@ -304,7 +309,11 @@ struct FlexContainerConstants<'pass> {
     used_flex_wrap: u8,
     is_direction_reverse: bool,
     cross_axis_is_reverse: bool,
-    main_axis_writing_mode_start_is_reverse: bool,
+    /// How the container aligns its items along the main axis and its lines along the cross axis.
+    justify_content: ContentAlignment,
+    align_content: ContentAlignment,
+    /// The directions of the cross axis, but for the start side of an item.
+    cross_axis_directions: AxisDirections,
     main_gap: &'pass ComputedGap,
     cross_gap: &'pass ComputedGap,
 }
@@ -330,10 +339,16 @@ impl<'pass> FlexContainerConstants<'pass> {
         } else {
             style.inline_axis_is_reverse()
         };
+        // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
+        // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped.
+        // NB: The writing mode of the container decides where 'start' and 'end' are, without that swap.
+        let cross_axis_directions = AxisDirections {
+            flex_start_is_low: cross_axis_is_reverse == (used_flex_wrap == flex_wrap::WRAP_REVERSE),
+            ..AxisDirections::of(!cross_axis_is_reverse, None)
+        };
         if used_flex_wrap == flex_wrap::WRAP_REVERSE {
             cross_axis_is_reverse = !cross_axis_is_reverse;
         }
-        // Whether the start side of the writing mode, in the main axis, is the frame's right or bottom side.
         let main_axis_writing_mode_start_is_reverse = if is_row_layout {
             style.inline_axis_is_reverse()
         } else {
@@ -343,6 +358,27 @@ impl<'pass> FlexContainerConstants<'pass> {
             flex_direction,
             flex_direction::COLUMN_REVERSE | flex_direction::ROW_REVERSE
         );
+        let is_direction_reverse = main_axis_writing_mode_start_is_reverse != flex_direction_is_reverse;
+        // https://drafts.csswg.org/css-align-3/#positional-values
+        // left: Aligns the alignment subject to be flush with the alignment container's line-left or physical left
+        //       edge, whichever is in the appropriate axis.
+        //       If the property's axis is not parallel with either left↔right axis, this value behaves as start.
+        // NB: The frame's left side is the line-left side. The main axis of a column flex container runs along the
+        //     physical left↔right axis in a vertical writing mode.
+        let frame = run.pass.frame;
+        let main_axis_line_left_is_low = if is_row_layout {
+            Some(true)
+        } else if frame.is_transposed() {
+            Some(frame.frame_side(geometry::Side::Left) != geometry::Side::Bottom)
+        } else {
+            None
+        };
+        let main_axis_directions = AxisDirections {
+            flex_start_is_low: !is_direction_reverse,
+            ..AxisDirections::of(!main_axis_writing_mode_start_is_reverse, main_axis_line_left_is_low)
+        };
+        let (justify_content, _) = ContentKeyword::justify_content_of(*style);
+        let (align_content, _) = ContentKeyword::align_content_of(*style);
         let (main_gap, cross_gap) = if is_row_layout {
             (style.column_gap(), style.row_gap())
         } else {
@@ -355,9 +391,12 @@ impl<'pass> FlexContainerConstants<'pass> {
             main_axis_is_horizontal,
             is_legacy_webkit_box,
             used_flex_wrap,
-            is_direction_reverse: main_axis_writing_mode_start_is_reverse != flex_direction_is_reverse,
+            is_direction_reverse,
             cross_axis_is_reverse,
-            main_axis_writing_mode_start_is_reverse,
+            // FIXME: Honor safe and unsafe overflow alignment.
+            justify_content: justify_content.resolve(OverflowSafety::Unsafe, main_axis_directions),
+            align_content: align_content.resolve(OverflowSafety::Unsafe, cross_axis_directions),
+            cross_axis_directions,
             main_gap,
             cross_gap,
         }
@@ -519,45 +558,6 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn cross_axis_is_reverse(&self) -> bool {
         self.container.cross_axis_is_reverse
-    }
-
-    // Whether the given start, end, left or right value of justify-content packs the flex items against the main
-    // axis side that is the frame's right or bottom side.
-    // https://drafts.csswg.org/css-align-3/#positional-values
-    fn justify_content_position_is_reverse(&self, justify: u8) -> bool {
-        let start_is_reverse = self.container.main_axis_writing_mode_start_is_reverse;
-        match justify {
-            justify_content::START => start_is_reverse,
-            justify_content::END => !start_is_reverse,
-            // left: Aligns the alignment subject to be flush with the alignment container's line-left or physical
-            //       left edge, whichever is in the appropriate axis.
-            //       If the property's axis is not parallel with either left↔right axis, this value behaves as start.
-            // NB: The frame's left side is the line-left side. The main axis of a column flex container runs along
-            //     the physical left↔right axis in a vertical writing mode.
-            justify_content::LEFT => {
-                if self.is_row_layout() {
-                    false
-                } else if self.run.pass.frame.is_transposed() {
-                    self.run.pass.frame.frame_side(geometry::Side::Left) == geometry::Side::Bottom
-                } else {
-                    start_is_reverse
-                }
-            }
-            // right: Aligns the alignment subject to be flush with the alignment container's line-right or physical
-            //        right edge, whichever is in the appropriate axis.
-            //        If the property's axis is not parallel with either left↔right axis, this value behaves as
-            //        start.
-            justify_content::RIGHT => {
-                if self.is_row_layout() {
-                    true
-                } else if self.run.pass.frame.is_transposed() {
-                    self.run.pass.frame.frame_side(geometry::Side::Right) == geometry::Side::Bottom
-                } else {
-                    start_is_reverse
-                }
-            }
-            _ => unreachable!("not a positional justify-content value"),
-        }
     }
 
     fn is_direction_reverse(&self) -> bool {
@@ -1087,7 +1087,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let uses_button_layout =
             facts.uses_button_layout() && !style.display().is_flex_inside() && !style.display().is_grid_inside();
         let is_table_wrapper = facts.is_table_wrapper();
-        let alignment = self.alignment_for_style(style);
+        let alignment = self.cross_alignment_of(style);
         let alignment_facts = FlexItemAlignmentFacts {
             alignment,
             is_stretched: self.item_is_stretched(node, style, alignment, is_table_wrapper, preferred_cross_size),
@@ -2157,11 +2157,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         &self,
         node: Node,
         style: StyleValues<'pass>,
-        alignment: u8,
+        alignment: SelfAlignment,
         is_table_wrapper: bool,
         preferred_cross_size: &'pass ComputedSize,
     ) -> bool {
-        if !matches!(alignment, align_items::STRETCH | align_items::NORMAL) {
+        if !matches!(alignment.position, SelfPosition::Stretch | SelfPosition::Normal) {
             return false;
         }
         // If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.
@@ -2183,26 +2183,28 @@ impl<'pass> FlexFormattingContext<'pass> {
         behaves_as_auto && !cross_margin_before.is_auto() && !cross_margin_after.is_auto()
     }
 
-    fn alignment_for_style(&self, style: StyleValues<'_>) -> u8 {
-        match style.align_self() {
-            align_self::AUTO => self.container.style.align_items(),
-            align_self::END => align_items::END,
-            align_self::NORMAL => align_items::NORMAL,
-            align_self::SELF_START => align_items::SELF_START,
-            align_self::SELF_END => align_items::SELF_END,
-            align_self::FLEX_START => align_items::FLEX_START,
-            align_self::FLEX_END => align_items::FLEX_END,
-            // https://drafts.csswg.org/css-anchor-position-1/#valdef-justify-self-anchor-center
-            // If the box is not absolutely positioned, or does not have a default anchor box, this value behaves as
-            // center and has no additional effect on how inset properties resolve.
-            align_self::CENTER | align_self::ANCHOR_CENTER => align_items::CENTER,
-            align_self::BASELINE => align_items::BASELINE,
-            align_self::START => align_items::START,
-            align_self::STRETCH => align_items::STRETCH,
-            align_self::SAFE => align_items::SAFE,
-            align_self::UNSAFE => align_items::UNSAFE,
-            _ => unreachable!("invalid align-self"),
-        }
+    /// The alignment along the cross axis of a box styled `style`.
+    fn cross_alignment_of(&self, style: StyleValues<'_>) -> SelfAlignment {
+        let (keyword, _) = SelfKeyword::align_self_of(*style, *self.container.style);
+        let self_start_is_low = geometry::start_is_low_side_in_frame(
+            self.run.pass.frame,
+            style.writing_mode(),
+            style.direction(),
+            self.cross_axis_is_horizontal(),
+        );
+        // FIXME: Honor safe and unsafe overflow alignment.
+        keyword.resolve(
+            OverflowSafety::Unsafe,
+            AxisDirections {
+                self_start_is_low,
+                ..self.container.cross_axis_directions
+            },
+        )
+    }
+
+    /// The flex-start side of the cross axis.
+    fn cross_start_edge(&self) -> AxisEdge {
+        AxisEdge::low_side_if(!self.cross_axis_is_reverse())
     }
 
     // The used min and max cross sizes of an item, with an automatic minimum of zero and no maximum for none.
@@ -2530,10 +2532,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if (!self.container_cross_size_is_known_for_layout()
             && self.container_computed_cross_min_size().0.is_auto())
             // align-content is stretch,
-            || !matches!(
-                self.container.style.align_content(),
-                align_content::STRETCH | align_content::NORMAL
-            )
+            || self.container.align_content.distribution != Some(ContentDistribution::Stretch)
         {
             return;
         }
@@ -2772,83 +2771,29 @@ impl<'pass> FlexFormattingContext<'pass> {
             // NB: The free space that justify-content distributes around the items.
             let mut space_distribution = SpaceDistribution::default();
             let mut initial_offset = CssPixels::default();
-            let number_of_items = item_count;
-            let justify = self.container.style.justify_content();
-            if auto_margins == 0 && number_of_items > 0 {
-                match justify {
-                    justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
-                        if self.justify_content_position_is_reverse(justify) {
-                            initial_offset = self.inner_main_size_used(&self.container_cells);
-                        }
-                    }
-                    justify_content::STRETCH | justify_content::NORMAL | justify_content::FLEX_START => {
-                        if self.is_direction_reverse() {
-                            initial_offset = self.inner_main_size_used(&self.container_cells);
-                        }
-                    }
-                    justify_content::FLEX_END => {
-                        if !self.is_direction_reverse() {
-                            initial_offset = self.inner_main_size_used(&self.container_cells);
-                        }
-                    }
-                    justify_content::CENTER => {
-                        initial_offset = (self.inner_main_size_used(&self.container_cells) - used_main_space) / 2;
-                        if self.is_direction_reverse() {
-                            initial_offset = self.inner_main_size_used(&self.container_cells) - initial_offset;
-                        }
-                    }
-                    justify_content::SPACE_BETWEEN => {
-                        if self.is_direction_reverse() {
-                            initial_offset = self.inner_main_size_used(&self.container_cells);
-                        }
-                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
-                        space_distribution = SpaceDistribution::new(free_space, number_of_items - 1, 0, 1);
-                    }
-                    justify_content::SPACE_AROUND => {
-                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
-                        space_distribution = SpaceDistribution::new(free_space, number_of_items * 2, 1, 2);
-                        let leading_space = space_distribution.space_before(0);
-                        initial_offset = if self.is_direction_reverse() {
-                            self.inner_main_size_used(&self.container_cells) - leading_space
-                        } else {
-                            leading_space
-                        };
-                    }
-                    justify_content::SPACE_EVENLY => {
-                        let free_space = remaining.unwrap_or_default().max(CssPixels::default());
-                        space_distribution = SpaceDistribution::new(free_space, number_of_items + 1, 1, 1);
-                        let leading_space = space_distribution.space_before(0);
-                        initial_offset = if self.is_direction_reverse() {
-                            self.inner_main_size_used(&self.container_cells) - leading_space
-                        } else {
-                            leading_space
-                        };
-                    }
-                    _ => unreachable!("invalid justify-content"),
-                }
+            // NB: Where the cursor starts at the right or bottom, the items are placed backwards from there.
+            let mut cursor_right = false;
+            if auto_margins == 0 && item_count > 0 {
+                let justify = self.container.justify_content;
+                let inner_main_size = self.inner_main_size_used(&self.container_cells);
+                space_distribution = justify.distributed_space(remaining.unwrap_or_default(), item_count);
+                let leading_space = if justify.distribution.is_none() && justify.edge == AxisEdge::Center {
+                    (inner_main_size - used_main_space) / 2
+                } else {
+                    space_distribution.space_before(0)
+                };
+                // NB: Centered and distributed items are placed from the main-start side.
+                cursor_right = match justify.edge {
+                    AxisEdge::Start => false,
+                    AxisEdge::Center => self.is_direction_reverse(),
+                    AxisEdge::End => true,
+                };
+                initial_offset = if cursor_right {
+                    inner_main_size - leading_space
+                } else {
+                    leading_space
+                };
             }
-
-            // For reverse, we use FlexRegionRenderCursor::Right
-            // to indicate the cursor offset is the end and render backwards
-            // Otherwise the cursor offset is the 'start' of the region or initial offset
-            let cursor_right = if auto_margins == 0 {
-                match justify {
-                    justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
-                        self.justify_content_position_is_reverse(justify)
-                    }
-                    justify_content::NORMAL
-                    | justify_content::FLEX_START
-                    | justify_content::CENTER
-                    | justify_content::SPACE_AROUND
-                    | justify_content::SPACE_BETWEEN
-                    | justify_content::SPACE_EVENLY
-                    | justify_content::STRETCH => self.is_direction_reverse(),
-                    justify_content::FLEX_END => !self.is_direction_reverse(),
-                    _ => false,
-                }
-            } else {
-                false
-            };
 
             let direction_reverse = self.is_direction_reverse();
             let main_gap = self.main_gap();
@@ -2933,39 +2878,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    /// Whether `alignment` puts the item styled `item_style` at the physical end of its flex line in the cross axis, its
-    /// right or bottom edge, rather than at the physical start. None for an alignment that is not toward either edge.
-    fn cross_alignment_is_at_physical_end<'style>(
-        &self,
-        item_style: impl FnOnce() -> StyleValues<'style>,
-        alignment: u8,
-    ) -> Option<bool> {
-        // https://drafts.csswg.org/css-flexbox/#flex-wrap-property
-        // When flex-wrap is wrap-reverse, the cross-start and cross-end directions are swapped. The writing mode of the
-        // container decides where 'start' and 'end' are, without that swap.
-        let flex_cross_axis_is_reverse = self.cross_axis_is_reverse();
-        let wrap_reverse = self.used_flex_wrap() == flex_wrap::WRAP_REVERSE;
-        let container_cross_axis_is_reverse = flex_cross_axis_is_reverse != wrap_reverse;
-        let item_cross_axis_is_reverse = || {
-            let item_style = item_style();
-            !geometry::start_is_low_side_in_frame(
-                self.run.pass.frame,
-                item_style.writing_mode(),
-                item_style.direction(),
-                self.cross_axis_is_horizontal(),
-            )
-        };
-        Some(match alignment {
-            align_items::NORMAL | align_items::STRETCH | align_items::FLEX_START => flex_cross_axis_is_reverse,
-            align_items::FLEX_END => !flex_cross_axis_is_reverse,
-            align_items::START => container_cross_axis_is_reverse,
-            align_items::END => !container_cross_axis_is_reverse,
-            align_items::SELF_START => item_cross_axis_is_reverse(),
-            align_items::SELF_END => !item_cross_axis_is_reverse(),
-            _ => return None,
-        })
-    }
-
     fn align_all_flex_items_along_the_cross_axis(&mut self) {
         // FIXME: Take better care of margins
         for line_index in 0..self.flex_lines.len() {
@@ -2980,8 +2892,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                     - item.cross_size.unwrap()
                     - item.margins.cross_after
                     - item.borders_and_padding.cross_after;
-                let offset = match alignment {
-                    align_items::BASELINE => {
+                let offset = match alignment.position {
+                    SelfPosition::Baseline => {
                         // https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline
                         // NB: Baseline-aligned items are initially placed at the cross-start edge (like flex-start). Their
                         //     positions are adjusted after layout in resolve_baseline_aligned_items().
@@ -2990,7 +2902,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                         self.flex_lines[line_index].has_baseline_aligned_items = true;
                         at_physical_start
                     }
-                    align_items::CENTER => {
+                    SelfPosition::Edge(AxisEdge::Center) => {
                         // https://drafts.csswg.org/css-flexbox/#align-items-property
                         // The flex item’s margin box is centered in the cross axis within the line
                         (-item.cross_size.unwrap() + item.margins.cross_before + item.borders_and_padding.cross_before
@@ -2998,12 +2910,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                             - item.borders_and_padding.cross_after)
                             / 2
                     }
-                    _ => match self
-                        .cross_alignment_is_at_physical_end(|| self.flex_item_details[index].inputs.style, alignment)
-                    {
-                        Some(true) => at_physical_end,
-                        Some(false) => at_physical_start,
-                        None => item.cross_offset,
+                    SelfPosition::Edge(AxisEdge::Start) => at_physical_start,
+                    SelfPosition::Edge(AxisEdge::End) => at_physical_end,
+                    SelfPosition::Normal | SelfPosition::Stretch => match self.cross_start_edge() {
+                        AxisEdge::End => at_physical_end,
+                        _ => at_physical_start,
                     },
                 };
                 self.flex_items[index].cross_offset = offset;
@@ -3037,81 +2948,27 @@ impl<'pass> FlexFormattingContext<'pass> {
             .fold(CssPixels::default(), |sum, line| sum + line.cross_size);
         // CSS-FLEXBOX-2: Account for gap between flex lines.
         sum += self.cross_gap() * self.flex_lines.len().wrapping_sub(1);
-        let mut start = CssPixels::default();
         // NB: The leftover free space that align-content distributes around the lines.
-        let mut space_distribution = SpaceDistribution::default();
-        let mut place_backwards = false;
-        let mut iterate_backwards = false;
-        match self.container.style.align_content() {
-            align_content::START => {
-                iterate_backwards = reverse_cross_axis;
-            }
-            align_content::END => {
-                start = container_cross_size;
-                place_backwards = true;
-                iterate_backwards = !reverse_cross_axis;
-            }
-            // AD-HOC: Baseline values align the lines as flex-start rather than with their fallback alignment, matching
-            //         other engines.
-            align_content::FLEX_START | align_content::BASELINE => {
-                if reverse_cross_axis {
-                    start = container_cross_size;
-                    place_backwards = true;
-                }
-            }
-            align_content::FLEX_END => {
-                iterate_backwards = true;
-                if !reverse_cross_axis {
-                    start = container_cross_size;
-                    place_backwards = true;
-                }
-            }
-            align_content::CENTER => {
-                iterate_backwards = reverse_cross_axis;
-                start = container_cross_size / 2 - sum / 2;
-            }
-            align_content::SPACE_BETWEEN => {
-                if reverse_cross_axis {
-                    start = container_cross_size;
-                    place_backwards = true;
-                }
-                let leftover = container_cross_size - sum;
-                if leftover >= CssPixels::default() && self.flex_lines.len() > 1 {
-                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() - 1, 0, 1);
-                }
-            }
-            align_content::SPACE_AROUND => {
-                iterate_backwards = reverse_cross_axis;
-                let leftover = container_cross_size - sum;
-                if leftover < CssPixels::default() {
-                    // If the leftover free-space is negative this value is identical to center.
-                    start = container_cross_size / 2 - sum / 2;
-                } else {
-                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() * 2, 1, 2);
-                    // The spacing between the first/last lines and the flex container edges is half the size of the spacing between flex lines.
-                    start = space_distribution.space_before(0);
-                }
-            }
-            align_content::SPACE_EVENLY => {
-                iterate_backwards = reverse_cross_axis;
-                let leftover = container_cross_size - sum;
-                if leftover < CssPixels::default() {
-                    // If the leftover free-space is negative this value is identical to center.
-                    start = container_cross_size / 2 - sum / 2;
-                } else {
-                    space_distribution = SpaceDistribution::new(leftover, self.flex_lines.len() + 1, 1, 1);
-                    // The spacing between the first/last lines and the flex container edges is the size of the spacing between flex lines.
-                    start = space_distribution.space_before(0);
-                }
-            }
-            align_content::NORMAL | align_content::STRETCH => {
-                if reverse_cross_axis {
-                    start = container_cross_size;
-                    place_backwards = true;
-                }
-            }
-            _ => unreachable!("invalid align-content"),
-        }
+        let align = self.container.align_content;
+        let leftover = container_cross_size - sum;
+        let space_distribution = align.distributed_space(leftover, self.flex_lines.len());
+        // NB: Centered lines, and lines that space-around or space-evenly cannot distribute negative leftover free
+        //     space around, are placed from the left or top.
+        // https://drafts.csswg.org/css-flexbox-1/#align-content-property
+        // space-around: If the leftover free-space is negative this value is identical to center.
+        let start =
+            if align.edge == AxisEdge::Center && (align.distribution.is_none() || leftover < CssPixels::default()) {
+                container_cross_size / 2 - sum / 2
+            } else {
+                space_distribution.space_before(0)
+            };
+        let place_backwards = align.edge == AxisEdge::End;
+        let iterate_backwards = place_backwards != reverse_cross_axis;
+        let mut start = if place_backwards {
+            container_cross_size - start
+        } else {
+            start
+        };
 
         let cross_gap = self.cross_gap();
         for iteration_index in 0..self.flex_lines.len() {
@@ -3158,7 +3015,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn item_participates_in_baseline_alignment(&self, index: usize) -> bool {
         // FIXME: Items in a horizontal-tb container only align by baselines across the vertical axis, where a
         //        horizontal-tb item is aligned by its own baselines and any other item by synthesized ones.
-        self.flex_items[index].alignment_facts.alignment == align_items::BASELINE
+        self.flex_items[index].alignment_facts.alignment.position == SelfPosition::Baseline
             && (!self.item_baseline_is_synthesized(index) || !self.run.pass.frame.is_transposed())
     }
 
@@ -3490,60 +3347,20 @@ impl<'pass> FlexFormattingContext<'pass> {
         } else {
             style.align_self_is_last_baseline()
         };
+        let alignment = self.cross_alignment_of(style);
         // INTEROP: Chrome and Firefox use the container's start/end edges for baseline fallbacks of abspos flex
         //          children, rather than the self-start/self-end edges specified by CSS Align.
-        let alignment = if is_last_baseline {
-            align_items::END
-        } else {
-            match self.alignment_for_style(style) {
-                align_items::BASELINE => align_items::START,
-                alignment => alignment,
-            }
-        };
-        let cross_alignment = if alignment == align_items::CENTER {
-            AxisEdge::Center
-        } else if self
-            .cross_alignment_is_at_physical_end(|| style, alignment)
-            .unwrap_or(false)
-        {
-            AxisEdge::End
-        } else {
-            AxisEdge::Start
+        let cross_alignment = match alignment.position {
+            _ if is_last_baseline => alignment.container_start.reversed(),
+            SelfPosition::Baseline => alignment.container_start,
+            SelfPosition::Edge(edge) => edge,
+            SelfPosition::Normal | SelfPosition::Stretch => self.cross_start_edge(),
         };
         // The main-axis edges of the static-position rectangle are where the margin edges of the child
         // would be positioned if it were the sole flex item in the flex container,
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
-
-        let justify = self.container.style.justify_content();
-        let main_alignment = match justify {
-            justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
-                if self.justify_content_position_is_reverse(justify) {
-                    AxisEdge::End
-                } else {
-                    AxisEdge::Start
-                }
-            }
-            justify_content::STRETCH
-            | justify_content::NORMAL
-            | justify_content::FLEX_START
-            | justify_content::SPACE_BETWEEN => {
-                if self.is_direction_reverse() {
-                    AxisEdge::End
-                } else {
-                    AxisEdge::Start
-                }
-            }
-            justify_content::FLEX_END => {
-                if self.is_direction_reverse() {
-                    AxisEdge::Start
-                } else {
-                    AxisEdge::End
-                }
-            }
-            justify_content::CENTER | justify_content::SPACE_AROUND | justify_content::SPACE_EVENLY => AxisEdge::Center,
-            _ => unreachable!("invalid justify-content"),
-        };
+        let main_alignment = self.container.justify_content.edge;
         let main_size = self.inner_main_size_used(&self.container_cells);
         let cross_size = self.inner_cross_size_used(&self.container_cells);
         let (inline_size, block_size) = if self.is_row_layout() {
@@ -3566,7 +3383,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             },
             inline_alignment,
             block_alignment,
-            // alignment_for_style() consulted the box's own align-self.
+            // cross_alignment_of() consulted the box's own align-self.
             alignment_derives_from_own_computed_values: true,
         }
     }
@@ -4615,42 +4432,6 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     pub(super) fn automatic_content_block_size(&self) -> CssPixels {
         self.container_cells.content_block_size()
-    }
-}
-
-/// Free space split into equal shares, placed before a run of boxes and between them. Each share is rounded such that
-/// the shares add up to the whole space, instead of losing the rounding remainder of every share.
-#[derive(Clone, Copy, Default)]
-struct SpaceDistribution {
-    space: CssPixels,
-    shares: usize,
-    shares_before_first_box: usize,
-    shares_between_boxes: usize,
-}
-
-impl SpaceDistribution {
-    fn new(space: CssPixels, shares: usize, shares_before_first_box: usize, shares_between_boxes: usize) -> Self {
-        Self {
-            space,
-            shares,
-            shares_before_first_box,
-            shares_between_boxes,
-        }
-    }
-
-    /// The space placed before the box at the given position in the run.
-    fn space_before(self, position: usize) -> CssPixels {
-        if self.shares == 0 {
-            return CssPixels::default();
-        }
-        let count = (self.shares_before_first_box + position * self.shares_between_boxes).min(self.shares);
-        let raw = i64::from(self.space.raw_value()) * count as i64 / self.shares as i64;
-        CssPixels::from_raw(raw as i32)
-    }
-
-    /// The space placed between the box at the given position and the next one.
-    fn space_after(self, position: usize) -> CssPixels {
-        self.space_before(position + 1) - self.space_before(position)
     }
 }
 
