@@ -4,6 +4,7 @@ target_link_libraries(TestLibSandbox PRIVATE LibSandbox)
 if (LINUX)
     # Applies the real sandbox of the image decoder, so it builds its sandbox source.
     target_sources(TestLibSandbox PRIVATE
+        TestFileBroker.cpp
         TestImageDecoderSandbox.cpp
         TestLandlock.cpp
         TestSeccomp.cpp

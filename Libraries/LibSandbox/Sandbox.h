@@ -87,6 +87,8 @@ struct SeatbeltProfile {
 [[nodiscard]] ErrorOr<void> add_path_if_exists(Vector<PathRule>& paths, StringView path, PathRule::Access);
 [[nodiscard]] ErrorOr<void> add_loaded_library_directories(Vector<PathRule>& paths, Optional<StringView> root = {});
 [[nodiscard]] ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> = {});
+// Whether restrict_filesystem() also kept this process from signalling any process outside its own tree.
+[[nodiscard]] bool signals_stay_within_the_process_tree();
 [[nodiscard]] ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths);
 #endif
 

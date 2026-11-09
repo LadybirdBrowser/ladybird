@@ -10,6 +10,7 @@
 #    include <AK/LexicalPath.h>
 #    include <AK/ScopeGuard.h>
 #    include <AK/Vector.h>
+#    include <LibSandbox/FileBroker.h>
 #    include <dirent.h>
 #    include <errno.h>
 #    include <fcntl.h>
@@ -795,28 +796,15 @@ static ErrorOr<size_t> count_threads()
     return thread_count;
 }
 
-ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> paths)
+static bool s_signals_stay_within_the_process_tree = false;
+
+bool signals_stay_within_the_process_tree()
 {
-    // Landlock confines only the calling thread and the threads that it starts later. A thread that already runs would
-    // keep full access to the file system.
-    if (TRY(count_threads()) != 1)
-        return Error::from_string_literal("Landlock must be applied before the process starts a second thread");
+    return s_signals_stay_within_the_process_tree;
+}
 
-    // Without Landlock, nothing limits the files a helper can open, so we refuse to go on. Running without it has to
-    // be a choice that the user makes with --disable-sandbox.
-    auto landlock_abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
-    if (landlock_abi < 0 && errno != ENOSYS && errno != EOPNOTSUPP)
-        return Error::from_syscall("landlock_create_ruleset(LANDLOCK_CREATE_RULESET_VERSION)"sv, errno);
-    if (landlock_abi <= 0) {
-        // NB: Only for machines that cannot run Landlock at all, such as our CI runners. The rest of the sandbox still
-        //     applies. On a kernel that has Landlock, this changes nothing.
-        if (auto const* allow = getenv("LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK"); allow && StringView { allow, strlen(allow) } == "1"sv) {
-            warnln("Landlock is not available in this kernel. This helper runs without file system confinement, because LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK is set.");
-            return {};
-        }
-        return Error::from_string_literal("Landlock is not available in this kernel, so the helper cannot be sandboxed (--disable-sandbox runs helpers without a sandbox)");
-    }
-
+static ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<PathRule> paths, long landlock_abi)
+{
     // Before ABI 3, Landlock does not handle truncation, so a helper can truncate any file that it can open.
     static bool s_warned_about_truncation = false;
     if (landlock_abi < 3 && !s_warned_about_truncation) {
@@ -926,8 +914,27 @@ ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> paths)
 
     if (syscall(__NR_landlock_restrict_self, ruleset_fd, 0) < 0)
         return Error::from_syscall("landlock_restrict_self"sv, errno);
+#    if defined(LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET) && defined(LANDLOCK_SCOPE_SIGNAL)
+    s_signals_stay_within_the_process_tree = landlock_abi >= 6;
+#    endif
 
     return {};
+}
+
+ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> paths)
+{
+    // Landlock confines only the calling thread and the threads that it starts later, and forking the broker is only
+    // safe with one thread. A thread that already runs would keep full access to the file system.
+    if (TRY(count_threads()) != 1)
+        return Error::from_string_literal("The file system must be restricted before the process starts a second thread");
+
+    // Any failure means we can't have Landlock here: a kernel without it says ENOSYS or EOPNOTSUPP, and a container's
+    // own seccomp filter can say anything.
+    auto landlock_abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (landlock_abi > 0)
+        return restrict_filesystem_with_landlock(paths, landlock_abi);
+
+    return start_file_broker(paths);
 }
 #endif
 

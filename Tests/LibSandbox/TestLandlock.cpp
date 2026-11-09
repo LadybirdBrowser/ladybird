@@ -8,6 +8,7 @@
 #include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/landlock.h>
@@ -22,21 +23,19 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-enum class Outcome {
-    Refused,
-    Confined,
-};
-
 // Makes the kernel answer the Landlock version probe with the given errno (0 makes the probe return an ABI of 0), then
-// asks for a Landlock sandbox in a child process.
-static Outcome restrict_filesystem_when_version_probe_returns(u32 error)
+// asks for a sandbox in a child process. Whatever else the kernel can do, a helper must still get one, and it must keep
+// the helper from its files at once.
+static bool can_restrict_filesystem_when_version_probe_returns(u32 error)
 {
+    char file_template[] = "/tmp/lb-landlock-XXXXXX";
+    auto file_fd = mkstemp(file_template);
+    VERIFY(file_fd >= 0);
+    close(file_fd);
+
     auto child = fork();
     VERIFY(child >= 0);
     if (child == 0) {
-        // CI allows a missing Landlock for the helpers it starts. This test is about the default.
-        unsetenv("LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK");
-
         sock_filter filter[] = {
             BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, nr)),
             BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_landlock_create_ruleset, 0, 1),
@@ -50,64 +49,38 @@ static Outcome restrict_filesystem_when_version_probe_returns(u32 error)
         if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0 || prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) < 0)
             _exit(2);
 
-        auto result = Sandbox::restrict_filesystem();
-        _exit(result.is_error() ? 0 : 1);
+        if (Sandbox::restrict_filesystem().is_error())
+            _exit(1);
+        auto fd = open(file_template, O_RDONLY | O_CLOEXEC);
+        _exit(fd < 0 && errno == EACCES ? 0 : 3);
     }
 
     int status = 0;
     VERIFY(waitpid(child, &status, 0) == child);
+    (void)unlink(file_template);
     VERIFY(WIFEXITED(status));
-    VERIFY(WEXITSTATUS(status) == 0 || WEXITSTATUS(status) == 1);
-    return WEXITSTATUS(status) == 0 ? Outcome::Refused : Outcome::Confined;
+    VERIFY(WEXITSTATUS(status) == 0 || WEXITSTATUS(status) == 1 || WEXITSTATUS(status) == 3);
+    return WEXITSTATUS(status) == 0;
 }
 
-TEST_CASE(a_kernel_without_landlock_refuses_the_sandbox)
+TEST_CASE(a_kernel_without_landlock_still_gets_a_sandbox)
 {
-    EXPECT_EQ(restrict_filesystem_when_version_probe_returns(ENOSYS), Outcome::Refused);
+    EXPECT(can_restrict_filesystem_when_version_probe_returns(ENOSYS));
 }
 
-TEST_CASE(a_kernel_with_landlock_disabled_refuses_the_sandbox)
+TEST_CASE(a_kernel_with_landlock_disabled_still_gets_a_sandbox)
 {
-    EXPECT_EQ(restrict_filesystem_when_version_probe_returns(EOPNOTSUPP), Outcome::Refused);
+    EXPECT(can_restrict_filesystem_when_version_probe_returns(EOPNOTSUPP));
 }
 
-TEST_CASE(a_landlock_abi_of_zero_refuses_the_sandbox)
+TEST_CASE(a_landlock_abi_of_zero_still_gets_a_sandbox)
 {
-    EXPECT_EQ(restrict_filesystem_when_version_probe_returns(0), Outcome::Refused);
+    EXPECT(can_restrict_filesystem_when_version_probe_returns(0));
 }
 
-TEST_CASE(a_container_that_blocks_landlock_refuses_the_sandbox)
+TEST_CASE(a_container_that_blocks_landlock_still_gets_a_sandbox)
 {
-    EXPECT_EQ(restrict_filesystem_when_version_probe_returns(EPERM), Outcome::Refused);
-}
-
-TEST_CASE(a_missing_landlock_can_be_allowed_explicitly)
-{
-    auto child = fork();
-    VERIFY(child >= 0);
-    if (child == 0) {
-        setenv("LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK", "1", 1);
-        sock_filter filter[] = {
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, nr)),
-            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_landlock_create_ruleset, 0, 1),
-            BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | ENOSYS),
-            BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-        };
-        sock_fprog program {
-            .len = sizeof(filter) / sizeof(filter[0]),
-            .filter = filter,
-        };
-        if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0 || prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program) < 0)
-            _exit(2);
-
-        auto result = Sandbox::restrict_filesystem();
-        _exit(result.is_error() ? 1 : 0);
-    }
-
-    int status = 0;
-    VERIFY(waitpid(child, &status, 0) == child);
-    VERIFY(WIFEXITED(status));
-    EXPECT_EQ(WEXITSTATUS(status), 0);
+    EXPECT(can_restrict_filesystem_when_version_probe_returns(EPERM));
 }
 
 TEST_CASE(a_process_with_a_second_thread_refuses_the_sandbox)
@@ -226,6 +199,7 @@ TEST_CASE(signals_stay_within_the_landlock_process_tree)
     if (child == 0) {
         MUST(Sandbox::install_no_new_privileges());
         MUST(Sandbox::restrict_filesystem());
+        VERIFY(Sandbox::signals_stay_within_the_process_tree());
         Sandbox::SeccompPolicy policy;
         policy.allow_common_runtime();
         policy.allow_process_creation();
