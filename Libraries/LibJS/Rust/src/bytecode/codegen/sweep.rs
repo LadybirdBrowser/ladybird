@@ -314,7 +314,8 @@ impl Generator<'_> {
                         row += 1;
                         continue;
                     }
-                    let value_is_used = next_tag(tags, row) != tag::EXPR_STMT && !self.is_unused_value_row(row);
+                    let value_is_used = (next_tag(tags, row) != tag::EXPR_STMT || self.tracks_completion())
+                        && !self.is_unused_value_row(row);
                     self.update(tree.update_operator(node), row_tag == tag::PREFIX_UPDATE, value_is_used);
                 }
                 tag::CONDITIONAL => self.conditional_end(),
