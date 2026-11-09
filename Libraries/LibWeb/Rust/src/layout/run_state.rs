@@ -230,30 +230,8 @@ pub(crate) struct BoxPlacement {
 /// box.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FragmentFactsDecidedByParent {
-    /// For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid
-    /// columns it spans, so painting can find the cells that originate in a column (CSS 2.2 §17.5.1).
-    pub(crate) table_column_index: u32,
-    pub(crate) table_column_span: u32,
-    /// For table cells: whether every column the cell spans has 'visibility: collapse', which removes the cell from
-    /// the display along with the columns (CSS 2.2 §17.5.5).
-    pub(crate) hidden_by_collapsed_columns: bool,
-    /// Whether the box lies after the clamp point of a line-clamp container, which hides it.
-    pub(crate) is_invisible_for_line_clamp: bool,
-    /// The physical clip an ancestor's layout puts on the box and its contents, relative to the box's border box: empty
-    /// for a box hidden after a clamp point, and the area before the block-end content edge of a line-clamp container
-    /// for a float inside it.
-    pub(crate) clip_decided_by_parent: Option<CssPixelRect>,
-    /// Whether fragmentation broke the box, so that this fragment continues one in an earlier fragmentainer, or
-    /// continues in a later one.
-    pub(crate) continues_from_previous_fragment: bool,
-    pub(crate) continues_in_next_fragment: bool,
-}
-
-impl FragmentFactsDecidedByParent {
-    pub(crate) fn hide_after_clamp_point(&mut self) {
-        self.is_invisible_for_line_clamp = true;
-        self.clip_decided_by_parent = Some(CssPixelRect::default());
-    }
+    pub(crate) show: fragment_tree::ParentShowFacts,
+    pub(crate) breaks: fragment_tree::BreakFacts,
 }
 
 /// What the parent of a box decides about the box, kept with the box by the run that holds it.
@@ -264,6 +242,30 @@ pub(crate) struct FactsDecidedByParent {
     /// The scroll shift the anchor positioning of the box's insets compensates for.
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) fragment_facts: FragmentFactsDecidedByParent,
+}
+
+impl FactsDecidedByParent {
+    /// What the parent decided about a box, as the committed link of the box shows it in the frame of the link.
+    pub(crate) fn of_committed_link(link: &fragment_tree::FragmentLink) -> Self {
+        let insets = link.placement.insets;
+        Self {
+            placement: Some(BoxPlacement {
+                content_offset_in_containing_block: link.committed_offset,
+                containing_block: link.placement.containing_block,
+            }),
+            used_insets: UsedInsets {
+                left: insets.left,
+                right: insets.right,
+                top: insets.top,
+                bottom: insets.bottom,
+            },
+            default_scroll_shift: None,
+            fragment_facts: FragmentFactsDecidedByParent {
+                show: link.placement.shown_as.facts,
+                breaks: fragment_tree::BreakFacts::default(),
+            },
+        }
+    }
 }
 
 /// What the parent of a box laid out by a run of its own keeps of the box once that run returns: its sizes, size

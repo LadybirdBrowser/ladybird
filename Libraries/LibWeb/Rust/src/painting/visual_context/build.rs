@@ -204,7 +204,9 @@ impl BoxFacts {
             .collect();
         facts.css_clip = super::node_values::compute_css_clip_data(layout_arena, slot, pixel_ratio);
         facts.clip_decided_by_parent = layout_arena
-            .with_committed_fragment_link(slot, |link| link.and_then(|link| link.clip_decided_by_parent))
+            .with_committed_fragment_link(slot, |link| {
+                link.and_then(|link| link.placement.shown_as.facts.clip_decided_by_parent)
+            })
             .map(|clip_relative_to_border_box| {
                 let border_box =
                     crate::painting::paintable_geometry::first_fragment_border_box_rect(layout_arena, slot);

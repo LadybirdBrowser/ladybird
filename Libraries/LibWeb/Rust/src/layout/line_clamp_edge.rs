@@ -81,16 +81,17 @@ impl ClampEdgeWalk<'_, '_> {
     }
 
     fn link_with_clipped_floats(&mut self, link: &FragmentLink) -> LinkOutcome {
-        let Some(&containing_block) = self.content_boxes.get(&link.containing_block) else {
+        let Some(&containing_block) = self.content_boxes.get(&link.placement.containing_block) else {
             return LinkOutcome::ContainingBlockNotEntered;
         };
-        if link.is_invisible_for_line_clamp {
+        if link.placement.shown_as.facts.is_invisible_for_line_clamp {
             return LinkOutcome::Unchanged;
         }
         let fragment = &link.fragment;
         let data = self.pass.arena().data(fragment.node);
         let style = node_facts::node_style_view(data);
         let content_box = link
+            .placement
             .frame
             .rect_to_physical(
                 CssPixelRect::new(
@@ -107,15 +108,14 @@ impl ClampEdgeWalk<'_, '_> {
             .translated_by(containing_block.location());
 
         if node_facts::node_is_floating(data, style) {
-            let border_box = fragment_overflow::physical_border_box_around(content_box, fragment, link.frame);
+            let border_box = fragment_overflow::physical_border_box_around(content_box, fragment, link.placement.frame);
             let clip = Some(self.area_before_block_end_edge.translated(-border_box.x, -border_box.y));
-            if link.clip_decided_by_parent == clip {
+            if link.placement.shown_as.facts.clip_decided_by_parent == clip {
                 return LinkOutcome::Unchanged;
             }
-            return LinkOutcome::Changed(FragmentLink {
-                clip_decided_by_parent: clip,
-                ..link.clone()
-            });
+            let mut link = link.clone();
+            link.placement.shown_as.facts.clip_decided_by_parent = clip;
+            return LinkOutcome::Changed(link);
         }
 
         // NB: Line clamping does not reach into a box that establishes a formatting context of its own, and a nested
