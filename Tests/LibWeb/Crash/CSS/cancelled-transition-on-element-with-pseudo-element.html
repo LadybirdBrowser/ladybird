@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    @property --color {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: red;
+    }
+    #container {
+        container-type: inline-size;
+        width: 200px;
+    }
+    @container (width > 0px) {
+        #target, #custom {
+            color: green;
+        }
+    }
+    #target {
+        background-color: red;
+        transition: background-color 1s 100s;
+    }
+    #target.moved {
+        background-color: blue;
+    }
+    #custom {
+        --color: red;
+        transition: --color 1s 100s;
+    }
+    #custom.moved {
+        --color: blue;
+    }
+    #target::before, #custom::before {
+        content: "x";
+    }
+</style>
+<div id="container"><span id="target"></span><span id="custom"></span></div>
+<script>
+    for (const element of [target, custom]) {
+        getComputedStyle(element).color;
+        element.className = "moved";
+        getComputedStyle(element).color;
+        element.className = "";
+        getComputedStyle(element).color;
+    }
+</script>

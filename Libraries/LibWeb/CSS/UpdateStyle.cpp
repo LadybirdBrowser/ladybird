@@ -381,6 +381,7 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
                 style_computer.apply_settled_animation_plan(read, abstract_element);
             if (old_style && document.is_in_style_stabilization_epoch())
                 style_computer.record_transition_stabilization_baseline(abstract_element, old_style);
+            StyleEngineFFI::style_engine_begin_composition_settling(style_computer.style_engine().host(), &read, element->style_node_id().value());
             if (style_computer.has_animations_to_compose(abstract_element))
                 sample_animations_for_installed_record(abstract_element);
             else
@@ -390,6 +391,7 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
                 apply_element_style_invalidation_after_style_change(read, *element, step_invalidation);
                 application->invalidation |= step_invalidation;
             }
+            StyleEngineFFI::style_engine_end_composition_settling(style_computer.style_engine().host(), &read);
         }
         // The host composes the records swapped in for the element's pseudo-elements that owe the plan of their
         // animations or the transition step, or whose element has animations, as it composes those it settles.

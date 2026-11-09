@@ -1290,6 +1290,17 @@ pub extern "C" fn style_engine_for_each_element_custom_property_environment(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn style_engine_begin_composition_settling(host: &DocumentHost, read: &BegunRead, node: u32) {
+    let node = StyleNodeID::from_raw(node).expect("a composition settles for an element");
+    with_engine(read, host, |engine| engine.begin_composition_settling(node));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_end_composition_settling(host: &DocumentHost, read: &BegunRead) {
+    with_engine(read, host, |engine| engine.end_composition_settling());
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
         Some(facts) => facts.has_pending_style_update,

@@ -1635,6 +1635,7 @@ impl StyleEngine {
             host: HostState {
                 hover_seal: Default::default(),
                 font_resolver: None,
+                settling_composition: None,
                 element_inputs: PendingElementInputs::default(),
                 deferred_element_style_inputs: Default::default(),
                 deferred_element_style_inputs_moved: false,
