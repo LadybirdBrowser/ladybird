@@ -272,6 +272,8 @@ impl RetainedState {
             }
         };
         let was_none = old_values.is_none_or(is_none);
+        let native_appearance =
+            |values: ComputedValuesView<'_>| (values.appearance(), values.native_appearance_disabled());
         let (damage_effects, rebuild_root) = super::super::style_invalidation::main_effects_of_damage(
             facts.element_damage,
             facts.pseudo_elements.damages.iter().copied(),
@@ -364,7 +366,10 @@ impl RetainedState {
                 construction_facts
                     & (element_construction_fact::IS_HTML_INPUT_ELEMENT
                         | element_construction_fact::IS_HTML_SELECT_ELEMENT)
-                    != 0,
+                    != 0
+                    || (construction_facts & element_construction_fact::IS_HTML_PROGRESS_OR_METER_ELEMENT != 0
+                        && old_values
+                            .is_none_or(|old_values| native_appearance(old_values) != native_appearance(new_values))),
             );
         InstalledElementEffects {
             style_node: node.raw(),

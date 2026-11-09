@@ -9,6 +9,7 @@
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
@@ -3149,6 +3150,48 @@ WebIDL::UnsignedLong HTMLElement::computed_heading_offset() const
 
     // 4. Return offset.
     return offset;
+}
+
+// A user-agent shadow tree's inner elements share their default declarations, parsed once, but each
+// holds its own copy: a declaration block is an element's own input, and one shared between elements
+// would change every one of them at once while telling none. The element's copy is replaced only
+// when the defaults it should hold differ from the ones it holds.
+void HTMLElement::set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
+{
+    // Every value change asks again, and nearly always the element holds the defaults already. The element's copy
+    // shares the declarations it was given until either side changes, so sharing answers that without serializing.
+    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->declaration_block().shares_declarations_with(defaults.declaration_block()))
+        return;
+    auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
+    style->set_declarations_from(defaults);
+    element.set_inline_style(style);
+}
+
+static GC::Ref<CSS::CSSStyleProperties> slider_track_style_without_native_appearance()
+{
+    static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+    if (!style) {
+        style = CSS::CSSStyleProperties::create({}, {});
+        style->set_declarations_from_text(R"~~~(
+                height: 100%;
+                margin-top: 0;
+                border-radius: 0;
+                background-color: gray;
+            )~~~"sv);
+    }
+    return *style;
+}
+
+void HTMLElement::update_slider_track_style(DOM::Element& slider_track) const
+{
+    auto style = computed_style();
+    if (!style)
+        return;
+
+    if (style->appearance() != CSS::Appearance::None && !style->native_appearance_disabled())
+        slider_track.set_inline_style(nullptr);
+    else
+        set_own_inline_style(slider_track, slider_track_style_without_native_appearance());
 }
 
 }

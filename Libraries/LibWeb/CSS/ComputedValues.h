@@ -433,6 +433,7 @@ public:
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return position_from_reset_bits(m_noninherited.reset_bits); }
     Appearance appearance() const { return static_cast<Appearance>(m_noninherited.misc_layout->appearance); }
+    bool native_appearance_disabled() const { return m_noninherited.misc_layout->native_appearance_disabled; }
     float opacity() const { return m_noninherited.effects->opacity; }
     Visibility visibility() const { return visibility_from_inherited_bits(m_inherited.values.bits); }
     ComputedFilterView backdrop_filter() const { return m_noninherited.effects->backdrop_filter_value(); }

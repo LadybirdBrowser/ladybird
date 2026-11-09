@@ -782,6 +782,7 @@ pub mod element_construction_fact {
     pub const IS_SVG_RESOURCE_ELEMENT: u32 = 1 << 7;
     pub const IS_SVG_GEOMETRY_ELEMENT: u32 = 1 << 8;
     pub const IS_HTML_SELECT_ELEMENT: u32 = 1 << 9;
+    pub const IS_HTML_PROGRESS_OR_METER_ELEMENT: u32 = 1 << 10;
     /// The layout algorithm a MathML element's tag name selects, as a `MathLayoutKind` in these bits.
     pub const MATHML_LAYOUT_KIND_SHIFT: u32 = 16;
     pub const MATHML_LAYOUT_KIND_MASK: u32 = 0x1f << MATHML_LAYOUT_KIND_SHIFT;

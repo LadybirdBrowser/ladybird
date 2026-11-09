@@ -30,6 +30,7 @@ HTMLMeterElement::~HTMLMeterElement() = default;
 void HTMLMeterElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_meter_bar_element);
     visitor.visit(m_meter_value_element);
 }
 
@@ -173,12 +174,12 @@ void HTMLMeterElement::create_shadow_tree_if_needed()
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
-    auto meter_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(shadow_root->append_child(*meter_bar_element));
-    meter_bar_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderTrack);
+    m_meter_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    MUST(shadow_root->append_child(*m_meter_bar_element));
+    m_meter_bar_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderTrack);
 
     m_meter_value_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(meter_bar_element->append_child(*m_meter_value_element));
+    MUST(m_meter_bar_element->append_child(*m_meter_value_element));
     m_meter_value_element->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderFill);
     update_meter_value_element();
 }
@@ -227,6 +228,12 @@ void HTMLMeterElement::update_meter_value_element()
     double position = (value - min) / (max - min) * 100;
     auto width = Utf16String::formatted("{}%", position);
     MUST(m_meter_value_element->style()->set_property(CSS::PropertyID::Width, width.utf16_view()));
+}
+
+void HTMLMeterElement::computed_properties_changed()
+{
+    if (m_meter_bar_element)
+        update_slider_track_style(*m_meter_bar_element);
 }
 
 }

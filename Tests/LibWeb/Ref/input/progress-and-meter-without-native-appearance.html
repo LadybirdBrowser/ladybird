@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/progress-and-meter-without-native-appearance-ref.html">
+<style>
+    progress, meter {
+        display: block;
+        width: 200px;
+        height: 6px;
+    }
+    .appearance-none {
+        appearance: none;
+    }
+    .appearance-none::-webkit-progress-bar {
+        background-color: gray;
+    }
+    .background {
+        background: gray;
+    }
+    .border {
+        border: 0 solid;
+    }
+    progress::-webkit-progress-value {
+        background-color: blue;
+    }
+    meter::-moz-meter-bar {
+        background: blue;
+    }
+</style>
+<progress class="appearance-none" value="0.3"></progress>
+<progress class="background" value="0.3"></progress>
+<meter class="background" value="0.3"></meter>
+<progress class="border" value="0.3"></progress>
