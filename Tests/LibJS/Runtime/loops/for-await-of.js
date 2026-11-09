@@ -68,6 +68,30 @@ describe("basic behavior", () => {
         expect(loopIterations).toBe(1);
         expect(rejected).toBeFalse();
     });
+
+    test("a result of next() that is not an object throws once it is awaited", () => {
+        const log = [];
+        const iterable = {
+            [Symbol.asyncIterator]() {
+                return {
+                    next() {
+                        log.push("next");
+                        return 5;
+                    },
+                };
+            },
+        };
+        (async () => {
+            try {
+                for await (const value of iterable);
+            } catch (error) {
+                log.push(error.name);
+            }
+        })();
+        log.push("after the call");
+        runQueuedPromiseJobs();
+        expect(log).toEqual(["next", "after the call", "TypeError"]);
+    });
 });
 
 describe("only allowed in async functions", () => {
