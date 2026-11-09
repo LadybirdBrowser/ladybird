@@ -9,7 +9,6 @@
 use crate::bytecode::executable_data::{ExceptionHandler, StrictRange};
 use crate::bytecode::operand::Operand;
 use crate::bytecode::operand::OperandType;
-use crate::bytecode::source_map::SourceOffsetEntry;
 use crate::layout::buffer::BlockSlice;
 use crate::u32_from_usize;
 
@@ -17,7 +16,7 @@ use crate::u32_from_usize;
 pub struct AssembledBytecode {
     pub bytecode: BlockSlice<u8>,
     pub strict_ranges: Box<[StrictRange]>,
-    pub source_map: BlockSlice<SourceOffsetEntry>,
+    pub source_map: BlockSlice<u8>,
     pub exception_handlers: BlockSlice<ExceptionHandler>,
     pub number_of_registers: u32,
     /// One past the highest `Operand::argument` index referenced by any
