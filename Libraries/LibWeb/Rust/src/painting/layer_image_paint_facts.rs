@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::layout::replaced_sizing::SizeWithAspectRatio;
 use crate::painting::host::{FfiLayerImageList, FfiLayerImagePaintFacts};
 use crate::painting::image_content::ImageContent;
-use crate::painting::record::paint::replaced::SizeWithAspectRatio;
 use libgfx_rust::Color;
 
 #[derive(Clone, Debug, Default, PartialEq)]

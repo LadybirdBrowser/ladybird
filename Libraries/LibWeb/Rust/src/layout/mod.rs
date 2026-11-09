@@ -52,6 +52,7 @@ mod partial_relayout;
 pub(crate) mod prepared_inline_content;
 pub(crate) mod quote_depth;
 pub(crate) mod rendered_text;
+pub(crate) mod replaced_sizing;
 mod replaced_with_children_formatting_context;
 pub(crate) mod row_reads;
 pub(crate) mod run_repeatability;
