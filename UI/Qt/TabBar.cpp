@@ -970,8 +970,11 @@ TabBar::TabBar(TabWidget* tab_widget)
     m_drop_preview_animation->setEndValue(1.0);
     connect(m_drop_preview_animation, &QVariantAnimation::valueChanged, this, [this](QVariant const& value) {
         m_drop_preview_progress = value.toReal();
-        if (m_drop_preview_start.strip_growth != m_drop_preview_target.strip_growth)
+        if (m_drop_preview_start.strip_growth != m_drop_preview_target.strip_growth) {
             updateGeometry();
+            if (m_tab_widget && tab_layout() == TabLayout::Horizontal)
+                m_tab_widget->update_tab_layout();
+        }
         update_tab_button_geometry();
         update();
     });
@@ -1873,15 +1876,15 @@ Optional<int> TabBar::dragged_tab_index() const
     return {};
 }
 
-// A tab dragged in from elsewhere needs a gap of its own. Vertical tabs make room by moving the tabs after the gap
-// down, while horizontal tabs narrow to fit the gap within the strip's current width.
 bool TabBar::dragging_pinned_tab() const
 {
     return s_active_tab_dragged_tab && s_active_tab_dragged_tab->is_pinned();
 }
 
-// Where the tab at a position sits once a tab dragged in from another window joins the dragged tab's own group. The
-// pinned tiles keep their width, and the unpinned tabs narrow to make room, so the strip keeps its width.
+// Where the tab at a position sits once a tab dragged in from another window joins the dragged tab's own group. That
+// tab needs a gap of its own. Vertical tabs make room by moving the tabs after the gap down. The horizontal strip
+// grows to hold it, up to the width available to the tabs. The pinned tiles keep their width, and the unpinned tabs
+// narrow only once the strip can not grow any further.
 QRect TabBar::incoming_drop_layout_rect(int position) const
 {
     if (count() == 0)
@@ -1894,6 +1897,9 @@ QRect TabBar::incoming_drop_layout_rect(int position) const
     auto unpinned_count = count() + 1 - pinned_count;
     auto first_tab_rect = visual_tab_rect(0);
     auto strip_width = visual_tab_rect(count() - 1).right() + 1 - first_tab_rect.left() - (2 * HORIZONTAL_TAB_END_ROOM);
+    auto available_width = (m_available_width > 0 ? m_available_width : width()) - (2 * HORIZONTAL_TAB_END_ROOM);
+    auto widest_strip_width = (pinned_count * HORIZONTAL_PINNED_TAB_WIDTH) + (unpinned_count * m_locked_tab_width.value_or(HORIZONTAL_TAB_MAX_WIDTH));
+    strip_width = max(strip_width, min(widest_strip_width, available_width));
     auto unpinned_width = unpinned_count > 0 ? max(0.0, static_cast<qreal>(strip_width - (pinned_count * HORIZONTAL_PINNED_TAB_WIDTH)) / unpinned_count) : 0.0;
 
     auto left = first_tab_rect.left() + HORIZONTAL_TAB_END_ROOM + (min(position, pinned_count) * HORIZONTAL_PINNED_TAB_WIDTH) + (max(0, position - pinned_count) * unpinned_width);
@@ -1986,11 +1992,14 @@ void TabBar::set_drop_slot(Optional<int> slot)
 void TabBar::clear_drop_preview()
 {
     m_drop_preview_animation->stop();
+    auto strip_had_grown = current_strip_growth() != 0;
     m_drop_slot = {};
     m_drop_preview_start = {};
     m_drop_preview_target = {};
     m_drop_preview_progress = 1.0;
     updateGeometry();
+    if (strip_had_grown && m_tab_widget && tab_layout() == TabLayout::Horizontal)
+        m_tab_widget->update_tab_layout();
     update_tab_button_geometry();
     update();
 }
@@ -2029,6 +2038,8 @@ TabBar::DropPreview TabBar::drop_preview_for_slot(Optional<int> slot) const
         auto incoming_region = pinned_region_for(region.count + (dragging_pinned_tab() ? 1 : 0));
         preview.pinned_region_growth = incoming_region.height - region.height;
         preview.strip_growth = preview.pinned_region_growth + (dragging_pinned_tab() ? 0 : VERTICAL_TAB_HEIGHT);
+    } else if (count() > 0) {
+        preview.strip_growth = max(0, incoming_drop_layout_rect(count()).right() - visual_tab_rect(count() - 1).right());
     }
     return preview;
 }
@@ -2235,8 +2246,10 @@ QRectF TabBar::horizontal_tab_contents_rect(int index, QRect const& tab_rect) co
 
 int TabBar::horizontal_tabs_end_offset() const
 {
+    // NB: The strip also ends further along while it grows to hold a tab dragged in from another window.
+    auto drop_preview_growth = qRound(current_strip_growth());
     if (count() == 0 || m_layout_animation_progress >= 1.0)
-        return 0;
+        return drop_preview_growth;
     // NB: A tab that opens starts out as nothing, so the tab before it may end further along.
     auto animated_end = closing_tab_rect().isEmpty() ? NumericLimits<int>::min() : closing_tab_rect().right();
     auto settled_end = NumericLimits<int>::min();
@@ -2245,7 +2258,7 @@ int TabBar::horizontal_tabs_end_offset() const
         animated_end = max(animated_end, animated_tab_rect(index, target).right());
         settled_end = max(settled_end, target.right());
     }
-    return animated_end - settled_end;
+    return animated_end - settled_end + drop_preview_growth;
 }
 
 QRect TabBar::shifted_tab_rect(int index) const
