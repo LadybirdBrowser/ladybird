@@ -20,15 +20,15 @@ ErrorOr<void> restrict_filesystem(bool allow_gpu_driver)
     auto executable_path = TRY(Core::System::current_executable_path());
     auto build_root = LexicalPath::dirname(LexicalPath::dirname(executable_path));
 
-    Vector<Sandbox::LandlockPath> paths;
+    Vector<Sandbox::PathRule> paths;
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces.
-    TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, executable_path, Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_path_if_exists(paths, "/proc/self"sv, Sandbox::PathRule::Access::ReadOnly));
     if (allow_gpu_driver)
-        TRY(Sandbox::add_gpu_driver_landlock_paths(paths));
+        TRY(Sandbox::add_gpu_driver_paths(paths));
 
-    TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
+    TRY(Sandbox::restrict_filesystem(paths.span()));
     return {};
 }
 

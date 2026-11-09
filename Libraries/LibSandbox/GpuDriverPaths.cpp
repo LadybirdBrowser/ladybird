@@ -20,7 +20,7 @@ namespace Sandbox {
 
 // A driver or layer manifest names the library that the loader opens. A bare name is found by the dynamic loader in
 // the library directories, which are already allowed. A path, which may be relative to the manifest, can be anywhere.
-static ErrorOr<void> add_manifest_library_paths(Vector<LandlockPath>& paths, StringView manifest_path)
+static ErrorOr<void> add_manifest_library_paths(Vector<PathRule>& paths, StringView manifest_path)
 {
     auto file = Core::File::open(manifest_path, Core::File::OpenMode::Read);
     if (file.is_error())
@@ -35,7 +35,7 @@ static ErrorOr<void> add_manifest_library_paths(Vector<LandlockPath>& paths, Str
         if (!library_path.has_value() || !library_path->contains('/'))
             return {};
         auto path = LexicalPath::absolute_path(LexicalPath::dirname(manifest_path), *library_path);
-        return add_landlock_path_if_exists(paths, path, LandlockPath::Access::ReadOnly);
+        return add_path_if_exists(paths, path, PathRule::Access::ReadOnly);
     };
 
     auto const& object = manifest.value().as_object();
@@ -53,12 +53,12 @@ static ErrorOr<void> add_manifest_library_paths(Vector<LandlockPath>& paths, Str
 }
 
 // Allows a manifest, or every manifest in a directory, along with the libraries that they point to.
-static ErrorOr<void> add_manifest_paths(Vector<LandlockPath>& paths, StringView manifest_file_or_directory)
+static ErrorOr<void> add_manifest_paths(Vector<PathRule>& paths, StringView manifest_file_or_directory)
 {
     auto metadata = Core::System::stat(manifest_file_or_directory);
     if (metadata.is_error())
         return {};
-    TRY(add_landlock_path_if_exists(paths, manifest_file_or_directory, LandlockPath::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, manifest_file_or_directory, PathRule::Access::ReadOnly));
     if (!S_ISDIR(metadata.value().st_mode))
         return add_manifest_library_paths(paths, manifest_file_or_directory);
 
@@ -73,7 +73,7 @@ static ErrorOr<void> add_manifest_paths(Vector<LandlockPath>& paths, StringView 
 // The Vulkan loader and glvnd find their drivers and layers through manifests, which they read while the GPU backend
 // starts, after Landlock is in place. So we allow the directories that they search by default, and whatever the
 // environment points them at instead.
-static ErrorOr<void> add_loader_manifest_paths(Vector<LandlockPath>& paths)
+static ErrorOr<void> add_loader_manifest_paths(Vector<PathRule>& paths)
 {
     auto home = Core::Environment::get("HOME"sv).value_or(""sv);
     auto environment_or = [](StringView name, ByteString fallback) {
@@ -124,46 +124,46 @@ static ErrorOr<void> add_loader_manifest_paths(Vector<LandlockPath>& paths)
     return {};
 }
 
-ErrorOr<void> add_gpu_driver_landlock_paths(Vector<LandlockPath>& paths)
+ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths)
 {
-    TRY(add_landlock_path_if_exists(paths, "/lib"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/lib64"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/lib"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/local/lib"sv, LandlockPath::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/lib"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/lib64"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/lib"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/local/lib"sv, PathRule::Access::ReadOnly));
     // The driver loads more libraries after Landlock is in place, and they must come from where the libraries that we
     // already use came from. Otherwise the dynamic loader skips to another copy, such as the system's instead of our own.
     TRY(add_loaded_library_directories(paths));
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces, and drivers read it too.
-    TRY(add_landlock_path_if_exists(paths, TRY(Core::System::current_executable_path()), LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/etc/glvnd"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/glvnd"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/drirc.d"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/libdrm"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/vulkan"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/dev/dri"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/dev/udmabuf"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/sys"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/etc/ld.so.cache"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/etc/egl"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/egl"sv, LandlockPath::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, TRY(Core::System::current_executable_path()), PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/etc/glvnd"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/glvnd"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/drirc.d"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/libdrm"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/vulkan"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/dev/dri"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/udmabuf"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/sys"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/etc/ld.so.cache"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/etc/egl"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/egl"sv, PathRule::Access::ReadOnly));
     TRY(add_loader_manifest_paths(paths));
 
     // NB: GPU drivers read these while they set up and while they run. They used to do the setup before Landlock was in
     //     place, and in threads that it never confined.
-    TRY(add_landlock_path_if_exists(paths, "/proc/self"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/proc/meminfo"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/proc/stat"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/proc/filesystems"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/proc/sys/dev"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/proc/driver/nvidia"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/etc/nvidia"sv, LandlockPath::Access::ReadOnly));
-    TRY(add_landlock_path_if_exists(paths, "/usr/share/nvidia"sv, LandlockPath::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/self"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/meminfo"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/stat"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/filesystems"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/sys/dev"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/proc/driver/nvidia"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/etc/nvidia"sv, PathRule::Access::ReadOnly));
+    TRY(add_path_if_exists(paths, "/usr/share/nvidia"sv, PathRule::Access::ReadOnly));
 
-    TRY(add_landlock_path_if_exists(paths, "/dev/nvidiactl"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/dev/nvidia-modeset"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/dev/nvidia-uvm"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/dev/nvidia-uvm-tools"sv, LandlockPath::Access::ReadWrite));
-    TRY(add_landlock_path_if_exists(paths, "/dev/nvidia-caps"sv, LandlockPath::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/nvidiactl"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/nvidia-modeset"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/nvidia-uvm"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/nvidia-uvm-tools"sv, PathRule::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, "/dev/nvidia-caps"sv, PathRule::Access::ReadWrite));
 
     // NB: Add all of the primary nvidia device files (e.g. /dev/nvidia0, /dev/nvidia1, etc).
     auto flags = static_cast<Core::DirIterator::Flags>(Core::DirIterator::SkipDots | Core::DirIterator::NoStat);
@@ -171,7 +171,7 @@ ErrorOr<void> add_gpu_driver_landlock_paths(Vector<LandlockPath>& paths)
         if (entry.name.starts_with("nvidia"sv)) {
             auto suffix = entry.name.substring_view(6);
             if (!suffix.is_empty() && all_of(suffix, is_ascii_digit))
-                TRY(add_landlock_path_if_exists(paths, TRY(String::formatted("/dev/{}", entry.name)), LandlockPath::Access::ReadWrite));
+                TRY(add_path_if_exists(paths, TRY(String::formatted("/dev/{}", entry.name)), PathRule::Access::ReadWrite));
         }
 
         return IterationDecision::Continue;
@@ -181,7 +181,7 @@ ErrorOr<void> add_gpu_driver_landlock_paths(Vector<LandlockPath>& paths)
                                       .map([](auto path) { return path.to_byte_string(); })
                                       .value_or_lazy_evaluated([] { return ByteString::formatted("{}/mesa_shader_cache", Core::StandardPaths::cache_directory()); });
     TRY(Core::Directory::create(mesa_shader_cache_path, Core::Directory::CreateDirectories::Yes));
-    TRY(add_landlock_path_if_exists(paths, mesa_shader_cache_path, LandlockPath::Access::ReadWrite));
+    TRY(add_path_if_exists(paths, mesa_shader_cache_path, PathRule::Access::ReadWrite));
 
     // The NVIDIA driver keeps its own shader cache.
     if (!Core::System::access("/dev/nvidiactl"sv, F_OK).is_error()) {
@@ -189,7 +189,7 @@ ErrorOr<void> add_gpu_driver_landlock_paths(Vector<LandlockPath>& paths)
                                             .map([](auto path) { return path.to_byte_string(); })
                                             .value_or_lazy_evaluated([] { return ByteString::formatted("{}/nvidia", Core::StandardPaths::cache_directory()); });
         TRY(Core::Directory::create(nvidia_shader_cache_path, Core::Directory::CreateDirectories::Yes));
-        TRY(add_landlock_path_if_exists(paths, nvidia_shader_cache_path, LandlockPath::Access::ReadWrite));
+        TRY(add_path_if_exists(paths, nvidia_shader_cache_path, PathRule::Access::ReadWrite));
     }
 
     return {};

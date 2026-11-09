@@ -75,7 +75,7 @@ ErrorOr<void> configure_runtime()
 }
 
 #if defined(AK_OS_LINUX)
-ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringView path, LandlockPath::Access access)
+ErrorOr<void> add_path_if_exists(Vector<PathRule>& paths, StringView path, PathRule::Access access)
 {
     auto path_bytes = path.to_byte_string();
 
@@ -97,7 +97,7 @@ ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringVie
     return {};
 }
 
-ErrorOr<void> add_loaded_library_directories(Vector<LandlockPath>& paths, Optional<StringView> root)
+ErrorOr<void> add_loaded_library_directories(Vector<PathRule>& paths, Optional<StringView> root)
 {
     Vector<ByteString> directories;
     dl_iterate_phdr([](dl_phdr_info* info, size_t, void* data) {
@@ -114,7 +114,7 @@ ErrorOr<void> add_loaded_library_directories(Vector<LandlockPath>& paths, Option
 
     for (auto const& directory : directories) {
         if (!root.has_value() || LexicalPath { directory }.is_child_of(LexicalPath { root->to_byte_string() }))
-            TRY(add_landlock_path_if_exists(paths, directory, LandlockPath::Access::ReadOnly));
+            TRY(add_path_if_exists(paths, directory, PathRule::Access::ReadOnly));
     }
     return {};
 }
@@ -795,7 +795,7 @@ static ErrorOr<size_t> count_threads()
     return thread_count;
 }
 
-ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths)
+ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> paths)
 {
     // Landlock confines only the calling thread and the threads that it starts later. A thread that already runs would
     // keep full access to the file system.
@@ -880,21 +880,21 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 
         landlock_path_beneath_attr path_beneath {};
         switch (landlock_path.access) {
-        case LandlockPath::Access::ReadOnly: {
+        case PathRule::Access::ReadOnly: {
             path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE;
 
             if (landlock_path.is_directory)
                 path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR;
             break;
         }
-        case LandlockPath::Access::ReadAndExecute: {
+        case PathRule::Access::ReadAndExecute: {
             path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_EXECUTE;
 
             if (landlock_path.is_directory)
                 path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR;
             break;
         }
-        case LandlockPath::Access::ReadWrite: {
+        case PathRule::Access::ReadWrite: {
             path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_WRITE_FILE;
 
 #    ifdef LANDLOCK_ACCESS_FS_TRUNCATE
