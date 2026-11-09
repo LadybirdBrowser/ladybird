@@ -7,11 +7,14 @@
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::visual_context::{IncludeVisualViewportTransform, SpatialNodeIndex, VisualContextTree};
+use crate::painting::visual_context::{
+    IncludeVisualViewportTransform, SpatialNodeIndex, VisualContextTree, WorldTransforms,
+};
 use libgfx_rust::{FloatPoint, FloatRect};
 
 pub(crate) struct RectToViewportTransform<'a> {
     pub visual_context_tree: &'a VisualContextTree,
+    pub world_transforms: &'a WorldTransforms,
     pub scroll_offsets: &'a [FloatPoint],
     pub device_pixels_per_css_pixel: f32,
 }
@@ -44,12 +47,9 @@ impl RectToViewportTransform<'_> {
             width: rect.width.to_float() * pixel_ratio,
             height: rect.height.to_float() * pixel_ratio,
         };
-        let transformed = self.visual_context_tree.transform_rect_to_viewport(
-            spatial,
-            device_rect,
-            self.scroll_offsets,
-            include_visual_viewport_transform,
-        );
+        let transformed =
+            self.world_transforms
+                .transform_rect_to_viewport(spatial, device_rect, include_visual_viewport_transform);
         let inverse_pixel_ratio = 1.0 / pixel_ratio;
         CssPixelRect {
             x: CssPixels::nearest_value_for_f32(transformed.x * inverse_pixel_ratio),

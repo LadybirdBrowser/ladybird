@@ -1343,6 +1343,8 @@ impl Lane {
             let offsets = self.scroll_offsets_on_screen(&source, &frame.visual_context, &plan);
             let callbacks =
                 FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &offsets, plan.chrome_metrics);
+            let world = callbacks.build_world_transforms(tree);
+            let callbacks = callbacks.with_world_transforms(&world);
             let ratio = plan.device_pixels_per_css_pixel as f32;
             let point = CssPixelPoint::new(
                 CssPixels::nearest_value_for_f32(position.x / ratio),
@@ -1496,6 +1498,8 @@ impl Lane {
         let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
         let callbacks =
             FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &scroll_offsets, plan.chrome_metrics);
+        let world = callbacks.build_world_transforms(&tree);
+        let callbacks = callbacks.with_world_transforms(&world);
         let pixel_ratio = plan.device_pixels_per_css_pixel as f32;
         let point = CssPixelPoint::new(
             CssPixels::nearest_value_for_f32(position.x / pixel_ratio),

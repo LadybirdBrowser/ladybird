@@ -851,9 +851,11 @@ Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Docu
 {
     if (!document.has_committed_viewport_box())
         return identity_rect_to_viewport_transform();
-    auto scroll_offsets = document.scroll_state_snapshot().device_offsets();
+    auto const& scroll_state = document.scroll_state_snapshot();
+    auto scroll_offsets = scroll_state.device_offsets();
     return {
         .visual_context_tree = visual_context_tree.rust_handle(),
+        .world_transforms = scroll_state.world_transforms(visual_context_tree),
         .scroll_offsets = scroll_offsets.data(),
         .scroll_offsets_len = scroll_offsets.size(),
         .device_pixels_per_css_pixel = static_cast<float>(document.page().client().device_pixels_per_css_pixel()),

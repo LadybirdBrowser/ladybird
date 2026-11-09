@@ -6,9 +6,33 @@
 
 #include <AK/NumericLimits.h>
 #include <AK/Vector.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/RustFFI.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+
+namespace Compositing {
+
+void const* WorldTransformsCache::get_or_build(AccumulatedVisualContextTree const& tree, ReadonlySpan<Gfx::FloatPoint> device_offsets)
+{
+    if (m_world_transforms && m_retained_tree == tree.rust_handle())
+        return m_world_transforms;
+    clear();
+    m_retained_tree = RustFFI::visual_context_tree_retain(tree.rust_handle());
+    m_world_transforms = RustFFI::world_transforms_create(m_retained_tree, device_offsets.data(), device_offsets.size());
+    return m_world_transforms;
+}
+
+void WorldTransformsCache::clear()
+{
+    if (m_world_transforms)
+        RustFFI::world_transforms_destroy(exchange(m_world_transforms, nullptr));
+    if (m_retained_tree)
+        RustFFI::visual_context_tree_release(exchange(m_retained_tree, nullptr));
+}
+
+}
 
 namespace IPC {
 

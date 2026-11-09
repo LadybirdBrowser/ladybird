@@ -32,8 +32,8 @@ use crate::painting::selection::{
 };
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
-use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::{BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES};
+use crate::painting::visual_context::{ScrollSnap, VisualContextTree, WorldTransforms};
 use std::sync::Arc;
 
 /// The document's text rows and its replaced, layer image and SVG paint resource tables, as they
@@ -158,6 +158,7 @@ impl PublishedRows {
 /// What a recording reads of the document's paint state, as it was when the frame was published.
 pub(crate) struct PublishedPaintState {
     pub(crate) visual_context_tree: Option<Arc<VisualContextTree>>,
+    unscrolled_world_transforms: std::sync::OnceLock<WorldTransforms>,
     /// Each scroll state slot's own scroll offset, shared with the document's scroll state.
     scroll_own_offsets: Arc<Vec<CssPixelPoint>>,
     pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
@@ -176,6 +177,17 @@ pub(crate) struct PublishedPaintState {
 }
 
 impl PublishedPaintState {
+    /// The tree's world transforms without scroll offsets, which is all that the scale of a space depends on.
+    pub(crate) fn unscrolled_world_transforms(&self) -> &WorldTransforms {
+        self.unscrolled_world_transforms.get_or_init(|| {
+            let tree = self
+                .visual_context_tree
+                .as_deref()
+                .expect("recording runs against a visual context tree");
+            WorldTransforms::new(tree, &[], None, ScrollSnap::None)
+        })
+    }
+
     pub(crate) fn highlight_pseudo_styles(&self, highlight: HighlightPseudoElement) -> &SelectionPseudoStyles {
         match highlight {
             HighlightPseudoElement::Selection => &self.selection_pseudo_styles,
@@ -189,6 +201,7 @@ impl PublishedPaintState {
         let visual_context = &paint_state.visual_context;
         Self {
             visual_context_tree: visual_context.tree.clone(),
+            unscrolled_world_transforms: std::sync::OnceLock::new(),
             scroll_own_offsets: visual_context.scroll_state.own_offsets().clone(),
             has_non_viewport_wheel_scroll_target_candidate: visual_context
                 .scroll_state

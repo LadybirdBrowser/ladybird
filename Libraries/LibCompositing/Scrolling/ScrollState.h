@@ -19,6 +19,28 @@
 
 namespace Compositing {
 
+// The world transforms built for one visual context tree under a snapshot's offsets. A copy starts empty, so the table
+// never outlives the offsets it was built for.
+class COMPOSITING_API WorldTransformsCache {
+public:
+    WorldTransformsCache() = default;
+    WorldTransformsCache(WorldTransformsCache const&) { }
+    WorldTransformsCache& operator=(WorldTransformsCache const&)
+    {
+        clear();
+        return *this;
+    }
+    ~WorldTransformsCache() { clear(); }
+
+    void const* get_or_build(AccumulatedVisualContextTree const&, ReadonlySpan<Gfx::FloatPoint> device_offsets);
+    void clear();
+
+private:
+    // The cache retains the tree, so the tree it describes cannot change under it: a write to a shared tree copies it.
+    void const* m_retained_tree { nullptr };
+    void* m_world_transforms { nullptr };
+};
+
 // Device-pixel offsets keyed by SpatialNodeIndex: the scroll containers' offsets as produced by
 // the document, plus the sticky nodes' offsets derived from them and the tree (by the document's
 // scroll state refresh in process, by resolve_sticky_offsets() in the compositor). Stored dense in process so display list replay and hit testing index it directly;
@@ -34,6 +56,12 @@ class ScrollStateSnapshot {
 public:
     ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
 
+    // The world transforms of the tree under these offsets, in the layout viewport's space, kept until either changes.
+    void const* world_transforms(AccumulatedVisualContextTree const& tree) const
+    {
+        return m_world_transforms_cache.get_or_build(tree, m_device_offsets);
+    }
+
     Gfx::FloatPoint device_offset_for_index(SpatialNodeIndex index) const
     {
         if (index.value() >= m_device_offsets.size())
@@ -45,6 +73,7 @@ public:
     {
         if (index.value() >= m_node_count)
             return;
+        m_world_transforms_cache.clear();
         if (index.value() >= m_device_offsets.size()) {
             m_device_offsets.grow_capacity(index.value() + 1);
             m_device_offsets.resize(index.value() + 1);
@@ -55,6 +84,7 @@ public:
     // Replaces every offset with a freshly derived dense array, keeping the node count bound.
     void assign_device_offsets(ReadonlySpan<Gfx::FloatPoint> offsets)
     {
+        m_world_transforms_cache.clear();
         m_device_offsets.clear_with_capacity();
         m_device_offsets.append(offsets.data(), min(offsets.size(), m_node_count));
     }
@@ -65,6 +95,7 @@ public:
     // And any offset already stored past the count is discarded. Every later mutation stays bounded by the count.
     void set_node_count(size_t node_count)
     {
+        m_world_transforms_cache.clear();
         m_node_count = node_count;
         if (m_device_offsets.size() > node_count)
             m_device_offsets.resize(node_count);
@@ -89,6 +120,7 @@ private:
     Vector<Gfx::FloatPoint> m_device_offsets;
     Vector<StagedOffset> m_staged_offsets;
     size_t m_node_count { NumericLimits<size_t>::max() };
+    mutable WorldTransformsCache m_world_transforms_cache;
 };
 
 }

@@ -440,9 +440,9 @@ pub(crate) fn local_float_point(
     };
     let clip_behavior = ClipBehavior::from_respect_clip(respect_clip);
     let local = visual_context_tree.transform_point_for_hit_test(
+        callbacks.world_transforms(),
         context,
         screen_point,
-        callbacks.scroll_offsets(),
         clip_behavior,
     )?;
     Some((local.x / pixel_ratio, local.y / pixel_ratio))

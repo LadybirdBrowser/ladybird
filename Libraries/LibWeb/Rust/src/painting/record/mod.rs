@@ -795,14 +795,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 height: transform.y_scale(),
             };
         }
-        let tree = self
-            .paint_state
-            .visual_context_tree
-            .as_deref()
-            .expect("recording runs against a visual context tree");
-        tree.accumulated_2d_scale(
+        self.paint_state.unscrolled_world_transforms().accumulated_2d_scale(
             spatial,
-            &[],
             crate::painting::visual_context::IncludeVisualViewportTransform::No,
         )
     }

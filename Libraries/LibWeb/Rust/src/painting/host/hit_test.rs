@@ -16,6 +16,8 @@ pub struct FfiHitTestQueryCallbacks {
     pub device_pixels_per_css_pixel: f64,
     pub scroll_offsets: *const libgfx_rust::FloatPoint,
     pub scroll_offsets_len: usize,
+    /// Private: the world transforms a Rust entry point builds for the query, from the tree it reads and the offsets.
+    world_transforms: *const c_void,
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     /// Where set, the query reads the compositor's animations at this time, as a frame of the compositor's shows them.
@@ -41,6 +43,7 @@ impl FfiHitTestQueryCallbacks {
             device_pixels_per_css_pixel,
             scroll_offsets: scroll_offsets.as_ptr(),
             scroll_offsets_len: scroll_offsets.len(),
+            world_transforms: std::ptr::null(),
             has_chrome_metrics: true,
             chrome_metrics,
             has_visual_animation_sample_time: false,
@@ -63,6 +66,34 @@ impl FfiHitTestQueryCallbacks {
     ) -> bool {
         (self.contains)(self.context, ancestor, node)
     }
+    /// The world transforms of `tree`, the tree the query reads, under these callbacks' offsets.
+    pub(crate) fn build_world_transforms(
+        &self,
+        tree: &crate::painting::visual_context::VisualContextTree,
+    ) -> crate::painting::visual_context::WorldTransforms {
+        crate::painting::visual_context::WorldTransforms::new(
+            tree,
+            self.scroll_offsets(),
+            None,
+            crate::painting::visual_context::ScrollSnap::None,
+        )
+    }
+
+    /// These callbacks with the world transforms the query reads, which `world` holds for the query.
+    pub(crate) fn with_world_transforms(mut self, world: &crate::painting::visual_context::WorldTransforms) -> Self {
+        self.world_transforms = std::ptr::from_ref(world).cast();
+        self
+    }
+
+    pub(crate) fn world_transforms(&self) -> &crate::painting::visual_context::WorldTransforms {
+        assert!(
+            !self.world_transforms.is_null(),
+            "the query's entry point builds its world transforms"
+        );
+        // SAFETY: The entry point keeps the table alive for the synchronous query.
+        unsafe { libcompositing_rust::ffi::world_transforms_from_handle(self.world_transforms) }
+    }
+
     pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
         if self.scroll_offsets.is_null() {
             return &[];
