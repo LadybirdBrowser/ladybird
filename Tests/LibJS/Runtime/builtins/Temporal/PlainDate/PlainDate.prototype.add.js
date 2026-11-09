@@ -42,3 +42,24 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Not an object of type Temporal.PlainDate");
     });
 });
+
+test("adding far beyond the limits in a lunisolar calendar throws without walking there", () => {
+    const plainDate = Temporal.PlainDate.from("2000-01-01[u-ca=chinese]");
+    expect(() => {
+        plainDate.add({ months: 1e9 });
+    }).toThrow(RangeError);
+    expect(() => {
+        plainDate.add({ days: 1e8 });
+    }).toThrow(RangeError);
+});
+
+test("adding days in any calendar gives the date that many days later", () => {
+    const plainDate = Temporal.PlainDate.from("2000-01-31");
+    for (const calendar of ["chinese", "hebrew", "islamic-umalqura", "ethiopic", "japanese", "persian"]) {
+        for (const days of [401, -401, 123456, -123456]) {
+            expect(plainDate.withCalendar(calendar).add({ days }).toString()).toBe(
+                plainDate.add({ days }).withCalendar(calendar).toString()
+            );
+        }
+    }
+});
