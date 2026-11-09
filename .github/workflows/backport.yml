@@ -70,6 +70,17 @@ jobs:
               echo "::error::${branch} doesn't exist."
               exit 1
             fi
+            head="backport/${PR}-to-${branch}"
+            if lookup=$(gh api "repos/${REPO}/branches/${head}" --silent 2>&1); then
+              open_prs=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO%%/*}:${head}&base=${branch}" --jq length)
+              if [ "$open_prs" -eq 0 ]; then
+                echo "::error::${head} is left over from a closed backport PR. Delete it, then comment /backport again."
+                exit 1
+              fi
+            elif [[ "$lookup" != *"(HTTP 404)"* ]]; then
+              echo "::error::Couldn't check whether ${head} exists: ${lookup}"
+              exit 1
+            fi
             branches+=("$branch")
           done
           if [ "${#branches[@]}" -eq 0 ]; then
@@ -107,6 +118,9 @@ jobs:
           label_pattern: ''
           target_branches: ${{ needs.prepare.outputs.branches }}
           branch_name: backport/${pull_number}-to-${target_branch}
+          pull_description: 'Backport of #${pull_number} to `${target_branch}`.'
+          auto_merge_enabled: true
+          auto_merge_method: rebase
           experimental: '{"conflict_resolution": "draft_commit_conflicts"}'
 
       - name: 'Fail if any backport failed'
