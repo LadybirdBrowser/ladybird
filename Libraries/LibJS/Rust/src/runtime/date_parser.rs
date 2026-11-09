@@ -1041,6 +1041,11 @@ impl DateParser {
             return Err("Invalid timezone offset format.");
         }
 
+        // The hour of a UTC offset is at most 23: https://tc39.es/ecma262/#sec-date-time-string-format
+        if self.timezone_hours.is_some_and(|hours| hours > 23) {
+            return Err("Timezone offset hour out of range.");
+        }
+
         Ok(())
     }
 
