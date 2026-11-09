@@ -113,7 +113,7 @@ pub enum WasmHeapKind {
     Exception,
     NoException,
     /// A type the module defines; `type_index` is its index in the module, or its identity in the store for the types
-    /// of the store's functions and globals.
+    /// of the store's functions and globals, and those of a host function.
     Concrete,
 }
 
@@ -612,14 +612,10 @@ impl Drop for HostFunctionData {
 
 impl HostFunction for HostFunctionData {
     fn call(&self, store: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
-        // NB: A host function's concrete types are identities of the store, which the store knows by the time the
-        //     function is called, even its own. An embedder may still pass types of a module that the store does not
-        //     have. Arguments of those types are not traced, which is safe while the call lasts, as the caller keeps
-        //     them alive.
         let arguments: Vec<WasmValue> = arguments
             .iter()
             .zip(&self.parameter_types)
-            .map(|(&value, &ty)| WasmValue::of(value, store.trace_of_known(ty).unwrap_or(TRACE_NONE)))
+            .map(|(&value, &ty)| WasmValue::of(value, store.trace_of(ty)))
             .collect();
         let mut results = vec![
             WasmValue {
@@ -672,7 +668,8 @@ impl HostFunction for HostFunctionData {
 }
 
 /// Add a host function of the given type to the store, and return its cell. The function visits what its user data
-/// refers to with `visit`, and releases the user data with `release` when it goes away.
+/// refers to with `visit`, and releases the user data with `release` when it goes away. The concrete types among its
+/// types must be identities of the store, which is how the collector tells what its values are, or the runtime aborts.
 ///
 /// # Safety
 ///
@@ -699,6 +696,13 @@ pub unsafe extern "C" fn wasm_store_allocate_host_function(
         params: to_types(parameters, parameter_count),
         results: to_types(results, result_count),
     };
+    assert!(
+        ty.params
+            .iter()
+            .chain(&ty.results)
+            .all(|&ty| store_of(store).knows_type(ty)),
+        "a host function's concrete types must be identities of the store"
+    );
     let data = Rc::new(HostFunctionData {
         callback,
         visit,
@@ -940,8 +944,7 @@ pub unsafe extern "C" fn wasm_store_invoke(
         Ok(values) => {
             let types = &store.function(entity(function)).ty.results;
             for (index, (value, &ty)) in values.into_iter().zip(types).take(result_count).enumerate() {
-                let trace = store.trace_of_known(ty).unwrap_or(TRACE_NONE);
-                unsafe { *results.add(index) = WasmValue::of(value, trace) };
+                unsafe { *results.add(index) = WasmValue::of(value, store.trace_of(ty)) };
             }
             WasmStatus::Ok
         }

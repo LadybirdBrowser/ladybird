@@ -226,7 +226,8 @@ public:
     ~Store();
 
     // A host function writes one result for each result of its type, or returns an error to trap or throw. The
-    // function it is made of lives as long as the function is in the store.
+    // function it is made of lives as long as the function is in the store. The concrete types of its type must be
+    // identities of the store, or the runtime aborts.
     using HostFunction = GC::Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
 
     Entity allocate_host_function(FunctionType const&, GC::Ref<HostFunction>);
