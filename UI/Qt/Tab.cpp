@@ -71,6 +71,7 @@
 namespace Ladybird {
 
 static constexpr int HOVER_TEXT_CORNER_RADIUS = 4;
+static constexpr int HOVER_TEXT_VERTICAL_PADDING = 2 + 1;
 
 // The calendar's month buttons get chevrons in the palette's text color, since the style's own arrows stay dark in dark
 // mode.
@@ -238,10 +239,6 @@ void Tab::initialize(Optional<u64> hub_view_id)
     m_hover_label->setContentsMargins(4, 2, 4, 2);
     m_hover_label->setAutoFillBackground(true);
 
-    QObject::connect(m_hover_label, &HyperlinkLabel::mouse_entered, [this] {
-        update_hover_label();
-    });
-
     tab_layout->addWidget(m_view);
 
     // NB: A page can block many requests in a burst while it loads, so the open popover catches up with them at most
@@ -330,7 +327,6 @@ void Tab::initialize(Optional<u64> hub_view_id)
 
     view().on_link_hover = [this](auto const& url) {
         m_hover_text = qstring_from_ak_string(url.to_byte_string());
-        m_hover_text_is_on_right = false;
         update_hover_label();
     };
 
@@ -1294,6 +1290,7 @@ void Tab::update_hover_label()
 {
     if (m_hover_text.isEmpty())
         return;
+    m_hover_text_is_on_right = hover_text_belongs_on_right(m_view->mapFromGlobal(QCursor::pos()));
     auto text = QFontMetrics(m_hover_label->font()).elidedText(m_hover_text, Qt::ElideRight, width() / 2 - 10);
 
     // NB: Where the view can stack the text above the page itself, it stays inside the window and costs the page
@@ -1302,28 +1299,19 @@ void Tab::update_hover_label()
     auto size = image.deviceIndependentSize().toSize();
     QPoint position { m_hover_text_is_on_right ? m_view->width() - size.width() : 0, m_view->height() - size.height() };
     if (m_view->show_image_over_page(image, position)) {
-        m_hover_text_rect_over_page = { position, size };
+        m_hover_text_is_over_page = true;
         m_hover_label->hide();
         return;
     }
-    if (!m_hover_text_rect_over_page.isEmpty()) {
+    if (m_hover_text_is_over_page) {
         m_view->hide_image_over_page();
-        m_hover_text_rect_over_page = {};
+        m_hover_text_is_over_page = false;
     }
 
+    update_chrome_style();
     m_hover_label->setText(text);
-    m_hover_label->setCursor(view().cursor());
-    m_hover_label->resize(m_hover_label->sizeHint());
-
-    auto hover_label_height = height() - m_hover_label->height();
-
-    auto left_position = mapToGlobal(QPoint { 0, hover_label_height });
-
-    if (m_hover_label->underMouse() && m_hover_label->pos() == left_position)
-        m_hover_label->move(mapToGlobal(QPoint { width() - m_hover_label->width(), hover_label_height }));
-    else
-        m_hover_label->move(left_position);
-
+    m_hover_label->resize(size);
+    m_hover_label->move(m_view->mapToGlobal(position));
     m_hover_label->raise();
     m_hover_label->show();
 }
@@ -1331,11 +1319,22 @@ void Tab::update_hover_label()
 void Tab::hide_hover_label()
 {
     m_hover_text = {};
-    if (!m_hover_text_rect_over_page.isEmpty()) {
+    if (m_hover_text_is_over_page) {
         m_view->hide_image_over_page();
-        m_hover_text_rect_over_page = {};
+        m_hover_text_is_over_page = false;
     }
     m_hover_label->hide();
+}
+
+// NB: This looks only at the pointer and not at the width of the text, so that links with URLs of different lengths
+//     all put the text on the same side. The text is at most half as wide as the tab, so it stays clear of the
+//     pointer.
+bool Tab::hover_text_belongs_on_right(QPoint pointer) const
+{
+    // NB: Text on the right returns only when the pointer is clearly away, so it can't flip at the edge of the strip.
+    auto text_height = QFontMetrics { m_hover_label->font() }.height() + 2 * HOVER_TEXT_VERTICAL_PADDING;
+    auto strip_height = m_hover_text_is_on_right ? 2 * text_height : text_height;
+    return pointer.y() >= m_view->height() - strip_height && pointer.x() < m_view->width() / 2;
 }
 
 // Paints the hover text the way the hover label's style sheet does. It sits in a bottom corner of the page, and only
@@ -1343,10 +1342,9 @@ void Tab::hide_hover_label()
 QImage Tab::render_hover_text(QString const& text) const
 {
     static constexpr int horizontal_padding = 4 + 1;
-    static constexpr int vertical_padding = 2 + 1;
 
     QFontMetrics metrics { m_hover_label->font() };
-    QSize size { metrics.horizontalAdvance(text) + 2 * horizontal_padding, metrics.height() + 2 * vertical_padding };
+    QSize size { metrics.horizontalAdvance(text) + 2 * horizontal_padding, metrics.height() + 2 * HOVER_TEXT_VERTICAL_PADDING };
     auto device_pixel_ratio = devicePixelRatioF();
     QImage image { size * device_pixel_ratio, QImage::Format_ARGB32_Premultiplied };
     image.setDevicePixelRatio(device_pixel_ratio);
@@ -1399,11 +1397,10 @@ bool Tab::event(QEvent* event)
 
 bool Tab::eventFilter(QObject* watched, QEvent* event)
 {
-    // NB: The hover text over the page lets the pointer through, so it moves aside when the pointer comes over it.
-    if (watched == m_view && event->type() == QEvent::MouseMove && m_hover_text_rect_over_page.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
-        m_hover_text_is_on_right = !m_hover_text_is_on_right;
+    // NB: The hover text lets the pointer through, so it moves aside when the pointer comes near it.
+    if (watched == m_view && event->type() == QEvent::MouseMove && !m_hover_text.isEmpty()
+        && hover_text_belongs_on_right(static_cast<QMouseEvent*>(event)->position().toPoint()) != m_hover_text_is_on_right)
         update_hover_label();
-    }
     if (watched == m_view && (event->type() == QEvent::Resize || event->type() == QEvent::Move)) {
         if (m_find_in_page->isVisible())
             m_find_in_page->reposition();
@@ -1423,8 +1420,11 @@ void Tab::update_chrome_style()
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(Theme::chrome_palette(*this)));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(Theme::chrome_palette(*this)));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(Theme::chrome_palette(*this)));
-    m_hover_label->setStyleSheet(qformatted("background: {}; color: {}; border: 1px solid {}; border-top-right-radius: {}px;",
-        hover_surface, hover_text, hover_border, HOVER_TEXT_CORNER_RADIUS));
+    // NB: Only the corner toward the page is rounded. Setting a style sheet repolishes the label, even if unchanged.
+    auto hover_label_style = qformatted("background: {}; color: {}; border: 1px solid {}; border-top-{}-radius: {}px;",
+        hover_surface, hover_text, hover_border, m_hover_text_is_on_right ? "left" : "right", HOVER_TEXT_CORNER_RADIUS);
+    if (m_hover_label->styleSheet() != hover_label_style)
+        m_hover_label->setStyleSheet(hover_label_style);
     m_is_updating_chrome_style = false;
 }
 
