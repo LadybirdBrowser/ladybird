@@ -45,6 +45,7 @@ use crate::u32_from_usize;
 use super::EnclosingEnvironmentScope;
 use super::bindings::*;
 use super::context::Generator;
+use super::environment::BindingLocation;
 use super::nodes::Identifier;
 use super::registers::ScopedOperand;
 use super::stream::Control;
@@ -775,7 +776,11 @@ impl Generator<'_> {
             Some(_) => {
                 let value = generator.temporary();
                 let identifier = generator.intern_identifier(name);
-                emit_get_binding(generator, value, identifier, false);
+                // NB: This runs where the body starts, before any scope around the `var` has an environment.
+                let location = generator
+                    .variable_environment_coordinate_for_identifier(identifier)
+                    .map(BindingLocation::Environment);
+                emit_get_binding_at(generator, value, identifier, location, false);
                 value
             }
         };

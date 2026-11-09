@@ -57,6 +57,83 @@ test("a var of the name of a parameter starts with its value and is a binding of
     expect(i(1)).toEqual([1, 1]);
 });
 
+test("a var of the name of a parameter inside a scope that has an environment", () => {
+    function inBlock(p = "parameter", read = () => p) {
+        {
+            let q = "block";
+            const keep = () => q;
+            var p;
+        }
+        return [p, read()];
+    }
+    expect(inBlock()).toEqual(["parameter", "parameter"]);
+
+    function inNestedBlocks(p = "parameter", read = () => p) {
+        {
+            let q = "block";
+            const keepQ = () => q;
+            {
+                let s = "inner block";
+                const keepS = () => s;
+                var p;
+            }
+        }
+        return p;
+    }
+    expect(inNestedBlocks()).toBe("parameter");
+
+    function inCatch(p = "parameter", read = () => p) {
+        try {
+            throw 1;
+        } catch (e) {
+            const keep = () => e;
+            var p;
+        }
+        return p;
+    }
+    expect(inCatch()).toBe("parameter");
+
+    function inLoop(p = "parameter", read = () => p) {
+        for (let i = 0; i < 1; i++) {
+            const keep = () => i;
+            var p;
+        }
+        return p;
+    }
+    expect(inLoop()).toBe("parameter");
+
+    function inSwitch(p = "parameter", read = () => p) {
+        switch (0) {
+            case 0:
+                let q = "case";
+                const keep = () => q;
+                var p;
+        }
+        return p;
+    }
+    expect(inSwitch()).toBe("parameter");
+
+    function inClassScope(p = "parameter", read = () => p) {
+        {
+            class K {}
+            const keep = () => K;
+            var p;
+        }
+        return p;
+    }
+    expect(inClassScope()).toBe("parameter");
+
+    function withDirectEval(p = "parameter", read = () => p) {
+        {
+            let q = "block";
+            const keep = () => q;
+            var p;
+        }
+        return eval("p");
+    }
+    expect(withDirectEval()).toBe("parameter");
+});
+
 test("a function declaration of the name of a parameter", () => {
     function f(a, b = a) {
         function a() {}
