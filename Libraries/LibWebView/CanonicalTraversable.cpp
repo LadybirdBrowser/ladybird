@@ -748,6 +748,10 @@ void CanonicalTraversable::stop_loading()
     else
         clear_active_document_load();
 
+    // AD-HOC: A browser traversal still fetching its document is abandoned, so that the document does not replace the
+    //         page after the user stopped the load.
+    abandon_browser_traversal_load();
+
     // 3. Abort a document and its descendants given document.
     // NB: The page hosting document runs this step.
     if (auto page = display_page(); page && page->is_open())
@@ -1049,6 +1053,8 @@ struct HistoryOperation {
     Vector<NonnullRefPtr<WebContentPage>> completion_endpoints;
     u64 sequence_number;
     Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
+    // The view is showing a load for the top-level document this traversal has yet to activate.
+    bool has_unactivated_traversal_load { false };
 
     ChangingNavigable* pending_changing_job(Web::HTML::CrossProcessId navigable_id) const
     {
@@ -1522,23 +1528,29 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
 
     add_history_operation_completion_endpoint(operation, *endpoint);
 
-    // A reload's top-level job repopulates the view's document; begin the recorded load where the job is
-    // dispatched instead of having the job echo it back.
-    if (navigable.is_top_level_traversable()
-        && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
-        // A load a history operation starts, rather than a navigation, is tracked as the active document's.
-        clear_active_document_load();
-        endpoint->begin_top_level_load(changing_navigable.target_entry->url);
-    }
-
     if (auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && parameters->navigable_id == navigable_id) {
         if (auto const& populated_document = changing_navigable.target_entry->document_state->populated_document; populated_document.has_value())
             changing_navigable.populated_document = populated_document->document;
     }
 
     // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true:
-    if (!changing_navigable.target_document(*endpoint) || changing_navigable.target_entry_reload_pending)
+    auto populates_target_entry_document = !changing_navigable.target_document(*endpoint) || changing_navigable.target_entry_reload_pending;
+    if (populates_target_entry_document)
         changing_navigable.population = ChangingNavigable::AwaitingPopulation {};
+
+    // NB: A reload, or a traversal whose top-level job populates the view's document, loads it. Begin the recorded load
+    //     where the job is dispatched instead of having the job echo it back. A navigation being finalized began its
+    //     load when it started.
+    auto is_reload = operation.parameters.has<Web::ReloadHistoryOperationParameters>();
+    auto is_traversal_load = !is_reload && populates_target_entry_document && !operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
+    if (auto view = this->view(); view.has_value() && navigable.is_top_level_traversable() && (is_reload || is_traversal_load)) {
+        if (is_traversal_load)
+            operation.has_unactivated_traversal_load = true;
+
+        // NB: A load a history operation starts, rather than a navigation, is tracked as the active document's.
+        clear_active_document_load();
+        endpoint->begin_top_level_load(changing_navigable.target_entry->url);
+    }
 
     endpoint->owe_reply({ OwedReply::Kind::ChangingJob, operation.operation_id, navigable_id });
     endpoint->async_run_changing_navigable_history_job(
@@ -1695,6 +1707,8 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         navigation_id = reload->value.id;
         reload->value.activated = true;
     }
+    if (navigable.is_top_level_traversable())
+        operation.has_unactivated_traversal_load = false;
     auto const* replaced_document = &navigable.active_document();
     // NB: The page that activated the document hosts it: the job's, which hosts the document the job populated, or else
     //     the navigable's.
@@ -2741,6 +2755,12 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
             bidi->reload_did_not_apply(*this, reload->id);
     }
 
+    // A load the traversal began ends with it if the document it was for was never activated.
+    if (operation->has_unactivated_traversal_load) {
+        if (auto view = this->view(); view.has_value())
+            view->did_not_activate_history_traversal_load();
+    }
+
     auto committed_step = operation->algorithm ? operation->algorithm->committed_step() : Optional<i32> {};
     if (committed_step.has_value()) {
         if (auto view = this->view(); view.has_value())
@@ -2779,6 +2799,27 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     // NB: The run of apply the history step that finished the operation can be on the stack; destroy the operation
     //     only once the stack has unwound.
     Core::deferred_invoke([operation = move(operation)] { });
+}
+
+void CanonicalTraversable::abandon_browser_traversal_load()
+{
+    auto* traversal = ongoing_browser_history_traversal();
+    if (!traversal || !traversal->has_unactivated_traversal_load)
+        return;
+
+    // NB: Once the job has stopped populating, the displayed document may already be unloading.
+    auto* changing_navigable = traversal->pending_changing_job(id());
+    if (!changing_navigable || changing_navigable->population.has<Empty>())
+        return;
+
+    // NB: The job set the current entry to its target entry, which a later step to that entry would see as no change.
+    set_current_session_history_entry(active_session_history_entry());
+    finish_history_operation(traversal->operation_id);
+}
+
+bool CanonicalTraversable::has_unactivated_traversal_load() const
+{
+    return any_of(m_history_operations, [](auto const& entry) { return entry.value->has_unactivated_traversal_load; });
 }
 
 void CanonicalTraversable::abandon_history_operations()

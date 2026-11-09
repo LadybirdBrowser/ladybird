@@ -708,6 +708,15 @@ void ViewImplementation::did_apply_top_level_history_traversal_step(Web::HTML::C
     complete_webdriver_history_traversal(operation_id);
 }
 
+// A traversal's load that activated no document leaves the tab loading only if something else is.
+void ViewImplementation::did_not_activate_history_traversal_load()
+{
+    if (traversable().tracked_load_navigation_id().has_value())
+        return;
+    set_loading_state(false);
+    notify_load_finish();
+}
+
 // A reload of the tab's document that did not apply leaves the tab loading only if something else is.
 void ViewImplementation::did_not_apply_reload()
 {
@@ -3267,6 +3276,11 @@ void ViewImplementation::did_cancel_loading(Badge<CanonicalNavigable>, bool canc
     else if (m_webdriver_navigation_observation.has_value())
         complete_webdriver_navigation();
 
+    notify_load_finish();
+}
+
+void ViewImplementation::notify_load_finish()
+{
     auto const& client_url = url();
     if (on_load_finish)
         on_load_finish(client_url);
