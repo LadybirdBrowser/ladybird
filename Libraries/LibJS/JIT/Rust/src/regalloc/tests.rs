@@ -554,19 +554,19 @@ fn exits_find_constants_registers_and_spilled_values() {
         descriptor,
         Site {
             kind: SiteKind::Exit(ExitKind::NoFeedback),
-            frames: vec![CodeFrameState {
+            frames: Box::new([CodeFrameState {
                 executable: 0,
                 pc: program.offsets[2],
                 mode: crate::code::ResumeMode::ResumeAt,
-                values: vec![
+                values: Box::new([
                     (r(5).raw(), ValueLocation::Constant(value::int32(10))),
                     (r(6).raw(), ValueLocation::Register(argument_register, Repr::Tagged)),
-                ],
-                in_frame: Vec::new(),
+                ]),
+                in_frame: Box::new([]),
                 passed_argument_count: None,
                 legacy_arguments: 0..0,
-            }],
-            objects: Vec::new(),
+            }]),
+            objects: Box::new([]),
             inlined_frame_bytes: 0,
         }
     );
