@@ -1,4 +1,4 @@
-$b9f02199 class-environment.js:9:1
+$3b521a21 class-environment.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -11,11 +11,11 @@ block0:
   [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  1c] GetGlobal value_feedback:2, dst:reg8, `classWithName`
   [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
-  [  3a] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  51] End value:reg5
+  [  36] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  49] End value:reg5
 
 
-classWithName$013513bd class-environment.js:2:9
+classWithName$9c90d9a9 class-environment.js:2:9
   Registers: 7
   Blocks:    1
   Locals:    C~0
@@ -29,12 +29,12 @@ block0:
   [  12] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
   [  1c] SetLexicalEnvironment environment:reg4
   [  1f] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  3a] Mov dst:C~0, src:reg5
-  [  3f] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:C~0
-  [  52] GetById value_feedback:1, dst:reg6, base:reg5, `method`
-  [  5f] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg6, this_value:reg5
-  [  74] StrictlyEquals arith_feedback:0, dst:reg5, lhs:reg5, rhs:C~0
-  [  7d] Return value:reg5
+  [  36] Mov dst:C~0, src:reg5
+  [  3b] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:C~0
+  [  4a] GetById value_feedback:1, dst:reg6, base:reg5, `method`
+  [  57] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg6, this_value:reg5
+  [  68] StrictlyEquals arith_feedback:0, dst:reg5, lhs:reg5, rhs:C~0
+  [  71] Return value:reg5
 
 
 Foo$129c9607

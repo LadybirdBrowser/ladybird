@@ -1,4 +1,4 @@
-$64fdfe95 super-length-access.js:3:1
+$67c1efa5 super-length-access.js:3:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -14,19 +14,19 @@ block0:
   [  17] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  21] SetLexicalEnvironment environment:reg4
   [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("length")]
-  [  3f] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  46] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  54] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:true
-  [  5e] GetGlobal value_feedback:0, dst:reg9, `A`
-  [  67] GetClassProtoParent dst:reg10, super_class:reg9
-  [  6c] SetLexicalEnvironment environment:reg4
-  [  6f] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys:[element_keys:String("m")]
-  [  8a] DynamicInitializeLexicalBinding `B`, src:reg6
-  [  91] GetGlobal value_feedback:1, dst:reg6, `B`
-  [  9a] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
-  [  ad] GetById value_feedback:3, dst:reg7, base:reg6, `m`
-  [  ba] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  cf] End value:reg5
+  [  3b] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  42] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  50] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:true
+  [  5a] GetGlobal value_feedback:0, dst:reg9, `A`
+  [  63] GetClassProtoParent dst:reg10, super_class:reg9
+  [  68] SetLexicalEnvironment environment:reg4
+  [  6b] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+  [  82] DynamicInitializeLexicalBinding `B`, src:reg6
+  [  89] GetGlobal value_feedback:1, dst:reg6, `B`
+  [  92] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
+  [  a1] GetById value_feedback:3, dst:reg7, base:reg6, `m`
+  [  ae] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  bf] End value:reg5
 
 
 B$7f8cb8a3 super-length-access.js:7:1

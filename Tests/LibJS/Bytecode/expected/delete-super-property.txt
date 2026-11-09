@@ -1,4 +1,4 @@
-$f86052f1 delete-super-property.js:1:1
+$0ac2424a delete-super-property.js:1:1
   Registers: 8
   Blocks:    7
   Locals:    e~0, e~1
@@ -16,48 +16,48 @@ block0:
   [  17] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  21] SetLexicalEnvironment environment:reg4
   [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys:[element_keys:String("foo"), element_keys:String("baz")]
-  [  41] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  48] Mov dst:reg5, src:Undefined
+  [  3d] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  44] Mov dst:reg5, src:Undefined
 
 block1:
-  [  4d] GetGlobal value_feedback:0, dst:reg6, `A`
-  [  56] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  69] GetById value_feedback:2, dst:reg7, base:reg6, `foo`
-  [  76] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  8b] Jump target:block3
+  [  49] GetGlobal value_feedback:0, dst:reg6, `A`
+  [  52] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  61] GetById value_feedback:2, dst:reg7, base:reg6, `foo`
+  [  6e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  7f] Jump target:block3
 
 block2:
-  [  90] Catch value_feedback:4, dst:reg6
-  [  95] SetLexicalEnvironment environment:reg4
-  [  98] Mov dst:reg5, src:Undefined
-  [  9d] Mov dst:e~0, src:<Empty>
-  [  a2] Mov dst:e~0, src:reg6
-  [  a7] Jump target:block3
+  [  84] Catch value_feedback:4, dst:reg6
+  [  89] SetLexicalEnvironment environment:reg4
+  [  8c] Mov dst:reg5, src:Undefined
+  [  91] Mov dst:e~0, src:<Empty>
+  [  96] Mov dst:e~0, src:reg6
+  [  9b] Jump target:block3
 
 block3:
-  [  ac] Mov dst:reg5, src:Undefined
+  [  a0] Mov dst:reg5, src:Undefined
 
 block4:
-  [  b1] GetGlobal value_feedback:5, dst:reg6, `A`
-  [  ba] CallConstruct value_feedback:6, call_feedback:2, dst:reg6, callee:reg6
-  [  cd] GetById value_feedback:7, dst:reg7, base:reg6, `baz`
-  [  da] Call value_feedback:8, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6
-  [  ef] Jump target:block6
+  [  a5] GetGlobal value_feedback:5, dst:reg6, `A`
+  [  ae] CallConstruct value_feedback:6, call_feedback:2, dst:reg6, callee:reg6
+  [  bd] GetById value_feedback:7, dst:reg7, base:reg6, `baz`
+  [  ca] Call value_feedback:8, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6
+  [  db] Jump target:block6
 
 block5:
-  [  f4] Catch value_feedback:9, dst:reg6
-  [  f9] SetLexicalEnvironment environment:reg4
-  [  fc] Mov dst:reg5, src:Undefined
-  [ 101] Mov dst:e~1, src:<Empty>
-  [ 106] Mov dst:e~1, src:reg6
-  [ 10b] Jump target:block6
+  [  e0] Catch value_feedback:9, dst:reg6
+  [  e5] SetLexicalEnvironment environment:reg4
+  [  e8] Mov dst:reg5, src:Undefined
+  [  ed] Mov dst:e~1, src:<Empty>
+  [  f2] Mov dst:e~1, src:reg6
+  [  f7] Jump target:block6
 
 block6:
-  [ 110] End value:reg5
+  [  fc] End value:reg5
 
 Exception handlers:
-  [  4d ..   90] => handler block2
-  [  b1 ..   f4] => handler block5
+  [  49 ..   84] => handler block2
+  [  a5 ..   e0] => handler block5
 
 
 A$2cf29520

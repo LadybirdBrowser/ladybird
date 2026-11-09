@@ -1,4 +1,4 @@
-$1aac9274 for-in-var-function-lhs-name.js:7:1
+$d9fb9630 for-in-var-function-lhs-name.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,7 +9,7 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `fn`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] End value:reg5
+  [  20] End value:reg5
 
 
 fn$c29bed82 for-in-var-function-lhs-name.js:4:14

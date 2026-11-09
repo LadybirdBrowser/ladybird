@@ -1,4 +1,4 @@
-$b6b5ae96 super-for-of-resolve-order.js:1:1
+$2fcbd3ee super-for-of-resolve-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,13 +12,13 @@ block0:
   [  17] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [  21] SetLexicalEnvironment environment:reg4
   [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0
-  [  3d] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  44] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  4d] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
-  [  60] End value:reg5
+  [  39] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  40] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  49] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  58] End value:reg5
 
 
-C$3a34c93b super-for-of-resolve-order.js:3:14
+C$fc47be07 super-for-of-resolve-order.js:3:14
   Registers: 12
   Blocks:    5
   Constants:
@@ -27,25 +27,25 @@ C$3a34c93b super-for-of-resolve-order.js:3:14
 block0:
   [   0] Enter
   [   1] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [  1c] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [  18] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block1:
-  [  2c] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  37] JumpTrue condition:reg10, target:block4
+  [  28] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  33] JumpTrue condition:reg10, target:block4
 
 block2:
-  [  3e] ResolveThisBinding
-  [  3f] ResolveSuperBase dst:reg11
-  [  42] PutByIdWithThis base:reg11, this_value:this, `prop`, src:reg9, kind:Normal
-  [  51] JumpLoop target:block1
+  [  3a] ResolveThisBinding
+  [  3b] ResolveSuperBase dst:reg11
+  [  3e] PutByIdWithThis base:reg11, this_value:this, `prop`, src:reg9, kind:Normal
+  [  4d] JumpLoop target:block1
 
 block3:
-  [  56] Catch value_feedback:0, dst:reg11
-  [  5b] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  6a] Throw src:reg11
+  [  52] Catch value_feedback:0, dst:reg11
+  [  57] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  66] Throw src:reg11
 
 block4:
-  [  6d] End value:Undefined
+  [  69] End value:Undefined
 
 Exception handlers:
-  [  3e ..   56] => handler block3
+  [  3a ..   52] => handler block3

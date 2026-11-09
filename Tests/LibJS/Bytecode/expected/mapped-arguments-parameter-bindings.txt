@@ -1,4 +1,4 @@
-$4e7058cd mapped-arguments-parameter-bindings.js:4:1
+$0dbf5c89 mapped-arguments-parameter-bindings.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -12,7 +12,7 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `forward`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  2a] End value:reg5
+  [  26] End value:reg5
 
 
 forward$794822e2 mapped-arguments-parameter-bindings.js:2:5

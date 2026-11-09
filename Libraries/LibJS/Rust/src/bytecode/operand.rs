@@ -9,7 +9,6 @@
 pub enum InstructionLengthError {
     UnknownOpcode,
     TruncatedInstruction,
-    InvalidLength,
 }
 
 /// The last slot of a cache table, which all the sites past it share. It never remembers anything.

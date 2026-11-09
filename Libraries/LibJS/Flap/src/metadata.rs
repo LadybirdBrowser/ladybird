@@ -718,11 +718,11 @@ pub fn round_up(value: usize, align: usize) -> usize {
     value.checked_add(align - 1).expect("layout size overflow") & !(align - 1)
 }
 
-/// Returns the user-visible fields (excludes m_type, m_strict, m_length).
+/// Returns the user-visible fields (excludes m_type, m_strict).
 pub fn user_fields(op: &InstructionDefinition) -> Vec<&Field> {
     op.fields
         .iter()
-        .filter(|f| f.name != "m_type" && f.name != "m_strict" && f.name != "m_length")
+        .filter(|f| f.name != "m_type" && f.name != "m_strict")
         .collect()
 }
 
@@ -777,13 +777,6 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
     }
 
     let array = if let Some(array_index) = array_indices.first().copied() {
-        let length_field = op
-            .fields
-            .iter()
-            .position(|field| field.name == "m_length" && field.ty == "u32" && !field.is_array);
-        if length_field.is_none() {
-            return Err(format!("array op '{}' requires a u32 m_length field", op.name));
-        }
         let count_field_index = count_field_index(op, &op.fields[array_index]).ok_or_else(|| {
             format!(
                 "array field '{}' in op '{}' requires a matching u32 count field",
@@ -803,12 +796,10 @@ fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
     };
     let size = array.is_none().then_some(offset);
     let minimum_size = offset;
-    let m_length_offset = field_offsets.get("m_length").copied();
     op.layout = OpLayout {
         field_offsets,
         size,
         minimum_size,
-        m_length_offset,
     };
     op.array = array;
     Ok(())
@@ -823,8 +814,6 @@ pub struct OpLayout {
     pub size: Option<usize>,
     /// Minimum encoded size: the fixed fields, without the array.
     pub minimum_size: usize,
-    /// Byte offset of m_length for variable-length instructions.
-    pub m_length_offset: Option<usize>,
 }
 
 /// Compute field offsets and total sizes for all opcodes.
@@ -1172,10 +1161,6 @@ specialize JumpLessThan(rhs: Int32);
             ),
             (
                 "handler Array(values: Value[]) { dispatch_next; }\n",
-                "requires a u32 m_length field",
-            ),
-            (
-                "handler Array(length: u32, values: Value[]) { dispatch_next; }\n",
                 "requires a matching u32 count field",
             ),
             (

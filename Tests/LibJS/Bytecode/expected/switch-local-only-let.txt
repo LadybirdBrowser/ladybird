@@ -1,4 +1,4 @@
-$854f309b switch-local-only-let.js:15:1
+$fe6555f3 switch-local-only-let.js:15:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -14,18 +14,18 @@ block0:
   [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  1c] GetGlobal value_feedback:2, dst:reg8, `switchLocalOnly`
   [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(1)]
-  [  3c] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  53] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  5c] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  69] GetGlobal value_feedback:7, dst:reg8, `switchLocalOnly`
-  [  72] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(2)]
-  [  89] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  a0] GetGlobal value_feedback:10, dst:reg6, `console`
-  [  a9] GetById value_feedback:11, dst:reg7, base:reg6, `log`
-  [  b6] GetGlobal value_feedback:12, dst:reg8, `switchLocalOnly`
-  [  bf] Call value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(3)]
-  [  d6] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  ed] End value:reg5
+  [  38] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  4b] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  54] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  61] GetGlobal value_feedback:7, dst:reg8, `switchLocalOnly`
+  [  6a] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(2)]
+  [  7d] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  90] GetGlobal value_feedback:10, dst:reg6, `console`
+  [  99] GetById value_feedback:11, dst:reg7, base:reg6, `log`
+  [  a6] GetGlobal value_feedback:12, dst:reg8, `switchLocalOnly`
+  [  af] Call value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(3)]
+  [  c2] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  d5] End value:reg5
 
 
 switchLocalOnly$a949ad11 switch-local-only-let.js:4:13

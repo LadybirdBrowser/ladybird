@@ -1,4 +1,4 @@
-$68557e3a assign-to-let-variable-tdz.js:12:1
+$35783746 assign-to-let-variable-tdz.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -13,10 +13,10 @@ block0:
   [  14] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
   [  23] CacheObjectShape object:reg7
   [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  3f] End value:reg5
+  [  3b] End value:reg5
 
 
-f$bdc04e81 assign-to-let-variable-tdz.js:7:5
+f$7fd3434d assign-to-let-variable-tdz.js:7:5
   Registers: 7
   Blocks:    3
   Locals:    a~0
@@ -38,10 +38,10 @@ block0:
 block1:
   [  30] GetGlobal value_feedback:1, dst:reg6, `g`
   [  39] Call value_feedback:2, call_feedback:0, dst:a~0, callee:reg6, this_value:Undefined, arguments:[a~0]
-  [  50] Mov dst:reg5, src:a~0
+  [  4c] Mov dst:reg5, src:a~0
 
 block2:
-  [  55] Return value:a~0
+  [  51] Return value:a~0
 
 
 g$323f1263 assign-to-let-variable-tdz.js:4:17

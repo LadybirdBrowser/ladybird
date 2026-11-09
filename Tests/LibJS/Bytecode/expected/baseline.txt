@@ -1,4 +1,4 @@
-$916dd419 baseline.js:5:1
+$100bdb91 baseline.js:5:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -13,8 +13,8 @@ block0:
   [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  1c] GetGlobal value_feedback:2, dst:reg8, `add`
   [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[Int32(1), Int32(2)]
-  [  3e] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  55] End value:reg5
+  [  3a] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  4d] End value:reg5
 
 
 add$927dcc5e baseline.js:2:5

@@ -114,7 +114,7 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
             out.push_str(&accessor);
             out.push('\n');
         }
-        match (op.layout.size, op.layout.m_length_offset) {
+        match (op.layout.size, &op.array) {
             (Some(size), _) => {
                 let _ = writeln!(
                     out,
@@ -122,14 +122,15 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
                     op.name, op.name
                 );
             }
-            (None, Some(_)) => {
+            (None, Some(array)) => {
+                let count_field = field_name(&op.fields[array.count_field_index].name);
                 let _ = writeln!(
                     out,
-                    "impl {} {{\n    /// The instruction's size in the bytecode, which it records itself.\n    pub fn length(&self) -> u32 {{\n        self.length\n    }}\n}}",
-                    op.name
+                    "impl {} {{\n    /// The instruction's size in the bytecode.\n    pub fn length(&self) -> u32 {{\n        let count = self.{count_field};\n        {} + count * {}\n    }}\n}}",
+                    op.name, op.layout.minimum_size, array.element_size
                 );
             }
-            (None, None) => panic!("{} has neither a fixed size nor a length field", op.name),
+            (None, None) => panic!("{} has neither a fixed size nor a count field", op.name),
         }
 
         if ops_with_values.contains(&op.name) {

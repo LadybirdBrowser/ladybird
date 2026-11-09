@@ -1,4 +1,4 @@
-$b27625d7 eval-prevents-locals.js:22:1
+$2604690f eval-prevents-locals.js:22:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,12 +9,12 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `with_eval`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  24] GetGlobal value_feedback:2, dst:reg6, `outer_eval`
-  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  42] End value:reg5
+  [  20] GetGlobal value_feedback:2, dst:reg6, `outer_eval`
+  [  29] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  3a] End value:reg5
 
 
-with_eval$bee036f7 eval-prevents-locals.js:6:9
+with_eval$7e2f3ab3 eval-prevents-locals.js:6:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -30,8 +30,8 @@ block0:
   [  25] InitializeLexicalBinding `x`, src:Int32(1)
   [  32] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
   [  3d] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
-  [  54] GetBinding value_feedback:2, dst:reg6, `x`
-  [  63] Return value:reg6
+  [  50] GetBinding value_feedback:2, dst:reg6, `x`
+  [  5f] Return value:reg6
 
 
 eval$66f502e2
@@ -46,7 +46,7 @@ block0:
   [   6] End value:reg5
 
 
-outer_eval$6eb48617 eval-prevents-locals.js:14:9
+outer_eval$f2da6faf eval-prevents-locals.js:14:9
   Registers: 9
   Blocks:    1
   Constants:
@@ -64,9 +64,9 @@ block0:
   [  3d] SetVariableBinding `inner`, src:reg6
   [  4a] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
   [  55] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
-  [  6c] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg7, this_value:reg8, `inner`
-  [  7d] Call value_feedback:3, call_feedback:1, dst:reg7, callee:reg7, this_value:reg8
-  [  92] Return value:reg7
+  [  68] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg7, this_value:reg8, `inner`
+  [  79] Call value_feedback:3, call_feedback:1, dst:reg7, callee:reg7, this_value:reg8
+  [  8a] Return value:reg7
 
 
 eval$66f502e2

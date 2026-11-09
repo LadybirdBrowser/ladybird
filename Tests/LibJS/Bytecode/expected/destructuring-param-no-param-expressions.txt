@@ -1,4 +1,4 @@
-$20cf77bf destructuring-param-no-param-expressions.js:10:1
+$61807403 destructuring-param-no-param-expressions.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,7 +15,7 @@ block0:
   [  23] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
   [  32] CacheObjectShape object:reg7
   [  37] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  4e] End value:reg5
+  [  4a] End value:reg5
 
 
 f$48e06689 destructuring-param-no-param-expressions.js:6:12

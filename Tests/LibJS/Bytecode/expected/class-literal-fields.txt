@@ -1,4 +1,4 @@
-$3e13b645 class-literal-fields.js:12:5
+$bf75aecd class-literal-fields.js:12:5
   Registers: 14
   Blocks:    1
   Constants:
@@ -9,26 +9,26 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   6] GetGlobal value_feedback:0, dst:reg6, `test`
   [   f] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:Undefined
-  [  24] DynamicInitializeLexicalBinding `a`, src:reg6
-  [  2b] GetGlobal value_feedback:2, dst:reg6, `console`
-  [  34] GetById value_feedback:3, dst:reg7, base:reg6, `log`
-  [  41] GetGlobal value_feedback:4, dst:reg8, `a`
-  [  4a] GetById value_feedback:5, dst:reg8, base:reg8, `x`
-  [  57] GetGlobal value_feedback:6, dst:reg9, `a`
-  [  60] GetById value_feedback:7, dst:reg9, base:reg9, `y`
-  [  6d] GetGlobal value_feedback:8, dst:reg10, `a`
-  [  76] GetById value_feedback:9, dst:reg10, base:reg10, `z`
-  [  83] GetGlobal value_feedback:10, dst:reg11, `a`
-  [  8c] GetById value_feedback:11, dst:reg11, base:reg11, `w`
-  [  99] GetGlobal value_feedback:12, dst:reg12, `a`
-  [  a2] GetById value_feedback:13, dst:reg12, base:reg12, `s`
-  [  af] GetGlobal value_feedback:14, dst:reg13, `a`
-  [  b8] GetById value_feedback:15, dst:reg13, base:reg13, `computed`
-  [  c5] Call value_feedback:16, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, reg9, reg10, reg11, reg12, reg13]
-  [  e6] End value:reg5
+  [  20] DynamicInitializeLexicalBinding `a`, src:reg6
+  [  27] GetGlobal value_feedback:2, dst:reg6, `console`
+  [  30] GetById value_feedback:3, dst:reg7, base:reg6, `log`
+  [  3d] GetGlobal value_feedback:4, dst:reg8, `a`
+  [  46] GetById value_feedback:5, dst:reg8, base:reg8, `x`
+  [  53] GetGlobal value_feedback:6, dst:reg9, `a`
+  [  5c] GetById value_feedback:7, dst:reg9, base:reg9, `y`
+  [  69] GetGlobal value_feedback:8, dst:reg10, `a`
+  [  72] GetById value_feedback:9, dst:reg10, base:reg10, `z`
+  [  7f] GetGlobal value_feedback:10, dst:reg11, `a`
+  [  88] GetById value_feedback:11, dst:reg11, base:reg11, `w`
+  [  95] GetGlobal value_feedback:12, dst:reg12, `a`
+  [  9e] GetById value_feedback:13, dst:reg12, base:reg12, `s`
+  [  ab] GetGlobal value_feedback:14, dst:reg13, `a`
+  [  b4] GetById value_feedback:15, dst:reg13, base:reg13, `computed`
+  [  c1] Call value_feedback:16, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, reg9, reg10, reg11, reg12, reg13]
+  [  de] End value:reg5
 
 
-test$111f0b3e class-literal-fields.js:2:5
+test$928103c6 class-literal-fields.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    A~0
@@ -47,10 +47,10 @@ block0:
   [  12] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  1c] SetLexicalEnvironment environment:reg4
   [  1f] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
-  [  44] Mov dst:A~0, src:reg5
-  [  49] ThrowIfTDZ src:A~0
-  [  4c] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:A~0
-  [  5f] Return value:reg5
+  [  40] Mov dst:A~0, src:reg5
+  [  45] ThrowIfTDZ src:A~0
+  [  48] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:A~0
+  [  57] Return value:reg5
 
 
 A$2cf29520
