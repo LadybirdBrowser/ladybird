@@ -2788,7 +2788,7 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn run(&mut self) -> block_formatting_context::ChildrenSummary {
         assert!(self.facts(self.containing_block).children_are_inline());
         let run = self.run;
-        let iterator = match run.fragmentainer.as_deref() {
+        let iterator = match run.fragmentainer.as_ref() {
             Some(fragmentainer) => {
                 inline_level_iterator::InlineLevelIterator::new_sharing_items(self, &fragmentainer.inline_items)
             }

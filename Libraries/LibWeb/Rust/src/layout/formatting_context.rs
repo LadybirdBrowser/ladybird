@@ -174,8 +174,8 @@ pub(crate) fn run_fragmentainer(
     outer_root_cells: used_values::RootInputCells,
     builds_fragments: bool,
     input: LayoutInput,
-    fragmentainer: std::rc::Rc<fragmentation::FragmentainerContext>,
-) -> LayoutResult {
+    fragmentainer: &fragmentation::FragmentainerSpace,
+) -> fragmentation::FragmentainerRunResult {
     debug_assert_eq!(input.participation, ParticipationInParentFormattingContext::Root);
     let box_ = outer.box_;
     let root_containing_block = outer.pass.containing_block_for_child_run(box_, &input.participation);
@@ -198,7 +198,25 @@ pub(crate) fn run_fragmentainer(
         fragmentainer: Some(fragmentainer),
         ..RunSideInputs::default()
     };
-    execute_formatting_context_run(outer.pass, &request, side, None)
+    let (layout, parts) = execute_run(outer.pass, &request, side, None);
+    let FragmentainerRunParts {
+        outcome,
+        contents,
+        root_line_data,
+    } = parts.expect("the run of a fragmentainer leaves its parts for the run it belongs to");
+    fragmentation::FragmentainerRunResult {
+        layout,
+        outcome,
+        contents,
+        root_line_data,
+    }
+}
+
+/// What the run of a fragmentainer leaves for the run of the box the fragmentainer belongs to besides its result.
+struct FragmentainerRunParts {
+    outcome: fragmentation::FragmentainerOutcome,
+    contents: Option<fragment_tree::RunContents>,
+    root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl PixelFraction {
@@ -1287,7 +1305,7 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     /// The builder of the run's fragments, which `state` keeps exactly where `mode` builds them.
     pub(crate) fragments: Option<&'pass fragment_tree::RunFragmentBuilder>,
-    pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
+    pub(crate) fragmentainer: Option<fragmentation::Fragmentainer<'pass>>,
 }
 
 impl<'pass> FormattingContextRun<'pass> {
@@ -1298,7 +1316,7 @@ impl<'pass> FormattingContextRun<'pass> {
         pass: LayoutPass<'pass>,
         mode: RunMode,
         treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-        fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
+        fragmentainer: Option<&'pass fragmentation::FragmentainerSpace>,
     ) -> Self {
         debug_assert_eq!(
             mode.builds_fragments(),
@@ -1312,7 +1330,8 @@ impl<'pass> FormattingContextRun<'pass> {
             mode,
             treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: state.fragments(),
-            fragmentainer,
+            fragmentainer: fragmentainer
+                .map(|space| fragmentation::Fragmentainer::new(space, state.fragmentainer_outcome())),
         }
     }
 
@@ -1338,7 +1357,7 @@ impl<'pass> FormattingContextRun<'pass> {
             treat_block_axis_percentage_insets_as_auto_beyond_root: self
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments,
-            fragmentainer: self.fragmentainer.clone(),
+            fragmentainer: self.fragmentainer,
         }
     }
 
@@ -2100,7 +2119,7 @@ pub(crate) struct RunSideInputs<'a> {
     pub(crate) subgrid_parent: Option<&'a grid_formatting_context::SubgridParent<'a>>,
     /// For a table wrapper or its table box, the inline layout of the table box its parent found while sizing it.
     pub(crate) table_inline_layout: Option<std::sync::Arc<table_formatting_context::TableInlineLayout>>,
-    pub(crate) fragmentainer: Option<std::rc::Rc<fragmentation::FragmentainerContext>>,
+    pub(crate) fragmentainer: Option<&'a fragmentation::FragmentainerSpace>,
 }
 
 impl RunRequest {
@@ -2312,6 +2331,17 @@ fn execute_formatting_context_run(
     side: RunSideInputs<'_>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 ) -> LayoutResult {
+    let (result, fragmentainer_parts) = execute_run(pass, request, side, previous_line_data);
+    debug_assert!(fragmentainer_parts.is_none());
+    result
+}
+
+fn execute_run(
+    pass: LayoutPass<'_>,
+    request: &RunRequest,
+    side: RunSideInputs<'_>,
+    previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+) -> (LayoutResult, Option<FragmentainerRunParts>) {
     let box_ = request.node;
     let root_containing_block = request.root_containing_block;
     let fc_run_cache::LayoutRequest {
@@ -2343,7 +2373,7 @@ fn execute_formatting_context_run(
             (!root_containing_block.is_invalid()).then_some(root_containing_block),
         )
     });
-    let (outputs, root_cells_left_by_run) = RunState::with_root_building_fragments(
+    let (outputs, root_cells_left_by_run, fragmentainer_parts) = RunState::with_root_building_fragments(
         pass,
         box_,
         root_containing_block,
@@ -2374,7 +2404,7 @@ fn execute_formatting_context_run(
             "the run of {box_:?} changed root cells its parent owns"
         );
     }
-    outputs
+    (outputs, fragmentainer_parts)
 }
 
 /// The sizes and box sides of `cells`, with every flag cleared.
@@ -2396,7 +2426,7 @@ fn lay_out_run_root_and_contents<'pass>(
     side: RunSideInputs<'pass>,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     parent_owns_root_input_cells: bool,
-) -> (LayoutResult, used_values::RootInputCells) {
+) -> (LayoutResult, used_values::RootInputCells, Option<FragmentainerRunParts>) {
     let box_ = request.node;
     let fc_run_cache::LayoutRequest {
         fc_type,
@@ -2644,32 +2674,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 inline_content::InlineContent::concatenate_translated(&[(content, content_alignment_offset)])
             }
         });
-    if let Some(fragmentainer) = &run.fragmentainer {
-        fragmentainer.keep_root_line_data(root_line_data.clone());
-    }
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
-    // NB: The root's descendants are laid out in the frame the root establishes. A fragmentainer has no fragment of its
-    //     own, so the run hands what it laid out there to the run of the box the fragmentainer belongs to. Any other
-    //     run builds its root's fragment around what it laid out inside it.
-    let take_run_fragments = || {
-        let contents = run
-            .fragments
-            .as_ref()
-            .map(|fragments| fragments.take_run_contents(&body_run.pass))?;
-        if let Some(fragmentainer) = &run.fragmentainer {
-            fragmentainer.keep_contents(contents);
-            return None;
-        }
-        Some(contents.into_run_root_fragment(
-            &pass,
-            fragment_tree::FragmentGeometry {
-                cells: root_cells_left_by_run,
-                line_data: root_line_data.clone(),
-            },
-            root_payload,
-        ))
-    };
-
     // NB: A run that builds no fragments could never lay out the absolutely positioned boxes it registers. Those whose
     //     containing block is the root are laid out against its final sizes and box sides, in the frame its contents
     //     are laid out in, so that the root's fragment holds them. The columns of a fragmentainer run leave them to the
@@ -2682,7 +2687,32 @@ fn lay_out_run_root_and_contents<'pass>(
     let laid_out_abspos_contained_by_root = lays_out_abspos_contained_by_root
         && run.fragmentainer.is_none()
         && lay_out_abspos_contained_by_run_root(body_run, root_in_own_frame_left_by_run, own_frame);
-    let root = take_run_fragments();
+    // NB: The root's descendants are laid out in the frame the root establishes. A fragmentainer has no fragment of its
+    //     own, so the run hands what it laid out there to the run of the box the fragmentainer belongs to. Any other
+    //     run builds its root's fragment around what it laid out inside it.
+    let contents = run
+        .fragments
+        .map(|fragments| fragments.take_run_contents(&body_run.pass));
+    let (root, fragmentainer_parts) = if run.fragmentainer.is_some() {
+        let parts = FragmentainerRunParts {
+            outcome: state.fragmentainer_outcome().take(),
+            contents,
+            root_line_data,
+        };
+        (None, Some(parts))
+    } else {
+        let root = contents.map(|contents| {
+            contents.into_run_root_fragment(
+                &pass,
+                fragment_tree::FragmentGeometry {
+                    cells: root_cells_left_by_run,
+                    line_data: root_line_data,
+                },
+                root_payload,
+            )
+        });
+        (root, None)
+    };
     let observed = fc_run_cache::observations_of(
         run,
         request,
@@ -2715,7 +2745,7 @@ fn lay_out_run_root_and_contents<'pass>(
         residue: state.take_residue(),
         observed,
     };
-    (outputs, root_cells_left_by_run)
+    (outputs, root_cells_left_by_run, fragmentainer_parts)
 }
 
 pub(super) fn empty_root_needs_no_formatting_context_algorithm(

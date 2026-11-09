@@ -3919,7 +3919,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .as_ref()
             .is_some_and(ChildrenSummary::has_unbreakable_lines);
         let mut broken_token_of_box = None;
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             let content_block_start_in_root = pending_position.map(|position| {
                 containing_block_position_in_root.y
                     + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node)
@@ -4388,7 +4388,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_block_position_in_root: FfiCssPixelPoint,
         continues_from_previous_fragment: bool,
     ) -> InFlowReuse {
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             // NB: A discarded run lays out every column afresh, so that the verification checks the column box layouts
             //     the run reuses.
             if self.run.pass.is_discarded_run()
@@ -4472,7 +4472,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         node: Node,
         block_container: Node,
-        fragmentainer: &fragmentation::FragmentainerContext,
+        fragmentainer: &fragmentation::Fragmentainer<'_>,
         layout: &fragmentation::ColumnBoxLayout,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> bool {
@@ -4858,7 +4858,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             depends_on_percentage_block_size,
             fragment_identity: placed.fragment.identity,
         };
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             if broke_inside || in_open_top_margin_group {
                 return;
             }
@@ -5215,9 +5215,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         let fragmentainer = self
             .run
             .fragmentainer
-            .clone()
             .filter(|_| self.break_mode.get() != BreakMode::NoBreaks);
-        let mut fragmentation_state = fragmentainer.as_deref().map(|fragmentainer| {
+        let mut fragmentation_state = fragmentainer.as_ref().map(|fragmentainer| {
             let incoming = if block_container.node == self.run.box_ {
                 fragmentainer.incoming.clone()
             } else {
@@ -5245,7 +5244,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .siblings_from(first_child, Node::INVALID)
             .filter(|&child| self.facts(child).is_box())
         {
-            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut()) {
+            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_ref(), fragmentation_state.as_mut()) {
                 match self.fragmentation_step_before_child(fragmentainer, state, block_container.node, child) {
                     FragmentationStep::Stop => break,
                     FragmentationStep::LayOut => {}
@@ -5285,7 +5284,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.laying_out_invisible_line_clamp_content.set(false);
             }
             self.fold_in_child(&mut summary, block_container.node, child, outcome.as_ref());
-            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_deref(), fragmentation_state.as_mut())
+            if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_ref(), fragmentation_state.as_mut())
                 && self.fragmentation_step_after_child(
                     fragmentainer,
                     state,
@@ -5304,7 +5303,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn fragmentation_step_before_child(
         &self,
-        fragmentainer: &fragmentation::FragmentainerContext,
+        fragmentainer: &fragmentation::Fragmentainer<'_>,
         state: &mut FragmentationState,
         block_container: Node,
         child: Node,
@@ -5365,7 +5364,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn fragmentation_step_after_child(
         &self,
-        fragmentainer: &fragmentation::FragmentainerContext,
+        fragmentainer: &fragmentation::Fragmentainer<'_>,
         state: &mut FragmentationState,
         block_container: Node,
         child: Node,
@@ -5590,7 +5589,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !self.allows_unforced_breaks() {
             return None;
         }
-        let fragmentainer = self.run.fragmentainer.as_deref()?;
+        let fragmentainer = self.run.fragmentainer.as_ref()?;
         let incoming = if line_root == self.run.box_ {
             fragmentainer.incoming.clone()
         } else {
@@ -5617,7 +5616,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         line_block_end_in_root: CssPixels,
         is_kept: bool,
     ) {
-        let Some(fragmentainer) = self.run.fragmentainer.as_deref() else {
+        let Some(fragmentainer) = self.run.fragmentainer.as_ref() else {
             return;
         };
         fragmentainer.note_unbreakable_block_size(line_block_size);
@@ -5630,7 +5629,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn note_violated_break_avoidance(&self) {
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             fragmentainer.outcome_mut().violates_break_avoidance = true;
         }
     }
@@ -5639,7 +5638,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if line_root != self.run.box_ {
             return;
         }
-        let Some(fragmentainer) = self.run.fragmentainer.as_deref() else {
+        let Some(fragmentainer) = self.run.fragmentainer.as_ref() else {
             return;
         };
         fragmentainer.note_unbreakable_block_size(lines_block_end_in_root);
@@ -5650,13 +5649,13 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn note_overflowing_content(&self) {
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             fragmentainer.outcome_mut().overflows = true;
         }
     }
 
     pub(crate) fn request_early_break_before(&self, node: Node) {
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
             fragmentainer.request_early_break_before(node);
         }
     }
@@ -5669,7 +5668,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         line_root: Node,
         line_start: fragmentation::LinePosition,
     ) -> Option<std::rc::Rc<fragmentation::BlockBreakToken>> {
-        let fragmentainer = self.run.fragmentainer.as_deref()?;
+        let fragmentainer = self.run.fragmentainer.as_ref()?;
         self.stop_fragmentainer(fragmentainer, line_root, fragmentation::BlockResume::AtLine(line_start))
     }
 
@@ -5697,7 +5696,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn break_before_child(
         &self,
-        fragmentainer: &fragmentation::FragmentainerContext,
+        fragmentainer: &fragmentation::Fragmentainer<'_>,
         state: &mut FragmentationState,
         block_container: Node,
         child: Node,
@@ -5726,7 +5725,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     #[must_use]
     fn stop_fragmentainer(
         &self,
-        fragmentainer: &fragmentation::FragmentainerContext,
+        fragmentainer: &fragmentation::Fragmentainer<'_>,
         block_container: Node,
         resume: fragmentation::BlockResume,
     ) -> Option<std::rc::Rc<fragmentation::BlockBreakToken>> {
@@ -6162,29 +6161,33 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut column_root_cells = self.root_cells;
         column_root_cells.set_content_inline_size(column_inline_size);
         loop {
-            let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
+            let fragmentainer = fragmentation::FragmentainerSpace {
                 block_size,
                 honors_forced_breaks,
-                incoming.clone(),
-                inline_items.clone(),
-                box_layouts.clone(),
+                incoming: incoming.clone(),
+                inline_items: inline_items.clone(),
+                box_layouts: box_layouts.clone(),
                 keeps_box_layouts,
                 early_break_before,
                 allows_early_break_requests,
-            ));
-            let layout = formatting_context::run_fragmentainer(
+            };
+            let fragmentation::FragmentainerRunResult {
+                layout,
+                mut outcome,
+                contents,
+                root_line_data,
+            } = formatting_context::run_fragmentainer(
                 &self.run,
                 column_root_cells,
                 builds_fragments,
                 input.clone(),
-                fragmentainer.clone(),
+                &fragmentainer,
             );
             if layout.outcome.depends_on_percentage_block_size {
                 self.run
                     .state
                     .note_descendant_depends_on_percentage_block_size(self.run.box_);
             }
-            let mut outcome = fragmentainer.take_outcome();
             outcome.minimal_space_shortage = match (
                 outcome.minimal_space_shortage,
                 minimal_space_shortage_of_discarded_attempts,
@@ -6217,8 +6220,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 outcome,
                 consumed_block_size: layout.outcome.automatic_content_block_size,
                 baselines: layout.outcome.baselines,
-                root_line_data: fragmentainer.take_root_line_data(),
-                contents: fragmentainer.take_contents(),
+                root_line_data,
+                contents,
             };
         }
     }
@@ -6819,7 +6822,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 bottom_margin_edge + self.block_offset_adjustment_from_pending_ancestor_block_start_margins(node),
             );
         }
-        if let Some(fragmentainer) = self.run.fragmentainer.as_deref()
+        if let Some(fragmentainer) = self.run.fragmentainer.as_ref()
             && self.allows_unforced_breaks()
         {
             let bottom_margin_edge_in_column =
