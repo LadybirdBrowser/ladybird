@@ -1252,11 +1252,18 @@ impl Generator<'_> {
         if is_await {
             let held = self.hold_registers();
             let result = self.allocate_register();
-            self.put(op::IteratorNext {
+            // NB: A result that is not an object only throws once it is awaited.
+            let value_feedback = self.next_value_feedback();
+            let call_feedback = self.next_call_feedback();
+            self.emit(op::Call {
+                value_feedback,
+                call_feedback,
                 dst: result.operand(),
-                iterator_object: object,
-                iterator_next: next,
-                iterator_done,
+                callee: next,
+                this_value: object,
+                argument_count: 0,
+                expression_string: None,
+                arguments: &[],
             });
             let awaited = generate_await_of_value(self, &result);
             self.put(op::ThrowIfNotObject { src: awaited.operand() });
