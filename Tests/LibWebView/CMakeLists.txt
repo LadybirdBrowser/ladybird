@@ -74,6 +74,7 @@ set(TEST_SOURCES
     TestOmnibox.cpp
     TestPermissionManager.cpp
     TestPictureInPictureWindow.cpp
+    TestPlatformFeatures.cpp
     TestProfile.cpp
     TestSessionHistory.cpp
     TestSessionHistoryTraversalQueue.cpp
@@ -130,6 +131,7 @@ if (NOT WIN32)
         TestAutocomplete.cpp
         TestBeforeUnload.cpp
         TestBrowserHistoryTraversal.cpp
+        TestCompositorStartup.cpp
         TestCrashOverlay.cpp
         TestCrashReportSubmission.cpp
         TestFavicon.cpp

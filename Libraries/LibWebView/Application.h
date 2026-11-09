@@ -54,6 +54,7 @@
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
+#include <LibWebView/PlatformFeatureDecisions.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Profile.h>
@@ -372,6 +373,7 @@ public:
     bool devtools_enabled() const { return m_devtools; }
     void dump_cookies() const;
     void crash_compositor_process();
+    bool has_compositor_process() const { return m_compositor_client; }
 
     FileDownloader& file_downloader() { return m_file_downloader; }
 
@@ -392,6 +394,9 @@ public:
     // if there is one, as soon as the Compositor has reported it.
     using CompositorGpuDeviceIdentityCallback = Function<void(Optional<Gfx::GpuDeviceIdentity> const&)>;
     void when_compositor_gpu_device_identity_is_known(CompositorGpuDeviceIdentityCallback);
+
+    // Calls back once the features are decided from this launch's probe rather than from cached facts.
+    void when_platform_features_are_current(Function<void()>);
 
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
@@ -436,10 +441,19 @@ private:
 
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
+    enum class CompositorLaunch {
+        Now,
+        WhenPlatformFeaturesAreCurrent,
+    };
+    CompositorLaunch prepare_platform_features();
+    void system_facts_arrived(SystemFacts const&);
+    void reevaluate_platform_features();
     ErrorOr<void> launch_compositor_process();
+    void bring_up_compositor_process();
     void compositor_reported_gpu_device_identity(Optional<Gfx::GpuDeviceIdentity>);
     void handle_compositor_process_death();
     void recover_compositor_process();
+    void relaunch_compositor_process(bool counts_as_crash);
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_devtools_server();
     // Returns whether the combined rules changed.
@@ -616,6 +630,18 @@ private:
     Optional<Optional<Gfx::GpuDeviceIdentity>> m_compositor_gpu_device_identity;
     Vector<CompositorGpuDeviceIdentityCallback> m_callbacks_awaiting_compositor_gpu_device_identity;
     size_t m_compositor_restart_count { 0 };
+    // Set when the Browser ends a Compositor to relaunch it with other features, which does not count as a crash.
+    bool m_compositor_relaunch_is_planned { false };
+    ByteString m_compositor_launched_features;
+
+    FeatureOverrides m_feature_overrides;
+    HashMap<PlatformFeatures::Feature, String> m_feature_runtime_failures;
+    // The facts the decisions were made from, which are the cached ones until the probe reports.
+    SystemFacts m_system_facts;
+    Optional<PlatformFeatureDecisions> m_platform_feature_decisions;
+    OwnPtr<SystemProbeClient> m_system_probe;
+    Vector<Function<void()>> m_callbacks_awaiting_current_platform_features;
+
     enum class CompositorRecoveryState {
         Idle,
         Queued,
