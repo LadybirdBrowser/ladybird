@@ -33,6 +33,8 @@ void keep_appkit_window_visible_while_inactive(QWidget&);
 void disable_appkit_window_animations(QWidget&);
 void ensure_appkit_window_is_exposed(QWidget&);
 void set_appkit_window_content_aspect_ratio(QWidget&, Gfx::IntSize);
+// The Core Animation layer that shows the widget's own surface, or null if the widget has no native window.
+void* appkit_content_layer(QWidget&);
 void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 // AppKit puts the window controls back in their default place when the window title changes; this moves them back
 // to their offset right away, before the next frame is drawn.
