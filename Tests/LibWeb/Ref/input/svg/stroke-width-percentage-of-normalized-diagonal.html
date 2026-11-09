@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/stroke-width-percentage-of-normalized-diagonal-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+    }
+    div {
+        width: 350px;
+        height: 50px;
+    }
+</style>
+<!-- The normalized diagonal of a 350x50 viewport is sqrt((350² + 50²) / 2) = 250. -->
+<div>
+    <svg width="100%" height="100%">
+        <line x1="10" y1="25" x2="340" y2="25" stroke="green" stroke-width="8%" />
+    </svg>
+</div>
+<svg width="350" height="50">
+    <line x1="10" y1="25" x2="340" y2="25" stroke="green" stroke-width="8%" />
+</svg>

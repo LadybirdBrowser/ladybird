@@ -910,7 +910,11 @@ impl SvgShapeGeometry {
         let cy = to_px(&svg_reset.cy, self.viewport_height).to_float();
         // Percentages refer to the normalized diagonal of the current SVG viewport
         // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
-        let r = to_px(&svg_reset.r, self.normalized_diagonal_length()).to_float();
+        let normalized_diagonal = crate::svg::stroke_style::percentage_basis(FfiCssPixelSize {
+            width: self.viewport_width,
+            height: self.viewport_height,
+        });
+        let r = to_px(&svg_reset.r, normalized_diagonal).to_float();
 
         // A zero radius disables rendering.
         if r == 0.0 {
@@ -929,19 +933,6 @@ impl SvgShapeGeometry {
         // 5. arc with a segment-completing close path operation.
         path.arc_to(FloatPoint { x: cx + r, y: cy }, r, large_arc, sweep);
         path
-    }
-
-    fn normalized_diagonal_length(&self) -> CssPixels {
-        if self.viewport_width == self.viewport_height {
-            return self.viewport_width;
-        }
-        let sum_of_squares = self.viewport_width * self.viewport_width + self.viewport_height * self.viewport_height;
-        CssPixels::nearest_value_for_f32(
-            sum_of_squares
-                .div_as_fraction(CssPixels::from_integer(2))
-                .to_float()
-                .sqrt(),
-        )
     }
 
     fn svg_ellipse_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::Path {
