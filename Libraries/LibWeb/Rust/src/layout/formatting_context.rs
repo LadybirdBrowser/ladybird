@@ -384,6 +384,9 @@ pub(crate) struct PlacedChild {
     /// For an absolutely positioned child, the inputs it was laid out with, which name the containing block it is
     /// placed in.
     pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
+    /// How far the parent moves the laid out contents of the child, in the frame of the run placing it: the boxes
+    /// and lines the child's run laid out, and what that run hands past the child.
+    pub(crate) contents_shift: FfiCssPixelPoint,
 }
 
 impl PlacedChild {
@@ -394,6 +397,7 @@ impl PlacedChild {
             facts_decided_by_parent: run_state::FactsDecidedByParent::default(),
             offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint::default(),
             abspos_layout_inputs: None,
+            contents_shift: FfiCssPixelPoint::default(),
         }
     }
 
@@ -497,9 +501,10 @@ pub(crate) fn place_child(
         cells_kept_for_contained_abspos(run, node, || placed_child.geometry.cells),
     );
     let PlacedChild {
-        geometry,
+        mut geometry,
         facts_decided_by_parent,
         offset_from_relatively_positioned_inline_ancestors,
+        contents_shift,
         ..
     } = placed_child;
     debug_assert!(
@@ -516,6 +521,18 @@ pub(crate) fn place_child(
             .is_none_or(|root| root.fragment.node == node && !fragments.left_child_unplaced(node)),
         "a box is placed with fragments handed to it for another box, or after it was left unplaced"
     );
+    let physical_contents_shift = pass.frame.offset_to_physical(contents_shift);
+    let fragment_arrival = if physical_contents_shift == FfiCssPixelPoint::default() {
+        fragment_arrival
+    } else {
+        // NB: The lines and what the run hands past the child are in the frame the child lays out its contents in.
+        let contents_shift_in_own_frame =
+            frame_established_by(pass, node).offset_from_physical(physical_contents_shift);
+        geometry.line_data = geometry
+            .line_data
+            .map(|lines| fragment_tree::lines_translated_by(pass, node, lines, contents_shift_in_own_frame));
+        fragment_arrival.map(|root| root.translated_by(contents_shift_in_own_frame))
+    };
     match fragment_arrival {
         Some(root) => fragments.take_in_child_root_at_placement(node, root, pass),
         None => fragments.open_fragment_of_placed_box(node),
@@ -557,6 +574,7 @@ pub(crate) fn place_child(
             ),
         ),
         own_anchor_candidate_border_box_rect,
+        physical_contents_shift,
     );
     Some(fragment_tree::PlacedFragment {
         abspos_boxes_placed_with_it,
@@ -4061,6 +4079,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         None,
         placement.content_offset_in_containing_block,
         None,
+        FfiCssPixelPoint::default(),
     );
 }
 

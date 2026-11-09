@@ -196,6 +196,31 @@ impl Frame {
         other.rect_from_physical(self.rect_to_physical(rect, container_size), container_size)
     }
 
+    /// Maps an offset in this frame to the physical plane, as the corner of an empty rect at the origin of an empty box
+    /// maps.
+    pub(crate) fn offset_to_physical(self, offset: FfiCssPixelPoint) -> FfiCssPixelPoint {
+        let corner = self.rect_to_physical(
+            CssPixelRect::new(offset.x, offset.y, CssPixels::default(), CssPixels::default()),
+            FfiCssPixelSize::default(),
+        );
+        FfiCssPixelPoint {
+            x: corner.x,
+            y: corner.y,
+        }
+    }
+
+    /// Maps a physical offset to this frame.
+    pub(crate) fn offset_from_physical(self, offset: FfiCssPixelPoint) -> FfiCssPixelPoint {
+        let corner = self.rect_from_physical(
+            CssPixelRect::new(offset.x, offset.y, CssPixels::default(), CssPixels::default()),
+            FfiCssPixelSize::default(),
+        );
+        FfiCssPixelPoint {
+            x: corner.x,
+            y: corner.y,
+        }
+    }
+
     /// The physical half-plane before the block-end edge of a content box whose contents use this frame and whose
     /// physical size is `content_size`, relative to that content box.
     pub(crate) fn half_plane_before_block_end(self, content_size: FfiCssPixelSize) -> CssPixelRect {
