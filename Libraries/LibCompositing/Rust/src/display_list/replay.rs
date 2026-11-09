@@ -18,8 +18,8 @@ use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, ContextRef, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, WorldTransforms,
-    device_offset_for_index, resolve_leaf_to_context_matrices,
+    ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
+    resolve_leaf_to_context_matrices,
 };
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
@@ -810,13 +810,11 @@ pub fn replay_display_list(
         effect_geometry: scratch.effect_geometry,
         effect_geometry_is_known: false,
     };
-    // Whole device pixels, so scrolled content never lands on subpixel positions.
     driver.world.fill(
         tree,
         &driver.spatial_dependency_order,
         scroll_offsets,
         Some(replay_base_matrix),
-        ScrollSnap::Truncate,
     );
     driver.execute();
     return_replay_scratch_storage(ReplayScratchStorage {
@@ -894,8 +892,8 @@ mod tests {
         permuted.spatial_nodes[permuted_child.0 as usize].parent = permuted_parent;
 
         let base = scale_matrix(2.0, 2.0, 1.0);
-        let in_order_palette = WorldTransforms::new(&in_order, &[], Some(base), ScrollSnap::Truncate);
-        let permuted_palette = WorldTransforms::new(&permuted, &[], Some(base), ScrollSnap::Truncate);
+        let in_order_palette = WorldTransforms::new(&in_order, &[], Some(base));
+        let permuted_palette = WorldTransforms::new(&permuted, &[], Some(base));
         let pairs = [
             (VISUAL_VIEWPORT_NODE_INDEX, VISUAL_VIEWPORT_NODE_INDEX),
             (parent, permuted_parent),
@@ -2013,7 +2011,7 @@ mod tests {
         assert_eq!(
             painter.events,
             vec![
-                PainterEvent::SetMatrix(base.multiplied(translation_matrix(0.0, -30.0, 0.0))),
+                PainterEvent::SetMatrix(base.multiplied(translation_matrix(0.0, -31.0, 0.0))),
                 PainterEvent::Run(1),
                 PainterEvent::SetMatrix(base),
             ]

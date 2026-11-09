@@ -7,7 +7,7 @@
 use super::world_transforms::MINIMUM_PROJECTION_W;
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
-    IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, ScrollSnap, SpatialData, SpatialNodeIndex,
+    IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, SpatialData, SpatialNodeIndex,
     TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use ak::math;
@@ -130,7 +130,7 @@ impl VisualContextTree {
     fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
         let mut current = index;
         loop {
-            if self.local_transform(current, &[], ScrollSnap::None).kind == LocalTransformKind::Projective {
+            if self.local_transform(current, &[]).kind == LocalTransformKind::Projective {
                 return true;
             }
             if current == VISUAL_VIEWPORT_NODE_INDEX {
@@ -244,29 +244,6 @@ impl VisualContextTree {
         }
     }
 
-    pub fn can_snap_composited_context_origin(&self, mut spatial_node_index: SpatialNodeIndex) -> bool {
-        loop {
-            let Some(node) = self.spatial_nodes.get(spatial_node_index.0 as usize) else {
-                return false;
-            };
-
-            if !node.data.is_live() {
-                return false;
-            }
-
-            if spatial_node_index == VISUAL_VIEWPORT_NODE_INDEX {
-                return true;
-            }
-
-            let local = self.local_transform(spatial_node_index, &[], ScrollSnap::None);
-            if local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity() {
-                return false;
-            }
-
-            spatial_node_index = node.parent;
-        }
-    }
-
     pub fn transform_point_for_hit_test(
         &self,
         world: &WorldTransforms,
@@ -320,7 +297,7 @@ impl VisualContextTree {
         let transforms = chain
             .iter()
             .rev()
-            .map(|node_index| self.local_transform(*node_index, &[], ScrollSnap::None))
+            .map(|node_index| self.local_transform(*node_index, &[]))
             .filter(LocalTransform::is_transform_or_perspective);
         if self.chain_contains_3d_transform(index) {
             let matrix = transforms.fold(FloatMatrix4x4::identity(), |matrix, local| local.applied_to(matrix));
@@ -613,7 +590,7 @@ impl VisualContextTree {
                 let radius = math::hypot(dx, dy);
                 rect = FloatRect::new(origin.x - radius, origin.y - radius, 2.0 * radius, 2.0 * radius);
             } else {
-                let matrix = self.local_transform(index, scroll_offsets, ScrollSnap::None).matrix;
+                let matrix = self.local_transform(index, scroll_offsets).matrix;
                 // Projecting a rectangle at each ancestor would discard depth needed by later 3D transforms.
                 if !matrix.is_2d_affine() {
                     return None;
@@ -714,7 +691,7 @@ mod tests {
         scroll_offsets: &[FloatPoint],
         clip_behavior: ClipBehavior,
     ) -> Option<FloatPoint> {
-        let world = WorldTransforms::new(tree, scroll_offsets, None, ScrollSnap::None);
+        let world = WorldTransforms::new(tree, scroll_offsets, None);
         tree.transform_point_for_hit_test(&world, context, screen_point, clip_behavior)
     }
 
@@ -725,7 +702,7 @@ mod tests {
         scroll_offsets: &[FloatPoint],
         include_visual_viewport_transform: IncludeVisualViewportTransform,
     ) -> FloatRect {
-        WorldTransforms::new(tree, scroll_offsets, None, ScrollSnap::None).transform_rect_to_viewport(
+        WorldTransforms::new(tree, scroll_offsets, None).transform_rect_to_viewport(
             node,
             rect,
             include_visual_viewport_transform,
@@ -1164,6 +1141,31 @@ mod tests {
             ),
             Some(point(10.0, -60.0))
         );
+    }
+
+    #[test]
+    fn scroll_translations_round_to_device_pixels_unless_a_transform_is_above_them() {
+        // The visual viewport's own transform does not keep translations below it from snapping.
+        let mut tree = VisualContextTree::create(transform_data(scale_matrix(2.0, 2.0, 1.0), FloatPoint::default()));
+        let outer = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let identity = tree.append_spatial(
+            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), point(5.0, 5.0))),
+            outer,
+        );
+        let inner = tree.append_spatial(scroll(), identity);
+        let scaled = tree.append_spatial(
+            SpatialData::Transform(transform_data(scale_matrix(2.0, 2.0, 1.0), FloatPoint::default())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let under_scale = tree.append_spatial(scroll(), scaled);
+        let mut offsets = vec![FloatPoint::default(); tree.spatial_nodes.len()];
+        offsets[outer.0 as usize] = point(0.0, -10.5);
+        offsets[inner.0 as usize] = point(-0.25, -0.75);
+        offsets[under_scale.0 as usize] = point(0.0, -10.5);
+        let rect = FloatRect::new(0.0, 0.0, 10.0, 10.0);
+        let mapped = |node| rect_to_viewport(&tree, node, rect, &offsets, IncludeVisualViewportTransform::No);
+        assert_eq!(mapped(inner), FloatRect::new(0.0, -12.0, 10.0, 10.0));
+        assert_eq!(mapped(under_scale), FloatRect::new(0.0, -21.0, 20.0, 20.0));
     }
 
     #[test]

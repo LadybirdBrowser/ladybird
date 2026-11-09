@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+    }
+    #rows {
+        margin-top: -11px;
+    }
+    .row {
+        height: 1px;
+    }
+    .row:nth-child(odd) {
+        background: black;
+    }
+</style>
+<div id="scroller"><div id="rows"></div></div>
+<script>
+    for (let i = 0; i < 200; i++)
+        rows.appendChild(document.createElement("div")).className = "row";
+</script>

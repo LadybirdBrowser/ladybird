@@ -168,9 +168,9 @@ Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(Effe
     return color;
 }
 
-bool AccumulatedVisualContextTree::can_snap_composited_context_origin(SpatialNodeIndex spatial_node_index) const
+bool AccumulatedVisualContextTree::translations_snap_to_device_pixels(SpatialNodeIndex spatial_node_index, ScrollStateSnapshot const& scroll_state) const
 {
-    return Compositing::RustFFI::visual_context_tree_can_snap_composited_context_origin(m_rust_tree, spatial_node_index);
+    return Compositing::RustFFI::world_transforms_translations_snap_to_device_pixels(scroll_state.world_transforms(*this), spatial_node_index);
 }
 
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const

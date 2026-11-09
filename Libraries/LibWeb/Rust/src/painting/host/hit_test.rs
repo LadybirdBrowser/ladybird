@@ -71,12 +71,7 @@ impl FfiHitTestQueryCallbacks {
         &self,
         tree: &crate::painting::visual_context::VisualContextTree,
     ) -> crate::painting::visual_context::WorldTransforms {
-        crate::painting::visual_context::WorldTransforms::new(
-            tree,
-            self.scroll_offsets(),
-            None,
-            crate::painting::visual_context::ScrollSnap::None,
-        )
+        crate::painting::visual_context::WorldTransforms::new(tree, self.scroll_offsets(), None)
     }
 
     /// These callbacks with the world transforms the query reads, which `world` holds for the query.

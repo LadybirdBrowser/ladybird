@@ -5,10 +5,12 @@
  */
 
 use super::{
-    IncludeVisualViewportTransform, LocalTransformKind, ScrollSnap, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    IncludeVisualViewportTransform, LocalTransformKind, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
     VisualContextTree, should_cull_back_face,
 };
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, map_rect_through_matrix, multiply_affine};
+use libgfx_rust::{
+    FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, map_rect_through_matrix, multiply_affine, translation_matrix,
+};
 
 // Homogeneous coordinates this close to the eye plane have no meaningful projection.
 pub const MINIMUM_PROJECTION_W: f32 = 0.0001;
@@ -18,6 +20,9 @@ pub const MINIMUM_PROJECTION_W: f32 = 0.0001;
 /// cull test and its descendants, while content recorded directly under the marker belongs to its parent's plane, so
 /// `draw_space` redirects the marker to the parent's entry. A table filled without a root parent matrix is in the
 /// layout viewport's space, and the queries below add the visual viewport transform where asked.
+///
+/// Scroll, sticky and anchor scroll shift translations under no transform but identities round to whole device pixels
+/// of the layout viewport, so scrolled content never lands on subpixel positions. Under a transform they stay exact.
 #[derive(Default)]
 pub struct WorldTransforms {
     pub local: Vec<FloatMatrix4x4>,
@@ -25,6 +30,7 @@ pub struct WorldTransforms {
     pub flattens_inherited_transform: Vec<bool>,
     pub backface_culled: Vec<bool>,
     pub draw_space: Vec<SpatialNodeIndex>,
+    pub translations_snap_to_device_pixels: Vec<bool>,
 }
 
 // The cull state of the element that establishes the 3D rendering context rooted at root: the cull state of the
@@ -36,10 +42,7 @@ fn backface_culled_outside_sorting_context(
 ) -> bool {
     let mut index = root;
     loop {
-        if tree
-            .local_transform(index, &[], ScrollSnap::None)
-            .establishes_sorting_context
-        {
+        if tree.local_transform(index, &[]).establishes_sorting_context {
             return backface_culled[index.0 as usize];
         }
         if index.0 == 0 {
@@ -54,7 +57,6 @@ impl WorldTransforms {
         tree: &VisualContextTree,
         scroll_offsets: &[FloatPoint],
         root_parent_matrix: Option<FloatMatrix4x4>,
-        scroll_snap: ScrollSnap,
     ) -> Self {
         let mut world = Self::default();
         world.fill(
@@ -62,7 +64,6 @@ impl WorldTransforms {
             &tree.spatial_dependency_order(),
             scroll_offsets,
             root_parent_matrix,
-            scroll_snap,
         );
         world
     }
@@ -73,6 +74,7 @@ impl WorldTransforms {
         self.flattens_inherited_transform.clear();
         self.backface_culled.clear();
         self.draw_space.clear();
+        self.translations_snap_to_device_pixels.clear();
     }
 
     /// Fills the table, with `root_parent_matrix` as what the visual viewport node's transform applies on top of, or
@@ -83,7 +85,6 @@ impl WorldTransforms {
         spatial_dependency_order: &[u32],
         scroll_offsets: &[FloatPoint],
         root_parent_matrix: Option<FloatMatrix4x4>,
-        scroll_snap: ScrollSnap,
     ) {
         let node_count = tree.spatial_nodes.len();
         self.clear();
@@ -93,10 +94,19 @@ impl WorldTransforms {
         self.backface_culled.resize(node_count, false);
         self.draw_space
             .extend((0..node_count).map(|index| SpatialNodeIndex(index as u32)));
+        self.translations_snap_to_device_pixels.resize(node_count, false);
         for &index in spatial_dependency_order {
             let i = index as usize;
             let parent = tree.spatial_nodes[i].parent.0 as usize;
-            let local = tree.local_transform(SpatialNodeIndex(index), scroll_offsets, scroll_snap);
+            let mut local = tree.local_transform(SpatialNodeIndex(index), scroll_offsets);
+            let transforms = local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity();
+            let snaps = i == 0 || (self.translations_snap_to_device_pixels[parent] && !transforms);
+            self.translations_snap_to_device_pixels[i] = snaps;
+            if let LocalTransformKind::Translation(offset) = local.kind
+                && snaps
+            {
+                local.matrix = translation_matrix(offset.x.round(), offset.y.round(), 0.0);
+            }
             self.to_root[i] = match (i, root_parent_matrix) {
                 (0, None) => FloatMatrix4x4::identity(),
                 (0, Some(root_parent_matrix)) => local.applied_to(root_parent_matrix),
@@ -126,6 +136,13 @@ impl WorldTransforms {
     /// The matrix that content recorded in `space` is drawn with.
     pub fn draw_matrix(&self, space: SpatialNodeIndex) -> FloatMatrix4x4 {
         self.to_root[self.draw_space[space.0 as usize].0 as usize]
+    }
+
+    pub fn translations_snap_to_device_pixels(&self, node: SpatialNodeIndex) -> bool {
+        self.translations_snap_to_device_pixels
+            .get(node.0 as usize)
+            .copied()
+            .unwrap_or(false)
     }
 
     pub fn draw_matrix_if_known(&self, space: SpatialNodeIndex) -> Option<FloatMatrix4x4> {
@@ -193,7 +210,7 @@ impl WorldTransforms {
         let mut offset = FloatPoint::default();
         let mut current = node;
         while current != VISUAL_VIEWPORT_NODE_INDEX {
-            if let LocalTransformKind::Translation(_) = tree.local_transform(current, &[], ScrollSnap::None).kind {
+            if let LocalTransformKind::Translation(_) = tree.local_transform(current, &[]).kind {
                 let local = &self.local[current.0 as usize].elements;
                 offset.x += local[0][3];
                 offset.y += local[1][3];

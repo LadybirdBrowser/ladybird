@@ -200,7 +200,7 @@ pub fn compute_effect_geometry(
 mod tests {
     use super::*;
     use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
-    use crate::visual_context::{EffectsData, ScrollSnap, SpatialData, TransformData, TransformDataRole};
+    use crate::visual_context::{EffectsData, SpatialData, TransformData, TransformDataRole};
     use libgfx_rust::filter::Filter;
     use libgfx_rust::{
         Color, ColorFilterType, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, IntRect, rotation_matrix,
@@ -261,7 +261,7 @@ mod tests {
 
     fn geometry_of(tree: &VisualContextTree, runs: &[DisplayListCommandRun]) -> Vec<EffectGeometry> {
         let mut geometry = Vec::new();
-        let world = WorldTransforms::new(tree, &[], Some(FloatMatrix4x4::identity()), ScrollSnap::None);
+        let world = WorldTransforms::new(tree, &[], Some(FloatMatrix4x4::identity()));
         compute_effect_geometry(tree, runs, &world, &mut geometry);
         geometry
     }
@@ -376,7 +376,7 @@ mod tests {
         assert_eq!(nearest[opacity.0 as usize], blur);
         assert_eq!(nearest[plain.0 as usize], EffectNodeIndex::NONE);
         let content = FloatRect::new(10.0, 20.0, 30.0, 40.0);
-        let world = WorldTransforms::new(&tree, &[], Some(FloatMatrix4x4::identity()), ScrollSnap::None);
+        let world = WorldTransforms::new(&tree, &[], Some(FloatMatrix4x4::identity()));
         assert_eq!(
             changed_extent_through_filters(&tree, &nearest, scaled, content, shadow, &world),
             (VISUAL_VIEWPORT_NODE_INDEX, within(-10.0, 10.0, 120.0, 160.0))

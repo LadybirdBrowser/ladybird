@@ -291,7 +291,7 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
 
     // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
     // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
-    if (command.snap_origin_if_untransformed && active_visual_context_tree().can_snap_composited_context_origin(command.spatial_node_index)) {
+    if (command.snap_origin_if_untransformed && active_visual_context_tree().translations_snap_to_device_pixels(command.spatial_node_index, active_scroll_state())) {
         destination_rect.set_x(roundf(destination_rect.x()));
         destination_rect.set_y(roundf(destination_rect.y()));
     }

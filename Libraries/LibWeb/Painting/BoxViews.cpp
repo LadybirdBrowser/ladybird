@@ -714,6 +714,19 @@ CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint po
     return (result / pixel_ratio).to_type<CSSPixels>();
 }
 
+CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint scroll_offset)
+{
+    auto const& document = node.document();
+    if (!has_committed_box(node) || !document.has_committed_viewport_box())
+        return scroll_offset;
+    auto visual_context_tree = document.visual_context_tree();
+    if (!visual_context_tree.translations_snap_to_device_pixels(accumulated_visual_context(node).spatial, document.scroll_state_snapshot()))
+        return scroll_offset;
+    auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
+    auto snap = [&](CSSPixels value) { return CSSPixels::nearest_value_for(round(value.to_double() * pixel_ratio) / pixel_ratio); };
+    return { snap(scroll_offset.x()), snap(scroll_offset.y()) };
+}
+
 CSSPixelPoint transform_to_local_coordinates(Layout::Node const& node, CSSPixelPoint position)
 {
     if (!has_committed_box(node))

@@ -33,7 +33,7 @@ use crate::painting::selection::{
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
 use crate::painting::visual_context::{BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES};
-use crate::painting::visual_context::{ScrollSnap, VisualContextTree, WorldTransforms};
+use crate::painting::visual_context::{VisualContextTree, WorldTransforms};
 use std::sync::Arc;
 
 /// The document's text rows and its replaced, layer image and SVG paint resource tables, as they
@@ -184,7 +184,7 @@ impl PublishedPaintState {
                 .visual_context_tree
                 .as_deref()
                 .expect("recording runs against a visual context tree");
-            WorldTransforms::new(tree, &[], None, ScrollSnap::None)
+            WorldTransforms::new(tree, &[], None)
         })
     }
 
