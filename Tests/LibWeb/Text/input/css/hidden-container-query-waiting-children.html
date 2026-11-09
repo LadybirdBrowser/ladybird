@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="hidden" style="display: none"></div>
+<script>
+    test(() => {
+        hidden.getBoundingClientRect();
+        hidden.innerHTML = `
+            <style>
+                .container { container-type: inline-size; width: 200px; }
+                @container (width > 0px) { .subject { color: green; } }
+                .child { width: 30px; height: 20px; }
+            </style>
+            <div class="container">
+                <div class="subject">
+                    <svg><linearGradient id="gradient"><stop /></linearGradient></svg>
+                </div>
+            </div>`;
+        document.body.getBoundingClientRect();
+        const subject = hidden.querySelector(".subject");
+        subject.insertAdjacentHTML("beforeend", '<div class="child"><span>child</span></div>');
+        document.body.getBoundingClientRect();
+        const child = subject.lastElementChild;
+        println(`Hidden child: ${child.getBoundingClientRect().width} x ${child.getBoundingClientRect().height}`);
+        hidden.style.display = "block";
+        println(`Visible child: ${child.getBoundingClientRect().width} x ${child.getBoundingClientRect().height}`);
+        println(`Visible container query: ${getComputedStyle(subject).color}`);
+    });
+</script>

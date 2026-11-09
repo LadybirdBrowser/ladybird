@@ -350,7 +350,10 @@ impl RetainedState {
                 MainEffects::ROOT_FONT_METRICS,
                 adjustment_facts & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0,
             )
-            .with(MainEffects::REVEAL_WAITING, was_none && !is_none(new_values))
+            .with(
+                MainEffects::REVEAL_WAITING,
+                was_none && new.dependency_flags & computed::IN_DISPLAY_NONE_SUBTREE == 0,
+            )
             .with(
                 MainEffects::SVG_REFERENCES,
                 adjustment_facts & element_adjustment_fact::IS_SVG_ELEMENT != 0,
