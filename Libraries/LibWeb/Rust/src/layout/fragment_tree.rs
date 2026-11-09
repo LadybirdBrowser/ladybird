@@ -776,6 +776,20 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     }
 }
 
+/// Moves by `offset` the payloads among `payloads` that are in the coordinate space of `space`.
+fn translate_payloads_in_space_of<Payload: PropagatedPayload>(
+    payloads: &mut [Payload],
+    space: crate::layout::node_data::NodeSlotId,
+    offset: FfiCssPixelPoint,
+) {
+    for payload in payloads
+        .iter_mut()
+        .filter(|payload| payload.coordinate_space_box() == space)
+    {
+        payload.translate_by(offset);
+    }
+}
+
 fn sort_in_tree_order(entries: &mut [abspos_inputs::PendingAbsposChild], pass: &LayoutPass<'_>) {
     entries.sort_by(|left, right| {
         if left.child_box == right.child_box {
@@ -1051,27 +1065,34 @@ fn fragment_with_contained_links_moved(
 }
 
 /// The links of the fragment `arrived` of `node`, for a fragment of the box at the physical content size
-/// `content_size`. The boxes the box contains keep their offsets in the frame it lays out its contents in.
+/// `content_size` whose contents its parent moves by the physical offset `contents_shift`. Beside that, the boxes the
+/// box contains keep their offsets in the frame it lays out its contents in.
 fn links_moved_to_content_size(
     pass: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
     arrived: &Fragment,
     content_size: FfiCssPixelSize,
+    contents_shift: FfiCssPixelPoint,
 ) -> Vec<FragmentLink> {
-    let shift = shift_of_contents(
+    let shift_of_box_sides = shift_of_contents(
         formatting_context::frame_established_by(pass, node),
         arrived.sides.content_size,
         content_size,
     );
+    let shift = formatting_context::point_add(shift_of_box_sides, contents_shift);
     if shift == FfiCssPixelPoint::default() {
         return arrived.children.clone();
     }
+    // NB: The rendered legend of a fieldset sits on the fieldset's border, which the contents shift leaves in place.
+    let rendered_legend = NodeFacts::new(pass, node).rendered_legend();
     arrived
         .children
         .iter()
         .map(|link| {
             let mut link = link.clone();
-            if link.placement.containing_block == node {
+            if link.fragment.node == rendered_legend {
+                link.offset = formatting_context::point_add(link.offset, shift_of_box_sides);
+            } else if link.placement.containing_block == node {
                 link.offset = formatting_context::point_add(link.offset, shift);
             }
             if link.fragment.outer_links == OuterLinks::Placed && link.fragment.holds_links_contained_by(node) {
@@ -1188,9 +1209,31 @@ fn rebuilt_fragment(pass: &LayoutPass<'_>, mut rebuilt: Fragment) -> std::sync::
     std::sync::Arc::new(rebuilt)
 }
 
+/// The lines `lines` of `node` moved by `offset`: those the committed fragment of the box holds where they are the
+/// same, so that moving the lines as the last layout of the box did keeps the box's fragment.
+pub(crate) fn lines_translated_by(
+    pass: &LayoutPass<'_>,
+    node: crate::layout::node_data::NodeSlotId,
+    lines: std::sync::Arc<inline_content::InlineContent>,
+    offset: FfiCssPixelPoint,
+) -> std::sync::Arc<inline_content::InlineContent> {
+    let translated = inline_content::InlineContent::concatenate_translated(&[(lines, offset)]);
+    if !pass.has_committed_fragment_link(node) {
+        return translated;
+    }
+    pass.arena()
+        .with_committed_fragment_link(node, |link| {
+            link.and_then(|link| link.fragment.line_data.clone())
+                .filter(|committed| **committed == *translated)
+        })
+        .unwrap_or(translated)
+}
+
 /// The fragment of a placed box: `arrived`, the fragment its own run built or the committed one, where that shows the
 /// box as placed and nothing else was placed in it, or else a fragment of the box's `geometry` around the arrived
-/// fragment's children and the `children` placed in it here.
+/// fragment's children, moved by `contents_shift`, a physical offset by which the box's parent moves its contents, and
+/// the `children` placed in it here.
+#[allow(clippy::too_many_arguments)]
 fn fragment_of_placed_box(
     pass: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
@@ -1199,6 +1242,7 @@ fn fragment_of_placed_box(
     geometry: FragmentGeometry,
     breaks: BreakFacts,
     payload: PendingPayload,
+    contents_shift: FfiCssPixelPoint,
 ) -> std::sync::Arc<Fragment> {
     let content_size = geometry
         .cells
@@ -1225,12 +1269,14 @@ fn fragment_of_placed_box(
             false,
         );
     };
-    let shows_box_as_placed =
-        children.is_empty() && geometry.shows_box_of_fragment(&arrived, pass.frame) && arrived.breaks == breaks;
+    let shows_box_as_placed = children.is_empty()
+        && contents_shift == FfiCssPixelPoint::default()
+        && geometry.shows_box_of_fragment(&arrived, pass.frame)
+        && arrived.breaks == breaks;
     if shows_box_as_placed {
         return arrived;
     }
-    let mut all_children = links_moved_to_content_size(pass, node, &arrived, content_size);
+    let mut all_children = links_moved_to_content_size(pass, node, &arrived, content_size, contents_shift);
     all_children.extend(placed_children(children));
     snapshot_fragment(
         pass,
@@ -1395,6 +1441,19 @@ impl RunRootFragment {
 
     pub(crate) fn payloads_past_run(&self) -> &PayloadsPastRun {
         self.payloads_past_run.as_deref().unwrap_or(&NO_PAYLOADS_PAST_RUN)
+    }
+
+    /// The root fragment of a run whose root's contents its parent moves by `offset`, in the frame the root lays out
+    /// its contents in, where what the run hands past the root moves with them. The links and lines of the root's
+    /// fragment move as the root's placement builds its fragment (see fragment_of_placed_box()).
+    pub(crate) fn translated_by(mut self, offset: FfiCssPixelPoint) -> Self {
+        let root = self.fragment.node;
+        if let Some(payloads) = self.payloads_past_run.as_deref_mut() {
+            translate_payloads_in_space_of(&mut payloads.pending_abspos, root, offset);
+            translate_payloads_in_space_of(&mut payloads.anchor_candidates, root, offset);
+            translate_payloads_in_space_of(&mut payloads.inline_containing_block_rects, root, offset);
+        }
+        self
     }
 }
 
@@ -2002,27 +2061,9 @@ impl RunFragmentBuilder {
                 });
             }
         }
-        for entry in inner
-            .pending_abspos_at_root
-            .iter_mut()
-            .filter(|entry| entry.coordinate_space_box == root)
-        {
-            entry.translate_by(offset);
-        }
-        for candidate in inner
-            .anchor_candidates_at_root
-            .iter_mut()
-            .filter(|candidate| candidate.coordinate_space_box == root)
-        {
-            candidate.translate_by(offset);
-        }
-        for payload in inner
-            .inline_containing_block_rects_at_root
-            .iter_mut()
-            .filter(|payload| payload.coordinate_space_box == root)
-        {
-            payload.translate_by(offset);
-        }
+        translate_payloads_in_space_of(&mut inner.pending_abspos_at_root, root, offset);
+        translate_payloads_in_space_of(&mut inner.anchor_candidates_at_root, root, offset);
+        translate_payloads_in_space_of(&mut inner.inline_containing_block_rects_at_root, root, offset);
     }
 
     /// Takes in the root fragment of the run that laid out `node`, which is being placed, and what goes past that run.
@@ -2149,6 +2190,7 @@ impl RunFragmentBuilder {
         containing_line_box_index: Option<u32>,
         offset_in_frame: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
+        physical_contents_shift: FfiCssPixelPoint,
     ) -> PlacedFragment {
         let placement = facts.placement.expect("a box is placed before its fragment is built");
         let mut inner = self.inner.borrow_mut();
@@ -2184,6 +2226,7 @@ impl RunFragmentBuilder {
             geometry,
             facts.fragment_facts.breaks,
             payload,
+            physical_contents_shift,
         );
         let link = PendingLink {
             fragment: fragment.clone(),
@@ -2385,6 +2428,7 @@ impl RunFragmentBuilder {
                     unplaced_child.geometry,
                     facts.fragment_facts.breaks,
                     PendingPayload::default(),
+                    FfiCssPixelPoint::default(),
                 ),
                 offset_in_frame: FfiCssPixelPoint::default(),
                 frame: pass.frame,
