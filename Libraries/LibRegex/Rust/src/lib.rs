@@ -19,4 +19,5 @@ pub mod compiler;
 pub mod ffi;
 pub mod parser;
 pub mod regex;
+mod stack;
 pub mod vm;

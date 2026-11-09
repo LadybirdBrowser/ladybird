@@ -14,6 +14,8 @@
 //! - <https://tc39.es/ecma262/#sec-compilepattern>
 use crate::ast::*;
 use crate::bytecode::*;
+use crate::parser::Error;
+use std::cell::Cell;
 use std::collections::BTreeSet;
 
 /// Resolve a Unicode property name/value pair to an ICU enum ID.
@@ -31,9 +33,12 @@ pub fn resolve_property(name: &str, value: Option<&str>) -> Option<ResolvedPrope
 ///
 /// Spec entry point: `CompilePattern`.
 /// <https://tc39.es/ecma262/#sec-compilepattern>
-pub fn compile(pattern: &Pattern) -> Program {
+pub fn compile(pattern: &Pattern) -> Result<Program, Error> {
     let mut compiler = Compiler::new(pattern);
     compiler.compile_pattern(pattern);
+    if compiler.ran_out_of_stack.get() {
+        return Err(Error::TooDeeplyNested);
+    }
     compiler.program.named_groups = pattern
         .named_groups
         .iter()
@@ -42,7 +47,7 @@ pub fn compile(pattern: &Pattern) -> Program {
             index: ng.index,
         })
         .collect();
-    compiler.program
+    Ok(compiler.program)
 }
 
 const fn char_range(start: u32, end: u32) -> CharRange {
@@ -125,9 +130,19 @@ struct Compiler {
     next_internal_reg: u32,
     /// True when compiling a lookbehind body (terms are reversed).
     backward: bool,
+    /// Set when a pass stopped short of a nested group or class because the stack ran low, which fails the compile.
+    ran_out_of_stack: Cell<bool>,
 }
 
 impl Compiler {
+    /// Whether a pass has to stop short of recursing into a nested group or class, which fails the compile.
+    fn is_out_of_stack(&self) -> bool {
+        if crate::stack::is_exhausted() {
+            self.ran_out_of_stack.set(true);
+        }
+        self.ran_out_of_stack.get()
+    }
+
     /// The code point ranges of a builtin class inside a character class of a pattern without the u and v flags, if
     /// the class can match it as plain ranges.
     ///
@@ -175,6 +190,7 @@ impl Compiler {
             effective_dot_all: pattern.flags.dot_all,
             next_internal_reg: register_count,
             backward: false,
+            ran_out_of_stack: Cell::new(false),
         }
     }
 
@@ -292,6 +308,9 @@ impl Compiler {
     }
 
     fn class_set_expression_lengths(&self, expr: &ClassSetExpression) -> BTreeSet<usize> {
+        if self.is_out_of_stack() {
+            return BTreeSet::new();
+        }
         match expr {
             ClassSetExpression::Union(operands) => operands.iter().fold(BTreeSet::new(), |mut lengths, operand| {
                 lengths.extend(self.class_set_operand_lengths(operand));
@@ -418,29 +437,32 @@ impl Compiler {
     }
 
     /// Collect all capture group indices inside an atom (recursively).
-    fn collect_captures(atom: &Atom, out: &mut Vec<u32>) {
+    fn collect_captures(&self, atom: &Atom, out: &mut Vec<u32>) {
         match atom {
             Atom::Group(g) => {
                 out.push(g.index);
-                Self::collect_captures_in_disjunction(&g.body, out);
+                self.collect_captures_in_disjunction(&g.body, out);
             }
             Atom::NonCapturingGroup(g) => {
-                Self::collect_captures_in_disjunction(&g.body, out);
+                self.collect_captures_in_disjunction(&g.body, out);
             }
             Atom::ModifierGroup(mg) => {
-                Self::collect_captures_in_disjunction(&mg.body, out);
+                self.collect_captures_in_disjunction(&mg.body, out);
             }
             Atom::Lookaround(la) => {
-                Self::collect_captures_in_disjunction(&la.body, out);
+                self.collect_captures_in_disjunction(&la.body, out);
             }
             _ => {}
         }
     }
 
-    fn collect_captures_in_disjunction(disj: &Disjunction, out: &mut Vec<u32>) {
+    fn collect_captures_in_disjunction(&self, disj: &Disjunction, out: &mut Vec<u32>) {
+        if self.is_out_of_stack() {
+            return;
+        }
         for alt in &disj.alternatives {
             for term in &alt.terms {
-                Self::collect_captures(&term.atom, out);
+                self.collect_captures(&term.atom, out);
             }
         }
     }
@@ -450,7 +472,7 @@ impl Compiler {
     /// undefined at the start of each quantifier iteration.
     /// <https://tc39.es/ecma262/#sec-runtime-semantics-repeatmatcher-abstract-operation>
     fn emit_clear_captures(&mut self, atom: &Atom) {
-        for idx in Self::capture_registers(atom) {
+        for idx in self.capture_registers(atom) {
             self.emit(Instruction::ClearRegister(idx));
         }
     }
@@ -458,12 +480,12 @@ impl Compiler {
     /// Collect all capture register indices (start and end) for captures inside an atom.
     /// Returns empty for intrinsically zero-width atoms (lookarounds, assertions)
     /// since their captures should NOT be cleared on zero-width ProgressCheck.
-    fn capture_registers(atom: &Atom) -> Vec<u32> {
+    fn capture_registers(&self, atom: &Atom) -> Vec<u32> {
         if matches!(atom, Atom::Lookaround(_) | Atom::Assertion(_)) {
             return Vec::new();
         }
         let mut captures = Vec::new();
-        Self::collect_captures(atom, &mut captures);
+        self.collect_captures(atom, &mut captures);
         let mut regs = Vec::new();
         for idx in captures {
             regs.push(idx * 2);
@@ -473,6 +495,9 @@ impl Compiler {
     }
 
     fn disjunction_can_be_zero_width(&self, disjunction: &Disjunction) -> bool {
+        if self.is_out_of_stack() {
+            return true;
+        }
         disjunction
             .alternatives
             .iter()
@@ -519,6 +544,9 @@ impl Compiler {
     /// Lower `Disjunction` to a chain of split/jump choice points.
     /// <https://tc39.es/ecma262/#sec-compilesubpattern>
     fn compile_disjunction(&mut self, disj: &Disjunction) {
+        if self.is_out_of_stack() {
+            return;
+        }
         if let Some(term) = self.try_merge_optional_alternatives(disj) {
             self.compile_term(&term);
             return;
@@ -676,7 +704,7 @@ impl Compiler {
             if let Some(reg) = progress_reg {
                 self.emit(Instruction::ProgressCheck {
                     reg,
-                    clear_captures: Self::capture_registers(atom),
+                    clear_captures: self.capture_registers(atom),
                 });
             }
             self.emit(Instruction::RepeatCheck {
@@ -730,7 +758,7 @@ impl Compiler {
                         if let Some(reg) = progress_reg {
                             self.emit(Instruction::ProgressCheck {
                                 reg,
-                                clear_captures: Self::capture_registers(atom),
+                                clear_captures: self.capture_registers(atom),
                             });
                         }
                         let after = self.current_offset();
@@ -752,7 +780,7 @@ impl Compiler {
                         if let Some(reg) = progress_reg {
                             self.emit(Instruction::ProgressCheck {
                                 reg,
-                                clear_captures: Self::capture_registers(atom),
+                                clear_captures: self.capture_registers(atom),
                             });
                         }
                         let after = self.current_offset();
@@ -786,7 +814,7 @@ impl Compiler {
                     if can_be_zero_width {
                         self.emit(Instruction::ProgressCheck {
                             reg: progress_reg,
-                            clear_captures: Self::capture_registers(atom),
+                            clear_captures: self.capture_registers(atom),
                         });
                     }
                     self.emit(Instruction::Jump(loop_start));
@@ -808,7 +836,7 @@ impl Compiler {
                     if can_be_zero_width {
                         self.emit(Instruction::ProgressCheck {
                             reg: progress_reg,
-                            clear_captures: Self::capture_registers(atom),
+                            clear_captures: self.capture_registers(atom),
                         });
                     }
                     self.emit(Instruction::Jump(loop_start));
@@ -1126,6 +1154,9 @@ impl Compiler {
     /// a `LazyLoop`/`GreedyLoop`. Returns `None` for operands that require multi-character
     /// matching (string literals) or set operations that can't be represented as a simple test.
     fn try_simple_match_for_operand(operand: &ClassSetOperand) -> Option<SimpleMatch> {
+        if crate::stack::is_exhausted() {
+            return None;
+        }
         match operand {
             ClassSetOperand::Char(c) => Some(SimpleMatch::Char(*c)),
             ClassSetOperand::Range(lo, hi) => Some(SimpleMatch::CharClass {
@@ -1332,6 +1363,9 @@ impl Compiler {
     }
 
     fn try_extract_union_ranges(expr: &ClassSetExpression) -> Option<Vec<CharRange>> {
+        if crate::stack::is_exhausted() {
+            return None;
+        }
         let ClassSetExpression::Union(operands) = expr else {
             return None;
         };
@@ -1447,6 +1481,9 @@ impl Compiler {
     }
 
     fn compile_class_set_expression_at_length(&mut self, expr: &ClassSetExpression, length: usize) {
+        if self.is_out_of_stack() {
+            return;
+        }
         match expr {
             ClassSetExpression::Union(operands) => {
                 let filtered: Vec<&ClassSetOperand> = operands

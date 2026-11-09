@@ -961,3 +961,42 @@ test("string properties allowed as set operation operands in negated /v mode cla
         RegExp("[^\\p{Emoji_Keycap_Sequence}]", "v");
     }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid Unicode property 'Emoji_Keycap_Sequence'");
 });
+
+test("deeply nested patterns throw instead of overflowing the stack", () => {
+    const message = "RegExp compile error: pattern is nested too deeply";
+    expect(() => {
+        RegExp("(".repeat(100_000) + ")".repeat(100_000));
+    }).toThrowWithMessage(SyntaxError, message);
+    expect(() => {
+        RegExp("(?:".repeat(100_000) + ")".repeat(100_000));
+    }).toThrowWithMessage(SyntaxError, message);
+    expect(() => {
+        RegExp("[".repeat(100_000) + "]".repeat(100_000), "v");
+    }).toThrowWithMessage(SyntaxError, message);
+});
+
+test("the most deeply nested pattern that compiles also runs", () => {
+    // Each pass over a pattern recurses into its nested groups and classes, so each must stop before the stack does.
+    for (const [pattern, flags] of [
+        [depth => "(".repeat(depth) + "a" + ")".repeat(depth), ""],
+        [depth => "(?<=".repeat(depth) + "a" + ")".repeat(depth), ""],
+        [depth => "(?:" + "(".repeat(depth) + "a|" + ")".repeat(depth) + ")*", ""],
+        [depth => "[".repeat(depth) + "a" + "]".repeat(depth), "v"],
+        [depth => "[^".repeat(depth) + "a" + "]".repeat(depth), "v"],
+    ]) {
+        let deepest;
+        let low = 1;
+        let high = 100_000;
+        while (low + 1 < high) {
+            const middle = Math.floor((low + high) / 2);
+            try {
+                deepest = RegExp(pattern(middle), flags);
+                low = middle;
+            } catch (error) {
+                expect(error.message).toBe("RegExp compile error: pattern is nested too deeply");
+                high = middle;
+            }
+        }
+        expect(() => deepest.exec("a")).not.toThrow();
+    }
+});

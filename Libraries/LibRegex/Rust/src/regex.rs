@@ -52,7 +52,7 @@ impl Regex {
     }
 
     fn compile_parsed(parsed: Pattern, flags: Flags) -> Result<Self, parser::Error> {
-        let mut program = compiler::compile(&parsed);
+        let mut program = compiler::compile(&parsed)?;
         Self::resolve_properties(&mut program);
         let required_literal_hint = extract_required_literal_hint(&parsed, flags);
         let hints = vm::analyze_pattern(&program, required_literal_hint);
@@ -670,6 +670,12 @@ fn extract_required_literal_hint(pattern: &Pattern, flags: Flags) -> Option<vm::
 }
 
 fn analyze_required_literal_disjunction(disjunction: &Disjunction, flags: Flags) -> RequiredLiteralAnalysis {
+    if crate::stack::is_exhausted() {
+        return RequiredLiteralAnalysis {
+            exact_literal: None,
+            guaranteed_runs: Vec::new(),
+        };
+    }
     let mut analyses = disjunction
         .alternatives
         .iter()
