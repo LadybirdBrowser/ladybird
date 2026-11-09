@@ -719,10 +719,7 @@ impl SyntaxTree {
     fn is_proto_key(&self, key: u32) -> bool {
         match self.tag(key) {
             tag::IDENT => self.a(key) == N_PROTO,
-            tag::STR => {
-                self.string_units(key).length_in_code_units() >= 9
-                    && self.string_value(key).to_utf16().as_ref() == utf16!("__proto__")
-            }
+            tag::STR => literals::string_literal_text(self.string_units(key)).view() == "__proto__",
             _ => false,
         }
     }

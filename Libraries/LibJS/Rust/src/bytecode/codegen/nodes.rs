@@ -22,6 +22,8 @@ use crate::parser::columns::NONE;
 use crate::parser::columns::tag;
 use crate::parser::literals;
 pub(super) use crate::parser::literals::EscapeMode;
+pub(super) use crate::parser::literals::StringLiteralText;
+use crate::parser::literals::has_escape_sequence;
 use crate::parser::token::T;
 use crate::utf16::Utf16View;
 use ak::Utf16String;
@@ -151,22 +153,6 @@ pub(super) struct TryData {
     pub(super) finalizer: Option<NodeId>,
 }
 
-/// The text of a string literal: a view of the source if it has no escape sequences, which most do not.
-pub(super) enum StringLiteralText<'t> {
-    Source(Utf16View<'t>),
-    Processed(Utf16String),
-}
-
-impl StringLiteralText<'_> {
-    #[inline(always)]
-    pub(super) fn view(&self) -> Utf16View<'_> {
-        match self {
-            StringLiteralText::Source(view) => *view,
-            StringLiteralText::Processed(string) => Utf16View::of_string(string),
-        }
-    }
-}
-
 impl SyntaxTree {
     #[inline(always)]
     pub(super) fn node_tag(&self, node: NodeId) -> u8 {
@@ -254,12 +240,7 @@ impl SyntaxTree {
     /// The value of a string literal node, without a copy if that is possible.
     #[inline(always)]
     pub(super) fn string_literal_text(&self, node: NodeId) -> StringLiteralText<'_> {
-        let units = self.string_literal_units(node);
-        if has_escape_sequence(units) {
-            StringLiteralText::Processed(self.string_literal_value(node))
-        } else {
-            StringLiteralText::Source(units)
-        }
+        literals::string_literal_text(self.string_literal_units(node))
     }
 
     /// The value of a string literal node.
@@ -450,15 +431,6 @@ impl SyntaxTree {
             handler: optional(extra + 1),
             finalizer: optional(extra + 2),
         }
-    }
-}
-
-/// Whether the text of a string literal or a template has an escape sequence in it.
-#[inline(always)]
-fn has_escape_sequence(units: Utf16View<'_>) -> bool {
-    match units {
-        Utf16View::Ascii(units) | Utf16View::Latin1(units) => units.contains(&b'\\'),
-        Utf16View::Utf16(units) => units.contains(&u16::from(b'\\')),
     }
 }
 

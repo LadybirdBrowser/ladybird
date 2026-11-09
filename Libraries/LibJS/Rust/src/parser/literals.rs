@@ -28,6 +28,41 @@ pub(crate) struct EscapeResult {
     pub(crate) failed: bool,
 }
 
+/// The text of a string literal: a view of the source if it has no escape sequences, which most do not.
+pub(crate) enum StringLiteralText<'t> {
+    Source(Utf16View<'t>),
+    Processed(Utf16String),
+}
+
+impl StringLiteralText<'_> {
+    #[inline(always)]
+    pub(crate) fn view(&self) -> Utf16View<'_> {
+        match self {
+            StringLiteralText::Source(view) => *view,
+            StringLiteralText::Processed(string) => Utf16View::of_string(string),
+        }
+    }
+}
+
+/// Whether the text of a string literal or a template has an escape sequence in it.
+#[inline(always)]
+pub(crate) fn has_escape_sequence(units: Utf16View<'_>) -> bool {
+    match units {
+        Utf16View::Ascii(units) | Utf16View::Latin1(units) => units.contains(&b'\\'),
+        Utf16View::Utf16(units) => units.contains(&u16::from(b'\\')),
+    }
+}
+
+/// The value of a string literal from the text between its quotes, without a copy if that is possible.
+#[inline(always)]
+pub(crate) fn string_literal_text(units: Utf16View<'_>) -> StringLiteralText<'_> {
+    if has_escape_sequence(units) {
+        StringLiteralText::Processed(process_escape_sequences_impl(units, EscapeMode::StringLiteral).value)
+    } else {
+        StringLiteralText::Source(units)
+    }
+}
+
 /// Unified escape sequence processor for both string and template literals.
 ///
 /// In `TaggedTemplate` mode, `failed` is true when an invalid escape is

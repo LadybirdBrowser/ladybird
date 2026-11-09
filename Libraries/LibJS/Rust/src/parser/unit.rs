@@ -12,11 +12,14 @@
 //!
 //! The source must be followed by at least 64 units of zero padding, so blocks may read past its end.
 
+use crate::utf16::Utf16View;
+
 pub trait Unit: Copy + Eq + 'static {
     const WIDE: bool;
     fn code(self) -> u32;
     /// Loads a block of units as bytes.
     unsafe fn load(p: *const Self) -> Block;
+    fn view(units: &[Self]) -> Utf16View<'_>;
 }
 
 impl Unit for u8 {
@@ -29,6 +32,10 @@ impl Unit for u8 {
     unsafe fn load(p: *const u8) -> Block {
         unsafe { block::load_narrow(p) }
     }
+    #[inline(always)]
+    fn view(units: &[u8]) -> Utf16View<'_> {
+        Utf16View::Latin1(units)
+    }
 }
 
 impl Unit for u16 {
@@ -40,6 +47,10 @@ impl Unit for u16 {
     #[inline(always)]
     unsafe fn load(p: *const u16) -> Block {
         unsafe { block::load_wide(p) }
+    }
+    #[inline(always)]
+    fn view(units: &[u16]) -> Utf16View<'_> {
+        Utf16View::Utf16(units)
     }
 }
 
