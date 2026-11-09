@@ -1,0 +1,9 @@
+Ladybird measures a replaced box’s intrinsic width, transferred from a
+percentage height through its aspect ratio, with the containing block’s
+constraints, so that the height resolves. Blink does the same: Its
+ComputeMinAndMaxContentContributionForReplaced() sizes the image from
+the block size that BuildSpaceForIntrinsicInlineSize() keeps for
+percentages to resolve against. Gecko passes the basis through as well,
+in nsLayoutUtils::IntrinsicForContainer(). And WebKit’s RenderReplaced::
+computeReplacedLogicalWidth() resolves the percentage height before it
+transfers it through the aspect ratio.
