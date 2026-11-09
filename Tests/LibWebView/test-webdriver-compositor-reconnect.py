@@ -42,10 +42,12 @@ def descendants_named(root_pid, process_name):
     found = []
     while pending:
         for pid, command in children.get(pending.pop(), []):
-            pending.append(pid)
             arguments = shlex.split(command)
+            # A helper's own children, such as its file broker, carry the helper's command line but are not the helper.
             if arguments and Path(arguments[0]).name == process_name:
                 found.append(pid)
+            else:
+                pending.append(pid)
     return found
 
 

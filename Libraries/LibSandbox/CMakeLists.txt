@@ -5,6 +5,7 @@ set(SOURCES
 
 if (LINUX)
     list(APPEND SOURCES
+        FileBroker.cpp
         GpuDriverPaths.cpp
         Seccomp.cpp
     )
