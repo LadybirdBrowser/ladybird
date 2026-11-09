@@ -220,9 +220,9 @@ pub fn mod_power_of_two(value: &BigInt, power_of_two: u64) -> Result<BigInt, Num
         return Ok(value.clone());
     }
 
-    // If the power of two overflows the int type, we don't have enough memory to compute it.
+    // AD-HOC: A power of two that overflows the int type is too large to compute, as for BigInt::leftShift.
     if i32::try_from(power_of_two).is_err() {
-        return Err(NumericOperationError::OutOfMemory);
+        return Err(NumericOperationError::BigIntSizeExceeded);
     }
 
     let magnitude_modulo = low_bits(value.magnitude(), power_of_two);
@@ -240,7 +240,7 @@ fn bitwise_not_fill_to_one_based_index(value: &BigUint, index: u64) -> Result<Bi
         return Ok(BigUint::zero());
     }
     if i32::try_from(index).is_err() {
-        return Err(NumericOperationError::OutOfMemory);
+        return Err(NumericOperationError::BigIntSizeExceeded);
     }
     debug_assert!(value.bits() <= index);
     Ok((BigUint::one() << index) - 1u32 - value)

@@ -34,8 +34,6 @@ pub enum NumericOperationError {
     BigIntSizeExceeded,
     /// A RangeError with ErrorType::NegativeExponent.
     NegativeExponent,
-    /// The InternalError that TRY_OR_THROW_OOM throws when an operation reports ENOMEM.
-    OutOfMemory,
 }
 
 impl NumericOperationError {
@@ -46,7 +44,6 @@ impl NumericOperationError {
             Self::BigIntFromNonIntegral => (ErrorKind::RangeError, ErrorType::BigIntFromNonIntegral),
             Self::BigIntSizeExceeded => (ErrorKind::RangeError, ErrorType::BigIntSizeExceeded),
             Self::NegativeExponent => (ErrorKind::RangeError, ErrorType::NegativeExponent),
-            Self::OutOfMemory => (ErrorKind::InternalError, ErrorType::OutOfMemory),
         }
     }
 
