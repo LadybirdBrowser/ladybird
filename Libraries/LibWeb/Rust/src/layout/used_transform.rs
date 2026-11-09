@@ -9,7 +9,9 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::transform_functions::multiply_transform_functions;
-use libgfx_rust::{AffineTransform, FloatMatrix4x4, affine_to_matrix, translation_matrix};
+use libgfx_rust::{
+    AffineTransform, FloatMatrix4x4, FloatPoint, affine_to_matrix, translated_then_multiplied, translation_matrix,
+};
 
 /// The boxes of a box that its transform reference box and offset path are taken from, in one coordinate space.
 pub(crate) trait TransformGeometry {
@@ -21,27 +23,25 @@ pub(crate) trait TransformGeometry {
     fn svg_additional_element_transform(&self) -> Option<AffineTransform>;
 }
 
+/// The `transform-box` that applies to a box with `style`, which is an SVG element's box where `is_svg` holds.
+pub(crate) fn used_transform_box(style: ComputedValuesView<'_>, is_svg: bool) -> u8 {
+    use css_enums::transform_box::{BORDER_BOX, CONTENT_BOX, FILL_BOX, STROKE_BOX, VIEW_BOX};
+    match (style.transform().transform_box, is_svg) {
+        (CONTENT_BOX, true) => FILL_BOX,
+        (BORDER_BOX, true) => STROKE_BOX,
+        (FILL_BOX, false) => CONTENT_BOX,
+        (STROKE_BOX | VIEW_BOX, false) => BORDER_BOX,
+        (transform_box, _) => transform_box,
+    }
+}
+
 pub(crate) fn transform_reference_box_of(
     style: ComputedValuesView<'_>,
     is_svg: bool,
     geometry: &impl TransformGeometry,
 ) -> CssPixelRect {
-    use css_enums::transform_box::{BORDER_BOX, CONTENT_BOX, FILL_BOX, STROKE_BOX, VIEW_BOX};
-    let mut transform_box = style.transform().transform_box;
-    if is_svg {
-        transform_box = match transform_box {
-            CONTENT_BOX => FILL_BOX,
-            BORDER_BOX => STROKE_BOX,
-            other => other,
-        };
-    } else {
-        transform_box = match transform_box {
-            FILL_BOX => CONTENT_BOX,
-            STROKE_BOX | VIEW_BOX => BORDER_BOX,
-            other => other,
-        };
-    }
-    match transform_box {
+    use css_enums::transform_box::{CONTENT_BOX, FILL_BOX, VIEW_BOX};
+    match used_transform_box(style, is_svg) {
         CONTENT_BOX | FILL_BOX => geometry.content_box(),
         VIEW_BOX => geometry
             .nearest_svg_viewport_user_rect()
@@ -56,6 +56,15 @@ pub(crate) struct UsedTransform {
     pub(crate) matrix: FloatMatrix4x4,
     /// The transform origin, in the coordinate space of the reference box.
     pub(crate) origin: CssPixelPoint,
+}
+
+impl UsedTransform {
+    /// The transform reduced to the 2D affine transform SVG geometry works in, in the coordinate space of the
+    /// reference box.
+    pub(crate) fn to_affine(&self) -> AffineTransform {
+        let (x, y) = (self.origin.x.to_float(), self.origin.y.to_float());
+        translated_then_multiplied(FloatPoint { x, y }, self.matrix.extract_2d_affine()).translated(-x, -y)
+    }
 }
 
 // https://drafts.csswg.org/css-transforms-2/#ctm
