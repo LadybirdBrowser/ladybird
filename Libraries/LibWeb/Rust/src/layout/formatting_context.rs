@@ -1062,39 +1062,14 @@ pub(crate) enum OwnBlockSizeObservation {
     ObservedOnlyByAbsposContainedByRoot,
 }
 
-#[derive(Clone)]
-pub(crate) struct RunRootOutcome {
-    /// The input cells the run left its root, unless its parent owns them.
-    pub(super) input_cells_left_by_run: Option<used_values::RootInputCells>,
-    pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-}
-
-impl RunRootOutcome {
-    /// What the parent keeps of the root once its run returned `result`, given the input cells it handed the run.
-    fn laid_out_child_box(
-        &self,
-        root_cells: used_values::RootInputCells,
-        result: &ChildLayoutResult,
-        content_block_size_adopted_after_run: Option<CssPixels>,
-    ) -> run_state::LaidOutChildBox {
-        let mut cells = self.input_cells_left_by_run.unwrap_or(root_cells);
-        if let Some(block_size) = content_block_size_adopted_after_run {
-            cells.content_block_size = clamp_to_max_dimension_value(block_size.max(CssPixels::default()));
-        }
-        run_state::LaidOutChildBox {
-            cells,
-            baselines: result.baselines,
-            orthogonal_flow_baselines: result.orthogonal_flow_baselines,
-            line_data: self.line_data.clone(),
-        }
-    }
-}
-
 pub(crate) struct RunOutputs {
     pub(crate) result: ChildLayoutResult,
     /// The fragment of the root, where the run builds fragments and is not a fragmentainer's.
     pub(crate) root: Option<fragment_tree::RunRootFragment>,
-    pub(crate) root_outcome: RunRootOutcome,
+    /// The root's cells as its parent keeps them once the run is done, in the parent's frame: where the parent owns
+    /// them, those it handed the run with the content block size the root adopted, and else those the run left.
+    pub(crate) cells: used_values::RootInputCells,
+    pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     /// Which of its inputs the run observed, which the run cache reuses its outputs by.
     pub(crate) observed: fc_run_cache::RunObservations,
     /// Boxed, as most runs find out nothing for the host.
@@ -1118,28 +1093,39 @@ pub(super) enum RunOutputsHandle {
 struct RunOutputParts {
     result: ChildLayoutResult,
     root: Option<fragment_tree::RunRootFragment>,
-    root_outcome: RunRootOutcome,
-    observed: fc_run_cache::RunObservations,
+    cells: used_values::RootInputCells,
+    line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     host_findings: Option<Box<super::run_state::HostFindings>>,
 }
 
 impl RunOutputsHandle {
-    fn into_parts(self, takes_root: bool) -> RunOutputParts {
+    /// The parts of the outputs the parent of a run probed with `probe` takes in, with the root's fragment where
+    /// `takes_root`.
+    fn into_parts(self, takes_root: bool, probe: &fc_run_cache::FcRunCacheKey) -> RunOutputParts {
         match self {
             Self::Owned(outputs) => RunOutputParts {
                 result: outputs.result,
                 root: outputs.root.filter(|_| takes_root),
-                root_outcome: outputs.root_outcome,
-                observed: outputs.observed,
+                cells: outputs.cells,
+                line_data: outputs.line_data,
                 host_findings: outputs.host_findings,
             },
-            Self::Stored(entry) | Self::Reused(entry) => RunOutputParts {
-                result: entry.outputs.result,
-                root: entry.outputs.root.as_ref().filter(|_| takes_root).cloned(),
-                root_outcome: entry.outputs.root_outcome.clone(),
-                observed: entry.outputs.observed,
-                host_findings: entry.outputs.host_findings.clone(),
-            },
+            Self::Stored(entry) => Self::parts_of_stored(&entry.outputs, takes_root, entry.outputs.cells),
+            Self::Reused(entry) => Self::parts_of_stored(
+                &entry.outputs,
+                takes_root,
+                fc_run_cache::cells_at_probe(&entry.outputs, probe),
+            ),
+        }
+    }
+
+    fn parts_of_stored(outputs: &RunOutputs, takes_root: bool, cells: used_values::RootInputCells) -> RunOutputParts {
+        RunOutputParts {
+            result: outputs.result,
+            root: outputs.root.as_ref().filter(|_| takes_root).cloned(),
+            cells,
+            line_data: outputs.line_data.clone(),
+            host_findings: outputs.host_findings.clone(),
         }
     }
 }
@@ -1435,28 +1421,6 @@ impl<'pass> FormattingContextRun<'pass> {
     pub(crate) fn update_svg_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::SvgPayload)) {
         if let Some(fragments) = self.fragments {
             fragments.update_fragment_payload_of(node, |pending| update(pending.svg_mut()));
-        }
-    }
-
-    pub(crate) fn outputs(
-        &self,
-        result: ChildLayoutResult,
-        root: Option<fragment_tree::RunRootFragment>,
-        root_cells_left_by_run: used_values::RootInputCells,
-        root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-        observed: fc_run_cache::RunObservations,
-        parent_owns_root_input_cells: bool,
-    ) -> RunOutputs {
-        let root_outcome = RunRootOutcome {
-            input_cells_left_by_run: (!parent_owns_root_input_cells).then_some(root_cells_left_by_run),
-            line_data: root_line_data,
-        };
-        RunOutputs {
-            result,
-            root,
-            root_outcome,
-            observed,
-            host_findings: self.state.take_host_findings(),
         }
     }
 }
@@ -2385,17 +2349,6 @@ fn layout_after_probe(
     cache_attempt.conclude(&pass, box_, key, outputs)
 }
 
-fn keep_inline_margins_resolved_now_where_unobserved(
-    laid_out_box: &mut run_state::LaidOutChildBox,
-    root_cells: used_values::RootInputCells,
-    inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
-) {
-    if inputs_never_observed.inline_space_around_root {
-        laid_out_box.cells.margin_left = root_cells.margin_left;
-        laid_out_box.cells.margin_right = root_cells.margin_right;
-    }
-}
-
 pub(crate) fn explicit_intrinsic_inner_inline_size(facts: &NodeFacts<'_>) -> CssPixels {
     let style = facts.style();
     if style.contain_intrinsic_width_has_length() {
@@ -2792,14 +2745,26 @@ fn lay_out_run_root_and_contents<'pass>(
             parent_owns_root_input_cells,
         },
     );
-    let outputs = run.outputs(
+    let cells = if parent_owns_root_input_cells {
+        used_values::RootInputCells {
+            content_block_size: content_block_size_run_leaves_root_whose_cells_its_parent_owns(
+                input,
+                root_cells,
+                result.automatic_content_block_size,
+            ),
+            ..root_cells
+        }
+    } else {
+        root_cells_left_by_run
+    };
+    let outputs = RunOutputs {
         result,
         root,
-        root_cells_left_by_run,
-        root_line_data,
+        cells,
+        line_data: root_line_data,
         observed,
-        parent_owns_root_input_cells,
-    );
+        host_findings: state.take_host_findings(),
+    };
     (outputs, root_cells_left_by_run)
 }
 
@@ -3510,7 +3475,10 @@ pub(crate) fn lay_out_measurement_root_for_its_result(
 pub(crate) fn lay_out_shape_for_its_result(pass: LayoutPass<'_>, shape: ChildRunShape) -> ChildLayoutResult {
     let RunOutputParts {
         result, host_findings, ..
-    } = layout(pass, &RunRequest::of_shape(shape), RunSideInputs::default()).into_parts(false);
+    } = {
+        let request = RunRequest::of_shape(shape);
+        layout(pass, &request, RunSideInputs::default()).into_parts(false, &request.key)
+    };
     pass.receive_host_findings(host_findings);
     result
 }
@@ -3552,23 +3520,21 @@ pub(super) fn content_block_size_run_leaves_root_whose_cells_its_parent_owns(
 
 fn child_layout_from_outputs(pass: &LayoutPass<'_>, request: &RunRequest, outputs: RunOutputsHandle) -> ChildLayout {
     let child = request.node;
-    let input = &request.key.input;
-    let root_cells = request.key.root_cells;
     let outputs_are_stored_ones = matches!(outputs, RunOutputsHandle::Reused(_));
     let RunOutputParts {
         result,
         root,
-        root_outcome,
-        observed,
+        cells,
+        line_data,
         host_findings,
-    } = outputs.into_parts(request.caller.collects_fragments());
+    } = outputs.into_parts(request.caller.collects_fragments(), &request.key);
     pass.receive_host_findings(host_findings);
-    let content_block_size_adopted_after_run =
-        content_block_size_adopted_after_run(input, result.automatic_content_block_size);
-    let mut laid_out_box = root_outcome.laid_out_child_box(root_cells, &result, content_block_size_adopted_after_run);
-    if outputs_are_stored_ones {
-        keep_inline_margins_resolved_now_where_unobserved(&mut laid_out_box, root_cells, observed.never_observed);
-    }
+    let laid_out_box = run_state::LaidOutChildBox {
+        cells,
+        baselines: result.baselines,
+        orthogonal_flow_baselines: result.orthogonal_flow_baselines,
+        line_data,
+    };
     let fragment_arrival = root.map(|root| {
         debug_assert!(
             root.fragment.node == child,
