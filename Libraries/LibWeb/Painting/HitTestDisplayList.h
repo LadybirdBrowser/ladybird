@@ -126,9 +126,8 @@ private:
     [[nodiscard]] Item item(Layout::BegunRead const& read, size_t index) const;
 
     [[nodiscard]] Optional<TopmostItem> find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
-    [[nodiscard]] Vector<size_t> hit_item_indices_topmost_first(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
+    [[nodiscard]] Vector<TopmostItem> hit_items_topmost_first(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
 
-    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(Compositing::ContextRef, CSSPixelPoint, HitTestQuery const&) const;
     [[nodiscard]] Layout::Node const* layout_node_for_item(Layout::BegunRead const& read, Item) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item) const;
     [[nodiscard]] HitTestResult hit_test_result_for_item(Layout::BegunRead const& read, Item, CSSPixelPoint local_point) const;
