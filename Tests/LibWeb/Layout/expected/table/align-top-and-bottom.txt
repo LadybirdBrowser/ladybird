@@ -5,11 +5,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <table> at [9,9] table-box [0+1+0 195.328125 0+1+0] [0+1+0 94 0+1+0] [TFC] children: not-inline
           Box <tbody> at [9,9] table-row-group [0+0+0 195.328125 0+0+0] [0+0+0 94 0+0+0] children: not-inline
             Box <tr> at [9,9] table-row [0+0+0 195.328125 0+0+0] [0+0+0 47 0+0+0] children: not-inline
-              BlockContainer <td> at [24,24] table-cell [0+1+15 32.078125 15+1+0] [0+1+15 16 62+1+0] [BFC] children: inline
+              BlockContainer <td> at [24,24] table-cell [0+1+15 32.078125 15+1+0] [0+1+15 63 15+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 3, rect: [24,24 32.078125x16] baseline: 13
                     "Top"
                 TextNode <#text> (not painted)
-              BlockContainer <td> at [87.078125,71] table-cell [0+1+15 55.984375 15+1+0] [0+1+62 16 15+1+0] [BFC] children: inline
+              BlockContainer <td> at [87.078125,24] table-cell [0+1+15 55.984375 15+1+0] [0+1+15 63 15+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 6, rect: [87.078125,71 55.984375x16] baseline: 13
                     "Bottom"
                 TextNode <#text> (not painted)

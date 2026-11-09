@@ -357,6 +357,51 @@ impl ContentKeyword {
     }
 }
 
+/// The alignment of the contents of a block container styled `style` along its block axis.
+pub(crate) fn block_container_content_alignment(style: ComputedValuesView<'_>) -> ContentAlignment {
+    let (keyword, safety) = ContentKeyword::align_content_of(style);
+    // https://drafts.csswg.org/css-align-3/#baseline-values
+    // The fallback alignment for last baseline is safe end.
+    let keyword = if style.align_content_is_last_baseline() {
+        ContentKeyword::End
+    } else {
+        keyword
+    };
+    // https://drafts.csswg.org/css-align-3/#distribution-block
+    // If a <content-distribution> is specified its fallback alignment is used instead.
+    keyword.resolve(safety, AxisDirections::of(true, None))
+}
+
+/// How a table cell aligns its contents along the block axis.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CellAlignment {
+    /// The first baseline of the cell lines up with the baseline of the first row it spans.
+    Baseline,
+    Content(ContentAlignment),
+}
+
+/// The alignment of the contents of a table cell styled `style`. align-content applies to table cells, where a value
+/// other than normal overrides vertical-align: https://drafts.csswg.org/css-align-3/#distribution-block
+/// Of the vertical-align values, "the following values apply to cells: baseline, top, middle, bottom", while the others
+/// "do not apply to cells; the cell is aligned at the baseline instead": https://www.w3.org/TR/CSS22/tables.html#height-layout
+pub(crate) fn cell_alignment(style: StyleValues<'_>) -> CellAlignment {
+    match style.align_content() {
+        align_content::NORMAL => {}
+        align_content::BASELINE if !style.align_content_is_last_baseline() => return CellAlignment::Baseline,
+        _ => return CellAlignment::Content(block_container_content_alignment(*style)),
+    }
+    if !style.vertical_align_is_keyword() {
+        return CellAlignment::Baseline;
+    }
+    let keyword = match style.vertical_align_keyword() {
+        vertical_align::TOP => ContentKeyword::Start,
+        vertical_align::MIDDLE => ContentKeyword::Center,
+        vertical_align::BOTTOM => ContentKeyword::End,
+        _ => return CellAlignment::Baseline,
+    };
+    CellAlignment::Content(keyword.resolve(OverflowSafety::Unsafe, AxisDirections::of(true, None)))
+}
+
 /// https://drafts.csswg.org/css-align-3/#distribution-values
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ContentDistribution {

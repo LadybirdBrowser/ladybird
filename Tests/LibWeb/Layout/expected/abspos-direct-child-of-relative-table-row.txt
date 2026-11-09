@@ -4,15 +4,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TableWrapper <(anonymous)> at [8,8] [0+0+0 200 0+0+584] [0+0+0 60 0+0+0] [BFC] children: not-inline
         Box <div.table> at [8,8] table-box [0+0+0 200 0+0+0] [0+0+0 60 0+0+0] [TFC] children: not-inline
           Box <div.row> at [8,8] positioned table-row [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-            BlockContainer <div.cell> at [8,8] table-cell [0+0+0 79.359375 0+0+0] [0+0+0 16 14+0+0] [BFC] children: inline
+            BlockContainer <div.cell> at [8,8] table-cell [0+0+0 79.359375 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.03125x16] baseline: 13
                   "first"
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [87.359375,23] table-cell [0+0+0 120.640625 0+0+0] [0+0+15 0 15+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [87.359375,8] table-cell [0+0+0 120.640625 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
           Box <div.row> at [8,38] positioned table-row [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
-            BlockContainer <(anonymous)> at [8,51] table-cell [0+0+0 79.359375 0+0+0] [0+0+13 0 17+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [8,38] table-cell [0+0+0 79.359375 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
               BlockContainer <div.abspos> at [18,43] positioned [0+0+0 50 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-            BlockContainer <div.cell> at [87.359375,38] table-cell [0+0+0 120.640625 0+0+0] [0+0+0 16 14+0+0] [BFC] children: inline
+            BlockContainer <div.cell> at [87.359375,38] table-cell [0+0+0 120.640625 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 6, rect: [87.359375,38 54.78125x16] baseline: 13
                   "second"
               TextNode <#text> (not painted)

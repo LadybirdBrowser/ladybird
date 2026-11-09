@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <table> at [301,9] table-box [0+1+0 198 0+1+0] [0+1+0 198 0+1+0] [TFC] children: not-inline
             Box <tbody> at [303,11] table-row-group [0+0+0 194 0+0+0] [0+0+0 194 0+0+0] children: not-inline
               Box <tr> at [303,11] table-row [0+0+0 194 0+0+0] [0+0+0 194 0+0+0] children: not-inline
-                BlockContainer <td> at [304,84] table-cell [0+0+1 192 1+0+0] [0+0+73 48 73+0+0] [BFC] children: not-inline
+                BlockContainer <td> at [304,12] table-cell [0+0+1 192 1+0+0] [0+0+1 192 1+0+0] [BFC] children: not-inline
                   BlockContainer <p> at [304,100] [0+0+0 192 0+0+0] [16+0+0 16 0+0+16] children: inline
                     frag 0 from TextNode start: 0, length: 4, rect: [304,100 26.25x16] baseline: 13
                         "left"

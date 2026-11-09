@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TableWrapper <(anonymous)> at [8,8] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
           Box <div.table> at [8,8] table-box [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
             Box <(anonymous)> at [8,8] table-row [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [8,46.5] table-cell [0+0+0 20 0+0+0] [0+0+38.5 23 38.5+0+0] [BFC] children: inline
+              BlockContainer <div.cell> at [8,8] table-cell [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
                 frag 0 from BlockContainer start: 0, length: 0, rect: [8,46.5 20x20] baseline: 20
                 BlockContainer <span.content> at [8,46.5] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <div.sizer> at [28,8] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <div.table> at [8,128] table-box [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] [TFC] children: not-inline
             BlockContainer <div.caption> at [8,108] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
             Box <(anonymous)> at [8,128] table-row [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [8,156.5] table-cell [0+0+0 20 0+0+0] [0+0+28.5 23 28.5+0+0] [BFC] children: inline
+              BlockContainer <div.cell> at [8,128] table-cell [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] [BFC] children: inline
                 frag 0 from BlockContainer start: 0, length: 0, rect: [8,156.5 20x20] baseline: 20
                 BlockContainer <span.content> at [8,156.5] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <div.sizer> at [28,108] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline

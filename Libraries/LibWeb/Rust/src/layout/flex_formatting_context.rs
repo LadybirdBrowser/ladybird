@@ -3231,8 +3231,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .is_some()
             && let Some(cross_size) = self.flex_items[index].cross_size
         {
-            input.sizing.content_block_size_after_run =
-                geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(cross_size);
+            input.sizing.content_block_size_after_run = geometry::ContentBlockSizeAfterRun::Given(cross_size);
         }
         input
     }

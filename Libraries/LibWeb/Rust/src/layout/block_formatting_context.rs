@@ -1163,22 +1163,10 @@ pub(crate) fn aligns_content_in_block_axis(facts: &NodeFacts<'_>) -> bool {
 }
 
 pub(crate) fn content_alignment_offset(style: ComputedValuesView<'_>, free_space: CssPixels) -> CssPixels {
-    let (keyword, safety) = box_alignment::ContentKeyword::align_content_of(style);
-    // https://drafts.csswg.org/css-align-3/#baseline-values
-    // The fallback alignment for last baseline is safe end.
-    let keyword = if style.align_content_is_last_baseline() {
-        box_alignment::ContentKeyword::End
-    } else {
-        keyword
-    };
-    // https://drafts.csswg.org/css-align-3/#distribution-block
-    // If a <content-distribution> is specified its fallback alignment is used instead.
     // https://drafts.csswg.org/css-align-3/#auto-safety
     // UAs that have not implemented the “smart” default behavior must behave as safe for align-content on block
     // containers and unsafe otherwise.
-    keyword
-        .resolve(safety, box_alignment::AxisDirections::of(true, None))
-        .offset(free_space, box_alignment::OverflowSafety::Safe)
+    box_alignment::block_container_content_alignment(style).offset(free_space, box_alignment::OverflowSafety::Safe)
 }
 
 impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for BlockFormattingContext<'pass> {

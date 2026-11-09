@@ -43,6 +43,8 @@ pub(crate) struct RunObservations {
     /// Whether the root's parent owns the root's input cells, which the run then leaves as they were handed to it but
     /// for the content block size the root adopts.
     pub(super) parent_owns_root_cells: bool,
+    /// Whether the run laid out absolutely positioned boxes against the final sizes and box sides of its root.
+    pub(super) laid_out_abspos_contained_by_root: bool,
 }
 
 /// The cells of the root of the run that produced `result`, as the root's parent keeps them where `probe`, which the
@@ -120,6 +122,7 @@ pub(crate) fn observations_of(
     RunObservations {
         never_observed,
         parent_owns_root_cells: facts.parent_owns_root_input_cells,
+        laid_out_abspos_contained_by_root: facts.laid_out_abspos_contained_by_root,
         table_cell_block_paddings_unobserved: facts.parent_owns_root_input_cells
             && NodeFacts::new(&run.pass, run.box_).is_table_cell()
             && !run_observes_root_block_padding(
@@ -427,6 +430,7 @@ fn sizing_directives_match_ignoring_unobserved(
         forced_min_border_box_block_size,
         table_box_content_block_offset_in_wrapper,
         content_block_size_after_run,
+        table_cell_contents_block_offset,
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
@@ -437,6 +441,7 @@ fn sizing_directives_match_ignoring_unobserved(
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
         && (content_block_size_after_run == b.content_block_size_after_run
             || content_block_size_adopted_after_run_unobserved)
+        && table_cell_contents_block_offset == b.table_cell_contents_block_offset
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
@@ -1256,6 +1261,7 @@ mod tests {
                     },
                     table_cell_block_paddings_unobserved: false,
                     parent_owns_root_cells: false,
+                    laid_out_abspos_contained_by_root: false,
                 },
                 residue: None,
             },
@@ -1667,8 +1673,7 @@ mod tests {
         let stored = key_of(item_input.clone());
 
         let mut adopting_input = item_input;
-        adopting_input.sizing.content_block_size_after_run =
-            geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(px(40));
+        adopting_input.sizing.content_block_size_after_run = geometry::ContentBlockSizeAfterRun::Given(px(40));
         let probe = key_of(adopting_input);
 
         assert!(!stored.matches(&probe, RunInputsTheStoredRunNeverObserved::default()));

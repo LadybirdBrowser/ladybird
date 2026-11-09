@@ -9,7 +9,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 13, rect: [10,10 273.984375x40] baseline: 32
                     "Text baseline"
                 TextNode <#text> (not painted)
-              BlockContainer <td.small-text> at [362.90625,34] table-cell [0+1+1 255.75 1+1+0] [0+1+25 10 7+1+0] [BFC] children: inline
+              BlockContainer <td.small-text> at [362.90625,10] table-cell [0+1+1 255.75 1+1+0] [0+1+1 40 1+1+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [362.90625,34 62.28125x10] baseline: 8
                     "Smaller text"
                 TextNode <#text> (not painted)
