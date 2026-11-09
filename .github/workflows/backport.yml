@@ -100,6 +100,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: 'Create the backport PRs'
+        id: backport
         uses: korthout/backport-action@v4.7.1
         with:
           github_token: ${{ steps.app-token.outputs.token }}
@@ -107,3 +108,13 @@ jobs:
           target_branches: ${{ needs.prepare.outputs.branches }}
           branch_name: backport/${pull_number}-to-${target_branch}
           experimental: '{"conflict_resolution": "draft_commit_conflicts"}'
+
+      - name: 'Fail if any backport failed'
+        if: ${{ steps.backport.outputs.was_successful != 'true' }}
+        shell: bash
+        env:
+          WAS_SUCCESSFUL_BY_TARGET: ${{ steps.backport.outputs.was_successful_by_target }}
+        run: |
+          failed=$(sed -n 's/=false$//p' <<< "${WAS_SUCCESSFUL_BY_TARGET}" | paste -sd ' ' -)
+          echo "::error::Backporting to ${failed} failed. See the comment on the original PR."
+          exit 1
