@@ -40,13 +40,16 @@ describe("normal behavior", () => {
         expect(new SuppressedError(undefined, undefined, {})).toHaveProperty("message", "[object Object]");
     });
 
-    test("supports options object with cause", () => {
-        const cause = new Error();
-        const error = new SuppressedError(1, 2, "test", { cause });
-        expect(error.hasOwnProperty("cause")).toBeTrue();
-        expect(error.cause).toBe(cause);
-
-        const errorWithoutCase = new SuppressedError(1, 2, "test");
-        expect(errorWithoutCase.hasOwnProperty("cause")).toBeFalse();
+    test("has no options argument", () => {
+        let causeReads = 0;
+        const options = {
+            get cause() {
+                ++causeReads;
+                return new Error();
+            },
+        };
+        const error = new SuppressedError(1, 2, "test", options);
+        expect(causeReads).toBe(0);
+        expect(error.hasOwnProperty("cause")).toBeFalse();
     });
 });
