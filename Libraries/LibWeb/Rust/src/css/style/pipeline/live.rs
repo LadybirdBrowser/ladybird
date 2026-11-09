@@ -2610,10 +2610,10 @@ struct FollowScratch {
 struct CompoundMemo {
     /// The stamp of the element whose answers each slot holds: starting the next element is a new
     /// stamp, not a clearing.
-    stamps: Vec<u32>,
+    stamps: Vec<u16>,
     /// The answers of each slot, two bits per kind: none yet, unknown, false or true.
     answers: Vec<u8>,
-    stamp: u32,
+    stamp: u16,
 }
 
 /// What a memo answer of a compound is: of the element on its own or from it leftwards, after or
@@ -4616,6 +4616,19 @@ mod tests {
     use std::cell::Cell;
 
     const SIBLINGS: u32 = 1000;
+
+    #[test]
+    fn compound_memo_forgets_answers_when_the_stamp_wraps() {
+        let mut memo = CompoundMemo::default();
+        let kind = MemoKind::Own { before: false };
+        memo.start(1);
+        memo.stamp = 1;
+        memo.set(0, kind, Some(true));
+
+        memo.stamp = u16::MAX;
+        memo.start(1);
+        assert!(matches!(memo.get(0, kind), MemoAnswer::Unasked));
+    }
 
     fn next_of(steps: &Cell<u32>) -> impl Fn(StyleNodeID) -> Option<StyleNodeID> + '_ {
         |node| {
