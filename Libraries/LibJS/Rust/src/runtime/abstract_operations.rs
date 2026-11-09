@@ -1542,9 +1542,10 @@ pub fn eval_declaration_instantiation(
                 //             a. If thisEnv is not the Environment Record for a Catch clause, set bindingExists to true.
                 //         2. Else,
                 //             a. Set bindingExists to true.
-                // FIXME: Leave out the environment of a Catch clause, as the web browser branch does.
+                // AD-HOC: We are a web browser, so we only implement the web browser branch.
                 if !this_environment.is_object_environment()
                     && this_environment.has_binding(vm, function_name, None).must()
+                    && !this_environment.is_catch_environment()
                 {
                     binding_exists = true;
                     break;

@@ -71,3 +71,17 @@ describe("eval catch block redeclaration", () => {
         }
     });
 });
+
+test("a function in a block of eval code hoists past a catch parameter of its name", () => {
+    function run() {
+        var read = () => x;
+        try {
+            throw 1;
+        } catch (x) {
+            eval("var before; try { before = read(); } catch (e) { before = e.name; } { function x() {} }");
+        }
+        return [before, typeof x];
+    }
+    expect(run()).toEqual([undefined, "function"]);
+    expect(Object.hasOwn(globalThis, "x")).toBeFalse();
+});
