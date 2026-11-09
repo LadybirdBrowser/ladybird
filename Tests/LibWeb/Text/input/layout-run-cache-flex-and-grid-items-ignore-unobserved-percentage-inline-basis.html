@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    #flex { display: flex; width: 300px; height: 40px; }
+    #grid { display: grid; grid-template-columns: 50% 25% 25%; width: 300px; height: 40px; }
+    .flex-item { display: flex; width: 40px; height: 20px; }
+    .grid-item { display: grid; width: 40px; height: 20px; }
+    .padded { padding-left: 10%; }
+    .half { width: 50%; height: 10px; }
+</style>
+<div id="flex"><div class="flex-item" id="flexInFlex"><div class="half" id="flexInFlexHalf"></div></div><div class="grid-item" id="gridInFlex"><div class="half" id="gridInFlexHalf"></div></div><div class="flex-item padded" id="paddedFlexInFlex"><div class="half" id="paddedFlexInFlexHalf"></div></div></div>
+<div id="grid"><div class="flex-item" id="flexInGrid"><div class="half" id="flexInGridHalf"></div></div><div class="grid-item" id="gridInGrid"><div class="half" id="gridInGridHalf"></div></div><div class="grid-item padded" id="paddedGridInGrid"><div class="half" id="paddedGridInGridHalf"></div></div></div>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "a narrower flex container replays its fixed-size flex and grid items",
+                mutate: () => {
+                    flex.style.width = "200px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex RUN (cache=miss)
+                            Box<DIV>#flexInFlex.flex-item/flex REUSE SUBTREE
+                            Box<DIV>#gridInFlex.grid-item/grid REUSE SUBTREE
+                            Box<DIV>#paddedFlexInFlex.flex-item.padded/flex RUN (cache=miss)
+                              BlockContainer<DIV>#paddedFlexInFlexHalf.half/block REUSE SUBTREE
+                          Box<DIV>#grid/grid REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(flexInFlexHalf.getBoundingClientRect().width, 20, "flex item child width");
+                    equal(gridInFlexHalf.getBoundingClientRect().width, 20, "grid item child width");
+                    equal(paddedFlexInFlex.getBoundingClientRect().width, 60, "padded item width");
+                    equal(paddedFlexInFlexHalf.getBoundingClientRect().left, 100, "padded item child left");
+                },
+            },
+            {
+                name: "a narrower grid container replays its fixed-size flex and grid items",
+                mutate: () => {
+                    grid.style.width = "200px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#flex/flex REUSE SUBTREE
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            Box<DIV>#flexInGrid.flex-item/flex REUSE SUBTREE
+                            Box<DIV>#gridInGrid.grid-item/grid REUSE SUBTREE
+                            Box<DIV>#paddedGridInGrid.grid-item.padded/grid RUN (cache=miss)
+                              BlockContainer<DIV>#paddedGridInGridHalf.half/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(flexInGridHalf.getBoundingClientRect().width, 20, "flex item child width");
+                    equal(gridInGridHalf.getBoundingClientRect().width, 20, "grid item child width");
+                    equal(paddedGridInGrid.getBoundingClientRect().width, 45, "padded item width");
+                    equal(paddedGridInGridHalf.getBoundingClientRect().left, 155, "padded item child left");
+                },
+            },
+        ],
+    });
+</script>

@@ -3657,14 +3657,17 @@ fn table_in_wrapper_never_observes_percentage_inline_basis(run: &FormattingConte
     true
 }
 
-/// Whether the run is of an item block container whose content resolves percentages against the container itself.
+/// Whether the run is of an item block, flex or grid container whose content resolves percentages against the
+/// container itself.
 fn item_run_never_observes_percentage_inline_basis(
     run: &FormattingContextRun,
     fc_type: FormattingContextType,
     input: &LayoutInput,
 ) -> bool {
-    fc_type == FormattingContextType::Block
-        && parent_owns_root_input_cells(&run.pass, run.box_, input)
+    matches!(
+        fc_type,
+        FormattingContextType::Block | FormattingContextType::Flex | FormattingContextType::Grid
+    ) && parent_owns_root_input_cells(&run.pass, run.box_, input)
         && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_)
 }
 
