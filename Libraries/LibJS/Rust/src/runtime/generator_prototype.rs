@@ -97,7 +97,11 @@ impl GeneratorPrototype {
         // 1. Return ? GeneratorResume(this value, value, empty).
         let generator_object = typed_this_object::<GeneratorObject>(vm, DISPLAY_NAME)?;
         let iteration_result = generator_object.resume(vm, vm.argument(0), None)?;
-        Ok(generator_resume_result_to_value(vm, iteration_result))
+        Ok(generator_resume_result_to_value(
+            vm,
+            &generator_object,
+            iteration_result,
+        ))
     }
 
     // 27.5.1.3 Generator.prototype.return ( value ), https://tc39.es/ecma262/#sec-generator.prototype.return
@@ -110,7 +114,11 @@ impl GeneratorPrototype {
 
         // 3. Return ? GeneratorResumeAbrupt(g, C, empty).
         let iteration_result = generator_object.resume_abrupt(vm, completion, None)?;
-        Ok(generator_resume_result_to_value(vm, iteration_result))
+        Ok(generator_resume_result_to_value(
+            vm,
+            &generator_object,
+            iteration_result,
+        ))
     }
 
     // 27.5.1.4 Generator.prototype.throw ( exception ), https://tc39.es/ecma262/#sec-generator.prototype.throw
@@ -124,18 +132,31 @@ impl GeneratorPrototype {
 
         // 3. Return ? GeneratorResumeAbrupt(g, C, empty).
         let iteration_result = generator_object.resume_abrupt(vm, completion, None)?;
-        Ok(generator_resume_result_to_value(vm, iteration_result))
+        Ok(generator_resume_result_to_value(
+            vm,
+            &generator_object,
+            iteration_result,
+        ))
     }
 }
 
-fn generator_resume_result_to_value(vm: &Vm, iteration_result: IterationResult) -> Value {
+fn generator_resume_result_to_value(
+    vm: &Vm,
+    generator_object: &GeneratorObject,
+    iteration_result: IterationResult,
+) -> Value {
     if iteration_result.value_is_iterator_result {
         assert!(iteration_result.value.is_object());
         return iteration_result.value;
     }
-    let realm = vm
-        .current_realm()
-        .expect("a generator is resumed in an execution context with a realm");
+    // NB: Yield makes its result object in the generator's context. Only the result of a completed generator comes from
+    //     the context that resumed it.
+    let realm = if iteration_result.done {
+        vm.current_realm()
+    } else {
+        generator_object.realm_of_context()
+    }
+    .expect("a generator is resumed in an execution context with a realm");
     Value::from_object(create_iterator_result_object(
         vm,
         realm,

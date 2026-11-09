@@ -247,6 +247,14 @@ impl GeneratorObject {
             .as_non_null()
     }
 
+    /// The Realm of [[GeneratorContext]], until the generator completes.
+    pub fn realm_of_context(&self) -> Option<Gc<Realm>> {
+        self.execution_context
+            .borrow()
+            .as_ref()
+            .and_then(|context| context.realm.get())
+    }
+
     /// Once a generator enters the completed state it never leaves it and its associated execution context is never
     /// resumed. Any execution state associated with generator can be discarded at this point.
     /// NB: Freeing the context right away, rather than when the generator is finalized, lets the next generator reuse
