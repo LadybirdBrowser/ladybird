@@ -14,6 +14,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
@@ -1242,6 +1243,15 @@ QImage WebContentView::visible_snapshot() const
         if (width <= 0 || height <= 0)
             return {};
 
+#ifdef AK_OS_MACOS
+        // The Compositor announces a frame once its GPU work is scheduled, not once it's done. Reading the surface
+        // on the CPU needs it locked, which also waits for those pending GPU writes — without the lock, a snapshot
+        // of a page that redraws every frame can catch it half-drawn.
+        auto const& surface = paintable->shared_image_buffer->iosurface_handle();
+        if (!surface.lock_read_only())
+            return {};
+        ScopeGuard unlock_surface = [&] { surface.unlock_read_only(); };
+#endif
         QImage image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
         return image.copy(0, 0, width, height);
     }
