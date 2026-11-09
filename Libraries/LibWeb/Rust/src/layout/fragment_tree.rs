@@ -115,7 +115,7 @@ pub(crate) enum FcPayload {
     Flex(std::sync::Arc<formatting_context::FlexLayoutData>),
     Multicol(std::sync::Arc<fragmentation::MulticolLayoutData>),
     Math(std::sync::Arc<math_formatting_context::MathPaintData>),
-    Svg(SvgPayload),
+    Svg(std::sync::Arc<SvgPayload>),
 }
 
 #[derive(Clone, Default)]
@@ -127,6 +127,7 @@ pub(crate) struct GridPayload {
 #[derive(Clone, Default)]
 pub(crate) struct SvgPayload {
     pub(crate) facts: CommittedSvgFacts,
+    pub(crate) geometry: svg_formatting_context::SvgGeometry,
     pub(crate) path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
 }
@@ -147,6 +148,7 @@ impl PartialEq for FcPayload {
             (Self::Math(left), Self::Math(right)) => left == right,
             (Self::Svg(left), Self::Svg(right)) => {
                 left.facts == right.facts
+                    && left.geometry == right.geometry
                     && same_allocation(left.path.as_ref(), right.path.as_ref())
                     && same_allocation(left.text_character_cells.as_ref(), right.text_character_cells.as_ref())
             }
@@ -168,6 +170,7 @@ impl FcPayload {
             (Self::Math(left), Self::Math(right)) => left == right,
             (Self::Svg(left), Self::Svg(right)) => {
                 left.facts == right.facts
+                    && left.geometry == right.geometry
                     && left.path == right.path
                     && left.text_character_cells == right.text_character_cells
             }
@@ -179,7 +182,10 @@ impl FcPayload {
         match self {
             Self::Grid(grid) => grid.layout_data.is_none() && grid.used_tracks.is_none(),
             Self::Svg(svg) => {
-                svg.facts == CommittedSvgFacts::default() && svg.path.is_none() && svg.text_character_cells.is_none()
+                svg.facts == CommittedSvgFacts::default()
+                    && svg.geometry == Default::default()
+                    && svg.path.is_none()
+                    && svg.text_character_cells.is_none()
             }
             Self::Table(_) | Self::Flex(_) | Self::Multicol(_) | Self::Math(_) => false,
         }
@@ -231,9 +237,9 @@ impl PendingPayload {
 
     pub(crate) fn svg_mut(&mut self) -> &mut SvgPayload {
         self.variant_mut(
-            || FcPayload::Svg(SvgPayload::default()),
+            || FcPayload::Svg(Default::default()),
             |payload| match payload {
-                FcPayload::Svg(svg) => Some(svg),
+                FcPayload::Svg(svg) => Some(std::sync::Arc::make_mut(svg)),
                 _ => None,
             },
         )
@@ -469,7 +475,7 @@ impl Fragment {
 
     pub(crate) fn svg(&self) -> Option<&SvgPayload> {
         match self.payload.as_deref()? {
-            FcPayload::Svg(svg) => Some(svg),
+            FcPayload::Svg(svg) => Some(svg.as_ref()),
             _ => None,
         }
     }
