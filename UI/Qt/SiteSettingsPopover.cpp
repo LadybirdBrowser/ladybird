@@ -185,22 +185,27 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent, WebView::Settings& set
     autoplay_row->addWidget(autoplay_label, 1);
     m_autoplay_button = create_value_button(*m_site_page);
     QObject::connect(m_autoplay_button, &QPushButton::clicked, this, [this] {
-        // A site is either allowed to autoplay, or follows the default, which the menu names so that the choice it shows
-        // on the button is always one of those in the menu.
         auto const& autoplay = m_settings.autoplay_settings();
-        auto is_allowed_on_site = autoplay.site_filters.contains(m_host);
+        auto site_policy = autoplay.site_filters.get(m_host);
         QMenu menu(this);
-        auto* allow = menu.addAction("Allow");
-        allow->setCheckable(true);
-        allow->setChecked(is_allowed_on_site);
+
+        for (auto policy : { Web::HTML::AutoplayPolicy::AllowAudioAndVideo, Web::HTML::AutoplayPolicy::BlockAudio, Web::HTML::AutoplayPolicy::BlockAudioAndVideo }) {
+            auto* action = menu.addAction(autoplay_policy_name(policy));
+            action->setData(static_cast<int>(policy));
+            action->setCheckable(true);
+            action->setChecked(site_policy == policy);
+        }
+
         auto* use_default = menu.addAction(qformatted("Default ({})", autoplay_policy_name(autoplay.policy)));
         use_default->setCheckable(true);
-        use_default->setChecked(!is_allowed_on_site);
+        use_default->setChecked(!site_policy.has_value());
+
         auto* chosen = menu.exec(m_autoplay_button->mapToGlobal(QPoint(0, m_autoplay_button->height())));
-        if (chosen == allow)
-            m_settings.add_autoplay_site_filter(m_host);
-        else if (chosen == use_default)
+        if (chosen == use_default)
             m_settings.remove_autoplay_site_filter(m_host);
+        else if (chosen)
+            m_settings.add_autoplay_site_filter(m_host, static_cast<Web::HTML::AutoplayPolicy>(chosen->data().toInt()));
+
         update_autoplay();
     });
     autoplay_row->addWidget(m_autoplay_button);
@@ -510,7 +515,7 @@ void SiteSettingsPopover::content_settings_changed()
 void SiteSettingsPopover::update_autoplay()
 {
     auto const& autoplay = m_settings.autoplay_settings();
-    auto name = autoplay.site_filters.contains(m_host) ? QStringLiteral("Allow") : autoplay_policy_name(autoplay.policy);
+    auto name = autoplay_policy_name(autoplay.site_filters.get(m_host).value_or(autoplay.policy));
     m_autoplay_button->setText(name);
     m_autoplay_button->setIcon(create_chrome_icon(ChromeIcon::ChevronDown, Theme::panel().muted));
     update_reset_link();

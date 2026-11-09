@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Utf16String.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,17 +24,22 @@ AutoplaySettings::~AutoplaySettings() = default;
 
 AutoplayDecision AutoplaySettings::decision_for_origin(DOM::Document const& document, URL::Origin const& origin) const
 {
-    // An origin in the allowlist may always autoplay, with or without audio.
-    for (auto const& allowed : m_allowlist) {
-        if (allowed.is_same_origin_domain(origin))
-            return AutoplayDecision::Allowed;
+    auto policy = m_policy;
+    auto has_site_policy = false;
+
+    for (auto const& site_policy : m_site_policies) {
+        if (site_policy.origin.is_same_origin_domain(origin)) {
+            policy = site_policy.policy;
+            has_site_policy = true;
+            break;
+        }
     }
 
     // AD-HOC: Allow autoplay for file:// URLs if the document is also from a file:// URL.
-    if (origin.is_opaque_file_origin() && document.origin().is_opaque_file_origin())
+    if (!has_site_policy && origin.is_opaque_file_origin() && document.origin().is_opaque_file_origin())
         return AutoplayDecision::Allowed;
 
-    switch (m_policy) {
+    switch (policy) {
     case AutoplayPolicy::AllowAudioAndVideo:
         return AutoplayDecision::Allowed;
     case AutoplayPolicy::BlockAudio:
@@ -45,24 +51,25 @@ AutoplayDecision AutoplaySettings::decision_for_origin(DOM::Document const& docu
     VERIFY_NOT_REACHED();
 }
 
-void AutoplaySettings::set_policy(AutoplayPolicy policy, ReadonlySpan<Utf16String> allowlist)
+void AutoplaySettings::set_policy(AutoplayPolicy policy, OrderedHashMap<String, AutoplayPolicy> const& site_policies)
 {
     m_policy = policy;
 
-    m_allowlist.clear_with_capacity();
-    m_allowlist.ensure_capacity(allowlist.size());
+    m_site_policies.clear_with_capacity();
+    m_site_policies.ensure_capacity(site_policies.size());
 
-    for (auto const& origin : allowlist) {
+    for (auto const& [filter, site_policy] : site_policies) {
+        auto origin = Utf16String::from_utf8(filter);
         auto url = DOMURL::parse(origin);
 
         if (!url.has_value())
             url = DOMURL::parse(Utf16String::formatted("https://{}", origin));
         if (!url.has_value()) {
-            dbgln("Invalid origin for autoplay allowlist: {}", origin);
+            dbgln("Invalid origin for autoplay exception: {}", origin);
             continue;
         }
 
-        m_allowlist.append(url->origin());
+        m_site_policies.append({ url->origin(), site_policy });
     }
 }
 

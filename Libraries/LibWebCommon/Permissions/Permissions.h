@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -20,6 +21,12 @@ enum class PermissionName : u8 {
     Geolocation,
     Microphone,
     Notifications,
+};
+
+constexpr inline Array PERMISSION_NAMES {
+    PermissionName::Geolocation,
+    PermissionName::Microphone,
+    PermissionName::Notifications,
 };
 
 WEBCOMMON_API Optional<PermissionName> permission_name_from_string(StringView);
