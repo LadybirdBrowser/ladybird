@@ -1,0 +1,4 @@
+flex item around a <input> with width: 100%: 60px
+flex item around a <input> with max-width: 100%: 169.6875px
+flex item around a <textarea> with width: 100%: 60px
+flex item around a <textarea> with max-width: 100%: 245.53125px

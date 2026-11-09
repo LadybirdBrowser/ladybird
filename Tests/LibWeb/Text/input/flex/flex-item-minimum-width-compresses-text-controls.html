@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    .box {
+        display: flex;
+        width: 60px;
+    }
+    .item {
+        flex: 1 1 auto;
+    }
+    .item > * {
+        box-sizing: border-box;
+        display: block;
+    }
+    .percentage-width > * {
+        width: 100%;
+    }
+    .percentage-max-width > * {
+        max-width: 100%;
+    }
+</style>
+<div class="box"><div class="item percentage-width" id="input"><input></div></div>
+<div class="box"><div class="item percentage-width" id="textarea"><textarea cols="30"></textarea></div></div>
+<div class="box"><div class="item percentage-max-width" id="input-max"><input></div></div>
+<div class="box"><div class="item percentage-max-width" id="textarea-max"><textarea cols="30"></textarea></div></div>
+<script src="../include.js"></script>
+<script>
+    // A text input or a textarea with a percentage width is compressible: its min-content contribution resolves that
+    // percentage against zero, so the flex item around it can shrink to its container. A percentage max-width doesn't
+    // compress it, so the flex item around it keeps the control's default width.
+    test(() => {
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        for (const element of ["input", "textarea"]) {
+            println(`flex item around a <${element}> with width: 100%: ${width(element)}px`);
+            println(`flex item around a <${element}> with max-width: 100%: ${width(`${element}-max`)}px`);
+        }
+    });
+</script>

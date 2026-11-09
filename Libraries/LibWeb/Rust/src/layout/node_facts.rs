@@ -1016,6 +1016,13 @@ impl<'pass> NodeFacts<'pass> {
         kind_is_replaced_box(self.data().kind.get())
     }
 
+    /// https://drafts.csswg.org/css-sizing-3/#min-content-zero
+    /// A box whose cyclic percentage width resolves against zero for its min-content contribution: a replaced box, or a
+    /// compressible text control (a text entry input or a textarea).
+    pub(crate) fn resolves_cyclic_percentages_like_replaced_box(&self) -> bool {
+        self.is_replaced_box() || self.is_text_input() || self.data().kind.get() == NodeKind::TextAreaBox
+    }
+
     pub(crate) fn is_range_input_box(&self) -> bool {
         self.data().kind.get() == NodeKind::RangeInputBox
     }
