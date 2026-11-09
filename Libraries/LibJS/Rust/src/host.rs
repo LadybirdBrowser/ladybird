@@ -44,3 +44,18 @@ pub fn string_to_bigint(string: &[u16]) -> Option<BigInt> {
 pub fn exponentiate(base: f64, exponent: f64) -> f64 {
     implementation::exponentiate(base, exponent)
 }
+
+/// BigInt::exponentiate(base, exponent), which the host implements. Returns None where it throws.
+pub fn bigint_exponentiate(base: &BigInt, exponent: &BigInt) -> Option<BigInt> {
+    implementation::bigint_exponentiate(base, exponent)
+}
+
+/// BigInt::leftShift(x, y), which the host implements. Returns None where it throws.
+pub fn bigint_left_shift(x: &BigInt, y: &BigInt) -> Option<BigInt> {
+    implementation::bigint_left_shift(x, y)
+}
+
+/// BigInt::signedRightShift(x, y), which the host implements. Returns None where it throws.
+pub fn bigint_signed_right_shift(x: &BigInt, y: &BigInt) -> Option<BigInt> {
+    implementation::bigint_signed_right_shift(x, y)
+}

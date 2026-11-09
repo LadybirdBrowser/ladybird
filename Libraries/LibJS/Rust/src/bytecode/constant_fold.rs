@@ -9,8 +9,6 @@
 use num_bigint::BigInt;
 use num_traits::FromPrimitive;
 use num_traits::One;
-use num_traits::Signed;
-use num_traits::ToPrimitive;
 use num_traits::Zero;
 
 use libjs_abi::value as nan_box;
@@ -256,15 +254,12 @@ fn try_constant_fold_bigint_binary<G: ConstantPool>(
             Some(generator.add_constant_bigint((&a % &b).to_string()))
         }
         BinaryOp::Exponentiation => {
-            if b.is_negative() {
-                return None; // Negative exponent throws at runtime.
-            }
-            let exp = b.to_u32()?;
             // Only fold small exponents to avoid huge results.
-            if exp > 1000 {
+            if b > BigInt::from(1000) {
                 return None;
             }
-            Some(generator.add_constant_bigint(num_traits::pow::pow(a, exp as usize).to_string()))
+            let result = crate::host::bigint_exponentiate(&a, &b)?;
+            Some(generator.add_constant_bigint(result.to_string()))
         }
         // Comparison operations: produce a Boolean result.
         BinaryOp::StrictlyEquals | BinaryOp::LooselyEquals => Some(generator.add_constant_boolean(a == b)),
@@ -277,17 +272,20 @@ fn try_constant_fold_bigint_binary<G: ConstantPool>(
         BinaryOp::BitwiseAnd => Some(generator.add_constant_bigint((&a & &b).to_string())),
         BinaryOp::BitwiseOr => Some(generator.add_constant_bigint((&a | &b).to_string())),
         BinaryOp::BitwiseXor => Some(generator.add_constant_bigint((&a ^ &b).to_string())),
+        // Only fold shifts that grow the value a little, to avoid huge results.
         BinaryOp::LeftShift => {
-            let shift = b.to_u64()?;
-            if shift > 512 {
+            if b > BigInt::from(512) {
                 return None;
             }
-            Some(generator.add_constant_bigint((&a << shift as usize).to_string()))
+            let result = crate::host::bigint_left_shift(&a, &b)?;
+            Some(generator.add_constant_bigint(result.to_string()))
         }
         BinaryOp::RightShift => {
-            let shift = b.to_u64()?;
-            // BigInt right shift for negative numbers floors toward negative infinity.
-            Some(generator.add_constant_bigint((&a >> shift).to_string()))
+            if b < BigInt::from(-512) {
+                return None;
+            }
+            let result = crate::host::bigint_signed_right_shift(&a, &b)?;
+            Some(generator.add_constant_bigint(result.to_string()))
         }
         // UnsignedRightShift throws TypeError for BigInt.
         _ => None,

@@ -10,6 +10,7 @@ use libregex_rust::ast::Flags;
 use libregex_rust::regex::Regex;
 use num_bigint::BigInt;
 
+use crate::runtime::big_int_algorithms;
 use crate::runtime::regexp_object::parse_regex_pattern;
 use crate::runtime::value::number_to_string;
 use crate::runtime::value_conversions;
@@ -59,4 +60,19 @@ pub fn string_to_bigint(string: &[u16]) -> Option<BigInt> {
 /// Number::exponentiate(base, exponent), which the frontend uses to fold `**`.
 pub fn exponentiate(base: f64, exponent: f64) -> f64 {
     value_conversions::exp_double(base, exponent)
+}
+
+/// BigInt::exponentiate(base, exponent), which the frontend uses to fold `**`.
+pub fn bigint_exponentiate(base: &BigInt, exponent: &BigInt) -> Option<BigInt> {
+    big_int_algorithms::exponentiate(base, exponent).ok()
+}
+
+/// BigInt::leftShift(x, y), which the frontend uses to fold `<<`.
+pub fn bigint_left_shift(x: &BigInt, y: &BigInt) -> Option<BigInt> {
+    big_int_algorithms::left_shift(x, y).ok()
+}
+
+/// BigInt::signedRightShift(x, y), which the frontend uses to fold `>>`.
+pub fn bigint_signed_right_shift(x: &BigInt, y: &BigInt) -> Option<BigInt> {
+    big_int_algorithms::signed_right_shift(x, y).ok()
 }
