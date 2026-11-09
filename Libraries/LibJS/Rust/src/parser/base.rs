@@ -1411,9 +1411,14 @@ impl<'a, U: Unit> Parser<'a, U> {
     pub(crate) fn is_declared_in_current_function(&self, name: u32) -> bool {
         let mut d = self.names.get(name as usize).map_or(NONE, |state| state.decl_head);
         let mut function_scope = 0;
+        let mut declaring_flags = decl::LEXICAL | decl::VAR | decl::PARAMETER | decl::HOISTABLE;
         for scope in self.scopes.iter().rev() {
             if scope.flags & (scope_flag::FUNCTION | scope_flag::STATIC_BLOCK) != 0 {
                 function_scope = scope.id;
+                if scope.flags & (scope_flag::FUNCTION | scope_flag::ARROW) == scope_flag::FUNCTION {
+                    // NB: A `var` in a function with an arguments object of its own is the binding of that object.
+                    declaring_flags = decl::LEXICAL | decl::FUNCTION | decl::PARAMETER | decl::HOISTABLE;
+                }
                 break;
             }
         }
@@ -1422,7 +1427,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             if row.scope < function_scope {
                 break;
             }
-            if row.flags & (decl::LEXICAL | decl::VAR | decl::PARAMETER | decl::HOISTABLE) != 0 {
+            if row.flags & declaring_flags != 0 {
                 return true;
             }
             d = row.next_same_name;
