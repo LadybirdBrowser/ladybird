@@ -323,6 +323,14 @@ impl<'arena> LayoutPass<'arena> {
         self.host_findings.notes_so_far()
     }
 
+    /// Hands what a finished run found out besides its result to the run this pass view was handed to, which takes in
+    /// its result.
+    pub(crate) fn receive_residue(&self, residue: Option<Box<super::run_state::RunResidue>>) {
+        if let Some(residue) = residue {
+            self.note_host_findings(|into| into.receive(residue.host_findings));
+        }
+    }
+
     /// Hands what a finished run found out to the run this pass view was handed to, which used its result.
     pub(crate) fn receive_host_findings(&self, findings: Option<Box<super::run_state::HostFindings>>) {
         if let Some(findings) = findings {

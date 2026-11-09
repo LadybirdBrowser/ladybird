@@ -4990,7 +4990,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         Some(formatting_context::ChildRunShape {
             node: child,
-            key: fc_run_cache::FcRunCacheKey::new(&self.run.pass, plan.fc_type, plan.input, cells.get()),
+            key: fc_run_cache::LayoutRequest::new(&self.run.pass, plan.fc_type, plan.input, cells.get()),
             root_containing_block: plan.root_containing_block,
         })
     }
@@ -6188,14 +6188,14 @@ impl<'pass> BlockFormattingContext<'pass> {
                 early_break_before,
                 allows_early_break_requests,
             ));
-            let outputs = formatting_context::run_fragmentainer(
+            let layout = formatting_context::run_fragmentainer(
                 &self.run,
                 column_root_cells,
                 builds_fragments,
                 input.clone(),
                 fragmentainer.clone(),
             );
-            if outputs.result.depends_on_percentage_block_size {
+            if layout.outcome.depends_on_percentage_block_size {
                 self.run
                     .state
                     .note_descendant_depends_on_percentage_block_size(self.run.box_);
@@ -6228,12 +6228,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 );
             }
             // NB: Only the attempt that is kept tells the host what it found out.
-            self.run.pass.receive_host_findings(outputs.host_findings);
+            self.run.pass.receive_residue(layout.residue);
             return ColumnLayout {
                 outcome,
-                consumed_block_size: outputs.result.automatic_content_block_size,
-                baselines: outputs.result.baselines,
-                root_line_data: outputs.line_data,
+                consumed_block_size: layout.outcome.automatic_content_block_size,
+                baselines: layout.outcome.baselines,
+                root_line_data: fragmentainer.take_root_line_data(),
                 contents: fragmentainer.take_contents(),
             };
         }
