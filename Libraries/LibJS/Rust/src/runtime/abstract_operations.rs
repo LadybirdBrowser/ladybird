@@ -1401,8 +1401,7 @@ fn compile_eval(
     })
 }
 
-// 19.2.1.3 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
-// 9.1.1.1 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/proposal-explicit-resource-management/#sec-evaldeclarationinstantiation
+// 19.2.1.4 EvalDeclarationInstantiation ( body, variableEnv, lexicalEnv, privateEnv, strict ), https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
 pub fn eval_declaration_instantiation(
     vm: &Vm,
     data: &EvalDeclarationData<'_>,
@@ -1414,15 +1413,15 @@ pub fn eval_declaration_instantiation(
     let realm = vm.current_realm().expect("eval runs in a realm");
     let global_var_environment = variable_environment.downcast::<GlobalEnvironment>();
 
-    // 1. Let varNames be the VarDeclaredNames of body.
-    // 2. Let varDeclarations be the VarScopedDeclarations of body.
+    // 1. Let variableNames be the VarDeclaredNames of body.
+    // 2. Let variableDecls be the VarScopedDeclarations of body.
     // 3. If strict is false, then
     if !strict {
-        // a. If varEnv is a global Environment Record, then
+        // a. If variableEnv is a Global Environment Record, then
         if let Some(global_var_environment) = global_var_environment {
-            // i. For each element name of varNames, do
+            // i. For each element name of variableNames, do
             for name in &data.var_names {
-                // 1. If varEnv.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
+                // 1. If HasLexicalDeclaration(variableEnv, name) is true, throw a SyntaxError exception.
                 if global_var_environment.has_lexical_declaration(name) {
                     return vm.throw_completion(
                         ErrorKind::SyntaxError,
@@ -1431,29 +1430,27 @@ pub fn eval_declaration_instantiation(
                     );
                 }
 
-                // 2. NOTE: eval will not create a global var declaration that would be shadowed by a global lexical declaration.
+                // 2. NOTE: `eval` will not create a global var declaration that would be shadowed by a global lexical declaration.
             }
         }
 
-        // b. Let thisEnv be lexEnv.
+        // b. Let thisEnv be lexicalEnv.
         let mut this_environment = lexical_environment;
         // c. Assert: The following loop will terminate.
 
-        // d. Repeat, while thisEnv is not the same as varEnv,
+        // d. Repeat, while thisEnv and variableEnv are not the same Environment Record,
         while this_environment != variable_environment {
-            // i. If thisEnv is not an object Environment Record, then
+            // i. If thisEnv is not an Object Environment Record, then
             if !this_environment.is_object_environment() {
                 // 1. NOTE: The environment of with statements cannot contain any lexical declaration so it doesn't need to be checked for var/let hoisting conflicts.
-                // 2. For each element name of varNames, do
+                // 2. For each element name of variableNames, do
                 for name in &data.var_names {
                     // a. If ! thisEnv.HasBinding(name) is true, then
                     if this_environment.has_binding(vm, name, None).must() {
-                        // B.3.4 Changes to EvalDeclarationInstantiation, https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
-                        // i. Normative Optional
-                        //     If the host is a web browser or otherwise supports VariableStatements in Catch Blocks, then
-                        //         i. If thisEnv is not the Environment Record for a Catch clause, throw a SyntaxError exception.
+                        // i. If the host is a web browser or otherwise supports VariableStatements in Catch Blocks, then
+                        //     1. If thisEnv is not the Environment Record for a Catch clause, throw a SyntaxError exception.
                         // ii. Else,
-                        //     i. Throw a SyntaxError exception.
+                        //     1. Throw a SyntaxError exception.
                         // AD-HOC: We are a web browser, so we only implement the web browser branch.
                         if !this_environment.is_catch_environment() {
                             return vm.throw_completion(
@@ -1488,16 +1485,22 @@ pub fn eval_declaration_instantiation(
         }
     }
 
-    // 8. Let functionsToInitialize be a new empty List.
-    // 9. Let declaredFunctionNames be a new empty List.
-    // 10. For each element d of varDeclarations, in reverse List order, do
+    // 8. Let funcsToInitialize be a new empty List.
+    // 9. Let declaredFuncNames be a new empty List.
+    // 10. For each element variableDecl of variableDecls, in reverse List order, do
+    //     a. If variableDecl is not either a VariableDeclaration, a ForBinding, or a BindingIdentifier, then
+    //         i. Assert: variableDecl is either a FunctionDeclaration, a GeneratorDeclaration, an AsyncFunctionDeclaration, or an AsyncGeneratorDeclaration.
+    //         ii. NOTE: If there are multiple function declarations for the same name, the last declaration is used.
+    //         iii. Let funcName be the sole element of the BoundNames of variableDecl.
+    //         iv. If declaredFuncNames does not contain funcName, then
+    // NB: funcsToInitialize and declaredFuncNames are worked out when the eval is compiled.
     for function in &data.functions_to_initialize {
-        // 1. If varEnv is a global Environment Record, then
+        // 1. If variableEnv is a Global Environment Record, then
         if let Some(global_var_environment) = global_var_environment {
-            // a. Let fnDefinable be ? varEnv.CanDeclareGlobalFunction(fn).
+            // a. Let funcDefinable be ? CanDeclareGlobalFunction(variableEnv, funcName).
             let function_definable = global_var_environment.can_declare_global_function(vm, &function.name)?;
 
-            // b. If fnDefinable is false, throw a TypeError exception.
+            // b. If funcDefinable is false, throw a TypeError exception.
             if !function_definable {
                 return vm.throw_completion(
                     ErrorKind::TypeError,
@@ -1506,38 +1509,43 @@ pub fn eval_declaration_instantiation(
                 );
             }
         }
+        // 2. Append funcName to declaredFuncNames.
+        // 3. Insert variableDecl as the first element of funcsToInitialize.
     }
 
-    // 11. NOTE: Annex B.3.2.3 adds additional steps at this point.
-    // B.3.2.3 Changes to EvalDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-evaldeclarationinstantiation
-    // 11. If strict is false, then
+    // 13. If strict is false and the host is a web browser or otherwise supports Block-Level Function Declarations Web Legacy Compatibility Semantics, then
     if !strict {
-        // a. Let declaredFunctionOrVarNames be the list-concatenation of declaredFunctionNames and declaredVarNames.
-        // The spec here uses 'declaredVarNames' but that has not been declared yet.
+        // a. Let declaredFuncOrVariableNames be the list-concatenation of declaredFuncNames and declaredVariableNames.
+        // AD-HOC: Steps 11 and 12 come after this step here, so declaredVariableNames is not part of it.
+        // NB: The names that step 13.b.ii.7.a.iii appends to it go into hoisted_functions.
         let mut hoisted_functions = HashSet::new();
 
-        // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within body, do
+        // b. For each FunctionDeclaration funcDecl that is directly contained in the StatementList of any Block, CaseClause, or DefaultClause x such that body Contains x is true, do
         for function_name in &data.annex_b_candidate_names {
-            // i. Let F be StringValue of the BindingIdentifier of f.
+            // i. Let funcName be the StringValue of the BindingIdentifier of funcDecl.
 
-            // ii. If replacing the FunctionDeclaration f with a VariableStatement that has F as a BindingIdentifier would not produce any Early Errors for body, then
-            // Note: This is checked during parsing and for_each_function_hoistable_with_annexB_extension so it always passes here.
+            // ii. If replacing the FunctionDeclaration funcDecl with a VariableStatement that has funcName as a BindingIdentifier would not produce any Early Errors for body, then
+            // NB: The parser only lists the functions that this holds for.
 
             // 1. Let bindingExists be false.
-            // 2. Let thisEnv be lexEnv.
+            // 2. Set thisEnv to lexicalEnv.
             let mut this_environment = lexical_environment;
 
             // 3. Assert: The following loop will terminate.
 
-            // 4. Repeat, while thisEnv is not the same as varEnv,
+            // 4. Repeat, while thisEnv is not variableEnv,
             let mut binding_exists = false;
             while this_environment != variable_environment {
-                // a. If thisEnv is not an object Environment Record, then
-                //     i. If ! thisEnv.HasBinding(F) is true, then
+                // a. If thisEnv is not an Object Environment Record, then
+                //     i. If ! thisEnv.HasBinding(funcName) is true, then
+                //         1. If the host is a web browser or otherwise supports VariableStatements in Catch Blocks, then
+                //             a. If thisEnv is not the Environment Record for a Catch clause, set bindingExists to true.
+                //         2. Else,
+                //             a. Set bindingExists to true.
+                // FIXME: Leave out the environment of a Catch clause, as the web browser branch does.
                 if !this_environment.is_object_environment()
                     && this_environment.has_binding(vm, function_name, None).must()
                 {
-                    // i. Let bindingExists be true.
                     binding_exists = true;
                     break;
                 }
@@ -1552,45 +1560,42 @@ pub fn eval_declaration_instantiation(
                 continue;
             }
 
-            // Note: At this point bindingExists is false.
-            // 5. If bindingExists is false and varEnv is a global Environment Record, then
+            // 5. If bindingExists is false and variableEnv is a Global Environment Record, then
             if let Some(global_var_environment) = global_var_environment {
-                // a. If varEnv.HasLexicalDeclaration(F) is false, then
+                // a. If HasLexicalDeclaration(variableEnv, funcName) is false, then
                 if !global_var_environment.has_lexical_declaration(function_name) {
-                    // i. Let fnDefinable be ? varEnv.CanDeclareGlobalVar(F).
+                    // i. Let funcDefinable be ? CanDeclareGlobalVar(variableEnv, funcName).
                     if !global_var_environment.can_declare_global_var(vm, function_name)? {
                         continue;
                     }
                 }
                 // b. Else,
                 else {
-                    // i. Let fnDefinable be false.
+                    // i. Let funcDefinable be false.
                     continue;
                 }
             }
             // 6. Else,
-            //     a. Let fnDefinable be true.
+            //     a. Let funcDefinable be true.
 
-            // Note: At this point fnDefinable is true.
-            // 7. If bindingExists is false and fnDefinable is true, then
-
-            // a. If declaredFunctionOrVarNames does not contain F, then
+            // 7. If bindingExists is false and funcDefinable is true, then
+            // a. If declaredFuncOrVariableNames does not contain funcName, then
             if !data.declared_function_names.contains(function_name) && !hoisted_functions.contains(function_name) {
-                // i. If varEnv is a global Environment Record, then
+                // i. If variableEnv is a Global Environment Record, then
                 if let Some(global_var_environment) = global_var_environment {
-                    // i. Perform ? varEnv.CreateGlobalVarBinding(F, true).
+                    // 1. Perform ? CreateGlobalVarBinding(variableEnv, funcName, true).
                     global_var_environment.create_global_var_binding(vm, function_name, true)?;
                 }
                 // ii. Else,
                 else {
-                    // i. Let bindingExists be ! varEnv.HasBinding(F).
-                    // ii. If bindingExists is false, then
+                    // 1. Set bindingExists to ! variableEnv.HasBinding(funcName).
+                    // 2. If bindingExists is false, then
                     if !variable_environment.has_binding(vm, function_name, None).must() {
-                        // i. Perform ! varEnv.CreateMutableBinding(F, true).
+                        // a. Perform ! variableEnv.CreateMutableBinding(funcName, true).
                         variable_environment
                             .create_mutable_binding(vm, function_name, true)
                             .must();
-                        // ii. Perform ! varEnv.InitializeBinding(F, undefined, normal).
+                        // b. Perform ! variableEnv.InitializeBinding(funcName, undefined).
                         variable_environment
                             .initialize_binding(vm, function_name, Value::UNDEFINED, InitializeBindingHint::Normal)
                             .must();
@@ -1598,63 +1603,67 @@ pub fn eval_declaration_instantiation(
                 }
             }
 
-            // iii. Append F to declaredFunctionOrVarNames.
+            // iii. Append funcName to declaredFuncOrVariableNames.
             hoisted_functions.insert(function_name.clone());
 
-            // b. When the FunctionDeclaration f is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
-            //     i. Let genv be the running execution context's VariableEnvironment.
-            //     ii. Let benv be the running execution context's LexicalEnvironment.
-            //     iii. Let fobj be ! benv.GetBindingValue(F, false).
-            //     iv. Perform ? genv.SetMutableBinding(F, fobj, false).
+            // b. When the FunctionDeclaration funcDecl is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
+            //     i. Let globalEnv be the running execution context's VariableEnvironment.
+            //     ii. Let blockEnv be the running execution context's LexicalEnvironment.
+            //     iii. Let funcObj be ! blockEnv.GetBindingValue(funcName, false).
+            //     iv. Perform ? globalEnv.SetMutableBinding(funcName, funcObj, false).
             //     v. Return unused.
         }
     }
 
-    // 12. Let declaredVarNames be a new empty List.
+    // 11. Let declaredVariableNames be a new empty List.
     let mut declared_var_names = Utf16FlyStringHashTable::default();
 
-    // 13. For each element d of varDeclarations, do
+    // 12. For each element variableDecl of variableDecls, do
+    //     a. If variableDecl is either a VariableDeclaration, a ForBinding, or a BindingIdentifier, then
+    //         i. For each String name of the BoundNames of variableDecl, do
     for name in &data.var_scoped_names {
-        // 1. If vn is not an element of declaredFunctionNames, then
+        // 1. If declaredFuncNames does not contain name, then
         if !data.declared_function_names.contains(name) {
-            // a. If varEnv is a global Environment Record, then
+            // a. If variableEnv is a Global Environment Record, then
             if let Some(global_var_environment) = global_var_environment {
-                // i. Let vnDefinable be ? varEnv.CanDeclareGlobalVar(vn).
+                // i. Let variableDefinable be ? CanDeclareGlobalVar(variableEnv, name).
                 let variable_definable = global_var_environment.can_declare_global_var(vm, name)?;
 
-                // ii. If vnDefinable is false, throw a TypeError exception.
+                // ii. If variableDefinable is false, throw a TypeError exception.
                 if !variable_definable {
                     return vm.throw_completion(ErrorKind::TypeError, ErrorType::CannotDeclareGlobalVariable, &[name]);
                 }
             }
 
-            // b. If vn is not an element of declaredVarNames, then
-            // i. Append vn to declaredVarNames.
+            // b. If declaredVariableNames does not contain name, then
+            //     i. Append name to declaredVariableNames.
             declared_var_names.set(name.clone());
         }
     }
 
-    // 14. NOTE: No abnormal terminations occur after this algorithm step unless varEnv is a global Environment Record and the global object is a Proxy exotic object.
+    // 14. NOTE: No abnormal terminations occur after this algorithm step unless variableEnv is a Global Environment Record and the global object is a Proxy exotic object.
 
-    // 15. Let lexDeclarations be the LexicallyScopedDeclarations of body.
-    // 16. For each element d of lexDeclarations, do
+    // 15. Let lexicalDecls be the LexicallyScopedDeclarations of body.
+    // 16. For each element lexicalDecl of lexicalDecls, do
+    //     a. NOTE: Lexically declared names are only instantiated here but not initialized.
+    //     b. For each element name of the BoundNames of lexicalDecl, do
     for binding in &data.lexical_bindings {
-        // i. If IsConstantDeclaration of d is true, then
+        // i. If IsConstantDeclaration of lexicalDecl is true, then
         if binding.is_constant {
-            // 1. Perform ? lexEnv.CreateImmutableBinding(dn, true).
+            // 1. Perform ! lexicalEnv.CreateImmutableBinding(name, true).
             lexical_environment.create_immutable_binding(vm, &binding.name, true)?;
         }
         // ii. Else,
         else {
-            // 1. Perform ? lexEnv.CreateMutableBinding(dn, false).
+            // 1. Perform ! lexicalEnv.CreateMutableBinding(name, false).
             lexical_environment.create_mutable_binding(vm, &binding.name, false)?;
         }
     }
 
-    // 17. For each Parse Node f of functionsToInitialize, do
+    // 17. For each Parse Node funcDecl of funcsToInitialize, do
     for (function_index, function_to_initialize) in data.functions_to_initialize.iter().enumerate() {
-        // a. Let fn be the sole element of the BoundNames of f.
-        // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
+        // a. Let funcName be the sole element of the BoundNames of funcDecl.
+        // b. Let funcObj be InstantiateFunctionDeclaration of funcDecl with arguments lexicalEnv and privateEnv.
         let shared_data = data
             .functions_to_initialize_shared_data
             .get(function_index)
@@ -1667,9 +1676,9 @@ pub fn eval_declaration_instantiation(
             private_environment,
         );
 
-        // c. If varEnv is a global Environment Record, then
+        // c. If variableEnv is a Global Environment Record, then
         if let Some(global_var_environment) = global_var_environment {
-            // i. Perform ? varEnv.CreateGlobalFunctionBinding(fn, fo, true).
+            // i. Perform ? CreateGlobalFunctionBinding(variableEnv, funcName, funcObj, true).
             global_var_environment.create_global_function_binding(
                 vm,
                 &function_to_initialize.name,
@@ -1679,7 +1688,7 @@ pub fn eval_declaration_instantiation(
         }
         // d. Else,
         else {
-            // i. Let bindingExists be ! varEnv.HasBinding(fn).
+            // i. Let bindingExists be ! variableEnv.HasBinding(funcName).
             let binding_exists = variable_environment
                 .has_binding(vm, &function_to_initialize.name, None)
                 .must();
@@ -1687,12 +1696,12 @@ pub fn eval_declaration_instantiation(
             // ii. If bindingExists is false, then
             if !binding_exists {
                 // 1. NOTE: The following invocation cannot return an abrupt completion because of the validation preceding step 14.
-                // 2. Perform ! varEnv.CreateMutableBinding(fn, true).
+                // 2. Perform ! variableEnv.CreateMutableBinding(funcName, true).
                 variable_environment
                     .create_mutable_binding(vm, &function_to_initialize.name, true)
                     .must();
 
-                // 3. Perform ! varEnv.InitializeBinding(fn, fo, normal).
+                // 3. Perform ! variableEnv.InitializeBinding(funcName, funcObj).
                 variable_environment
                     .initialize_binding(
                         vm,
@@ -1704,7 +1713,7 @@ pub fn eval_declaration_instantiation(
             }
             // iii. Else,
             else {
-                // 1. Perform ! varEnv.SetMutableBinding(fn, fo, false).
+                // 1. Perform ! variableEnv.SetMutableBinding(funcName, funcObj, false).
                 variable_environment
                     .set_mutable_binding(vm, &function_to_initialize.name, Value::from_object(function), false)
                     .must();
@@ -1712,25 +1721,25 @@ pub fn eval_declaration_instantiation(
         }
     }
 
-    // 18. For each String vn of declaredVarNames, do
+    // 18. For each String variableName of declaredVariableNames, do
     for var_name in declared_var_names.iter() {
-        // a. If varEnv is a global Environment Record, then
+        // a. If variableEnv is a Global Environment Record, then
         if let Some(global_var_environment) = global_var_environment {
-            // i. Perform ? varEnv.CreateGlobalVarBinding(vn, true).
+            // i. Perform ? CreateGlobalVarBinding(variableEnv, variableName, true).
             global_var_environment.create_global_var_binding(vm, var_name, true)?;
         }
         // b. Else,
         else {
-            // i. Let bindingExists be ! varEnv.HasBinding(vn).
+            // i. Let bindingExists be ! variableEnv.HasBinding(variableName).
             let binding_exists = variable_environment.has_binding(vm, var_name, None).must();
 
             // ii. If bindingExists is false, then
             if !binding_exists {
                 // 1. NOTE: The following invocation cannot return an abrupt completion because of the validation preceding step 14.
-                // 2. Perform ! varEnv.CreateMutableBinding(vn, true).
+                // 2. Perform ! variableEnv.CreateMutableBinding(variableName, true).
                 variable_environment.create_mutable_binding(vm, var_name, true).must();
 
-                // 3. Perform ! varEnv.InitializeBinding(vn, undefined, normal).
+                // 3. Perform ! variableEnv.InitializeBinding(variableName, undefined).
                 variable_environment
                     .initialize_binding(vm, var_name, Value::UNDEFINED, InitializeBindingHint::Normal)
                     .must();
