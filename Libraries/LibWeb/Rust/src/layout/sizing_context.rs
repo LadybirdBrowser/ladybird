@@ -2271,7 +2271,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         self.pass
             .arena()
             .with_current_committed_fragment_link(node, |link| {
-                used.update_cells(|cells| cells.take_box_metrics_of_committed_link(link));
+                used.update_cells(|cells| cells.take_box_metrics_of_committed_link(link, sized_cells.frame));
             })
             .is_some()
     }

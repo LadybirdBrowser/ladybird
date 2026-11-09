@@ -4158,7 +4158,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let committed_root_link = pass
         .committed_fragment_link(root)
         .expect("partial relayout root must have committed geometry");
-    let root_cells = used_values::RootInputCells::of_committed_fragment_link(&committed_root_link);
+    let root_cells = used_values::RootInputCells::of_committed_fragment_link(&committed_root_link, pass.frame);
     let fragments = run.fragments.expect("partial relayout must build fragments");
     let input = LayoutInput::new(
         AvailableSpace {
@@ -4201,7 +4201,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         cells: root_box.cells,
         line_data: root_box.line_data,
     };
-    let facts_decided_by_parent = run_state::FactsDecidedByParent::of_committed_link(&committed_root_link);
+    let facts_decided_by_parent = run_state::FactsDecidedByParent::of_committed_link(&committed_root_link, pass.frame);
     let placement = facts_decided_by_parent
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");

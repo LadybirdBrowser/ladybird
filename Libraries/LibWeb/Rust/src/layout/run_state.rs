@@ -245,9 +245,9 @@ pub(crate) struct FactsDecidedByParent {
 }
 
 impl FactsDecidedByParent {
-    /// What the parent decided about a box, as the committed link of the box shows it in the frame of the link.
-    pub(crate) fn of_committed_link(link: &fragment_tree::FragmentLink) -> Self {
-        let insets = link.placement.insets;
+    /// What the parent decided about a box, as the committed link of the box shows it, read in `frame`.
+    pub(crate) fn of_committed_link(link: &fragment_tree::FragmentLink, frame: geometry::Frame) -> Self {
+        let insets = link.placement.insets.in_frame(geometry::Frame::PHYSICAL, frame);
         Self {
             placement: Some(BoxPlacement {
                 content_offset_in_containing_block: link.committed_offset,

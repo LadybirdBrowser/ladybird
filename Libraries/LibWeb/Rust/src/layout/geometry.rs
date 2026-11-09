@@ -58,6 +58,20 @@ pub(crate) struct Sides {
     pub(crate) left: CssPixels,
 }
 
+impl Sides {
+    /// The sides, which frame `from` holds, as frame `to` holds them.
+    #[inline]
+    pub(crate) fn in_frame(self, from: Frame, to: Frame) -> Self {
+        let [top, right, bottom, left] = from.sides_in([self.top, self.right, self.bottom, self.left], to);
+        Self {
+            top,
+            right,
+            bottom,
+            left,
+        }
+    }
+}
+
 /// The frame of a writing mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Frame(u8);
@@ -195,6 +209,12 @@ impl Frame {
             CssPixelRect::new(-extent, -extent, extent * 2, extent + block_size),
             content_size,
         )
+    }
+
+    /// Maps a physical size to this frame.
+    #[inline]
+    pub(crate) fn size_from_physical(self, size: FfiCssPixelSize) -> FfiCssPixelSize {
+        self.size_to_physical(size.width, size.height)
     }
 
     /// Maps a size in this frame to the physical plane.

@@ -236,8 +236,8 @@ impl<'a> PaintableCommit<'a> {
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
         let frame = link.placement.frame;
-        let new_content_size =
-            frame.size_to_physical(fragment.sides.content_size.width, fragment.sides.content_size.height);
+        let new_content_size = fragment.sides.content_size;
+        let content_size_in_frame = frame.size_from_physical(new_content_size);
         let new_offset: used_values::FfiCssPixelPoint = if frame.is_physical() {
             link.committed_offset
         } else {
@@ -248,8 +248,8 @@ impl<'a> PaintableCommit<'a> {
                 CssPixelRect::new(
                     link.committed_offset.x,
                     link.committed_offset.y,
-                    fragment.sides.content_size.width,
-                    fragment.sides.content_size.height,
+                    content_size_in_frame.width,
+                    content_size_in_frame.height,
                 ),
             )
             .location()
@@ -288,13 +288,7 @@ impl<'a> PaintableCommit<'a> {
                 }
                 own_paint_unchanged &= old_link.has_same_placement(link);
                 link_shows_box_the_same = link.placement.shown_as == old_link.placement.shown_as;
-                (
-                    old_link.fragment.identity,
-                    frame.size_to_physical(
-                        old_link.fragment.sides.content_size.width,
-                        old_link.fragment.sides.content_size.height,
-                    ),
-                )
+                (old_link.fragment.identity, old_link.fragment.sides.content_size)
             })
         });
         if old_content_size != new_content_size {
