@@ -1737,6 +1737,11 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 }
             }
+            Instruction::ResolveGlobalBinding { dst, cache, .. } => {
+                if !self.try_build_resolve_global_binding(dst, cache)? {
+                    return Ok(None);
+                }
+            }
             Instruction::GetById { dst, base, cache, .. } => {
                 if self.try_build_cached_getter(dst, base, cache)? {
                     return Ok(Some(Flow::Continue));

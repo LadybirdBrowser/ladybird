@@ -48,7 +48,8 @@ jit.compile(getY);
 // CHECK-NEXT: LoadNamed {{.*}}([[REFINED]], [[CASE_ADDRESS]])
 
 // Global variables whose caches found nothing to speculate on, like these
-// accessors, probe the global variable caches like the interpreter does.
+// accessors, probe the global variable caches like the interpreter does. The
+// assignment resolves its target before the value, which the interpreter does.
 
 let reads = 0;
 Object.defineProperty(globalThis, "tick", {
@@ -69,9 +70,10 @@ jit.compile(readAndWrite);
 
 // CHECK-FUNCTION: readAndWrite
 // CHECK-PASS: frame initialization
-// CHECK: [[REALM:v[0-9]+]]:pointer = LoadFrameField Realm
+// CHECK: CallSlowPath ResolveGlobalBinding
+// CHECK-NEXT: [[REALM:v[0-9]+]]:pointer = LoadFrameField Realm
 // CHECK-NEXT: [[EXECUTABLE:v[0-9]+]]:pointer = LoadFrameField Executable
-// CHECK-NEXT: [[VALUE:v[0-9]+]] = ProbeGlobalCache cache 0 ([[REALM]], [[EXECUTABLE]])
+// CHECK-NEXT: [[VALUE:v[0-9]+]] = ProbeGlobalCache cache 1 ([[REALM]], [[EXECUTABLE]])
 // CHECK-NEXT: BranchTaggedEquals ([[VALUE]], #empty)
-// CHECK: ProbeGlobalStore cache 1 ({{v[0-9]+}}, [[REALM]], [[EXECUTABLE]])
+// CHECK: ProbeGlobalStore cache 0 ({{v[0-9]+}}, [[REALM]], [[EXECUTABLE]])
 // CHECK-NEXT: BranchBool

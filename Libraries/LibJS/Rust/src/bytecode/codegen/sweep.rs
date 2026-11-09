@@ -31,6 +31,7 @@ use crate::parser::token::N_PROTO;
 
 use super::context::Generator;
 use super::nodes::*;
+use super::stream::TargetBinding;
 use super::stream::ValKind;
 use crate::bytecode::constant_fold::ascii_code_units_to_string;
 
@@ -141,11 +142,11 @@ impl Generator<'_> {
                 }
                 tag::IDENT_TARGET => {
                     let ident = self.identifier_of(Name(a));
-                    self.target_of_identifier(ident);
+                    self.target_of_identifier(ident, TargetBinding::MightAppear);
                 }
                 tag::IDENT_READ_TARGET => {
                     let ident = self.identifier_of(Name(a));
-                    self.target_of_identifier(ident);
+                    self.target_of_identifier(ident, TargetBinding::Known);
                     self.read_target(Some(ident));
                 }
                 tag::IDENT_DECLARATION => {
