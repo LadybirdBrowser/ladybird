@@ -28,7 +28,8 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_proc
 WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id);
 WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, Optional<Gfx::GpuDeviceIdentity> const&);
 WEBVIEW_API void shut_down_video_decoder_servers();
-WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process();
+// The features are the Compositor's own, in the text form of PlatformFeatures::ProcessFeatures.
+WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process(ByteString const& platform_features);
 // Serves the given site's partitions, or all partitions if site is empty.
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
 WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);

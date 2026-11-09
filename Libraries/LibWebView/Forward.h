@@ -63,6 +63,7 @@ class SettingsUI;
 class SpellChecker;
 class Translator;
 class StorageJar;
+class SystemProbeClient;
 class TraversableSessionHistory;
 class VideoDecoderServerControlClient;
 class ViewImplementation;

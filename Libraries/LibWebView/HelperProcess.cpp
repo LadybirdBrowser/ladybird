@@ -520,7 +520,7 @@ void shut_down_video_decoder_servers()
     s_video_decoder_servers->clear();
 }
 
-ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
+ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process(ByteString const& platform_features)
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -537,8 +537,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
         arguments.append("--disable-sandbox"sv);
     if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
         arguments.append("--test-mode"sv);
-    if (web_content_options.force_cpu_painting == WebView::ForceCPUPainting::Yes)
-        arguments.append("--force-cpu-painting"sv);
+    arguments.append(ByteString::formatted("--platform-features={}", platform_features));
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)
         arguments.append("--force-fontconfig"sv);
     if (auto gpu_device = WebView::Application::the().platform_presentation_gpu_device(); gpu_device.has_value()) {

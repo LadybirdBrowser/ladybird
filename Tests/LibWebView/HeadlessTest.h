@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Array.h>
+#include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
 
@@ -35,8 +35,11 @@ public:
     ByteString const& directory() const { return m_directory; }
 
     template<typename ApplicationType = HeadlessApplication>
-    ErrorOr<NonnullOwnPtr<ApplicationType>> create_application()
+    ErrorOr<NonnullOwnPtr<ApplicationType>> create_application(ReadonlySpan<StringView> extra_arguments = {})
     {
+        // The application keeps the arguments it is created with.
+        m_arguments.shrink(1);
+        m_arguments.append(extra_arguments.data(), extra_arguments.size());
         return ApplicationType::create({ .strings = m_arguments }, ladybird_binary_path());
     }
 
@@ -44,7 +47,7 @@ private:
     static Optional<ByteString> ladybird_binary_path();
 
     ByteString m_directory;
-    Array<StringView, 1> m_arguments { "TestLibWebView"sv };
+    Vector<StringView, 2> m_arguments { "TestLibWebView"sv };
     Core::EventLoop m_event_loop;
 };
 
