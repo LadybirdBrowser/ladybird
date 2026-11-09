@@ -5634,20 +5634,25 @@ impl<'pass> GridFormattingContext<'pass> {
                 // Registration-time axis modes read raw style: anchor()
                 // insets resolve later in layout_pending_child, and an
                 // anchor-bearing inset is never auto either way.
-                let (inline_axis_mode, block_axis_mode) = abspos_engine::axis_modes(self.style(child));
-                info.inline_axis_mode = inline_axis_mode;
-                info.block_axis_mode = block_axis_mode;
+                let placed_by_own_insets =
+                    abspos_inputs::AbsposContainingBlockInfo::of_own_insets(info.rect, self.style(child));
+                info.inline_placement.mode = placed_by_own_insets.inline_placement.mode;
+                info.block_placement.mode = placed_by_own_insets.block_placement.mode;
                 fragments.register_abspos_containing_block_info(child, info);
             }
         }
     }
 
-    /// The alignment of an absolutely positioned item in its grid area. Normal and stretch alignment do not stretch
+    /// The placement of an absolutely positioned item in its grid area. Normal and stretch alignment do not stretch
     /// such an item, so they align it to the start of its area, as for an unstretched in-flow item.
-    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> AbsposAxisAlignment {
-        match Self::aligned_position(self.item_alignment_of(node, axis), false, CssPixels::default()) {
+    fn abspos_item_placement(&self, node: Node, axis: Axis) -> abspos_inputs::AxisPlacement {
+        let alignment = match Self::aligned_position(self.item_alignment_of(node, axis), false, CssPixels::default()) {
             SelfPosition::Edge(edge) => AbsposAxisAlignment::Edge(edge),
             SelfPosition::Normal | SelfPosition::Stretch | SelfPosition::Baseline => AbsposAxisAlignment::Stretch,
+        };
+        abspos_inputs::AxisPlacement {
+            mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
+            alignment: Some(alignment),
         }
     }
 
@@ -5673,11 +5678,8 @@ impl<'pass> GridFormattingContext<'pass> {
                     block_size,
                 },
             },
-            inline_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
-            block_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
-            inline_alignment: Some(self.abspos_item_alignment(node, Axis::Column)),
-            block_alignment: Some(self.abspos_item_alignment(node, Axis::Row)),
-            derives_from_own_computed_values: true,
+            inline_placement: self.abspos_item_placement(node, Axis::Column),
+            block_placement: self.abspos_item_placement(node, Axis::Row),
             is_position_area: false,
         }
     }
