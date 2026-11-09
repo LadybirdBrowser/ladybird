@@ -1110,6 +1110,19 @@ impl Generator<'_> {
             bindings.map(|bindings| self.enter_scope_environment(bindings, false, None));
         self.push_control(Control::Block { environment });
         self.current_source_offset = SourceOffset(tree.node_pos(statement));
+        if let LoopTarget::Declared {
+            target: pattern, kind, ..
+        } = target
+            && kind != DeclarationKind::Var
+            && matches!(tree.node_tag(pattern), tag::ARRAY_PATTERN | tag::OBJECT_PATTERN)
+            && tree.pattern_contains_expression(pattern.0)
+        {
+            // NB: The bindings of each iteration are new, and the code of the pattern sees them in their dead zone.
+            for_each_bound_name(tree, pattern, &mut |name| {
+                let ident = self.identifier_of(name);
+                self.put_in_dead_zone(ident);
+            });
+        }
         self.assign_to_loop_target(target, value)?;
         self.end_of_statement();
         self.sweep_rows(right as usize + 1, body as usize + 1)?;
@@ -1353,7 +1366,7 @@ impl Generator<'_> {
         } else {
             for parameter in parameters.iter() {
                 let first_name = names.len();
-                for_each_parameter_name(tree, parameter, &mut |name| names.push(name));
+                for_each_bound_name(tree, parameter, &mut |name| names.push(name));
                 let target = match tree.node_tag(parameter) {
                     tag::REST | tag::ASSIGN_PATTERN => NodeId(tree.node_a(parameter)),
                     _ => parameter,
@@ -1569,15 +1582,22 @@ impl Generator<'_> {
                 self.current_source_offset = SourceOffset(tree.node_pos(target));
                 let ident = self.declare_binding(Name(tree.node_a(target)), kind);
                 // NB: Whatever a run through this code before left in a local, it is in its dead zone here.
-                if kind != DeclarationKind::Var && ident.local_type == Some(LocalType::Variable) {
-                    let empty = self.context.constants.add_empty();
-                    self.put(op::Mov {
-                        dst: Operand::local(ident.local_index),
-                        src: empty,
-                    });
+                if kind != DeclarationKind::Var {
+                    self.put_in_dead_zone(ident);
                 }
                 Ok(())
             }
+        }
+    }
+
+    /// Puts a lexical binding that lives in a register back in its dead zone.
+    fn put_in_dead_zone(&mut self, ident: Identifier) {
+        if ident.local_type == Some(LocalType::Variable) {
+            let empty = self.context.constants.add_empty();
+            self.put(op::Mov {
+                dst: Operand::local(ident.local_index),
+                src: empty,
+            });
         }
     }
 
@@ -1979,23 +1999,24 @@ fn parameter_has_expression(tree: &SyntaxTree, parameter: NodeId) -> bool {
         && tree.pattern_contains_expression(target.0)
 }
 
-/// Calls `callback` with what a parameter binds, in the order of the source.
-fn for_each_parameter_name(tree: &SyntaxTree, parameter: NodeId, callback: &mut impl FnMut(Name)) {
-    match tree.node_tag(parameter) {
+/// Calls `callback` with each of the BoundNames of `target`, an identifier or a binding pattern, in the order of the
+/// source.
+fn for_each_bound_name(tree: &SyntaxTree, target: NodeId, callback: &mut impl FnMut(Name)) {
+    match tree.node_tag(target) {
         tag::ARRAY_PATTERN | tag::OBJECT_PATTERN => {
-            for item in tree.node_list(tree.node_a(parameter)).iter() {
+            for item in tree.node_list(tree.node_a(target)).iter() {
                 match tree.node_tag(item) {
                     tag::HOLE => {}
                     tag::PROPERTY | tag::COMPUTED_PROPERTY => {
-                        for_each_parameter_name(tree, NodeId(tree.node_b(item)), callback);
+                        for_each_bound_name(tree, NodeId(tree.node_b(item)), callback);
                     }
                     tag::SHORTHAND => callback(Name(tree.node_a(item))),
-                    _ => for_each_parameter_name(tree, item, callback),
+                    _ => for_each_bound_name(tree, item, callback),
                 }
             }
         }
-        tag::REST | tag::ASSIGN_PATTERN => for_each_parameter_name(tree, NodeId(tree.node_a(parameter)), callback),
-        _ => callback(Name(tree.node_a(parameter))),
+        tag::REST | tag::ASSIGN_PATTERN => for_each_bound_name(tree, NodeId(tree.node_a(target)), callback),
+        _ => callback(Name(tree.node_a(target))),
     }
 }
 

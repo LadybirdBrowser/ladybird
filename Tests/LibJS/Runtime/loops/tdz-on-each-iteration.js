@@ -342,4 +342,63 @@ describe("a lexical binding is uninitialized again on each iteration", () => {
         }
         expect(results).toEqual(["ReferenceError", "ReferenceError", "ReferenceError", "ReferenceError"]);
     });
+
+    test("for-in and for-of patterns that read their own bindings", () => {
+        function run(loop) {
+            const results = [];
+            try {
+                loop(results);
+            } catch (error) {
+                results.push(error.name);
+            }
+            return results;
+        }
+
+        expect(
+            run(results => {
+                for (let [a = b, b] of [
+                    [1, 2],
+                    [undefined, 3],
+                ])
+                    results.push(a);
+            })
+        ).toEqual([1, "ReferenceError"]);
+        expect(
+            run(results => {
+                for (let [a = a] of [[1], []]) results.push(a);
+            })
+        ).toEqual([1, "ReferenceError"]);
+        expect(
+            run(results => {
+                for (const { a = b, b } of [{ a: 1, b: 2 }, { b: 3 }]) results.push(a);
+            })
+        ).toEqual([1, "ReferenceError"]);
+        expect(
+            run(results => {
+                for (let { [b]: a, b } of [{ x: 1, b: "x" }, { b: "y" }]) results.push(a);
+            })
+        ).toEqual(["ReferenceError"]);
+        expect(
+            run(results => {
+                for (let [a = b, b] in { ab: 1, "": 2 }) results.push(a);
+            })
+        ).toEqual(["a", "ReferenceError"]);
+    });
+
+    test("for-await-of patterns that read their own bindings", () => {
+        const results = [];
+        (async () => {
+            try {
+                for await (let [a = b, b] of [
+                    [1, 2],
+                    [undefined, 3],
+                ])
+                    results.push(a);
+            } catch (error) {
+                results.push(error.name);
+            }
+        })();
+        runQueuedPromiseJobs();
+        expect(results).toEqual([1, "ReferenceError"]);
+    });
 });
