@@ -167,6 +167,7 @@ Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did
 void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> transport)
 {
     m_test_connection = make_ref_counted<WebContentTestClient>(move(transport), *this);
+    GamepadManager::the().client_did_connect_test_endpoint(*this);
 }
 
 void WebContentClient::remove_blob_url_entries()
