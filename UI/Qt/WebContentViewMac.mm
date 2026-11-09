@@ -7,11 +7,11 @@
 #include <AK/ScopeGuard.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/MacWindow.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QChildEvent>
 #include <QWindow>
-#include <qpa/qplatformwindow_p.h>
 
 #import <AppKit/AppKit.h>
 #import <IOSurface/IOSurface.h>
@@ -26,15 +26,13 @@ static CALayer* as_layer(void* layer)
 
 bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
 {
-    auto* window_handle = windowHandle();
-    auto* cocoa_window = window_handle ? window_handle->nativeInterface<QNativeInterface::Private::QCocoaWindow>() : nullptr;
-    CALayer* content_layer = cocoa_window ? cocoa_window->contentLayer() : nil;
+    auto* content_layer = as_layer(appkit_content_layer(*this));
     if (!content_layer)
         return false;
 
     // NB: Qt restores the native view's exposed state from the content layer's display callback after it is unhidden.
     //     Presenting our own sublayer may leave that layer clean, which keeps Qt from routing mouse events to the view.
-    if (isVisible() && !window_handle->isExposed())
+    if (isVisible() && !windowHandle()->isExposed())
         [content_layer setNeedsDisplay];
 
     if (!m_iosurface_layer) {
