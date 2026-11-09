@@ -1,0 +1,3 @@
+Hidden child: 0 x 0
+Visible child: 30 x 20
+Visible container query: rgb(0, 128, 0)
