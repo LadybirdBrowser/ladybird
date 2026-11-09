@@ -18,11 +18,9 @@ use crate::painting::paint_changes::{PaintChange, queue};
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
-use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::svg_filter::SvgFilterPrimitive;
 use crate::painting::visual_animation_builder::CompositorAnimationEffectState;
 use crate::render_state::{DocumentHost, RenderWait};
-use libcompositing_rust::ffi::{tree_from_handle, world_transforms_from_handle};
 use std::ffi::c_void;
 
 mod main_thread_entries;
@@ -733,37 +731,6 @@ pub struct FfiEmptyLineCaretRect {
     pub has_value: bool,
     pub rect: FfiCssPixelRect,
     pub style_source: NodeSlotId,
-}
-
-/// What maps a rect to the viewport, as C++ lends it for `'a`: a non-null `visual_context_tree` is a live retained tree
-/// handle with `world_transforms` a live table built from it, and `scroll_offsets` addresses `scroll_offsets_len`
-/// points. Rust never makes one.
-#[repr(C)]
-pub struct FfiRectToViewportTransform<'a> {
-    visual_context_tree: *const c_void,
-    world_transforms: *const c_void,
-    scroll_offsets: *const libgfx_rust::FloatPoint,
-    scroll_offsets_len: usize,
-    device_pixels_per_css_pixel: f32,
-    lent: std::marker::PhantomData<&'a [libgfx_rust::FloatPoint]>,
-}
-
-impl<'a> FfiRectToViewportTransform<'a> {
-    /// The transform, or none where C++ lends no visual context tree.
-    pub(crate) fn transform(&self) -> Option<RectToViewportTransform<'a>> {
-        if self.visual_context_tree.is_null() {
-            return None;
-        }
-        // SAFETY: C++ lends a live tree and the scroll offsets for 'a.
-        unsafe {
-            Some(RectToViewportTransform {
-                visual_context_tree: tree_from_handle(self.visual_context_tree),
-                world_transforms: world_transforms_from_handle(self.world_transforms),
-                scroll_offsets: ak::slice_from_raw_parts(self.scroll_offsets, self.scroll_offsets_len),
-                device_pixels_per_css_pixel: self.device_pixels_per_css_pixel,
-            })
-        }
-    }
 }
 
 /// Whether a row has ever been given a style with `content-visibility: auto`, which is when a

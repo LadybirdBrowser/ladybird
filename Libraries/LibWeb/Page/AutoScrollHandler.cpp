@@ -42,7 +42,7 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Layout::Node const& la
 
     // The viewport's scrollport is already in viewport coordinates.
     if (!Painting::is_viewport_paintable(layout_node))
-        scrollport = Painting::transform_rect_to_viewport(layout_node, scrollport);
+        scrollport = Painting::rect_to_viewport(layout_node, scrollport, Layout::RustFFI::ViewportSpace::VisualViewport);
 
     // A scrollport smaller than a pixel has no point the mouse can be constrained to.
     if (scrollport.width() < 1 || scrollport.height() < 1)

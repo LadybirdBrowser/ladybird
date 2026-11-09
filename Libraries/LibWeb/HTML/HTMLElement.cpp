@@ -921,10 +921,7 @@ static CSSPixelPoint sticky_offset_of(Layout::Node const& layout_node)
 {
     if (!Painting::has_sticky_positioned_inclusive_ancestor(layout_node))
         return {};
-    auto& document = const_cast<DOM::Document&>(layout_node.document());
-    document.update_paint_and_hit_testing_properties_if_needed();
-    auto visual_context_tree = document.visual_context_tree();
-    return Painting::accumulated_sticky_offset(layout_node, Painting::rect_to_viewport_transform(document, visual_context_tree));
+    return Painting::accumulated_sticky_offset(layout_node);
 }
 
 // https://www.w3.org/TR/cssom-view-1/#dom-htmlelement-offsettop

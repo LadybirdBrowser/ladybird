@@ -655,38 +655,50 @@ CSSPixelRect transform_reference_box(Layout::Node const& node)
     return rect;
 }
 
-// NB: Taking the document's visual context tree brings it up to date, which can compact it and move a box's visual
-//     context to other nodes. The functions below read a box's visual context only once they have the tree.
-CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
+Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& document)
 {
-    if (!has_committed_box(node))
-        return {};
-    auto const& document = node.document();
     if (!document.has_committed_viewport_box())
-        return rect;
-    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.transform_rect_to_viewport(
-        accumulated_visual_context(node).spatial, rect.to_type<float>() * pixel_ratio,
-        document.scroll_state_snapshot(), include_visual_viewport_transform);
-    return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
+        return {};
+    // NB: The scroll state's world transforms retain the tree they were built from.
+    return viewport_mapping(document, document.visual_context_tree());
 }
 
-static Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPixelPoint position)
+Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    if (!document.has_committed_viewport_box())
+        return {};
+    auto const& scroll_state = document.scroll_state_snapshot();
+    auto scroll_offsets = scroll_state.device_offsets();
+    return {
+        .visual_context_tree = visual_context_tree.rust_handle(),
+        .world_transforms = scroll_state.world_transforms(visual_context_tree),
+        .scroll_offsets = scroll_offsets.data(),
+        .scroll_offsets_len = scroll_offsets.size(),
+        .device_pixels_per_css_pixel = static_cast<float>(document.page().client().device_pixels_per_css_pixel()),
+    };
+}
+
+// NB: Taking the document's visual context tree brings it up to date, which can compact it and move a box's visual
+//     context to other nodes. The functions below read a box's visual context only once they have the tree.
+CSSPixelRect rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Layout::RustFFI::ViewportSpace space)
 {
     if (!has_committed_box(node))
         return {};
-    auto const& document = node.document();
-    if (!document.has_committed_viewport_box())
-        return position;
-    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(
-        accumulated_visual_context(node), position.to_type<float>() * pixel_ratio,
-        document.scroll_state_snapshot());
-    if (!result.has_value())
+    auto mapping = viewport_mapping(node.document());
+    CSSPixelRect result;
+    Layout::RustFFI::viewport_mapping_rect_in_space_to_viewport(mapping, accumulated_visual_context(node).spatial, rect, space, &result);
+    return result;
+}
+
+CSSPixelPoint point_to_local(Layout::Node const& node, CSSPixelPoint point, Layout::RustFFI::ViewportSpace space)
+{
+    if (!has_committed_box(node))
         return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
+    auto mapping = viewport_mapping(node.document());
+    CSSPixelPoint local;
+    if (!Layout::RustFFI::viewport_mapping_point_to_local(mapping, accumulated_visual_context(node), point, space, &local))
+        return point;
+    return local;
 }
 
 CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint position)
@@ -713,13 +725,6 @@ CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint sc
     auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
     auto snap = [&](CSSPixels value) { return CSSPixels::nearest_value_for(round(value.to_double() * pixel_ratio) / pixel_ratio); };
     return { snap(scroll_offset.x()), snap(scroll_offset.y()) };
-}
-
-CSSPixelPoint transform_to_local_coordinates(Layout::Node const& node, CSSPixelPoint position)
-{
-    if (!has_committed_box(node))
-        return {};
-    return transform_point_to_local(node, position).value_or(position);
 }
 
 Optional<String> grid_layout_json(Layout::Node const& node, UniqueNodeID container_node_id)
@@ -843,31 +848,11 @@ void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidat
         const_cast<DOM::Document&>(node.document()).schedule_accumulated_visual_context_update(node, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
 }
 
-Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform()
-{
-    return {};
-}
-
-Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
-{
-    if (!document.has_committed_viewport_box())
-        return identity_rect_to_viewport_transform();
-    auto const& scroll_state = document.scroll_state_snapshot();
-    auto scroll_offsets = scroll_state.device_offsets();
-    return {
-        .visual_context_tree = visual_context_tree.rust_handle(),
-        .world_transforms = scroll_state.world_transforms(visual_context_tree),
-        .scroll_offsets = scroll_offsets.data(),
-        .scroll_offsets_len = scroll_offsets.size(),
-        .device_pixels_per_css_pixel = static_cast<float>(document.page().client().device_pixels_per_css_pixel()),
-    };
-}
-
-Vector<CSSPixelRect> client_rects(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+Vector<CSSPixelRect> client_rects(Layout::Node const& node, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
 {
     Vector<CSSPixelRect> rects;
     Layout::RustFFI::layout_script_client_rects(
-        node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &rects,
+        node.document_host(), committed_row_slot(node), viewport_mapping, &rects,
         [](void* context, CSSPixelRect rect) {
             static_cast<Vector<CSSPixelRect>*>(context)->append(rect);
         });
@@ -879,29 +864,25 @@ bool has_sticky_positioned_inclusive_ancestor(Layout::Node const& node)
     return Layout::RustFFI::layout_script_has_sticky_positioned_inclusive_ancestor(node.document_host(), committed_row_slot(node));
 }
 
-CSSPixelPoint accumulated_sticky_offset(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+CSSPixelPoint accumulated_sticky_offset(Layout::Node const& node)
 {
-    Layout::RustFFI::FfiOptionalCssPixelPoint result;
-    Layout::RustFFI::layout_script_accumulated_sticky_offset(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &result);
-    if (!result.has_value)
-        return {};
-    return { result.x, result.y };
+    CSSPixelPoint offset;
+    Layout::RustFFI::layout_script_accumulated_sticky_offset(node.document_host(), committed_row_slot(node), viewport_mapping(node.document()), &offset);
+    return offset;
 }
 
-CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+CSSPixelRect bounding_client_rect(Layout::Node const& node, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
 {
     CSSPixelRect rect;
-    Layout::RustFFI::layout_script_bounding_client_rect(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &rect);
+    Layout::RustFFI::layout_script_bounding_client_rect(node.document_host(), committed_row_slot(node), viewport_mapping, &rect);
     return rect;
 }
 
-CSSPixelPoint offset_to_viewport_ignoring_transforms(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+CSSPixelPoint offset_to_viewport_ignoring_transforms(Layout::Node const& node)
 {
-    Layout::RustFFI::FfiOptionalCssPixelPoint result;
-    Layout::RustFFI::layout_script_offset_to_viewport_ignoring_transforms(node.document_host(), committed_row_slot(node), rect_to_viewport_transform, &result);
-    if (!result.has_value)
-        return {};
-    return { result.x, result.y };
+    CSSPixelPoint offset;
+    Layout::RustFFI::layout_script_offset_to_viewport_ignoring_transforms(node.document_host(), committed_row_slot(node), viewport_mapping(node.document()), &offset);
+    return offset;
 }
 
 }

@@ -14,9 +14,8 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
-use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::visual_context::{ClipBehavior, VisualContextTree};
+use crate::painting::visual_context::VisualContextTree;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -423,34 +422,9 @@ pub fn inline_axis_coordinate(point: CssPixelPoint, writing_mode: u8) -> CssPixe
     }
 }
 
-pub(crate) fn local_float_point(
-    visual_context_tree: &VisualContextTree,
-    callbacks: &FfiHitTestQueryCallbacks,
-    context: ContextRef,
-    point: CssPixelPoint,
-    respect_clip: bool,
-) -> Option<(f32, f32)> {
-    // Returned in float local units: fixed-point CSSPixels quantization here would be magnified by the
-    // accumulated transform for content in scaled-down local spaces, such as SVG user units under a
-    // small viewBox.
-    let pixel_ratio = callbacks.device_pixels_per_css_pixel as f32;
-    let screen_point = libgfx_rust::FloatPoint {
-        x: point.x.to_float() * pixel_ratio,
-        y: point.y.to_float() * pixel_ratio,
-    };
-    let clip_behavior = ClipBehavior::from_respect_clip(respect_clip);
-    let local = visual_context_tree.transform_point_for_hit_test(
-        callbacks.world_transforms(),
-        context,
-        screen_point,
-        clip_behavior,
-    )?;
-    Some((local.x / pixel_ratio, local.y / pixel_ratio))
-}
-
-pub(crate) fn to_css_point(local: (f32, f32)) -> CssPixelPoint {
+pub(crate) fn to_css_point(local: libgfx_rust::FloatPoint) -> CssPixelPoint {
     CssPixelPoint::new(
-        CssPixels::nearest_value_for_f32(local.0),
-        CssPixels::nearest_value_for_f32(local.1),
+        CssPixels::nearest_value_for_f32(local.x),
+        CssPixels::nearest_value_for_f32(local.y),
     )
 }

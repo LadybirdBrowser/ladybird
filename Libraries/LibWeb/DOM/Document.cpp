@@ -8058,7 +8058,7 @@ static CSSPixelRect compute_intersection(Layout::BegunRead const& read, GC::Ref<
     Layout::RustFFI::layout_script_intersection_observer_intersection_rect(
         document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node(read)), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
-        Painting::rect_to_viewport_transform(document, visual_context_tree),
+        Painting::viewport_mapping(document, visual_context_tree),
         const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin, &rect);
     return rect;
 }
@@ -9425,7 +9425,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             return false;
         return Layout::RustFFI::layout_script_transform_subtree_is_clipped_outside(
             layout_node->document_host(), Layout::Node::slot_id(layout_node), root_bounds,
-            Painting::rect_to_viewport_transform(*this, *visual_context_tree));
+            Painting::viewport_mapping(*this, *visual_context_tree));
     };
 
     auto paint_only_effect_is_offscreen = [&](Animations::KeyframeEffect const& effect, AbstractElement abstract_target) {
@@ -9526,11 +9526,11 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             return false;
 
         auto viewport_bounds = CSSPixelRect { { 0, 0 }, viewport_rect().size() };
-        auto rect_to_viewport_transform = Painting::rect_to_viewport_transform(*this, *visual_context_tree);
+        auto viewport_mapping = Painting::viewport_mapping(*this, *visual_context_tree);
         auto bounds_in_viewport = [&](Layout::Node const& node) -> CSSPixelRect {
             CSSPixelRect rect;
             Layout::RustFFI::layout_script_bounding_client_rect(
-                node.document_host(), Layout::Node::slot_id(&node), rect_to_viewport_transform, &rect);
+                node.document_host(), Layout::Node::slot_id(&node), viewport_mapping, &rect);
             return rect;
         };
         HashTable<Layout::Node const*> containing_blocks;

@@ -11,24 +11,24 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
 use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_geometry;
-use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
 use crate::painting::style_queries;
+use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
 
 fn content_clip_rect_in_viewport_space(
     arena: &impl PaintRead,
     node: NodeSlotId,
     style: ComputedValuesView<'_>,
-    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+    viewport_mapping: &ViewportMapping<'_>,
 ) -> Option<CssPixelRect> {
     let has_content_clip = style.overflow_x() != overflow::VISIBLE || style.overflow_y() != overflow::VISIBLE;
     if !has_content_clip {
         return None;
     }
-    Some(transform_rect_to_viewport_or_identity(
-        rect_to_viewport_transform,
+    Some(viewport_mapping.rect_to_viewport(
         arena,
         node,
         paintable_geometry::absolute_padding_box_rect(arena, node),
+        ViewportSpace::LayoutViewport,
     ))
 }
 
@@ -39,7 +39,7 @@ pub(crate) fn intersection_rect(
     target_rect: CssPixelRect,
     intersection_root: NodeSlotId,
     root_bounds: CssPixelRect,
-    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+    viewport_mapping: &ViewportMapping<'_>,
     mut inflate_scroll_container_clip_rect_by_scroll_margin: impl FnMut(CssPixelRect) -> CssPixelRect,
 ) -> CssPixelRect {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
@@ -73,7 +73,7 @@ pub(crate) fn intersection_rect(
             // FIXME: Handle clip-path.
             if let Some(style) = arena.node_style_if_live(container_slot)
                 && let Some(mut clip_rect) =
-                    content_clip_rect_in_viewport_space(arena, container_slot, style, rect_to_viewport_transform)
+                    content_clip_rect_in_viewport_space(arena, container_slot, style, viewport_mapping)
             {
                 // Apply scroll margin to expand the scrollport for scroll containers.
                 let container_kind = arena.node_kind_if_live(container_slot).unwrap_or(NodeKind::Unset);
@@ -102,7 +102,7 @@ pub(crate) fn transform_subtree_is_clipped_outside(
     arena: &impl PaintRead,
     target: NodeSlotId,
     root_bounds: CssPixelRect,
-    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+    viewport_mapping: &ViewportMapping<'_>,
 ) -> bool {
     if !arena.paintable_row_is_populated(target) || root_bounds.is_empty() {
         return false;
@@ -131,8 +131,7 @@ pub(crate) fn transform_subtree_is_clipped_outside(
                 return false;
             }
 
-            if let Some(clip_rect) =
-                content_clip_rect_in_viewport_space(arena, ancestor, style, rect_to_viewport_transform)
+            if let Some(clip_rect) = content_clip_rect_in_viewport_space(arena, ancestor, style, viewport_mapping)
                 && !clip_rect.edge_adjacent_intersects(root_bounds)
             {
                 has_disjoint_clip = true;

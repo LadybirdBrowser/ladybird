@@ -9,9 +9,11 @@ use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_hidden};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paint_read::PaintRead;
+use crate::painting::viewport_mapping::ViewportSpace;
 use crate::painting::visual_context::{
-    NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree, WorldTransforms,
+    ClipBehavior, NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree, WorldTransforms,
 };
+use libgfx_rust::FloatPoint;
 use std::collections::HashMap;
 
 struct DepthSortingState<'a> {
@@ -97,7 +99,7 @@ impl HitTestList {
         layout_arena: &impl PaintRead,
         callbacks: &FfiHitTestQueryCallbacks,
         item: &HitTestItem,
-        local: (f32, f32),
+        local: FloatPoint,
     ) -> bool {
         let local_point = to_css_point(local);
         match item.kind {
@@ -107,7 +109,7 @@ impl HitTestList {
             HitTestItemKind::SvgPath => {
                 // SVG paths test in float: their local units can map to many device pixels each.
                 let rect = item.rect;
-                let (x, y) = local;
+                let FloatPoint { x, y } = local;
                 let in_rect = x >= rect.left().to_float()
                     && x < rect.right().to_float()
                     && y >= rect.top().to_float()
@@ -166,7 +168,7 @@ impl HitTestList {
         layout_arena: &impl PaintRead,
         callbacks: &FfiHitTestQueryCallbacks,
         item_indices: &[usize],
-        local: (f32, f32),
+        local: FloatPoint,
         search: TopmostSearch<'_>,
     ) {
         for item_index in item_indices.iter().rev() {
@@ -208,8 +210,11 @@ impl HitTestList {
         let mut topmost_caret: Option<TopmostItem> = None;
         let mut topmost_hit_index: Option<usize> = None;
         let mut topmost_caret_index: Option<usize> = None;
+        let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
         for (context, spatial_index) in &self.spatial_indexes_by_context {
-            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
+            let Some(local) =
+                viewport_mapping.point_to_local(*context, point, ViewportSpace::VisualViewport, ClipBehavior::Respect)
+            else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -275,11 +280,14 @@ impl HitTestList {
             return topmost;
         };
         let mut winner = topmost;
+        let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
         for (context, spatial_index) in &self.spatial_indexes_by_context {
             if depth_sorting.group_for(context.spatial) != Some(group) {
                 continue;
             }
-            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
+            let Some(local) =
+                viewport_mapping.point_to_local(*context, point, ViewportSpace::VisualViewport, ClipBehavior::Respect)
+            else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -343,8 +351,11 @@ impl HitTestList {
     ) -> Vec<usize> {
         debug_assert!(self.spatial_indexes_built);
         let mut hit_item_indices: Vec<usize> = Vec::new();
+        let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
         for (context, spatial_index) in &self.spatial_indexes_by_context {
-            let Some(local) = local_float_point(visual_context_tree, callbacks, *context, point, true) else {
+            let Some(local) =
+                viewport_mapping.point_to_local(*context, point, ViewportSpace::VisualViewport, ClipBehavior::Respect)
+            else {
                 continue;
             };
             let local_point = to_css_point(local);

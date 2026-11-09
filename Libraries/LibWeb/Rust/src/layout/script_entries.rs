@@ -11,15 +11,14 @@
 
 use super::FfiCssPixelRect;
 use super::node_data::NodeSlotId;
-use super::used_values::FfiCssPixelSize;
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use super::used_values::{FfiCssPixelPoint, FfiCssPixelSize};
+use crate::css::css_pixels::CssPixelRect;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::text_queries::FfiDomTextRange;
-use crate::painting::ffi::{
-    FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect, FfiRectToViewportTransform,
-};
+use crate::painting::ffi::{FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect};
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow, PaintSource};
+use crate::painting::viewport_mapping::{FfiViewportMapping, ViewportSpace};
 use crate::render_state::{DocumentHost, ScriptForcedRead};
 use std::ffi::c_void;
 
@@ -43,21 +42,15 @@ fn read_rows<R>(host: &DocumentHost, read: impl FnOnce(&PaintSource<'_>) -> R) -
 pub unsafe extern "C" fn layout_script_client_rects(
     host: &DocumentHost,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    viewport_mapping: FfiViewportMapping<'_>,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     read_rows(host, |arena| {
-        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
-        crate::painting::client_rects::for_each_client_rect(
-            arena,
-            layout_node,
-            rect_to_viewport_transform.as_ref(),
-            |rect| {
-                // SAFETY: The consumer copies the plain-data rect synchronously.
-                unsafe { push_rect(context, rect.into()) };
-            },
-        );
+        crate::painting::client_rects::for_each_client_rect(arena, layout_node, &viewport_mapping.mapping(), |rect| {
+            // SAFETY: The consumer copies the plain-data rect synchronously.
+            unsafe { push_rect(context, rect.into()) };
+        });
     });
 }
 
@@ -65,13 +58,11 @@ pub unsafe extern "C" fn layout_script_client_rects(
 pub extern "C" fn layout_script_bounding_client_rect(
     host: &DocumentHost,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    viewport_mapping: FfiViewportMapping<'_>,
     out: &mut FfiCssPixelRect,
 ) {
     *out = read_rows(host, |arena| {
-        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
-        crate::painting::client_rects::bounding_client_rect(arena, layout_node, rect_to_viewport_transform.as_ref())
-            .into()
+        crate::painting::client_rects::bounding_client_rect(arena, layout_node, &viewport_mapping.mapping()).into()
     });
 }
 
@@ -80,15 +71,14 @@ pub extern "C" fn layout_script_transform_subtree_is_clipped_outside(
     host: &DocumentHost,
     target: NodeSlotId,
     root_bounds: FfiCssPixelRect,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    viewport_mapping: FfiViewportMapping<'_>,
 ) -> bool {
     read_rows(host, |arena| {
-        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::intersection_observer::transform_subtree_is_clipped_outside(
             arena,
             target,
             root_bounds.into(),
-            rect_to_viewport_transform.as_ref(),
+            &viewport_mapping.mapping(),
         )
     })
 }
@@ -103,7 +93,7 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     target_rect: FfiCssPixelRect,
     intersection_root: NodeSlotId,
     root_bounds: FfiCssPixelRect,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    viewport_mapping: FfiViewportMapping<'_>,
     context: *mut c_void,
     inflate_scroll_container_clip_rect_by_scroll_margin: unsafe extern "C" fn(
         *mut c_void,
@@ -112,14 +102,13 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     out: &mut FfiCssPixelRect,
 ) {
     *out = read_rows(host, |arena| {
-        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::intersection_observer::intersection_rect(
             arena,
             target,
             target_rect.into(),
             intersection_root,
             root_bounds.into(),
-            rect_to_viewport_transform.as_ref(),
+            &viewport_mapping.mapping(),
             |clip_rect: CssPixelRect| -> CssPixelRect {
                 // SAFETY: The callback copies the plain-data rect synchronously.
                 unsafe { inflate_scroll_container_clip_rect_by_scroll_margin(context, clip_rect.into()) }.into()
@@ -156,13 +145,13 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     range_end_offset: usize,
     filter_dom_start: usize,
     filter_dom_end: usize,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
+    viewport_mapping: FfiViewportMapping<'_>,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     read_rows(host, |arena| {
         let paintable_rows = arena;
-        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
+        let viewport_mapping = viewport_mapping.mapping();
 
         let fragments = arena.text_fragments(primary);
         let node_slots = fragments.as_slice();
@@ -182,12 +171,7 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
             );
 
             let rect_in_viewport_space = if arena.slot_is_live(block) {
-                crate::painting::rect_to_viewport_transform::transform_rect_to_viewport_or_identity(
-                    rect_to_viewport_transform.as_ref(),
-                    paintable_rows,
-                    block,
-                    rect,
-                )
+                viewport_mapping.rect_to_viewport(paintable_rows, block, rect, ViewportSpace::LayoutViewport)
             } else {
                 rect
             };
@@ -446,51 +430,16 @@ pub extern "C" fn layout_script_has_sticky_positioned_inclusive_ancestor(
     })
 }
 
-fn spatial_chain_offset_in_css_pixels(
-    host: &DocumentHost,
-    slot: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
-    device_offset_of_spatial_chain: impl Fn(
-        &crate::painting::rect_to_viewport_transform::RectToViewportTransform<'_>,
-        crate::painting::visual_context::SpatialNodeIndex,
-    ) -> libgfx_rust::FloatPoint,
-) -> crate::painting::ffi::FfiOptionalCssPixelPoint {
-    read_rows(host, |arena| {
-        let mut result = crate::painting::ffi::FfiOptionalCssPixelPoint {
-            has_value: false,
-            x: CssPixels::from_raw(0),
-            y: CssPixels::from_raw(0),
-        };
-        let Some(transform) = rect_to_viewport_transform.transform() else {
-            return result;
-        };
-        if !arena.paintable_row_is_populated(slot) {
-            return result;
-        }
-        let spatial = arena.paintable_data(slot).accumulated_visual_context.spatial;
-        let offset = device_offset_of_spatial_chain(&transform, spatial);
-        let inverse_pixel_ratio = 1.0 / transform.device_pixels_per_css_pixel;
-        result.has_value = true;
-        result.x = CssPixels::nearest_value_for_f32(offset.x * inverse_pixel_ratio);
-        result.y = CssPixels::nearest_value_for_f32(offset.y * inverse_pixel_ratio);
-        result
-    })
-}
-
 /// The offset by which sticky positioning moves the box, as the sum of the offsets of the sticky positioned box and
 /// its sticky positioned ancestors.
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_script_accumulated_sticky_offset(
     host: &DocumentHost,
     slot: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
-    out: &mut crate::painting::ffi::FfiOptionalCssPixelPoint,
+    viewport_mapping: FfiViewportMapping<'_>,
+    out: &mut FfiCssPixelPoint,
 ) {
-    *out = spatial_chain_offset_in_css_pixels(host, slot, rect_to_viewport_transform, |transform, spatial| {
-        transform
-            .visual_context_tree
-            .accumulated_sticky_offset(spatial, transform.scroll_offsets)
-    });
+    *out = read_rows(host, |arena| viewport_mapping.mapping().sticky_offset(arena, slot)).into();
 }
 
 /// The offset by which scrolling, sticky positioning and anchor scroll shifts move the box, without its transforms.
@@ -498,14 +447,15 @@ pub extern "C" fn layout_script_accumulated_sticky_offset(
 pub extern "C" fn layout_script_offset_to_viewport_ignoring_transforms(
     host: &DocumentHost,
     slot: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
-    out: &mut crate::painting::ffi::FfiOptionalCssPixelPoint,
+    viewport_mapping: FfiViewportMapping<'_>,
+    out: &mut FfiCssPixelPoint,
 ) {
-    *out = spatial_chain_offset_in_css_pixels(host, slot, rect_to_viewport_transform, |transform, spatial| {
-        transform
-            .world_transforms
-            .offset_to_viewport_ignoring_transforms(transform.visual_context_tree, spatial)
-    });
+    *out = read_rows(host, |arena| {
+        viewport_mapping
+            .mapping()
+            .offset_to_viewport_ignoring_transforms(arena, slot)
+    })
+    .into();
 }
 
 #[unsafe(no_mangle)]

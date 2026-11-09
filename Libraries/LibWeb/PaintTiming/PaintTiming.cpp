@@ -241,17 +241,17 @@ static bool paints_non_default_content(Layout::Node const& node)
     return border_is_painted(node_with_style->border_left()) || border_is_painted(node_with_style->border_top()) || border_is_painted(node_with_style->border_right()) || border_is_painted(node_with_style->border_bottom());
 }
 
-CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiRectToViewportTransform const& rect_to_viewport_transform)
+CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
 {
     if (!node.is_text_node())
-        return Painting::bounding_client_rect(node, rect_to_viewport_transform);
+        return Painting::bounding_client_rect(node, viewport_mapping);
 
     // NB: The client rect of a text box is the union of the rects of its fragments.
     CSSPixelRect united_rect;
     Layout::RustFFI::layout_script_text_range_rects(
         node.document_host(), Layout::Node::slot_id(&node),
         to_underlying(Painting::SelectionState::Full), 0, 0, 0, NumericLimits<size_t>::max(),
-        rect_to_viewport_transform, &united_rect, [](void* context, CSSPixelRect rect) {
+        viewport_mapping, &united_rect, [](void* context, CSSPixelRect rect) {
             auto& united_rect = *static_cast<CSSPixelRect*>(context);
             if (rect.is_empty())
                 return;
@@ -280,8 +280,7 @@ public:
         m_scrolling_area = Painting::scrollable_overflow_rect(*m_viewport);
         m_scroll_offset = navigable->viewport_scroll_offset();
 
-        document.update_paint_and_hit_testing_properties_if_needed();
-        m_rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, document.visual_context_tree());
+        m_viewport_mapping = Painting::viewport_mapping(document);
     }
 
     Layout::BegunRead const& read() const { return m_read; }
@@ -320,7 +319,7 @@ public:
         // - el's paintable bounding rect intersects with the scrolling area of the document.
         // https://w3c.github.io/paint-timing/#paintable-bounding-rect
         // 1. Let boundingRect be the result of running the getBoundingClientRect() on target.
-        auto bounding_rect = client_rect_of_box(node, m_rect_to_viewport_transform).translated(m_scroll_offset);
+        auto bounding_rect = client_rect_of_box(node, m_viewport_mapping).translated(m_scroll_offset);
 
         // 2. Clip boundingRect with the document's scrolling area.
         // 3. Return boundingRect.
@@ -333,7 +332,7 @@ private:
     Layout::Viewport const* m_viewport { nullptr };
     Optional<CSSPixelRect> m_scrolling_area;
     CSSPixelPoint m_scroll_offset;
-    Layout::RustFFI::FfiRectToViewportTransform m_rect_to_viewport_transform { Painting::identity_rect_to_viewport_transform() };
+    Layout::RustFFI::FfiViewportMapping m_viewport_mapping {};
 };
 
 struct PaintedContent {

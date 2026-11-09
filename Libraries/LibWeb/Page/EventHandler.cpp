@@ -321,7 +321,7 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(EventHandler& pa
         return {};
 
     if (Painting::is_navigable_container_viewport_paintable(layout_node)) {
-        auto position = Painting::transform_to_local_coordinates(layout_node, viewport_position) - Painting::absolute_rect(layout_node).location();
+        auto position = Painting::point_to_local(layout_node, viewport_position, Layout::RustFFI::ViewportSpace::VisualViewport) - Painting::absolute_rect(layout_node).location();
         if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
             if (auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable)) {
                 // The nested navigable handles the event as the input event it is, outdated or not.
@@ -3533,7 +3533,7 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
     Layout::ForcedReadScope read { *document };
     if (auto* layout_node = target->layout_node(read)) {
         if (auto nested_navigable = local_nested_navigable_at(*layout_node, node)) {
-            auto nested_position = Painting::transform_to_local_coordinates(*layout_node, position) - Painting::absolute_rect(*layout_node).location();
+            auto nested_position = Painting::point_to_local(*layout_node, position, Layout::RustFFI::ViewportSpace::VisualViewport) - Painting::absolute_rect(*layout_node).location();
             if (auto nested_node = nested_navigable->event_handler().target_node_for_mouse_position(nested_position))
                 return nested_node;
         }

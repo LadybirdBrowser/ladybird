@@ -185,18 +185,14 @@ static Gfx::IntRect accessibility_bounds(Layout::BegunRead const& read, Element 
 // unions the text frame's in-flow rects). Empty when the text renders no fragment.
 static Optional<CSSPixelRect> text_bounding_client_rect(Document const& document, Layout::Node const& layout_node)
 {
-    auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
-    if (!document.can_compute_client_rects_without_accumulated_visual_contexts_update(layout_node)) {
-        const_cast<Document&>(document).update_paint_and_hit_testing_properties_if_needed();
-        visual_context_tree = document.visual_context_tree();
-        rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, *visual_context_tree);
-    }
+    Layout::RustFFI::FfiViewportMapping viewport_mapping {};
+    if (!document.can_compute_client_rects_without_accumulated_visual_contexts_update(layout_node))
+        viewport_mapping = Painting::viewport_mapping(document);
     Optional<CSSPixelRect> united;
     Layout::RustFFI::layout_script_text_range_rects(
         layout_node.document_host(), Layout::Node::slot_id(&layout_node),
         to_underlying(Painting::SelectionState::Full), 0, 0, 0, NumericLimits<size_t>::max(),
-        rect_to_viewport_transform, &united, [](void* context, CSSPixelRect rect) {
+        viewport_mapping, &united, [](void* context, CSSPixelRect rect) {
             auto& united = *static_cast<Optional<CSSPixelRect>*>(context);
             united = united.has_value() ? united->united(rect) : rect;
         });

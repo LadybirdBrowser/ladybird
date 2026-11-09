@@ -80,6 +80,20 @@ impl FfiHitTestQueryCallbacks {
         self
     }
 
+    /// The mapping between the viewport and the spaces of `tree`, the tree the query reads, under these callbacks'
+    /// offsets.
+    pub(crate) fn viewport_mapping<'a>(
+        &'a self,
+        tree: &'a crate::painting::visual_context::VisualContextTree,
+    ) -> crate::painting::viewport_mapping::ViewportMapping<'a> {
+        crate::painting::viewport_mapping::ViewportMapping::new(
+            tree,
+            self.world_transforms(),
+            self.scroll_offsets(),
+            self.device_pixels_per_css_pixel as f32,
+        )
+    }
+
     pub(crate) fn world_transforms(&self) -> &crate::painting::visual_context::WorldTransforms {
         assert!(
             !self.world_transforms.is_null(),
