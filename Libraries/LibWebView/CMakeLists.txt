@@ -55,6 +55,7 @@ set(SOURCES
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp
     PermissionManager.cpp
+    PlatformFeatureDecisions.cpp
     Process.cpp
     ProcessManager.cpp
     ProcessSnapshot.cpp
@@ -74,6 +75,7 @@ set(SOURCES
     SiteCompatibility.cpp
     StorageAreaRegistry.cpp
     StorageJar.cpp
+    SystemProbeClient.cpp
     TestSpellChecker.cpp
     TestTranslator.cpp
     Translator.cpp
@@ -164,7 +166,7 @@ add_custom_target(generate_build_information DEPENDS ${build_information_stamp})
 
 ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
 add_dependencies(LibWebView generate_build_information)
-target_link_libraries(LibWebView PUBLIC LibCompositing LibSandbox LibWebCommon)
+target_link_libraries(LibWebView PUBLIC LibCompositing LibPlatformFeatures LibSandbox LibWebCommon)
 target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibMedia LibMediaClient LibUnicode LibURL LibTextCodec LibThreading)
 
 if (LINUX)

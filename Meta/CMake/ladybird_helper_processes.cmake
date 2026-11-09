@@ -5,6 +5,7 @@ set(ladybird_helper_processes
     ImageDecoder
     MediaServer
     RequestServer
+    SystemProbe
     VideoDecoderServer
     WebContent
     WebRTCClient

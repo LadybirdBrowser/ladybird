@@ -71,6 +71,7 @@
 #include <LibWebView/SiteCompatibility.h>
 #include <LibWebView/SpellChecker.h>
 #include <LibWebView/StorageAreaRegistry.h>
+#include <LibWebView/SystemProbeClient.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/Translator.h>
 #include <LibWebView/URL.h>
@@ -324,6 +325,19 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool expose_experimental_interfaces = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
+    HashTable<PlatformFeatures::Feature> disabled_features;
+    HashTable<PlatformFeatures::Feature> force_enabled_features;
+    auto parse_feature_list = [](StringView list, HashTable<PlatformFeatures::Feature>& features) {
+        for (auto id : list.split_view(',')) {
+            auto feature = PlatformFeatures::feature_from_id(id);
+            if (!feature.has_value()) {
+                warnln("Unknown platform feature: {}", id);
+                return false;
+            }
+            features.set(*feature);
+        }
+        return true;
+    };
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool disable_scrollbar_painting = false;
@@ -444,7 +458,25 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
-    args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
+    args_parser.add_option(force_cpu_painting, "Force CPU painting, the same as --disable-features=gpu_painting", "force-cpu-painting");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Turn off platform features, and the features that depend on them",
+        .long_name = "disable-features",
+        .value_name = "feature,...",
+        .accept_value = [&](StringView value) -> ErrorOr<bool> {
+            return parse_feature_list(value, disabled_features);
+        },
+    });
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Turn on platform features despite the blocklist, where the system supports them",
+        .long_name = "force-enable-features",
+        .value_name = "feature,...",
+        .accept_value = [&](StringView value) -> ErrorOr<bool> {
+            return parse_feature_list(value, force_enabled_features);
+        },
+    });
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation", 'g');
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical scrollbars on the main viewport", "disable-scrollbar-painting");
@@ -658,6 +690,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         m_web_content_options.expose_internals_object = ExposeInternalsObject::Yes;
         m_web_content_options.force_cpu_painting = ForceCPUPainting::Yes;
     }
+
+    m_feature_overrides.disabled = move(disabled_features);
+    m_feature_overrides.force_enabled = move(force_enabled_features);
+    if (m_web_content_options.force_cpu_painting == ForceCPUPainting::Yes)
+        m_feature_overrides.disabled.set(PlatformFeatures::Feature::GpuPainting);
+    // Test results must not depend on the machine's GPU.
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
+        m_feature_overrides.force_enabled.clear();
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
@@ -1085,7 +1125,9 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     auto initial_document_id = cross_process_id_allocator.allocate();
 
     auto client = TRY(WebView::launch_web_content_process(session, initial_page_id, root_navigable_id));
-    TRY(Application::the().connect_web_content_to_compositor(*client));
+    // A process launched while there is no Compositor is connected to it along with every other process once it is up.
+    if (m_compositor_client)
+        TRY(connect_web_content_to_compositor(*client));
 
     // A tab's first process creates its traversable from this entry. A process hosting a navigable of an existing tab
     // stands in for the canonical current entry.
@@ -1768,7 +1810,14 @@ ErrorOr<void> Application::launch_services()
 
     m_image_decoder_manager = make<ImageDecoderManager>();
     TRY(launch_request_server());
-    TRY(launch_compositor_process());
+    if (prepare_platform_features() == CompositorLaunch::Now) {
+        TRY(launch_compositor_process());
+    } else {
+        // Pages opened in the meantime are attached to the Compositor once it is up, as after a crash.
+        when_platform_features_are_current([this] {
+            bring_up_compositor_process();
+        });
+    }
 
     if (m_browser_options.devtools_port.has_value()) {
         // Defer launching devtools until the entire application is initialized.
@@ -1781,10 +1830,125 @@ ErrorOr<void> Application::launch_services()
     return {};
 }
 
+static constexpr u32 system_facts_cache_format = 1;
+
+static ByteString platform_features_cache_path()
+{
+    auto const& profile = Application::profile();
+    return LexicalPath::join(profile.paths().cache, "SystemFacts.json"sv).string();
+}
+
+static Optional<SystemFacts> read_cached_system_facts(ByteString const& path)
+{
+    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    if (file.is_error())
+        return {};
+    auto contents = file.value()->read_until_eof();
+    if (contents.is_error())
+        return {};
+    auto json = JsonValue::from_string(contents.value());
+    if (json.is_error() || !json.value().is_object())
+        return {};
+    auto const& object = json.value().as_object();
+    if (object.get_u32("format"sv) != system_facts_cache_format)
+        return {};
+    auto facts_object = object.get_object("facts"sv);
+    if (!facts_object.has_value())
+        return {};
+    auto facts = SystemFacts::from_json(*facts_object);
+    if (facts.is_error())
+        return {};
+    return facts.release_value();
+}
+
+static ErrorOr<void> write_cached_system_facts(ByteString const& path, SystemFacts const& facts)
+{
+    JsonObject object;
+    object.set("format"sv, system_facts_cache_format);
+    object.set("facts"sv, facts.to_json());
+
+    // The file is replaced whole, so that a crash while writing it cannot leave half a cache behind.
+    auto temporary_path = ByteString::formatted("{}.new", path);
+    auto file = TRY(Core::File::open(temporary_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+    auto serialized = object.serialized();
+    TRY(file->write_until_depleted(serialized.bytes()));
+    file->close();
+    TRY(FileSystem::move_file(path, temporary_path));
+    return {};
+}
+
+Application::CompositorLaunch Application::prepare_platform_features()
+{
+    // Test results must not depend on the machine's GPU, and test mode paints on the CPU regardless of what it has.
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
+        reevaluate_platform_features();
+        return CompositorLaunch::Now;
+    }
+
+    auto cached_facts = read_cached_system_facts(platform_features_cache_path());
+    m_system_probe = SystemProbeClient::launch(platform_presentation_gpu_device(), [this](SystemFacts const& facts) {
+        system_facts_arrived(facts);
+    });
+    // A probe that could not be launched has already reported so.
+    if (m_system_probe->has_finished())
+        return CompositorLaunch::Now;
+
+    // The Compositor starts from the facts the last probe reported, unless it would not use them. Without them, it
+    // waits for this probe, which reports soon enough not to be worth starting the Compositor twice.
+    auto launch = CompositorLaunch::Now;
+    if (cached_facts.has_value())
+        m_system_facts = cached_facts.release_value();
+    else if (!PlatformFeatureDecisions::decides_without_facts(FeatureProcess::Compositor, m_feature_overrides))
+        launch = CompositorLaunch::WhenPlatformFeaturesAreCurrent;
+
+    reevaluate_platform_features();
+    return launch;
+}
+
+void Application::system_facts_arrived(SystemFacts const& facts)
+{
+    if (facts.probe_failure.has_value()) {
+        warnln("The system probe failed: {}", *facts.probe_failure);
+        // The next launch waits for its probe rather than trusting facts that this one could not confirm.
+        (void)FileSystem::remove(platform_features_cache_path(), FileSystem::RecursionMode::Disallowed);
+    } else if (auto result = write_cached_system_facts(platform_features_cache_path(), facts); result.is_error()) {
+        warnln("Could not cache the system's facts: {}", result.error());
+    }
+
+    m_system_facts = facts;
+    reevaluate_platform_features();
+
+    // A Compositor started from the cached facts is relaunched with the features the system has now.
+    if (m_compositor_client && m_platform_feature_decisions->features_for(FeatureProcess::Compositor).to_byte_string() != m_compositor_launched_features) {
+        dbgln("The Compositor's platform features changed, relaunching it");
+        m_compositor_relaunch_is_planned = true;
+        m_compositor_client->shutdown();
+    }
+
+    auto callbacks = move(m_callbacks_awaiting_current_platform_features);
+    for (auto& callback : callbacks)
+        callback();
+}
+
+void Application::reevaluate_platform_features()
+{
+    m_platform_feature_decisions = PlatformFeatureDecisions::evaluate(m_system_facts, m_feature_overrides, m_feature_runtime_failures);
+}
+
+void Application::when_platform_features_are_current(Function<void()> callback)
+{
+    if (m_system_probe && !m_system_probe->has_finished()) {
+        m_callbacks_awaiting_current_platform_features.append(move(callback));
+        return;
+    }
+    callback();
+}
+
 ErrorOr<void> Application::launch_compositor_process()
 {
     VERIFY(!m_compositor_client);
-    m_compositor_client = TRY(WebView::launch_compositor_process());
+    m_compositor_launched_features = m_platform_feature_decisions->features_for(FeatureProcess::Compositor).to_byte_string();
+    m_compositor_client = TRY(WebView::launch_compositor_process(m_compositor_launched_features));
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
@@ -1902,23 +2066,58 @@ void Application::recover_compositor_process()
     if (Core::EventLoop::current().was_exit_requested())
         return;
 
-    constexpr size_t max_compositor_restart_count = 3;
-    if (m_compositor_restart_count >= max_compositor_restart_count) {
-        warnln("Compositor process crashed repeatedly, crashing Browser");
-        VERIFY_NOT_REACHED();
+    bool counts_as_crash = !exchange(m_compositor_relaunch_is_planned, false);
+
+    // A Compositor started from cached facts may have died of what changed since they were cached, so it is held until
+    // the probe reports. It only counts as a crash if the probe leaves it with the same features.
+    if (counts_as_crash && m_system_probe && !m_system_probe->has_finished()) {
+        when_platform_features_are_current([this] {
+            auto features = m_platform_feature_decisions->features_for(FeatureProcess::Compositor).to_byte_string();
+            relaunch_compositor_process(features == m_compositor_launched_features);
+        });
+        return;
     }
 
-    ++m_compositor_restart_count;
-    dbgln("Compositor process died, restarting ({}/{})", m_compositor_restart_count, max_compositor_restart_count);
+    relaunch_compositor_process(counts_as_crash);
+}
+
+void Application::relaunch_compositor_process(bool counts_as_crash)
+{
+    if (Core::EventLoop::current().was_exit_requested())
+        return;
+
+    if (counts_as_crash) {
+        constexpr size_t max_compositor_restart_count = 3;
+        if (m_compositor_restart_count >= max_compositor_restart_count) {
+            if (!m_platform_feature_decisions->is_enabled(PlatformFeatures::Feature::GpuPainting)) {
+                warnln("Compositor process crashed repeatedly, crashing Browser");
+                VERIFY_NOT_REACHED();
+            }
+            warnln("Compositor process crashed repeatedly while painting on the GPU, painting on the CPU instead");
+            m_feature_runtime_failures.set(PlatformFeatures::Feature::GpuPainting, "The Compositor crashed repeatedly while painting on the GPU"_string);
+            reevaluate_platform_features();
+            m_compositor_restart_count = 0;
+        }
+
+        ++m_compositor_restart_count;
+        dbgln("Compositor process died, restarting ({}/{})", m_compositor_restart_count, max_compositor_restart_count);
+    }
 
     VERIFY(m_compositor_recovery_state == CompositorRecoveryState::Idle);
     m_compositor_recovery_state = CompositorRecoveryState::Recovering;
     ScopeGuard clear_recovery_flag = [this] {
         m_compositor_recovery_state = CompositorRecoveryState::Idle;
     };
+    bring_up_compositor_process();
+}
+
+void Application::bring_up_compositor_process()
+{
+    if (Core::EventLoop::current().was_exit_requested())
+        return;
 
     if (auto result = launch_compositor_process(); result.is_error()) {
-        warnln("Unable to restart Compositor process: {}", result.error());
+        warnln("Unable to launch Compositor process: {}", result.error());
         VERIFY_NOT_REACHED();
     }
 
