@@ -14,8 +14,7 @@ mod grid_lanes;
 use grid_lanes::{GridLanes, StackingAxisArea};
 
 use super::box_alignment::{
-    AxisDirections, ContentAlignment, ContentDistribution, ContentKeyword, OverflowSafety, SelfAlignment, SelfKeyword,
-    SelfPosition,
+    AxisDirections, ContentAlignment, ContentKeyword, OverflowSafety, SelfAlignment, SelfKeyword, SelfPosition,
 };
 
 /// Whether each gutter between consecutive tracks collapses.
@@ -33,26 +32,6 @@ fn collapsed_gutters(tracks: &[Track<'_>]) -> Vec<bool> {
             tracks[index + 1].is_collapsed || !seen_non_collapsed
         })
         .collect()
-}
-
-fn distributed_gap_size(
-    distribution: Option<ContentDistribution>,
-    container_size: CssPixels,
-    track_size_sum: CssPixels,
-    gap_count: usize,
-    minimum_gap: CssPixels,
-) -> CssPixels {
-    if gap_count == 0 {
-        return CssPixels::default();
-    }
-    let available = CssPixels::default().max(container_size - track_size_sum);
-    let distributed = match distribution {
-        Some(ContentDistribution::SpaceBetween) => available / gap_count,
-        Some(ContentDistribution::SpaceAround) => available / gap_count.saturating_add(1),
-        Some(ContentDistribution::SpaceEvenly) => available / gap_count.saturating_add(2),
-        _ => CssPixels::default(),
-    };
-    distributed.max(minimum_gap)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -4530,16 +4509,27 @@ impl<'pass> GridFormattingContext<'pass> {
             .axis_tracks(axis)
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
-        let distribution = self.content_alignment(axis).distribution;
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
         let collapsed = collapsed_gutters(self.axis_tracks(axis));
         let gap_count = collapsed.iter().filter(|&&collapse| !collapse).count();
-        let size = distributed_gap_size(distribution, container, track_sum, gap_count, minimum);
+        // NB: The distributed space includes the gaps, which take their share or the gap, whichever is larger.
+        let distributed_space = self
+            .content_alignment(axis)
+            .distributed_space(container - track_sum, gap_count + 1);
         let gaps = axis.select(&mut self.column_gaps, &mut self.row_gaps);
+        let mut gaps_kept = 0;
+        let mut widened = false;
         for (gap, collapse) in gaps.iter_mut().zip(collapsed) {
-            gap.base_size = if collapse { CssPixels::default() } else { size };
+            gap.base_size = if collapse {
+                CssPixels::default()
+            } else {
+                let size = distributed_space.space_after(gaps_kept).max(minimum);
+                gaps_kept += 1;
+                widened |= size > minimum;
+                size
+            };
         }
-        gap_count > 0 && size > minimum
+        widened
     }
 
     fn used_container_block_size_for_second_row_layout(&self) -> CssPixels {
