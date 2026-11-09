@@ -88,16 +88,30 @@ void WebContentClient::note_hosted_document(CanonicalDocument const& document)
 
     auto const& origin = document.origin();
     if (document.may_share_a_process_with_tabs_of_its_origin()) {
-        if (!m_origin_of_hosted_tabs.has_value())
+        if (!m_origin_of_hosted_tabs.has_value()) {
             m_origin_of_hosted_tabs = origin;
-        if (m_origin_of_hosted_tabs == origin)
+            m_hosted_tabs_are_origin_keyed = document.relevant_global_object().agent().agent_cluster_is_origin_keyed();
+        }
+        if (has_hosted_only_tabs_like(document))
             return;
-    } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value() && !origin.is_opaque() && origin.is_same_site(*m_origin_of_hosted_tabs)) {
+    } else if (!document.is_top_level() && m_origin_of_hosted_tabs.has_value() && !origin.is_opaque()
+        && (m_hosted_tabs_are_origin_keyed ? origin.is_same_origin(*m_origin_of_hosted_tabs) : origin.is_same_site(*m_origin_of_hosted_tabs))) {
         return;
     }
 
     m_has_hosted_more_than_tabs_of_one_origin = true;
     m_origin_of_hosted_tabs.clear();
+}
+
+bool WebContentClient::has_hosted_only_tabs_like(CanonicalDocument const& document) const
+{
+    return m_origin_of_hosted_tabs == document.origin()
+        && m_hosted_tabs_are_origin_keyed == document.relevant_global_object().agent().agent_cluster_is_origin_keyed();
+}
+
+bool WebContentClient::has_hosted_only_tabs_unlike(CanonicalDocument const& document) const
+{
+    return m_origin_of_hosted_tabs.has_value() && !has_hosted_only_tabs_like(document);
 }
 
 bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)
