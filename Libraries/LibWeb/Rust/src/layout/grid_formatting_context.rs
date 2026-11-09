@@ -3799,8 +3799,8 @@ impl<'pass> GridFormattingContext<'pass> {
         let style = self.style(node);
         let (keyword, safety) = self.select_grid_axis(
             axis,
-            SelfKeyword::justify_self_of(*style, *self.container_style),
-            SelfKeyword::align_self_of(*style, *self.container_style),
+            SelfKeyword::justify_self_of(*style, Some(*self.container_style)),
+            SelfKeyword::align_self_of(*style, Some(*self.container_style)),
         );
         let container_start_is_low = !self.axis_is_reversed(axis);
         let alignment = keyword.resolve(
@@ -5644,14 +5644,10 @@ impl<'pass> GridFormattingContext<'pass> {
 
     /// The alignment of an absolutely positioned item in its grid area. Normal and stretch alignment do not stretch
     /// such an item, so they align it to the start of its area, as for an unstretched in-flow item.
-    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> AbsposAlignment {
+    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> AbsposAxisAlignment {
         match Self::aligned_position(self.item_alignment_of(node, axis), false, CssPixels::default()) {
-            SelfPosition::Normal => AbsposAlignment::Normal,
-            SelfPosition::Stretch => AbsposAlignment::Stretch,
-            SelfPosition::Baseline => AbsposAlignment::Baseline,
-            SelfPosition::Edge(AxisEdge::Start) => AbsposAlignment::Start,
-            SelfPosition::Edge(AxisEdge::Center) => AbsposAlignment::Center,
-            SelfPosition::Edge(AxisEdge::End) => AbsposAlignment::End,
+            SelfPosition::Edge(edge) => AbsposAxisAlignment::Edge(edge),
+            SelfPosition::Normal | SelfPosition::Stretch | SelfPosition::Baseline => AbsposAxisAlignment::Stretch,
         }
     }
 

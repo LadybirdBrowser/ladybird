@@ -80,14 +80,13 @@ pub(crate) enum AbsposAxisMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AbsposAlignment {
-    AnchorCenter,
-    Baseline,
-    Center,
-    End,
-    Normal,
-    Start,
+pub(crate) enum AbsposAxisAlignment {
+    /// The box keeps the place its insets give it in its inset-modified containing block, as for normal, stretch and
+    /// baseline alignment.
     Stretch,
+    Edge(AxisEdge),
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
+    AnchorCenter,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,8 +94,8 @@ pub(crate) struct AbsposContainingBlockInfo {
     pub(crate) rect: geometry::LogicalRect,
     pub(crate) inline_axis_mode: AbsposAxisMode,
     pub(crate) block_axis_mode: AbsposAxisMode,
-    pub(crate) inline_alignment: Option<AbsposAlignment>,
-    pub(crate) block_alignment: Option<AbsposAlignment>,
+    pub(crate) inline_alignment: Option<AbsposAxisAlignment>,
+    pub(crate) block_alignment: Option<AbsposAxisAlignment>,
     pub(crate) derives_from_own_computed_values: bool,
     /// Whether a position area made this the box's containing block.
     pub(crate) is_position_area: bool,
@@ -106,7 +105,7 @@ impl AbsposContainingBlockInfo {
     // NB: A grid area, a position area and anchor-center give an axis an alignment, and set its mode whatever the
     //     insets are. They may size or align the box against the static position rect.
     pub(crate) fn axes_placed_by_own_insets(&self) -> (bool, bool) {
-        let placed_by_own_insets = |mode: AbsposAxisMode, alignment: Option<AbsposAlignment>| {
+        let placed_by_own_insets = |mode: AbsposAxisMode, alignment: Option<AbsposAxisAlignment>| {
             mode == AbsposAxisMode::InsetFromRect && alignment.is_none()
         };
         (
@@ -123,8 +122,8 @@ impl AbsposContainingBlockInfo {
             return (true, true);
         }
         (
-            self.inline_alignment == Some(AbsposAlignment::AnchorCenter),
-            self.block_alignment == Some(AbsposAlignment::AnchorCenter),
+            self.inline_alignment == Some(AbsposAxisAlignment::AnchorCenter),
+            self.block_alignment == Some(AbsposAxisAlignment::AnchorCenter),
         )
     }
 }

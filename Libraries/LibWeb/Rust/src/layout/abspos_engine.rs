@@ -10,6 +10,7 @@ use crate::css::style::position_try::PositionOptionStyle;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style_value::{AnchorPayload, AnchorSizePayload};
 use crate::painting::paint_read::{GeometryRead, PaintRead};
+use box_alignment::{AxisDirections, OverflowSafety, SelfAlignment, SelfKeyword, SelfPosition};
 
 pub(super) fn axis_modes(style: StyleValues) -> (abspos_inputs::AbsposAxisMode, abspos_inputs::AbsposAxisMode) {
     (
@@ -1037,7 +1038,7 @@ impl AbsposEngine<'_> {
             static_position_rect.rect.size.inline_size = anchor_rect.width;
             static_position_rect.inline_alignment = AxisEdge::Center;
             containing_block_info.inline_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
-            containing_block_info.inline_alignment = Some(AbsposAlignment::AnchorCenter);
+            containing_block_info.inline_alignment = Some(AbsposAxisAlignment::AnchorCenter);
         }
         if centers_block {
             static_position_rect.rect.offset.block_offset = anchor_rect.top()
@@ -1046,7 +1047,7 @@ impl AbsposEngine<'_> {
             static_position_rect.rect.size.block_size = anchor_rect.height;
             static_position_rect.block_alignment = AxisEdge::Center;
             containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
-            containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
+            containing_block_info.block_alignment = Some(AbsposAxisAlignment::AnchorCenter);
         }
         containing_block_info.derives_from_own_computed_values = true;
     }
@@ -1191,20 +1192,21 @@ impl AbsposEngine<'_> {
         // When position-area is not none, the used value of normal self-alignment changes depending on the
         // <position-area> value, to align the box towards the anchor.
         let inline_alignment = self_alignment_for_position_area(
-            style.justify_self(),
+            SelfKeyword::justify_self_of(*style, None).0,
             tracks.horizontal,
-            containing_block_style.direction() == direction::LTR,
-            style.direction() == direction::LTR,
+            AxisDirections {
+                self_start_is_low: style.direction() == direction::LTR,
+                ..AxisDirections::of(containing_block_style.direction() == direction::LTR, Some(true))
+            },
         );
         let block_alignment = self_alignment_for_position_area(
-            justify_self_value_for_align_self(style.align_self()),
+            SelfKeyword::align_self_of(*style, None).0,
             tracks.vertical,
-            true,
-            true,
+            AxisDirections::of(true, None),
         );
         let stretches = (
-            inline_alignment == AbsposAlignment::Stretch,
-            block_alignment == AbsposAlignment::Stretch,
+            inline_alignment == AbsposAxisAlignment::Stretch,
+            block_alignment == AbsposAxisAlignment::Stretch,
         );
         containing_block_info.inline_alignment = Some(inline_alignment);
         containing_block_info.block_alignment = Some(block_alignment);
@@ -1488,60 +1490,39 @@ pub(crate) fn resolve_position_area_tracks(
     })
 }
 
-/// The justify-self value with the same meaning as an align-self value.
-fn justify_self_value_for_align_self(value: u8) -> u8 {
-    // NB: align-self and justify-self share their keyword values, except for left, right and anchor-center.
-    match value {
-        align_self::ANCHOR_CENTER => justify_self::ANCHOR_CENTER,
-        value => value,
-    }
-}
-
 /// The used self-alignment of a box with a non-none position-area in one physical axis, where Start and End are
-/// the left/top and right/bottom sides. The computed value is a justify-self value.
+/// the left/top and right/bottom sides.
 fn self_alignment_for_position_area(
-    computed: u8,
+    keyword: SelfKeyword,
     tracks: PositionAreaTrackRange,
-    containing_block_start_is_left_or_top: bool,
-    own_start_is_left_or_top: bool,
-) -> AbsposAlignment {
-    let towards_start = |start_is_left_or_top: bool| {
-        if start_is_left_or_top {
-            AbsposAlignment::Start
-        } else {
-            AbsposAlignment::End
-        }
-    };
-    let towards_end = |start_is_left_or_top: bool| {
-        if start_is_left_or_top {
-            AbsposAlignment::End
-        } else {
-            AbsposAlignment::Start
-        }
-    };
-    match computed {
-        justify_self::ANCHOR_CENTER => AbsposAlignment::AnchorCenter,
-        justify_self::CENTER => AbsposAlignment::Center,
-        justify_self::STRETCH => AbsposAlignment::Stretch,
-        justify_self::START | justify_self::FLEX_START | justify_self::BASELINE => {
-            towards_start(containing_block_start_is_left_or_top)
-        }
-        justify_self::END | justify_self::FLEX_END => towards_end(containing_block_start_is_left_or_top),
-        justify_self::SELF_START => towards_start(own_start_is_left_or_top),
-        justify_self::SELF_END => towards_end(own_start_is_left_or_top),
-        justify_self::LEFT => AbsposAlignment::Start,
-        justify_self::RIGHT => AbsposAlignment::End,
+    directions: AxisDirections,
+) -> AbsposAxisAlignment {
+    match keyword {
+        SelfKeyword::AnchorCenter => AbsposAxisAlignment::AnchorCenter,
+        SelfKeyword::Stretch => AbsposAxisAlignment::Stretch,
         // https://drafts.csswg.org/css-anchor-position-1/#position-area-alignment
         // - If the only the center track in an axis is selected, the default alignment in that axis is center.
         // - If all three tracks are selected, the default alignment in that axis is anchor-center.
         // - Otherwise, the default alignment in that axis is toward the non-specified side track: if it's
         //   specifying the “start” track of its axis, the default alignment in that axis is end; etc.
-        _ => match (tracks.first, tracks.last) {
-            (1, 1) => AbsposAlignment::Center,
-            (0, 2) => AbsposAlignment::AnchorCenter,
-            (0, _) => AbsposAlignment::End,
-            _ => AbsposAlignment::Start,
+        SelfKeyword::Normal => match (tracks.first, tracks.last) {
+            (1, 1) => AbsposAxisAlignment::Edge(AxisEdge::Center),
+            (0, 2) => AbsposAxisAlignment::AnchorCenter,
+            (0, _) => AbsposAxisAlignment::Edge(AxisEdge::End),
+            _ => AbsposAxisAlignment::Edge(AxisEdge::Start),
         },
+        keyword => AbsposAxisAlignment::Edge(edge_of_own_alignment(
+            keyword.resolve(OverflowSafety::Default, directions),
+        )),
+    }
+}
+
+/// The edge that a box aligns itself to in its inset-modified containing block, where baseline alignment aligns it
+/// as start.
+fn edge_of_own_alignment(alignment: SelfAlignment) -> AxisEdge {
+    match alignment.position {
+        SelfPosition::Edge(edge) => edge,
+        _ => alignment.container_start,
     }
 }
 
@@ -2027,7 +2008,7 @@ impl AbsposEngine<'_> {
         if inline_size.is_none()
             && !computed_left.is_auto()
             && !computed_right.is_auto()
-            && self.self_alignment_sizes_to_fit_content(sized, true)
+            && self.own_self_alignment_keyword(sized, true).is_some()
         {
             inline_size = Some(shrink_to_fit(left, margin_left, margin_right, right));
         }
@@ -2494,7 +2475,7 @@ impl AbsposEngine<'_> {
         if solution.block_size.is_none()
             && solution.top.is_some()
             && solution.bottom.is_some()
-            && self.self_alignment_sizes_to_fit_content(sized, false)
+            && self.own_self_alignment_keyword(sized, false).is_some()
         {
             let Some(automatic) = self.automatic_block_size(
                 sized,
@@ -3074,28 +3055,21 @@ impl<'pass> AbsposEngine<'pass> {
             // the inset-modified containing block as the alignment container. However, if an explicit overflow
             // alignment is not specified and its margin box overflows the inset-modified containing block, its
             // alignment is adjusted to minimize overflow as specified in [[css-align-3#auto-safety-position]].
-            let align_within_insets = |alignment: AbsposAlignment,
-                                       overflow: u8,
+            let align_within_insets = |alignment: SelfAlignment,
                                        start_inset: CssPixels,
                                        end_inset: CssPixels,
                                        containing_block_size: CssPixels,
-                                       margin_box_size: CssPixels,
-                                       start_is_low_side: bool| {
+                                       margin_box_size: CssPixels| {
                 let available = containing_block_size - start_inset - end_inset - margin_box_size;
-                let offset = match alignment {
-                    AbsposAlignment::Center => start_inset + available / 2,
-                    AbsposAlignment::End => start_inset + available,
-                    _ => start_inset,
-                };
-                if available >= CssPixels::default()
-                    || overflow == crate::css::computed_value_types::OVERFLOW_ALIGNMENT_UNSAFE
-                {
+                let offset = start_inset + edge_of_own_alignment(alignment).offset(available);
+                if available >= CssPixels::default() || alignment.safety == OverflowSafety::Unsafe {
                     return offset;
                 }
+                let start_is_low_side = alignment.container_start == AxisEdge::Start;
                 // https://drafts.csswg.org/css-align-3/#overflow-values
                 // safe: If the size of the alignment subject overflows the alignment container, the alignment subject
                 // is instead aligned as if the alignment mode were start.
-                if overflow == crate::css::computed_value_types::OVERFLOW_ALIGNMENT_SAFE {
+                if alignment.safety == OverflowSafety::Safe {
                     return if start_is_low_side {
                         start_inset
                     } else {
@@ -3116,43 +3090,35 @@ impl<'pass> AbsposEngine<'pass> {
                 offset.max(region_start).min(region_end - margin_box_size)
             };
             let containing_block = inputs.containing_block;
-            let inline_start_is_low_side =
-                containing_block.is_invalid() || !self.style(containing_block).inline_axis_is_reverse();
             if inputs.containing_block_info.inline_alignment.is_none()
                 && !style.inset_left().is_auto()
                 && !style.inset_right().is_auto()
-                && self.self_alignment_sizes_to_fit_content(sized, true)
-                && let Some(alignment) = self.self_alignment(sized, containing_block, true)
+                && let Some(alignment) = self.own_self_alignment(sized, containing_block, true)
             {
                 let inline_size = containing_block_size.inline_size;
                 let margin_box_size = used.margin_box_inline_size(collapsed);
                 let inset = align_within_insets(
                     alignment,
-                    style.justify_self_overflow(),
                     style.inset_left().to_px(inline_size),
                     style.inset_right().to_px(inline_size),
                     inline_size,
                     margin_box_size,
-                    inline_start_is_low_side,
                 );
                 Self::set_used_inline_insets(sized, inset, inline_size - inset - margin_box_size);
             }
             if inputs.containing_block_info.block_alignment.is_none()
                 && !style.inset_top().is_auto()
                 && !style.inset_bottom().is_auto()
-                && self.self_alignment_sizes_to_fit_content(sized, false)
-                && let Some(alignment) = self.self_alignment(sized, containing_block, false)
+                && let Some(alignment) = self.own_self_alignment(sized, containing_block, false)
             {
                 let block_size = containing_block_size.block_size;
                 let margin_box_size = used.margin_box_block_size(collapsed);
                 let inset = align_within_insets(
                     alignment,
-                    style.align_self_overflow(),
                     style.inset_top().to_px(block_size),
                     style.inset_bottom().to_px(block_size),
                     block_size,
                     margin_box_size,
-                    true,
                 );
                 Self::set_used_block_insets(sized, inset, block_size - inset - margin_box_size);
             }
@@ -3168,17 +3134,15 @@ impl<'pass> AbsposEngine<'pass> {
                 let inset = match inline_alignment {
                     // NB: By default, an anchor-centered box shifts to stay within its inset-modified containing
                     //     block.
-                    AbsposAlignment::AnchorCenter => Some(
+                    AbsposAxisAlignment::AnchorCenter => Some(
                         start_inset
                             + shift_into_containing_block(
                                 self.static_offset(sized, inputs.static_position_rect).inline_offset - start_inset,
                                 available,
                             ),
                     ),
-                    AbsposAlignment::Center => Some(start_inset + available / 2),
-                    AbsposAlignment::Start => Some(start_inset),
-                    AbsposAlignment::End => Some(start_inset + available),
-                    _ => None,
+                    AbsposAxisAlignment::Edge(edge) => Some(start_inset + edge.offset(available)),
+                    AbsposAxisAlignment::Stretch => None,
                 };
                 if let Some(inset) = inset {
                     Self::set_used_inline_insets(
@@ -3198,17 +3162,15 @@ impl<'pass> AbsposEngine<'pass> {
                 let margin_box_size = used.margin_box_block_size(collapsed);
                 let available = containing_block_size.block_size - start_inset - end_inset - margin_box_size;
                 let inset = match block_alignment {
-                    AbsposAlignment::AnchorCenter => Some(
+                    AbsposAxisAlignment::AnchorCenter => Some(
                         start_inset
                             + shift_into_containing_block(
                                 self.static_offset(sized, inputs.static_position_rect).block_offset - start_inset,
                                 available,
                             ),
                     ),
-                    AbsposAlignment::Center => Some(start_inset + available / 2),
-                    AbsposAlignment::Start => Some(start_inset),
-                    AbsposAlignment::End => Some(start_inset + available),
-                    _ => None,
+                    AbsposAxisAlignment::Edge(edge) => Some(start_inset + edge.offset(available)),
+                    AbsposAxisAlignment::Stretch => None,
                 };
                 if let Some(inset) = inset {
                     Self::set_used_block_insets(
@@ -3221,63 +3183,53 @@ impl<'pass> AbsposEngine<'pass> {
         }
     }
 
-    /// The self-alignment of a box in an axis of its containing block's frame, as the side of the axis it aligns to,
-    /// or None where it stretches to fill its inset-modified containing block or keeps its normal behavior.
+    /// The keyword and safety of the box's own self-alignment in an axis of its containing block's frame, or None where
+    /// the box fills its inset-modified containing block rather than take its fit-content size there.
     /// https://drafts.csswg.org/css-align-3/#justify-abspos
     /// https://drafts.csswg.org/css-align-3/#align-abspos
-    fn self_alignment(
+    fn own_self_alignment_keyword(
+        &self,
+        sized: OutOfFlowBox<'_>,
+        inline_axis: bool,
+    ) -> Option<(SelfKeyword, OverflowSafety)> {
+        let style = *self.style_of(sized);
+        let (keyword, safety) = if inline_axis {
+            SelfKeyword::justify_self_of(style, None)
+        } else {
+            SelfKeyword::align_self_of(style, None)
+        };
+        (!matches!(
+            keyword,
+            SelfKeyword::Normal | SelfKeyword::Stretch | SelfKeyword::AnchorCenter
+        ))
+        .then_some((keyword, safety))
+    }
+
+    /// The box's own self-alignment in an axis of its containing block's frame, where it takes its fit-content size in
+    /// its inset-modified containing block.
+    fn own_self_alignment(
         &self,
         sized: OutOfFlowBox<'_>,
         containing_block: Node,
         inline_axis: bool,
-    ) -> Option<AbsposAlignment> {
+    ) -> Option<SelfAlignment> {
+        let (keyword, safety) = self.own_self_alignment_keyword(sized, inline_axis)?;
         let style = self.style_of(sized);
-        let value = if inline_axis {
-            style.justify_self()
-        } else {
-            justify_self_value_for_align_self(style.align_self())
-        };
-        let start_is_low_side = if inline_axis {
-            containing_block.is_invalid() || !self.style(containing_block).inline_axis_is_reverse()
-        } else {
-            true
-        };
-        let towards = |low_side: bool| {
-            if low_side {
-                AbsposAlignment::Start
-            } else {
-                AbsposAlignment::End
-            }
-        };
-        let own_start_is_low_side = || {
-            geometry::start_is_low_side_in_frame(self.pass.frame, style.writing_mode(), style.direction(), inline_axis)
-        };
-        match value {
-            justify_self::CENTER => Some(AbsposAlignment::Center),
-            justify_self::START | justify_self::FLEX_START | justify_self::BASELINE => Some(towards(start_is_low_side)),
-            justify_self::END | justify_self::FLEX_END => Some(towards(!start_is_low_side)),
-            justify_self::SELF_START => Some(towards(own_start_is_low_side())),
-            justify_self::SELF_END => Some(towards(!own_start_is_low_side())),
-            // NB: Along the inline axis of a frame, line-left is its left side.
-            justify_self::LEFT if inline_axis => Some(AbsposAlignment::Start),
-            justify_self::RIGHT if inline_axis => Some(AbsposAlignment::End),
-            _ => None,
-        }
-    }
-
-    /// Whether the box's self-alignment in an axis of its containing block's frame makes it take its fit-content size
-    /// within its inset-modified containing block, rather than fill it.
-    fn self_alignment_sizes_to_fit_content(&self, sized: OutOfFlowBox<'_>, inline_axis: bool) -> bool {
-        let style = self.style_of(sized);
-        let value = if inline_axis {
-            style.justify_self()
-        } else {
-            justify_self_value_for_align_self(style.align_self())
-        };
-        !matches!(
-            value,
-            justify_self::AUTO | justify_self::NORMAL | justify_self::STRETCH | justify_self::ANCHOR_CENTER
-        )
+        let container_start_is_low =
+            !inline_axis || containing_block.is_invalid() || !self.style(containing_block).inline_axis_is_reverse();
+        Some(keyword.resolve(
+            safety,
+            AxisDirections {
+                self_start_is_low: geometry::start_is_low_side_in_frame(
+                    self.pass.frame,
+                    style.writing_mode(),
+                    style.direction(),
+                    inline_axis,
+                ),
+                // NB: Along the inline axis of a frame, line-left is its left side.
+                ..AxisDirections::of(container_start_is_low, Some(true))
+            },
+        ))
     }
 
     /// Lays out and places `node`, kept with the cells `cells` for its run, with the inputs `inputs`, where its insets
