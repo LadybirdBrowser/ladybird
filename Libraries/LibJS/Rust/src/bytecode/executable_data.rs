@@ -13,7 +13,7 @@ use ak::Utf16String;
 use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
 use super::operand::PropertyKeyTableIndex;
-use super::source_map::{SourceOffset, SourceOffsetEntry};
+use super::source_map::{SourceMapEntries, SourceOffset};
 use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
 use crate::compile::utf16_string_memory_size;
@@ -199,7 +199,7 @@ pub struct ExecutableData {
     /// Sorted by start offset, and not overlapping.
     pub exception_handlers: BlockSlice<ExceptionHandler>,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
-    pub source_map: BlockSlice<SourceOffsetEntry>,
+    pub source_map: BlockSlice<u8>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
@@ -244,8 +244,7 @@ impl ExecutableData {
     /// asks.
     pub fn source_positions(&self) -> impl Iterator<Item = crate::bytecode::source_map::SourceMapEntry> + '_ {
         use crate::bytecode::source_map::SourceMapEntry;
-        use crate::bytecode::source_map::SourceOffset;
-        self.source_map.iter().map(|entry| {
+        SourceMapEntries::new(&self.source_map).map(|entry| {
             if entry.source_offset == SourceOffset::NONE {
                 return SourceMapEntry {
                     bytecode_offset: entry.bytecode_offset,

@@ -21,7 +21,7 @@ use crate::bytecode::executable_data::{ConstantValue, ExceptionHandler, MAXIMUM_
 use crate::bytecode::executable_data::{ExecutableData, LocalVariableMetadata};
 use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::operand::UNCACHED_SITE;
-use crate::bytecode::source_map::{SourceMapEntry, SourceOffset, SourceOffsetEntry};
+use crate::bytecode::source_map::{SourceMapEntries, SourceMapEntry, SourceOffset};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::root::MarkedVec;
@@ -1622,15 +1622,7 @@ impl Executable {
         if offset as usize >= self.bytecode().len() {
             return None;
         }
-        let source_map = self.source_map();
-        if source_map.is_empty() {
-            return None;
-        }
-        let entries_at_or_before_offset = source_map.partition_point(|entry| entry.bytecode_offset <= offset);
-        if entries_at_or_before_offset == 0 {
-            return None;
-        }
-        let entry = &source_map[entries_at_or_before_offset - 1];
+        let entry = self.source_map().entry_at(offset)?;
         let (line, column) = if entry.source_offset == SourceOffset::NONE {
             (0, 0)
         } else {
@@ -1650,11 +1642,7 @@ impl Executable {
     fn source_around(&self, offset: u32) -> Option<(Vec<u16>, usize)> {
         const LONGEST_TEXT: usize = 1024;
         let positions = &self.code.position_source;
-        let source_map = self.source_map();
-        let entries_at_or_before_offset = source_map.partition_point(|entry| entry.bytecode_offset <= offset);
-        let source_offset = source_map
-            .get(entries_at_or_before_offset.checked_sub(1)?)?
-            .source_offset;
+        let source_offset = self.source_map().entry_at(offset)?.source_offset;
         if source_offset == SourceOffset::NONE {
             return None;
         }
@@ -1728,8 +1716,8 @@ impl Executable {
         self.code.source_positions()
     }
 
-    pub fn source_map(&self) -> &[SourceOffsetEntry] {
-        &self.code.source_map
+    pub fn source_map(&self) -> SourceMapEntries<'_> {
+        SourceMapEntries::new(&self.code.source_map)
     }
 
     pub fn local_variable_metadata(&self) -> &[LocalVariableMetadata] {

@@ -38,6 +38,7 @@ use crate::bytecode::instruction::visit_operands_from_bytes;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::bytecode::source_map::SourceOffsetEntry;
+use crate::bytecode::source_map::encode_source_map;
 use crate::slice_block::SliceBlock;
 use crate::slice_block::SliceBlockBuilder;
 use crate::u32_from_usize;
@@ -4183,12 +4184,30 @@ impl Generator<'_> {
                 });
             }
         }
-        let source_entry_count = head.source_entries.len() + segment.source_entries.len();
+        let segment_start = u32_from_usize(head.bytes.len());
+        let mut source_map_bytes = Vec::with_capacity((head.source_entries.len() + segment.source_entries.len()) * 3);
+        encode_source_map(
+            head.source_entries.len() + segment.source_entries.len(),
+            head.source_entries
+                .iter()
+                .copied()
+                .chain(
+                    segment
+                        .source_entries
+                        .iter()
+                        .map(|&(bytecode_offset, source_offset)| (bytecode_offset + segment_start, source_offset)),
+                )
+                .map(|(bytecode_offset, source_offset)| SourceOffsetEntry {
+                    bytecode_offset,
+                    source_offset,
+                }),
+            &mut source_map_bytes,
+        );
         // SAFETY: The slices and the block end up in an ExecutableData, which drops the slices first.
         let mut block = unsafe {
             SliceBlock::builder(
                 SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
-                    + SliceBlock::room_for::<SourceOffsetEntry>(source_entry_count)
+                    + SliceBlock::room_for::<u8>(source_map_bytes.len())
                     + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
                     + other_tables_size,
             )
@@ -4216,20 +4235,7 @@ impl Generator<'_> {
             let label = u32::from_ne_bytes((&*bytes).try_into().expect("a label is four bytes"));
             bytes.copy_from_slice(&(stream.labels[label as usize] + head_size).to_ne_bytes());
         }
-        let head_entries = head.source_entries.iter().copied();
-        let entries = segment
-            .source_entries
-            .iter()
-            .map(|&(bytecode_offset, source_offset)| (bytecode_offset + head_size, source_offset));
-        let source_map = block.slice_of_length(
-            source_entry_count,
-            head_entries
-                .chain(entries)
-                .map(|(bytecode_offset, source_offset)| SourceOffsetEntry {
-                    bytecode_offset,
-                    source_offset,
-                }),
-        );
+        let source_map = block.slice_of_length(source_map_bytes.len(), source_map_bytes.iter().copied());
         let strict_ranges = head
             .strict_ranges
             .iter()
