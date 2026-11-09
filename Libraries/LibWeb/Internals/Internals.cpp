@@ -482,6 +482,16 @@ bool Internals::initial_paint_had_pending_fonts() const
     return window().associated_document().font_computer().initial_paint_had_pending_fonts();
 }
 
+bool Internals::has_pending_image_loads() const
+{
+    // A shared resource request stays in its fetching state until its image has decoded.
+    for (auto const& it : window().associated_document().shared_resource_requests()) {
+        if (it.value && it.value->is_fetching())
+            return true;
+    }
+    return false;
+}
+
 void Internals::set_font_display_time(CSS::FontFace& font_face, u32 milliseconds)
 {
     font_face.set_font_display_time_for_testing(milliseconds);
