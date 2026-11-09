@@ -16,6 +16,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/FullscreenDebounce.h>
+#include <UI/Qt/MacWindow.h>
 #include <UI/Qt/SessionStore.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
@@ -371,6 +372,9 @@ private:
     u64 m_last_left_press_timestamp { 0 };
     u64 m_last_double_click_timestamp { 0 };
     bool m_double_click_started_elsewhere { false };
+#if defined(AK_OS_MACOS)
+    Optional<AppKitWindowChromeSnapshots> m_window_chrome_snapshots;
+#endif
 };
 
 }
