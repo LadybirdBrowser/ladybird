@@ -7,5 +7,6 @@
 mod attribute_parser;
 mod parser;
 mod path_parser;
+pub(crate) mod stroke_style;
 
 pub use path_parser::*;

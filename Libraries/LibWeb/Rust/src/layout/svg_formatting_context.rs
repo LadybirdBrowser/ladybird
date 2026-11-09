@@ -1234,10 +1234,10 @@ pub unsafe extern "C" fn svg_geometry_element_stroke_contains(
     // SAFETY: Guaranteed by the caller.
     unsafe {
         shape.measure(|path, style| {
-            // The same basis that layout resolves the stroke's percentages against.
-            // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2), as for layout.
-            let basis = (viewport_size.width + viewport_size.height) * CssPixels::nearest_value_for(0.5);
-            let stroke = crate::painting::record::paint::svg::svg_stroke_style_for_percentage_basis(&style, basis);
+            let stroke = crate::svg::stroke_style::svg_stroke_style_for_percentage_basis(
+                &style,
+                crate::svg::stroke_style::percentage_basis(viewport_size),
+            );
             // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
             // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate
             // space instead of user coordinate system.
@@ -1792,9 +1792,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
-    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
-    //        the historical (width + height) / 2 approximation.
     // <symbol> instances establish nested viewports; percentages inside one resolve against it,
     // not the enclosing <svg>.
     fn viewport_percentage_basis(&self, node: Node) -> CssPixels {
@@ -1803,8 +1800,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         else {
             return CssPixels::default();
         };
-        let viewport = self.svg_viewport_element_size(element);
-        (viewport.width + viewport.height) * CssPixels::nearest_value_for(0.5)
+        crate::svg::stroke_style::percentage_basis(self.svg_viewport_element_size(element))
     }
 
     // https://svgwg.org/svg2-draft/struct.html#UseElement
@@ -1851,9 +1847,8 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn visible_stroke_width(&self, node: Node, viewport_percentage_basis: CssPixels) -> f32 {
         let style = self.style(node);
         let svg = style.inherited_svg();
-        let stroke_is_visible =
-            crate::painting::record::paint::svg::svg_paint_color(&svg.stroke, style.current_color())
-                .is_some_and(|color| color >> 24 != 0);
+        let stroke_is_visible = crate::css::svg_paint::svg_paint_color(&svg.stroke, style.current_color())
+            .is_some_and(|color| color >> 24 != 0);
         if !stroke_is_visible {
             return 0.0;
         }

@@ -6,9 +6,10 @@
 
 use crate::painting::record::trace::Observer;
 
-use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PAINT_NONE, SVG_PAINT_URL};
+use crate::css::computed_value_types::SVG_PAINT_URL;
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::paint_order;
+use crate::css::svg_paint::svg_paint_color;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
@@ -24,6 +25,7 @@ use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::svg_paint_resources::{
     PublishedSvgGradient, PublishedSvgPaintServer, PublishedSvgPattern, SvgPaintResourceKind,
 };
+use crate::svg::stroke_style::{SvgStrokeStyle, svg_stroke_style_for_percentage_basis};
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
@@ -47,15 +49,6 @@ struct SvgPaintFacts {
     has_viewport: bool,
     viewport: [f32; 4],
     references_paint_server: bool,
-}
-
-/// The color `paint` paints with, with `currentcolor` resolved to `current_color`.
-pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint, current_color: u32) -> Option<u32> {
-    match paint.kind {
-        SVG_PAINT_NONE => None,
-        SVG_PAINT_COLOR => Some(paint.color.resolve(current_color)),
-        _ => paint.has_color.then(|| paint.color.resolve(current_color)),
-    }
 }
 
 fn svg_paint_facts<O: Observer>(
@@ -112,17 +105,6 @@ fn svg_paint_facts<O: Observer>(
     (facts, stroke.dash_array)
 }
 
-/// The properties that shape the stroke of an SVG shape, in its user units.
-pub(crate) struct SvgStrokeStyle {
-    pub(crate) cap_style: CapStyle,
-    pub(crate) join_style: JoinStyle,
-    pub(crate) miter_limit: f32,
-    pub(crate) width: f32,
-    pub(crate) dash_array: Vec<f32>,
-    pub(crate) dash_offset: f32,
-    pub(crate) non_scaling_stroke: bool,
-}
-
 pub(crate) fn svg_stroke_style(
     layout_arena: &impl GeometryRead,
     paintable: NodeSlotId,
@@ -156,57 +138,6 @@ pub(crate) fn svg_stroke_style(
         }
     }
     stroke
-}
-
-/// The stroke properties of an SVG shape, with percentages resolved against the given basis.
-pub(crate) fn svg_stroke_style_for_percentage_basis(
-    style: &ComputedValuesView<'_>,
-    basis: crate::layout::CssPixels,
-) -> SvgStrokeStyle {
-    use crate::css::css_enums::{stroke_linecap, stroke_linejoin, vector_effect};
-    let svg = style.inherited_svg();
-    let resolve = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle, default: f32| {
-        handle
-            .length_percentage()
-            .map_or(default, |value| value.to_px(basis).to_double() as f32)
-    };
-
-    let mut dash_array: Vec<f32> = svg
-        .stroke_dasharray
-        .as_slice()
-        .iter()
-        .map(|dash| {
-            if dash.is_number {
-                dash.number as f32
-            } else {
-                resolve(&dash.value, 0.0)
-            }
-        })
-        .collect();
-    if dash_array.len() % 2 == 1 {
-        dash_array.extend_from_within(..);
-    }
-    if dash_array.iter().any(|value| *value < 0.0) || dash_array.iter().all(|value| *value == 0.0) {
-        dash_array.clear();
-    }
-
-    SvgStrokeStyle {
-        cap_style: match svg.stroke_linecap {
-            stroke_linecap::ROUND => CapStyle::Round,
-            stroke_linecap::SQUARE => CapStyle::Square,
-            _ => CapStyle::Butt,
-        },
-        join_style: match svg.stroke_linejoin {
-            stroke_linejoin::ROUND => JoinStyle::Round,
-            stroke_linejoin::BEVEL => JoinStyle::Bevel,
-            _ => JoinStyle::Miter,
-        },
-        miter_limit: svg.stroke_miterlimit as f32,
-        width: resolve(&svg.stroke_width, 1.0),
-        dash_array,
-        dash_offset: resolve(&svg.stroke_dashoffset, 0.0),
-        non_scaling_stroke: style.svg_reset().vector_effect == vector_effect::NON_SCALING_STROKE,
-    }
 }
 
 fn should_anti_alias(value: bool) -> ShouldAntiAlias {
