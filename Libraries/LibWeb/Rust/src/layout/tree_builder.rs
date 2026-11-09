@@ -4571,34 +4571,49 @@ fn is_out_of_flow_table_internal_child_of_table_root(
         && is_table_non_root_box_with_display(host.display_before_box_type_transformation(child))
 }
 
-fn create_anonymous_wrapper(host: &mut TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
+fn create_anonymous_wrapper(host: &mut TreeBuilderHost<'_>, parent: LayoutNode, before: LayoutNode) -> LayoutNode {
     let wrapper = host.create_anonymous_wrapper_box(parent);
     let wrapper_slot = wrapper.slot();
-    host.attach_child(parent, wrapper, NodeSlotId::INVALID);
+    host.attach_child(parent, wrapper, before);
     wrapper_slot
 }
 
-fn last_child_creating_anonymous_wrapper_if_needed(host: &mut TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
-    let last_child = host.last_child(parent);
-    if last_child.is_invalid() {
-        return create_anonymous_wrapper(host, parent);
+/// The anonymous wrapper at the end of the parent's children that an inline-level node joins, or at their start if
+/// the node is being prepended (as an inside ::marker is) — creating one there if the child at that end isn't one.
+fn edge_child_creating_anonymous_wrapper_if_needed(
+    host: &mut TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    mode: FfiInsertionMode,
+) -> LayoutNode {
+    let (edge_child, insert_wrapper_before) = if mode == FfiInsertionMode::Prepend {
+        let first_child = host.first_child(parent);
+        (first_child, first_child)
+    } else {
+        (host.last_child(parent), NodeSlotId::INVALID)
+    };
+    if edge_child.is_invalid() {
+        return create_anonymous_wrapper(host, parent, insert_wrapper_before);
     }
-    let data = host.data(last_child);
+    let data = host.data(edge_child);
     if !node_facts::has_flag(data, NodeFlag::Anonymous)
         || !node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
         || node_is_generated_for_pseudo_element(data)
     {
-        return create_anonymous_wrapper(host, parent);
+        return create_anonymous_wrapper(host, parent, insert_wrapper_before);
     }
-    last_child
+    edge_child
 }
 
 // The insertion_parent_for_*() functions maintain the invariant that the in-flow children of
 // block-level boxes must be either all block-level or all inline-level.
-fn insertion_parent_for_inline_node(host: &mut TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
+fn insertion_parent_for_inline_node(
+    host: &mut TreeBuilderHost<'_>,
+    parent: LayoutNode,
+    mode: FfiInsertionMode,
+) -> LayoutNode {
     let data = host.data(parent);
     if matches!(data.kind.get(), NodeKind::FieldSetBox | NodeKind::SVGForeignObjectBox) {
-        return last_child_creating_anonymous_wrapper_if_needed(host, parent);
+        return edge_child_creating_anonymous_wrapper_if_needed(host, parent, mode);
     }
 
     // SVG layout ignores the inline/block distinction, and an anonymous wrapper would only hide
@@ -4613,7 +4628,7 @@ fn insertion_parent_for_inline_node(host: &mut TreeBuilderHost<'_>, parent: Layo
     }
 
     if parent_display.is_some_and(|display| display.is_flex_inside() || display.is_grid_inside()) {
-        return last_child_creating_anonymous_wrapper_if_needed(host, parent);
+        return edge_child_creating_anonymous_wrapper_if_needed(host, parent, mode);
     }
 
     if !has_in_flow_block_children(host, parent) || node_facts::has_flag(data, NodeFlag::ChildrenAreInline) {
@@ -4621,7 +4636,7 @@ fn insertion_parent_for_inline_node(host: &mut TreeBuilderHost<'_>, parent: Layo
     }
 
     // Parent has block-level children, insert into an anonymous wrapper block (and create it first if needed)
-    last_child_creating_anonymous_wrapper_if_needed(host, parent)
+    edge_child_creating_anonymous_wrapper_if_needed(host, parent, mode)
 }
 
 fn nearest_rebuildable_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> LayoutNode {
@@ -4966,7 +4981,7 @@ fn insert_node_into_inline_or_block_ancestor(
         || is_inline_level_absolutely_positioned_box_in_flow_layout(host, nearest_insertion_ancestor, node_slot);
 
     let insertion_point = if is_inline_outside {
-        insertion_parent_for_inline_node(host, nearest_insertion_ancestor)
+        insertion_parent_for_inline_node(host, nearest_insertion_ancestor, mode)
     } else {
         insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node_slot, mode, identity)
     };
