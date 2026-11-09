@@ -116,48 +116,15 @@ pub enum ScrollChaining {
     None,
 }
 
+#[derive(Default)]
 pub struct AsyncScrollTree {
-    document_id: Option<UniqueNodeId>,
-    scroll_nodes: Vec<AsyncScrollNode>,
-    snap_containers: Vec<AsyncSnapContainer>,
-    device_pixels_per_css_pixel: f64,
-    wheel_hit_test_regions: Vec<WheelHitTestTarget>,
-    main_thread_wheel_event_regions: Vec<MainThreadWheelEventRegion>,
-    nested_context_wheel_regions: Vec<NestedContextWheelRegion>,
+    state: AsyncScrollingState,
     cached_wheel_hit_test_targets: Vec<CachedWheelHitTestTarget>,
-    blocking_wheel_event_regions: Vec<BlockingWheelEventRegion>,
     cached_main_thread_wheel_event_targets: Vec<CachedMainThreadWheelEventTarget>,
     cached_nested_context_wheel_regions: Vec<CachedNestedContextWheelRegion>,
     cached_blocking_wheel_event_targets: Vec<CachedBlockingWheelEventTarget>,
     visual_context_tree_structural_epoch: Option<u64>,
     scroll_state_snapshot: ScrollStateSnapshot,
-    has_blocking_wheel_event_region_covering_viewport: bool,
-    viewport_keeps_horizontal_scrolls: bool,
-    viewport_keeps_vertical_scrolls: bool,
-}
-
-impl Default for AsyncScrollTree {
-    fn default() -> Self {
-        Self {
-            document_id: None,
-            scroll_nodes: Vec::new(),
-            snap_containers: Vec::new(),
-            device_pixels_per_css_pixel: 1.0,
-            wheel_hit_test_regions: Vec::new(),
-            main_thread_wheel_event_regions: Vec::new(),
-            nested_context_wheel_regions: Vec::new(),
-            cached_wheel_hit_test_targets: Vec::new(),
-            blocking_wheel_event_regions: Vec::new(),
-            cached_main_thread_wheel_event_targets: Vec::new(),
-            cached_nested_context_wheel_regions: Vec::new(),
-            cached_blocking_wheel_event_targets: Vec::new(),
-            visual_context_tree_structural_epoch: None,
-            scroll_state_snapshot: ScrollStateSnapshot::default(),
-            has_blocking_wheel_event_region_covering_viewport: false,
-            viewport_keeps_horizontal_scrolls: false,
-            viewport_keeps_vertical_scrolls: false,
-        }
-    }
 }
 
 struct NestedContextWheelRegionHit<'a> {
@@ -167,42 +134,35 @@ struct NestedContextWheelRegionHit<'a> {
 
 impl AsyncScrollTree {
     pub fn document_id(&self) -> Option<UniqueNodeId> {
-        self.document_id
+        self.state.document_id
     }
     pub fn scroll_nodes(&self) -> &[AsyncScrollNode] {
-        &self.scroll_nodes
+        &self.state.scroll_nodes
     }
 
     // Scroll offsets are held in the device pixels of the display list; snap geometry is in the CSS pixels it was
     // recorded from, at the scale the display list carries.
     pub fn device_pixels_per_css_pixel(&self) -> f64 {
-        self.device_pixels_per_css_pixel
+        self.state.device_pixels_per_css_pixel
     }
     pub fn has_nested_contexts(&self) -> bool {
-        !self.nested_context_wheel_regions.is_empty()
+        !self.state.nested_context_wheel_regions.is_empty()
     }
     pub fn has_wheel_hit_test_targets_for(&self, visual_context_tree: &AccumulatedVisualContextTree) -> bool {
         self.visual_context_tree_structural_epoch == Some(visual_context_tree.structural_epoch())
     }
 
     pub fn set_state(&mut self, state: AsyncScrollingState) {
-        self.document_id = state.document_id;
-        self.scroll_nodes = state.scroll_nodes;
-        self.snap_containers = state.snap_containers;
-        self.device_pixels_per_css_pixel = state.device_pixels_per_css_pixel;
-        self.wheel_hit_test_regions = state.wheel_hit_test_targets;
-        self.main_thread_wheel_event_regions = state.main_thread_wheel_event_regions;
-        self.nested_context_wheel_regions = state.nested_context_wheel_regions;
-        self.blocking_wheel_event_regions = state.blocking_wheel_event_regions;
-        self.has_blocking_wheel_event_region_covering_viewport =
-            state.has_blocking_wheel_event_region_covering_viewport;
-        self.viewport_keeps_horizontal_scrolls = state.viewport_keeps_horizontal_scrolls;
-        self.viewport_keeps_vertical_scrolls = state.viewport_keeps_vertical_scrolls;
+        self.state = state;
         self.cached_wheel_hit_test_targets.clear();
         self.cached_main_thread_wheel_event_targets.clear();
         self.cached_nested_context_wheel_regions.clear();
         self.cached_blocking_wheel_event_targets.clear();
         self.visual_context_tree_structural_epoch = None;
+    }
+
+    pub fn state(&self) -> &AsyncScrollingState {
+        &self.state
     }
 }
 
@@ -222,7 +182,8 @@ pub fn input_routing_decision_for_first_wheel_step(outcome: WheelHitTestOutcome)
 
 impl AsyncScrollTree {
     pub fn scroll_node_for_index(&self, scroll_node_index: SpatialNodeIndex) -> Option<&AsyncScrollNode> {
-        self.scroll_nodes
+        self.state
+            .scroll_nodes
             .iter()
             .find(|node| node.scroll_node_index == scroll_node_index)
     }
@@ -303,7 +264,7 @@ impl AsyncScrollTree {
     ) -> Option<SpatialNodeIndex> {
         let mut outermost_scroll_node_index = None;
         let mut scroll_node_index = innermost_scroll_node_index;
-        for _ in 0..self.scroll_nodes.len() {
+        for _ in 0..self.state.scroll_nodes.len() {
             let Some(node) = self.scroll_node_for_index(scroll_node_index) else {
                 break;
             };
@@ -326,13 +287,15 @@ impl AsyncScrollTree {
     }
 
     pub fn snap_container_for_node(&self, scroll_node_index: SpatialNodeIndex) -> Option<&AsyncSnapContainer> {
-        self.snap_containers
+        self.state
+            .snap_containers
             .iter()
             .find(|snap_container| snap_container.scroll_node_index == scroll_node_index)
     }
 
     fn scroll_node_for_stable_id(&self, stable_node_id: AsyncScrollNodeStableID) -> Option<&AsyncScrollNode> {
-        self.scroll_nodes
+        self.state
+            .scroll_nodes
             .iter()
             .find(|node| node.stable_node_id == stable_node_id)
     }
@@ -452,7 +415,7 @@ impl AsyncScrollTree {
     ) -> Option<AsyncScrollOffset> {
         // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
         // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
-        for _ in 0..self.scroll_nodes.len() {
+        for _ in 0..self.state.scroll_nodes.len() {
             if delta.is_zero() {
                 break;
             }
@@ -496,7 +459,7 @@ impl AsyncScrollTree {
     ) -> Option<WheelScrollTarget> {
         // Each box is measured from where its scroll in flight is headed, so a box already headed for its extent passes the
         // first step of a gesture on to an ancestor.
-        for _ in 0..self.scroll_nodes.len() {
+        for _ in 0..self.state.scroll_nodes.len() {
             let node = self.scroll_node_for_index(scroll_node_index)?;
             let start_offset = in_flight_destination_for(node.stable_node_id)
                 .unwrap_or(Self::scroll_offset_for_scroll_node(node, scroll_state_snapshot));
@@ -564,8 +527,8 @@ impl AsyncScrollTree {
             ))
         };
         self.cached_wheel_hit_test_targets
-            .reserve(self.wheel_hit_test_regions.len());
-        for target in &self.wheel_hit_test_regions {
+            .reserve(self.state.wheel_hit_test_targets.len());
+        for target in &self.state.wheel_hit_test_targets {
             if !context_is_valid(target.context) {
                 continue;
             }
@@ -579,8 +542,8 @@ impl AsyncScrollTree {
             });
         }
         self.cached_main_thread_wheel_event_targets
-            .reserve(self.main_thread_wheel_event_regions.len());
-        for region in &self.main_thread_wheel_event_regions {
+            .reserve(self.state.main_thread_wheel_event_regions.len());
+        for region in &self.state.main_thread_wheel_event_regions {
             if !context_is_valid(region.context) {
                 continue;
             }
@@ -592,8 +555,8 @@ impl AsyncScrollTree {
                 });
         }
         self.cached_nested_context_wheel_regions
-            .reserve(self.nested_context_wheel_regions.len());
-        for region in &self.nested_context_wheel_regions {
+            .reserve(self.state.nested_context_wheel_regions.len());
+        for region in &self.state.nested_context_wheel_regions {
             if !context_is_valid(region.context) {
                 continue;
             }
@@ -603,7 +566,7 @@ impl AsyncScrollTree {
                     viewport_rect: viewport_rect_for_context(region.context, region.rect),
                 });
         }
-        for region in &self.blocking_wheel_event_regions {
+        for region in &self.state.blocking_wheel_event_regions {
             // Keep invalid blockers so hit testing fails closed when their extent cannot be determined.
             self.cached_blocking_wheel_event_targets
                 .push(CachedBlockingWheelEventTarget {
@@ -653,15 +616,15 @@ impl AsyncScrollTree {
 
     pub fn css_pixels_from_device_offset(&self, device_offset: FloatPoint) -> CssPixelPoint {
         CssPixelPoint {
-            x: CssPixels::nearest_value_for(device_offset.x as f64 / self.device_pixels_per_css_pixel),
-            y: CssPixels::nearest_value_for(device_offset.y as f64 / self.device_pixels_per_css_pixel),
+            x: CssPixels::nearest_value_for(device_offset.x as f64 / self.state.device_pixels_per_css_pixel),
+            y: CssPixels::nearest_value_for(device_offset.y as f64 / self.state.device_pixels_per_css_pixel),
         }
     }
 
     pub fn device_offset_from_css_pixels(&self, offset: CssPixelPoint) -> FloatPoint {
         FloatPoint {
-            x: (offset.x.to_double() * self.device_pixels_per_css_pixel) as f32,
-            y: (offset.y.to_double() * self.device_pixels_per_css_pixel) as f32,
+            x: (offset.x.to_double() * self.state.device_pixels_per_css_pixel) as f32,
+            y: (offset.y.to_double() * self.state.device_pixels_per_css_pixel) as f32,
         }
     }
 
@@ -683,7 +646,7 @@ impl AsyncScrollTree {
     }
 
     pub fn viewport_scroll_node_index(&self) -> Option<SpatialNodeIndex> {
-        for node in &self.scroll_nodes {
+        for node in &self.state.scroll_nodes {
             if node.is_viewport {
                 return Some(node.scroll_node_index);
             }
@@ -703,7 +666,7 @@ impl AsyncScrollTree {
         visual_context_tree: &AccumulatedVisualContextTree,
         position: FloatPoint,
     ) -> bool {
-        if self.has_blocking_wheel_event_region_covering_viewport
+        if self.state.has_blocking_wheel_event_region_covering_viewport
             || !self.has_wheel_hit_test_targets_for(visual_context_tree)
         {
             return true;
@@ -933,7 +896,7 @@ impl AsyncScrollTree {
         let context_is_valid = |context| visual_context_tree.context_is_valid(context);
         // Neither the listeners nor the main thread have anything left to say about a step the page let through.
         let page_has_yet_to_see_the_step = wheel_step_dispatch == WheelStepDispatch::NotYetDispatched;
-        if page_has_yet_to_see_the_step && self.has_blocking_wheel_event_region_covering_viewport {
+        if page_has_yet_to_see_the_step && self.state.has_blocking_wheel_event_region_covering_viewport {
             return WheelHitTestResult {
                 outcome: WheelHitTestOutcome::BlockedByWheelEventRegion,
                 ..Default::default()
@@ -1105,9 +1068,9 @@ impl AsyncScrollTree {
     // scroll node.
     pub fn viewport_keeps_scrolls_along_main_axis_of(&self, delta: FloatPoint) -> bool {
         if delta_is_mainly_vertical(delta) {
-            self.viewport_keeps_vertical_scrolls
+            self.state.viewport_keeps_vertical_scrolls
         } else {
-            self.viewport_keeps_horizontal_scrolls
+            self.state.viewport_keeps_horizontal_scrolls
         }
     }
 

@@ -409,15 +409,23 @@ void CompositorState::update_display_list_resources(Web::CompositorContextId con
     show_animated_image_frames_in(*context);
 }
 
-void CompositorState::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
+bool CompositorState::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const& keyboard_scroll_state)
 {
     auto now = MonotonicTime::now();
     auto* context = presented_context_if_present(context_id);
     VERIFY(context);
 
-    if (m_core.update_visual_context_tree(context_id, visual_context_tree, now))
+    switch (m_core.update_visual_context_tree(context_id, visual_context_tree, encoded_scroll_state, keyboard_scroll_state, now)) {
+    case CompositorCore::VisualContextTreeUpdateResult::TreeReplaced:
         context->presenter.apply_resource_transaction(move(resource_transaction));
+        break;
+    case CompositorCore::VisualContextTreeUpdateResult::TreeDropped:
+        break;
+    case CompositorCore::VisualContextTreeUpdateResult::InvalidScrollState:
+        return false;
+    }
     show_animated_image_frames_in(*context);
+    return true;
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)

@@ -741,9 +741,6 @@ impl ContextState {
             .set_node_count(self.scene.visual_context_tree().as_ref().unwrap().spatial_node_count());
         let display_list = self.scene.display_list().as_ref().unwrap().clone();
         self.restart_caret_blink_for(&display_list, now);
-        let mut async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
-        self.wheel_gesture_routing
-            .did_install_scrolling_state(&async_scrolling_state);
         // The visual viewport of another document is where that document's visual context tree has it.
         if self.scene.has_async_visual_viewport_transform()
             && async_scrolling_state.document_id != self.visual_viewport_document_id
@@ -755,6 +752,21 @@ impl ContextState {
         if async_scrolling_state.document_id != self.async_scroll_tree.document_id() {
             self.pinch_gesture_was_let_through = false;
         }
+        self.adopt_scrolling_state(async_scrolling_state, &scroll_offsets_of_known_nodes);
+        if let Some(metadata) = self.scene.display_list().as_ref().unwrap().async_scrolling_metadata() {
+            self.adopt_keyboard_scroll_state(metadata.keyboard_scroll_state.clone());
+        }
+        true
+    }
+
+    fn adopt_scrolling_state(
+        &mut self,
+        async_scrolling_state: AsyncScrollingState,
+        scroll_offsets_of_known_nodes: &HashMap<AsyncScrollNodeStableID, FloatPoint>,
+    ) {
+        let mut async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
+        self.wheel_gesture_routing
+            .did_install_scrolling_state(&async_scrolling_state);
         let box_of_dragged_scrollbar = self.box_of_captured_scrollbar();
         self.scrollbar_controller
             .set_scrollbars(&async_scrolling_state.scrollbars);
@@ -767,17 +779,13 @@ impl ContextState {
             .did_install_scrolling_state(&self.async_scroll_tree);
         self.scroll_snap_controller
             .did_install_scrolling_state(&self.async_scroll_tree);
-        if let Some(offset) = self.keep_scroll_offsets_of_known_nodes(&scroll_offsets_of_known_nodes) {
+        if let Some(offset) = self.keep_scroll_offsets_of_known_nodes(scroll_offsets_of_known_nodes) {
             async_scrolling_viewport_rect.x = offset.x as i32;
             async_scrolling_viewport_rect.y = offset.y as i32;
         }
         self.rebuild_wheel_hit_test_targets();
         self.async_scrolling_viewport_rect = async_scrolling_viewport_rect;
         self.has_async_scrolling_state = true;
-        if let Some(metadata) = self.scene.display_list().as_ref().unwrap().async_scrolling_metadata() {
-            self.adopt_keyboard_scroll_state(metadata.keyboard_scroll_state.clone());
-        }
-        true
     }
 
     // Repaints the blinking caret of a display list each time its blink cycle turns it on or off.
@@ -848,24 +856,37 @@ impl ContextState {
         damage_rect
     }
 
-    // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
+    // Returns false for a tree that does not fit the installed display list, which keeps the tree it has and takes only
+    // the scroll state that pairs with the new one.
     pub fn update_visual_context_tree(
         &mut self,
         visual_context_tree: AccumulatedVisualContextTree,
+        scroll_state_snapshot: ScrollStateSnapshot,
+        keyboard_scroll_state: KeyboardScrollState,
         now: MonotonicTime,
     ) -> bool {
+        let scroll_offsets_of_known_nodes = self.scroll_offsets_by_stable_id();
+        let previous_visual_context_tree = self.scene.visual_context_tree().clone();
         if !self.scene.replace_visual_context_tree(visual_context_tree, now) {
+            self.update_scroll_state(scroll_state_snapshot, keyboard_scroll_state);
             return false;
         }
-        // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
-        // pairs with this tree arrives in a separate message.
-        resolve_sticky_offsets(
-            self.scene.visual_context_tree().as_ref().unwrap(),
-            &mut self.scroll_state_snapshot,
+        let compositor_scroll_table_changed = previous_visual_context_tree.is_some_and(|previous| {
+            previous.as_arc().compositor_scroll_table()
+                != self
+                    .scene
+                    .visual_context_tree()
+                    .as_ref()
+                    .unwrap()
+                    .as_arc()
+                    .compositor_scroll_table()
+        });
+        self.update_scroll_state_with_known_offsets(
+            scroll_state_snapshot,
+            keyboard_scroll_state,
+            &scroll_offsets_of_known_nodes,
+            compositor_scroll_table_changed,
         );
-        if self.has_async_scrolling_state {
-            self.rebuild_wheel_hit_test_targets();
-        }
         true
     }
 
@@ -874,8 +895,24 @@ impl ContextState {
         scroll_state_snapshot: ScrollStateSnapshot,
         keyboard_scroll_state: KeyboardScrollState,
     ) {
-        self.scene.forget_whether_animated_content_may_affect_viewport();
         let scroll_offsets_of_known_nodes = self.scroll_offsets_by_stable_id();
+        self.update_scroll_state_with_known_offsets(
+            scroll_state_snapshot,
+            keyboard_scroll_state,
+            &scroll_offsets_of_known_nodes,
+            false,
+        );
+    }
+
+    fn update_scroll_state_with_known_offsets(
+        &mut self,
+        scroll_state_snapshot: ScrollStateSnapshot,
+        keyboard_scroll_state: KeyboardScrollState,
+        scroll_offsets_of_known_nodes: &HashMap<AsyncScrollNodeStableID, FloatPoint>,
+        compositor_scroll_table_changed: bool,
+    ) {
+        self.scene.forget_whether_animated_content_may_affect_viewport();
+        // Newly adopted stable ids must start at the offsets in the snapshot that pairs with this tree.
         self.scroll_state_snapshot = scroll_state_snapshot;
         self.scroll_state_snapshot.set_node_count(
             self.scene
@@ -886,11 +923,19 @@ impl ContextState {
         if !self.has_async_scrolling_state {
             return;
         }
-        let kept_viewport_scroll_offset = self.keep_scroll_offsets_of_known_nodes(&scroll_offsets_of_known_nodes);
-        self.rebuild_wheel_hit_test_targets();
-        if let Some(offset) = kept_viewport_scroll_offset {
-            self.async_scrolling_viewport_rect.x = offset.x as i32;
-            self.async_scrolling_viewport_rect.y = offset.y as i32;
+        if compositor_scroll_table_changed {
+            let async_scrolling_state = async_scrolling_state_from(
+                self.scene.display_list().as_ref().unwrap(),
+                self.scene.visual_context_tree().as_ref().unwrap().as_arc(),
+            );
+            self.adopt_scrolling_state(async_scrolling_state, scroll_offsets_of_known_nodes);
+        } else {
+            let kept_viewport_scroll_offset = self.keep_scroll_offsets_of_known_nodes(scroll_offsets_of_known_nodes);
+            self.rebuild_wheel_hit_test_targets();
+            if let Some(offset) = kept_viewport_scroll_offset {
+                self.async_scrolling_viewport_rect.x = offset.x as i32;
+                self.async_scrolling_viewport_rect.y = offset.y as i32;
+            }
         }
         self.adopt_keyboard_scroll_state(keyboard_scroll_state);
     }

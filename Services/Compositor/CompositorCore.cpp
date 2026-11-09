@@ -129,9 +129,9 @@ bool CompositorCore::install_display_list_update(Web::CompositorContextId contex
     return RustFFI::compositor_core_install_display_list_update(m_core, context_id.value(), &display_list_for_scroll_logic, visual_context_tree.rust_handle(), encoded_scroll_state, now.nanoseconds());
 }
 
-bool CompositorCore::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, MonotonicTime now)
+CompositorCore::VisualContextTreeUpdateResult CompositorCore::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const& keyboard_scroll_state, MonotonicTime now)
 {
-    return RustFFI::compositor_core_update_visual_context_tree(m_core, context_id.value(), visual_context_tree.rust_handle(), now.nanoseconds());
+    return RustFFI::compositor_core_update_visual_context_tree(m_core, context_id.value(), visual_context_tree.rust_handle(), encoded_scroll_state, keyboard_scroll_state.bytes(), now.nanoseconds());
 }
 
 bool CompositorCore::needs_animation_frames(Web::CompositorContextId context_id, MonotonicTime now)

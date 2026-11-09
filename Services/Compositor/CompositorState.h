@@ -116,7 +116,8 @@ public:
     // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
     bool update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, ReadonlyBytes encoded_scroll_state);
     void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&&);
-    void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
+    // Answers false, changing nothing, for a scroll state or keyboard scroll state that do not decode.
+    bool update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const&);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);

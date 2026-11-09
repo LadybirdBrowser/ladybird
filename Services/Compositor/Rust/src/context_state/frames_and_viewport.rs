@@ -147,13 +147,7 @@ impl ContextState {
 
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
     pub fn scroll_state_for_testing(&self, scroller: AsyncScrollNodeStableID) -> String {
-        let scroll_state = match (self.scene.display_list(), self.scene.visual_context_tree()) {
-            (Some(display_list), Some(visual_context_tree)) => {
-                async_scrolling_state_from(display_list, visual_context_tree.as_arc())
-            }
-            _ => AsyncScrollingState::default(),
-        };
-        let mut scroll_state = JsonWriter(async_scrolling_state_to_json(&scroll_state));
+        let mut scroll_state = JsonWriter(async_scrolling_state_to_json(self.async_scroll_tree.state()));
         scroll_state.0.pop();
         let admission = self.wheel_gesture_routing.admission();
         let admission_name = if admission == WheelRoutingAdmission::Accepted {
