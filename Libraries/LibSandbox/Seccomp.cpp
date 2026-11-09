@@ -1824,12 +1824,13 @@ void SeccompPolicy::allow_writable_executable_memory_mappings()
 // in its own register. Only pages with a key may be writable and executable.
 void SeccompPolicy::allow_memory_protection_keys()
 {
-#if defined(__NR_pkey_alloc) && defined(__NR_pkey_free) && defined(__NR_pkey_mprotect)
-    SECCOMP_APPEND_ALLOW_SYSCALL(*this, pkey_alloc);
-    SECCOMP_APPEND_ALLOW_SYSCALL(*this, pkey_free);
-
-    // NB: Key 0 is the default key, which every thread may write, and -1
-    //     makes pkey_mprotect() behave like mprotect().
+#ifdef __NR_pkey_mprotect
+    // NB: LibJS allocates its key while it loads, before the sandbox starts.
+    //     With pkey_alloc() allowed, sandboxed code could make itself a key
+    //     that it may write. We deny key 0 and key -1 (0xFFFFFFFF). Key 0 is
+    //     the default key, which every thread may write, and -1 makes
+    //     pkey_mprotect() behave like mprotect(). Either value would let
+    //     sandboxed code make pages writable and executable without a key.
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_pkey_mprotect, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(3));
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 2, 0));
