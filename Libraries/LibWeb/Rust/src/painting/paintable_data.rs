@@ -32,6 +32,17 @@ pub struct FfiPixelBox {
     pub left: CssPixels,
 }
 
+impl From<crate::layout::geometry::Sides> for FfiPixelBox {
+    fn from(sides: crate::layout::geometry::Sides) -> Self {
+        Self {
+            top: sides.top,
+            right: sides.right,
+            bottom: sides.bottom,
+            left: sides.left,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiOverflowData {

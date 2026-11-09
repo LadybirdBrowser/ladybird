@@ -235,7 +235,7 @@ impl<'tree> Commit<'_, 'tree> {
             self.out_of_flow_boxes.push((node, inputs.clone()));
         }
         let (containing_block_fragment, line_index_offset) = holder.placement_of(link);
-        if link.fragment.continues_from_previous_fragment || link.fragment.continues_in_next_fragment {
+        if link.fragment.breaks.box_is_broken() {
             self.meet_broken_box(link, containing_block_fragment, line_index_offset, holder);
             return;
         }

@@ -96,8 +96,8 @@ impl ClampEdgeWalk<'_, '_> {
                 CssPixelRect::new(
                     link.committed_offset.x,
                     link.committed_offset.y,
-                    fragment.content_inline_size,
-                    fragment.content_block_size,
+                    fragment.sides.content_size.width,
+                    fragment.sides.content_size.height,
                 ),
                 FfiCssPixelSize {
                     width: containing_block.width,
@@ -120,7 +120,7 @@ impl ClampEdgeWalk<'_, '_> {
 
         // NB: Line clamping does not reach into a box that establishes a formatting context of its own, and a nested
         //     line-clamp container clips the floats in its formatting context at its own edge.
-        if fragment.has_line_clamp_point
+        if fragment.line_clamp.has_line_clamp_point
             || formatting_context::formatting_context_type_created_by_box(NodeFacts::new(self.pass, fragment.node))
                 .is_some()
         {

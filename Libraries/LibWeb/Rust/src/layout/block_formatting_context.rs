@@ -6380,8 +6380,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         let has_line_clamp_point = self.line_clamp_point_found.get();
         if has_line_clamp_point || self.clamped_content_is_scrollable_overflow {
             run.update_fragment_payloads_of(self.run.box_, |payloads| {
-                payloads.has_line_clamp_point = has_line_clamp_point;
-                payloads.clamped_content_is_scrollable_overflow = self.clamped_content_is_scrollable_overflow;
+                payloads.line_clamp = fragment_tree::LineClampFacts {
+                    has_line_clamp_point,
+                    clamped_content_is_scrollable_overflow: self.clamped_content_is_scrollable_overflow,
+                };
             });
         }
     }
