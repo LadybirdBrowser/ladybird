@@ -3319,9 +3319,9 @@ void ConnectionFromClient::set_force_dark_settings(Web::PageId page_id, bool ena
         page->page().local_traversable()->set_force_dark_settings(enabled, move(per_host));
 }
 
-void ConnectionFromClient::set_autoplay_settings(Web::PageId, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)
+void ConnectionFromClient::set_autoplay_settings(Web::PageId, Web::HTML::AutoplayPolicy policy, OrderedHashMap<String, Web::HTML::AutoplayPolicy> site_policies)
 {
-    Web::HTML::AutoplaySettings::the().set_policy(policy, allowlist);
+    Web::HTML::AutoplaySettings::the().set_policy(policy, site_policies);
 }
 
 void ConnectionFromClient::set_preferred_color_scheme(Web::PageId page_id, Web::CSS::PreferredColorScheme color_scheme)

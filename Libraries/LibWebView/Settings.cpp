@@ -74,13 +74,11 @@ static constexpr auto SEARCH_ENGINE_SELECTION_KEY = "engine"sv;
 static constexpr auto SEARCH_SUGGESTIONS_ENABLED_KEY = "suggestions"sv;
 static constexpr auto SEARCH_SUGGESTIONS_URL_KEY = "suggestionsUrl"sv;
 
+static constexpr auto SITE_SETTING_FILTER_KEY = "filter"sv;
 static constexpr auto SITE_SETTING_POLICY_KEY = "policy"sv;
 static constexpr auto SITE_SETTING_SITE_FILTERS_KEY = "siteFilters"sv;
 
 static constexpr auto AUTOPLAY_KEY = "autoplay"sv;
-static constexpr auto LOCATION_POLICY_KEY = "locationPolicy"sv;
-static constexpr auto MICROPHONE_POLICY_KEY = "microphonePolicy"sv;
-static constexpr auto NOTIFICATIONS_POLICY_KEY = "notificationsPolicy"sv;
 
 static constexpr auto BROWSING_DATA_KEY = "browsingData"sv;
 static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
@@ -443,32 +441,41 @@ void Settings::load_from_json(JsonValue const& json_value)
         if (!saved_settings.has_value())
             return;
 
-        if (auto policy = saved_settings->get_string(SITE_SETTING_POLICY_KEY); policy.has_value()) {
-            auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
-            if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
+        if (auto policy = saved_settings->get_string(SITE_SETTING_POLICY_KEY); policy.has_value() && policy->is_ascii()) {
+            auto policy_utf16 = Utf16View::from_ascii(*policy);
+            if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16); parsed.has_value())
                 site_setting.policy = *parsed;
         }
 
         if (auto site_filters = saved_settings->get_array(SITE_SETTING_SITE_FILTERS_KEY); site_filters.has_value()) {
             site_setting.site_filters.clear();
 
-            site_filters->for_each([&](auto const& site_filter) {
-                if (site_filter.is_string())
-                    site_setting.site_filters.set(site_filter.as_string());
+            site_filters->for_each([&](JsonValue const& site_filter) {
+                if (!site_filter.is_object())
+                    return;
+
+                auto filter = site_filter.as_object().get_string(SITE_SETTING_FILTER_KEY);
+                auto policy = site_filter.as_object().get_string(SITE_SETTING_POLICY_KEY);
+                if (!filter.has_value() || filter->is_empty() || !policy.has_value() || !policy->is_ascii())
+                    return;
+
+                auto policy_utf16 = Utf16View::from_ascii(*policy);
+                if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16); parsed.has_value())
+                    site_setting.site_filters.set(*filter, *parsed);
             });
         }
     };
 
     load_site_setting(m_autoplay, AUTOPLAY_KEY);
 
-    // NB: The geolocationEnabled key this replaced was written on every save, so its false was rarely the user's
-    //     choice; it's ignored, and every profile starts out letting sites ask.
-    if (auto location_policy = json.get_string(LOCATION_POLICY_KEY); location_policy.has_value() && *location_policy == "block"sv)
-        m_location_policy = LocationPolicy::Block;
-    if (auto microphone_policy = json.get_string(MICROPHONE_POLICY_KEY); microphone_policy.has_value() && *microphone_policy == "block"sv)
-        m_microphone_policy = MicrophonePolicy::Block;
-    if (auto notifications_policy = json.get_string(NOTIFICATIONS_POLICY_KEY); notifications_policy.has_value() && *notifications_policy == "block"sv)
-        m_notifications_policy = NotificationsPolicy::Block;
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
+        if (auto setting = json.get_object(Web::Permissions::to_string(name)); setting.has_value()) {
+            if (auto policy = setting->get_string(SITE_SETTING_POLICY_KEY); policy == "ask"sv)
+                m_permission_policies.set(name, PermissionPolicy::Ask);
+            else if (policy == "block"sv)
+                m_permission_policies.set(name, PermissionPolicy::Block);
+        }
+    }
 
     if (auto browsing_data_settings = json.get(BROWSING_DATA_KEY); browsing_data_settings.has_value())
         m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
@@ -587,11 +594,14 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
     auto global_privacy_control_changed = changed(GLOBAL_PRIVACY_CONTROL_KEY);
     auto crash_report_sending_changed = changed(CRASH_REPORT_SENDING_KEY);
     auto dns_settings_changed = changed(DNS_SETTINGS_KEY);
-    auto geolocation_settings_changed = changed(LOCATION_POLICY_KEY);
-    auto microphone_settings_changed = changed(MICROPHONE_POLICY_KEY);
-    auto notifications_settings_changed = changed(NOTIFICATIONS_POLICY_KEY);
     auto background_networking_settings_changed = changed(BACKGROUND_NETWORKING_KEY);
     auto content_blocker_settings_changed = changed(CONTENT_BLOCKERS_KEY);
+
+    Vector<Web::Permissions::PermissionName> changed_site_permissions;
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
+        if (changed(Web::Permissions::to_string(name)))
+            changed_site_permissions.append(name);
+    }
 
     for (auto& observer : m_observers) {
         if (new_tab_page_url_changed)
@@ -612,6 +622,8 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
             observer.search_engine_settings_changed();
         if (autoplay_settings_changed)
             observer.autoplay_settings_changed();
+        for (auto name : changed_site_permissions)
+            observer.permission_settings_changed(name);
         if (browsing_data_settings_changed)
             observer.browsing_data_settings_changed();
         if (global_privacy_control_changed)
@@ -620,12 +632,6 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
             observer.crash_report_sending_changed();
         if (dns_settings_changed)
             observer.dns_settings_changed();
-        if (geolocation_settings_changed)
-            observer.geolocation_settings_changed();
-        if (microphone_settings_changed)
-            observer.microphone_settings_changed();
-        if (notifications_settings_changed)
-            observer.notifications_settings_changed();
         if (background_networking_settings_changed)
             observer.background_networking_settings_changed();
         if (content_blocker_settings_changed)
@@ -851,8 +857,12 @@ JsonValue Settings::serialize_json() const
         JsonArray site_filters;
         site_filters.ensure_capacity(site_setting.site_filters.size());
 
-        for (auto const& site_filter : site_setting.site_filters)
-            site_filters.must_append(site_filter);
+        for (auto const& [filter, policy] : site_setting.site_filters) {
+            JsonObject site_filter;
+            site_filter.set(SITE_SETTING_FILTER_KEY, filter);
+            site_filter.set(SITE_SETTING_POLICY_KEY, MUST(Web::HTML::autoplay_policy_to_string(policy).to_utf8()));
+            site_filters.must_append(move(site_filter));
+        }
 
         JsonObject setting;
         setting.set(SITE_SETTING_POLICY_KEY, MUST(Web::HTML::autoplay_policy_to_string(site_setting.policy).to_utf8()));
@@ -863,9 +873,11 @@ JsonValue Settings::serialize_json() const
 
     save_site_setting(m_autoplay, AUTOPLAY_KEY);
 
-    settings.set(LOCATION_POLICY_KEY, m_location_policy == LocationPolicy::Block ? "block"_string : "ask"_string);
-    settings.set(MICROPHONE_POLICY_KEY, m_microphone_policy == MicrophonePolicy::Block ? "block"_string : "ask"_string);
-    settings.set(NOTIFICATIONS_POLICY_KEY, m_notifications_policy == NotificationsPolicy::Block ? "block"_string : "ask"_string);
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
+        JsonObject setting;
+        setting.set(SITE_SETTING_POLICY_KEY, permission_policy(name) == PermissionPolicy::Block ? "block"_string : "ask"_string);
+        settings.set(Web::Permissions::to_string(name), move(setting));
+    }
 
     JsonObject disk_cache_settings;
     disk_cache_settings.set(DISK_CACHE_MAXIMUM_SIZE_KEY, m_browsing_data_settings.disk_cache_settings.maximum_size);
@@ -1348,13 +1360,13 @@ void Settings::set_autoplay_policy(Web::HTML::AutoplayPolicy policy)
         observer.autoplay_settings_changed();
 }
 
-void Settings::add_autoplay_site_filter(String const& site_filter)
+void Settings::add_autoplay_site_filter(String const& site_filter, Web::HTML::AutoplayPolicy policy)
 {
     auto trimmed_site_filter = MUST(site_filter.trim_whitespace());
     if (trimmed_site_filter.is_empty())
         return;
 
-    m_autoplay.site_filters.set(move(trimmed_site_filter));
+    m_autoplay.site_filters.set(move(trimmed_site_filter), policy);
     persist_settings();
 
     for (auto& observer : m_observers)
@@ -1379,31 +1391,21 @@ void Settings::remove_all_autoplay_site_filters()
         observer.autoplay_settings_changed();
 }
 
-void Settings::set_location_policy(LocationPolicy policy)
+PermissionPolicy Settings::permission_policy(Web::Permissions::PermissionName name) const
 {
-    m_location_policy = policy;
-    persist_settings();
-
-    for (auto& observer : m_observers)
-        observer.geolocation_settings_changed();
+    return m_permission_policies.get(name).value_or(PermissionPolicy::Ask);
 }
 
-void Settings::set_microphone_policy(MicrophonePolicy policy)
+void Settings::set_permission_policy(Web::Permissions::PermissionName name, PermissionPolicy policy)
 {
-    m_microphone_policy = policy;
+    if (permission_policy(name) == policy)
+        return;
+
+    m_permission_policies.set(name, policy);
     persist_settings();
 
     for (auto& observer : m_observers)
-        observer.microphone_settings_changed();
-}
-
-void Settings::set_notifications_policy(NotificationsPolicy policy)
-{
-    m_notifications_policy = policy;
-    persist_settings();
-
-    for (auto& observer : m_observers)
-        observer.notifications_settings_changed();
+        observer.permission_settings_changed(name);
 }
 
 BrowsingDataSettings Settings::parse_browsing_data_settings(JsonValue const& settings)

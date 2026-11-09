@@ -60,7 +60,7 @@ static bool should_show_config_variable(ConfigVariableID id)
 
 SettingsUISitePermissionsObserver::SettingsUISitePermissionsObserver(SettingsUI& settings_ui)
     : m_settings_ui(settings_ui)
-    , m_manager(*Application::the().default_session().permission_manager)
+    , m_manager(*Application::default_session().permission_manager)
 {
     m_manager->register_observer(*this);
 }
@@ -81,9 +81,6 @@ void SettingsUI::register_interfaces()
 {
     m_site_permissions_observer = make<SettingsUISitePermissionsObserver>(*this);
 
-    register_interface("setSitePermission"sv, [this](auto const& data) {
-        set_site_permission(data);
-    });
     register_interface("loadFeatures"sv, [this](auto const&) {
         load_features();
     });
@@ -182,15 +179,6 @@ void SettingsUI::register_interfaces()
     register_interface("removeAllSiteSettingFilters"sv, [this](auto const& data) {
         remove_all_site_setting_filters(data);
     });
-    register_interface("setLocationPolicy"sv, [this](auto const& data) {
-        set_location_policy(data);
-    });
-    register_interface("setMicrophonePolicy"sv, [this](auto const& data) {
-        set_microphone_policy(data);
-    });
-    register_interface("setNotificationsPolicy"sv, [this](auto const& data) {
-        set_notifications_policy(data);
-    });
 
     register_interface("estimateBrowsingDataSizes"sv, [this](auto const& data) {
         estimate_browsing_data_sizes(data);
@@ -251,28 +239,34 @@ JsonObject SettingsUI::serialize_settings() const
     settings.as_object().set("forceDarkSitesReadOnly"sv, !has_client() || client().is_private() == IsPrivate::Yes);
 
     // The sites the user allowed or blocked, for each permission.
-    JsonObject site_permissions;
-    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone, Web::Permissions::PermissionName::Notifications }) {
+    JsonObject site_settings;
+    site_settings.set("autoplay"sv, settings.as_object().get("autoplay"sv).value());
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
         JsonArray sites;
-        for (auto const& site : Application::the().default_session().permission_manager->site_decisions(name)) {
+        for (auto const& site : Application::default_session().permission_manager->site_decisions(name)) {
             JsonObject entry;
-            entry.set("origin"sv, site.origin.serialize());
+            entry.set("filter"sv, site.origin.serialize());
             switch (site.decision) {
             case PermissionDecision::Allow:
-                entry.set("decision"sv, "allow"_string);
+                entry.set("policy"sv, "allow"_string);
                 break;
             case PermissionDecision::AllowOnce:
-                entry.set("decision"sv, "allow-once"_string);
+                entry.set("policy"sv, "allow-once"_string);
                 break;
             case PermissionDecision::Block:
-                entry.set("decision"sv, "block"_string);
+                entry.set("policy"sv, "block"_string);
                 break;
             }
             sites.must_append(move(entry));
         }
-        site_permissions.set(Web::Permissions::to_string(name), move(sites));
+
+        JsonObject setting;
+        setting.set("policy"sv, Application::settings().permission_policy(name) == PermissionPolicy::Block ? "block"sv : "ask"sv);
+        setting.set("siteFilters"sv, move(sites));
+        site_settings.set(Web::Permissions::to_string(name), move(setting));
     }
-    settings.as_object().set("sitePermissions"sv, move(site_permissions));
+
+    settings.as_object().set("siteSettings"sv, move(site_settings));
 
     JsonArray config_variables;
     for (auto const& variable : config_variable_definitions()) {
@@ -500,168 +494,116 @@ void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
         Application::settings().remove_custom_search_engine(*custom_engine);
 }
 
-enum class SiteSettingType {
-    Autoplay,
-};
-
-static constexpr StringView site_setting_type_to_string(SiteSettingType setting)
-{
-    switch (setting) {
-    case SiteSettingType::Autoplay:
-        return "autoplay"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Optional<SiteSettingType> site_setting_type(JsonValue const& settings)
-{
-    if (!settings.is_object())
-        return {};
-
-    auto setting_type = settings.as_object().get_string("setting"sv);
-    if (!setting_type.has_value())
-        return {};
-
-    if (*setting_type == "autoplay"sv)
-        return SiteSettingType::Autoplay;
-    return {};
-}
-
 void SettingsUI::load_forcibly_enabled_site_settings()
 {
     JsonArray site_settings;
 
     if (Application::web_content_options().enable_autoplay == EnableAutoplay::Yes)
-        site_settings.must_append(site_setting_type_to_string(SiteSettingType::Autoplay));
+        site_settings.must_append("autoplay"sv);
 
     async_send_message("forciblyEnableSiteSettings"sv, move(site_settings));
 }
 
 void SettingsUI::set_site_setting_policy(JsonValue const& site_setting)
 {
-    auto setting = site_setting_type(site_setting);
-    if (!setting.has_value())
+    if (!site_setting.is_object())
         return;
 
+    auto setting = site_setting.as_object().get_string("setting"sv);
     auto policy = site_setting.as_object().get_string("policy"sv);
-    if (!policy.has_value())
+    if (!setting.has_value() || !policy.has_value() || !policy->is_ascii())
         return;
 
-    switch (*setting) {
-    case SiteSettingType::Autoplay:
-        auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
-        if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
+    if (*setting == "autoplay"sv) {
+        auto policy_utf16 = Utf16View::from_ascii(*policy);
+        if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16); parsed.has_value())
             Application::settings().set_autoplay_policy(*parsed);
-        break;
+    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
+        if (*policy == "ask"sv)
+            Application::settings().set_permission_policy(*name, PermissionPolicy::Ask);
+        else if (*policy == "block"sv)
+            Application::settings().set_permission_policy(*name, PermissionPolicy::Block);
     }
+}
+
+static Optional<URL::Origin> site_setting_origin(String const& filter)
+{
+    auto url = URL::Parser::basic_parse(filter.bytes_as_string_view().trim_whitespace());
+    if (!url.has_value() || url->origin().is_opaque())
+        return {};
+    return url->origin();
 }
 
 void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
 {
-    auto setting = site_setting_type(site_setting);
-    if (!setting.has_value())
+    if (!site_setting.is_object())
         return;
 
+    auto setting = site_setting.as_object().get_string("setting"sv);
     auto filter = site_setting.as_object().get_string("filter"sv);
-    if (!filter.has_value())
+    auto policy = site_setting.as_object().get_string("policy"sv);
+    if (!setting.has_value() || !filter.has_value() || !policy.has_value() || !policy->is_ascii())
         return;
 
-    switch (*setting) {
-    case SiteSettingType::Autoplay:
-        Application::settings().add_autoplay_site_filter(*filter);
-        break;
+    if (*setting == "autoplay"sv) {
+        auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
+        if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
+            Application::settings().add_autoplay_site_filter(*filter, *parsed);
+    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
+        auto origin = site_setting_origin(*filter);
+        if (!origin.has_value())
+            return;
+
+        PermissionDecision decision;
+        if (*policy == "allow"sv)
+            decision = PermissionDecision::Allow;
+        else if (*policy == "block"sv)
+            decision = PermissionDecision::Block;
+        else
+            return;
+
+        Application::default_session().permission_manager->set_decision(*name, *origin, decision);
     }
 }
 
 void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
 {
-    auto setting = site_setting_type(site_setting);
-    if (!setting.has_value())
+    if (!site_setting.is_object())
         return;
 
+    auto setting = site_setting.as_object().get_string("setting"sv);
     auto filter = site_setting.as_object().get_string("filter"sv);
-    if (!filter.has_value())
+    if (!setting.has_value() || !filter.has_value())
         return;
 
-    switch (*setting) {
-    case SiteSettingType::Autoplay:
+    if (*setting == "autoplay"sv) {
         Application::settings().remove_autoplay_site_filter(*filter);
-        break;
+    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
+        auto origin = site_setting_origin(*filter);
+        if (!origin.has_value())
+            return;
+
+        Application::default_session().permission_manager->set_decision(*name, *origin, {});
     }
 }
 
 void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
 {
-    auto setting = site_setting_type(site_setting);
+    if (!site_setting.is_object())
+        return;
+
+    auto setting = site_setting.as_object().get_string("setting"sv);
     if (!setting.has_value())
         return;
 
-    switch (*setting) {
-    case SiteSettingType::Autoplay:
+    if (*setting == "autoplay"sv) {
         Application::settings().remove_all_autoplay_site_filters();
-        break;
+    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
+        auto& manager = *Application::default_session().permission_manager;
+
+        for (auto const& site : manager.site_decisions(*name))
+            manager.set_decision(*name, site.origin, {});
     }
-}
-
-void SettingsUI::set_site_permission(JsonValue const& data)
-{
-    if (!data.is_object())
-        return;
-    auto const& object = data.as_object();
-
-    auto name = object.get_string("permission"sv).map([](auto const& string) { return Web::Permissions::permission_name_from_string(string); });
-    auto origin_string = object.get_string("origin"sv);
-    if (!name.has_value() || !name->has_value() || !origin_string.has_value())
-        return;
-
-    auto url = URL::Parser::basic_parse(*origin_string);
-    if (!url.has_value() || url->origin().is_opaque())
-        return;
-
-    Optional<PermissionDecision> decision;
-    if (auto value = object.get_string("decision"sv); value.has_value()) {
-        if (*value == "allow"sv)
-            decision = PermissionDecision::Allow;
-        else if (*value == "block"sv)
-            decision = PermissionDecision::Block;
-        else
-            return;
-    }
-
-    Application::the().default_session().permission_manager->set_decision(**name, url->origin(), decision);
-}
-
-void SettingsUI::set_location_policy(JsonValue const& policy)
-{
-    if (!policy.is_string())
-        return;
-
-    if (policy.as_string() == "ask"sv)
-        Application::settings().set_location_policy(LocationPolicy::Ask);
-    else if (policy.as_string() == "block"sv)
-        Application::settings().set_location_policy(LocationPolicy::Block);
-}
-
-void SettingsUI::set_microphone_policy(JsonValue const& policy)
-{
-    if (!policy.is_string())
-        return;
-
-    if (policy.as_string() == "ask"sv)
-        Application::settings().set_microphone_policy(MicrophonePolicy::Ask);
-    else if (policy.as_string() == "block"sv)
-        Application::settings().set_microphone_policy(MicrophonePolicy::Block);
-}
-
-void SettingsUI::set_notifications_policy(JsonValue const& policy)
-{
-    if (!policy.is_string())
-        return;
-
-    if (policy.as_string() == "ask"sv)
-        Application::settings().set_notifications_policy(NotificationsPolicy::Ask);
-    else if (policy.as_string() == "block"sv)
-        Application::settings().set_notifications_policy(NotificationsPolicy::Block);
 }
 
 void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)

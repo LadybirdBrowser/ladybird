@@ -18,6 +18,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebCommon/WebView/BrowsingBehavior.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -100,31 +101,15 @@ struct SearchEngineSettings {
     bool suggestions { false };
 };
 
+template<typename Policy, Policy default_policy>
 struct SiteSetting {
-    OrderedHashTable<String> site_filters;
-
-protected:
-    SiteSetting() = default;
+    Policy policy { default_policy };
+    OrderedHashMap<String, Policy> site_filters;
 };
 
-struct AutoplaySiteSetting : public SiteSetting {
-    Web::HTML::AutoplayPolicy policy { Web::HTML::AutoplayPolicy::BlockAudio };
-};
+using AutoplaySiteSetting = SiteSetting<Web::HTML::AutoplayPolicy, Web::HTML::AutoplayPolicy::BlockAudio>;
 
-// Whether sites may ask for the user's location at all.
-enum class LocationPolicy : u8 {
-    Ask,
-    Block,
-};
-
-// Whether sites may ask to use the user's microphone at all.
-enum class MicrophonePolicy : u8 {
-    Ask,
-    Block,
-};
-
-// Whether sites may ask to send the user notifications at all.
-enum class NotificationsPolicy : u8 {
+enum class PermissionPolicy : u8 {
     Ask,
     Block,
 };
@@ -199,14 +184,12 @@ public:
     virtual void browsing_behavior_changed() { }
     virtual void search_engine_settings_changed() { }
     virtual void autoplay_settings_changed() { }
+    virtual void permission_settings_changed(Web::Permissions::PermissionName) { }
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void crash_report_sending_changed() { }
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
-    virtual void geolocation_settings_changed() { }
-    virtual void microphone_settings_changed() { }
-    virtual void notifications_settings_changed() { }
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
 
@@ -234,9 +217,7 @@ struct WEBVIEW_API SettingsData {
     Vector<SearchEngine> m_custom_search_engines;
 
     AutoplaySiteSetting m_autoplay;
-    LocationPolicy m_location_policy { LocationPolicy::Ask };
-    MicrophonePolicy m_microphone_policy { MicrophonePolicy::Ask };
-    NotificationsPolicy m_notifications_policy { NotificationsPolicy::Ask };
+    HashMap<Web::Permissions::PermissionName, PermissionPolicy> m_permission_policies;
 
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
@@ -335,18 +316,12 @@ public:
 
     AutoplaySiteSetting const& autoplay_settings() const { return m_autoplay; }
     void set_autoplay_policy(Web::HTML::AutoplayPolicy);
-    void add_autoplay_site_filter(String const&);
+    void add_autoplay_site_filter(String const&, Web::HTML::AutoplayPolicy);
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
-    LocationPolicy location_policy() const { return m_location_policy; }
-    void set_location_policy(LocationPolicy);
-
-    MicrophonePolicy microphone_policy() const { return m_microphone_policy; }
-    void set_microphone_policy(MicrophonePolicy);
-
-    NotificationsPolicy notifications_policy() const { return m_notifications_policy; }
-    void set_notifications_policy(NotificationsPolicy);
+    PermissionPolicy permission_policy(Web::Permissions::PermissionName) const;
+    void set_permission_policy(Web::Permissions::PermissionName, PermissionPolicy);
 
     static BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
     BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
