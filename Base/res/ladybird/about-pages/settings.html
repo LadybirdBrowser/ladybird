@@ -1174,7 +1174,7 @@
                         <div class="card-group inline-container">
                             <label for="autoplay-policy">
                                 Autoplay
-                                <p class="description">Whether sites can play audio and video on their own.</p>
+                                <p class="description">Sites can play audio and video on their own.</p>
                             </label>
                             <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
                                 This setting is controlled via the command line
@@ -1189,37 +1189,33 @@
                             </div>
                         </div>
                         <div class="card-group inline-container">
-                            <label for="enable-geolocation">
+                            <label for="geolocation-policy">
                                 Location
                                 <p class="description">Sites can ask to know your location.</p>
                             </label>
                             <div class="permission-controls">
-                                <input id="enable-geolocation" type="checkbox" switch />
-                                <button id="location-permissions-settings" class="secondary-button">Exceptions…</button>
+                                <input id="geolocation-policy" type="checkbox" switch />
+                                <button id="geolocation-settings" class="secondary-button">Exceptions…</button>
                             </div>
                         </div>
                         <div class="card-group inline-container">
-                            <label for="enable-microphone">
+                            <label for="microphone-policy">
                                 Microphone
                                 <p class="description">Sites can ask to use your microphone.</p>
                             </label>
                             <div class="permission-controls">
-                                <input id="enable-microphone" type="checkbox" switch />
-                                <button id="microphone-permissions-settings" class="secondary-button">
-                                    Exceptions…
-                                </button>
+                                <input id="microphone-policy" type="checkbox" switch />
+                                <button id="microphone-settings" class="secondary-button">Exceptions…</button>
                             </div>
                         </div>
                         <div class="card-group inline-container">
-                            <label for="enable-notifications">
+                            <label for="notifications-policy">
                                 Notifications
                                 <p class="description">Sites can ask to send you notifications.</p>
                             </label>
                             <div class="permission-controls">
-                                <input id="enable-notifications" type="checkbox" switch />
-                                <button id="notifications-permissions-settings" class="secondary-button">
-                                    Exceptions…
-                                </button>
+                                <input id="notifications-policy" type="checkbox" switch />
+                                <button id="notifications-settings" class="secondary-button">Exceptions…</button>
                             </div>
                         </div>
                     </div>
@@ -1514,46 +1510,17 @@
             </div>
         </dialog>
 
-        <dialog id="site-permissions-geolocation" class="site-permissions" closedby="any">
-            <div class="dialog-header">
-                <h3 class="dialog-title">Location</h3>
-                <button class="close-button dialog-button">&times;</button>
-            </div>
-            <div class="dialog-body">
-                <div class="site-permissions-list dialog-list"></div>
-            </div>
-        </dialog>
-
-        <dialog id="site-permissions-microphone" class="site-permissions" closedby="any">
-            <div class="dialog-header">
-                <h3 class="dialog-title">Microphone</h3>
-                <button class="close-button dialog-button">&times;</button>
-            </div>
-            <div class="dialog-body">
-                <div class="site-permissions-list dialog-list"></div>
-            </div>
-        </dialog>
-
-        <dialog id="site-permissions-notifications" class="site-permissions" closedby="any">
-            <div class="dialog-header">
-                <h3 class="dialog-title">Notifications</h3>
-                <button class="close-button dialog-button">&times;</button>
-            </div>
-            <div class="dialog-body">
-                <div class="site-permissions-list dialog-list"></div>
-            </div>
-        </dialog>
-
         <dialog id="site-settings" closedby="any">
             <div class="dialog-header">
                 <h3 id="site-settings-title" class="dialog-title"></h3>
                 <button id="site-settings-close" class="close-button dialog-button">&times;</button>
             </div>
             <div class="dialog-body">
-                <label>Allowlist</label>
+                <label>Site exceptions</label>
                 <div id="site-settings-list" class="dialog-list"></div>
                 <div class="dialog-controls">
-                    <input id="site-settings-input" type="text" placeholder="example.com" />
+                    <input id="site-settings-input" type="text" placeholder="https://example.com" />
+                    <select id="site-settings-decision" aria-label="Site policy"></select>
                     <button id="site-settings-add" class="primary-button">Add&nbsp;site</button>
                 </div>
             </div>
@@ -1630,13 +1597,9 @@
         <script src="resource://ladybird/about-pages/settings/browsing-behavior.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/content.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/feedback.js" type="module"></script>
-        <script src="resource://ladybird/about-pages/settings/geolocation.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/languages.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/network.js" type="module"></script>
-        <script src="resource://ladybird/about-pages/settings/microphone.js" type="module"></script>
-        <script src="resource://ladybird/about-pages/settings/notifications.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
-        <script src="resource://ladybird/about-pages/settings/site-permissions.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/privacy.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/services.js" type="module"></script>
