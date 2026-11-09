@@ -1106,6 +1106,8 @@ type SubgridBlockSizeMemo = std::rc::Rc<std::cell::RefCell<HashMap<SubgridBlockS
 
 pub(crate) struct GridFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
+    /// What the grid container's fragment shows of its tracks, where the run builds fragments.
+    root_payload: fragment_tree::GridPayload,
     /// The cells of the grid container, in the frame its items are laid out in. The grid does not resize its container,
     /// but takes it again after the run sizes the container's own box.
     container_cells: Cell<used_values::RootInputCells>,
@@ -1306,6 +1308,11 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for GridFormat
         input: formatting_context::AlgorithmInput<'_>,
     ) -> formatting_context::AlgorithmOutput {
         self.run(run, input.body_input);
+        let mut root_payload = fragment_tree::PendingPayload::default();
+        let grid_payload = std::mem::take(&mut self.root_payload);
+        if grid_payload.layout_data.is_some() || grid_payload.used_tracks.is_some() {
+            root_payload.set(fragment_tree::FcPayload::Grid(grid_payload));
+        }
         formatting_context::AlgorithmOutput::of_root(
             formatting_context::ChildLayoutResult {
                 automatic_content_block_size: self.automatic_content_block_size(),
@@ -1315,6 +1322,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for GridFormat
             },
             input.root_cells,
         )
+        .with_root_payload(root_payload)
     }
 
     fn after_root_is_dimensioned(
@@ -1339,6 +1347,7 @@ impl<'pass> GridFormattingContext<'pass> {
             run: run.clone(),
             container_cells: Cell::new(container_cells),
             container_constraints_for_cells: Cell::new(None),
+            root_payload: fragment_tree::GridPayload::default(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
             container_style,
             parent_grid: subgrid_parent.map(|parent| parent.grid.clone()),
@@ -5302,12 +5311,12 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn save_used_tracks(&self, grid_style: &GridValues) {
+    fn used_tracks(&self, grid_style: &GridValues) -> OwnedUsedGridTracks {
         // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
         // so they need to be saved in the state, and then assigned to paintables by the Rust commit walk.
         let start = |axis: Axis| self.content_start_offset(axis, self.grid_container_alignment_size(axis));
         let column_axis = self.select_grid_axis(Axis::Column, Axis::Column, Axis::Row);
-        let tracks = OwnedUsedGridTracks {
+        OwnedUsedGridTracks {
             columns: self.used_track_list_data(column_axis, self.is_subgridded(column_axis, grid_style)),
             rows: self.used_track_list_data(
                 column_axis.opposite(),
@@ -5319,16 +5328,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sum(Axis::Column),
                 self.track_sum(Axis::Row),
             ),
-        };
-        self.run.update_grid_payload_of(self.run.box_, |grid| {
-            grid.used_tracks = Some(std::sync::Arc::new(tracks));
-        });
+        }
     }
 
-    fn save_devtools_data(&self, grid_style: &GridValues) {
-        if !self.run.collects_devtools_layout_data() {
-            return;
-        }
+    fn layout_data_for_devtools(&self, grid_style: &GridValues) -> GridLayoutData {
         let serialize = |axis: Axis| {
             let tracks = self.axis_tracks(axis);
             let gaps = self.axis_gaps(axis);
@@ -5417,15 +5420,12 @@ impl<'pass> GridFormattingContext<'pass> {
             .collect::<Vec<_>>();
         let fragment = GridLayoutFragment { areas, columns, rows };
         let style = self.container_style;
-        let data = GridLayoutData {
+        GridLayoutData {
             direction: style.direction(),
             writing_mode: style.writing_mode(),
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
-        };
-        self.run.update_grid_payload_of(self.run.box_, |grid| {
-            grid.layout_data = Some(std::sync::Arc::new(data));
-        });
+        }
     }
 
     pub(crate) fn content_inline_size(
@@ -5578,8 +5578,12 @@ impl<'pass> GridFormattingContext<'pass> {
         }
 
         self.layout_items(run);
-        self.save_used_tracks(grid_style);
-        self.save_devtools_data(grid_style);
+        if self.run.fragments.is_some() {
+            self.root_payload.used_tracks = Some(std::sync::Arc::new(self.used_tracks(grid_style)));
+        }
+        if self.run.collects_devtools_layout_data() {
+            self.root_payload.layout_data = Some(std::sync::Arc::new(self.layout_data_for_devtools(grid_style)));
+        }
     }
 
     fn derived_baselines_of_root_box(&self) -> DerivedBaselines {

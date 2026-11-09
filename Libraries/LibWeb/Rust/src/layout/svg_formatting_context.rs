@@ -596,6 +596,8 @@ pub(super) struct SvgFormattingContext<'pass> {
     /// sets it once the root is definite. A nested context takes it from the context that creates it.
     percentage_block_insets_of_run_root_children_have_definite_basis: bool,
     current_text_position: FfiFloatPoint,
+    /// What the run's root, where this is the context of the root, hands the root's fragment.
+    root_payload: RefCell<fragment_tree::PendingPayload>,
 }
 
 impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for SvgFormattingContext<'pass> {
@@ -607,6 +609,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for SvgFormatt
         let root = Cell::new(input.root_cells);
         self.lay_out_contents(run, input.body_input, &root);
         formatting_context::AlgorithmOutput::of_root(formatting_context::ChildLayoutResult::default(), root.get())
+            .with_root_payload(self.root_payload.take())
     }
 }
 
@@ -629,6 +632,23 @@ impl<'pass> SvgFormattingContext<'pass> {
             viewport_is_committed_viewport: false,
             percentage_block_insets_of_run_root_children_have_definite_basis,
             current_text_position: FfiFloatPoint::default(),
+            root_payload: RefCell::new(fragment_tree::PendingPayload::default()),
+        }
+    }
+
+    /// Hands `node` what its layout produced besides its geometry, where the run builds fragments: the run's root through
+    /// the output of this context, and any other box through the run's fragment builder.
+    fn update_svg_payload_of(&self, node: Node, update: impl FnOnce(&mut fragment_tree::SvgPayload)) {
+        if node != self.run.state.root() {
+            self.run.update_svg_payload_of(node, update);
+            return;
+        }
+        debug_assert_eq!(
+            node, self.run.box_,
+            "only the context of a run's root hands the root its payload"
+        );
+        if self.run.fragments.is_some() {
+            update(self.root_payload.borrow_mut().svg_mut());
         }
     }
 
@@ -1860,13 +1880,11 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn set_svg_viewport_transform(&self, node: Node, transform: FfiAffineTransform) {
-        self.run
-            .update_svg_payload_of(node, |svg| svg.facts.viewport_transform = Some(transform));
+        self.update_svg_payload_of(node, |svg| svg.facts.viewport_transform = Some(transform));
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
-        self.run
-            .update_svg_payload_of(node, |svg| svg.facts.viewport_size = Some(viewport_size));
+        self.update_svg_payload_of(node, |svg| svg.facts.viewport_size = Some(viewport_size));
     }
 
     fn commit_svg_element_facts(&self, node: Node, facts: SvgElementFacts, attributes: FfiSvgAttributeFacts) {
@@ -1877,7 +1895,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             width: attributes.mask_width,
             height: attributes.mask_height,
         });
-        self.run.update_svg_payload_of(node, |svg| {
+        self.update_svg_payload_of(node, |svg| {
             let svg = &mut svg.facts;
             svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
             svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
@@ -2330,7 +2348,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        self.run.update_svg_payload_of(graphics_box, |svg| {
+        self.update_svg_payload_of(graphics_box, |svg| {
             svg.path = Some(std::sync::Arc::new(path));
             svg.text_character_cells = character_cells.map(std::sync::Arc::new);
         });

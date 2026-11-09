@@ -409,6 +409,8 @@ pub(super) struct FlexFormattingContext<'pass> {
     flex_items: Vec<FlexItem>,
     flex_item_details: Vec<FlexItemDetails<'pass>>,
     derived_baselines_of_root_box: DerivedBaselines,
+    /// The lines and items the devtools show of the container, where the run collects devtools data.
+    flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
     container: FlexContainerConstants<'pass>,
     available_space_for_items: Option<AxisAgnosticAvailableSpace>,
     available_space: Option<AvailableSpace>,
@@ -461,6 +463,10 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for FlexFormat
     ) -> formatting_context::AlgorithmOutput {
         self.run(run, input.body_input, input.flex_self_block_size_resolution_space);
         let container_cells = self.container_cells.get();
+        let mut root_payload = fragment_tree::PendingPayload::default();
+        if let Some(flex_layout_data) = self.flex_layout_data.take() {
+            root_payload.set(fragment_tree::FcPayload::Flex(flex_layout_data));
+        }
         formatting_context::AlgorithmOutput::of_root(
             formatting_context::ChildLayoutResult {
                 automatic_content_block_size: container_cells.content_block_size,
@@ -470,6 +476,7 @@ impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for FlexFormat
             },
             container_cells,
         )
+        .with_root_payload(root_payload)
     }
 
     fn after_root_is_dimensioned(
@@ -486,6 +493,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>, container_cells: used_values::RootInputCells) -> Self {
         Self {
             run: run.clone(),
+            flex_layout_data: None,
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
             flex_item_details: Vec::new(),
@@ -3440,7 +3448,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn save_flex_layout_data(&self) {
+    fn layout_data_for_devtools(&self) -> formatting_context::FlexLayoutData {
         let mut lines = Vec::with_capacity(self.flex_lines.len());
         for line in &self.flex_lines {
             let mut items = Vec::with_capacity(line.items.len());
@@ -3517,7 +3525,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             });
         }
         let style = self.container.style;
-        let data = formatting_context::FlexLayoutData {
+        formatting_context::FlexLayoutData {
             align_content: style.align_content(),
             align_items: style.align_items(),
             flex_direction: style.effective_flex_direction(),
@@ -3528,10 +3536,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             cross_axis_direction: Self::axis_direction(self.cross_axis_is_horizontal(), self.cross_axis_is_reverse())
                 as u8,
             lines,
-        };
-        self.run.set_fragment_payload_of(self.run.box_, || {
-            fragment_tree::FcPayload::Flex(std::sync::Arc::new(data))
-        });
+        }
     }
 
     // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
@@ -4167,7 +4172,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.layout_items_and_derive_baselines(run, container_cross_size_is_auto);
 
         if self.run.collects_devtools_layout_data() {
-            self.save_flex_layout_data();
+            self.flex_layout_data = Some(std::sync::Arc::new(self.layout_data_for_devtools()));
         }
     }
 
