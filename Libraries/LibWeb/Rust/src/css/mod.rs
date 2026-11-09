@@ -66,6 +66,7 @@ pub(crate) mod style_rule;
 pub(crate) mod style_sheet;
 pub(crate) mod style_value;
 pub(crate) mod style_value_arc;
+pub(crate) mod svg_paint;
 pub mod table_group_builder;
 pub(crate) mod thin_slice;
 pub(crate) mod transform_functions;
