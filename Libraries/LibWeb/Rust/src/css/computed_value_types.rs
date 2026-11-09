@@ -100,6 +100,7 @@ pub struct AlignmentValues {
     pub align_self_overflow: u8,
     pub justify_self_overflow: u8,
     pub align_content_overflow: u8,
+    pub justify_content_overflow: u8,
     pub column_gap: ComputedGap,
     pub row_gap: ComputedGap,
 }

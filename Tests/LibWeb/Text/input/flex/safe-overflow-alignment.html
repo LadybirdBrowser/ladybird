@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        position: relative;
+        display: flex;
+        width: 100px;
+        height: 100px;
+    }
+    .item {
+        flex-shrink: 0;
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            [{ alignItems: "safe center" }],
+            [{ alignItems: "unsafe center" }],
+            [{}, { alignSelf: "safe center" }],
+            [{}, { alignSelf: "safe center", width: "50px", height: "50px" }],
+            [{ justifyContent: "safe center" }],
+            [{ justifyContent: "unsafe center" }],
+            [{ justifyContent: "safe flex-end" }],
+            [{ flexWrap: "wrap", alignContent: "safe center" }],
+            [{ flexDirection: "column", justifyContent: "safe center" }],
+            [{ flexDirection: "row-reverse", justifyContent: "safe flex-start" }],
+            [{ flexDirection: "row-reverse", justifyContent: "safe center" }],
+            [{ flexDirection: "row-reverse", justifyContent: "unsafe center" }],
+            [{ flexDirection: "column-reverse", justifyContent: "safe flex-start" }],
+            [{ flexDirection: "column-reverse", justifyContent: "safe center" }],
+            [{ flexWrap: "wrap-reverse", alignContent: "safe flex-start" }],
+            [{ flexWrap: "wrap-reverse", alignContent: "safe center" }],
+            [{ flexWrap: "wrap-reverse", alignItems: "safe flex-start" }],
+            [{ direction: "rtl", justifyContent: "safe center" }],
+            [{ display: "-webkit-box", webkitBoxAlign: "end" }, { alignSelf: "safe center" }],
+        ];
+        for (const [containerStyle, itemStyle] of cases) {
+            const container = document.createElement("div");
+            container.className = "container";
+            Object.assign(container.style, containerStyle);
+            const item = document.createElement("div");
+            item.className = "item";
+            Object.assign(item.style, itemStyle);
+            container.appendChild(item);
+            document.body.appendChild(container);
+            const containerRect = container.getBoundingClientRect();
+            const itemRect = item.getBoundingClientRect();
+            const describe = style => Object.entries(style ?? {}).map(([name, value]) => `${name}: ${value}`).join("; ");
+            println(`{${describe(containerStyle)}} {${describe(itemStyle)}}: ${itemRect.left - containerRect.left},${itemRect.top - containerRect.top}`);
+            container.remove();
+        }
+    });
+</script>

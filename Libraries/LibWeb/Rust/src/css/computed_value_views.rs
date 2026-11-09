@@ -663,6 +663,7 @@ scalar_accessors! {
         align_self_overflow: u8 => align_self_overflow,
         justify_self_overflow: u8 => justify_self_overflow,
         align_content_overflow: u8 => align_content_overflow,
+        justify_content_overflow: u8 => justify_content_overflow,
         flex_basis_is_content: bool => flex_basis.is_content,
     }
 }
