@@ -249,12 +249,6 @@ pub enum IncludeVisualViewportTransform {
     Yes,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ScrollSnap {
-    None,
-    Truncate,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocalTransformKind {
     Identity,
@@ -1218,12 +1212,7 @@ impl VisualContextTree {
         chain
     }
 
-    pub fn local_transform(
-        &self,
-        index: SpatialNodeIndex,
-        scroll_offsets: &[FloatPoint],
-        scroll_snap: ScrollSnap,
-    ) -> LocalTransform {
+    pub fn local_transform(&self, index: SpatialNodeIndex, scroll_offsets: &[FloatPoint]) -> LocalTransform {
         let mut local = LocalTransform {
             matrix: FloatMatrix4x4::identity(),
             flattens_inherited_transform: false,
@@ -1233,13 +1222,6 @@ impl VisualContextTree {
             backface_plane_root: None,
         };
         let translation = |offset: FloatPoint| {
-            let offset = match scroll_snap {
-                ScrollSnap::None => offset,
-                ScrollSnap::Truncate => FloatPoint {
-                    x: offset.x as i32 as f32,
-                    y: offset.y as i32 as f32,
-                },
-            };
             (
                 translation_matrix(offset.x, offset.y, 0.0),
                 LocalTransformKind::Translation(offset),
@@ -1547,7 +1529,7 @@ mod tests {
         let child = tree.append_spatial(SpatialData::Transform(scaled(3.0)), scroll);
         let scroll_offsets = [FloatPoint::default(), FloatPoint { x: -10.0, y: -20.0 }];
 
-        let world = WorldTransforms::new(&tree, &scroll_offsets, None, ScrollSnap::None);
+        let world = WorldTransforms::new(&tree, &scroll_offsets, None);
         let without_viewport = world.to_viewport_matrix(child, IncludeVisualViewportTransform::No);
         assert_eq!(
             without_viewport,
@@ -1585,7 +1567,7 @@ mod tests {
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let world = WorldTransforms::new(&tree, &[], None, ScrollSnap::None);
+        let world = WorldTransforms::new(&tree, &[], None);
         let matrix = world.to_viewport_matrix(child, IncludeVisualViewportTransform::No);
         assert_eq!(matrix.map_vector4([50.0, 50.0, 0.0, 1.0]), [50.0, 50.0, 0.0, 1.0]);
         assert_eq!(matrix.map_vector4([0.0, 0.0, 0.0, 1.0]), [-50.0, -50.0, 0.0, 1.0]);
@@ -2011,7 +1993,7 @@ mod tests {
     fn an_untransformed_plane_has_zero_depth() {
         let tree = tree();
         assert_eq!(
-            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+            WorldTransforms::new(&tree, &[], None)
                 .plane_depth_at_point_for_hit_test(VISUAL_VIEWPORT_NODE_INDEX, FloatPoint { x: 25.0, y: 50.0 }),
             Some(0.0)
         );
@@ -2028,7 +2010,7 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         assert_eq!(
-            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+            WorldTransforms::new(&tree, &[], None)
                 .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }),
             Some(75.0)
         );
@@ -2051,7 +2033,7 @@ mod tests {
             }),
             perspective,
         );
-        let depth = WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+        let depth = WorldTransforms::new(&tree, &[], None)
             .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 })
             .unwrap();
         assert!((depth - 1000.0 / 9.0).abs() < 0.0001);
@@ -2068,7 +2050,7 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         assert_eq!(
-            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+            WorldTransforms::new(&tree, &[], None)
                 .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }),
             None
         );

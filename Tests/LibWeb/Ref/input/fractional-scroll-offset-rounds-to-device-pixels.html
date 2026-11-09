@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/fractional-scroll-offset-rounds-to-device-pixels-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+    }
+    .row {
+        height: 1px;
+    }
+    .row:nth-child(odd) {
+        background: black;
+    }
+</style>
+<div id="scroller"></div>
+<script>
+    for (let i = 0; i < 200; i++)
+        scroller.appendChild(document.createElement("div")).className = "row";
+    // A scroll offset of 10.6px rounds to 11 device pixels, one row away from where truncating it would leave the rows.
+    scroller.scrollTop = 10.6;
+</script>

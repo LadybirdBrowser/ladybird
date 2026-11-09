@@ -333,12 +333,7 @@ pub unsafe extern "C" fn world_transforms_create(
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
     let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
-    let world = crate::visual_context::WorldTransforms::new(
-        tree,
-        scroll_offsets,
-        None,
-        crate::visual_context::ScrollSnap::None,
-    );
+    let world = crate::visual_context::WorldTransforms::new(tree, scroll_offsets, None);
     Box::into_raw(Box::new(world)).cast()
 }
 
@@ -413,6 +408,17 @@ pub unsafe extern "C" fn world_transforms_transform_rect_to_viewport(
         rect,
         include_visual_viewport_transform_from(include_visual_viewport_transform),
     );
+}
+
+/// # Safety
+///
+/// `world` must be a live handle from `world_transforms_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn world_transforms_translations_snap_to_device_pixels(
+    world: *const c_void,
+    spatial: SpatialNodeIndex,
+) -> bool {
+    unsafe { world_transforms_from_handle(world) }.translations_snap_to_device_pixels(spatial)
 }
 
 /// # Safety
@@ -509,17 +515,6 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_animation_samples(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_has_visual_animations(tree: *const c_void) -> bool {
     unsafe { tree_from_handle(tree) }.has_visual_animations()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_can_snap_composited_context_origin(
-    tree: *const c_void,
-    spatial_node_index: SpatialNodeIndex,
-) -> bool {
-    unsafe { tree_from_handle(tree) }.can_snap_composited_context_origin(spatial_node_index)
 }
 
 /// # Safety

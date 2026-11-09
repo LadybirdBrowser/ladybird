@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    #outer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scrollbar-width: none;
+    }
+    #inner {
+        width: 180px;
+        height: 150px;
+        overflow: scroll;
+        scrollbar-width: none;
+    }
+    .row {
+        height: 1px;
+    }
+    #spacer {
+        height: 1000px;
+    }
+</style>
+<div id="outer"><div id="inner"></div><div id="spacer"></div></div>
+<script src="../include.js"></script>
+<script>
+    // Scrolling 10.5px and then 0.75px moves the rows by whole device pixels, and hit testing and client rects follow
+    // them: each offset rounds to 11px and 1px at 1x, and to 21 and 2 device pixels at 2x.
+    promiseTest(async () => {
+        for (let i = 0; i < 300; i++) {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.id = "r" + i;
+            inner.appendChild(row);
+        }
+        for (const ratio of [1, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            outer.scrollTo(0, 0);
+            inner.scrollTo(0, 0);
+            await animationFrame();
+            await animationFrame();
+            outer.scrollTo(0, 10.5);
+            inner.scrollTo(0, 0.75);
+            await animationFrame();
+            const hits = [0, 1, 2, 50, 138, 139, 140].map(y => `${y}:${document.elementFromPoint(50, y)?.id}`);
+            println(`device pixel ratio ${ratio}: ${hits.join(" ")}`);
+            for (const element of [r12, r13, inner]) {
+                const rect = element.getBoundingClientRect();
+                println(`    ${element.id}: top=${rect.top} bottom=${rect.bottom}`);
+            }
+        }
+        internals.setDevicePixelRatio(1);
+    });
+</script>

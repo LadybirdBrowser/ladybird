@@ -62,6 +62,9 @@ WEB_API bool is_svg_svg_paintable(Layout::Node const&);
 
 WEB_API CSSPixelRect transform_rect_to_viewport(Layout::Node const&, CSSPixelRect const&, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform = Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes);
 WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint);
+// The scroll offset at which the box's content is drawn, hit tested and measured: rounded to whole device pixels where
+// nothing but identity transforms lies above the box.
+WEB_API CSSPixelPoint presented_scroll_offset(Layout::Node const&, CSSPixelPoint scroll_offset);
 WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPixelPoint);
 
 WEB_API bool has_accumulated_visual_context(Layout::Node const&);

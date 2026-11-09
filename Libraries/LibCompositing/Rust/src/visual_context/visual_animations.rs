@@ -7,7 +7,7 @@
 //! The compositor animations a visual context tree carries, and the trees derived by sampling them.
 
 use super::{
-    ClipBehavior, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex, EffectsData, ScrollSnap, SpatialData,
+    ClipBehavior, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex, EffectsData, SpatialData,
     SpatialNodeIndex, VisualContextTree, WorldTransforms,
 };
 use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
@@ -130,8 +130,7 @@ impl VisualContextTree {
                         clip: ClipNodeIndex::NONE,
                         effect: EffectNodeIndex::NONE,
                     };
-                    let world =
-                        world.get_or_init(|| WorldTransforms::new(self, scroll_offsets, None, ScrollSnap::None));
+                    let world = world.get_or_init(|| WorldTransforms::new(self, scroll_offsets, None));
                     self.transform_point_for_hit_test(world, context, screen_point, ClipBehavior::Ignore)
                         .is_some_and(|local_point| transform.bounds.contains_point(local_point))
                 })

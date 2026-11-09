@@ -23,7 +23,7 @@ use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, EffectNodeData, ScrollSnap, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
+    ClipNodeData, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::cell::{Cell, OnceCell, RefCell};
@@ -508,14 +508,9 @@ struct TreeSide<'b> {
 impl<'b> TreeSide<'b> {
     // Damage maps commands with the matrices replay draws them with.
     fn world(&self) -> &'b WorldTransforms {
-        self.lazy_geometry.world_transforms.get_or_init(|| {
-            WorldTransforms::new(
-                self.tree,
-                self.scroll_offsets,
-                Some(FloatMatrix4x4::identity()),
-                ScrollSnap::Truncate,
-            )
-        })
+        self.lazy_geometry
+            .world_transforms
+            .get_or_init(|| WorldTransforms::new(self.tree, self.scroll_offsets, Some(FloatMatrix4x4::identity())))
     }
 }
 
@@ -1391,14 +1386,8 @@ pub fn animated_content_may_affect_viewport(
             }
             let mut rect = header.bounding_rect.to_float();
             if has_inline_clip_in_its_own_space && header.has_bounding_rect {
-                let world = world.get_or_init(|| {
-                    WorldTransforms::new(
-                        tree,
-                        scroll_offsets,
-                        Some(FloatMatrix4x4::identity()),
-                        ScrollSnap::Truncate,
-                    )
-                });
+                let world =
+                    world.get_or_init(|| WorldTransforms::new(tree, scroll_offsets, Some(FloatMatrix4x4::identity())));
                 if let Some(command_to_root) = world.draw_matrix_if_known(run.context.spatial)
                     && let Some(OwnSpaceClipExtent::Within(clipped_rect)) =
                         own_space_clip_extent(header, payload, rect, command_to_root, |space| {
@@ -2269,7 +2258,7 @@ mod tests {
             Some(rect),
             context_in(scroll_node, ContextRef::default()),
         );
-        // Replay truncates each of the three offsets to zero, so the rect is drawn where it was recorded.
+        // Each of the three offsets rounds to a whole pixel, so the rect is drawn 3px above where it was recorded.
         assert_eq!(
             damage_with_scroll_offsets(
                 &TestDisplayList::default(),
@@ -2280,7 +2269,7 @@ mod tests {
                 &scroll_offsets,
                 IntRect::new(0, 0, 100, 100),
             ),
-            Some(IntRect::new(9, 9, 22, 22))
+            Some(IntRect::new(9, 6, 22, 22))
         );
     }
 

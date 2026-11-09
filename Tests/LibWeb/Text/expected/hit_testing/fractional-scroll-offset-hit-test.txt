@@ -1,0 +1,8 @@
+device pixel ratio 1: 0:r12 1:r13 2:r14 50:r62 138:r150 139:spacer 140:spacer
+    r12: top=0 bottom=1
+    r13: top=1 bottom=2
+    inner: top=-11 bottom=139
+device pixel ratio 2: 0:r11 1:r12 2:r13 50:r61 138:r149 139:r150 140:spacer
+    r12: top=0.5 bottom=1.5
+    r13: top=1.5 bottom=2.5
+    inner: top=-10.5 bottom=139.5

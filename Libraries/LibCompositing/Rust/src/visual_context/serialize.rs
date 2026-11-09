@@ -1729,12 +1729,11 @@ mod tests {
         assert_eq!(decoded.clip_dependency_order(), vec![1, 0]);
         assert_eq!(decoded.effect_dependency_order(), vec![1, 0]);
         assert_eq!(
-            super::super::WorldTransforms::new(&decoded, &[], None, super::super::ScrollSnap::None)
-                .transform_rect_to_viewport(
-                    SpatialNodeIndex(1),
-                    FloatRect::new(0.0, 0.0, 10.0, 10.0),
-                    super::super::IncludeVisualViewportTransform::Yes
-                ),
+            super::super::WorldTransforms::new(&decoded, &[], None).transform_rect_to_viewport(
+                SpatialNodeIndex(1),
+                FloatRect::new(0.0, 0.0, 10.0, 10.0),
+                super::super::IncludeVisualViewportTransform::Yes
+            ),
             FloatRect::new(5.0, 5.0, 10.0, 10.0)
         );
     }

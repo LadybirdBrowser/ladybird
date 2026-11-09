@@ -4350,9 +4350,12 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Layout::BegunRead c
             scrolling_box_rect = Painting::scroll_snapport_rect(*layout_node, scrolling_box_rect);
             scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
         }
-        current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
+        current_scroll_position = document.navigable()->viewport_scroll_offset();
+        if (auto* layout_node = document.layout_node(read))
+            current_scroll_position = Painting::presented_scroll_offset(*layout_node, current_scroll_position);
+        current_scroll_position += visual_viewport.offset();
     } else if (auto* layout_node = scrolling_box.layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
-        current_scroll_position = Painting::scroll_offset(*layout_node);
+        current_scroll_position = Painting::presented_scroll_offset(*layout_node, Painting::scroll_offset(*layout_node));
         scrolling_box_layout_node = as_if<Layout::NodeWithStyle>(layout_node);
         scrolling_box_rect = Painting::transform_rect_to_viewport(*layout_node, Painting::scroll_snapport_rect(*layout_node), Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     } else {
@@ -4614,7 +4617,7 @@ void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarg
         //         the outermost scrolling box, so its own scroll cannot affect a later iteration.
         if (!scrolling_box.is_document()) {
             if (auto const* layout_node = scrolling_box.layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
-                target_bounding_border_box.translate_by(Painting::scroll_offset(*layout_node) - Painting::clamp_scroll_offset(*layout_node, position));
+                target_bounding_border_box.translate_by(Painting::presented_scroll_offset(*layout_node, Painting::scroll_offset(*layout_node)) - Painting::clamp_scroll_offset(*layout_node, position));
                 auto scrollport_rect = Painting::transform_rect_to_viewport(*layout_node, Painting::absolute_padding_box_rect(*layout_node), Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
                 auto visible_rect = target_bounding_border_box.intersected(scrollport_rect);
                 if (!visible_rect.is_empty())
