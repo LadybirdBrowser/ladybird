@@ -26,7 +26,7 @@ use crate::runtime::function_object::FunctionObject;
 use crate::runtime::iterator::{IteratorHint, IteratorRecord, get_iterator, iterator_close, iterator_step_value};
 use crate::runtime::job_callback::JobCallback;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
-use crate::runtime::promise::{Promise, PromiseState, RejectionOperation, promise_resolve};
+use crate::runtime::promise::{Promise, PromiseState, promise_resolve};
 use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability, try_or_reject};
 use crate::runtime::promise_prototype::PromisePrototype;
 use crate::runtime::promise_resolving_element_functions::{
@@ -213,16 +213,13 @@ fn invoke_promise_all_then(
 
             if promise.state() == PromiseState::Rejected {
                 let reason = promise.result();
-                if !promise.is_handled() {
-                    vm.host_promise_rejection_tracker()(vm, promise, RejectionOperation::Handle);
-                }
+                promise.mark_handled(vm);
 
                 let reject = result_capability.reject();
                 let job = create_heap_function(vm, (reject, reason), |vm, &(reject, reason)| {
                     call_function_object(vm, reject, Value::UNDEFINED, &[reason])
                 });
                 vm.host_enqueue_promise_job()(vm, job, Some(realm));
-                promise.set_is_handled();
                 return Ok(Value::UNDEFINED);
             }
 

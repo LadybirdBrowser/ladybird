@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const events = [];
+        window.addEventListener("unhandledrejection", event => {
+            event.preventDefault();
+            events.push(`unhandledrejection: ${event.reason}`);
+        });
+        window.addEventListener("rejectionhandled", event => {
+            events.push(`rejectionhandled: ${event.reason}`);
+        });
+
+        const handledByThen = Promise.reject("then");
+        const handledByAwait = Promise.reject("await");
+        await waitForCondition(() => events.length === 2);
+
+        handledByThen.catch(() => {});
+        (async () => {
+            try {
+                await handledByAwait;
+            } catch {}
+        })();
+        await waitForCondition(() => events.length === 4, 40);
+
+        events.forEach(println);
+        done();
+    });
+</script>

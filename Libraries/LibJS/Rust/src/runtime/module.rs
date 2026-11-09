@@ -34,7 +34,7 @@ use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::module_request::{LoadedModuleRequest, ModuleRequest, module_requests_equal};
-use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
+use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::promise_capability::PromiseCapability;
 use crate::runtime::source_text_module::SOURCE_TEXT_MODULE_METHODS;
 use crate::runtime::synthetic_module::SYNTHETIC_MODULE_METHODS;
@@ -351,12 +351,8 @@ impl Module {
         // 4. If promise.[[PromiseState]] is REJECTED, then
         if promise.state() == PromiseState::Rejected {
             // a. If promise.[[PromiseIsHandled]] is false, perform HostPromiseRejectionTracker(promise, "handle").
-            if !promise.is_handled() {
-                vm.host_promise_rejection_tracker()(vm, promise, RejectionOperation::Handle);
-            }
-
             // b. Set promise.[[PromiseIsHandled]] to true.
-            promise.set_is_handled();
+            promise.mark_handled(vm);
 
             // c. Return ThrowCompletion(promise.[[PromiseResult]]).
             crate::embedding::completion::log_exception_if_enabled(vm, promise.result());

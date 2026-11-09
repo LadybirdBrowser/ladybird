@@ -1,0 +1,4 @@
+unhandledrejection: then
+unhandledrejection: await
+rejectionhandled: then
+rejectionhandled: await

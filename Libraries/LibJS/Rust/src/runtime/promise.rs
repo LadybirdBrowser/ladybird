@@ -175,6 +175,15 @@ impl Promise {
         self.is_handled.set(true);
     }
 
+    /// Sets [[PromiseIsHandled]] to true, first telling the host when that handles a rejection, as PerformPromiseThen
+    /// does when it adds a reaction to a settled promise.
+    pub fn mark_handled(&self, vm: &Vm) {
+        if self.state() == PromiseState::Rejected && !self.is_handled() {
+            vm.host_promise_rejection_tracker()(vm, self.as_gc(), RejectionOperation::Handle);
+        }
+        self.set_is_handled();
+    }
+
     fn is_settled(&self) -> bool {
         matches!(self.state.get(), PromiseState::Fulfilled | PromiseState::Rejected)
     }
