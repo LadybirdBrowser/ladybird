@@ -1,4 +1,4 @@
-Measured cells: none
+Laid out cells: none
 Control position: 0,40
 Unchanged grid: true
 Grow grid: true
