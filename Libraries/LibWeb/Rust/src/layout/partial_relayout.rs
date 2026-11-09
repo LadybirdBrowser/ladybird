@@ -668,6 +668,7 @@ impl LayoutNodeArena {
             resolved_anchor_insets: None,
             resolved_anchor_sizes: Default::default(),
             position_option: Default::default(),
+            frame: crate::layout::geometry::Frame::PHYSICAL,
         })
     }
 

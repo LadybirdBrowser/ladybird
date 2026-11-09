@@ -51,7 +51,7 @@ mod tests {
         assert!(slot_with(link.clone()) == slot_with(link.clone()));
 
         let mut moved = link.clone();
-        moved.committed_offset.x = crate::css::css_pixels::CssPixels::from_integer(10);
+        moved.offset.x = crate::css::css_pixels::CssPixels::from_integer(10);
         assert!(slot_with(link.clone()) != slot_with(moved));
 
         // An equal fragment laid out again is a different fragment.

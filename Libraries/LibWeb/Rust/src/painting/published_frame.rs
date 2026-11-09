@@ -308,28 +308,22 @@ mod tests {
         let mut link = fragment_tree::FragmentLink::for_test(node);
         link.placement.insets.left = CssPixels::from_integer(10);
         arena.set_committed_fragment_link(node, link.clone(), None);
-        arena.paintable_rows_mut().paintable_data_mut(node).offset.x = CssPixels::from_integer(10).into();
+        arena.paintable_rows_mut().paintable_data_mut(node).node_identity = 10;
         arena.committed_side_data_mut(node).inline_content = Some(Default::default());
 
         let published = arena.publish_rows();
         link.placement.insets.left = CssPixels::from_integer(20);
         arena.set_committed_fragment_link(node, link, None);
-        arena.paintable_rows_mut().paintable_data_mut(node).offset.x = CssPixels::from_integer(20).into();
+        arena.paintable_rows_mut().paintable_data_mut(node).node_identity = 20;
         arena.committed_side_data_mut(node).inline_content = None;
 
-        assert_eq!(
-            published.paintable_data(node).offset.x,
-            CssPixels::from_integer(10).into()
-        );
+        assert_eq!(published.paintable_data(node).node_identity, 10);
         assert_eq!(
             published.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.left)),
             Some(CssPixels::from_integer(10))
         );
         assert!(published.committed_side_data(node).inline_content.is_some());
-        assert_eq!(
-            arena.live_paintable_data(node).offset.x,
-            CssPixels::from_integer(20).into()
-        );
+        assert_eq!(arena.live_paintable_data(node).node_identity, 20);
         assert_eq!(
             arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.left)),
             Some(CssPixels::from_integer(20))
@@ -362,7 +356,7 @@ mod tests {
                 continue;
             }
             arena.populate_paintable_row(node);
-            arena.paintable_rows_mut().paintable_data_mut(node).offset.x = CssPixels::from_integer(index as i64).into();
+            arena.paintable_rows_mut().paintable_data_mut(node).node_identity = index as i64;
             if index % 2 == 0 {
                 let mut link = fragment_tree::FragmentLink::for_test(node);
                 link.placement.insets.top = CssPixels::from_integer(index as i64);

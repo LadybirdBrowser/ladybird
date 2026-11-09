@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::layout::{formatting_context, fragment_tree, node_facts, used_values};
@@ -153,7 +152,12 @@ impl<'a> PaintableCommit<'a> {
             )
         };
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
-        let previous_offset = row_existed_before_this_commit.then(|| self.arena().live_paintable_data(node).offset);
+        let previous_offset = row_existed_before_this_commit
+            .then(|| {
+                self.arena()
+                    .with_committed_fragment_link(node, |link| link.map(|link| link.offset))
+            })
+            .flatten();
         if !wants_paintable {
             self.clear_node(node);
             return PreparedPaintable {
@@ -235,26 +239,8 @@ impl<'a> PaintableCommit<'a> {
         previous_offset: Option<used_values::FfiCssPixelPoint>,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
-        let frame = link.placement.frame;
         let new_content_size = fragment.sides.content_size;
-        let content_size_in_frame = frame.size_from_physical(new_content_size);
-        let new_offset: used_values::FfiCssPixelPoint = if frame.is_physical() {
-            link.committed_offset
-        } else {
-            crate::painting::paintable_geometry::physical_content_rect_in_containing_block(
-                self.arena(),
-                frame,
-                self.committed_containing_block(node, Some(link)),
-                CssPixelRect::new(
-                    link.committed_offset.x,
-                    link.committed_offset.y,
-                    content_size_in_frame.width,
-                    content_size_in_frame.height,
-                ),
-            )
-            .location()
-            .into()
-        };
+        let new_offset = link.offset;
         let mut content_size_change = None;
         let mut own_paint_unchanged = false;
         let mut child_placements_unchanged = false;
@@ -361,14 +347,6 @@ impl<'a> PaintableCommit<'a> {
             );
         }
         self.arena_mut().note_scroll_offset_may_leave_range(node);
-        {
-            let arena = self.arena_mut();
-            let mut paintable_rows = arena.paintable_rows_mut();
-            let mut data = paintable_rows.paintable_data_mut(node);
-            data.set_frame(frame);
-            data.content_size = new_content_size;
-            data.offset = new_offset;
-        }
         // A layout pass bumps no epoch, so its geometry is laid out against the epoch the node has now.
         let epoch_of_laid_out_geometry = self.arena().data(node).fragment_cache_epoch;
         self.arena_mut()
@@ -494,6 +472,7 @@ impl<'a> PaintableCommit<'a> {
         slot: NodeSlotId,
         line_data: &std::sync::Arc<crate::layout::inline_content::InlineContent>,
         previous_fragmented_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
+        content_size: used_values::FfiCssPixelSize,
     ) -> LineDataChange {
         if !node_painting::has_lines(self.arena(), slot) {
             self.clear_line_data(slot);
@@ -504,7 +483,6 @@ impl<'a> PaintableCommit<'a> {
         let line_data = if writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB {
             line_data
         } else {
-            let content_size = self.arena().live_paintable_data(slot).content_size;
             physical_line_data = std::sync::Arc::new(line_data.in_physical_plane(writing_mode, content_size));
             &physical_line_data
         };

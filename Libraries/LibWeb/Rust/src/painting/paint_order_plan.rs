@@ -675,7 +675,9 @@ mod tests {
             arena.populate_paintable_row(node);
             arena.refresh_paint_order_inputs(node);
         }
-        arena.paintable_rows_mut().paintable_data_mut(child).offset.x = CssPixels::from_integer(100);
+        let mut moved = crate::layout::fragment_tree::FragmentLink::for_test(child);
+        moved.offset.x = CssPixels::from_integer(100);
+        arena.set_committed_fragment_link(child, moved, None);
         let after_move = PaintOrderInputs::gather(&arena.paintable_rows(), child);
         assert!(!arena.update_paint_order_inputs(child, after_move));
         arena.set_node_flag(child, NodeFlag::IsFlexItem, true);

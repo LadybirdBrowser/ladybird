@@ -387,8 +387,8 @@ fn nodes_of(links: &[fragment_tree::FragmentLink]) -> Vec<Node> {
 fn describe_placement(link: &fragment_tree::FragmentLink) -> String {
     format!(
         "offset ({:?}, {:?}) insets ({:?} {:?} {:?} {:?}) line box {:?} in {:?}, abspos inputs {}",
-        link.committed_offset.x,
-        link.committed_offset.y,
+        link.offset.x,
+        link.offset.y,
         link.placement.insets.top,
         link.placement.insets.right,
         link.placement.insets.bottom,

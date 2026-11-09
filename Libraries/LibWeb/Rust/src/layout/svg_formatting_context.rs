@@ -2242,7 +2242,10 @@ impl<'pass> SvgFormattingContext<'pass> {
             .with_current_committed_fragment_link(shape, |link| link.clone())?;
         let fragment = link.fragment.clone();
         fragment.svg()?.path.as_ref()?;
-        let committed_offset = link.committed_offset;
+        let committed_offset = link.offset_in_frame(
+            self.run.pass.frame,
+            fragment_tree::committed_content_size_of(&self.run.pass, link.placement.containing_block),
+        );
         // The transforms and the stroke's percentage basis are what the shape's facts take from outside its own
         // geometry.
         let committed = fragment.svg().map(|svg| svg.facts).unwrap_or_default();

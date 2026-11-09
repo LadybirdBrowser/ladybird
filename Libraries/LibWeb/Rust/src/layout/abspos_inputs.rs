@@ -200,6 +200,9 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) resolved_anchor_sizes: super::style_values::ResolvedAnchorSizes,
     /// The position option the box is laid out with, or none for a box without position options.
     pub(crate) position_option: Option<PositionOptionChoice>,
+    /// The frame in which the containing block lays out its contents, in which the box is laid out and its resolved
+    /// anchor sizes lie.
+    pub(crate) frame: super::geometry::Frame,
 }
 
 impl AbsposLayoutInputs {

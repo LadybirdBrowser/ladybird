@@ -198,6 +198,10 @@ impl<'tree> Commit<'_, 'tree> {
 
     fn meet(&mut self, link: &'tree FragmentLink, holder: &Holder) {
         let node = link.fragment.node;
+        debug_assert!(
+            link.fragment.outer_links != fragment_tree::OuterLinks::AwaitingContainingBlockSize,
+            "{node:?} reaches commit with links that await the size of their containing block"
+        );
         // NB: A partial relayout's root keeps the fragment of its parent as its holder, which the commit does not walk.
         let keeps_its_holder = holder.node.is_invalid() && !self.is_full_commit && node == self.root;
         let recorded_holder = if keeps_its_holder {
@@ -495,9 +499,12 @@ impl<'tree> Commit<'_, 'tree> {
             })
             .flatten();
         if let Some(line_data) = merged_line_data.as_ref().or(fragment.line_data.as_ref()) {
-            let change = self
-                .paintables
-                .set_line_data(node, line_data, previous_fragmented_content);
+            let change = self.paintables.set_line_data(
+                node,
+                line_data,
+                previous_fragmented_content,
+                link.fragment.sides.content_size,
+            );
             line_root_changes_for_children.fragment_changed |= change.content_changed;
             line_root_changes_for_children.inline_content_changed |= change.content_changed;
             line_root_changes_for_children.inline_item_order_changed |= change.item_order_changed;
