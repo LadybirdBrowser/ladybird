@@ -23,6 +23,7 @@
 #include <QWidget>
 #include <QWindow>
 #include <UI/Qt/WebContentView.h>
+#include <qpa/qplatformwindow_p.h>
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
@@ -632,6 +633,13 @@ void show_appkit_dictionary_lookup(QWidget& widget, WebView::DictionaryLookup co
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     show_dictionary_lookup(view, lookup, widget_position_to_ns_point(widget, position));
+}
+
+void* appkit_content_layer(QWidget& widget)
+{
+    auto* window_handle = widget.windowHandle();
+    auto* cocoa_window = window_handle ? window_handle->nativeInterface<QNativeInterface::Private::QCocoaWindow>() : nullptr;
+    return cocoa_window ? cocoa_window->contentLayer() : nullptr;
 }
 
 void round_appkit_view_corners(QWidget& widget, qreal radius, QColor const& border_color)
