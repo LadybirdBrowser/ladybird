@@ -19,11 +19,23 @@ pub(super) fn emit_get_binding(
     identifier: IdentifierTableIndex,
     known_initialized: bool,
 ) {
+    let location = generator.binding_location_for_identifier(identifier);
+    emit_get_binding_at(generator, dst, identifier, location, known_initialized);
+}
+
+/// Reads the binding at `location`, as seen from the running lexical environment.
+pub(super) fn emit_get_binding_at(
+    generator: &mut Generator<'_>,
+    dst: Operand,
+    identifier: IdentifierTableIndex,
+    location: Option<BindingLocation>,
+    known_initialized: bool,
+) {
     // Prefer an eagerly-computed coordinate when the generator can prove that
     // the binding lives in a known declarative environment. The dynamic forms
     // remain necessary for script and eval code, eval-poisoned scopes, and
     // `with`.
-    match (generator.binding_location_for_identifier(identifier), known_initialized) {
+    match (location, known_initialized) {
         (Some(BindingLocation::Import(import_index)), _) => generator.emit(op::GetImport {
             dst,
             identifier,
