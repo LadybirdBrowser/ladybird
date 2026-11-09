@@ -19,6 +19,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
 use crate::runtime::completion::Must;
+use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::module_namespace_object::ModuleNamespaceObject;
 use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_object::ProxyObject;
@@ -106,9 +107,14 @@ fn has_ordinary_lookups(object: Gc<Object>) -> bool {
         && !object.is_platform_object()
 }
 
+/// Whether the object is an ECMAScript function that has the property `key` without having made it yet.
+fn has_lazy_function_property(vm: &Vm, object: Gc<Object>, key: &PropertyKey) -> bool {
+    as_ecmascript_function_object(object).is_some_and(|function| function.has_lazy_property(vm, key))
+}
+
 /// Whether looking up the property `key` of the object creates nothing.
 fn lookup_creates_nothing(vm: &Vm, object: Gc<Object>, key: &PropertyKey) -> bool {
-    if object.is_ecmascript_function_object() && *key == vm.names.prototype {
+    if has_lazy_function_property(vm, object, key) {
         return false;
     }
     if key.is_number() {
@@ -199,12 +205,17 @@ pub extern "C" fn libjs_jit_has_own_property(vm: &Vm, object: u64, key: u64) -> 
     {
         return Value::from_bool(result).0;
     }
-    let Some(key) = string_or_symbol_key(vm, key).filter(|key| lookup_creates_nothing(vm, object.as_object(), key))
-    else {
+    let Some(key) = string_or_symbol_key(vm, key) else {
         return Value::EMPTY.0;
     };
+    let object = object.as_object();
+    if has_lazy_function_property(vm, object, &key) {
+        return Value::TRUE.0;
+    }
+    if !lookup_creates_nothing(vm, object, &key) {
+        return Value::EMPTY.0;
+    }
     object
-        .as_object()
         .has_own_property(vm, &key)
         .map_or(Value::EMPTY, Value::from_bool)
         .0
@@ -250,11 +261,15 @@ pub extern "C" fn libjs_jit_has_property(vm: &Vm, key: u64, object: u64) -> u64 
             Some(true) => return Value::TRUE.0,
             Some(false) => holder = current.prototype(),
             None => {
-                let Some(key) = string_or_symbol_key(vm, key_value)
-                    .filter(|key| prototype_chain_lookup_creates_nothing(vm, current, key))
-                else {
+                let Some(key) = string_or_symbol_key(vm, key_value) else {
                     return Value::EMPTY.0;
                 };
+                if has_lazy_function_property(vm, current, &key) {
+                    return Value::TRUE.0;
+                }
+                if !prototype_chain_lookup_creates_nothing(vm, current, &key) {
+                    return Value::EMPTY.0;
+                }
                 return current.has_property(vm, &key).map_or(Value::EMPTY, Value::from_bool).0;
             }
         }
