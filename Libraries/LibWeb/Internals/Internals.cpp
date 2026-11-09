@@ -2494,9 +2494,8 @@ void Internals::disconnect_virtual_gamepad(GC::Ref<InternalGamepad> gamepad)
 void Internals::perform_per_test_cleanup()
 {
     // Detach any virtual gamepads
-    for (auto gamepad : m_gamepads)
-        gamepad->disconnect();
-    m_gamepads.clear();
+    while (!m_gamepads.is_empty())
+        m_gamepads.take_last()->disconnect();
 
     // Reset gamepad access, so that no test relies on the gamepad use and gestures of an earlier one
     page().client().reset_gamepad_access_for_testing();
