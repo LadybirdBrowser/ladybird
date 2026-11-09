@@ -18,7 +18,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div> at [84,128] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <div> at [160,128] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
       Box <div.grid.justify-space-around> at [8,168] [0+0+0 784 0+0+0] [0+0+0 20 0+0+20] [GFC] children: not-inline
-        BlockContainer <div> at [108.671875,168] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <div> at [108.65625,168] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <div> at [370,168] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <div> at [631.328125,168] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
       Box <div.grid.justify-space-between> at [8,208] [0+0+0 784 0+0+0] [0+0+0 20 0+0+20] [GFC] children: not-inline
