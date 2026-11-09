@@ -6795,6 +6795,11 @@ void Document::destroy()
 {
     // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 
+    // NB: Every way a page goes away ends up here: navigating, closing its tab, and discarding it. When the process
+    //     lives on, nothing else would tell the heap that the page has just become garbage. Frames are left out, since
+    //     they can come and go far more often than the cost of a collection is worth.
+    auto page_becomes_garbage = navigable() && navigable()->is_top_level_traversable() && !is_initial_about_blank();
+
     // 2. Abort document.
     abort();
 
@@ -6881,6 +6886,9 @@ void Document::destroy()
     HTML::relevant_settings_object(*this).release_owned_worker_agents();
 
     // FIXME: 9. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
+
+    if (page_becomes_garbage)
+        heap().did_abandon_object_graph();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable
