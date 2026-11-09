@@ -106,3 +106,14 @@ test("time zone gap", () => {
 
     setTimeZone(originalTimeZone);
 });
+
+test("toString shows the UTC offset of the time value, not of the local time", () => {
+    const originalTimeZone = setTimeZone("America/New_York");
+
+    // One hour after the change to daylight saving time.
+    const date = new Date(Date.UTC(2026, 2, 8, 8, 0));
+    expect(date.toString()).toBe("Sun Mar 08 2026 04:00:00 GMT-0400 (Eastern Daylight Time)");
+    expect(Date.parse(date.toString())).toBe(date.getTime());
+
+    setTimeZone(originalTimeZone);
+});

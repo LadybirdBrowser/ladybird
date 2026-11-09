@@ -1401,14 +1401,13 @@ pub fn to_date_string(time: f64) -> Utf16String {
     }
 
     // 2. Let t be LocalTime(tv).
-    let time = local_time(time);
+    let local = local_time(time);
 
     // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
-    // NB: This passes t rather than tv to TimeZoneString.
     let mut string = Utf16StringBuilder::new();
-    string.append(Utf16View::of_string(&date_string(time)));
+    string.append(Utf16View::of_string(&date_string(local)));
     string.append_ascii(" ");
-    string.append(Utf16View::of_string(&time_string(time)));
+    string.append(Utf16View::of_string(&time_string(local)));
     string.append(Utf16View::of_string(&time_zone_string(time)));
     string.to_utf16_string()
 }
