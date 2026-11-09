@@ -1830,6 +1830,30 @@ impl<'pass> TableFormattingContext<'pass> {
         sizing_context::SizedBox::new(self.cells[cell_index].box_, &self.cell_layouts[cell_index].box_cells)
     }
 
+    /// The cells of the box of the cell at `cell_index` with its paddings, whose percentages resolve against
+    /// `inline_basis` in both axes, and in the separated borders model its borders.
+    fn cell_box_with_resolved_sides(
+        &self,
+        cell_index: usize,
+        collapsed: bool,
+        inline_basis: CssPixels,
+    ) -> used_values::RootInputCells {
+        let style = self.style(self.cells[cell_index].box_);
+        let mut cell_box = self.cell_layouts[cell_index].box_cells;
+        cell_box.padding_top = style.padding_top().to_px(inline_basis);
+        cell_box.padding_bottom = style.padding_bottom().to_px(inline_basis);
+        cell_box.padding_left = style.padding_left().to_px(inline_basis);
+        cell_box.padding_right = style.padding_right().to_px(inline_basis);
+        // The collapsing border model resolves the borders of cells in border_conflict_resolution().
+        if !collapsed {
+            cell_box.border_top = style.border_top_width();
+            cell_box.border_bottom = style.border_bottom_width();
+            cell_box.border_left = style.border_left_width();
+            cell_box.border_right = style.border_right_width();
+        }
+        cell_box
+    }
+
     fn compute_cell_measures(&mut self, include_rows: bool) {
         // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
         let inline_basis = self.table_constraints.inline_basis();
@@ -1841,28 +1865,8 @@ impl<'pass> TableFormattingContext<'pass> {
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let style = self.style(cell.box_);
-            let padding_block_start = style.padding_top().to_px(block_basis);
-            let padding_block_end = style.padding_bottom().to_px(block_basis);
-            let padding_inline_start = style.padding_left().to_px(inline_basis);
-            let padding_inline_end = style.padding_right().to_px(inline_basis);
-            // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
-            let (border_block_start, border_block_end, border_inline_start, border_inline_end) = if collapsed {
-                let cell_box = &self.cell_layouts[cell_index].box_cells;
-                (
-                    cell_box.border_top_collapsed(true),
-                    cell_box.border_bottom_collapsed(true),
-                    cell_box.border_left_collapsed(true),
-                    cell_box.border_right_collapsed(true),
-                )
-            } else {
-                (
-                    style.border_top_width(),
-                    style.border_bottom_width(),
-                    style.border_left_width(),
-                    style.border_right_width(),
-                )
-            };
-            let inline_offsets = padding_inline_start + padding_inline_end + border_inline_start + border_inline_end;
+            let cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, inline_basis);
+            let inline_offsets = cell_box.border_box_left(collapsed) + cell_box.border_box_right(collapsed);
             let width = style.width();
             let max_width = style.max_width();
             let mut min_inline = style.min_width().to_px(inline_basis);
@@ -1939,7 +1943,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     min_content_inline,
                     self.participant_constraints,
                 );
-                let block_offsets = padding_block_start + padding_block_end + border_block_start + border_block_end;
+                let block_offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
                 let mut min_block = style.min_height().to_px(block_basis);
                 if style.box_sizing() == box_sizing::BORDER_BOX {
                     min_block = (min_block - block_offsets).max(CssPixels::default());
@@ -3074,17 +3078,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let span_inline = (0..cell.column_span).fold(CssPixels::default(), |sum, index| {
                 sum + self.columns[cell.column_index + index].used_inline_size
             });
-            let mut cell_box = self.cell_layouts[cell_index].box_cells;
-            cell_box.padding_top = style.padding_top().to_px(inline_basis);
-            cell_box.padding_bottom = style.padding_bottom().to_px(inline_basis);
-            cell_box.padding_left = style.padding_left().to_px(inline_basis);
-            cell_box.padding_right = style.padding_right().to_px(inline_basis);
-            if !collapsed {
-                cell_box.border_top = style.border_top_width();
-                cell_box.border_bottom = style.border_bottom_width();
-                cell_box.border_left = style.border_left_width();
-                cell_box.border_right = style.border_right_width();
-            }
+            let mut cell_box = self.cell_box_with_resolved_sides(cell_index, collapsed, inline_basis);
             // A cell whose columns all have 'visibility: collapse' is removed from the display along with them, as in
             // other engines: "This value causes the entire row or column to be removed from the display". It is laid
             // out like any other cell (with no inline size, see remove_collapsed_columns), and painting skips it.

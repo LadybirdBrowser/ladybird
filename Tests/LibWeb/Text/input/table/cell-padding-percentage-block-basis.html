@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        border-spacing: 0;
+        width: 400px;
+    }
+    td {
+        padding: 0;
+        padding-top: 10%;
+        vertical-align: top;
+        height: 50px;
+    }
+</style>
+<div><table><tr><td></td></tr></table></div>
+<div style="height: 1000px"><table><tr><td></td></tr></table></div>
+<div style="height: 3000px"><table><tr><td></td></tr></table></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const cell of document.querySelectorAll("td")) {
+            const row = cell.parentElement;
+            println(`table in ${row.closest("div").style.height || "auto"} block: row height ${row.getBoundingClientRect().height}, cell padding-top ${getComputedStyle(cell).paddingTop}`);
+        }
+    });
+</script>
