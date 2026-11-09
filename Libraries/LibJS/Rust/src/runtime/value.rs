@@ -1826,6 +1826,9 @@ pub fn ordinary_has_instance(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletion
     if let Some(bound_target) = bound_target_function(rhs_function) {
         // a. Let BC be C.[[BoundTargetFunction]].
         // b. Return ? InstanceofOperator(O, BC).
+        if vm.did_reach_stack_space_limit() {
+            return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
         return instance_of(vm, lhs, Value::from_object(bound_target));
     }
 
