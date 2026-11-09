@@ -711,11 +711,15 @@ CSS::StyleScope& Node::style_scope()
     return document().style_scope();
 }
 
+// https://dom.spec.whatwg.org/#concept-child-text-content
 Utf16String Node::child_text_content() const
 {
     auto const* parent_node = as_if<ParentNode>(*this);
     if (!parent_node)
         return {};
+
+    if (auto const* text = as_if<Text>(parent_node->first_child()); text && !text->next_sibling())
+        return text->data();
 
     Utf16StringBuilder builder;
 
