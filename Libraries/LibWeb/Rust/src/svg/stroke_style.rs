@@ -19,12 +19,20 @@ pub(crate) struct SvgStrokeStyle {
     pub(crate) non_scaling_stroke: bool,
 }
 
-/// What the stroke percentages of a shape in an SVG viewport of size `viewport` resolve against, its "scaled viewport
-/// size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
-// FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
-//        the historical (width + height) / 2 approximation.
+/// The normalized diagonal of an SVG viewport of size `viewport`, which percentages of lengths that are neither
+/// horizontal nor vertical, such as a stroke's width, resolve against.
+/// https://svgwg.org/svg2-draft/coords.html#Units
 pub(crate) fn percentage_basis(viewport: FfiCssPixelSize) -> CssPixels {
-    (viewport.width + viewport.height) * CssPixels::nearest_value_for(0.5)
+    if viewport.width == viewport.height {
+        return viewport.width;
+    }
+    let sum_of_squares = viewport.width * viewport.width + viewport.height * viewport.height;
+    CssPixels::nearest_value_for_f32(
+        sum_of_squares
+            .div_as_fraction(CssPixels::from_integer(2))
+            .to_float()
+            .sqrt(),
+    )
 }
 
 /// The stroke properties of an SVG shape, with percentages resolved against the given basis.
