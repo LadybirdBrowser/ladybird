@@ -247,9 +247,44 @@ pub enum IncludeVisualViewportTransform {
     Yes,
 }
 
-struct LocalSpatialMatrix {
-    matrix: FloatMatrix4x4,
-    flattens_inherited_transform: bool,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollSnap {
+    None,
+    Truncate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LocalTransformKind {
+    Identity,
+    Translation(FloatPoint),
+    Affine2D,
+    Projective,
+}
+
+/// What one spatial node contributes to the spatial chains through it.
+#[derive(Clone, Copy, Debug)]
+pub struct LocalTransform {
+    pub matrix: FloatMatrix4x4,
+    pub flattens_inherited_transform: bool,
+    pub kind: LocalTransformKind,
+    pub establishes_sorting_context: bool,
+    pub sorting_context_root: Option<SpatialNodeIndex>,
+    pub backface_plane_root: Option<SpatialNodeIndex>,
+}
+
+impl LocalTransform {
+    pub fn applied_to(&self, parent_matrix: FloatMatrix4x4) -> FloatMatrix4x4 {
+        let inherited = if self.flattens_inherited_transform {
+            parent_matrix.flattened()
+        } else {
+            parent_matrix
+        };
+        inherited.multiplied(self.matrix)
+    }
+
+    pub fn is_transform_or_perspective(&self) -> bool {
+        matches!(self.kind, LocalTransformKind::Affine2D | LocalTransformKind::Projective)
+    }
 }
 
 #[derive(Clone)]
@@ -1181,33 +1216,63 @@ impl VisualContextTree {
         chain
     }
 
-    fn local_spatial_matrix(&self, index: SpatialNodeIndex, scroll_offsets: &[FloatPoint]) -> LocalSpatialMatrix {
-        let translation = |offset: FloatPoint| LocalSpatialMatrix {
-            matrix: translation_matrix(offset.x, offset.y, 0.0),
+    pub fn local_transform(
+        &self,
+        index: SpatialNodeIndex,
+        scroll_offsets: &[FloatPoint],
+        scroll_snap: ScrollSnap,
+    ) -> LocalTransform {
+        let mut local = LocalTransform {
+            matrix: FloatMatrix4x4::identity(),
             flattens_inherited_transform: false,
+            kind: LocalTransformKind::Identity,
+            establishes_sorting_context: false,
+            sorting_context_root: None,
+            backface_plane_root: None,
+        };
+        let translation = |offset: FloatPoint| {
+            let offset = match scroll_snap {
+                ScrollSnap::None => offset,
+                ScrollSnap::Truncate => FloatPoint {
+                    x: offset.x as i32 as f32,
+                    y: offset.y as i32 as f32,
+                },
+            };
+            (
+                translation_matrix(offset.x, offset.y, 0.0),
+                LocalTransformKind::Translation(offset),
+            )
         };
         match &self.spatial_nodes[index.0 as usize].data {
-            SpatialData::Transform(transform) => LocalSpatialMatrix {
-                matrix: transform.matrix_including_origin(),
-                flattens_inherited_transform: transform.flattens_inherited_transform,
-            },
-            SpatialData::Perspective(perspective) => LocalSpatialMatrix {
-                matrix: perspective.matrix,
-                flattens_inherited_transform: perspective.flattens_inherited_transform,
-            },
             SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
-                translation(device_offset_for_index(scroll_offsets, index))
+                (local.matrix, local.kind) = translation(device_offset_for_index(scroll_offsets, index));
             }
-            SpatialData::AnchorScrollShift(shift) => translation(shift.masked_offset(scroll_offsets)),
-            SpatialData::BackfaceVisibility(backface) => LocalSpatialMatrix {
-                matrix: FloatMatrix4x4::identity(),
-                flattens_inherited_transform: backface.flattens_inherited_transform,
-            },
-            SpatialData::Dead => LocalSpatialMatrix {
-                matrix: FloatMatrix4x4::identity(),
-                flattens_inherited_transform: false,
-            },
+            SpatialData::AnchorScrollShift(shift) => {
+                (local.matrix, local.kind) = translation(shift.masked_offset(scroll_offsets));
+            }
+            SpatialData::Transform(transform) => {
+                local.matrix = transform.matrix_including_origin();
+                local.flattens_inherited_transform = transform.flattens_inherited_transform;
+                local.kind = if transform.matrix.is_2d_affine() {
+                    LocalTransformKind::Affine2D
+                } else {
+                    LocalTransformKind::Projective
+                };
+                local.establishes_sorting_context = transform.establishes_sorting_context;
+                local.sorting_context_root = transform.sorting_context_root_index;
+            }
+            SpatialData::Perspective(perspective) => {
+                local.matrix = perspective.matrix;
+                local.flattens_inherited_transform = perspective.flattens_inherited_transform;
+                local.kind = LocalTransformKind::Projective;
+            }
+            SpatialData::BackfaceVisibility(backface) => {
+                local.flattens_inherited_transform = backface.flattens_inherited_transform;
+                local.backface_plane_root = Some(backface.plane_root_index);
+            }
+            SpatialData::Dead => {}
         }
+        local
     }
 
     pub fn accumulated_matrix(
@@ -1224,13 +1289,9 @@ impl VisualContextTree {
             {
                 continue;
             }
-            let local = self.local_spatial_matrix(node_index, scroll_offsets);
-            let inherited = if local.flattens_inherited_transform {
-                matrix.flattened()
-            } else {
-                matrix
-            };
-            matrix = inherited.multiplied(local.matrix);
+            matrix = self
+                .local_transform(node_index, scroll_offsets, ScrollSnap::None)
+                .applied_to(matrix);
         }
         matrix
     }
