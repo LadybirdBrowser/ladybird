@@ -11,6 +11,7 @@ pub mod math;
 pub mod perf_map;
 mod scope_guard;
 mod slice;
+pub mod stack;
 pub mod waiter_list;
 #[cfg(all(windows, target_arch = "x86_64"))]
 pub mod windows_code_memory;
