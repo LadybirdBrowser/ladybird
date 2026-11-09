@@ -1,0 +1,10 @@
+Ladybird puts an inside ::marker ahead of its list item’s first block
+child, in an anonymous block of its own. The other engines all do the
+same. Gecko’s nsCSSFrameConstructor::ProcessChildren() constructs the
+marker before the list item’s other children, and nsBlockFrame::
+AddFrames() starts a new line for the block child after it. Blink’s
+LayoutBlockFlow::AddChild() keeps the inline marker in insertion order
+while it wraps inline content around block children. And WebKit’s
+RenderTreeBuilder::List::buildInlineMarker() attaches the marker ahead
+of the list item’s first child whenever parentForInlineMarker() finds
+that child to be an authored block, rather than an anonymous one.
