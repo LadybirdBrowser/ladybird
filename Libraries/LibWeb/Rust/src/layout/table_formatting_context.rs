@@ -1160,6 +1160,33 @@ impl TableFormattingContext<'_> {
     }
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for TableFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        self.run(run, input.body_input, input.table_inline_layout);
+        formatting_context::AlgorithmOutput::of_root(
+            formatting_context::ChildLayoutResult {
+                automatic_content_block_size: self.automatic_content_block_size,
+                baselines: self.derived_baselines_of_root_box(),
+                ..formatting_context::ChildLayoutResult::default()
+            },
+            self.table_box_cells(),
+        )
+    }
+
+    fn after_root_is_dimensioned(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        _root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> formatting_context::AfterDimensioning {
+        formatting_context::register_table_abspos_descendants(run, run.box_);
+        formatting_context::AfterDimensioning::LaysOutAbsposContainedByRoot
+    }
+}
+
 impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.run.pass, node)
@@ -3813,12 +3840,7 @@ impl<'pass> TableFormattingContext<'pass> {
         });
     }
 
-    pub(super) fn run(
-        &mut self,
-        run: &FormattingContextRun<'pass>,
-        input: LayoutInput,
-        inline_layout: Option<TableInlineLayout>,
-    ) {
+    fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput, inline_layout: Option<TableInlineLayout>) {
         self.available_space = input.available_space;
         self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size.get();
         self.table_box_content_block_offset_in_wrapper = input
@@ -3865,7 +3887,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.automatic_content_block_size = self.table_block_size;
     }
 
-    pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+    fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box.get()
     }
 }

@@ -1470,6 +1470,33 @@ pub(super) struct MathFormattingContext<'pass> {
     root_cells: Cell<used_values::RootInputCells>,
 }
 
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for MathFormattingContext<'pass> {
+    fn lay_out(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        self.run(run, input.body_input);
+        formatting_context::AlgorithmOutput::of_root(
+            ChildLayoutResult {
+                automatic_content_block_size: self.automatic_content_block_size(),
+                baselines: self.derived_baselines_of_root_box,
+                ..ChildLayoutResult::default()
+            },
+            self.root_cells(),
+        )
+    }
+
+    fn after_root_is_dimensioned(
+        &self,
+        _run: &FormattingContextRun<'pass>,
+        root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> formatting_context::AfterDimensioning {
+        self.parent_did_dimension(root_cells_in_own_frame);
+        formatting_context::AfterDimensioning::LaysOutAbsposContainedByRoot
+    }
+}
+
 impl<'pass> MathFormattingContext<'pass> {
     #[track_caller]
     fn placed_child(&self, child: Node) -> formatting_context::PlacedChild {
@@ -2207,7 +2234,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
         let root = run.box_;
         let kind = self.kind(root);
         let constraints = run.sizing().constraints_for_child_context(
@@ -2642,7 +2669,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
+    fn parent_did_dimension(&self, root_after_epilogue: used_values::RootInputCells) {
         for child in self.run.pass.children(self.run.box_) {
             let facts = self.facts(child);
             if !facts.is_box() || !facts.is_absolutely_positioned() {
@@ -2671,11 +2698,7 @@ impl<'pass> MathFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
-        self.derived_baselines_of_root_box
-    }
-
-    pub(super) fn automatic_content_block_size(&self) -> CssPixels {
+    fn automatic_content_block_size(&self) -> CssPixels {
         self.content.ascent + self.content.descent
     }
 }

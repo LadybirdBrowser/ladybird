@@ -6,7 +6,23 @@
 
 use super::*;
 
-pub(super) fn layout_replaced_with_children(
+/// The formatting context of a replaced box with children, whose shadow content lays out in an anonymous wrapper.
+#[derive(Default)]
+pub(crate) struct ReplacedWithChildrenFormattingContext;
+
+impl<'pass> formatting_context::FormattingContextAlgorithm<'pass> for ReplacedWithChildrenFormattingContext {
+    fn lay_out(
+        &mut self,
+        run: &formatting_context::FormattingContextRun<'pass>,
+        input: formatting_context::AlgorithmInput<'_>,
+    ) -> formatting_context::AlgorithmOutput {
+        let mut root = input.root_cells;
+        let result = layout_replaced_with_children(run, input.body_input, &mut root);
+        formatting_context::AlgorithmOutput::of_root(result, root)
+    }
+}
+
+fn layout_replaced_with_children(
     run: &formatting_context::FormattingContextRun,
     layout_input: geometry::LayoutInput,
     root: &mut used_values::RootInputCells,

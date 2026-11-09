@@ -1486,22 +1486,6 @@ impl<'pass> FormattingContextRun<'pass> {
     }
 }
 
-#[allow(
-    clippy::large_enum_variant,
-    reason = "held on the stack of the run that lays out its root, where boxing would allocate for every run"
-)]
-enum FormattingContextImplementation<'pass> {
-    Block(block_formatting_context::BlockFormattingContext<'pass>),
-    Flex(flex_formatting_context::FlexFormattingContext<'pass>),
-    Grid(grid_formatting_context::GridFormattingContext<'pass>),
-    Table(table_formatting_context::TableFormattingContext<'pass>),
-    Svg(svg_formatting_context::SvgFormattingContext<'pass>),
-    Math(math_formatting_context::MathFormattingContext<'pass>),
-    ReplacedWithChildren,
-    InternalReplaced,
-    FrameSet,
-}
-
 pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
@@ -1587,43 +1571,146 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
     fc_type
 }
 
-fn create_formatting_context_implementation<'pass>(
-    run: &FormattingContextRun<'pass>,
-    root_cells_in_own_frame: used_values::RootInputCells,
-    subgrid_parent: Option<&grid_formatting_context::SubgridParent<'pass>>,
-    fc_type: FormattingContextType,
-    previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-) -> FormattingContextImplementation<'pass> {
-    match fc_type {
-        FormattingContextType::Block => FormattingContextImplementation::Block(
-            block_formatting_context::BlockFormattingContext::new(run, root_cells_in_own_frame, previous_line_data),
-        ),
-        FormattingContextType::Flex => FormattingContextImplementation::Flex(
-            flex_formatting_context::FlexFormattingContext::new(run, root_cells_in_own_frame),
-        ),
-        FormattingContextType::Grid => FormattingContextImplementation::Grid(
-            grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, subgrid_parent),
-        ),
-        FormattingContextType::Table => {
-            FormattingContextImplementation::Table(table_formatting_context::TableFormattingContext::new(
-                run,
-                root_cells_in_own_frame,
-                table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
-            ))
+/// What a formatting context algorithm lays out the contents of its root from.
+pub(crate) struct AlgorithmInput<'input> {
+    /// The input of the root's contents, in the frame the root establishes.
+    pub(crate) body_input: LayoutInput,
+    /// The input of the run, in the frame of the root's parent.
+    pub(crate) root_input: &'input LayoutInput,
+    /// The root's cells as the run sized them before its contents, in the frame the root establishes.
+    pub(crate) root_cells: used_values::RootInputCells,
+    /// For a flex root that resolves its own automatic block size, the space it resolves it in.
+    pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
+    /// For a table box, the inline layout the run of its wrapper found for it.
+    pub(crate) table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
+}
+
+/// What a formatting context algorithm hands the run of its root once it laid out the root's contents.
+pub(crate) struct AlgorithmOutput {
+    pub(crate) result: ChildLayoutResult,
+    /// The root's cells as the algorithm left them, in the frame the root establishes.
+    pub(crate) root_cells: used_values::RootInputCells,
+    pub(crate) root_lines: used_values::LineDataState,
+    /// For a block container, the block size of the contents it laid out, which it aligns in its content box.
+    pub(crate) laid_out_content_block_size: Option<CssPixels>,
+}
+
+impl AlgorithmOutput {
+    /// What an algorithm that laid out no lines hands back of a root it left in `root_cells` with `result`.
+    pub(crate) fn of_root(result: ChildLayoutResult, root_cells: used_values::RootInputCells) -> Self {
+        Self {
+            result,
+            root_cells,
+            root_lines: used_values::LineDataState::Empty,
+            laid_out_content_block_size: None,
         }
-        FormattingContextType::Svg => {
-            FormattingContextImplementation::Svg(svg_formatting_context::SvgFormattingContext::new(run))
-        }
-        FormattingContextType::Math => FormattingContextImplementation::Math(
-            math_formatting_context::MathFormattingContext::new(run, root_cells_in_own_frame),
-        ),
-        FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
-        FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
-        FormattingContextType::FrameSet => FormattingContextImplementation::FrameSet,
     }
 }
 
-fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
+/// Whether the run of a root goes on to lay out the absolutely positioned boxes the root contains once the root is
+/// dimensioned.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AfterDimensioning {
+    LaysOutAbsposContainedByRoot,
+    LaysOutNothingMore,
+}
+
+/// The layout a formatting context gives the contents of the root of its run.
+pub(crate) trait FormattingContextAlgorithm<'pass> {
+    /// Lays out the contents of the root of `run`, which lays them out in the frame the root establishes.
+    fn lay_out(&mut self, run: &FormattingContextRun<'pass>, input: AlgorithmInput<'_>) -> AlgorithmOutput;
+
+    /// Takes in the root's final cells `root_cells_in_own_frame`, once the run dimensioned the root.
+    fn after_root_is_dimensioned(
+        &self,
+        _run: &FormattingContextRun<'pass>,
+        _root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> AfterDimensioning {
+        AfterDimensioning::LaysOutAbsposContainedByRoot
+    }
+}
+
+/// A replaced box's internal formatting context, which lays out nothing inside its root.
+#[derive(Default)]
+pub(crate) struct InternalReplacedFormattingContext;
+
+impl<'pass> FormattingContextAlgorithm<'pass> for InternalReplacedFormattingContext {
+    fn lay_out(&mut self, _run: &FormattingContextRun<'pass>, input: AlgorithmInput<'_>) -> AlgorithmOutput {
+        AlgorithmOutput::of_root(ChildLayoutResult::default(), input.root_cells)
+    }
+
+    fn after_root_is_dimensioned(
+        &self,
+        _run: &FormattingContextRun<'pass>,
+        _root_cells_in_own_frame: used_values::RootInputCells,
+    ) -> AfterDimensioning {
+        AfterDimensioning::LaysOutNothingMore
+    }
+}
+
+/// Where the run of a root keeps the formatting context it creates for the root, one of these.
+#[derive(Default)]
+struct FormattingContextAlgorithms<'pass> {
+    block: Option<block_formatting_context::BlockFormattingContext<'pass>>,
+    flex: Option<flex_formatting_context::FlexFormattingContext<'pass>>,
+    grid: Option<grid_formatting_context::GridFormattingContext<'pass>>,
+    table: Option<table_formatting_context::TableFormattingContext<'pass>>,
+    svg: Option<svg_formatting_context::SvgFormattingContext<'pass>>,
+    math: Option<math_formatting_context::MathFormattingContext<'pass>>,
+    replaced_with_children: replaced_with_children_formatting_context::ReplacedWithChildrenFormattingContext,
+    internal_replaced: InternalReplacedFormattingContext,
+    frameset: frameset_formatting_context::FrameSetFormattingContext,
+}
+
+impl<'pass> FormattingContextAlgorithms<'pass> {
+    fn create(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        root_cells_in_own_frame: used_values::RootInputCells,
+        subgrid_parent: Option<&grid_formatting_context::SubgridParent<'pass>>,
+        fc_type: FormattingContextType,
+        previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
+        inline_layout_of_child_table_box: Option<table_formatting_context::TableInlineLayout>,
+    ) -> &mut dyn FormattingContextAlgorithm<'pass> {
+        match fc_type {
+            FormattingContextType::Block => {
+                let context = self.block.insert(block_formatting_context::BlockFormattingContext::new(
+                    run,
+                    root_cells_in_own_frame,
+                    previous_line_data,
+                ));
+                if let Some(layout) = inline_layout_of_child_table_box {
+                    context.keep_table_inline_layout_of(layout.table_box(), layout);
+                }
+                context
+            }
+            FormattingContextType::Flex => self.flex.insert(flex_formatting_context::FlexFormattingContext::new(
+                run,
+                root_cells_in_own_frame,
+            )),
+            FormattingContextType::Grid => self.grid.insert(grid_formatting_context::GridFormattingContext::new(
+                run,
+                root_cells_in_own_frame,
+                subgrid_parent,
+            )),
+            FormattingContextType::Table => self.table.insert(table_formatting_context::TableFormattingContext::new(
+                run,
+                root_cells_in_own_frame,
+                table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
+            )),
+            FormattingContextType::Svg => self.svg.insert(svg_formatting_context::SvgFormattingContext::new(run)),
+            FormattingContextType::Math => self.math.insert(math_formatting_context::MathFormattingContext::new(
+                run,
+                root_cells_in_own_frame,
+            )),
+            FormattingContextType::ReplacedWithChildren => &mut self.replaced_with_children,
+            FormattingContextType::InternalReplaced => &mut self.internal_replaced,
+            FormattingContextType::FrameSet => &mut self.frameset,
+        }
+    }
+}
+
+pub(crate) fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
     for child in run.pass.children(parent) {
         let facts = NodeFacts::new(&run.pass, child);
         if facts.is_box() {
@@ -2465,7 +2552,7 @@ fn lay_out_run_root_and_contents<'pass>(
         run
     };
     // NB: A table wrapper's run hands the inline layout of its table box to the run of that box.
-    let (mut inline_layout_of_root_table_box, inline_layout_of_child_table_box) = match table_inline_layout {
+    let (inline_layout_of_root_table_box, inline_layout_of_child_table_box) = match table_inline_layout {
         Some(table_inline_layout) if table_inline_layout.table_box() == box_ => (Some(table_inline_layout), None),
         table_inline_layout => (None, table_inline_layout),
     };
@@ -2501,118 +2588,40 @@ fn lay_out_run_root_and_contents<'pass>(
         flex_self_block_size_resolution_space = None;
     }
 
-    let mut implementation = None;
-    let mut root_lines = used_values::LineDataState::Empty;
-    let mut laid_out_content_block_size = None;
-    let (mut result, own_root_after_body) =
-        if empty_root_needs_no_formatting_context_algorithm(&pass, box_, fc_type, input, request.mode) {
-            // An empty root context has no body output. Root sizing and finalization still
-            // run through the shared paths around this branch.
-            (
-                result_of_empty_root(&pass, box_, fc_type, own_root.get()),
-                own_root.get(),
-            )
-        } else {
-            let context_implementation = implementation.insert(create_formatting_context_implementation(
-                body_run,
-                own_root.get(),
-                subgrid_parent,
-                fc_type,
-                previous_line_data,
-            ));
-            if let (Some(layout), FormattingContextImplementation::Block(context)) =
-                (inline_layout_of_child_table_box, &*context_implementation)
-            {
-                context.keep_table_inline_layout_of(layout.table_box(), layout);
-            }
-            match context_implementation {
-                FormattingContextImplementation::Block(context) => {
-                    context.run(body_run, body_input);
-                    laid_out_content_block_size = Some(context.laid_out_content_block_size());
-                    let mut result = ChildLayoutResult {
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        automatic_line_clamp_max_lines: context
-                            .automatic_line_clamp_max_lines()
-                            .map(|lines| u32::try_from(lines).unwrap_or(u32::MAX)),
-                        baselines: context.derived_baselines_of_root_box(),
-                        table_wrapper_content_inline_size: context.table_wrapper_content_inline_size(),
-                        table_box_in_wrapper_border_box_block_size: context
-                            .table_box_in_wrapper_border_box_block_size(),
-                        ..ChildLayoutResult::default()
-                    };
-                    let mut root_after_body = own_root.get();
-                    // https://w3c.github.io/mathml-core/#layout-of-operators
-                    // NB: An operator lays out its text in a block formatting context, unless it is drawn with a
-                    //     stretched or large glyph.
-                    if NodeFacts::new(&body_run.pass, box_).display().is_math_inside() {
-                        math_formatting_context::layout_operator(body_run, input, &mut result, &mut root_after_body);
-                    }
-                    root_lines = context.take_root_lines();
-                    (result, root_after_body)
-                }
-                FormattingContextImplementation::Flex(context) => {
-                    context.run(body_run, body_input, flex_self_block_size_resolution_space);
-                    let baselines = context.derived_baselines_of_root_box();
-                    let result = ChildLayoutResult {
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        baselines,
-                        in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
-                        ..ChildLayoutResult::default()
-                    };
-                    (result, context.container_cells())
-                }
-                FormattingContextImplementation::Grid(context) => {
-                    context.run(body_run, body_input);
-                    let baselines = context.derived_baselines_of_root_box();
-                    let result = ChildLayoutResult {
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        baselines,
-                        in_flow_children_margin_box_block_extent: context.in_flow_items_margin_box_block_extent(),
-                        ..ChildLayoutResult::default()
-                    };
-                    (result, own_root.get())
-                }
-                FormattingContextImplementation::Table(context) => {
-                    context.run(body_run, body_input, inline_layout_of_root_table_box.take());
-                    let baselines = context.derived_baselines_of_root_box();
-                    let result = ChildLayoutResult {
-                        automatic_content_block_size: context.automatic_content_block_size,
-                        baselines,
-                        ..ChildLayoutResult::default()
-                    };
-                    (result, context.table_box_cells())
-                }
-                FormattingContextImplementation::Svg(context) => (
-                    ChildLayoutResult::default(),
-                    context.run(body_run, body_input, own_root.get()),
-                ),
-                FormattingContextImplementation::Math(context) => {
-                    context.run(body_run, body_input);
-                    let baselines = context.derived_baselines_of_root_box();
-                    let result = ChildLayoutResult {
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        baselines,
-                        ..ChildLayoutResult::default()
-                    };
-                    (result, context.root_cells())
-                }
-                FormattingContextImplementation::ReplacedWithChildren => {
-                    let mut root_after_body = own_root.get();
-                    let result = replaced_with_children_formatting_context::layout_replaced_with_children(
-                        body_run,
-                        body_input,
-                        &mut root_after_body,
-                    );
-                    (result, root_after_body)
-                }
-                FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), own_root.get()),
-                FormattingContextImplementation::FrameSet => {
-                    let mut root_after_body = own_root.get();
-                    let result = frameset_formatting_context::layout_frameset(body_run, &mut root_after_body);
-                    (result, root_after_body)
-                }
-            }
-        };
+    let mut algorithms = FormattingContextAlgorithms::default();
+    let mut algorithm = None;
+    let AlgorithmOutput {
+        mut result,
+        root_cells: own_root_after_body,
+        mut root_lines,
+        laid_out_content_block_size,
+    } = if empty_root_needs_no_formatting_context_algorithm(&pass, box_, fc_type, input, request.mode) {
+        // An empty root context has no body output. Root sizing and finalization still
+        // run through the shared paths around this branch.
+        AlgorithmOutput::of_root(
+            result_of_empty_root(&pass, box_, fc_type, own_root.get()),
+            own_root.get(),
+        )
+    } else {
+        let algorithm = algorithm.insert(algorithms.create(
+            body_run,
+            own_root.get(),
+            subgrid_parent,
+            fc_type,
+            previous_line_data,
+            inline_layout_of_child_table_box,
+        ));
+        algorithm.lay_out(
+            body_run,
+            AlgorithmInput {
+                body_input,
+                root_input: input,
+                root_cells: own_root.get(),
+                flex_self_block_size_resolution_space,
+                table_inline_layout: inline_layout_of_root_table_box,
+            },
+        )
+    };
     let baselines_in_own_frame = result.baselines;
     // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
     // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
@@ -2808,36 +2817,19 @@ fn lay_out_run_root_and_contents<'pass>(
         );
         return (outputs, root_cells_left_by_run);
     }
-    if let Some(implementation) = &implementation {
-        match implementation {
-            FormattingContextImplementation::Block(_) => {}
-            FormattingContextImplementation::Table(_) => {
-                register_table_abspos_descendants(body_run, run.box_);
-            }
-            FormattingContextImplementation::Flex(context) => {
-                context.parent_did_dimension(root_in_own_frame_left_by_run);
-            }
-            FormattingContextImplementation::Grid(context) => {
-                context.parent_did_dimension(root_in_own_frame_left_by_run);
-            }
-            FormattingContextImplementation::Math(context) => {
-                context.parent_did_dimension(root_in_own_frame_left_by_run);
-            }
-            FormattingContextImplementation::Svg(_)
-            | FormattingContextImplementation::ReplacedWithChildren
-            | FormattingContextImplementation::FrameSet => {}
-            FormattingContextImplementation::InternalReplaced => {
-                let outputs = run.outputs(
-                    result,
-                    take_run_fragments(),
-                    root_cells_left_by_run,
-                    root_line_data,
-                    inputs_never_observed,
-                    parent_owns_root_input_cells,
-                );
-                return (outputs, root_cells_left_by_run);
-            }
-        }
+    if algorithm.as_ref().is_some_and(|algorithm| {
+        algorithm.after_root_is_dimensioned(body_run, root_in_own_frame_left_by_run)
+            == AfterDimensioning::LaysOutNothingMore
+    }) {
+        let outputs = run.outputs(
+            result,
+            take_run_fragments(),
+            root_cells_left_by_run,
+            root_line_data,
+            inputs_never_observed,
+            parent_owns_root_input_cells,
+        );
+        return (outputs, root_cells_left_by_run);
     }
     // NB: The absolutely positioned boxes whose containing block is the root are laid out against its final sizes and
     //     box sides, in the frame its contents are laid out in, so that the root's fragment holds them. The columns of
