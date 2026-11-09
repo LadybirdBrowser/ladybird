@@ -4744,7 +4744,7 @@ Optional<CSSPixelPoint> LocalNavigable::to_local_root_viewport_position(CSSPixel
 
         auto point = Painting::absolute_position(*layout_node);
         point.translate_by(position);
-        position = Painting::transform_rect_to_viewport(*layout_node, { point, { 0, 0 } }).location();
+        position = Painting::rect_to_viewport(*layout_node, { point, { 0, 0 } }, Layout::RustFFI::ViewportSpace::VisualViewport).location();
 
         auto parent = ancestor->parent();
         ancestor = parent ? &as<LocalNavigable>(*parent) : nullptr;

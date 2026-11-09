@@ -240,7 +240,7 @@ static Optional<PaintTiming::LargestContentfulPaintCandidate> compute_a_new_larg
 
     // 5. For each textNode of paintedTextNodes,
     Layout::ForcedReadScope read { document };
-    auto rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, document.visual_context_tree());
+    auto viewport_mapping = Painting::viewport_mapping(document);
     for (auto const& [text_node, owned_text_nodes] : painted_text_nodes) {
         // 1. If textNode is not exposed for paint timing, given document, continue.
         if (!PaintTiming::is_exposed_for_paint_timing(*text_node, document))
@@ -265,7 +265,7 @@ static Optional<PaintTiming::LargestContentfulPaintCandidate> compute_a_new_larg
             auto const* text_layout_node = text->layout_node(read);
             if (!text_layout_node)
                 continue;
-            auto rect = PaintTiming::client_rect_of_box(*text_layout_node, rect_to_viewport_transform);
+            auto rect = PaintTiming::client_rect_of_box(*text_layout_node, viewport_mapping);
             if (rect.is_empty())
                 continue;
             text_rect = text_rect.is_empty() ? rect : text_rect.united(rect);

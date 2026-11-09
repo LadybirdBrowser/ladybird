@@ -1328,8 +1328,7 @@ Vector<Gfx::DoubleRect> Range::client_rects()
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
     Layout::ForcedReadScope read { document };
     Vector<Gfx::DoubleRect> rects;
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
-    auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();
+    Optional<Layout::RustFFI::FfiViewportMapping> viewport_mapping;
 
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
@@ -1403,11 +1402,8 @@ Vector<Gfx::DoubleRect> Range::client_rects()
             if (!layout_node)
                 continue;
 
-            if (!visual_context_tree.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node)) {
-                document.update_paint_and_hit_testing_properties_if_needed();
-                visual_context_tree = document.visual_context_tree();
-                rect_to_viewport_transform = Painting::rect_to_viewport_transform(document, *visual_context_tree);
-            }
+            if (!viewport_mapping.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node))
+                viewport_mapping = Painting::viewport_mapping(document);
 
             size_t filter_dom_start = 0;
             size_t filter_dom_end = NumericLimits<size_t>::max();
@@ -1431,7 +1427,7 @@ Vector<Gfx::DoubleRect> Range::client_rects()
             Layout::RustFFI::layout_script_text_range_rects(
                 layout_node->document_host(), Layout::Node::slot_id(layout_node),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
-                rect_to_viewport_transform, &rects, [](void* context, CSSPixelRect rect) {
+                viewport_mapping.value_or(Layout::RustFFI::FfiViewportMapping {}), &rects, [](void* context, CSSPixelRect rect) {
                     static_cast<Vector<Gfx::DoubleRect>*>(context)->append(rect.to_type<float>().to_type<double>());
                 });
         }

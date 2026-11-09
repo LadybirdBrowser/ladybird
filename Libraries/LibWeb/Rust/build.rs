@@ -3131,6 +3131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/stacking_context/dump.rs"),
             manifest_dir.join("src/painting/layout_tree_dump.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
+            manifest_dir.join("src/painting/viewport_mapping.rs"),
             manifest_dir.join("src/render_state/clock.rs"),
             manifest_dir.join("src/render_state/clock/hover.rs"),
             manifest_dir.join("src/layout/script_entries.rs"),

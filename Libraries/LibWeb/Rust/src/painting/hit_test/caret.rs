@@ -11,9 +11,9 @@ use crate::painting::host::{
     FfiResolvedCaret,
 };
 use crate::painting::paint_read::PaintRead;
-use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::text_fragment::CaretMatch;
-use crate::painting::visual_context::{IncludeVisualViewportTransform, SpatialNodeIndex};
+use crate::painting::viewport_mapping::ViewportSpace;
+use crate::painting::visual_context::{ClipBehavior, SpatialNodeIndex};
 
 /// What a caret query reads of the DOM: which nodes a scope holds.
 pub(crate) trait NodeScopes {
@@ -526,8 +526,12 @@ impl HitTestList {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
-            let Some(local) = local_float_point(visual_context_tree, callbacks, line.context, point, respect_clip)
-            else {
+            let Some(local) = callbacks.viewport_mapping(visual_context_tree).point_to_local(
+                line.context,
+                point,
+                ViewportSpace::VisualViewport,
+                ClipBehavior::from_respect_clip(respect_clip),
+            ) else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -837,18 +841,9 @@ impl FfiCaretAt {
         spatial: SpatialNodeIndex,
     ) -> Self {
         if self.caret.has_debug_rect {
-            let transform = RectToViewportTransform {
-                visual_context_tree: tree,
-                world_transforms: callbacks.world_transforms(),
-                scroll_offsets: callbacks.scroll_offsets(),
-                device_pixels_per_css_pixel: callbacks.device_pixels_per_css_pixel as f32,
-            };
-            self.caret.debug_rect = transform
-                .transform_rect_in_space(
-                    spatial,
-                    self.caret.debug_rect.into(),
-                    IncludeVisualViewportTransform::Yes,
-                )
+            self.caret.debug_rect = callbacks
+                .viewport_mapping(tree)
+                .rect_in_space_to_viewport(spatial, self.caret.debug_rect.into(), ViewportSpace::VisualViewport)
                 .into();
         }
         self

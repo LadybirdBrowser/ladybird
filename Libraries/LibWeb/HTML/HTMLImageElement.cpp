@@ -610,10 +610,7 @@ unsigned HTMLImageElement::natural_height() const
 //          it relative to the initial containing block origin.
 static CSSPixelPoint first_border_box_origin_ignoring_transforms(Layout::Node const& layout_node)
 {
-    auto& document = const_cast<DOM::Document&>(layout_node.document());
-    document.update_paint_and_hit_testing_properties_if_needed();
-    auto visual_context_tree = document.visual_context_tree();
-    auto offset = Painting::offset_to_viewport_ignoring_transforms(layout_node, Painting::rect_to_viewport_transform(document, visual_context_tree));
+    auto offset = Painting::offset_to_viewport_ignoring_transforms(layout_node);
     return Painting::absolute_border_box_rect(layout_node).location().translated(offset);
 }
 

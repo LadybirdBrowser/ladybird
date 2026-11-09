@@ -12,8 +12,8 @@ use crate::painting::node_painting;
 use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::with_inline_pieces;
-use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
 use crate::painting::style_queries;
+use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
 
 pub(crate) fn can_compute_client_rects_without_visual_context_update(
     arena: &impl PaintRead,
@@ -226,27 +226,17 @@ fn empty_piece_rect(block: &InterruptingBlock, after_the_block: bool) -> CssPixe
 pub(crate) fn for_each_client_rect(
     arena: &impl PaintRead,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+    viewport_mapping: &ViewportMapping<'_>,
     mut push_rect: impl FnMut(CssPixelRect),
 ) {
     let mut push_rect_in_viewport_space = |rect: CssPixelRect| {
-        push_rect(transform_rect_to_viewport_or_identity(
-            rect_to_viewport_transform,
-            arena,
-            layout_node,
-            rect,
-        ));
+        push_rect(viewport_mapping.rect_to_viewport(arena, layout_node, rect, ViewportSpace::LayoutViewport));
     };
     // INTEROP: A line break has no box fragments of its own, but browsers report a zero-width rect where it ends its
     //          line.
     if arena.node_kind_if_live(layout_node) == Some(NodeKind::BreakNode) {
         if let Some((line_root, rect)) = line_break_rect(arena, layout_node) {
-            push_rect(transform_rect_to_viewport_or_identity(
-                rect_to_viewport_transform,
-                arena,
-                line_root,
-                rect,
-            ));
+            push_rect(viewport_mapping.rect_to_viewport(arena, line_root, rect, ViewportSpace::LayoutViewport));
         }
         return;
     }
@@ -339,13 +329,13 @@ fn line_break_rect(arena: &impl PaintRead, break_node: NodeSlotId) -> Option<(No
 pub(crate) fn bounding_client_rect(
     arena: &impl PaintRead,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
+    viewport_mapping: &ViewportMapping<'_>,
 ) -> CssPixelRect {
     // 1. Let list be the result of invoking getClientRects() on element.
     let zero = CssPixels::from_integer(0);
     let mut first_rect = None;
     let mut union_of_rects_with_nonzero_width_and_height: Option<CssPixelRect> = None;
-    for_each_client_rect(arena, layout_node, rect_to_viewport_transform, |rect| {
+    for_each_client_rect(arena, layout_node, viewport_mapping, |rect| {
         first_rect.get_or_insert(rect);
         if rect.width == zero || rect.height == zero {
             return;
