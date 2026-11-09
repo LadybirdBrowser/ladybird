@@ -26,6 +26,7 @@
 #include <qpa/qplatformwindow_p.h>
 
 #import <Cocoa/Cocoa.h>
+#import <IOSurface/IOSurface.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UI/Qt/DictionaryLookup.h>
 #import <dlfcn.h>
@@ -640,6 +641,127 @@ void* appkit_content_layer(QWidget& widget)
     auto* window_handle = widget.windowHandle();
     auto* cocoa_window = window_handle ? window_handle->nativeInterface<QNativeInterface::Private::QCocoaWindow>() : nullptr;
     return cocoa_window ? cocoa_window->contentLayer() : nullptr;
+}
+
+static IOSurfaceRef create_chrome_snapshot_surface(IOSurfaceRef window_surface, size_t height)
+{
+    auto* properties = @{
+        (__bridge NSString*)kIOSurfaceWidth : @(IOSurfaceGetWidth(window_surface)),
+        (__bridge NSString*)kIOSurfaceHeight : @(height),
+        (__bridge NSString*)kIOSurfaceBytesPerRow : @(IOSurfaceGetBytesPerRow(window_surface)),
+        (__bridge NSString*)kIOSurfaceBytesPerElement : @(IOSurfaceGetBytesPerElement(window_surface)),
+        (__bridge NSString*)kIOSurfacePixelFormat : @(IOSurfaceGetPixelFormat(window_surface)),
+    };
+    auto* surface = IOSurfaceCreate((__bridge CFDictionaryRef)properties);
+    if (!surface)
+        return nullptr;
+
+    auto color_space_key = CFSTR("IOSurfaceColorSpace");
+    if (auto color_space = IOSurfaceCopyValue(window_surface, color_space_key)) {
+        IOSurfaceSetValue(surface, color_space_key, color_space);
+        CFRelease(color_space);
+    }
+    return surface;
+}
+
+static bool copy_top_rows_of_surface(IOSurfaceRef from, IOSurfaceRef to, size_t height)
+{
+    if (IOSurfaceLock(from, kIOSurfaceLockReadOnly, nullptr) != kIOReturnSuccess)
+        return false;
+    auto locked_to = IOSurfaceLock(to, 0, nullptr) == kIOReturnSuccess;
+    if (locked_to) {
+        memcpy(IOSurfaceGetBaseAddress(to), IOSurfaceGetBaseAddress(from), min(IOSurfaceGetBytesPerRow(from), IOSurfaceGetBytesPerRow(to)) * height);
+        IOSurfaceUnlock(to, 0, nullptr);
+    }
+    IOSurfaceUnlock(from, kIOSurfaceLockReadOnly, nullptr);
+    return locked_to;
+}
+
+AppKitWindowChromeSnapshots::AppKitWindowChromeSnapshots(QWidget& window, Function<int()> chrome_height)
+    : m_window(window)
+    , m_chrome_height(move(chrome_height))
+{
+    auto* layer = [[CALayer alloc] init];
+    layer.opaque = YES;
+    m_layer = layer;
+
+    // NB: Core Animation commits at order 2000000, so a repaint normally reaches the screen in one commit with its
+    //     snapshot. Core Animation can also ask Qt for a repaint during that commit. Only the second observer then
+    //     sees the repaint before the run loop sleeps.
+    static constexpr Array<CFIndex, 2> orders { 1999999, 2000001 };
+    for (size_t i = 0; i < orders.size(); ++i) {
+        auto* observer = CFRunLoopObserverCreateWithHandler(kCFAllocatorDefault, kCFRunLoopBeforeWaiting | kCFRunLoopExit, true, orders[i], ^(CFRunLoopObserverRef, CFRunLoopActivity) {
+            update();
+        });
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, kCFRunLoopCommonModes);
+        m_run_loop_observers[i] = observer;
+    }
+}
+
+AppKitWindowChromeSnapshots::~AppKitWindowChromeSnapshots()
+{
+    for (auto* observer : m_run_loop_observers) {
+        CFRunLoopObserverInvalidate(static_cast<CFRunLoopObserverRef>(observer));
+        CFRelease(observer);
+    }
+    auto* layer = static_cast<CALayer*>(m_layer);
+    [layer removeFromSuperlayer];
+    [layer release];
+    for (auto* surface : { m_shown_surface, m_spare_surface }) {
+        if (surface)
+            CFRelease(surface);
+    }
+}
+
+void AppKitWindowChromeSnapshots::update()
+{
+    auto* window_layer = static_cast<CALayer*>(appkit_content_layer(m_window));
+    id contents = window_layer.contents;
+    if (!contents || CFGetTypeID((__bridge CFTypeRef)contents) != IOSurfaceGetTypeID())
+        return;
+
+    // NB: Qt does not always set the layer's contents after a repaint, as the layer already has the one surface it
+    //     paints into. The surface's seed changes with each repaint.
+    auto* window_surface = (__bridge IOSurfaceRef)contents;
+    auto window_surface_id = IOSurfaceGetID(window_surface);
+    auto window_surface_seed = IOSurfaceGetSeed(window_surface);
+    auto scale = window_layer.contentsScale;
+    auto height = min(static_cast<size_t>(max(m_chrome_height(), 0) * scale), IOSurfaceGetHeight(window_surface));
+    if (window_surface_id == m_window_surface_id && window_surface_seed == m_window_surface_seed && height == m_height)
+        return;
+
+    auto* layer = static_cast<CALayer*>(m_layer);
+    if (height > 0) {
+        // NB: The window server may still be reading the spare surface, and a surface in use is never written to.
+        auto* surface = static_cast<IOSurfaceRef>(m_spare_surface);
+        if (!surface || IOSurfaceGetWidth(surface) != IOSurfaceGetWidth(window_surface) || IOSurfaceGetHeight(surface) != height || IOSurfaceIsInUse(surface)) {
+            if (surface)
+                CFRelease(surface);
+            m_spare_surface = surface = create_chrome_snapshot_surface(window_surface, height);
+        }
+        if (!surface || !copy_top_rows_of_surface(window_surface, surface, height))
+            return;
+        swap(m_shown_surface, m_spare_surface);
+    }
+    m_window_surface_id = window_surface_id;
+    m_window_surface_seed = window_surface_seed;
+    m_height = height;
+
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    if (layer.superlayer != window_layer)
+        [window_layer addSublayer:layer];
+    layer.hidden = height == 0;
+    layer.frame = CGRectMake(0, 0, IOSurfaceGetWidth(window_surface) / scale, height / scale);
+    layer.contentsScale = scale;
+    layer.contents = height > 0 ? (__bridge id)m_shown_surface : nil;
+
+    // NB: Qt skips its flush for a surface that is on screen, so this tells the window server of the repaint instead.
+    window_layer.contents = nil;
+    window_layer.contents = contents;
+    [CATransaction commit];
+
+    reinterpret_cast<NSView*>(m_window.winId()).window.viewsNeedDisplay = YES;
 }
 
 void round_appkit_view_corners(QWidget& widget, qreal radius, QColor const& border_color)

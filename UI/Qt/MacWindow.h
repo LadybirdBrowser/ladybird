@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Array.h>
+#include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/Platform.h>
@@ -83,6 +85,29 @@ private:
     void* m_caster { nullptr };
     void* m_focus_edge { nullptr };
     void* m_focus_ring { nullptr };
+};
+// Shows the given height of a window's top from snapshots of its surface, taken after each repaint of that surface.
+// The window server never reads a snapshot while it is being painted.
+class AppKitWindowChromeSnapshots {
+    AK_MAKE_NONCOPYABLE(AppKitWindowChromeSnapshots);
+    AK_MAKE_NONMOVABLE(AppKitWindowChromeSnapshots);
+
+public:
+    AppKitWindowChromeSnapshots(QWidget& window, Function<int()> chrome_height);
+    ~AppKitWindowChromeSnapshots();
+
+private:
+    void update();
+
+    QWidget& m_window;
+    Function<int()> m_chrome_height;
+    void* m_layer { nullptr };
+    Array<void*, 2> m_run_loop_observers {};
+    void* m_shown_surface { nullptr };
+    void* m_spare_surface { nullptr };
+    u32 m_window_surface_id { 0 };
+    u32 m_window_surface_seed { 0 };
+    size_t m_height { 0 };
 };
 bool start_appkit_window_drag(QWidget&);
 Qt::DropAction execute_appkit_tab_drag(QWidget&, QDrag&);
