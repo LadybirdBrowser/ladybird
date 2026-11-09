@@ -2651,6 +2651,7 @@ impl<'pass> AbsposEngine<'pass> {
                 ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs.clone()),
             ),
             cells,
+            None,
             false,
             // https://drafts.csswg.org/css-sizing-3/#definite
             // "Additionally, the size of the containing block of an absolutely positioned element is always definite

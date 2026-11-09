@@ -2120,6 +2120,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 child,
                 child_input,
                 child_cells,
+                None,
                 true,
                 self.percentage_block_insets_of_run_root_children_have_definite_basis,
             );

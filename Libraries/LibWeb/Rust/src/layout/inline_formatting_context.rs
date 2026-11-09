@@ -1478,6 +1478,7 @@ impl<'context> InlineFormattingContext<'context> {
             node,
             input,
             cells,
+            self.parent.take_table_inline_layout_of(node),
             false,
             self.block_container.percentage_block_insets_have_definite_basis,
         );

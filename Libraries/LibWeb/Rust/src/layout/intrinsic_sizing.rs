@@ -121,7 +121,7 @@ pub(super) fn content_sizes_of_inline_content(
                 child_constraints,
                 ParticipationInParentFormattingContext::BlockLevel,
             );
-            let parent = block_formatting_context::BlockFormattingContext::new(run, scope.root_cells(), None);
+            let parent = block_formatting_context::BlockFormattingContext::new(run, scope.root_cells(), None, None);
             let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
                 run,
                 block_formatting_context::BlockContainer::root_of(run, scope.root_cells()),

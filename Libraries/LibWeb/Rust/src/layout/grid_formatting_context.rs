@@ -1120,7 +1120,7 @@ pub(crate) struct GridFormattingContext<'pass> {
     >,
     /// The inline layout of the table box inside a table wrapper item, as resolving the wrapper's inline size last
     /// found it, which the item's run can reuse.
-    table_inline_layout_of_item: Cell<Option<(Node, table_formatting_context::TableInlineLayout)>>,
+    table_inline_layout_of_item: Cell<Option<(Node, std::sync::Arc<table_formatting_context::TableInlineLayout>)>>,
     derived_baselines_of_root_box: DerivedBaselines,
     container_style: StyleValues<'pass>,
     parent_grid: Option<ParentGridData<'pass>>,
@@ -3995,10 +3995,10 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     /// The inline layout of the table box inside `item` this grid keeps for the run of `item`, if any.
-    pub(crate) fn take_table_inline_layout_of(
+    fn take_table_inline_layout_of(
         &self,
         item: Node,
-    ) -> Option<table_formatting_context::TableInlineLayout> {
+    ) -> Option<std::sync::Arc<table_formatting_context::TableInlineLayout>> {
         block_formatting_context::take_table_inline_layout_kept_for(&self.table_inline_layout_of_item, item)
     }
 
@@ -4019,7 +4019,7 @@ impl<'pass> GridFormattingContext<'pass> {
             formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto,
         );
         self.table_inline_layout_of_item
-            .set(Some((item.box_, table_inline_layout)));
+            .set(Some((item.box_, std::sync::Arc::new(table_inline_layout))));
         let wrapper_style = self.item_style(item);
         let table_box = self.sizing().table_box_inside_wrapper(item.box_);
         let table_style = self.style(table_box);
@@ -4905,6 +4905,7 @@ impl<'pass> GridFormattingContext<'pass> {
                             item.box_,
                             input,
                             cells,
+                            self.take_table_inline_layout_of(item.box_),
                             false,
                             percentage_block_insets_have_definite_basis,
                         )
