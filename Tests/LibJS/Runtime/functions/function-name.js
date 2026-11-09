@@ -97,6 +97,40 @@ test("computed property name inference only applies to anonymous definitions", (
     expect(object[key].name).toBe("");
 });
 
+test("a named class does not pass on the name it would have got to the functions in it", () => {
+    const names = [];
+    function mixin(fn) {
+        names.push(fn.name);
+        return class {};
+    }
+
+    var [a = class N extends mixin(() => {}) {}] = [];
+    function withDefault(p = class N extends mixin(function () {}) {}) {}
+    withDefault();
+    class WithField {
+        x = class N extends mixin(() => {}) {};
+    }
+    new WithField();
+    var {
+        b = class N {
+            static [mixin(() => {}) && "k"]() {}
+        },
+    } = {};
+    expect(names).toEqual(["", "", "", ""]);
+
+    var g;
+    function withAssignment(p = class C extends ((g = () => {}), Object) {}) {}
+    withAssignment();
+    expect(g.name).toBe("g");
+
+    var {
+        c = class C {
+            [function () {}.name || "empty"]() {}
+        },
+    } = {};
+    expect(Object.getOwnPropertyNames(c.prototype)).toEqual(["constructor", "empty"]);
+});
+
 test("names of native functions", () => {
     expect(console.debug.name).toBe("debug");
     expect((console.debug.name = "warn")).toBe("warn");
