@@ -4284,9 +4284,37 @@ impl StyleEngine {
             .is_some_and(|live| live.released_compositions.iter().any(|(released, _)| *released == node))
     }
 
+    /// The host goes on to sample the animations of `node` and run its transition step, which composes a transition and
+    /// then takes it out again where the step ends it. What they compose is told as one move, once they are over, so
+    /// that a pair that leaves the composition as it found it restyles nothing.
+    pub(in super::super) fn begin_composition_settling(&mut self, node: StyleNodeID) {
+        debug_assert!(self.host.settling_composition.is_none());
+        self.host.settling_composition = Some(SettlingComposition { node, held: None });
+    }
+
+    pub(in super::super) fn end_composition_settling(&mut self) {
+        let settling = self
+            .host
+            .settling_composition
+            .take()
+            .expect("a composition settling ends after it began");
+        if let Some(held) = settling.held {
+            self.note_composition_moved(settling.node, held);
+        }
+    }
+
     /// Restyle the children of `node` that compute from what the composition of its animations
     /// moved since `held`, in the next pass of the engine.
     pub(in super::super) fn note_composition_moved(&mut self, node: StyleNodeID, held: HeldComposition) {
+        if let Some(settling) = self
+            .host
+            .settling_composition
+            .as_mut()
+            .filter(|settling| settling.node == node)
+        {
+            settling.held.get_or_insert(held);
+            return;
+        }
         let Some(view) = DriveRecords::assigned_record_view(&self.retained, node) else {
             return;
         };
@@ -4551,6 +4579,14 @@ fn resolve_waits(
 /// What the children of an element compute from of the view it held before the composition of
 /// its animations moved: its groups, each holding a reference, and the environment its animations
 /// sampled custom properties into, where they do.
+#[derive(Clone)]
+pub(in super::super) struct SettlingComposition {
+    node: StyleNodeID,
+    /// What the element's children computed from before the first move.
+    held: Option<HeldComposition>,
+}
+
+#[derive(Clone)]
 pub(in super::super) struct HeldComposition {
     payloads: crate::css::computed_values::StyleGroups,
     custom_properties: Option<u64>,
