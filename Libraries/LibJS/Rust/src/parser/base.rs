@@ -1265,14 +1265,7 @@ impl<'a, U: Unit> Parser<'a, U> {
             if is_parameter {
                 continue;
             }
-            let reads_arguments = hoist.name == N_ARGUMENTS
-                && (scope.arguments_access
-                    || (scope.flags & scope_flag::FUNCTION != 0
-                        && scope.flags & scope_flag::ARROW == 0
-                        && scope.eval_in_function));
-            if !reads_arguments {
-                self.decls[row as usize].flags |= decl::ANNEX_B_NAME;
-            }
+            self.decls[row as usize].flags |= decl::ANNEX_B_NAME;
             let binding = if hoist.declaration == NONE {
                 NONE
             } else {

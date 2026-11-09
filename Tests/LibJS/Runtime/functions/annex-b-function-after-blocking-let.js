@@ -98,3 +98,12 @@ test("a function expression's own name does not keep a function of that name fro
     };
     expect(f()).toEqual(["undefined", "block"]);
 });
+
+test("a function named arguments hoists in script and eval code that reads arguments", () => {
+    try {
+        expect((0, eval)("{ function arguments() {} } typeof arguments")).toBe("function");
+    } finally {
+        delete globalThis.arguments;
+    }
+    expect(eval("{ function arguments() {} } typeof arguments")).toBe("function");
+});
