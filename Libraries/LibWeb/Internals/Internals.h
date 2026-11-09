@@ -69,6 +69,7 @@ public:
 
     bool has_completed_initial_paint() const;
     bool initial_paint_had_pending_fonts() const;
+    bool has_pending_image_loads() const;
     void set_font_display_time(CSS::FontFace&, u32 milliseconds);
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);
 

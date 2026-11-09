@@ -269,8 +269,17 @@ static void try_write_harness_status(StringView reason)
         warnln("Failed to write test-web harness status: {}", result.error());
 }
 
-static String generate_wait_for_test_string(StringView wait_class, StringView on_finish_script = ""sv)
+enum class WaitForImages {
+    No,
+    Yes,
+};
+
+static String generate_wait_for_test_string(StringView wait_class, WaitForImages wait_for_images = WaitForImages::No, StringView on_finish_script = ""sv)
 {
+    // A reference test's screenshot has to show the images the page uses. But a CSS image only starts loading once
+    // layout reaches the element that uses it, which can be after the test is otherwise done. So a reference test
+    // forces a layout, then waits until no image is loading. It polls with timers rather than animation frames, since
+    // a test may hold rendering back, and the capture itself updates the layout.
     return MUST(String::formatted(R"(
 function hasTestWaitClass() {{
     return document.documentElement.classList.contains('{}');
@@ -280,13 +289,27 @@ function afterFontsAndPaint(callback) {{
     document.fonts.ready.then(() => requestAnimationFrame(() => requestAnimationFrame(callback)));
 }}
 
+const waitForImages = {};
+
+function afterImagesLoad(callback) {{
+    if (!waitForImages) {{
+        callback();
+        return;
+    }}
+    document.documentElement.getBoundingClientRect();
+    if (internals.hasPendingImageLoads)
+        setTimeout(() => afterImagesLoad(callback), 10);
+    else
+        callback();
+}}
+
 if (!hasTestWaitClass()) {{
-    afterFontsAndPaint(() => internals.signalTestIsDone("PASS"));
+    afterFontsAndPaint(() => afterImagesLoad(() => internals.signalTestIsDone("PASS")));
 }} else {{
     const observer = new MutationObserver(() => {{
         if (!hasTestWaitClass()) {{
             observer.disconnect();
-            internals.signalTestIsDone("PASS");
+            afterImagesLoad(() => internals.signalTestIsDone("PASS"));
         }}
     }});
 
@@ -297,13 +320,13 @@ if (!hasTestWaitClass()) {{
     {}
 }}
 )"sv,
-        wait_class, on_finish_script));
+        wait_class, wait_for_images == WaitForImages::Yes ? "true"sv : "false"sv, on_finish_script));
 }
 
 static auto wait_for_test_completion = generate_wait_for_test_string("test-wait"sv);
 
 // https://web-platform-tests.org/writing-tests/reftests.html#waiting-for-content-to-render
-static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv, R"(
+static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv, WaitForImages::Yes, R"(
     afterFontsAndPaint(() => document.documentElement.dispatchEvent(new Event("TestRendered", { bubbles: true })));
 )"sv);
 
