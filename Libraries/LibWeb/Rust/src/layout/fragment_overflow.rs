@@ -13,10 +13,11 @@ use crate::layout::geometry::{Frame, Sides};
 use crate::layout::inline_content::{InlineContent, PhysicalPlane};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
+use crate::layout::used_transform::TransformGeometry;
 use crate::layout::used_values::FfiCssPixelSize;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
 use crate::painting::scrollable_overflow::physical_overflow_directions_of_style;
-use crate::painting::visual_context::node_values::{self, TransformGeometry};
+use crate::painting::visual_context::node_values;
 use crate::painting::{node_painting, scroll_snap, style_queries};
 use libgfx_rust::AffineTransform;
 

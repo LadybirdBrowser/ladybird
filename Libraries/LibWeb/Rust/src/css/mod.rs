@@ -68,14 +68,11 @@ pub(crate) mod style_value;
 pub(crate) mod style_value_arc;
 pub mod table_group_builder;
 pub(crate) mod thin_slice;
+pub(crate) mod transform_functions;
 pub mod transition;
 pub mod typed_om;
 pub(crate) mod value_codes;
 
 pub(crate) mod dimension_units {
     include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
-}
-
-pub(crate) mod transform_functions {
-    include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
 }
