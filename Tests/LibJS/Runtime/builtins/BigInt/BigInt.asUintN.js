@@ -88,6 +88,6 @@ describe("correct behavior", () => {
         expect(BigInt.asUintN(INDEX_MAX, 2n)).toBe(2n);
         expect(() => {
             BigInt.asUintN(INDEX_MAX, -2n);
-        }).toThrowWithMessage(InternalError, "Out of memory");
+        }).toThrowWithMessage(RangeError, "Maximum BigInt size exceeded");
     });
 });
