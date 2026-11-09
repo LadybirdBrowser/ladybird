@@ -78,6 +78,7 @@ public:
     void run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters, RefPtr<WebContentPage> requesting_page, u64 sequence_number, RefPtr<CanonicalSessionHistoryEntry> target_entry, NonnullRefPtr<Core::Promise<Empty>>);
     u64 next_sequence_number() { return m_next_sequence_number++; }
     void abandon_history_operations();
+    bool has_unactivated_traversal_load() const;
 
     RefPtr<WebContentPage> page_hosting(CanonicalNavigable const&) const;
 
@@ -241,6 +242,7 @@ private:
 
     void run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
     void supersede_browser_history_traversal(HistoryOperation&, i32 target_step, Function<void()> on_ready);
+    void abandon_browser_traversal_load();
 
     RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Function<bool(CanonicalSessionHistoryEntry const&)> const& matches);
     RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Web::HTML::SessionHistoryEntryIdentity const&);

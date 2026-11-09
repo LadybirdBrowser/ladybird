@@ -2945,6 +2945,10 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (navigable->tracked_load_navigation_id() != navigable->active_document_load().navigation_id)
         return;
 
+    // NB: The document a traversal is fetching a replacement for does not finish the traversal's load.
+    if (navigable->is_top_level_traversable() && traversable().has_unactivated_traversal_load())
+        return;
+
     navigable->clear_active_document_load();
     if (!navigable->is_top_level_traversable())
         return;

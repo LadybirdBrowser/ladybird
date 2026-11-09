@@ -794,6 +794,8 @@ protected:
     void complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id);
     void update_navigation_action_state();
     void did_not_apply_reload();
+    void did_not_activate_history_traversal_load();
+    void notify_load_finish();
     void notify_session_history_changed();
     enum class SessionHistoryDumpMode {
         IfDebuggingEnabled,
