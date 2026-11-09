@@ -20,6 +20,7 @@ use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
 use crate::stage::MainThread;
+use libcompositing_rust::visual_context::CompositorScrollTable;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
@@ -146,6 +147,7 @@ pub unsafe extern "C" fn painting_dump(
         let owner = owners.owner(kind, index)?;
         Some(callbacks.debug_description(&main_thread, owner))
     });
+    dump_compositor_scroll_table(&mut output, visual_context_tree.compositor_scroll_table());
     output.push_str("\nDisplayList:\n");
     dump_commands(&main_thread, &mut output, &callbacks, display_list, 0);
     callbacks.append_text(&main_thread, &output);
@@ -153,6 +155,54 @@ pub unsafe extern "C" fn painting_dump(
 
 fn push_indent(output: &mut String, indent: usize) {
     output.extend(std::iter::repeat_n(' ', indent * 2));
+}
+
+// Lists every row, unlike the tree section above it, which shows only the nodes that command runs reach.
+fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTable) {
+    if table.nodes.is_empty() {
+        return;
+    }
+    output.push_str("\nScrollNodes:\n");
+    for node in table.nodes.iter() {
+        output.push_str("ScrollNode");
+        write_field(output, "scroll_node_index", node.scroll_node_index);
+        write_field(output, "parent_scroll_node_index", node.parent_scroll_node_index);
+        write_field(output, "scrollport_rect", node.scrollport_rect);
+        write_field(output, "min_scroll_offset", node.min_scroll_offset);
+        write_field(output, "max_scroll_offset", node.max_scroll_offset);
+        writeln!(output, " is_viewport={}", node.is_viewport).unwrap();
+        let Ok(container_index) = table
+            .snap_containers
+            .binary_search_by_key(&node.scroll_node_index, |container| container.scroll_node_index)
+        else {
+            continue;
+        };
+        let container = &table.snap_containers[container_index];
+        push_indent(output, 1);
+        output.push_str("SnapContainer");
+        write_field(output, "snapport", container.snapport);
+        write_field(output, "min_scroll_offset", container.min_scroll_offset);
+        write_field(output, "max_scroll_offset", container.max_scroll_offset);
+        writeln!(
+            output,
+            " strictness={} snaps_x={} snaps_y={} horizontal_writing_mode={}",
+            container.strictness, container.snaps_x, container.snaps_y, container.horizontal_writing_mode
+        )
+        .unwrap();
+        let first_area_index = container.first_area_index as usize;
+        for area in &table.snap_areas[first_area_index..first_area_index + container.area_count as usize] {
+            push_indent(output, 2);
+            output.push_str("SnapArea");
+            write!(output, " pseudo_element_type={}", area.pseudo_element_type).unwrap();
+            write_field(output, "rect", area.rect);
+            writeln!(
+                output,
+                " align_x={} align_y={} always_stop={}",
+                area.align_x, area.align_y, area.always_stop
+            )
+            .unwrap();
+        }
+    }
 }
 
 fn dump_commands(

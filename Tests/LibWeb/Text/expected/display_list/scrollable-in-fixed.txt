@@ -8,6 +8,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[33,33 180x100] min_scroll_offset=[0,0] max_scroll_offset=[120,100] is_viewport=false
+
 DisplayList:
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x21]
@@ -15,7 +18,6 @@ CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[20,20 204x1
 FillRect@s0/e0 rect=[20,20 204x154] color=rgb(211, 211, 211)
 FillRoundedRectRing@s0/e0 rect=[20,20 204x154] widths=[2,2,2,2] color=rgb(0, 0, 0)
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s2 rect=[32,32 182x102]
-CompositorScrollNode@s0/e0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[33,33 180x100] min_scroll_offset=[0,0] max_scroll_offset=[120,100] is_viewport=false
 FillRoundedRectRing@s0/e0 rect=[32,32 182x102] widths=[1,1,1,1] color=rgb(0, 0, 255)
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[33,33 300x200]
 FillRect@s2/c0/e0 rect=[33,33 300x200] color=rgb(240, 128, 128)

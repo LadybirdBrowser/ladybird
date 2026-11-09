@@ -5,8 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,2400] is_viewport=true
+
 DisplayList:
-CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,2400] is_viewport=true
 DrawRepeatedTile@s1/e0 dst_rect=[0,0 50x50] clip_rect=[0,0 800x3000] tile_size=[50x50] tile_step=[50x50] scaling_mode=Bilinear inline_clips=[clip=[0,0 800x3000]]
   PaintLinearGradient@s1/e0 rect=[0,0 50x50]
 

@@ -5,8 +5,10 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,20] is_viewport=true
+
 DisplayList:
-CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,20] is_viewport=true
 FillRoundedRectRing@s1/e0 rect=[8,8 106x46] widths=[3,3,3,3] color=rgb(255, 0, 0)
 FillRoundedRectRing@s1/e0 rect=[8,64 104x44] corner_radii=[8x8,8x8,8x8,8x8] widths=[2,2,2,2] color=rgb(0, 0, 255)
 FillRoundedRectRing@s1/e0 rect=[8,118 100x41] widths=[0,0,1,0] color=rgb(0, 128, 0)

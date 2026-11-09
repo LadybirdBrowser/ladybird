@@ -10,21 +10,14 @@ use crate::painting::record::trace::Observer;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
-    ChromeGeometry, PhysicalAxes, ScrollbarColors, maximum_scroll_offset, minimum_scroll_offset,
-    scrollbar_colors_for_paint,
+    ChromeGeometry, ScrollbarColors, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
 };
 use crate::painting::display_list::commands::*;
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::style_queries;
-use crate::painting::visual_context::compositor_scroll_table::{
-    compositor_scroll_node_kind, compositor_scroll_node_record, compositor_snap_container_and_area_records,
-    css_point_to_device_point,
-};
-use libcompositing_rust::visual_context::{
-    CompositorScrollNodeRecord, CompositorSnapAreaRecord, CompositorSnapContainerRecord,
-};
+use crate::painting::visual_context::compositor_scroll_table::css_point_to_device_point;
 use libgfx_rust::{FloatRect, FloatSize};
 
 fn css_size_to_device_size(size: CssPixelSize, device_pixels_per_css_pixel: f64) -> FloatSize {
@@ -46,54 +39,6 @@ fn css_rect_to_device_rect(rect: CssPixelRect, device_pixels_per_css_pixel: f64)
     }
 }
 
-fn compositor_scroll_node_command(record: CompositorScrollNodeRecord) -> CompositorScrollNode {
-    CompositorScrollNode {
-        scrollable_node_id: record.scrollable_node_id,
-        scroll_node_index: record.scroll_node_index,
-        parent_scroll_node_index: record.parent_scroll_node_index,
-        scrollport_rect: record.scrollport_rect,
-        min_scroll_offset: record.min_scroll_offset,
-        max_scroll_offset: record.max_scroll_offset,
-        scroll_node_kind: record.scroll_node_kind,
-        pseudo_element_type: record.pseudo_element_type,
-        is_viewport: record.is_viewport,
-        can_be_wheel_scrolled_horizontally: record.can_be_wheel_scrolled_horizontally,
-        can_be_wheel_scrolled_vertically: record.can_be_wheel_scrolled_vertically,
-        chains_scroll_to_ancestors_horizontally: record.chains_scroll_to_ancestors_horizontally,
-        chains_scroll_to_ancestors_vertically: record.chains_scroll_to_ancestors_vertically,
-        shows_overscroll_effect_horizontally: record.shows_overscroll_effect_horizontally,
-        shows_overscroll_effect_vertically: record.shows_overscroll_effect_vertically,
-    }
-}
-
-fn compositor_snap_container_command(record: CompositorSnapContainerRecord) -> CompositorSnapContainer {
-    CompositorSnapContainer {
-        scroll_node_index: record.scroll_node_index,
-        snapport: record.snapport,
-        min_scroll_offset: record.min_scroll_offset,
-        max_scroll_offset: record.max_scroll_offset,
-        strictness: record.strictness,
-        snaps_x: record.snaps_x,
-        snaps_y: record.snaps_y,
-        horizontal_writing_mode: record.horizontal_writing_mode,
-    }
-}
-
-fn compositor_snap_area_command(
-    scroll_node_index: SpatialNodeIndex,
-    record: CompositorSnapAreaRecord,
-) -> CompositorSnapArea {
-    CompositorSnapArea {
-        scroll_node_index,
-        area_node_id: record.area_node_id,
-        pseudo_element_type: record.pseudo_element_type,
-        rect: record.rect,
-        align_x: record.align_x,
-        align_y: record.align_y,
-        always_stop: record.always_stop,
-    }
-}
-
 impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn has_compositor_scroll_node(&self, paintable: NodeSlotId) -> bool {
         let index = self.data(paintable).own_scroll_node_index;
@@ -103,14 +48,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .binary_search_by_key(&index, |node| node.scroll_node_index)
                 .is_ok()
         })
-    }
-
-    fn wheel_scrollable_axes(&mut self, paintable: NodeSlotId) -> PhysicalAxes {
-        let facts = self.hit_test_facts(paintable);
-        PhysicalAxes {
-            horizontal: facts.could_be_scrolled_horizontally,
-            vertical: facts.could_be_scrolled_vertically,
-        }
     }
 
     fn wheel_hit_test_target_scroll_node_index_for(&mut self, paintable: NodeSlotId) -> SpatialNodeIndex {
@@ -347,27 +284,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .is_some_and(|facts| facts.has_composited_context);
             if !has_composited_context {
                 self.record_main_thread_wheel_event_region(paintable);
-            }
-        } else if let Some(scroll_node_kind) =
-            compositor_scroll_node_kind(self.source, paintable, |slot| self.wheel_scrollable_axes(slot))
-        {
-            let node = compositor_scroll_node_record(
-                self.source,
-                paintable,
-                scroll_node_kind,
-                self.inputs.device_pixels_per_css_pixel,
-                self.inputs.uncaptured.device_viewport_size,
-                |slot| self.wheel_scrollable_axes(slot),
-            );
-            self.recorder
-                .compositor_scroll_node(compositor_scroll_node_command(node));
-            if let Some((container, areas)) = compositor_snap_container_and_area_records(self.source, paintable) {
-                self.recorder
-                    .compositor_snap_container(compositor_snap_container_command(container));
-                for area in areas {
-                    self.recorder
-                        .compositor_snap_area(compositor_snap_area_command(container.scroll_node_index, area));
-                }
             }
         }
         self.record_viewport_scrollbar_state(paintable);
