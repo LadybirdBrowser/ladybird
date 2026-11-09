@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    .row {
+        display: flex;
+    }
+    .wrap {
+        display: flex;
+        flex-flow: column wrap;
+        align-items: center;
+    }
+    .nowrap {
+        display: flex;
+        flex-flow: column nowrap;
+        align-items: center;
+    }
+    img {
+        max-width: 100%;
+    }
+</style>
+<div class="row"><a class="wrap"><img id="wrap" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='730' height='90'%3E%3Crect width='730' height='90' fill='crimson'/%3E%3C/svg%3E"></a></div>
+<div class="row"><a class="nowrap"><img id="nowrap" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='730' height='90'%3E%3Crect width='730' height='90' fill='crimson'/%3E%3C/svg%3E"></a></div>
+<script src="../include.js"></script>
+<script>
+    // A shrink-to-fit column flex container gives an image with max-width: 100% its natural size, whether it wraps
+    // or not.
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            for (const id of ["wrap", "nowrap"]) {
+                const rect = document.getElementById(id).getBoundingClientRect();
+                println(`image in a column ${id} flex container: ${rect.width}x${rect.height}`);
+            }
+            done();
+        });
+    });
+</script>
