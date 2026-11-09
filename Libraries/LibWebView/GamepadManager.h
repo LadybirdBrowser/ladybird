@@ -34,6 +34,7 @@ public:
     void page_did_start_using_gamepads(WebContentPage&);
     void page_closed(WebContentPage&);
     void client_disconnected(WebContentClient&);
+    void client_did_connect_test_endpoint(WebContentClient&);
 
     void play_effect(WebContentClient&, Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&);
     void stop_effects(WebContentClient&, Web::Gamepad::GamepadHandle);
