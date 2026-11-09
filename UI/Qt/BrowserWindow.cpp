@@ -57,6 +57,7 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QShortcut>
+#include <QSurfaceFormat>
 #include <QTabBar>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -364,6 +365,19 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setWindowFlag(Qt::FramelessWindowHint, uses_client_side_decorations());
 #endif
     setAttribute(Qt::WA_OpaquePaintEvent);
+#if defined(AK_OS_MACOS)
+    // NB: Qt would otherwise keep up to three window-sized surfaces for this window, and copy each whole surface from
+    //     the previous one, while the page's own layer covers nearly all of them. With one surface, Qt repaints what
+    //     the window server is reading, so the chrome above the page is shown from snapshots of the surface.
+    setAttribute(Qt::WA_NativeWindow);
+    auto surface_format = windowHandle()->format();
+    surface_format.setSwapBehavior(QSurfaceFormat::SingleBuffer);
+    windowHandle()->setFormat(surface_format);
+    m_window_chrome_snapshots.emplace(*this, [this] {
+        auto* tab = current_tab();
+        return tab && tab->view().isVisible() ? tab->view().mapTo(this, QPoint {}).y() : 0;
+    });
+#endif
     setWindowIcon(app_icon(is_private));
     qApp->installEventFilter(this);
     update_window_border();
