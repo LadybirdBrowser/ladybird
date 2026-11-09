@@ -83,3 +83,18 @@ test("a var or function declaration later in the function does not keep a functi
     }
     expect(laterBindingsKeepTheirPlaces()).toEqual(["function", 2]);
 });
+
+test("a function expression's own name does not keep a function of that name from hoisting", () => {
+    var depth = 0;
+    var f = function x() {
+        var before = typeof x;
+        if (++depth > 1) return "called the function expression again";
+        {
+            function x() {
+                return "block";
+            }
+        }
+        return [before, x()];
+    };
+    expect(f()).toEqual(["undefined", "block"]);
+});
