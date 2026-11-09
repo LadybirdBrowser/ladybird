@@ -52,6 +52,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::ir::value::OBJECT_TAG;
+use crate::ir::value::TRUE;
 use crate::ir::value::UNDEFINED;
 use crate::ir::value::tag;
 use crate::snapshot::CellId;
@@ -194,6 +195,40 @@ impl GraphBuilder<'_> {
             }
             _ => return Ok(false),
         }
+        Ok(true)
+    }
+
+    /// Builds `dst = ResolveGlobalBinding` as true when the instruction's
+    /// global variable cache found the variable, which stays: a binding of
+    /// the global declarative environment for good, and a property of the
+    /// global object while the object keeps its shape. Returns false, having
+    /// built nothing, if it cannot speculate.
+    pub(super) fn try_build_resolve_global_binding(
+        &mut self,
+        dst: Operand,
+        cache: u32,
+    ) -> Result<bool, CompileFailure> {
+        let Some((globals, global)) = self.global_cache(cache) else {
+            return Ok(false);
+        };
+        if let GlobalCacheSnapshot::Property {
+            shape,
+            dictionary_generation,
+            ..
+        } = global
+        {
+            if !self.may_speculate(ExitKind::BadShape) {
+                return Ok(false);
+            }
+            let object = self.global_object(globals);
+            let shape = ShapeCheck {
+                shape,
+                dictionary_generation,
+            };
+            self.check_shapes(object, &[shape]);
+        }
+        let found = self.constant(TRUE);
+        self.write(dst, found)?;
         Ok(true)
     }
 

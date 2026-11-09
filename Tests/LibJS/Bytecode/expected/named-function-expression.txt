@@ -1,20 +1,32 @@
-$12b60500 named-function-expression.js:4:1
-  Registers: 8
-  Blocks:    1
+$72cc050b named-function-expression.js:4:1
+  Registers: 9
+  Blocks:    4
   Constants:
     [0] = Undefined
+    [1] = Null
 
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] Mov dst:reg5, src:Undefined
-  [  20] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  38] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
-  [  48] NewFunction dst:reg6, shared_function_data_index:0
-  [  60] InitializeLexicalBinding `Oops`, src:reg6
-  [  78] SetLexicalEnvironment environment:reg4
-  [  80] SetGlobal `Oops`, src:reg6
-  [  90] Mov dst:reg5, src:reg6
-  [  a0] GetGlobal value_feedback:0, dst:reg6, `Oops`
-  [  b0] GetById value_feedback:1, dst:reg5, base:reg6, `x`
-  [  c8] End value:reg5
+  [  20] ResolveGlobalBinding dst:reg6, `Oops`
+  [  30] CreateLexicalEnvironment dst:reg8, parent:reg4, capacity:1, is_catch_environment:false
+  [  48] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
+  [  58] NewFunction dst:reg7, shared_function_data_index:0
+  [  70] InitializeLexicalBinding `Oops`, src:reg7
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] JumpIf condition:reg6, true_target:block1, false_target:block2
+
+block1:
+  [  a0] SetGlobal `Oops`, src:reg7
+  [  b0] Jump target:block3
+
+block2:
+  [  b8] SetResolvedBinding environment:Null, `Oops`, src:reg7
+  [  c8] Jump target:block3
+
+block3:
+  [  d0] Mov dst:reg5, src:reg7
+  [  e0] GetGlobal value_feedback:0, dst:reg6, `Oops`
+  [  f0] GetById value_feedback:1, dst:reg5, base:reg6, `x`
+  [ 108] End value:reg5

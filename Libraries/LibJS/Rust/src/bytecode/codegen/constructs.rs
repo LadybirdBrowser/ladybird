@@ -47,6 +47,7 @@ use super::stream::Handler;
 use super::stream::LoopKind;
 use super::stream::OpenIterator;
 use super::stream::ScopeEnvironment;
+use super::stream::TargetBinding;
 use super::stream::ValKind;
 use super::sweep::declaration_kind_of_mark;
 use super::sweep::is_anonymous_function_definition;
@@ -1580,7 +1581,7 @@ impl Generator<'_> {
             }
             target_tag if target_tag == tag::IDENT || (tag::IDENT_MARKED..tag::MEMBER_MARKED).contains(&target_tag) => {
                 let ident = self.identifier_of(Name(tree.node_a(target)));
-                self.target_of_identifier(ident);
+                self.target_of_identifier(ident, TargetBinding::MightAppear);
             }
             _ => {
                 self.sweep_rows(first_row, target.index() + 1)?;

@@ -2853,3 +2853,71 @@ fn array_length_specialization_requires_monomorphic_receivers_and_exit_gates() {
         assert!(text.contains("CallSlowPath"), "{text}");
     }
 }
+
+mod globals {
+    use super::*;
+    use crate::snapshot::CellId;
+    use crate::snapshot::GlobalCacheSnapshot;
+    use crate::snapshot::GlobalValueSnapshot;
+    use crate::snapshot::GlobalsSnapshot;
+
+    #[test]
+    fn global_variables_the_cache_found_resolve_without_the_interpreter() {
+        let program = assemble(|_| {
+            vec![
+                Instruction::Enter,
+                Instruction::ResolveGlobalBinding {
+                    dst: r(5),
+                    identifier: crate::bytecode::IdentifierTableIndex(0),
+                    cache: 0,
+                },
+                Instruction::Return { value: r(5) },
+            ]
+        });
+        let build = |cache: Option<GlobalCacheSnapshot>| {
+            let mut snapshot = snapshot_for(&program, test_layout());
+            snapshot.runtime.heap_region_offset_mask = (1 << 48) - 1;
+            snapshot.executables[0].globals = Some(GlobalsSnapshot {
+                object: CellId(0x1000),
+                declarative_environment: CellId(0x2000),
+                environment_serial: 1,
+                caches: vec![cache],
+            });
+            dump(&optimized_graph(&snapshot), &test_layout())
+        };
+
+        // A binding of the global declarative environment stays.
+        let binding = GlobalCacheSnapshot::Binding {
+            index: 0,
+            mutable: true,
+            assigned: true,
+            value: None,
+        };
+        let text = build(Some(binding));
+        assert!(!text.contains("ResolveGlobalBinding"), "{text}");
+        assert!(!text.contains("CheckShape"), "{text}");
+
+        // A property of the global object stays while the object keeps its shape.
+        let property = GlobalCacheSnapshot::Property {
+            shape: CellId(0x3000),
+            dictionary_generation: None,
+            offset: 0,
+            writes_data_property: true,
+            assigned: true,
+            value: GlobalValueSnapshot {
+                bits: crate::ir::value::UNDEFINED,
+                cell: None,
+                intrinsic: None,
+                has_instance: None,
+                typed_array: None,
+            },
+        };
+        let text = build(Some(property));
+        assert!(text.contains("CheckShape"), "{text}");
+        assert!(!text.contains("ResolveGlobalBinding"), "{text}");
+
+        // A variable the cache did not find is the interpreter's to resolve.
+        let text = build(None);
+        assert!(text.contains("CallSlowPath ResolveGlobalBinding"), "{text}");
+    }
+}

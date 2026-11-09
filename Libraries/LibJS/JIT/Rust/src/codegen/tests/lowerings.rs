@@ -2506,6 +2506,20 @@ fn global_variables_the_snapshot_knows() {
     globals.named_properties[2] = value::NULL;
     let result = run_with_global_cache(&globals, &get, &[], unassigned, 99);
     assert_eq!((result.status, result.value), (RETURNED, object));
+
+    // A variable the cache found resolves, even a binding that is still
+    // uninitialized, and a property while the global object keeps its shape.
+    let resolve = Instruction::ResolveGlobalBinding {
+        dst: r(5),
+        identifier: crate::bytecode::IdentifierTableIndex(0),
+        cache: 1,
+    };
+    let result = run_with_global_cache(&globals, &resolve, &[], binding(1, true, None), 99);
+    assert_eq!((result.status, result.value), (RETURNED, value::TRUE));
+    let result = run_with_global_cache(&globals, &resolve, &[], property(shape, 2, value::int32(12)), 99);
+    assert_eq!((result.status, result.value), (RETURNED, value::TRUE));
+    let result = run_with_global_cache(&globals, &resolve, &[], property(shape + 8, 2, value::int32(12)), 99);
+    assert_eq!(result.status, EXITED);
 }
 
 #[test]

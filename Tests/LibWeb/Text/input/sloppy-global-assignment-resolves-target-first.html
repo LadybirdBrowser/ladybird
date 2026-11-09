@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    function runScript(source) {
+        const script = document.createElement("script");
+        script.textContent = source;
+        document.head.append(script);
+    }
+
+    test(() => {
+        assignedLet = (runScript("let assignedLet = 1;"), 2);
+        println(`assignment, let: ${assignedLet} ${globalThis.assignedLet}`);
+
+        try {
+            assignedConst = (runScript("const assignedConst = 1;"), 2);
+            println(`assignment, const: ${assignedConst} ${globalThis.assignedConst}`);
+        } catch (error) {
+            println(`assignment, const: ${error.name}`);
+        }
+
+        ({ a: objectPatternTarget } = {
+            get a() {
+                runScript("let objectPatternTarget = 1;");
+                return 2;
+            },
+        });
+        println(`object pattern: ${objectPatternTarget} ${globalThis.objectPatternTarget}`);
+
+        [arrayPatternTarget] = {
+            [Symbol.iterator]() {
+                return {
+                    next() {
+                        runScript("let arrayPatternTarget = 1;");
+                        return { value: 2, done: false };
+                    },
+                };
+            },
+        };
+        println(`array pattern: ${arrayPatternTarget} ${globalThis.arrayPatternTarget}`);
+    });
+</script>

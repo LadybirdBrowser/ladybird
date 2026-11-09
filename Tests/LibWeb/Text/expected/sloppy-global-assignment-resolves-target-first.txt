@@ -1,0 +1,4 @@
+assignment, let: 1 2
+assignment, const: 1 2
+object pattern: 1 2
+array pattern: 1 2

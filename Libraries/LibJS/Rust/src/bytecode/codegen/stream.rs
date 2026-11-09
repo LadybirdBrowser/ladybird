@@ -88,6 +88,15 @@ pub enum ValKind {
     BuiltinCallee,
 }
 
+/// Whether the binding of an identifier that gets written can come into being after the reference to it is made.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum TargetBinding {
+    /// Code that can make one runs in between, as for `x = value`.
+    MightAppear,
+    /// It is read or declared first, as for `x += value` and `var x = value`.
+    Known,
+}
+
 /// An entry of the stack of evaluated expressions.
 #[derive(Clone, Copy)]
 pub struct Val {
@@ -2538,7 +2547,8 @@ impl Generator<'_> {
 
     // --- Targets ---
 
-    pub(super) fn target_of_identifier(&mut self, ident: Identifier) {
+    /// `ident` as a reference that gets written.
+    pub(super) fn target_of_identifier(&mut self, ident: Identifier, binding: TargetBinding) {
         let first_temporary = self.next_temporary();
         let is_const = ident.declaration_kind == Some(DeclarationKind::Const);
         if ident.is_local() {
@@ -2560,7 +2570,7 @@ impl Generator<'_> {
         // NB: Unless it is known where the binding is, the reference is what it is before the value gets evaluated.
         let mut resolved = Operand::invalid();
         let mut cache = u32::MAX;
-        if !ident.is_global || self.strict {
+        if !ident.is_global || self.strict || binding == TargetBinding::MightAppear {
             let identifier = self.intern_identifier(ident.name);
             if self.environment_coordinate_for_identifier(identifier).is_none() {
                 resolved = self.temporary();
@@ -3589,16 +3599,19 @@ impl Generator<'_> {
     pub(super) fn target_of_declaration(&mut self, ident: Identifier) {
         // NB: The object of a `with` can have a property of the name of a `var`, which is what gets written then.
         if self.context.scope.is_in_with() && ident.declaration_kind == Some(DeclarationKind::Var) {
-            self.target_of_identifier(Identifier {
-                is_global: false,
-                ..ident
-            });
+            self.target_of_identifier(
+                Identifier {
+                    is_global: false,
+                    ..ident
+                },
+                TargetBinding::Known,
+            );
             return;
         }
         // NB: What a `var` of a program is, is as open as for any other reference.
         if self.context.scope.is_program() && ident.declaration_kind == Some(DeclarationKind::Var) && !ident.is_local()
         {
-            self.target_of_identifier(ident);
+            self.target_of_identifier(ident, TargetBinding::Known);
             return;
         }
         let first_temporary = self.next_temporary();
