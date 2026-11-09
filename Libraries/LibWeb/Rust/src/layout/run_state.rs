@@ -222,6 +222,8 @@ pub(crate) struct RunState {
     /// What the run found out for the host so far, which the pass the run is handed notes into.
     host_findings: HostFindingsSink,
     fragments: Option<fragment_tree::RunFragmentBuilder>,
+    /// For the run of a fragmentainer, what it found out so far about breaking in it.
+    fragmentainer_outcome: RefCell<super::fragmentation::FragmentainerOutcome>,
 }
 
 /// Where a box is placed: the offset of its content box in the containing block it is placed in.
@@ -417,12 +419,18 @@ impl RunState {
             root_anchor_resolved_values,
             host_findings: HostFindingsSink::default(),
             fragments,
+            fragmentainer_outcome: RefCell::default(),
         };
         run(&state, pass.for_run(root, root_containing_block, &state.host_findings))
     }
 
     pub(crate) fn fragments(&self) -> Option<&fragment_tree::RunFragmentBuilder> {
         self.fragments.as_ref()
+    }
+
+    /// Where the run of a fragmentainer keeps what it found out so far about breaking in it.
+    pub(crate) fn fragmentainer_outcome(&self) -> &RefCell<super::fragmentation::FragmentainerOutcome> {
+        &self.fragmentainer_outcome
     }
 
     /// What this run found out besides its result, which the result carries to the run that takes it in.
