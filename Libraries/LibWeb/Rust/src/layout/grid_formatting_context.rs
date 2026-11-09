@@ -2367,22 +2367,19 @@ impl<'pass> GridFormattingContext<'pass> {
     /// The content alignment in the given axis, where Start and End are the sides the tracks start and end at.
     fn content_alignment(&self, axis: Axis) -> ContentAlignment {
         let style = *self.container_style;
-        let (keyword, _) = self.select_grid_axis(
+        let (keyword, safety) = self.select_grid_axis(
             axis,
             ContentKeyword::justify_content_of(style),
             ContentKeyword::align_content_of(style),
         );
         let line_left_is_at_start = self.line_left_is_left_or_top(axis) != self.axis_is_reversed(axis);
-        keyword.resolve(
-            OverflowSafety::Default,
-            AxisDirections::of(true, Some(line_left_is_at_start)),
-        )
+        keyword.resolve(safety, AxisDirections::of(true, Some(line_left_is_at_start)))
     }
 
     /// The offset of the tracks from the content edge they start at, in an alignment container of the given size.
     fn content_start_offset(&self, axis: Axis, container_size: CssPixels) -> CssPixels {
         // NB: CSS Align's automatic overflow alignment is unsafe for grid content alignment, so negative free space
-        //     stays.
+        //     stays unless the alignment is safe.
         self.content_alignment(axis)
             .offset(container_size - self.track_sum(axis), OverflowSafety::Unsafe)
     }
