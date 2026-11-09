@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0 }
+.c { position: absolute; top: 0; width: 100px; height: 100px; background: lightgray; }
+.t { position: absolute; left: 10px; top: 120px; width: 20px; height: 20px; background: green; }
+</style>
+<script src="../include.js"></script>
+<div class="c" style="left: 0; overflow-x: clip; overflow-y: visible"><div class="t" id="per_axis"></div></div>
+<div class="c" style="left: 150px; overflow: clip; overflow-clip-margin: 50px"><div class="t" id="clip_margin"></div></div>
+<div class="c" style="left: 300px; overflow: clip"><div class="t" id="control_clipped"></div></div>
+<div class="c" style="left: 450px"><div class="t" id="control_visible"></div></div>
+<script>
+    asyncTest(done => {
+        // Each target sits 20px below its 100px tall container. Only the third container clips it away: the first
+        // clips the horizontal axis only, and the second's clip edge extends 50px past its padding box.
+        const ids = ["per_axis", "clip_margin", "control_clipped", "control_visible"];
+        const lines = new Map();
+        const observer = new IntersectionObserver(entries => {
+            for (const entry of entries) {
+                const r = entry.intersectionRect;
+                lines.set(entry.target.id, `${entry.target.id}: ratio=${entry.intersectionRatio} intersectionRect=(${r.x},${r.y},${r.width},${r.height})`);
+            }
+            if (lines.size < ids.length)
+                return;
+            for (const id of ids)
+                println(lines.get(id));
+            observer.disconnect();
+            done();
+        });
+        for (const id of ids)
+            observer.observe(document.getElementById(id));
+    });
+</script>

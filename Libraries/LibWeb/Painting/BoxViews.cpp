@@ -690,6 +690,14 @@ CSSPixelRect rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect
     return result;
 }
 
+CSSPixelRect visible_rect_in_containing_blocks(Layout::Node const& node, CSSPixelRect const& rect, Layout::RustFFI::ViewportSpace space)
+{
+    auto mapping = viewport_mapping(node.document());
+    CSSPixelRect visible;
+    Layout::RustFFI::render_state_visible_rect_in_containing_blocks(node.document_host(), committed_row_slot(node), mapping, rect, space, &visible);
+    return visible;
+}
+
 CSSPixelPoint point_to_local(Layout::Node const& node, CSSPixelPoint point, Layout::RustFFI::ViewportSpace space)
 {
     if (!has_committed_box(node))

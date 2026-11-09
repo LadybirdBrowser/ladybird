@@ -875,11 +875,11 @@ fn used_overflow(
     (overflow_x, overflow_y)
 }
 
-pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId, pixel_ratio: f64) -> Option<ClipData> {
+/// The rect a box's overflow clips its content to, unbounded along an axis it does not clip.
+pub(crate) fn overflow_clip_rect(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     use crate::css::css_enums::overflow;
-    let node = slot;
-    let style = layout_arena.node_style_if_live(node)?;
-    let (overflow_x, overflow_y) = used_overflow(layout_arena, node, style);
+    let style = layout_arena.node_style_if_live(slot)?;
+    let (overflow_x, overflow_y) = used_overflow(layout_arena, slot, style);
 
     // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
     // 'clip'
@@ -905,7 +905,12 @@ pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId,
         overflow::CLIP => (overflow_clip_edge.y, overflow_clip_edge.y + overflow_clip_edge.height),
         _ => (padding_box.y, padding_box.y + padding_box.height),
     };
-    let clip_rect = CssPixelRect::new(left, top, right - left, bottom - top);
+    Some(CssPixelRect::new(left, top, right - left, bottom - top))
+}
+
+pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId, pixel_ratio: f64) -> Option<ClipData> {
+    let clip_rect = overflow_clip_rect(layout_arena, slot)?;
+    let style = layout_arena.node_style_if_live(slot)?;
 
     // https://drafts.csswg.org/css-overflow-3/#corner-clipping
     // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by 'overflow' can be
@@ -922,7 +927,7 @@ pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId,
     // INTEROP: A single-line text field clips its contents to its padding box without rounding the corners, so that
     //         text selected at the edge of a short field with rounded corners keeps its square highlight.
     let is_text_input = layout_arena.node_kind_if_live(slot) == Some(crate::layout::node_data::NodeKind::TextInputBox);
-    let radii = if overflow_x != overflow::VISIBLE && overflow_y != overflow::VISIBLE && !is_text_input {
+    let radii = if overflow_clips_both_axes(layout_arena, slot) && !is_text_input {
         padding_edge_border_radii(style, layout_arena, slot)
     } else {
         BorderRadii::default()

@@ -733,6 +733,24 @@ pub struct FfiEmptyLineCaretRect {
     pub style_source: NodeSlotId,
 }
 
+/// The part of `rect`, in the viewport, that the content clips of the containing blocks of the box in `slot` leave.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_visible_rect_in_containing_blocks(
+    host: &DocumentHost,
+    slot: NodeSlotId,
+    viewport_mapping: crate::painting::viewport_mapping::FfiViewportMapping<'_>,
+    rect: FfiCssPixelRect,
+    space: crate::painting::viewport_mapping::ViewportSpace,
+    out: &mut FfiCssPixelRect,
+) {
+    let viewport_mapping = viewport_mapping.mapping();
+    *out = host.read_rows(node_read(), false, |rows| {
+        let visible =
+            viewport_mapping.visible_rect_in_ancestor(rows, slot, rect.into(), NodeSlotId::INVALID, space, |clip| clip);
+        visible.into()
+    });
+}
+
 /// Whether a row has ever been given a style with `content-visibility: auto`, which is when a
 /// layout commit collects the boxes with it. The host knows without asking right after the round that committed it.
 #[unsafe(no_mangle)]

@@ -65,6 +65,8 @@ WEB_API bool is_paintable_with_lines(Layout::Node const&);
 WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&);
 WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&);
 WEB_API CSSPixelRect rect_to_viewport(Layout::Node const&, CSSPixelRect const&, Layout::RustFFI::ViewportSpace);
+// The part of a rect in the viewport that the content clips of the box's containing blocks leave.
+WEB_API CSSPixelRect visible_rect_in_containing_blocks(Layout::Node const&, CSSPixelRect const&, Layout::RustFFI::ViewportSpace);
 // The point mapped into the space the box is painted in, past any clips, or the point itself where the box's transforms
 // hide it.
 WEB_API CSSPixelPoint point_to_local(Layout::Node const&, CSSPixelPoint, Layout::RustFFI::ViewportSpace);

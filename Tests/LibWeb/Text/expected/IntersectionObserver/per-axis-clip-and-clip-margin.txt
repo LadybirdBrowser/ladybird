@@ -1,0 +1,4 @@
+per_axis: ratio=1 intersectionRect=(10,120,20,20)
+clip_margin: ratio=1 intersectionRect=(160,120,20,20)
+control_clipped: ratio=0 intersectionRect=(0,0,0,0)
+control_visible: ratio=1 intersectionRect=(460,120,20,20)
