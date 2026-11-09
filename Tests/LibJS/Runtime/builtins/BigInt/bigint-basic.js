@@ -203,6 +203,24 @@ test("constant right shift by a huge count", () => {
     expect(5n >> 18446744073709551615n).toBe(0n);
 });
 
+test("shifts and powers with huge counts at runtime", () => {
+    const value = x => x;
+    expect(value(5n) >> value(2147483648n)).toBe(0n);
+    expect(value(-5n) >> value(2147483648n)).toBe(-1n);
+    expect(value(5n) << value(-2147483648n)).toBe(0n);
+    expect(value(5n) >> value(4294967296n)).toBe(0n);
+    expect(value(-5n) >> value(2n ** 70n)).toBe(-1n);
+    expect(value(0n) << value(2n ** 40n)).toBe(0n);
+    expect(value(-9n) >> value(1n)).toBe(-5n);
+    expect(value(-1n) ** value(2147483649n)).toBe(-1n);
+    expect(value(-1n) ** value(2n ** 70n)).toBe(1n);
+    expect(value(1n) ** value(4294967296n)).toBe(1n);
+    expect(value(0n) ** value(2147483648n)).toBe(0n);
+    expect(value(0n) ** value(0n)).toBe(1n);
+    expect(() => value(1n) << value(2n ** 33n)).toThrow(RangeError);
+    expect(() => value(2n) ** value(2n ** 33n)).toThrow(RangeError);
+});
+
 describe("errors", () => {
     test("conversion to number", () => {
         expect(() => {

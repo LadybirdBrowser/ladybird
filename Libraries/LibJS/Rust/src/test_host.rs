@@ -39,6 +39,18 @@ pub fn exponentiate(_base: f64, _exponent: f64) -> f64 {
     unimplemented!("no cargo test folds constants")
 }
 
+pub fn bigint_exponentiate(_base: &BigInt, _exponent: &BigInt) -> Option<BigInt> {
+    unimplemented!("no cargo test folds constants")
+}
+
+pub fn bigint_left_shift(_x: &BigInt, _y: &BigInt) -> Option<BigInt> {
+    unimplemented!("no cargo test folds constants")
+}
+
+pub fn bigint_signed_right_shift(_x: &BigInt, _y: &BigInt) -> Option<BigInt> {
+    unimplemented!("no cargo test folds constants")
+}
+
 #[unsafe(no_mangle)]
 extern "C" fn unicode_code_point_has_space_separator_general_category(code_point: u32) -> bool {
     matches!(code_point, 0x1680 | 0x2000..=0x200a | 0x202f | 0x205f | 0x3000)
