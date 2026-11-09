@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        position: relative;
+        display: flex;
+        width: 100px;
+        height: 100px;
+    }
+    .item {
+        width: 30px;
+        height: 30px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const layouts = [
+            ["horizontal-tb", "rtl", "column"],
+            ["vertical-lr", "rtl", "column"],
+            ["horizontal-tb", "ltr", "column"],
+        ];
+        const alignments = ["start", "end", "flex-start", "flex-end"];
+        for (const [writingMode, direction, flexDirection] of layouts) {
+            for (const flexWrap of ["wrap", "wrap-reverse"]) {
+                const offsets = [];
+                for (const alignment of alignments) {
+                    const container = document.createElement("div");
+                    container.className = "container";
+                    Object.assign(container.style, { writingMode, direction, flexDirection, flexWrap, alignContent: alignment });
+                    for (let i = 0; i < 6; ++i) {
+                        const item = document.createElement("div");
+                        item.className = "item";
+                        container.appendChild(item);
+                    }
+                    document.body.appendChild(container);
+                    const first = container.firstChild, last = container.lastChild;
+                    offsets.push(`${alignment}=${first.offsetLeft},${first.offsetTop}/${last.offsetLeft},${last.offsetTop}`);
+                    container.remove();
+                }
+                println(`${writingMode} ${direction} ${flexDirection} ${flexWrap}: ${offsets.join(" ")}`);
+            }
+        }
+    });
+</script>

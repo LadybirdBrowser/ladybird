@@ -1,0 +1,6 @@
+horizontal-tb rtl column wrap: start=70,0/40,60 end=30,0/0,60 flex-start=70,0/40,60 flex-end=30,0/0,60
+horizontal-tb rtl column wrap-reverse: start=40,0/70,60 end=0,0/30,60 flex-start=0,0/30,60 flex-end=40,0/70,60
+vertical-lr rtl column wrap: start=0,70/60,40 end=0,30/60,0 flex-start=0,70/60,40 flex-end=0,30/60,0
+vertical-lr rtl column wrap-reverse: start=0,40/60,70 end=0,0/60,30 flex-start=0,0/60,30 flex-end=0,40/60,70
+horizontal-tb ltr column wrap: start=0,0/30,60 end=40,0/70,60 flex-start=0,0/30,60 flex-end=40,0/70,60
+horizontal-tb ltr column wrap-reverse: start=30,0/0,60 end=70,0/40,60 flex-start=70,0/40,60 flex-end=30,0/0,60
