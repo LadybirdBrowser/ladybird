@@ -927,25 +927,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     return EventResult::Handled;
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
-static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
-{
-    // If the event’s dispatch flag is set,
-    // FIXME: Is this guaranteed to be dispatched?
-
-    // return the x-coordinate of the position where the event occurred,
-    // ignoring the transforms that apply to the element and its ancestors,
-    CSSPixelPoint offset_position = position;
-    offset_position = Painting::inverse_transform_point(layout_node, position);
-
-    // relative to the origin of the padding edge of the target node
-    auto const top_left_of_layout_node = Painting::box_type_agnostic_position(layout_node);
-    auto offset = offset_position - top_left_of_layout_node;
-
-    // and terminate these steps.
-    return offset;
-}
-
 struct VisualViewportPanAxes {
     bool x { false };
     bool y { false };
@@ -1307,7 +1288,7 @@ EventResult EventHandler::dispatch_wheel_event(Layout::BegunRead const& read, La
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto const* offset_layout_node = Painting::has_committed_box(*layout_node) ? layout_node : &hit_layout_node;
     auto scroll_offset = document->navigable()->viewport_scroll_offset();
-    auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_layout_node);
+    auto offset = Painting::mouse_event_offset(*offset_layout_node, visual_viewport_position.translated(scroll_offset));
     auto cancelability = is_cancelable ? UIEvents::WheelEventIsCancelable::Yes : UIEvents::WheelEventIsCancelable::No;
     auto event = UIEvents::WheelEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, wheel_tick_120ths_x, wheel_tick_120ths_y, button, buttons, modifiers, cancelability).release_value_but_fixme_should_propagate_errors();
     return node->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -2506,7 +2487,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
 
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto scroll_offset = document.navigable()->viewport_scroll_offset();
-    auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *target_layout_node);
+    auto offset = Painting::mouse_event_offset(*target_layout_node, visual_viewport_position.translated(scroll_offset));
 
     auto was_dragging = should_ignore_device_input_event();
     ScopeGuard update_keyboard_routing = [&] {
@@ -3439,7 +3420,7 @@ EventHandler::MouseEventCoordinates EventHandler::compute_mouse_event_coordinate
 {
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), layout_node);
+    auto offset = Painting::mouse_event_offset(layout_node, visual_viewport_position.translated(scroll_offset));
     return { page_offset, visual_viewport_position, viewport_position, offset };
 }
 

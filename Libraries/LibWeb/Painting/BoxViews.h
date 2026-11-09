@@ -69,6 +69,7 @@ WEB_API CSSPixelRect rect_to_viewport(Layout::Node const&, CSSPixelRect const&, 
 // it out.
 WEB_API CSSPixelPoint point_to_local(Layout::Node const&, CSSPixelPoint, Layout::RustFFI::ViewportSpace);
 WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint);
+WEB_API CSSPixelPoint mouse_event_offset(Layout::Node const&, CSSPixelPoint page_position);
 // The scroll offset at which the box's content is drawn, hit tested and measured: rounded to whole device pixels where
 // nothing but identity transforms lies above the box.
 WEB_API CSSPixelPoint presented_scroll_offset(Layout::Node const&, CSSPixelPoint scroll_offset);

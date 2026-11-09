@@ -714,6 +714,14 @@ CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint po
     return (result / pixel_ratio).to_type<CSSPixels>();
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
+CSSPixelPoint mouse_event_offset(Layout::Node const& node, CSSPixelPoint page_position)
+{
+    // The position where the event occurred, ignoring the transforms that apply to the element and its ancestors,
+    // relative to the origin of the padding edge of the target node.
+    return inverse_transform_point(node, page_position) - box_type_agnostic_position(node);
+}
+
 CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint scroll_offset)
 {
     auto const& document = node.document();

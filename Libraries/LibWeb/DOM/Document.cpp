@@ -3504,28 +3504,6 @@ static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hov
     return {};
 }
 
-// https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
-static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
-{
-    auto inverse_transform_point = [](Layout::Node const& layout_node, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
-        auto& document = layout_node.document();
-        if (!document.has_committed_viewport_box())
-            return {};
-        auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-        auto visual_context_tree = document.visual_context_tree();
-        auto transformed_position = visual_context_tree.inverse_transform_point(
-            Painting::accumulated_visual_context(layout_node).spatial, position.to_type<float>() * pixel_ratio);
-        return (transformed_position / pixel_ratio).to_type<CSSPixels>();
-    };
-
-    CSSPixelPoint offset_position = position;
-    if (auto transformed_position = inverse_transform_point(layout_node, position); transformed_position.has_value())
-        offset_position = *transformed_position;
-
-    auto const top_left_of_layout_node = Painting::box_type_agnostic_position(layout_node);
-    return offset_position - top_left_of_layout_node;
-}
-
 static CSSPixelPoint hover_event_offset_for_target(Layout::BegunRead const& read, Optional<HoverEventData> const& hover_event_data, Node const& target)
 {
     if (!hover_event_data.has_value())
@@ -3541,7 +3519,7 @@ static CSSPixelPoint hover_event_offset_for_target(Layout::BegunRead const& read
     if (!Painting::has_committed_box(*layout_node))
         return hover_event_data->viewport_position;
 
-    return compute_mouse_event_offset(hover_event_data->page_offset, *layout_node);
+    return Painting::mouse_event_offset(*layout_node, hover_event_data->page_offset);
 }
 
 static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optional<HoverEventData> const& hover_event_data)
