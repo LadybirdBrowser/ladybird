@@ -10,8 +10,7 @@
 
 namespace Web::HTML {
 
-// FIXME: This limit is a guess. It has not been measured against what real sites compile to.
-static constexpr size_t compiled_script_cache_size_limit = 128 * MiB;
+static constexpr size_t compiled_script_cache_size_limit = 16 * MiB;
 
 CompiledScriptCache& CompiledScriptCache::the()
 {
@@ -35,11 +34,13 @@ Optional<JS::CompiledProgram> CompiledScriptCache::find(CompiledScriptCacheKey c
 
 void CompiledScriptCache::store(CompiledScriptCacheKey key, Utf16String source_text, JS::CompiledProgram const& program)
 {
-    if (auto entry = m_entries.get(key); entry.has_value())
+    if (auto entry = m_entries.take(key); entry.has_value())
         release(*entry);
 
-    program.set_retains_compiled_functions(true);
-    m_entries.set(move(key), Entry { move(source_text), program.clone(), ++m_next_touch_serial });
+    if (program.memory_size() <= compiled_script_cache_size_limit) {
+        program.set_retains_compiled_functions(true);
+        m_entries.set(move(key), Entry { move(source_text), program.clone(), ++m_next_touch_serial });
+    }
     evict_until_within_limit();
 }
 
