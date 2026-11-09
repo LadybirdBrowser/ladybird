@@ -22,7 +22,7 @@ use crate::host::{
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
 use libcompositing_rust::scrolling::{
-    AccumulatedVisualContextTree, CompositorContextId, DisplayList, ScrollStateSnapshot,
+    AccumulatedVisualContextTree, CompositorContextId, DisplayList, KeyboardScrollState, ScrollStateSnapshot,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{FloatPoint, IntSize};
@@ -45,6 +45,16 @@ pub enum ContextOwnerCheckResult {
     OwnedByClient,
     ContextUnavailable,
     ConflictingOwner,
+}
+
+// What became of a visual context tree that came with the scroll state pairing with it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum VisualContextTreeUpdateResult {
+    TreeReplaced,
+    // The tree does not fit the installed display list, so only its scroll state was taken.
+    TreeDropped,
+    InvalidScrollState,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -228,19 +238,24 @@ impl CompositorCore {
             .install_display_list_update(display_list, visual_context_tree, scroll_state_snapshot, now)
     }
 
-    // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
+    // Returns false for a tree that does not fit the installed display list, of which only the scroll state is taken.
     pub fn update_visual_context_tree(
         &self,
         context_id: CompositorContextId,
         visual_context_tree: AccumulatedVisualContextTree,
+        scroll_state_snapshot: ScrollStateSnapshot,
+        keyboard_scroll_state: KeyboardScrollState,
         now: MonotonicTime,
     ) -> bool {
         let _entered = self.enter();
 
         let context = self.context_if_present(context_id).expect("context exists");
-        context
-            .borrow_mut()
-            .update_visual_context_tree(visual_context_tree, now)
+        context.borrow_mut().update_visual_context_tree(
+            visual_context_tree,
+            scroll_state_snapshot,
+            keyboard_scroll_state,
+            now,
+        )
     }
 
     pub fn needs_animation_frames(&self, context_id: CompositorContextId, now: MonotonicTime) -> bool {

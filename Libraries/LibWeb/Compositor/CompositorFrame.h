@@ -35,13 +35,15 @@ struct CompositorFrame {
         ByteBuffer encoded_scroll_state;
     };
 
-    // A new visual context tree for the display list the compositor already has.
+    // A new visual context tree for the installed display list, with its resources, scroll snapshot and keyboard scroll state.
     struct VisualContextTreeUpdate {
         Compositing::AccumulatedVisualContextTree visual_context_tree;
         Compositing::DisplayListResourceTransaction resource_transaction;
+        ByteBuffer encoded_scroll_state;
+        Compositing::KeyboardScrollState keyboard_scroll_state;
     };
 
-    // The scroll state of the display list the compositor already has.
+    // Updated scroll offsets and keyboard scroll state for the installed display list and visual context tree.
     struct ScrollStateUpdate {
         ByteBuffer encoded_scroll_state;
         Compositing::KeyboardScrollState keyboard_scroll_state;

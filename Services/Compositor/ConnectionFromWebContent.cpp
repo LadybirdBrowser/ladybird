@@ -317,11 +317,12 @@ void ConnectionFromWebContent::update_display_list_resources(Web::CompositorCont
     m_compositor_state->update_display_list_resources(context_id, move(resource_transaction));
 }
 
-void ConnectionFromWebContent::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction)
+void ConnectionFromWebContent::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> keyboard_scroll_state)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree), move(resource_transaction));
+    if (!m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree), move(resource_transaction), scroll_state.bytes(), keyboard_scroll_state))
+        did_misbehave("WebContent published a visual context tree with a scroll state the compositor cannot use");
 }
 
 Messages::CompositorWebContentServer::ReserveCanvasIdsResponse ConnectionFromWebContent::reserve_canvas_ids()

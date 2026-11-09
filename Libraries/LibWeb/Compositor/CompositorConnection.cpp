@@ -219,7 +219,7 @@ bool CompositorConnectionFrameSink::submit(CompositorFrame&& frame)
     if (auto& update = frame.visual_context_tree_update; update.has_value()) {
         if (!post_resource_additions_in_batches(context_id, update->resource_transaction))
             return false;
-        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction));
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction, update->encoded_scroll_state, IPC::Encoded { update->keyboard_scroll_state }));
         if (!post(encoded_message))
             return false;
     }

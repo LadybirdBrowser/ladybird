@@ -32,6 +32,7 @@ public:
     ~CompositorCore();
 
     using ContextOwnerCheckResult = RustFFI::ContextOwnerCheckResult;
+    using VisualContextTreeUpdateResult = RustFFI::VisualContextTreeUpdateResult;
     // What the presentation a context is shown through makes of the user's scrolling.
     using ScrollCapabilities = RustFFI::FfiScrollCapabilities;
 
@@ -50,8 +51,9 @@ public:
 
     // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
     bool install_display_list_update(Web::CompositorContextId, Compositing::DisplayList const&, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree const&, ReadonlyBytes encoded_scroll_state, MonotonicTime now);
-    // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
-    bool update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, MonotonicTime now);
+    // Changes nothing for a scroll state or keyboard scroll state that do not decode. Of a tree that does not fit the
+    // installed display list, only the scroll state is taken.
+    VisualContextTreeUpdateResult update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const&, MonotonicTime now);
 
     bool needs_animation_frames(Web::CompositorContextId, MonotonicTime now);
     // Each frame shows the scrollbars as of when it is painted, so this updates which of them are shown. Empty until a
