@@ -1250,6 +1250,10 @@ impl<'a, U: Unit> Parser<'a, U> {
                 }
             } else {
                 self.decls[row as usize].flags |= decl::ANNEX_B;
+                if !is_parameter {
+                    // NB: Evaluating the function stores into the binding, which may come before its declaration.
+                    self.make_binding_early(row, top);
+                }
             }
             let row = self.find_declaration(hoist.name, scope.id);
             if is_parameter {
@@ -1273,6 +1277,28 @@ impl<'a, U: Unit> Parser<'a, U> {
             }
         }
         self.hoists.truncate(kept);
+    }
+
+    /// Makes declaration `d` of the scope at `top` one that the code of its function knows from the start, and not only
+    /// from where it comes up. The declarations after it in the order of the summary move up into its place.
+    fn make_binding_early(&mut self, d: u32, top: usize) {
+        if !self.records_summaries {
+            return;
+        }
+        let slot = self.decls[d as usize].summary_slot;
+        if slot & (SUMMARY_SLOT_EARLY | SUMMARY_SLOT_INNER) != 0 {
+            return;
+        }
+        let mut other = self.scopes[top].decl_head;
+        while other != NONE {
+            let declaration = &mut self.decls[other as usize];
+            let other_slot = declaration.summary_slot;
+            if other_slot & (SUMMARY_SLOT_EARLY | SUMMARY_SLOT_INNER) == 0 && other_slot > slot {
+                declaration.summary_slot = other_slot - 1;
+            }
+            other = declaration.next_in_scope;
+        }
+        self.decls[d as usize].summary_slot = SUMMARY_SLOT_EARLY;
     }
 
     /// Resolves the bindings of the innermost scope against the uses in its subtree, and returns its row in the tree.
