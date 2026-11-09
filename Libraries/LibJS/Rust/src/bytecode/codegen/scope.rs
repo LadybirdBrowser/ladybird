@@ -1746,7 +1746,13 @@ impl Generator<'_> {
                 self.value_of_identifier(inner_ident);
                 let (value, _) = self.pop_operand();
                 let identifier = self.intern_identifier(name);
-                emit_set_variable_binding(self, identifier, value);
+                // NB: Whether the function gets stored is decided again when it is evaluated.
+                let program_environment_depth = self.context.scope.scope_environment_depth;
+                self.put(op::SetVariableBindingOfBlockFunction {
+                    identifier,
+                    src: value,
+                    program_environment_depth,
+                });
                 self.end_of_statement();
             }
             return;

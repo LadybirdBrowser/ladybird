@@ -33,7 +33,7 @@ block3:
   [ 120] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [ 130] InitializeLexicalBinding `x`, src:reg10
   [ 148] NewFunction dst:probeDecl~0, shared_function_data_index:0
-  [ 160] DynamicSetVariableBinding `probeDecl`, src:probeDecl~0
+  [ 160] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
   [ 170] SetLexicalEnvironment environment:reg4
   [ 178] JumpLoop target:block2
 

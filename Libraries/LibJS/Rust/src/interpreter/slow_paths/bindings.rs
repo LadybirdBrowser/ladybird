@@ -1200,6 +1200,63 @@ pub fn dynamic_set_variable_binding(
     advance_or_continue(pc, next_pc, op::DynamicSetVariableBinding::LENGTH)
 }
 
+/// What evaluating a block function in non-strict program code does in place of FunctionDeclaration Evaluation:
+/// GlobalDeclarationInstantiation step 12.b.ii.2.a.ii.3 for a script, EvalDeclarationInstantiation step 13.b.ii.7.b for
+/// an eval. Declaration instantiation decides whether it applies, which gets decided again here.
+pub fn set_variable_binding_of_block_function(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::SetVariableBindingOfBlockFunction,
+    values: &mut op::SetVariableBindingOfBlockFunctionValues,
+) -> SlowPathControl {
+    let next = pc + op::SetVariableBindingOfBlockFunction::LENGTH;
+    let name = get_identifier(vm, instruction.identifier);
+    let context = running_execution_context(vm);
+    let variable_environment = context
+        .variable_environment
+        .get()
+        .expect("program code has a VariableEnvironment");
+    let mut environment = context
+        .lexical_environment
+        .get()
+        .expect("program code has a LexicalEnvironment");
+    for _ in 0..instruction.program_environment_depth {
+        environment = environment
+            .outer_environment()
+            .expect("the environment of the program encloses the running one");
+    }
+
+    // NB: This is the walk of EvalDeclarationInstantiation step 13.b.ii.4. The lexical environment of a script is its
+    //     variable environment, so only an eval gets through it.
+    while environment != variable_environment {
+        if !environment.is_object_environment()
+            && environment.has_binding(vm, &name, None).must()
+            && !environment.is_catch_environment()
+        {
+            return SlowPathControl::continue_at(next);
+        }
+        environment = environment
+            .outer_environment()
+            .expect("the variable environment encloses the lexical environment");
+    }
+    if let Some(global_environment) = variable_environment.downcast::<GlobalEnvironment>() {
+        // NB: This is GlobalDeclarationInstantiation step 12.b.ii.2.a and EvalDeclarationInstantiation step 13.b.ii.5.
+        let is_definable = !global_environment.has_lexical_declaration(&name)
+            && asm_try!(vm, pc, global_environment.can_declare_global_var(vm, &name));
+        if !is_definable {
+            return SlowPathControl::continue_at(next);
+        }
+    }
+
+    // Perform ? globalEnv.SetMutableBinding(funcName, funcObj, false).
+    asm_try!(
+        vm,
+        pc,
+        variable_environment.set_mutable_binding(vm, &name, values.src, false)
+    );
+    SlowPathControl::continue_at(next)
+}
+
 pub fn resolve_binding(
     vm: &Vm,
     pc: u32,

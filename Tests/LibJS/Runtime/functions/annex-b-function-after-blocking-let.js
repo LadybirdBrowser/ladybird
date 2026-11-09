@@ -107,3 +107,28 @@ test("a function named arguments hoists in script and eval code that reads argum
     }
     expect(eval("{ function arguments() {} } typeof arguments")).toBe("function");
 });
+
+let lexicalOfThisScript = 1;
+const constantOfThisScript = 2;
+
+test("a function in a block of eval code does not get past a binding of its name", () => {
+    (0, eval)("{ function lexicalOfThisScript() {} }");
+    expect(lexicalOfThisScript).toBe(1);
+    (0, eval)("{ function constantOfThisScript() {} }");
+    expect(constantOfThisScript).toBe(2);
+
+    function lexicalInFunction() {
+        let x = 4;
+        eval("{ function x() {} }");
+        return x;
+    }
+    expect(lexicalInFunction()).toBe(4);
+    expect(Object.hasOwn(globalThis, "x")).toBeFalse();
+
+    function deletedVar() {
+        var deleted = eval("var d = delete g; { function g() {} } d");
+        return [deleted, typeof g];
+    }
+    expect(deletedVar()).toEqual([true, "function"]);
+    expect(Object.hasOwn(globalThis, "g")).toBeFalse();
+});

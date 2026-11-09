@@ -899,6 +899,15 @@ impl RuntimeFunctions for Runtime {
         bindings::dynamic_set_variable_binding(vm, pc, instruction, values)
     }
 
+    fn set_variable_binding_of_block_function(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::SetVariableBindingOfBlockFunction,
+        values: &mut op::SetVariableBindingOfBlockFunctionValues,
+    ) -> SlowPathControl {
+        bindings::set_variable_binding_of_block_function(vm, pc, instruction, values)
+    }
+
     fn dynamic_typeof_binding(
         vm: &Vm,
         pc: u32,

@@ -323,6 +323,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::GetObjectPropertyIterator
         | O::IteratorNext
         | O::IteratorStep
+        | O::SetVariableBindingOfBlockFunction
         | O::IteratorToArray
         | O::CacheObjectShape
         | O::InitObjectLiteralProperty

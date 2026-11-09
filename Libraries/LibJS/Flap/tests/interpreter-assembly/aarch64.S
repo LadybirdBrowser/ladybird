@@ -75,6 +75,7 @@ asm_dispatch_table:
     .quad asm_handler_SetLexicalBinding
     .quad asm_handler_SetVariableBinding
     .quad asm_handler_DynamicSetLexicalBinding
+    .quad asm_handler_SetVariableBindingOfBlockFunction
     .quad asm_handler_DynamicSetVariableBinding
     .quad asm_handler_ResolveBinding
     .quad asm_handler_ResolveSuperBase
@@ -236,7 +237,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -781,6 +781,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_DynamicSetLexicalBinding_hot_end
     .quad asm_handler_DynamicSetLexicalBinding_cold
     .quad asm_handler_DynamicSetLexicalBinding_cold_end
+    .quad asm_handler_SetVariableBindingOfBlockFunction
+    .quad asm_handler_SetVariableBindingOfBlockFunction_hot_end
+    .quad asm_handler_SetVariableBindingOfBlockFunction_cold
+    .quad asm_handler_SetVariableBindingOfBlockFunction_cold_end
     .quad asm_handler_DynamicSetVariableBinding
     .quad asm_handler_DynamicSetVariableBinding_hot_end
     .quad asm_handler_DynamicSetVariableBinding_cold
@@ -1425,10 +1429,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -10903,6 +10903,47 @@ asm_handler_DynamicSetLexicalBinding_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_DynamicSetLexicalBinding_cold_end:
+.p2align 4
+asm_handler_SetVariableBindingOfBlockFunction:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    ldr w9, [x21, #8]
+    ldr x10, [x27, x9, lsl #3]
+.Lasm_SetVariableBindingOfBlockFunction.scalar_value_ready_0:
+    mov x3, x10
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_set_variable_binding_of_block_function)
+    tbnz x0, #63, .Lasm_SetVariableBindingOfBlockFunction.scalar_result_done_1
+    tbz x0, #32, .Lasm_SetVariableBindingOfBlockFunction.scalar_result_done_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetVariableBindingOfBlockFunction.scalar_result_done_1:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_SetVariableBindingOfBlockFunction.slow_path_transfer_2
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetVariableBindingOfBlockFunction.slow_path_transfer_2:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_SetVariableBindingOfBlockFunction_hot_end:
+asm_handler_SetVariableBindingOfBlockFunction_cold:
+asm_handler_SetVariableBindingOfBlockFunction_cold_end:
+
 asm_handler_DynamicSetVariableBinding_cold:
 // Cold paths for DynamicSetVariableBinding
 .Lasm_DynamicSetVariableBinding.ssa_block_1:
