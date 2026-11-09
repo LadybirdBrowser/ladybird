@@ -8,12 +8,10 @@ use super::world_transforms::MINIMUM_PROJECTION_W;
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
     IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, ScrollSnap, SpatialData, SpatialNodeIndex,
-    TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, device_offset_for_index,
+    TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use ak::math;
-use libgfx_rust::{
-    CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, map_rect_through_matrix,
-};
+use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClipBehavior {
@@ -59,18 +57,13 @@ impl ClipData {
     }
 }
 
-// One root path of spatial nodes with the screen point mapped down it one inverse step at a time. Clips attach
-// to a path in non-decreasing depth order, so the steps still to apply before a clip always start where the
-// previous clip left off.
+// One root path of spatial nodes with the screen point mapped down it one step at a time. Clips attach to a path in
+// non-decreasing depth order, so the steps still to apply before a clip always start where the previous clip left off.
 struct SpatialChainWalk {
     chain: Vec<SpatialNodeIndex>,
-    needs_accumulated_matrices: bool,
-    has_3d_transform: bool,
-    culled: bool,
-    // The cull state of the plane the current 3D rendering context is flattened into. A root path runs through at
-    // most one context at a time, since a nested context only starts below an element that flattens.
-    culled_outside_sorting_context: bool,
-    accumulated_matrices: Vec<FloatMatrix4x4>,
+    // A path through a 3D transform maps the screen point onto each node's plane through the node's flattened matrix,
+    // where per-node 2D inverses would lose the depth.
+    projective: bool,
     point: FloatPoint,
     applied_steps: usize,
 }
@@ -147,91 +140,42 @@ impl VisualContextTree {
         }
     }
 
-    fn begin_hit_test_walk(&self, leaf: SpatialNodeIndex, screen_point: FloatPoint) -> SpatialChainWalk {
+    fn begin_hit_test_walk(
+        &self,
+        world: &WorldTransforms,
+        leaf: SpatialNodeIndex,
+        screen_point: FloatPoint,
+    ) -> SpatialChainWalk {
         let mut chain = self.ancestor_chain(leaf);
         chain.reverse();
-        let chain_has_backface_marker = chain.iter().any(|index| {
-            self.local_transform(*index, &[], ScrollSnap::None)
-                .backface_plane_root
-                .is_some()
-        });
-        let has_3d_transform = self.chain_contains_3d_transform(leaf);
-        let needs_accumulated_matrices = chain_has_backface_marker || has_3d_transform;
-        let accumulated_matrices = if needs_accumulated_matrices {
-            Vec::with_capacity(chain.len())
-        } else {
-            Vec::new()
-        };
         SpatialChainWalk {
             chain,
-            needs_accumulated_matrices,
-            has_3d_transform,
-            culled: false,
-            culled_outside_sorting_context: false,
-            accumulated_matrices,
+            projective: !world.to_root[leaf.0 as usize].is_2d_affine(),
             point: screen_point,
             applied_steps: 0,
         }
     }
 
     fn apply_hit_test_spatial_step(
-        &self,
+        world: &WorldTransforms,
         walk: &mut SpatialChainWalk,
         position: usize,
         screen_point: FloatPoint,
-        scroll_offsets: &[FloatPoint],
     ) -> bool {
-        let local = self.local_transform(walk.chain[position], scroll_offsets, ScrollSnap::None);
-
-        if walk.needs_accumulated_matrices {
-            let parent_matrix = walk
-                .accumulated_matrices
-                .last()
-                .copied()
-                .unwrap_or(FloatMatrix4x4::identity());
-            walk.accumulated_matrices.push(local.applied_to(parent_matrix));
-        }
-
-        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
-        // A participant in a 3D rendering context is its own plane, culled only by its own hidden backface or by
-        // whatever culls the plane its context is flattened into. The spec doesn't yet say if a hidden backface culls
-        // the 3D rendering contexts nested in it:
-        // https://github.com/w3c/csswg-drafts/issues/918
-        if local.establishes_sorting_context {
-            walk.culled_outside_sorting_context = walk.culled;
-        } else if local.sorting_context_root.is_some() {
-            walk.culled = walk.culled_outside_sorting_context;
-        }
-
-        if let Some(plane_root) = local.backface_plane_root {
-            if !walk.culled {
-                let plane_root_position = walk
-                    .chain
-                    .iter()
-                    .position(|index| *index == plane_root)
-                    .expect("the plane root precedes the backface marker on its root path");
-                walk.culled = should_cull_back_face(
-                    *walk
-                        .accumulated_matrices
-                        .last()
-                        .expect("backface walk accumulates matrices"),
-                    walk.accumulated_matrices[plane_root_position],
-                );
-            }
-            return true;
-        }
-
-        if !walk.has_3d_transform {
-            let Some(inverse) = local.matrix.extract_2d_affine().inverse() else {
+        let node = walk.chain[position];
+        if !walk.projective {
+            let Some(inverse) = world.local[node.0 as usize].extract_2d_affine().inverse() else {
                 return false;
             };
             walk.point = inverse.map_point(walk.point);
             return true;
         }
-        let Some(inverse) = walk
-            .accumulated_matrices
-            .last()
-            .expect("3D walk accumulates matrices")
+        // Content directly under a backface marker lies in the plane of the marker's parent.
+        if world.draw_space[node.0 as usize] != node {
+            return true;
+        }
+        let Some(inverse) = world
+            .to_viewport_matrix(node, IncludeVisualViewportTransform::Yes)
             .flattened()
             .inverse()
         else {
@@ -249,18 +193,17 @@ impl VisualContextTree {
     }
 
     fn apply_hit_test_spatial_steps_through_node(
-        &self,
+        world: &WorldTransforms,
         walk: &mut SpatialChainWalk,
         node_index: SpatialNodeIndex,
         screen_point: FloatPoint,
-        scroll_offsets: &[FloatPoint],
     ) -> bool {
         if walk.applied_steps > 0 && walk.chain[walk.applied_steps - 1] == node_index {
             return true;
         }
         loop {
             assert!(walk.applied_steps < walk.chain.len());
-            if !self.apply_hit_test_spatial_step(walk, walk.applied_steps, screen_point, scroll_offsets) {
+            if !Self::apply_hit_test_spatial_step(world, walk, walk.applied_steps, screen_point) {
                 return false;
             }
             if walk.chain[walk.applied_steps] == node_index {
@@ -326,9 +269,9 @@ impl VisualContextTree {
 
     pub fn transform_point_for_hit_test(
         &self,
+        world: &WorldTransforms,
         context: ContextRef,
         screen_point: FloatPoint,
-        scroll_offsets: &[FloatPoint],
         clip_behavior: ClipBehavior,
     ) -> Option<FloatPoint> {
         // Effects never clip a point, so only the clip chain takes part.
@@ -340,10 +283,7 @@ impl VisualContextTree {
         }
         clip_chain.reverse();
 
-        // The backface test needs forward matrices, but this walk only applies inverses. When the chain contains
-        // backface markers, we accumulate the forward matrices as we walk, from the root down, so a marker can look up
-        // the matrix at its plane root by chain position.
-        let mut context_walk = self.begin_hit_test_walk(context.spatial, screen_point);
+        let mut context_walk = self.begin_hit_test_walk(world, context.spatial, screen_point);
         for clip_index in clip_chain {
             let clip = &self.clip_nodes[clip_index.0 as usize];
             let mut clip_walk;
@@ -352,21 +292,17 @@ impl VisualContextTree {
             } else {
                 // A fixed-background context is rooted above the scroll nodes its clips record in, so such a clip
                 // hangs below the context's node and takes its own walk from the root.
-                clip_walk = self.begin_hit_test_walk(clip.spatial, screen_point);
+                clip_walk = self.begin_hit_test_walk(world, clip.spatial, screen_point);
                 &mut clip_walk
             };
-            if !self.apply_hit_test_spatial_steps_through_node(walk, clip.spatial, screen_point, scroll_offsets)
+            if !Self::apply_hit_test_spatial_steps_through_node(world, walk, clip.spatial, screen_point)
                 || !Self::point_passes_clip(clip, walk.point, clip_behavior)
             {
                 return None;
             }
         }
-        if !self.apply_hit_test_spatial_steps_through_node(
-            &mut context_walk,
-            context.spatial,
-            screen_point,
-            scroll_offsets,
-        ) || context_walk.culled
+        if !Self::apply_hit_test_spatial_steps_through_node(world, &mut context_walk, context.spatial, screen_point)
+            || world.backface_culled[context.spatial.0 as usize]
         {
             return None;
         }
@@ -407,65 +343,6 @@ impl VisualContextTree {
                 .inverse()
                 .map_or(point, |inverse| inverse.map_point(point))
         })
-    }
-
-    pub fn transform_rect_to_viewport(
-        &self,
-        index: SpatialNodeIndex,
-        source_rect: FloatRect,
-        scroll_offsets: &[FloatPoint],
-        include_visual_viewport_transform: IncludeVisualViewportTransform,
-    ) -> FloatRect {
-        // A chain with three-dimensional transforms cannot be applied one two-dimensional projection at a time.
-        if self.chain_contains_3d_transform(index) {
-            return map_rect_through_matrix(
-                self.accumulated_matrix(index, scroll_offsets, include_visual_viewport_transform),
-                source_rect,
-                MINIMUM_PROJECTION_W,
-            );
-        }
-
-        let mut rect = source_rect;
-        let mut current = index;
-        loop {
-            let node = &self.spatial_nodes[current.0 as usize];
-            if current != VISUAL_VIEWPORT_NODE_INDEX
-                || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes
-            {
-                rect = self
-                    .local_transform(current, scroll_offsets, ScrollSnap::None)
-                    .matrix
-                    .extract_2d_affine()
-                    .map_rect(rect);
-            }
-            if current == VISUAL_VIEWPORT_NODE_INDEX {
-                break;
-            }
-            current = node.parent;
-        }
-
-        rect
-    }
-
-    /// How far the nodes on the spatial chain from `index` up to the viewport move a box when its transforms are left
-    /// out, in device pixels.
-    pub fn offset_to_viewport_ignoring_transforms(
-        &self,
-        index: SpatialNodeIndex,
-        scroll_offsets: &[FloatPoint],
-    ) -> FloatPoint {
-        let mut offset = FloatPoint::default();
-        let mut current = index;
-        while current != VISUAL_VIEWPORT_NODE_INDEX {
-            if let LocalTransformKind::Translation(node_offset) =
-                self.local_transform(current, scroll_offsets, ScrollSnap::None).kind
-            {
-                offset.x += node_offset.x;
-                offset.y += node_offset.y;
-            }
-            current = self.spatial_nodes[current.0 as usize].parent;
-        }
-        offset
     }
 
     /// The sum of the resolved offsets of the sticky nodes on the spatial chain from `index` up to the viewport, in
@@ -830,6 +707,31 @@ mod tests {
         }
     }
 
+    fn hit_test_point(
+        tree: &VisualContextTree,
+        context: ContextRef,
+        screen_point: FloatPoint,
+        scroll_offsets: &[FloatPoint],
+        clip_behavior: ClipBehavior,
+    ) -> Option<FloatPoint> {
+        let world = WorldTransforms::new(tree, scroll_offsets, None, ScrollSnap::None);
+        tree.transform_point_for_hit_test(&world, context, screen_point, clip_behavior)
+    }
+
+    fn rect_to_viewport(
+        tree: &VisualContextTree,
+        node: SpatialNodeIndex,
+        rect: FloatRect,
+        scroll_offsets: &[FloatPoint],
+        include_visual_viewport_transform: IncludeVisualViewportTransform,
+    ) -> FloatRect {
+        WorldTransforms::new(tree, scroll_offsets, None, ScrollSnap::None).transform_rect_to_viewport(
+            node,
+            rect,
+            include_visual_viewport_transform,
+        )
+    }
+
     fn point(x: f32, y: f32) -> FloatPoint {
         FloatPoint { x, y }
     }
@@ -1022,14 +924,8 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
-        assert!(
-            tree.transform_point_for_hit_test(context, point(15.0, 15.0), &[], ClipBehavior::Respect)
-                .is_none()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(5.0, 5.0), &[], ClipBehavior::Respect)
-                .is_some()
-        );
+        assert!(hit_test_point(&tree, context, point(15.0, 15.0), &[], ClipBehavior::Respect).is_none());
+        assert!(hit_test_point(&tree, context, point(5.0, 5.0), &[], ClipBehavior::Respect).is_some());
     }
 
     #[test]
@@ -1041,14 +937,8 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
-        assert!(
-            tree.transform_point_for_hit_test(context, point(10.25, 15.0), &[], ClipBehavior::Respect)
-                .is_none()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(10.75, 15.0), &[], ClipBehavior::Respect)
-                .is_some()
-        );
+        assert!(hit_test_point(&tree, context, point(10.25, 15.0), &[], ClipBehavior::Respect).is_none());
+        assert!(hit_test_point(&tree, context, point(10.75, 15.0), &[], ClipBehavior::Respect).is_some());
     }
 
     #[test]
@@ -1060,18 +950,9 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
-        assert!(
-            tree.transform_point_for_hit_test(context, point(9.5, 15.0), &[], ClipBehavior::Respect)
-                .is_none()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(29.5, 15.0), &[], ClipBehavior::Respect)
-                .is_some()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(9.5, 15.0), &[], ClipBehavior::Ignore)
-                .is_some()
-        );
+        assert!(hit_test_point(&tree, context, point(9.5, 15.0), &[], ClipBehavior::Respect).is_none());
+        assert!(hit_test_point(&tree, context, point(29.5, 15.0), &[], ClipBehavior::Respect).is_some());
+        assert!(hit_test_point(&tree, context, point(9.5, 15.0), &[], ClipBehavior::Ignore).is_some());
     }
 
     #[test]
@@ -1087,18 +968,9 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
-        assert!(
-            tree.transform_point_for_hit_test(context, point(1.0, 1.0), &[], ClipBehavior::Respect)
-                .is_none()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(50.0, 1.0), &[], ClipBehavior::Respect)
-                .is_some()
-        );
-        assert!(
-            tree.transform_point_for_hit_test(context, point(98.0, 98.0), &[], ClipBehavior::Respect)
-                .is_none()
-        );
+        assert!(hit_test_point(&tree, context, point(1.0, 1.0), &[], ClipBehavior::Respect).is_none());
+        assert!(hit_test_point(&tree, context, point(50.0, 1.0), &[], ClipBehavior::Respect).is_some());
+        assert!(hit_test_point(&tree, context, point(98.0, 98.0), &[], ClipBehavior::Respect).is_none());
     }
 
     #[test]
@@ -1119,14 +991,14 @@ mod tests {
         let mut scroll_offsets = vec![FloatPoint::default(); 4];
         scroll_offsets[scroll_node.0 as usize] = point(0.0, -100.0);
 
-        let local = tree
-            .transform_point_for_hit_test(
-                context_of(scroll_node, ContextRef::default()),
-                point(40.0, 60.0),
-                &scroll_offsets,
-                ClipBehavior::Respect,
-            )
-            .expect("the point maps");
+        let local = hit_test_point(
+            &tree,
+            context_of(scroll_node, ContextRef::default()),
+            point(40.0, 60.0),
+            &scroll_offsets,
+            ClipBehavior::Respect,
+        )
+        .expect("the point maps");
         assert_eq!(local, point(20.0, 125.0));
         assert_eq!(
             tree.inverse_transform_point(scroll_node, point(40.0, 60.0)),
@@ -1151,21 +1023,22 @@ mod tests {
             )),
             perspective,
         );
-        let local = tree
-            .transform_point_for_hit_test(
-                context_of(lifted, ContextRef::default()),
-                point(100.0, 100.0),
-                &[],
-                ClipBehavior::Respect,
-            )
-            .expect("the point maps");
+        let local = hit_test_point(
+            &tree,
+            context_of(lifted, ContextRef::default()),
+            point(100.0, 100.0),
+            &[],
+            ClipBehavior::Respect,
+        )
+        .expect("the point maps");
         assert_eq!(local, point(50.0, 50.0));
         assert_eq!(
             tree.inverse_transform_point(lifted, point(100.0, 100.0)),
             point(50.0, 50.0)
         );
         assert_eq!(
-            tree.transform_rect_to_viewport(
+            rect_to_viewport(
+                &tree,
                 lifted,
                 FloatRect::new(0.0, 0.0, 10.0, 10.0),
                 &[],
@@ -1192,7 +1065,8 @@ mod tests {
             )),
             perspective,
         );
-        let rect = tree.transform_rect_to_viewport(
+        let rect = rect_to_viewport(
+            &tree,
             on_the_eye_plane,
             FloatRect::new(0.0, 0.0, 10.0, 10.0),
             &[],
@@ -1201,7 +1075,8 @@ mod tests {
         assert!(rect.width.is_finite() && rect.height.is_finite());
         assert_eq!(rect.width, 100000.0);
         assert!(
-            tree.transform_point_for_hit_test(
+            hit_test_point(
+                &tree,
                 context_of(on_the_eye_plane, ContextRef::default()),
                 point(100.0, 100.0),
                 &[],
@@ -1226,7 +1101,8 @@ mod tests {
             flipped,
         );
         assert!(
-            tree.transform_point_for_hit_test(
+            hit_test_point(
+                &tree,
                 context_of(marker, ContextRef::default()),
                 point(0.0, 0.0),
                 &[],
@@ -1244,7 +1120,8 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         assert_eq!(
-            front_facing_tree.transform_point_for_hit_test(
+            hit_test_point(
+                &front_facing_tree,
                 context_of(front_marker, ContextRef::default()),
                 point(3.0, 4.0),
                 &[],
@@ -1268,7 +1145,8 @@ mod tests {
         let fixed_background_context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
 
         assert!(
-            tree.transform_point_for_hit_test(
+            hit_test_point(
+                &tree,
                 fixed_background_context,
                 point(10.0, 120.0),
                 &scroll_offsets,
@@ -1277,7 +1155,8 @@ mod tests {
             .is_none()
         );
         assert_eq!(
-            tree.transform_point_for_hit_test(
+            hit_test_point(
+                &tree,
                 fixed_background_context,
                 point(10.0, -60.0),
                 &scroll_offsets,
@@ -1300,11 +1179,23 @@ mod tests {
         let rect = FloatRect::new(0.0, 0.0, 10.0, 10.0);
 
         assert_eq!(
-            tree.transform_rect_to_viewport(scroll_node, rect, &scroll_offsets, IncludeVisualViewportTransform::No),
+            rect_to_viewport(
+                &tree,
+                scroll_node,
+                rect,
+                &scroll_offsets,
+                IncludeVisualViewportTransform::No
+            ),
             FloatRect::new(9.0, 18.0, 10.0, 10.0)
         );
         assert_eq!(
-            tree.transform_rect_to_viewport(scroll_node, rect, &scroll_offsets, IncludeVisualViewportTransform::Yes),
+            rect_to_viewport(
+                &tree,
+                scroll_node,
+                rect,
+                &scroll_offsets,
+                IncludeVisualViewportTransform::Yes
+            ),
             FloatRect::new(18.0, 36.0, 20.0, 20.0)
         );
     }
@@ -1615,13 +1506,20 @@ mod tests {
         let rect = FloatRect::new(0.0, 0.0, 10.0, 10.0);
         for node in [backface, inner_sticky, sorted_transform] {
             assert_eq!(
-                permuted.transform_rect_to_viewport(
+                rect_to_viewport(
+                    &permuted,
                     mapped(node),
                     rect,
                     &permuted_offsets,
                     IncludeVisualViewportTransform::Yes
                 ),
-                in_order.transform_rect_to_viewport(node, rect, &in_order_offsets, IncludeVisualViewportTransform::Yes)
+                rect_to_viewport(
+                    &in_order,
+                    node,
+                    rect,
+                    &in_order_offsets,
+                    IncludeVisualViewportTransform::Yes
+                )
             );
         }
 

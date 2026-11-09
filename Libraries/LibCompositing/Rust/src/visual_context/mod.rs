@@ -1277,56 +1277,6 @@ impl VisualContextTree {
         local
     }
 
-    pub fn accumulated_matrix(
-        &self,
-        index: SpatialNodeIndex,
-        scroll_offsets: &[FloatPoint],
-        include_visual_viewport_transform: IncludeVisualViewportTransform,
-    ) -> FloatMatrix4x4 {
-        let chain = self.ancestor_chain(index);
-        let mut matrix = FloatMatrix4x4::identity();
-        for node_index in chain.into_iter().rev() {
-            if node_index == VISUAL_VIEWPORT_NODE_INDEX
-                && include_visual_viewport_transform == IncludeVisualViewportTransform::No
-            {
-                continue;
-            }
-            matrix = self
-                .local_transform(node_index, scroll_offsets, ScrollSnap::None)
-                .applied_to(matrix);
-        }
-        matrix
-    }
-
-    pub fn accumulated_2d_scale(
-        &self,
-        index: SpatialNodeIndex,
-        scroll_offsets: &[FloatPoint],
-        include_visual_viewport_transform: IncludeVisualViewportTransform,
-    ) -> FloatSize {
-        let affine = self
-            .accumulated_matrix(index, scroll_offsets, include_visual_viewport_transform)
-            .extract_2d_affine();
-        FloatSize {
-            width: affine.x_scale(),
-            height: affine.y_scale(),
-        }
-    }
-
-    pub fn plane_depth_at_point_for_hit_test(
-        &self,
-        plane_node_index: SpatialNodeIndex,
-        screen_point: FloatPoint,
-        scroll_offsets: &[FloatPoint],
-    ) -> Option<f32> {
-        let inverse = self
-            .accumulated_matrix(plane_node_index, scroll_offsets, IncludeVisualViewportTransform::Yes)
-            .inverse()?;
-        let matrix = &inverse.elements;
-        let depth = -(screen_point.x * matrix[2][0] + screen_point.y * matrix[2][1] + matrix[2][3]) / matrix[2][2];
-        depth.is_finite().then_some(depth)
-    }
-
     pub fn spatial_dependency_order_with_back_edges(&self) -> NodeDependencyOrder {
         dependency_order(
             self.spatial_nodes.len(),
@@ -1597,26 +1547,27 @@ mod tests {
         let child = tree.append_spatial(SpatialData::Transform(scaled(3.0)), scroll);
         let scroll_offsets = [FloatPoint::default(), FloatPoint { x: -10.0, y: -20.0 }];
 
-        let without_viewport = tree.accumulated_matrix(child, &scroll_offsets, IncludeVisualViewportTransform::No);
+        let world = WorldTransforms::new(&tree, &scroll_offsets, None, ScrollSnap::None);
+        let without_viewport = world.to_viewport_matrix(child, IncludeVisualViewportTransform::No);
         assert_eq!(
             without_viewport,
             translation_matrix(-10.0, -20.0, 0.0).multiplied(libgfx_rust::scale_matrix(3.0, 3.0, 1.0))
         );
-        let with_viewport = tree.accumulated_matrix(child, &scroll_offsets, IncludeVisualViewportTransform::Yes);
+        let with_viewport = world.to_viewport_matrix(child, IncludeVisualViewportTransform::Yes);
         assert_eq!(
             with_viewport,
             libgfx_rust::scale_matrix(2.0, 2.0, 1.0).multiplied(without_viewport)
         );
 
         assert_eq!(
-            tree.accumulated_2d_scale(child, &scroll_offsets, IncludeVisualViewportTransform::No),
+            world.accumulated_2d_scale(child, IncludeVisualViewportTransform::No),
             FloatSize {
                 width: 3.0,
                 height: 3.0
             }
         );
         assert_eq!(
-            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::Yes),
+            world.accumulated_2d_scale(child, IncludeVisualViewportTransform::Yes),
             FloatSize {
                 width: 6.0,
                 height: 6.0
@@ -1634,11 +1585,12 @@ mod tests {
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let matrix = tree.accumulated_matrix(child, &[], IncludeVisualViewportTransform::No);
+        let world = WorldTransforms::new(&tree, &[], None, ScrollSnap::None);
+        let matrix = world.to_viewport_matrix(child, IncludeVisualViewportTransform::No);
         assert_eq!(matrix.map_vector4([50.0, 50.0, 0.0, 1.0]), [50.0, 50.0, 0.0, 1.0]);
         assert_eq!(matrix.map_vector4([0.0, 0.0, 0.0, 1.0]), [-50.0, -50.0, 0.0, 1.0]);
         assert_eq!(
-            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::No),
+            world.accumulated_2d_scale(child, IncludeVisualViewportTransform::No),
             FloatSize {
                 width: 2.0,
                 height: 2.0
@@ -2059,7 +2011,8 @@ mod tests {
     fn an_untransformed_plane_has_zero_depth() {
         let tree = tree();
         assert_eq!(
-            tree.plane_depth_at_point_for_hit_test(VISUAL_VIEWPORT_NODE_INDEX, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+                .plane_depth_at_point_for_hit_test(VISUAL_VIEWPORT_NODE_INDEX, FloatPoint { x: 25.0, y: 50.0 }),
             Some(0.0)
         );
     }
@@ -2075,7 +2028,8 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         assert_eq!(
-            tree.plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+                .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }),
             Some(75.0)
         );
     }
@@ -2097,8 +2051,8 @@ mod tests {
             }),
             perspective,
         );
-        let depth = tree
-            .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[])
+        let depth = WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+            .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 })
             .unwrap();
         assert!((depth - 1000.0 / 9.0).abs() < 0.0001);
     }
@@ -2114,7 +2068,8 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         assert_eq!(
-            tree.plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }, &[]),
+            WorldTransforms::new(&tree, &[], None, ScrollSnap::None)
+                .plane_depth_at_point_for_hit_test(plane, FloatPoint { x: 25.0, y: 50.0 }),
             None
         );
     }

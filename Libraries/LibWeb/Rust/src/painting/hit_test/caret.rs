@@ -839,6 +839,7 @@ impl FfiCaretAt {
         if self.caret.has_debug_rect {
             let transform = RectToViewportTransform {
                 visual_context_tree: tree,
+                world_transforms: callbacks.world_transforms(),
                 scroll_offsets: callbacks.scroll_offsets(),
                 device_pixels_per_css_pixel: callbacks.device_pixels_per_css_pixel as f32,
             };

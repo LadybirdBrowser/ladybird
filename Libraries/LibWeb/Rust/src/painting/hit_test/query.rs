@@ -9,14 +9,16 @@ use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_hidden};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree};
+use crate::painting::visual_context::{
+    NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree, WorldTransforms,
+};
 use std::collections::HashMap;
 
 struct DepthSortingState<'a> {
     tree: &'a VisualContextTree,
     point: CssPixelPoint,
     device_pixels_per_css_pixel: f32,
-    scroll_offsets: &'a [libgfx_rust::FloatPoint],
+    world_transforms: &'a WorldTransforms,
     sorting_contexts: Option<SortingContexts>,
     depth_key_by_plane: HashMap<u32, Option<i64>>,
 }
@@ -27,7 +29,7 @@ impl<'a> DepthSortingState<'a> {
             tree,
             point,
             device_pixels_per_css_pixel: callbacks.device_pixels_per_css_pixel as f32,
-            scroll_offsets: callbacks.scroll_offsets(),
+            world_transforms: callbacks.world_transforms(),
             sorting_contexts: None,
             depth_key_by_plane: HashMap::new(),
         }
@@ -69,8 +71,8 @@ impl<'a> DepthSortingState<'a> {
             y: self.point.y.to_float() * self.device_pixels_per_css_pixel,
         };
         let depth = self
-            .tree
-            .plane_depth_at_point_for_hit_test(leaf, screen_point, self.scroll_offsets);
+            .world_transforms
+            .plane_depth_at_point_for_hit_test(leaf, screen_point);
         const DEPTH_LIMIT: f32 = 16777216.0;
         let depth_key = depth.map(|depth| (depth.clamp(-DEPTH_LIMIT, DEPTH_LIMIT) * 8.0).round() as i64);
         self.depth_key_by_plane.insert(leaf.0, depth_key);

@@ -515,6 +515,8 @@ impl Lane {
             &scroll_offsets,
             plan.chrome_metrics(),
         );
+        let world = callbacks.build_world_transforms(&tree);
+        let callbacks = callbacks.with_world_transforms(&world);
         let pixel_ratio = plan.device_pixels_per_css_pixel() as f32;
         let css_point =
             |x, y| CssPixelPoint::new(CssPixels::nearest_value_for_f32(x), CssPixels::nearest_value_for_f32(y));

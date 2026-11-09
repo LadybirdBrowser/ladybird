@@ -312,23 +312,61 @@ pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len`
-/// points and `out_local_point` must be writable.
+/// `world` must be a live handle from `world_transforms_create`.
+pub unsafe fn world_transforms_from_handle<'a>(world: *const c_void) -> &'a crate::visual_context::WorldTransforms {
+    // SAFETY: The caller guarantees `world` is a live handle.
+    unsafe { &*world.cast::<crate::visual_context::WorldTransforms>() }
+}
+
+/// The world transforms of `tree` under the scroll offsets, in the layout viewport's space, until
+/// `world_transforms_destroy` frees them.
+///
+/// # Safety
+///
+/// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len` points.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_transform_point_for_hit_test(
+pub unsafe extern "C" fn world_transforms_create(
     tree: *const c_void,
-    context: crate::display_list::commands::ContextRef,
-    screen_point: libgfx_rust::FloatPoint,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
-    respect_clip: bool,
-    out_local_point: *mut libgfx_rust::FloatPoint,
-) -> bool {
+) -> *mut c_void {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
     let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
+    let world = crate::visual_context::WorldTransforms::new(
+        tree,
+        scroll_offsets,
+        None,
+        crate::visual_context::ScrollSnap::None,
+    );
+    Box::into_raw(Box::new(world)).cast()
+}
+
+/// # Safety
+///
+/// `world` must be a handle from `world_transforms_create` that nothing uses afterwards.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn world_transforms_destroy(world: *mut c_void) {
+    // SAFETY: The caller hands over the handle `world_transforms_create` made.
+    drop(unsafe { Box::from_raw(world.cast::<crate::visual_context::WorldTransforms>()) });
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle, `world` a live handle made from it, and `out_local_point` must be
+/// writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_transform_point_for_hit_test(
+    tree: *const c_void,
+    world: *const c_void,
+    context: crate::display_list::commands::ContextRef,
+    screen_point: libgfx_rust::FloatPoint,
+    respect_clip: bool,
+    out_local_point: *mut libgfx_rust::FloatPoint,
+) -> bool {
+    let (tree, world) = unsafe { (tree_from_handle(tree), world_transforms_from_handle(world)) };
     let clip_behavior = crate::visual_context::ClipBehavior::from_respect_clip(respect_clip);
-    match tree.transform_point_for_hit_test(context, screen_point, scroll_offsets, clip_behavior) {
+    match tree.transform_point_for_hit_test(world, context, screen_point, clip_behavior) {
         Some(local_point) => {
             // SAFETY: The caller guarantees `out_local_point` is writable.
             unsafe { *out_local_point = local_point };
@@ -361,45 +399,33 @@ fn include_visual_viewport_transform_from(include: bool) -> crate::visual_contex
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len` points.
+/// `world` must be a live handle from `world_transforms_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_transform_rect_to_viewport(
-    tree: *const c_void,
+pub unsafe extern "C" fn world_transforms_transform_rect_to_viewport(
+    world: *const c_void,
     spatial: SpatialNodeIndex,
     rect: libgfx_rust::FloatRect,
-    scroll_offsets: *const libgfx_rust::FloatPoint,
-    scroll_offsets_len: usize,
     include_visual_viewport_transform: bool,
     out: &mut libgfx_rust::FloatRect,
 ) {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
-    *out = tree.transform_rect_to_viewport(
+    *out = unsafe { world_transforms_from_handle(world) }.transform_rect_to_viewport(
         spatial,
         rect,
-        scroll_offsets,
         include_visual_viewport_transform_from(include_visual_viewport_transform),
     );
 }
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len` points.
+/// `world` must be a live handle from `world_transforms_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_accumulated_matrix(
-    tree: *const c_void,
+pub unsafe extern "C" fn world_transforms_accumulated_matrix(
+    world: *const c_void,
     spatial: SpatialNodeIndex,
-    scroll_offsets: *const libgfx_rust::FloatPoint,
-    scroll_offsets_len: usize,
     include_visual_viewport_transform: bool,
 ) -> libgfx_rust::FloatMatrix4x4 {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
-    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
-    tree.accumulated_matrix(
+    unsafe { world_transforms_from_handle(world) }.to_viewport_matrix(
         spatial,
-        scroll_offsets,
         include_visual_viewport_transform_from(include_visual_viewport_transform),
     )
 }

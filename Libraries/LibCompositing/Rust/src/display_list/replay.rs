@@ -815,7 +815,7 @@ pub fn replay_display_list(
         tree,
         &driver.spatial_dependency_order,
         scroll_offsets,
-        replay_base_matrix,
+        Some(replay_base_matrix),
         ScrollSnap::Truncate,
     );
     driver.execute();
@@ -894,8 +894,8 @@ mod tests {
         permuted.spatial_nodes[permuted_child.0 as usize].parent = permuted_parent;
 
         let base = scale_matrix(2.0, 2.0, 1.0);
-        let in_order_palette = WorldTransforms::new(&in_order, &[], base, ScrollSnap::Truncate);
-        let permuted_palette = WorldTransforms::new(&permuted, &[], base, ScrollSnap::Truncate);
+        let in_order_palette = WorldTransforms::new(&in_order, &[], Some(base), ScrollSnap::Truncate);
+        let permuted_palette = WorldTransforms::new(&permuted, &[], Some(base), ScrollSnap::Truncate);
         let pairs = [
             (VISUAL_VIEWPORT_NODE_INDEX, VISUAL_VIEWPORT_NODE_INDEX),
             (parent, permuted_parent),

@@ -83,6 +83,7 @@ struct HitTestDisplayList::QueryContext {
             .device_pixels_per_css_pixel = query ? query->device_pixels_per_css_pixel() : 1,
             .scroll_offsets = scroll_offsets.data(),
             .scroll_offsets_len = scroll_offsets.size(),
+            .world_transforms = nullptr,
             .has_chrome_metrics = query != nullptr,
             .chrome_metrics = {},
             .has_visual_animation_sample_time = query && query->visual_animation_sample_time_nanoseconds().has_value(),

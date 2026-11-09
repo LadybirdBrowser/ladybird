@@ -1025,7 +1025,8 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
         |list, tree, arena| {
             let mut sampled = None;
             let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
-            ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
+            let world = callbacks.build_world_transforms(tree);
+            ffi_topmost(list.find_topmost_item(arena, tree, &callbacks.with_world_transforms(&world), point.into()))
         },
     );
 }
@@ -1050,7 +1051,8 @@ pub unsafe extern "C" fn layout_hit_test_all(
         |list, tree, arena| {
             let mut sampled = None;
             let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
-            list.hit_test_all(arena, tree, &callbacks, point.into())
+            let world = callbacks.build_world_transforms(tree);
+            list.hit_test_all(arena, tree, &callbacks.with_world_transforms(&world), point.into())
         },
     );
     for index in indices {
@@ -1079,6 +1081,7 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     let main_thread = unsafe { main_thread(host) };
     let mode = crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode);
     *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
+        let world = callbacks.build_world_transforms(tree);
         list.caret_position_from_point(
             &HostNodeScopes {
                 main_thread: &main_thread,
@@ -1086,7 +1089,7 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
             },
             arena,
             tree,
-            &callbacks,
+            &callbacks.with_world_transforms(&world),
             point.into(),
             mode,
             constraint_scope,

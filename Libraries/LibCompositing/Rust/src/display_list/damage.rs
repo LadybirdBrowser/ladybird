@@ -512,7 +512,7 @@ impl<'b> TreeSide<'b> {
             WorldTransforms::new(
                 self.tree,
                 self.scroll_offsets,
-                FloatMatrix4x4::identity(),
+                Some(FloatMatrix4x4::identity()),
                 ScrollSnap::Truncate,
             )
         })
@@ -1392,7 +1392,12 @@ pub fn animated_content_may_affect_viewport(
             let mut rect = header.bounding_rect.to_float();
             if has_inline_clip_in_its_own_space && header.has_bounding_rect {
                 let world = world.get_or_init(|| {
-                    WorldTransforms::new(tree, scroll_offsets, FloatMatrix4x4::identity(), ScrollSnap::Truncate)
+                    WorldTransforms::new(
+                        tree,
+                        scroll_offsets,
+                        Some(FloatMatrix4x4::identity()),
+                        ScrollSnap::Truncate,
+                    )
                 });
                 if let Some(command_to_root) = world.draw_matrix_if_known(run.context.spatial)
                     && let Some(OwnSpaceClipExtent::Within(clipped_rect)) =

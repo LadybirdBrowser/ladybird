@@ -175,9 +175,8 @@ bool AccumulatedVisualContextTree::can_snap_composited_context_origin(SpatialNod
 
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
-    auto scroll_offsets = scroll_state.device_offsets();
     Gfx::FloatPoint local_point;
-    if (!Compositing::RustFFI::visual_context_tree_transform_point_for_hit_test(m_rust_tree, context, screen_point, scroll_offsets.data(), scroll_offsets.size(), clip_behavior == ClipBehavior::Respect, &local_point))
+    if (!Compositing::RustFFI::visual_context_tree_transform_point_for_hit_test(m_rust_tree, scroll_state.world_transforms(*this), context, screen_point, clip_behavior == ClipBehavior::Respect, &local_point))
         return {};
     return local_point;
 }
@@ -191,16 +190,14 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(SpatialNod
 
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialNodeIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
-    auto scroll_offsets = scroll_state.device_offsets();
     Gfx::FloatRect rect;
-    Compositing::RustFFI::visual_context_tree_transform_rect_to_viewport(m_rust_tree, index, source_rect, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes, &rect);
+    Compositing::RustFFI::world_transforms_transform_rect_to_viewport(scroll_state.world_transforms(*this), index, source_rect, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes, &rect);
     return rect;
 }
 
 Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
-    auto scroll_offsets = scroll_state.device_offsets();
-    return Compositing::RustFFI::visual_context_tree_accumulated_matrix(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
+    return Compositing::RustFFI::world_transforms_accumulated_matrix(scroll_state.world_transforms(*this), index, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Function<void(u64)> const& visit) const
