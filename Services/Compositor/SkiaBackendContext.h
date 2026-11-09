@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/GpuDeviceIdentity.h>
 
 #ifdef USE_DIRECTX
@@ -71,6 +72,8 @@ public:
 
 private:
     void perform_post_flush_cleanup();
+
+    RefPtr<Core::Timer> m_idle_cleanup_timer;
 };
 
 }
