@@ -9,14 +9,12 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::{Fragment, FragmentLink};
-use crate::layout::geometry::Frame;
+use crate::layout::geometry::{Frame, Sides};
 use crate::layout::inline_content::{InlineContent, PhysicalPlane};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
-use crate::layout::used_values::{self, FfiCssPixelSize};
+use crate::layout::used_values::FfiCssPixelSize;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
-use crate::painting::paintable_data::FfiPixelBox;
-use crate::painting::paintable_geometry::sides_to_physical;
 use crate::painting::scrollable_overflow::physical_overflow_directions_of_style;
 use crate::painting::visual_context::node_values::{self, TransformGeometry};
 use crate::painting::{node_painting, scroll_snap, style_queries};
@@ -28,43 +26,15 @@ pub(crate) struct FragmentScrollableOverflow {
     pub(crate) has_scrollable_overflow: bool,
 }
 
-pub(crate) fn physical_content_size(fragment: &Fragment, frame: Frame) -> FfiCssPixelSize {
-    let size = fragment.sides.content_size;
-    frame.size_to_physical(size.width, size.height)
-}
-
-pub(crate) fn physical_padding(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(frame, fragment.sides.padding.into())
-}
-
-fn physical_border(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(frame, fragment.sides.border.into())
-}
-
-fn physical_border_box_edges(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
-    let border = physical_border(fragment, frame);
-    if !fragment.sides.collapsing.uses_collapsing_borders_model() {
-        return border;
-    }
-    let is_table_box = fragment.sides.collapsing.is_collapsed_borders_table_box();
-    FfiPixelBox {
-        top: used_values::collapsed_border_share(border.top, true, is_table_box),
-        right: used_values::collapsed_border_share(border.right, false, is_table_box),
-        bottom: used_values::collapsed_border_share(border.bottom, false, is_table_box),
-        left: used_values::collapsed_border_share(border.left, true, is_table_box),
-    }
-}
-
-fn inflated_by(rect: CssPixelRect, sides: FfiPixelBox) -> CssPixelRect {
+fn inflated_by(rect: CssPixelRect, sides: Sides) -> CssPixelRect {
     rect.inflated(sides.top, sides.right, sides.bottom, sides.left)
 }
 
-/// The physical border box of `fragment` around its physical content box `content_box`, where the fragment holds its
-/// geometry in `frame`.
-pub(crate) fn physical_border_box_around(content_box: CssPixelRect, fragment: &Fragment, frame: Frame) -> CssPixelRect {
+/// The physical border box of `fragment` around its physical content box `content_box`.
+pub(crate) fn physical_border_box_around(content_box: CssPixelRect, fragment: &Fragment) -> CssPixelRect {
     inflated_by(
-        inflated_by(content_box, physical_padding(fragment, frame)),
-        physical_border_box_edges(fragment, frame),
+        inflated_by(content_box, fragment.sides.padding),
+        fragment.sides.border_box_edges(),
     )
 }
 
@@ -76,16 +46,16 @@ struct BoxesRelativeToOwnPaddingBox {
 }
 
 impl BoxesRelativeToOwnPaddingBox {
-    fn of(fragment: &Fragment, frame: Frame) -> Self {
-        let content_size = physical_content_size(fragment, frame);
-        let padding = physical_padding(fragment, frame);
+    fn of(fragment: &Fragment) -> Self {
+        let content_size = fragment.sides.content_size;
+        let padding = fragment.sides.padding;
         let content_box = CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
         let padding_box = inflated_by(content_box, padding);
         Self {
             content_size,
             padding_box,
             content_box,
-            border_box: inflated_by(padding_box, physical_border_box_edges(fragment, frame)),
+            border_box: inflated_by(padding_box, fragment.sides.border_box_edges()),
         }
     }
 }
@@ -99,24 +69,24 @@ struct ContainedBoxesRelativeToContainerPaddingBox {
 impl ContainedBoxesRelativeToContainerPaddingBox {
     fn of(link: &FragmentLink, container: &BoxesRelativeToOwnPaddingBox) -> Self {
         let fragment = &link.fragment;
-        let content_box = link
-            .placement
-            .frame
+        let frame = link.placement.frame;
+        let content_size_in_frame = frame.size_from_physical(fragment.sides.content_size);
+        let content_box = frame
             .rect_to_physical(
                 CssPixelRect::new(
                     link.committed_offset.x,
                     link.committed_offset.y,
-                    fragment.sides.content_size.width,
-                    fragment.sides.content_size.height,
+                    content_size_in_frame.width,
+                    content_size_in_frame.height,
                 ),
                 container.content_size,
             )
             .translated_by(container.content_box.location());
-        let padding_box = inflated_by(content_box, physical_padding(fragment, link.placement.frame));
+        let padding_box = inflated_by(content_box, fragment.sides.padding);
         Self {
             content_box,
             padding_box,
-            border_box: inflated_by(padding_box, physical_border_box_edges(fragment, link.placement.frame)),
+            border_box: inflated_by(padding_box, fragment.sides.border_box_edges()),
         }
     }
 }
@@ -197,7 +167,6 @@ pub(crate) fn include_links_held_beside_their_containing_blocks(
         let overflow = scrollable_overflow_of(
             arena,
             fragment,
-            links[index].placement.frame,
             contained_links(fragment).chain(held_beside_indices.iter().map(|&held| &links[held])),
         );
         if overflow != fragment.scrollable_overflow {
@@ -257,8 +226,8 @@ fn inline_box_unions(
     link: &FragmentLink,
     content_origin: CssPixelPoint,
 ) -> Option<InlineBoxUnions> {
-    let padding_widths = physical_padding(&link.fragment, link.placement.frame);
-    let border_widths = physical_border(&link.fragment, link.placement.frame);
+    let padding_widths = link.fragment.sides.padding;
+    let border_widths = link.fragment.sides.border;
     let unite = |union: &mut Option<CssPixelRect>, rect: CssPixelRect| match union {
         None => *union = Some(rect),
         Some(_) if rect.is_empty() => {}
@@ -282,7 +251,7 @@ fn inline_box_unions(
         };
         unite(
             &mut padding_union,
-            physical_piece.shrunken_by_present_edges(border_rect, border_widths),
+            physical_piece.shrunken_by_present_edges(border_rect, border_widths.into()),
         );
         unite(&mut border_union, border_rect);
     }
@@ -296,11 +265,10 @@ fn inline_box_unions(
 pub(crate) fn scrollable_overflow_of<'link>(
     arena: &LayoutNodeArena,
     fragment: &Fragment,
-    frame: Frame,
     contained_links: impl Iterator<Item = &'link FragmentLink>,
 ) -> FragmentScrollableOverflow {
     let node = fragment.node;
-    let own = BoxesRelativeToOwnPaddingBox::of(fragment, frame);
+    let own = BoxesRelativeToOwnPaddingBox::of(fragment);
     let Some(row) = GeometryRead::node(arena, node) else {
         return FragmentScrollableOverflow {
             rect_relative_to_padding_box: own.padding_box,
@@ -458,7 +426,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
         if box_is_scroll_container && (child_is_in_flow || child_is_floating) {
             let mut normal_flow_border_box = untransformed_child_border_box;
             if child_position == positioning::RELATIVE {
-                let inset = sides_to_physical(link.placement.frame, link.placement.insets.into());
+                let inset = link.placement.insets;
                 normal_flow_border_box = normal_flow_border_box.translated(-inset.left, -inset.top);
             }
             // INTEROP: The edges of in-flow and floated content, after which the container's end padding comes,
@@ -609,8 +577,10 @@ pub(crate) fn scrollable_overflow_of<'link>(
     if box_is_scroll_container {
         // NB: The box's own padding surrounds its in-flow and floated content. Whatever of it falls inside the padding
         //     box, or in the unreachable scrollable overflow region, adds nothing. This matches Blink.
-        let padding = physical_padding(fragment, frame);
-        scrollable_overflow_rect.unite(inflated_by(clip_in_flow(in_flow_and_floated_content_bounds), padding));
+        scrollable_overflow_rect.unite(inflated_by(
+            clip_in_flow(in_flow_and_floated_content_bounds),
+            fragment.sides.padding,
+        ));
     }
 
     let mut has_scrollable_overflow =
@@ -747,7 +717,7 @@ impl LayoutNodeArena {
                 self.committed_links_in_containing_block_fragment(candidate, fragment_index, &mut contained);
             }
         }
-        scrollable_overflow_of(self, &link.fragment, link.placement.frame, contained.iter())
+        scrollable_overflow_of(self, &link.fragment, contained.iter())
     }
 
     fn has_scrollable_overflow_in_any_fragment(&self, node: NodeSlotId) -> bool {
@@ -886,12 +856,7 @@ mod tests {
             fragment.sides.content_size.height = CssPixels::from_integer(20);
             child_link.committed_offset.y = CssPixels::from_integer(180).into();
             child_link.placement.containing_block = container;
-            let overflow = scrollable_overflow_of(
-                &arena,
-                &container_link.fragment,
-                Frame::PHYSICAL,
-                std::iter::once(&child_link),
-            );
+            let overflow = scrollable_overflow_of(&arena, &container_link.fragment, std::iter::once(&child_link));
             assert_eq!(
                 overflow.rect_relative_to_padding_box.bottom(),
                 CssPixels::from_integer(expected_bottom),

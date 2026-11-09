@@ -291,8 +291,9 @@ impl FcRunCacheEntry {
                 if std::sync::Arc::ptr_eq(committed, &root.fragment) {
                     return true;
                 }
-                committed.sides.content_size.width == content_inline_size
-                    && (committed.sides.content_size.height == content_block_size
+                let committed_content_size = self.key.parent_frame.size_from_physical(committed.sides.content_size);
+                committed_content_size.width == content_inline_size
+                    && (committed_content_size.height == content_block_size
                         || self.outputs.inputs_never_observed.own_block_size
                             == formatting_context::OwnBlockSizeObservation::Unobserved)
                     && same_allocation(

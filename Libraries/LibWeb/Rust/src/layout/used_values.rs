@@ -239,20 +239,28 @@ impl RootInputCells {
         }
     }
 
-    /// The sizes and box sides `link` and its fragment show, with both sizes definite.
-    pub(crate) fn of_committed_fragment_link(link: &fragment_tree::FragmentLink) -> Self {
+    /// The sizes and box sides `link` and its fragment show, read in `frame`, with both sizes definite.
+    pub(crate) fn of_committed_fragment_link(link: &fragment_tree::FragmentLink, frame: geometry::Frame) -> Self {
         let mut cells = Self {
             has_definite_block_size: true,
             ..Self::default()
         };
-        cells.take_box_metrics_of_committed_link(link);
+        cells.take_box_metrics_of_committed_link(link, frame);
         cells
     }
 
-    /// Takes the sizes and box sides `link` and its fragment show.
-    pub(crate) fn take_box_metrics_of_committed_link(&mut self, link: &fragment_tree::FragmentLink) {
-        let sides = &link.fragment.sides;
-        let margins = link.placement.shown_as.margins;
+    /// Takes the sizes and box sides `link` and its fragment show, read in `frame`.
+    pub(crate) fn take_box_metrics_of_committed_link(
+        &mut self,
+        link: &fragment_tree::FragmentLink,
+        frame: geometry::Frame,
+    ) {
+        let sides = link.fragment.sides.in_frame(geometry::Frame::PHYSICAL, frame);
+        let margins = link
+            .placement
+            .shown_as
+            .margins
+            .in_frame(geometry::Frame::PHYSICAL, frame);
         self.set_content_inline_size(sides.content_size.width);
         self.set_content_block_size(sides.content_size.height);
         self.margin_left = margins.left;

@@ -36,13 +36,52 @@ impl CollapsingBorders {
     }
 }
 
-/// The content size, borders and paddings a fragment shows of its box.
+/// The content size, borders and paddings a fragment shows of its box, in the physical plane.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BoxSides {
     pub(crate) content_size: FfiCssPixelSize,
     pub(crate) border: geometry::Sides,
     pub(crate) padding: geometry::Sides,
     pub(crate) collapsing: CollapsingBorders,
+}
+
+impl BoxSides {
+    /// The sides, which frame `from` holds, as frame `to` holds them.
+    pub(crate) fn in_frame(self, from: geometry::Frame, to: geometry::Frame) -> Self {
+        if from == to {
+            return self;
+        }
+        let content_size = if from.is_orthogonal_to(to) {
+            FfiCssPixelSize {
+                width: self.content_size.height,
+                height: self.content_size.width,
+            }
+        } else {
+            self.content_size
+        };
+        Self {
+            content_size,
+            border: self.border.in_frame(from, to),
+            padding: self.padding.in_frame(from, to),
+            collapsing: self.collapsing,
+        }
+    }
+
+    /// The widths of the borders that lie within the border box. In the collapsing borders model, a collapsed border is
+    /// centered on the grid line between two boxes, so only a part of it belongs to each (see
+    /// `used_values::collapsed_border_share`).
+    pub(crate) fn border_box_edges(&self) -> geometry::Sides {
+        if !self.collapsing.uses_collapsing_borders_model() {
+            return self.border;
+        }
+        let is_table_box = self.collapsing.is_collapsed_borders_table_box();
+        geometry::Sides {
+            top: used_values::collapsed_border_share(self.border.top, true, is_table_box),
+            right: used_values::collapsed_border_share(self.border.right, false, is_table_box),
+            bottom: used_values::collapsed_border_share(self.border.bottom, false, is_table_box),
+            left: used_values::collapsed_border_share(self.border.left, true, is_table_box),
+        }
+    }
 }
 
 /// Whether fragmentation broke the box, so that its fragment continues one in an earlier fragmentainer, or continues
@@ -258,7 +297,7 @@ pub(crate) struct ShownAs {
     pub(crate) facts: ParentShowFacts,
 }
 
-/// Where and how a link places its fragment, apart from its offset.
+/// Where and how a link places its fragment, apart from its offset. Its insets and margins are physical.
 #[derive(Clone, PartialEq)]
 pub(crate) struct LinkPlacement {
     pub(crate) insets: geometry::Sides,
@@ -275,6 +314,7 @@ pub(crate) struct LinkPlacement {
 }
 
 impl LinkPlacement {
+    /// The placement of a box that `facts` and `cells` describe in `frame`.
     fn of_box(
         facts: &run_state::FactsDecidedByParent,
         cells: &used_values::RootInputCells,
@@ -289,9 +329,10 @@ impl LinkPlacement {
                 right: insets.right,
                 bottom: insets.bottom,
                 left: insets.left,
-            },
+            }
+            .in_frame(frame, geometry::Frame::PHYSICAL),
             shown_as: ShownAs {
-                margins: cells.margins(),
+                margins: cells.margins().in_frame(frame, geometry::Frame::PHYSICAL),
                 facts: facts.fragment_facts.show,
             },
             containing_line_box_index,
@@ -834,8 +875,9 @@ pub(crate) struct FragmentGeometry {
 }
 
 impl FragmentGeometry {
-    pub(crate) fn shows_box_of_fragment(&self, fragment: &Fragment) -> bool {
-        fragment.sides == self.cells.box_sides()
+    /// Whether `fragment` shows the box as these cells, which `frame` holds, and lines do.
+    pub(crate) fn shows_box_of_fragment(&self, fragment: &Fragment, frame: geometry::Frame) -> bool {
+        fragment.sides == self.cells.box_sides().in_frame(frame, geometry::Frame::PHYSICAL)
             && same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
     }
 }
@@ -863,7 +905,7 @@ fn snapshot_fragment(
     let mut fragment = Fragment {
         identity: 0,
         node,
-        sides: cells.box_sides(),
+        sides: cells.box_sides().in_frame(pass.frame, geometry::Frame::PHYSICAL),
         line_data,
         payload: payload.filter(|payload| !payload.holds_nothing()),
         line_clamp,
@@ -877,7 +919,6 @@ fn snapshot_fragment(
     fragment.scrollable_overflow = fragment_overflow::scrollable_overflow_of(
         pass.arena(),
         &fragment,
-        pass.frame,
         fragment_overflow::contained_links(&fragment),
     );
     if let Some(previous) = previously_committed_fragment_like(pass, &fragment) {
@@ -921,7 +962,7 @@ fn fragment_of_placed_box(
         return snapshot_fragment(pass, node, children, geometry, breaks, payload);
     };
     let shows_box_as_placed =
-        children.is_empty() && geometry.shows_box_of_fragment(&arrived) && arrived.breaks == breaks;
+        children.is_empty() && geometry.shows_box_of_fragment(&arrived, pass.frame) && arrived.breaks == breaks;
     if shows_box_as_placed {
         return arrived;
     }

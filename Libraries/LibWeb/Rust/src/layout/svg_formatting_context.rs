@@ -2254,7 +2254,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             return None;
         }
         cells.update_cells(|cells| {
-            cells.take_box_metrics_of_committed_link(&link);
+            cells.take_box_metrics_of_committed_link(&link, self.run.pass.frame);
             cells.has_definite_block_size = true;
         });
         self.place_laid_out_child(
