@@ -15,6 +15,7 @@
 // flips between PST/PDT (ok) and the latter overrides PDT seasonally (arguably incorrect).
 
 // NOTE: After 1884, "America/Vancouver" is PST. After 1941 PDT is added seasonally.
+// From November 2026 it observes permanent daylight time (UTC-7).
 // Before 1884 it is Local Mean Time (Vancouver); 12min 28s offset vs. PST
 // Don't be alarmed if you see it in some of the examples. Firefox and Chrome behave the same way.
 // https://en.wikipedia.org/wiki/Standard_time#North_America
@@ -238,9 +239,9 @@ test("ambiguous date: 1 number", () => {
     expect(Date.parse("31")).toBeNaN();
     expect(Date.parse("-14")).toBeNaN(); // Punctuation/sign does not make a difference.
 
-    expect("2032-01-01T08:00:00.000Z").toBe(new Date("32").toISOString()); // 32-49 2000+
-    expect("2041-01-01T08:00:00.000Z").toBe(new Date("41").toISOString());
-    expect("2049-01-01T08:00:00.000Z").toBe(new Date("49").toISOString());
+    expect("2032-01-01T07:00:00.000Z").toBe(new Date("32").toISOString()); // 32-49 2000+
+    expect("2041-01-01T07:00:00.000Z").toBe(new Date("41").toISOString());
+    expect("2049-01-01T07:00:00.000Z").toBe(new Date("49").toISOString());
     expect("1950-01-01T08:00:00.000Z").toBe(new Date("50").toISOString()); // 50-99 1900+
     expect("1978-01-01T08:00:00.000Z").toBe(new Date("78").toISOString());
     expect("1999-01-01T08:00:00.000Z").toBe(new Date("99").toISOString());
@@ -248,8 +249,8 @@ test("ambiguous date: 1 number", () => {
     // Punctuation is generally ignored.
     expect("2001-01-01T08:00:00.000Z").toBe(new Date("-/--1").toISOString()); // 2001 month number
     expect("2001-11-01T08:00:00.000Z").toBe(new Date("-11").toISOString());
-    expect("2032-01-01T08:00:00.000Z").toBe(new Date("-32").toISOString()); // 32-99 year number
-    expect("2040-01-01T08:00:00.000Z").toBe(new Date("-40").toISOString());
+    expect("2032-01-01T07:00:00.000Z").toBe(new Date("-32").toISOString()); // 32-99 year number
+    expect("2040-01-01T07:00:00.000Z").toBe(new Date("-40").toISOString());
     expect("1950-01-01T08:00:00.000Z").toBe(new Date("-50").toISOString());
     expect("0100-01-01T08:12:28.000Z").toBe(new Date("-100").toISOString());
     expect("1999-01-01T08:00:00.000Z").toBe(new Date("-99").toISOString());
@@ -362,8 +363,8 @@ test("ambiguous date: month + number", () => {
     // Chrome interprets numbers 1-31 as days in the given month in 2001. Weird. We interepret everything as a year.
     expect("2007-02-01T08:00:00.000Z").toBe(new Date("7.FebluAli").toISOString());
     expect("2021-02-01T08:00:00.000Z").toBe(new Date("21.FebluAli").toISOString());
-    expect("2031-02-01T08:00:00.000Z").toBe(new Date("31.FebluAli").toISOString());
-    expect("2032-02-01T08:00:00.000Z").toBe(new Date("32.FebluAli").toISOString());
+    expect("2031-02-01T07:00:00.000Z").toBe(new Date("31.FebluAli").toISOString());
+    expect("2032-02-01T07:00:00.000Z").toBe(new Date("32.FebluAli").toISOString());
 
     setTimeZone(originalTimeZone);
 });
@@ -381,16 +382,16 @@ test("ambiguous date: month + 2 numbers", () => {
     expect("1986-04-18T08:00:00.000Z").toBe(new Date("1986 18 Apr").toISOString());
 
     expect("2006-12-05T08:00:00.000Z").toBe(new Date("5 dec 6").toISOString()); // Ambiguous defaults to "D month Y".
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("5 dec 32").toISOString());
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("32 dec 5").toISOString()); // High first number is year.
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("5 dec 32").toISOString());
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("32 dec 5").toISOString()); // High first number is year.
 
     expect("2006-12-05T08:00:00.000Z").toBe(new Date("dec 5 6").toISOString()); // Ambiguous defaults to "month D Y".
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("dec 5 32").toISOString());
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("dec 32 5").toISOString()); // High first number is year.
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("dec 5 32").toISOString());
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("dec 32 5").toISOString()); // High first number is year.
 
     expect("2006-12-05T08:00:00.000Z").toBe(new Date("5 6 dec").toISOString()); // Ambiguous defaults to "D Y month"
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("5 32 dec").toISOString());
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("32 5 dec").toISOString()); // High first number is year.
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("5 32 dec").toISOString());
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("32 5 dec").toISOString()); // High first number is year.
 
     // Only first 3 letters of the month name matter.
     // All kinds of punctuation is accepted.
@@ -398,8 +399,8 @@ test("ambiguous date: month + 2 numbers", () => {
     expect("1999-06-20T07:00:00.000Z").toBe(new Date("20.Junuary, 1999").toISOString());
     expect("2004-06-23T07:00:00.000Z").toBe(new Date("Junuary, 23 2004").toISOString());
     expect("2004-04-11T07:00:00.000Z").toBe(new Date("2004/Apron/11").toISOString());
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("Decision/5-32").toISOString());
-    expect("2032-12-05T08:00:00.000Z").toBe(new Date("DeciMates 32 5").toISOString());
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("Decision/5-32").toISOString());
+    expect("2032-12-05T07:00:00.000Z").toBe(new Date("DeciMates 32 5").toISOString());
 
     expect(Date.parse("20+Junuary, 1999")).toBeNaN(); // Invalid punctuation.
     expect(Date.parse("33 34 dec")).toBeNaN(); // Neither of the numbers can be a day.
@@ -413,27 +414,27 @@ test("time with colon", () => {
     // Compatible with Chrome and Firefox.
     const originalTimeZone = setTimeZone("America/Vancouver");
 
-    expect("2048-12-24T09:23:00.000Z").toBe(new Date("12/24/2048 1:23").toISOString());
-    expect("2048-12-24T09:23:45.000Z").toBe(new Date("12/24/2048 1:23:45").toISOString());
-    expect("2048-12-24T09:23:45.600Z").toBe(new Date("12/24/2048 1:23:45.6").toISOString());
-    expect("2048-12-24T09:23:45.670Z").toBe(new Date("12/24/2048 1:23:45.67").toISOString());
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.678").toISOString());
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.6789").toISOString()); // Truncated to milliseconds.
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.678999999").toISOString());
+    expect("2048-12-24T08:23:00.000Z").toBe(new Date("12/24/2048 1:23").toISOString());
+    expect("2048-12-24T08:23:45.000Z").toBe(new Date("12/24/2048 1:23:45").toISOString());
+    expect("2048-12-24T08:23:45.600Z").toBe(new Date("12/24/2048 1:23:45.6").toISOString());
+    expect("2048-12-24T08:23:45.670Z").toBe(new Date("12/24/2048 1:23:45.67").toISOString());
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.678").toISOString());
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.6789").toISOString()); // Truncated to milliseconds.
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("12/24/2048 1:23:45.678999999").toISOString());
     // An insane number of digits.
-    expect("2048-12-24T09:23:45.678Z").toBe(
+    expect("2048-12-24T08:23:45.678Z").toBe(
         new Date(
             "12/24/2048 1:23:45.67899999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"
         ).toISOString()
     );
 
     // 24:00
-    expect("2048-12-24T08:00:00.000Z").toBe(new Date("12/24/2048 00:00").toISOString());
-    expect("2048-12-25T08:00:00.000Z").toBe(new Date("12/24/2048 24:00").toISOString()); // Time 24:00 is the next day
-    expect("2048-12-25T08:00:00.000Z").toBe(new Date("12/24/2048 24:00:00").toISOString());
+    expect("2048-12-24T07:00:00.000Z").toBe(new Date("12/24/2048 00:00").toISOString());
+    expect("2048-12-25T07:00:00.000Z").toBe(new Date("12/24/2048 24:00").toISOString()); // Time 24:00 is the next day
+    expect("2048-12-25T07:00:00.000Z").toBe(new Date("12/24/2048 24:00:00").toISOString());
 
     // Partial date.
-    expect("2048-01-01T20:34:00.000Z").toBe(new Date("2048 12:34").toISOString());
+    expect("2048-01-01T19:34:00.000Z").toBe(new Date("2048 12:34").toISOString());
     expect("2048-09-01T19:34:00.000Z").toBe(new Date("Sep 2048 12:34").toISOString());
     expect("2048-07-01T19:34:00.000Z").toBe(new Date("2048 Julie 12:34").toISOString());
     expect("1999-07-01T19:34:00.000Z").toBe(new Date("99 Julie 12:34").toISOString());
@@ -458,13 +459,13 @@ test("time with colon", () => {
     expect(Date.parse("2000-09-08-12:23")).toBeNaN(); // Firefox parses correctly. Chrome and us fail.
 
     // Time before date.
-    expect("2048-12-24T09:23:00.000Z").toBe(new Date("1:23 12/24/2048").toISOString());
-    expect("2048-12-24T21:23:00.000Z").toBe(new Date("1:23PM 12/24/2048").toISOString());
-    expect("2048-12-24T09:23:45.000Z").toBe(new Date("1:23:45 12/24/2048").toISOString());
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("1:23:45.678 12/24/2048").toISOString());
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("1:23:45.678999 12/24/2048").toISOString());
-    expect("2048-12-01T09:23:00.000Z").toBe(new Date("1:23 Dec 2048").toISOString());
-    expect("2048-01-01T09:23:00.000Z").toBe(new Date("1:23 2048").toISOString());
+    expect("2048-12-24T08:23:00.000Z").toBe(new Date("1:23 12/24/2048").toISOString());
+    expect("2048-12-24T20:23:00.000Z").toBe(new Date("1:23PM 12/24/2048").toISOString());
+    expect("2048-12-24T08:23:45.000Z").toBe(new Date("1:23:45 12/24/2048").toISOString());
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("1:23:45.678 12/24/2048").toISOString());
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("1:23:45.678999 12/24/2048").toISOString());
+    expect("2048-12-01T08:23:00.000Z").toBe(new Date("1:23 Dec 2048").toISOString());
+    expect("2048-01-01T08:23:00.000Z").toBe(new Date("1:23 2048").toISOString());
 
     expect(Date.parse("1:23 12/2048")).toBeNaN(); // Two numbers cannot be converted to a date..
 
@@ -481,9 +482,9 @@ test("am/pm", () => {
     expect("2019-05-12T20:24:38.123Z").toBe(new Date("5/12/2019 1:24:38.123pM").toISOString());
 
     // Time before date.
-    expect("2048-12-24T09:23:00.000Z").toBe(new Date("1:23AM 12/24/2048").toISOString()); // Chrome fails on AM/PM time before date. Firefox and us support it.
-    expect("2048-12-24T09:23:45.000Z").toBe(new Date("1:23:45AM 12/24/2048").toISOString());
-    expect("2048-12-24T09:23:45.678Z").toBe(new Date("1:23:45.678AM 12/24/2048").toISOString());
+    expect("2048-12-24T08:23:00.000Z").toBe(new Date("1:23AM 12/24/2048").toISOString()); // Chrome fails on AM/PM time before date. Firefox and us support it.
+    expect("2048-12-24T08:23:45.000Z").toBe(new Date("1:23:45AM 12/24/2048").toISOString());
+    expect("2048-12-24T08:23:45.678Z").toBe(new Date("1:23:45.678AM 12/24/2048").toISOString());
 
     expect("2019-05-12T07:34:00.000Z").toBe(new Date("5/12/2019 00:34 AM").toISOString()); // Midnight
     expect("2019-05-12T07:34:00.000Z").toBe(new Date("5/12/2019 12:34 AM").toISOString());
@@ -668,7 +669,7 @@ test("garbage", () => {
     expect("2204-01-20T02:32:00.000Z").toBe(new Date("2204 //. -/, Jan ./- 20 ..- 10:32 GMT+08:00").toISOString());
 
     // Chrome does not accept punctuation after time. Firefox accepts some. We accept punctuation.
-    expect("2204-01-29T18:30:00.000Z").toBe(new Date("2204 Jan 29 10:30 /--/").toISOString());
+    expect("2204-01-29T17:30:00.000Z").toBe(new Date("2204 Jan 29 10:30 /--/").toISOString());
     expect("2204-01-29T23:04:00.000Z").toBe(new Date("2204 Jan 29 10:30 /--/ -1234").toISOString());
 
     expect(Date.parse("2204 Jan 29 10:30. /-/")).toBeNaN(); // But we do not accept a dot after time.
