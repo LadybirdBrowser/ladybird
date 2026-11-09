@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; height: 2000px; }
+.scroller { position: absolute; width: 200px; height: 100px; overflow: scroll; }
+.content { width: 400px; height: 400px; }
+.target { position: relative; width: 150px; height: 300px; margin: 10px 0 0 20px; }
+#s1 { left: 10px; top: 10px; }
+#s2 { left: 300px; top: 10px; }
+#inner { width: 180px; height: 300px; overflow: scroll; }
+#s3 { left: 10px; top: 200px; transform: translate(5px, 7px) scale(1.5); transform-origin: 0 0; }
+#sticky-scroller { position: absolute; left: 300px; top: 200px; width: 200px; height: 100px; overflow: scroll; }
+#sticky { position: sticky; top: 0; height: 30px; }
+#label { display: block; margin-left: 40px; width: 100px; height: 300px; }
+#control { display: block; width: 60px; height: 20px; margin: 50px 0 0 15px; border: 0; padding: 0; }
+</style>
+<script src="../include.js"></script>
+<div class="scroller" id="s1"><div class="content"><div class="target" id="t1"></div></div></div>
+<div class="scroller" id="s2"><div class="content"><div id="inner"><div class="content"><div class="target" id="t2"></div></div></div></div></div>
+<div class="scroller" id="s3"><div class="content"><div class="target" id="t3"></div></div></div>
+<div id="sticky-scroller"><div style="height: 50px"></div><div id="sticky"></div><div style="height: 400px"></div></div>
+<div class="scroller" id="s4" style="left: 10px; top: 400px"><div class="content"><label id="label"><input id="control"></label></div></div>
+<script>
+    asyncTest(async done => {
+        const lines = [];
+        for (const id of ["t1", "t2", "t3", "sticky", "control"]) {
+            for (const type of ["mouseover", "click"]) {
+                document.getElementById(id).addEventListener(type, event => {
+                    if (event.target.id === id)
+                        lines.push(`${id} ${type}: client=(${event.clientX},${event.clientY}) offset=(${event.offsetX},${event.offsetY})`);
+                });
+            }
+        }
+        document.getElementById("s1").scrollTo(13, 30);
+        document.getElementById("s2").scrollTo(0, 20);
+        document.getElementById("inner").scrollTo(7, 25);
+        document.getElementById("s3").scrollTo(0, 20);
+        document.getElementById("sticky-scroller").scrollTo(0, 80);
+        document.getElementById("s4").scrollTo(5, 30);
+        window.scrollTo(0, 5);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        // A target in a scroller, in nested scrollers, in a transformed scroller, a stuck sticky box, and the control
+        // a click on its label in a scroller is passed on to.
+        for (const [x, y] of [[60, 50], [350, 50], [90, 250], [350, 205], [80, 450]]) {
+            internals.mouseMove(x, y);
+            internals.click(x, y);
+        }
+        for (const line of lines)
+            println(line);
+        done();
+    });
+</script>

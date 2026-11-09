@@ -701,25 +701,12 @@ CSSPixelPoint point_to_local(Layout::Node const& node, CSSPixelPoint point, Layo
     return local;
 }
 
-CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint position)
-{
-    if (!has_committed_box(node))
-        return {};
-    auto const& document = node.document();
-    if (!document.has_committed_viewport_box())
-        return position;
-    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.inverse_transform_point(accumulated_visual_context(node).spatial, position.to_type<float>() * pixel_ratio);
-    return (result / pixel_ratio).to_type<CSSPixels>();
-}
-
 // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
-CSSPixelPoint mouse_event_offset(Layout::Node const& node, CSSPixelPoint page_position)
+CSSPixelPoint mouse_event_offset(Layout::Node const& node, CSSPixelPoint viewport_position)
 {
     // The position where the event occurred, ignoring the transforms that apply to the element and its ancestors,
     // relative to the origin of the padding edge of the target node.
-    return inverse_transform_point(node, page_position) - box_type_agnostic_position(node);
+    return point_to_local(node, viewport_position, Layout::RustFFI::ViewportSpace::LayoutViewport) - box_type_agnostic_position(node);
 }
 
 CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint scroll_offset)

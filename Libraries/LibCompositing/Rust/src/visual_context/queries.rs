@@ -7,8 +7,8 @@
 use super::world_transforms::MINIMUM_PROJECTION_W;
 use super::{
     ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
-    IncludeVisualViewportTransform, LocalTransform, LocalTransformKind, SpatialData, SpatialNodeIndex,
-    TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, WorldTransforms, device_offset_for_index,
+    IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
+    VisualContextTree, WorldTransforms, device_offset_for_index,
 };
 use ak::math;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect};
@@ -125,19 +125,6 @@ impl VisualContextTree {
             let parent_culls = !node.parent.is_none() && scratch.effect_culls_everything[node.parent.0 as usize];
             scratch.effect_culls_everything[index] = node.data.culls_everything() || parent_culls;
         });
-    }
-
-    fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
-        let mut current = index;
-        loop {
-            if self.local_transform(current, &[]).kind == LocalTransformKind::Projective {
-                return true;
-            }
-            if current == VISUAL_VIEWPORT_NODE_INDEX {
-                return false;
-            }
-            current = self.spatial_nodes[current.0 as usize].parent;
-        }
     }
 
     fn begin_hit_test_walk(
@@ -285,41 +272,6 @@ impl VisualContextTree {
         }
 
         Some(context_walk.point)
-    }
-
-    pub fn inverse_transform_point(&self, index: SpatialNodeIndex, screen_point: FloatPoint) -> FloatPoint {
-        let chain = self.ancestor_chain(index);
-
-        // This walk deliberately skips translation-only nodes. Callers resolve offsets and scroll positions
-        // themselves. The per-node inverses below are only exact for chains of 2D transforms, so a chain containing a
-        // 3D transform inverts the flattened accumulated matrix, mapping the screen point onto the plane the content
-        // was rendered into.
-        let transforms = chain
-            .iter()
-            .rev()
-            .map(|node_index| self.local_transform(*node_index, &[]))
-            .filter(LocalTransform::is_transform_or_perspective);
-        if self.chain_contains_3d_transform(index) {
-            let matrix = transforms.fold(FloatMatrix4x4::identity(), |matrix, local| local.applied_to(matrix));
-            let Some(inverse) = matrix.flattened().inverse() else {
-                return screen_point;
-            };
-            let mapped = inverse.map_vector4([screen_point.x, screen_point.y, 0.0, 1.0]);
-            if mapped[3] < MINIMUM_PROJECTION_W {
-                return screen_point;
-            }
-            return FloatPoint {
-                x: mapped[0] / mapped[3],
-                y: mapped[1] / mapped[3],
-            };
-        }
-        transforms.fold(screen_point, |point, local| {
-            local
-                .matrix
-                .extract_2d_affine()
-                .inverse()
-                .map_or(point, |inverse| inverse.map_point(point))
-        })
     }
 
     /// The sum of the resolved offsets of the sticky nodes on the spatial chain from `index` up to the viewport, in
@@ -977,10 +929,6 @@ mod tests {
         )
         .expect("the point maps");
         assert_eq!(local, point(20.0, 125.0));
-        assert_eq!(
-            tree.inverse_transform_point(scroll_node, point(40.0, 60.0)),
-            point(20.0, 25.0)
-        );
     }
 
     #[test]
@@ -1009,10 +957,6 @@ mod tests {
         )
         .expect("the point maps");
         assert_eq!(local, point(50.0, 50.0));
-        assert_eq!(
-            tree.inverse_transform_point(lifted, point(100.0, 100.0)),
-            point(50.0, 50.0)
-        );
         assert_eq!(
             rect_to_viewport(
                 &tree,

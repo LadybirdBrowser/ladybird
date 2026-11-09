@@ -3519,7 +3519,7 @@ static CSSPixelPoint hover_event_offset_for_target(Layout::BegunRead const& read
     if (!Painting::has_committed_box(*layout_node))
         return hover_event_data->viewport_position;
 
-    return Painting::mouse_event_offset(*layout_node, hover_event_data->page_offset);
+    return Painting::mouse_event_offset(*layout_node, hover_event_data->viewport_position);
 }
 
 static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optional<HoverEventData> const& hover_event_data)

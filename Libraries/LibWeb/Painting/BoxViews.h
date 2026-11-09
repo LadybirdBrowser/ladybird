@@ -65,11 +65,10 @@ WEB_API bool is_paintable_with_lines(Layout::Node const&);
 WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&);
 WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&);
 WEB_API CSSPixelRect rect_to_viewport(Layout::Node const&, CSSPixelRect const&, Layout::RustFFI::ViewportSpace);
-// The point mapped into the space the box is painted in, or the point itself where the box's clips or transforms leave
-// it out.
+// The point mapped into the space the box is painted in, past any clips, or the point itself where the box's transforms
+// hide it.
 WEB_API CSSPixelPoint point_to_local(Layout::Node const&, CSSPixelPoint, Layout::RustFFI::ViewportSpace);
-WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint);
-WEB_API CSSPixelPoint mouse_event_offset(Layout::Node const&, CSSPixelPoint page_position);
+WEB_API CSSPixelPoint mouse_event_offset(Layout::Node const&, CSSPixelPoint viewport_position);
 // The scroll offset at which the box's content is drawn, hit tested and measured: rounded to whole device pixels where
 // nothing but identity transforms lies above the box.
 WEB_API CSSPixelPoint presented_scroll_offset(Layout::Node const&, CSSPixelPoint scroll_offset);
