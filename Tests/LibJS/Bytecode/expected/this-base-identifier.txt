@@ -1,4 +1,4 @@
-$448be14c this-base-identifier.js:16:1
+$f07f4d98 this-base-identifier.js:16:1
   Registers: 7
   Blocks:    4
   Constants:
@@ -6,41 +6,41 @@ $448be14c this-base-identifier.js:16:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `get_from_this`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] GetGlobal value_feedback:2, dst:reg6, `set_on_this`
-  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  78] Mov dst:reg5, src:Undefined
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `get_from_this`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] GetGlobal value_feedback:2, dst:reg6, `set_on_this`
+  [  2d] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  42] Mov dst:reg5, src:Undefined
 
 block1:
-  [  88] GetGlobal value_feedback:4, dst:reg6, `chained_this_access`
-  [  98] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
-  [  b8] Jump target:block3
+  [  47] GetGlobal value_feedback:4, dst:reg6, `chained_this_access`
+  [  50] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
+  [  65] Jump target:block3
 
 block2:
-  [  c0] Catch value_feedback:6, dst:reg6
-  [  c8] Mov dst:reg5, src:Undefined
-  [  d8] Jump target:block3
+  [  6a] Catch value_feedback:6, dst:reg6
+  [  6f] Mov dst:reg5, src:Undefined
+  [  74] Jump target:block3
 
 block3:
-  [  e0] End value:reg5
+  [  79] End value:reg5
 
 Exception handlers:
-  [  88 ..   c0] => handler block2
+  [  47 ..   6a] => handler block2
 
 
-get_from_this$7b4d6173 this-base-identifier.js:5:5
+get_from_this$b4ceee1a this-base-identifier.js:5:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetById value_feedback:0, dst:reg5, base:this, `foo`
-  [  20] Return value:reg5
+  [   1] GetById value_feedback:0, dst:reg5, base:this, `foo`
+  [   e] Return value:reg5
 
 
-set_on_this$1818839f this-base-identifier.js:9:14
+set_on_this$220be44c this-base-identifier.js:9:14
   Registers: 5
   Blocks:    1
   Constants:
@@ -49,16 +49,16 @@ set_on_this$1818839f this-base-identifier.js:9:14
 
 block0:
   [   0] Enter
-  [   8] PutById base:this, `bar`, src:Int32(1), kind:Normal
-  [  28] End value:Undefined
+  [   1] PutById base:this, `bar`, src:Int32(1), kind:Normal
+  [  10] End value:Undefined
 
 
-chained_this_access$cbe84523 this-base-identifier.js:13:5
+chained_this_access$dfcf067d this-base-identifier.js:13:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetById value_feedback:0, dst:reg5, base:this, `a`
-  [  20] GetById value_feedback:1, dst:reg5, base:reg5, `b`
-  [  38] Return value:reg5
+  [   1] GetById value_feedback:0, dst:reg5, base:this, `a`
+  [   e] GetById value_feedback:1, dst:reg5, base:reg5, `b`
+  [  1b] Return value:reg5

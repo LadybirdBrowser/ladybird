@@ -240,7 +240,11 @@ struct SlowPathResult {
 }
 
 #[jit_abi]
-extern "C" fn add_values(vm: *mut u64, pc: u32, dst: *mut u64, lhs: u64, rhs: u64) -> i64 {
+extern "C" fn add_values(vm: *mut u64, pc: u32, dst: *mut u64, lhs: u64, rhs: u64, length: u32) -> i64 {
+    let next_pc = decode_instruction(&test_state(vm).borrow().bytecodes[running_executable(vm)], pc)
+        .unwrap()
+        .next_pc();
+    assert_eq!(pc + length, next_pc);
     let control = continuation_after(vm, pc);
     if control >= 0 && control as u64 & CONTINUATION_BIT != 0 {
         // SAFETY: Compiled code passes the address of a frame slot.

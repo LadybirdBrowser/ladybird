@@ -212,7 +212,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             if field.role == crate::bytecode::OperandRole::In {
                 continue;
             }
-            if self.read_u32(executable, pc, field.instruction_offset)? != crate::bytecode::Operand::INVALID {
+            if self.read_operand(executable, pc, field.instruction_offset)? != crate::bytecode::Operand::INVALID {
                 outputs.push(field_index as u32);
             }
         }

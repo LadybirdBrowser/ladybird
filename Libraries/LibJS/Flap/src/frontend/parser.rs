@@ -619,7 +619,7 @@ impl<'a> Parser<'a> {
             self.advance();
             self.consume(TokenKind::RightBracket, "']'")?;
             if ty == Type::Operand {
-                ty = Type::U32;
+                ty = Type::U16;
             }
             ty = Type::Sequence(Box::new(ty));
         }

@@ -236,7 +236,7 @@ impl Generator<'_> {
         } else {
             None
         };
-        let saved_strict = std::mem::replace(&mut self.strict, true);
+        let strict_code = self.begin_strict_code();
         let first_temporary = self.next_temporary();
         let dst = self.temporary();
         let held = self.hold_registers();
@@ -362,7 +362,7 @@ impl Generator<'_> {
         if let Some(private_environment) = private_environment {
             self.leave_class_private_environment(private_environment);
         }
-        self.strict = saved_strict;
+        self.end_strict_code(strict_code);
         self.release_held_registers(held);
         self.push_value(dst, first_temporary);
         Ok(())

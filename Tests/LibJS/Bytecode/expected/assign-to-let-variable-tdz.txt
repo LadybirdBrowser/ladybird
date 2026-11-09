@@ -1,4 +1,4 @@
-$ba294ac8 assign-to-let-variable-tdz.js:12:1
+$68557e3a assign-to-let-variable-tdz.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,16 +7,16 @@ $ba294ac8 assign-to-let-variable-tdz.js:12:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  28] NewObject dst:reg7
-  [  38] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
-  [  50] CacheObjectShape object:reg7
-  [  60] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  88] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `f`
+  [   f] NewObject dst:reg7
+  [  14] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
+  [  23] CacheObjectShape object:reg7
+  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  3f] End value:reg5
 
 
-f$d11be5f1 assign-to-let-variable-tdz.js:7:5
+f$bdc04e81 assign-to-let-variable-tdz.js:7:5
   Registers: 7
   Blocks:    3
   Locals:    a~0
@@ -27,27 +27,27 @@ f$d11be5f1 assign-to-let-variable-tdz.js:7:5
 
 block0:
   [   0] Enter
-  [   8] Mov dst:a~0, src:<Empty>
-  [  18] ThrowIfNullish src:arg0
-  [  20] Mov dst:reg5, src:arg0
-  [  30] GetById value_feedback:0, dst:a~0, base:reg5, `location`
-  [  48] Typeof dst:reg5, src:a~0
-  [  58] LooselyEquals arith_feedback:0, dst:reg5, lhs:String("string"), rhs:reg5
-  [  68] JumpFalse condition:reg5, target:block2
+  [   1] Mov dst:a~0, src:<Empty>
+  [   6] ThrowIfNullish src:arg0
+  [   9] Mov dst:reg5, src:arg0
+  [   e] GetById value_feedback:0, dst:a~0, base:reg5, `location`
+  [  1b] Typeof dst:reg5, src:a~0
+  [  20] LooselyEquals arith_feedback:0, dst:reg5, lhs:String("string"), rhs:reg5
+  [  29] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  78] GetGlobal value_feedback:1, dst:reg6, `g`
-  [  88] Call value_feedback:2, call_feedback:0, dst:a~0, callee:reg6, this_value:Undefined, arguments:[a~0]
-  [  b0] Mov dst:reg5, src:a~0
+  [  30] GetGlobal value_feedback:1, dst:reg6, `g`
+  [  39] Call value_feedback:2, call_feedback:0, dst:a~0, callee:reg6, this_value:Undefined, arguments:[a~0]
+  [  50] Mov dst:reg5, src:a~0
 
 block2:
-  [  c0] Return value:a~0
+  [  55] Return value:a~0
 
 
-g$702c1d97 assign-to-let-variable-tdz.js:4:17
+g$323f1263 assign-to-let-variable-tdz.js:4:17
   Registers: 5
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] Return value:arg0
+  [   1] Return value:arg0

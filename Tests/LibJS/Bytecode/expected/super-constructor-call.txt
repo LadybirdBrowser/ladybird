@@ -1,4 +1,4 @@
-$1f56e90a super-constructor-call.js:1:1
+$68c236ab super-constructor-call.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -7,26 +7,26 @@ $1f56e90a super-constructor-call.js:1:1
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:reg5, src:Undefined
-  [  20] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  38] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
-  [  48] SetLexicalEnvironment environment:reg4
-  [  50] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0
-  [  78] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  88] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  a0] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
-  [  b0] GetGlobal value_feedback:0, dst:reg9, `Base`
-  [  c0] GetClassProtoParent dst:reg10, super_class:reg9
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1
-  [ 100] DynamicInitializeLexicalBinding `Derived`, src:reg6
-  [ 110] GetGlobal value_feedback:1, dst:reg6, `Derived`
-  [ 120] CallConstruct value_feedback:2, call_feedback:0, dst:reg5, callee:reg6, arguments:[Int32(1)]
-  [ 148] End value:reg5
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] Mov dst:reg5, src:Undefined
+  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  17] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
+  [  21] SetLexicalEnvironment environment:reg4
+  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0
+  [  3d] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  44] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  52] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
+  [  5c] GetGlobal value_feedback:0, dst:reg9, `Base`
+  [  65] GetClassProtoParent dst:reg10, super_class:reg9
+  [  6a] SetLexicalEnvironment environment:reg4
+  [  6d] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1
+  [  86] DynamicInitializeLexicalBinding `Derived`, src:reg6
+  [  8d] GetGlobal value_feedback:1, dst:reg6, `Derived`
+  [  96] CallConstruct value_feedback:2, call_feedback:0, dst:reg5, callee:reg6, arguments:[Int32(1)]
+  [  ab] End value:reg5
 
 
-Derived$6d86dd52 super-constructor-call.js:4:14
+Derived$f470b7fa super-constructor-call.js:4:14
   Registers: 7
   Blocks:    1
   Constants:
@@ -34,13 +34,13 @@ Derived$6d86dd52 super-constructor-call.js:4:14
 
 block0:
   [   0] Enter
-  [   8] GetSuperConstructor dst:reg5
-  [  10] NewArray dst:reg6, elements:[arg0]
-  [  28] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [  40] End value:Undefined
+  [   1] GetSuperConstructor dst:reg5
+  [   4] NewArray dst:reg6, elements:[arg0]
+  [  11] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  1d] End value:Undefined
 
 
-Base$25c3a990
+Base$63b0b4c4
   Registers: 5
   Blocks:    1
   Constants:
@@ -48,4 +48,4 @@ Base$25c3a990
 
 block0:
   [   0] Enter
-  [   8] End value:Undefined
+  [   1] End value:Undefined

@@ -196,7 +196,7 @@ pub(crate) mod test_support {
 
         let mut bytes = Vec::new();
         for instruction in build(&|index| Label(offsets[index])) {
-            instruction.encode(false, &mut bytes);
+            instruction.encode(&mut bytes);
         }
         assert_eq!(bytes.len(), offset as usize);
 

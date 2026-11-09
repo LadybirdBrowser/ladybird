@@ -1,4 +1,4 @@
-$136acfcc double-constant-deduplication.js:8:1
+$d69a282b double-constant-deduplication.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,13 +6,13 @@ $136acfcc double-constant-deduplication.js:8:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `foo`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `foo`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] End value:reg5
 
 
-foo$81fdd1a8 double-constant-deduplication.js:2:9
+foo$1dead13d double-constant-deduplication.js:2:9
   Registers: 6
   Blocks:    1
   Locals:    a~0, b~1, c~2
@@ -21,9 +21,9 @@ foo$81fdd1a8 double-constant-deduplication.js:2:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:a~0, src:Double(0.5)
-  [  18] Mov dst:b~1, src:Double(0.5)
-  [  28] Mov dst:c~2, src:Double(0.5)
-  [  38] Add arith_feedback:0, dst:reg5, lhs:a~0, rhs:b~1
-  [  48] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:c~2
-  [  58] Return value:reg5
+  [   1] Mov dst:a~0, src:Double(0.5)
+  [   6] Mov dst:b~1, src:Double(0.5)
+  [   b] Mov dst:c~2, src:Double(0.5)
+  [  10] Add arith_feedback:0, dst:reg5, lhs:a~0, rhs:b~1
+  [  19] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:c~2
+  [  22] Return value:reg5

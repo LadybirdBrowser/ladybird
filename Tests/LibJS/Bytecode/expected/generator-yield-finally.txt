@@ -1,4 +1,4 @@
-$b7d986bf generator-yield-finally.js:11:1
+$83dfdc38 generator-yield-finally.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,113 +6,112 @@ $b7d986bf generator-yield-finally.js:11:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  48] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `f`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  24] End value:reg5
 
 
-f$9823b308 generator-yield-finally.js:4:9
+f$c8661021 generator-yield-finally.js:4:9
   Registers: 12
   Blocks:    23
   Constants:
     [0] = Undefined
     [1] = Int32(1)
-    [2] = Int32(5)
-    [3] = Int32(2)
-    [4] = Int32(0)
-    [5] = Int32(3)
+    [2] = Int32(2)
+    [3] = Int32(0)
+    [4] = Int32(3)
 
 block0:
   [   0] Enter
-  [   8] Yield continuation_label:block1, value:Undefined
+  [   1] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  18] Yield continuation_label:block2, value:Int32(1)
+  [   9] Yield continuation_label:block2, value:Int32(1)
 
 block2:
-  [  28] Mov dst:reg7, src:reg0
-  [  38] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-  [  48] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg10, lhs:reg8, rhs:1
-  [  58] JumpIf condition:reg10, true_target:block6, false_target:block3
+  [  11] Mov dst:reg7, src:reg0
+  [  16] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [  1d] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg10, lhs:reg8, rhs:1
+  [  28] JumpIf condition:reg10, true_target:block6, false_target:block3
 
 block3:
-  [  68] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg11, lhs:reg8, rhs:5
-  [  78] JumpIf condition:reg11, true_target:block4, false_target:block5
+  [  33] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg11, lhs:reg8, rhs:5
+  [  3e] JumpIf condition:reg11, true_target:block4, false_target:block5
 
 block4:
-  [  88] Throw src:reg9
+  [  49] Throw src:reg9
 
 block5:
-  [  90] Mov dst:reg6, src:reg9
-  [  a0] Mov dst:reg5, src:Int32(2)
-  [  b0] Jump target:block13
+  [  4c] Mov dst:reg6, src:reg9
+  [  51] Mov dst:reg5, src:Int32(2)
+  [  56] Jump target:block13
 
 block6:
-  [  b8] Mov dst:reg7, src:reg9
-  [  c8] Yield continuation_label:block7, value:Int32(2)
+  [  5b] Mov dst:reg7, src:reg9
+  [  60] Yield continuation_label:block7, value:Int32(2)
 
 block7:
-  [  d8] Mov dst:reg7, src:reg0
-  [  e8] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-  [  f8] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg10, lhs:reg8, rhs:1
-  [ 108] JumpIf condition:reg10, true_target:block11, false_target:block8
+  [  68] Mov dst:reg7, src:reg0
+  [  6d] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [  74] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg10, lhs:reg8, rhs:1
+  [  7f] JumpIf condition:reg10, true_target:block11, false_target:block8
 
 block8:
-  [ 118] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg11, lhs:reg8, rhs:5
-  [ 128] JumpIf condition:reg11, true_target:block9, false_target:block10
+  [  8a] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg11, lhs:reg8, rhs:5
+  [  95] JumpIf condition:reg11, true_target:block9, false_target:block10
 
 block9:
-  [ 138] Throw src:reg9
+  [  a0] Throw src:reg9
 
 block10:
-  [ 140] Mov dst:reg6, src:reg9
-  [ 150] Mov dst:reg5, src:Int32(2)
-  [ 160] Jump target:block13
+  [  a3] Mov dst:reg6, src:reg9
+  [  a8] Mov dst:reg5, src:Int32(2)
+  [  ad] Jump target:block13
 
 block11:
-  [ 168] Mov dst:reg7, src:reg9
-  [ 178] Mov dst:reg5, src:Int32(0)
-  [ 188] Jump target:block13
+  [  b2] Mov dst:reg7, src:reg9
+  [  b7] Mov dst:reg5, src:Int32(0)
+  [  bc] Jump target:block13
 
 block12:
-  [ 190] Catch value_feedback:0, dst:reg6
-  [ 198] Mov dst:reg5, src:Int32(1)
+  [  c1] Catch value_feedback:0, dst:reg6
+  [  c6] Mov dst:reg5, src:Int32(1)
 
 block13:
-  [ 1a8] Yield continuation_label:block14, value:Int32(3)
+  [  cb] Yield continuation_label:block14, value:Int32(3)
 
 block14:
-  [ 1b8] Mov dst:reg7, src:reg0
-  [ 1c8] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-  [ 1d8] StrictlyEqualsRhsInt32 arith_feedback:4, dst:reg10, lhs:reg8, rhs:1
-  [ 1e8] JumpIf condition:reg10, true_target:block18, false_target:block15
+  [  d3] Mov dst:reg7, src:reg0
+  [  d8] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [  df] StrictlyEqualsRhsInt32 arith_feedback:4, dst:reg10, lhs:reg8, rhs:1
+  [  ea] JumpIf condition:reg10, true_target:block18, false_target:block15
 
 block15:
-  [ 1f8] StrictlyEqualsRhsInt32 arith_feedback:5, dst:reg11, lhs:reg8, rhs:5
-  [ 208] JumpIf condition:reg11, true_target:block16, false_target:block17
+  [  f5] StrictlyEqualsRhsInt32 arith_feedback:5, dst:reg11, lhs:reg8, rhs:5
+  [ 100] JumpIf condition:reg11, true_target:block16, false_target:block17
 
 block16:
-  [ 218] Throw src:reg9
+  [ 10b] Throw src:reg9
 
 block17:
-  [ 220] Yield value:reg9
+  [ 10e] Yield value:reg9
 
 block18:
-  [ 230] Mov dst:reg7, src:reg9
-  [ 240] JumpStrictlyEqualsRhsInt32 arith_feedback:6, lhs:reg5, rhs:0, true_target:block22, false_target:block19
+  [ 116] Mov dst:reg7, src:reg9
+  [ 11b] JumpStrictlyEqualsRhsInt32 arith_feedback:6, lhs:reg5, rhs:0, true_target:block22, false_target:block19
 
 block19:
-  [ 258] JumpStrictlyEqualsRhsInt32 arith_feedback:7, lhs:reg5, rhs:2, true_target:block20, false_target:block21
+  [ 12c] JumpStrictlyEqualsRhsInt32 arith_feedback:7, lhs:reg5, rhs:2, true_target:block20, false_target:block21
 
 block20:
-  [ 270] Yield value:reg6
+  [ 13d] Yield value:reg6
 
 block21:
-  [ 280] Throw src:reg6
+  [ 145] Throw src:reg6
 
 block22:
-  [ 288] Yield value:Undefined
+  [ 148] Yield value:Undefined
 
 Exception handlers:
-  [  18 ..  190] => handler block12
+  [   9 ..   c1] => handler block12

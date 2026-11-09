@@ -661,7 +661,7 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
         frame,
         pc,
         return_pc: pc + length,
-        dst: dst.0,
+        dst: dst.0.into(),
     };
 
     let control = match opcode {
@@ -791,7 +791,7 @@ fn call_spreading_arguments_from_jit(
         frame,
         pc,
         return_pc: pc + op::CallWithArgumentArray::LENGTH,
-        dst: call.dst.0,
+        dst: call.dst.0.into(),
     };
     // NB: Iterate an arguments object (whose iterator is the original one, since nothing saw it) like the spread does,
     //     which is observable if %ArrayIteratorPrototype%.next is not the original.
@@ -840,13 +840,14 @@ pub unsafe extern "C" fn libjs_jit_call_forwarding_arguments(
         return call_spreading_arguments_from_jit(vm, frame, pc, call).0;
     }
     let call = instruction_at::<op::Call>(&executable, pc);
-    assert_eq!(call.argument_count, 2);
+    let argument_count = call.argument_count;
+    assert_eq!(argument_count, 2);
     let slots = frame_ref.slots();
     let site = JitCallSite {
         frame,
         pc,
         return_pc: pc + call.length(),
-        dst: call.dst.0,
+        dst: call.dst.0.into(),
     };
 
     // 20.2.3.1 Function.prototype.apply ( thisArg, argArray ), https://tc39.es/ecma262/#sec-function.prototype.apply
@@ -1152,7 +1153,7 @@ pub fn get_by_id_from_jit(
         frame,
         pc,
         return_pc: pc + op::GetById::LENGTH,
-        dst: instruction.dst.0,
+        dst: instruction.dst.0.into(),
     };
     let control = call_ecmascript_function_from_jit(vm, &site, function, values.base, &[]);
     if control.continues_in_frame() {

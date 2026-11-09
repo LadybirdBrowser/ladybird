@@ -237,9 +237,9 @@ define_named_types! {
         InlineInt32 => "Int32", Some(4), false;
         SlotIndex => "SlotIndex", Some(4), false;
         BytecodeOffset => "BytecodeOffset", Some(4), false;
-        EnvironmentCoordinateCacheIndex => "EnvironmentCoordinateCacheIndex", Some(4), false;
-        GlobalVariableCacheIndex => "GlobalVariableCacheIndex", Some(4), false;
-        PropertyLookupCacheIndex => "PropertyLookupCacheIndex", Some(4), false;
+        EnvironmentCoordinateCacheIndex => "EnvironmentCoordinateCacheIndex", Some(2), false;
+        GlobalVariableCacheIndex => "GlobalVariableCacheIndex", Some(2), false;
+        PropertyLookupCacheIndex => "PropertyLookupCacheIndex", Some(2), false;
         ArithFeedbackIndex => "ArithFeedbackIndex", Some(2), false;
         ValueFeedbackIndex => "ValueFeedbackIndex", Some(2), false;
         CallFeedbackIndex => "CallFeedbackIndex", Some(2), false;

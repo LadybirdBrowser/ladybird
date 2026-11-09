@@ -27,6 +27,7 @@ use crate::bytecode::instruction::Instruction;
 use crate::bytecode::instruction::OpCode;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::instruction::typed::TypedInstruction;
+use crate::bytecode::operand::UNCACHED_SITE;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::parser::EnclosingCode;
@@ -135,6 +136,17 @@ macro_rules! next_cache_method {
         pub(super) fn $method(&mut self) -> u32 {
             let index = self.$field;
             self.$field += 1;
+            index
+        }
+    };
+}
+
+macro_rules! next_shared_cache_method {
+    ($method:ident, $field:ident) => {
+        #[inline(always)]
+        pub(super) fn $method(&mut self) -> u32 {
+            let index = self.$field.min(UNCACHED_SITE);
+            self.$field = index + 1;
             index
         }
     };
@@ -408,11 +420,11 @@ impl<'t> Generator<'t> {
 
     // --- Cache index allocation ---
 
-    next_cache_method!(next_property_lookup_cache, next_property_lookup_cache);
-    next_cache_method!(next_global_variable_cache, next_global_variable_cache);
-    next_cache_method!(next_environment_coordinate_cache, next_environment_coordinate_cache);
+    next_shared_cache_method!(next_property_lookup_cache, next_property_lookup_cache);
+    next_shared_cache_method!(next_global_variable_cache, next_global_variable_cache);
+    next_shared_cache_method!(next_environment_coordinate_cache, next_environment_coordinate_cache);
     next_cache_method!(next_template_object_cache, next_template_object_cache);
-    next_cache_method!(next_object_shape_cache, next_object_shape_cache);
+    next_shared_cache_method!(next_object_shape_cache, next_object_shape_cache);
     next_cache_method!(next_object_property_iterator_cache, next_object_property_iterator_cache);
     next_cache_method!(next_environment_shape_cache, next_environment_shape_cache);
     next_feedback_slot_method!(next_arith_feedback, next_arith_feedback);

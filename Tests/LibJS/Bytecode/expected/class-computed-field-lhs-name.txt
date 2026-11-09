@@ -1,26 +1,24 @@
-$90d14739 class-computed-field-lhs-name.js:1:5
+$d065dfea class-computed-field-lhs-name.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
-    [1] = Int32(1)
-    [2] = Int32(2)
-    [3] = Int32(3)
+    [1] = Int32(3)
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:reg5, src:Undefined
-  [  20] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
-  [  38] SetLexicalEnvironment environment:reg4
-  [  40] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
-  [  70] SetGlobal `C`, src:reg6
-  [  80] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  90] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
-  [  b0] End value:reg5
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] Mov dst:reg5, src:Undefined
+  [   9] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [  17] SetLexicalEnvironment environment:reg4
+  [  1a] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
+  [  35] SetGlobal `C`, src:reg6
+  [  3c] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  45] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  58] End value:reg5
 
 
-C$638b9046
+C$259e8512
   Registers: 5
   Blocks:    1
   Constants:
@@ -28,16 +26,16 @@ C$638b9046
 
 block0:
   [   0] Enter
-  [   8] End value:Undefined
+  [   1] End value:Undefined
 
 
-field$dc317dda class-computed-field-lhs-name.js:2:15
+field$12ef1971 class-computed-field-lhs-name.js:2:15
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetClassFieldInitializerName dst:reg5
-  [  10] NewFunction dst:reg6, shared_function_data_index:0
-  [  28] SetFunctionName function:reg6, name:reg5
-  [  38] Return value:reg6
+  [   1] GetClassFieldInitializerName dst:reg5
+  [   4] NewFunction dst:reg6, shared_function_data_index:0
+  [   f] SetFunctionName function:reg6, name:reg5
+  [  18] Return value:reg6

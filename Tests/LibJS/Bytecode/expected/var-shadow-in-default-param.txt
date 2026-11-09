@@ -1,4 +1,4 @@
-$4dd98537 var-shadow-in-default-param.js:7:5
+$701f25cb var-shadow-in-default-param.js:7:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,16 +7,16 @@ $4dd98537 var-shadow-in-default-param.js:7:5
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] SetGlobal `shadow`, src:String("outer")
-  [  28] GetGlobal value_feedback:0, dst:reg6, `shadow_in_default`
-  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  58] GetGlobal value_feedback:2, dst:reg6, `no_conflict`
-  [  68] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  88] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] SetGlobal `shadow`, src:String("outer")
+  [   d] GetGlobal value_feedback:0, dst:reg6, `shadow_in_default`
+  [  16] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  2b] GetGlobal value_feedback:2, dst:reg6, `no_conflict`
+  [  34] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  49] End value:reg5
 
 
-shadow_in_default$cf39b72b var-shadow-in-default-param.js:8:28
+shadow_in_default$1b85a199 var-shadow-in-default-param.js:8:28
   Registers: 6
   Blocks:    3
   Locals:    shadow~0
@@ -26,18 +26,18 @@ shadow_in_default$cf39b72b var-shadow-in-default-param.js:8:28
 
 block0:
   [   0] Enter
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   1] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] GetGlobal value_feedback:0, dst:arg0, `shadow`
+  [   c] GetGlobal value_feedback:0, dst:arg0, `shadow`
 
 block2:
-  [  28] Mov dst:shadow~0, src:Undefined
-  [  38] Mov dst:shadow~0, src:String("inner")
-  [  48] Return value:arg0
+  [  15] Mov dst:shadow~0, src:Undefined
+  [  1a] Mov dst:shadow~0, src:String("inner")
+  [  1f] Return value:arg0
 
 
-no_conflict$9c1d62c4 var-shadow-in-default-param.js:15:22
+no_conflict$8836a16a var-shadow-in-default-param.js:15:22
   Registers: 5
   Blocks:    3
   Locals:    y~0
@@ -48,12 +48,12 @@ no_conflict$9c1d62c4 var-shadow-in-default-param.js:15:22
 
 block0:
   [   0] Enter
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   1] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] Mov dst:arg0, src:Int32(1)
+  [   c] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  28] Mov dst:y~0, src:Undefined
-  [  38] Mov dst:y~0, src:Int32(2)
-  [  48] Return value:y~0
+  [  11] Mov dst:y~0, src:Undefined
+  [  16] Mov dst:y~0, src:Int32(2)
+  [  1b] Return value:y~0

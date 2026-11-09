@@ -1,4 +1,4 @@
-$8ea9e309 const-assignment-no-extra-tdz.js:5:1
+$348a434b const-assignment-no-extra-tdz.js:5:1
   Registers: 7
   Blocks:    4
   Locals:    e~0
@@ -8,39 +8,38 @@ $8ea9e309 const-assignment-no-extra-tdz.js:5:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] Mov dst:reg5, src:Undefined
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] Mov dst:reg5, src:Undefined
 
 block1:
-  [  28] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  38] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  58] Jump target:block3
+  [   b] GetGlobal value_feedback:0, dst:reg6, `f`
+  [  14] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  29] Jump target:block3
 
 block2:
-  [  60] Catch value_feedback:2, dst:reg6
-  [  68] Mov dst:reg5, src:Undefined
-  [  78] Mov dst:e~0, src:<Empty>
-  [  88] Mov dst:e~0, src:reg6
-  [  98] Jump target:block3
+  [  2e] Catch value_feedback:2, dst:reg6
+  [  33] Mov dst:reg5, src:Undefined
+  [  38] Mov dst:e~0, src:<Empty>
+  [  3d] Mov dst:e~0, src:reg6
+  [  42] Jump target:block3
 
 block3:
-  [  a0] End value:reg5
+  [  47] End value:reg5
 
 Exception handlers:
-  [  28 ..   60] => handler block2
+  [   b ..   2e] => handler block2
 
 
-f$c80d9f4a const-assignment-no-extra-tdz.js:2:11
+f$222d3f08 const-assignment-no-extra-tdz.js:2:11
   Registers: 5
   Blocks:    1
   Locals:    x~0
   Constants:
     [0] = Int32(1)
-    [1] = Int32(2)
-    [2] = Undefined
+    [1] = Undefined
 
 block0:
   [   0] Enter
-  [   8] Mov dst:x~0, src:Int32(1)
-  [  18] ThrowConstAssignment
-  [  20] End value:Undefined
+  [   1] Mov dst:x~0, src:Int32(1)
+  [   6] ThrowConstAssignment
+  [   7] End value:Undefined

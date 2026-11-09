@@ -95,8 +95,15 @@ fn iterator_record_from_registers(
 }
 
 /// The primitive values a NewPrimitiveArray instruction carries after its fixed fields.
-fn primitive_array_elements(instruction: &op::NewPrimitiveArray) -> &[Value] {
-    instruction.elements()
+#[cfg_attr(
+    ladybird_gc_lints,
+    expect(
+        gc_container_on_stack,
+        reason = "the elements are numbers, booleans, null and holes, which are not cells"
+    )
+)]
+fn primitive_array_elements(instruction: &op::NewPrimitiveArray) -> Vec<Value> {
+    instruction.elements().collect()
 }
 
 pub fn debugger_check_breakpoint(vm: &Vm, pc: u32) {
@@ -165,7 +172,7 @@ pub fn new_primitive_array(
     instruction: &op::NewPrimitiveArray,
     values: &mut op::NewPrimitiveArrayValues,
 ) -> SlowPathControl {
-    values.dst = Value::from_object(create_array_literal(vm, primitive_array_elements(instruction)));
+    values.dst = Value::from_object(create_array_literal(vm, &primitive_array_elements(instruction)));
     SlowPathControl::continue_at(pc + instruction.length())
 }
 

@@ -18,8 +18,6 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::value::{self, PreferredType};
 
 /// Stores the result of the binary operator instruction at `pc`, whose length is `length`, and continues after it.
-/// NB: The slow paths that receive their operands in registers each serve the instruction of one opcode, so they know
-///     its length.
 fn finish_binary_slow_path_value(pc: u32, length: u32, destination: &Cell<Value>, result: Value) -> SlowPathControl {
     destination.set(result);
     SlowPathControl::continue_at(pc + length)
@@ -45,50 +43,53 @@ fn finish_binary_slow_path_with_boolean(
     finish_binary_slow_path_value(pc, length, destination, Value::from_bool(asm_try!(vm, pc, result)))
 }
 
-pub fn add_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Add::LENGTH, destination, value::add(vm, lhs, rhs))
+pub fn add_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::add(vm, lhs, rhs))
 }
 
-pub fn sub_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Sub::LENGTH, destination, value::sub(vm, lhs, rhs))
+pub fn sub_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::sub(vm, lhs, rhs))
 }
 
-pub fn mul_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Mul::LENGTH, destination, value::mul(vm, lhs, rhs))
+pub fn mul_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::mul(vm, lhs, rhs))
 }
 
-pub fn div_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Div::LENGTH, destination, value::div(vm, lhs, rhs))
+pub fn div_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::div(vm, lhs, rhs))
 }
 
-pub fn less_than_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::LessThan::LENGTH,
-        destination,
-        value::less_than(vm, lhs, rhs),
-    )
+pub fn less_than_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, value::less_than(vm, lhs, rhs))
 }
 
-pub fn less_than_equals_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::LessThanEquals::LENGTH,
-        destination,
-        value::less_than_equals(vm, lhs, rhs),
-    )
+pub fn less_than_equals_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, value::less_than_equals(vm, lhs, rhs))
 }
 
-pub fn greater_than_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::GreaterThan::LENGTH,
-        destination,
-        value::greater_than(vm, lhs, rhs),
-    )
+pub fn greater_than_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, value::greater_than(vm, lhs, rhs))
 }
 
 pub fn greater_than_equals_values(
@@ -97,14 +98,9 @@ pub fn greater_than_equals_values(
     destination: &Cell<Value>,
     lhs: Value,
     rhs: Value,
+    length: u32,
 ) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::GreaterThanEquals::LENGTH,
-        destination,
-        value::greater_than_equals(vm, lhs, rhs),
-    )
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, value::greater_than_equals(vm, lhs, rhs))
 }
 
 pub fn increment(vm: &Vm, pc: u32, values: &mut op::IncrementValues) -> SlowPathControl {
@@ -257,58 +253,63 @@ pub fn concat_string(vm: &Vm, pc: u32, values: &mut op::ConcatStringValues) -> S
     SlowPathControl::continue_at(pc + op::ConcatString::LENGTH)
 }
 
-pub fn exp_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Exp::LENGTH, destination, value::exp(vm, lhs, rhs))
+pub fn exp_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::exp(vm, lhs, rhs))
 }
 
-pub fn bitwise_xor_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::BitwiseXor::LENGTH,
-        destination,
-        value::bitwise_xor(vm, lhs, rhs),
-    )
+pub fn bitwise_xor_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::bitwise_xor(vm, lhs, rhs))
 }
 
-pub fn bitwise_and_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::BitwiseAnd::LENGTH,
-        destination,
-        value::bitwise_and(vm, lhs, rhs),
-    )
+pub fn bitwise_and_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::bitwise_and(vm, lhs, rhs))
 }
 
-pub fn bitwise_or_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::BitwiseOr::LENGTH,
-        destination,
-        value::bitwise_or(vm, lhs, rhs),
-    )
+pub fn bitwise_or_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::bitwise_or(vm, lhs, rhs))
 }
 
-pub fn left_shift_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::LeftShift::LENGTH,
-        destination,
-        value::left_shift(vm, lhs, rhs),
-    )
+pub fn left_shift_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::left_shift(vm, lhs, rhs))
 }
 
-pub fn right_shift_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::RightShift::LENGTH,
-        destination,
-        value::right_shift(vm, lhs, rhs),
-    )
+pub fn right_shift_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::right_shift(vm, lhs, rhs))
 }
 
 pub fn unsigned_right_shift_values(
@@ -317,18 +318,13 @@ pub fn unsigned_right_shift_values(
     destination: &Cell<Value>,
     lhs: Value,
     rhs: Value,
+    length: u32,
 ) -> SlowPathControl {
-    finish_binary_slow_path(
-        vm,
-        pc,
-        op::UnsignedRightShift::LENGTH,
-        destination,
-        value::unsigned_right_shift(vm, lhs, rhs),
-    )
+    finish_binary_slow_path(vm, pc, length, destination, value::unsigned_right_shift(vm, lhs, rhs))
 }
 
-pub fn mod_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path(vm, pc, op::Mod::LENGTH, destination, value::r#mod(vm, lhs, rhs))
+pub fn mod_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value, length: u32) -> SlowPathControl {
+    finish_binary_slow_path(vm, pc, length, destination, value::r#mod(vm, lhs, rhs))
 }
 
 fn loosely_equals(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletionOr<bool> {
@@ -349,42 +345,46 @@ fn strictly_equals(lhs: Value, rhs: Value) -> bool {
     value::is_strictly_equal(lhs, rhs)
 }
 
-pub fn strictly_equals_values(pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_value(
-        pc,
-        op::StrictlyEquals::LENGTH,
-        destination,
-        Value::from_bool(strictly_equals(lhs, rhs)),
-    )
+pub fn strictly_equals_values(
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_value(pc, length, destination, Value::from_bool(strictly_equals(lhs, rhs)))
 }
 
-pub fn strictly_inequals_values(pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_value(
-        pc,
-        op::StrictlyInequals::LENGTH,
-        destination,
-        Value::from_bool(!strictly_equals(lhs, rhs)),
-    )
+pub fn strictly_inequals_values(
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_value(pc, length, destination, Value::from_bool(!strictly_equals(lhs, rhs)))
 }
 
-pub fn loosely_equals_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::LooselyEquals::LENGTH,
-        destination,
-        loosely_equals(vm, lhs, rhs),
-    )
+pub fn loosely_equals_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, loosely_equals(vm, lhs, rhs))
 }
 
-pub fn loosely_inequals_values(vm: &Vm, pc: u32, destination: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
-    finish_binary_slow_path_with_boolean(
-        vm,
-        pc,
-        op::LooselyInequals::LENGTH,
-        destination,
-        loosely_inequals(vm, lhs, rhs),
-    )
+pub fn loosely_inequals_values(
+    vm: &Vm,
+    pc: u32,
+    destination: &Cell<Value>,
+    lhs: Value,
+    rhs: Value,
+    length: u32,
+) -> SlowPathControl {
+    finish_binary_slow_path_with_boolean(vm, pc, length, destination, loosely_inequals(vm, lhs, rhs))
 }
 
 pub fn unary_minus(vm: &Vm, pc: u32, values: &mut op::UnaryMinusValues) -> SlowPathControl {

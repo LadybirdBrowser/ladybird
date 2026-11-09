@@ -84,6 +84,14 @@ impl<'a> Emit<'a> {
         finalize_error(self.handler, message)
     }
 
+    /// The length of the instruction of a handler that calls a binary slow path, which the slow path continues after.
+    pub(crate) fn binary_slow_path_instruction_length(&self) -> Result<i64, CompileError> {
+        match self.handler_size {
+            Some(size) => Ok(i64::from(size)),
+            None => self.error("a variable-length handler cannot call a binary slow path"),
+        }
+    }
+
     /// A layout constant the handler cannot be finalized without.
     pub(crate) fn constant(&self, constant: KnownLayoutConstant) -> Result<i64, CompileError> {
         required_runtime_constant(self.runtime, constant, self.handler)

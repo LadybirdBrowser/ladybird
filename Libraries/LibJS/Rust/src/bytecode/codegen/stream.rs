@@ -27,6 +27,7 @@ use crate::bytecode::constant_fold::try_constant_fold_binary;
 use crate::bytecode::constant_fold::try_constant_fold_unary;
 use crate::bytecode::executable_data::ConstantValue;
 use crate::bytecode::executable_data::ExceptionHandler;
+use crate::bytecode::executable_data::StrictRange;
 use crate::bytecode::instruction::Instruction;
 use crate::bytecode::instruction::specialize_instruction;
 use crate::bytecode::instruction::typed as op;
@@ -46,6 +47,8 @@ use super::emitter::AssembledBytecode;
 use super::emitter::BlockEncoder;
 use super::emitter::BlockPosition;
 use super::emitter::FrameLayout;
+use super::emitter::OPERAND_SIZE;
+use super::emitter::OperandPosition;
 use super::generators::DisposalKind;
 use super::generators::emit_dispose_resources;
 use super::generators::generate_await_of_value;
@@ -58,8 +61,52 @@ use super::registers::ScopedOperand;
 
 const UNBOUND: u32 = u32::MAX;
 
-/// Where the destination of a binary operator is in its instruction, which all have the same layout up to there.
-const DESTINATION_OFFSET_OF_BINARY_OPERATOR: u32 = 4;
+/// Where a binary operator's instruction holds its destination. It is the first operand, behind the
+/// arithmetic feedback index of the operators that have one.
+fn destination_offset_of_binary_operator(operator: BinaryOp) -> u32 {
+    match operator {
+        BinaryOp::In | BinaryOp::InstanceOf => BINARY_OPERATOR_DESTINATION_OFFSET,
+        _ => ARITHMETIC_OPERATOR_DESTINATION_OFFSET,
+    }
+}
+
+const BINARY_OPERATOR_DESTINATION_OFFSET: u32 = 1;
+const ARITHMETIC_OPERATOR_DESTINATION_OFFSET: u32 = 3;
+
+#[cfg(not(test))]
+const _: () = {
+    use crate::bytecode::op as view;
+    use core::mem::offset_of;
+    assert!(offset_of!(view::In, dst) == BINARY_OPERATOR_DESTINATION_OFFSET as usize);
+    assert!(offset_of!(view::InstanceOf, dst) == BINARY_OPERATOR_DESTINATION_OFFSET as usize);
+    macro_rules! assert_arithmetic_destination {
+        ($($name:ident),*) => {
+            $(assert!(offset_of!(view::$name, dst) == ARITHMETIC_OPERATOR_DESTINATION_OFFSET as usize);)*
+        };
+    }
+    assert_arithmetic_destination!(
+        Add,
+        Sub,
+        Mul,
+        Div,
+        Mod,
+        Exp,
+        StrictlyEquals,
+        StrictlyInequals,
+        LooselyEquals,
+        LooselyInequals,
+        GreaterThan,
+        GreaterThanEquals,
+        LessThan,
+        LessThanEquals,
+        BitwiseAnd,
+        BitwiseOr,
+        BitwiseXor,
+        LeftShift,
+        RightShift,
+        UnsignedRightShift
+    );
+};
 
 /// What an evaluated expression is, for whatever consumes it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -152,6 +199,22 @@ struct LastComparison {
     dst: Operand,
     lhs: Operand,
     rhs: Operand,
+}
+
+impl Segment {
+    /// The end of the segment was cut off, and what comes next must not count as part of a strict range.
+    fn clamp_last_strict_range(&mut self) {
+        let end_offset = u32_from_usize(self.bytes.len());
+        if let Some(range) = self.strict_ranges.last_mut() {
+            range.end_offset = range.end_offset.min(end_offset);
+        }
+    }
+}
+
+/// Where strict code began, and what the code around it is.
+pub(super) struct StrictCode {
+    was_strict: bool,
+    start_offset: u32,
 }
 
 /// The destination of the instruction that was just emitted, in case it can write straight to where the value goes.
@@ -261,6 +324,7 @@ struct BodyStart {
     offset: u32,
     operand_positions: usize,
     label_positions: usize,
+    strict_ranges: usize,
     source_entries: usize,
     labels: usize,
     handler_changes: usize,
@@ -269,8 +333,10 @@ struct BodyStart {
 #[derive(Default)]
 pub(super) struct Segment {
     bytes: Vec<u8>,
-    operand_positions: Vec<BlockPosition>,
+    operand_positions: Vec<OperandPosition>,
     label_positions: Vec<BlockPosition>,
+    /// Where a class body makes the code strict in a function that is not.
+    strict_ranges: Vec<StrictRange>,
     /// (offset of the first instruction from there on, where in the source that came from)
     source_entries: Vec<(u32, SourceOffset)>,
     last_source_offset: Option<SourceOffset>,
@@ -281,6 +347,7 @@ impl Segment {
     fn clear(&mut self) {
         self.bytes.clear();
         self.operand_positions.clear();
+        self.strict_ranges.clear();
         self.label_positions.clear();
         self.source_entries.clear();
         self.last_source_offset = None;
@@ -479,6 +546,26 @@ impl Generator<'_> {
         self.end_head();
     }
 
+    /// A class body starts, which is strict code even in a function that is not.
+    pub(super) fn begin_strict_code(&mut self) -> StrictCode {
+        StrictCode {
+            was_strict: std::mem::replace(&mut self.strict, true),
+            start_offset: u32_from_usize(self.context.stream.current.bytes.len()),
+        }
+    }
+
+    pub(super) fn end_strict_code(&mut self, code: StrictCode) {
+        self.strict = code.was_strict;
+        let segment = &mut self.context.stream.current;
+        let end_offset = u32_from_usize(segment.bytes.len());
+        if !code.was_strict && code.start_offset != end_offset {
+            segment.strict_ranges.push(StrictRange {
+                start_offset: code.start_offset,
+                end_offset,
+            });
+        }
+    }
+
     /// The code of the parameters ended here, and from now on `in_head()` is about what comes right after that.
     pub(super) fn begin_body_head(&mut self) {
         let stream = &mut self.context.stream;
@@ -486,6 +573,7 @@ impl Generator<'_> {
             offset: u32_from_usize(stream.current.bytes.len()),
             operand_positions: stream.current.operand_positions.len(),
             label_positions: stream.current.label_positions.len(),
+            strict_ranges: stream.current.strict_ranges.len(),
             source_entries: stream.current.source_entries.len(),
             labels: stream.labels.len(),
             handler_changes: stream.handler_changes.len(),
@@ -517,15 +605,23 @@ impl Generator<'_> {
         for position in &mut current.label_positions[start.label_positions..] {
             position.offset += size;
         }
+        for range in &mut current.strict_ranges[start.strict_ranges..] {
+            *range = range.shifted(size);
+        }
         for entry in &mut current.source_entries[start.source_entries..] {
             entry.0 += size;
         }
         current
             .operand_positions
-            .extend(head.operand_positions.iter().map(|position| BlockPosition {
-                block: 0,
+            .extend(head.operand_positions.iter().map(|position| OperandPosition {
                 offset: position.offset + start.offset,
+                operand_type: position.operand_type,
+                index: position.index,
             }));
+        current.strict_ranges.splice(
+            start.strict_ranges..start.strict_ranges,
+            head.strict_ranges.iter().map(|range| range.shifted(start.offset)),
+        );
         current.source_entries.splice(
             start.source_entries..start.source_entries,
             head.source_entries
@@ -559,8 +655,7 @@ impl Generator<'_> {
     }
 
     #[inline(always)]
-    fn encode_into_stream(&mut self, encode: impl FnOnce(bool, &mut BlockEncoder<'_>), watched: Operand) -> u32 {
-        let strict = self.strict;
+    fn encode_into_stream(&mut self, encode: impl FnOnce(&mut BlockEncoder<'_>), watched: Operand) -> u32 {
         let context = &mut *self.context;
         let stream = &mut context.stream;
         let segment = &mut stream.current;
@@ -577,7 +672,7 @@ impl Generator<'_> {
             &mut stream.number_of_arguments,
             watched,
         );
-        encode(strict, &mut encoder);
+        encode(&mut encoder);
         encoder.watched_position
     }
 
@@ -595,7 +690,7 @@ impl Generator<'_> {
         let position = if instruction.may_specialize() {
             self.put_specialized(&instruction.to_instruction(), watched)
         } else {
-            self.encode_into_stream(|strict, encoder| instruction.encode(strict, encoder), watched)
+            self.encode_into_stream(|encoder| instruction.encode(encoder), watched)
         };
         if I::IS_TERMINATOR {
             self.context.stream.current.dead = true;
@@ -607,10 +702,7 @@ impl Generator<'_> {
     fn put_specialized(&mut self, instruction: &Instruction, watched: Operand) -> u32 {
         let specialized = specialize_instruction(instruction, &self.context.constants.values);
         let instruction = specialized.as_ref().unwrap_or(instruction);
-        self.encode_into_stream(
-            |strict, encoder| instruction.encode_into_block(strict, encoder),
-            watched,
-        )
+        self.encode_into_stream(|encoder| instruction.encode_into_block(encoder), watched)
     }
 
     /// Emits an instruction with a destination that the next thing to happen may redirect.
@@ -1165,16 +1257,18 @@ impl Generator<'_> {
         // NB: A handler sees a local as it was if the instruction throws, so that it cannot write the local itself.
         if let Some(last) = stream.last_destination
             && last.dst == value
+            && last.dst.is_register()
             && last.end as usize == stream.current.bytes.len()
             && (stream.handler.is_none() || dst.is_register())
         {
             let position = last.position as usize;
-            stream.current.bytes[position..position + 4].copy_from_slice(&dst.raw().to_ne_bytes());
+            stream.current.bytes[position..position + OPERAND_SIZE].copy_from_slice(&(dst.raw() as u16).to_ne_bytes());
             stream.last_destination = None;
             if !dst.is_register() {
-                stream.current.operand_positions.push(BlockPosition {
-                    block: 0,
+                stream.current.operand_positions.push(OperandPosition {
                     offset: last.position,
+                    operand_type: dst.operand_type(),
+                    index: dst.index(),
                 });
             }
             if dst.is_argument() {
@@ -1214,6 +1308,7 @@ impl Generator<'_> {
         {
             // NB: Nothing else knows about this jump, so that it is as if it never was.
             segment.bytes.truncate(jump.start as usize);
+            segment.clamp_last_strict_range();
             segment.label_positions.truncate(jump.label_position_count as usize);
             segment.dead = false;
         }
@@ -1262,6 +1357,7 @@ impl Generator<'_> {
             return None;
         }
         stream.current.bytes.truncate(comparison.start as usize);
+        stream.current.clamp_last_strict_range();
         stream
             .current
             .operand_positions
@@ -2166,7 +2262,7 @@ impl Generator<'_> {
             // NB: Every operator writes its destination, and that is the first operand.
             stream.last_destination = Some(LastDestination {
                 end,
-                position: start + DESTINATION_OFFSET_OF_BINARY_OPERATOR,
+                position: start + destination_offset_of_binary_operator(operator),
                 dst,
             });
         }
@@ -3662,10 +3758,37 @@ impl Generator<'_> {
     /// Assembles what was emitted into a new block, which has `other_tables_size` bytes left: the operands that come
     /// after the registers get their place in the frame, and labels their offsets.
     pub(super) fn finish_stream(&mut self, other_tables_size: usize) -> (AssembledBytecode, SliceBlockBuilder) {
+        // NB: Folding leaves constants that nothing uses, and they would take up slots in every frame.
+        let mut constant_is_used = vec![false; self.context.constants.values.len()];
+        let stream = &self.context.stream;
+        for position in stream
+            .head
+            .operand_positions
+            .iter()
+            .chain(&stream.current.operand_positions)
+        {
+            if position.operand_type == OperandType::Constant {
+                constant_is_used[position.index as usize] = true;
+            }
+        }
+        let mut used_constant_count = 0;
+        let new_constant_indices: Vec<u32> = constant_is_used
+            .iter()
+            .map(|&is_used| {
+                let new_index = used_constant_count;
+                used_constant_count += u32::from(is_used);
+                new_index
+            })
+            .collect();
+        let mut is_used = constant_is_used.iter();
+        self.context
+            .constants
+            .values
+            .retain(|_| *is_used.next().expect("a flag per constant"));
         let frame = FrameLayout {
             register_count: self.context.stream.temporary_count.max(Register::RESERVED_COUNT),
             local_count: self.context.scope.local_count(),
-            constant_count: u32_from_usize(self.context.constants.values.len()),
+            constant_count: used_constant_count,
         };
         let stream = &mut self.context.stream;
         let head = &stream.head;
@@ -3699,18 +3822,24 @@ impl Generator<'_> {
             )
         };
         let mut bytecode = block.slice_from_parts(&head.bytes, &segment.bytes);
-        let head_positions = head.operand_positions.iter().map(|position| position.offset);
+        let head_positions = head
+            .operand_positions
+            .iter()
+            .map(|position| (position.offset, *position));
         let positions = segment
             .operand_positions
             .iter()
-            .map(|position| position.offset + head_size);
-        for offset in head_positions.chain(positions) {
+            .map(|position| (position.offset + head_size, *position));
+        for (offset, position) in head_positions.chain(positions) {
             let at = offset as usize;
-            let bytes = &mut bytecode[at..at + 4];
-            let raw = u32::from_ne_bytes((&*bytes).try_into().expect("an operand is four bytes"));
-            let mut operand = Operand::from_raw(raw);
-            operand.offset_index_by(frame.start_of(operand.operand_type()));
-            bytes.copy_from_slice(&operand.raw().to_ne_bytes());
+            let bytes = &mut bytecode[at..at + OPERAND_SIZE];
+            let index = match position.operand_type {
+                OperandType::Constant => new_constant_indices[position.index as usize],
+                _ => position.index,
+            };
+            let slot = index + frame.start_of(position.operand_type);
+            let slot = u16::try_from(slot).expect("frame slots fit in 16 bits");
+            bytes.copy_from_slice(&slot.to_ne_bytes());
         }
         for position in &segment.label_positions {
             let at = (position.offset + head_size) as usize;
@@ -3732,8 +3861,15 @@ impl Generator<'_> {
                     source_offset,
                 }),
         );
+        let strict_ranges = head
+            .strict_ranges
+            .iter()
+            .copied()
+            .chain(segment.strict_ranges.iter().map(|range| range.shifted(head_size)))
+            .collect();
         let assembled = AssembledBytecode {
             bytecode,
+            strict_ranges,
             source_map,
             exception_handlers: block.slice(exception_handlers.into_iter()),
             number_of_registers: frame.register_count,

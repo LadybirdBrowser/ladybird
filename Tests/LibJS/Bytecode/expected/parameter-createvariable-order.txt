@@ -1,4 +1,4 @@
-$d59017a3 parameter-createvariable-order.js:7:1
+$3c67091e parameter-createvariable-order.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,13 +9,13 @@ $d59017a3 parameter-createvariable-order.js:7:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `f`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  58] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `f`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  2a] End value:reg5
 
 
-f$9434bbb0 parameter-createvariable-order.js:2:9
+f$d834d2ee parameter-createvariable-order.js:2:9
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -24,27 +24,27 @@ f$9434bbb0 parameter-createvariable-order.js:2:9
 
 block0:
   [   0] Enter
-  [   8] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeLexicalBinding `a`, src:arg0
-  [  30] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  40] InitializeLexicalBinding `b`, src:arg1
-  [  58] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  68] InitializeLexicalBinding `c`, src:arg2
-  [  80] Mov dst:inner~0, src:Undefined
-  [  90] NewFunction dst:inner~0, shared_function_data_index:0 (inner)
-  [  a8] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  c8] Return value:reg5
+  [   1] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [   b] InitializeLexicalBinding `a`, src:arg0
+  [  18] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  22] InitializeLexicalBinding `b`, src:arg1
+  [  2f] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  39] InitializeLexicalBinding `c`, src:arg2
+  [  46] Mov dst:inner~0, src:Undefined
+  [  4b] NewFunction dst:inner~0, shared_function_data_index:0 (inner)
+  [  56] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  6b] Return value:reg5
 
 
-inner$1fee03d9 parameter-createvariable-order.js:3:9
+inner$f7041d92 parameter-createvariable-order.js:3:9
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetBinding value_feedback:0, dst:reg5, `a`
-  [  20] GetBinding value_feedback:1, dst:reg6, `b`
-  [  38] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  48] GetBinding value_feedback:2, dst:reg6, `c`
-  [  60] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
-  [  70] Return value:reg5
+  [   1] GetBinding value_feedback:0, dst:reg5, `a`
+  [  10] GetBinding value_feedback:1, dst:reg6, `b`
+  [  1f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  28] GetBinding value_feedback:2, dst:reg6, `c`
+  [  37] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
+  [  40] Return value:reg5

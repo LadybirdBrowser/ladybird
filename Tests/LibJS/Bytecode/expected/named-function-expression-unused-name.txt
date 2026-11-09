@@ -1,4 +1,4 @@
-$eec31824 named-function-expression-unused-name.js:24:1
+$fec984db named-function-expression-unused-name.js:24:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -7,51 +7,51 @@ $eec31824 named-function-expression-unused-name.js:24:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `outer`
-  [  28] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  50] GetGlobal value_feedback:2, dst:reg6, `outerWithEval`
-  [  60] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
-  [  80] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `outer`
+  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  26] GetGlobal value_feedback:2, dst:reg6, `outerWithEval`
+  [  2f] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined
+  [  44] End value:reg5
 
 
-outer$cd1004f1 named-function-expression-unused-name.js:6:20
+outer$012c6af4 named-function-expression-unused-name.js:6:20
   Registers: 7
   Blocks:    1
   Locals:    unused~0, used~1, nested~2
 
 block0:
   [   0] Enter
-  [   8] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeLexicalBinding `x`, src:arg0
-  [  30] GetLexicalEnvironment dst:reg4
-  [  38] NewFunction dst:unused~0, shared_function_data_index:0
-  [  50] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
-  [  68] CreateVariable `g`, is_immutable:true, is_global:false, is_strict:false
-  [  78] NewFunction dst:reg5, shared_function_data_index:1
-  [  90] InitializeLexicalBinding `g`, src:reg5
-  [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] Mov dst:used~1, src:reg5
-  [  c0] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
-  [  d8] CreateVariable `h`, is_immutable:true, is_global:false, is_strict:false
-  [  e8] NewFunction dst:reg5, shared_function_data_index:2
-  [ 100] InitializeLexicalBinding `h`, src:reg5
-  [ 118] SetLexicalEnvironment environment:reg4
-  [ 120] Mov dst:nested~2, src:reg5
-  [ 130] NewArray dst:reg5, elements:[unused~0, used~1, nested~2]
-  [ 150] Return value:reg5
+  [   1] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [   b] InitializeLexicalBinding `x`, src:arg0
+  [  18] GetLexicalEnvironment dst:reg4
+  [  1b] NewFunction dst:unused~0, shared_function_data_index:0
+  [  26] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  34] CreateVariable `g`, is_immutable:true, is_global:false, is_strict:false
+  [  3e] NewFunction dst:reg5, shared_function_data_index:1
+  [  49] InitializeLexicalBinding `g`, src:reg5
+  [  56] SetLexicalEnvironment environment:reg4
+  [  59] Mov dst:used~1, src:reg5
+  [  5e] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  6c] CreateVariable `h`, is_immutable:true, is_global:false, is_strict:false
+  [  76] NewFunction dst:reg5, shared_function_data_index:2
+  [  81] InitializeLexicalBinding `h`, src:reg5
+  [  8e] SetLexicalEnvironment environment:reg4
+  [  91] Mov dst:nested~2, src:reg5
+  [  96] NewArray dst:reg5, elements:[unused~0, used~1, nested~2]
+  [  a7] Return value:reg5
 
 
-outerWithEval$fdb37c36 named-function-expression-unused-name.js:19:5
+outerWithEval$524b39d4 named-function-expression-unused-name.js:19:5
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
-  [  28] CreateVariable `i`, is_immutable:true, is_global:false, is_strict:false
-  [  38] NewFunction dst:reg5, shared_function_data_index:0
-  [  50] InitializeLexicalBinding `i`, src:reg5
-  [  68] SetLexicalEnvironment environment:reg4
-  [  70] Return value:reg5
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
+  [  12] CreateVariable `i`, is_immutable:true, is_global:false, is_strict:false
+  [  1c] NewFunction dst:reg5, shared_function_data_index:0
+  [  27] InitializeLexicalBinding `i`, src:reg5
+  [  34] SetLexicalEnvironment environment:reg4
+  [  37] Return value:reg5

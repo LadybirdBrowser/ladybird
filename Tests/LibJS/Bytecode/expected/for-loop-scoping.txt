@@ -1,4 +1,4 @@
-$3ce5efbc for-loop-scoping.js:8:1
+$d2b9d388 for-loop-scoping.js:8:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -6,63 +6,62 @@ $3ce5efbc for-loop-scoping.js:8:1
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  40] GetGlobal value_feedback:2, dst:reg8, `forLetClosure`
-  [  50] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
-  [  70] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  98] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] GetGlobal value_feedback:0, dst:reg6, `console`
+  [   f] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  1c] GetGlobal value_feedback:2, dst:reg8, `forLetClosure`
+  [  25] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  3a] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  51] End value:reg5
 
 
-forLetClosure$94e2524d for-loop-scoping.js:2:15
+forLetClosure$f9e8af16 for-loop-scoping.js:2:15
   Registers: 8
   Blocks:    4
   Locals:    fns~0
   Constants:
     [0] = Int32(0)
-    [1] = Int32(3)
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] NewArray dst:fns~0
-  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  38] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
-  [  48] InitializeLexicalBinding `i`, src:Int32(0)
-  [  60] GetBinding value_feedback:0, dst:reg6, `i`
-  [  78] SetLexicalEnvironment environment:reg4
-  [  80] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  98] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
-  [  a8] InitializeLexicalBinding `i`, src:reg6
-  [  c0] Jump target:block2
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] NewArray dst:fns~0
+  [   f] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  1d] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  27] InitializeLexicalBinding `i`, src:Int32(0)
+  [  34] GetBinding value_feedback:0, dst:reg6, `i`
+  [  43] SetLexicalEnvironment environment:reg4
+  [  46] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  54] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  5e] InitializeLexicalBinding `i`, src:reg6
+  [  6b] Jump target:block2
 
 block1:
-  [  c8] GetById value_feedback:1, dst:reg6, base:fns~0, `push`
-  [  e0] NewFunction dst:reg7, shared_function_data_index:0
-  [  f8] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
-  [ 120] GetBinding value_feedback:3, dst:reg6, `i`
-  [ 138] SetLexicalEnvironment environment:reg4
-  [ 140] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [ 158] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
-  [ 168] InitializeLexicalBinding `i`, src:reg6
-  [ 180] GetBinding value_feedback:4, dst:reg6, `i`
-  [ 198] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
-  [ 1a8] SetLexicalBinding `i`, src:reg6
+  [  70] GetById value_feedback:1, dst:reg6, base:fns~0, `push`
+  [  7d] NewFunction dst:reg7, shared_function_data_index:0
+  [  88] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
+  [  9f] GetBinding value_feedback:3, dst:reg6, `i`
+  [  ae] SetLexicalEnvironment environment:reg4
+  [  b1] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  bf] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  c9] InitializeLexicalBinding `i`, src:reg6
+  [  d6] GetBinding value_feedback:4, dst:reg6, `i`
+  [  e5] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
+  [  ec] SetLexicalBinding `i`, src:reg6
 
 block2:
-  [ 1c0] GetBinding value_feedback:5, dst:reg6, `i`
-  [ 1d8] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
+  [  f9] GetBinding value_feedback:5, dst:reg6, `i`
+  [ 108] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
 
 block3:
-  [ 1f0] SetLexicalEnvironment environment:reg4
-  [ 1f8] GetById value_feedback:6, dst:reg5, base:fns~0, `map`
-  [ 210] NewFunction dst:reg6, shared_function_data_index:1
-  [ 228] Call value_feedback:7, call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
-  [ 250] Return value:reg5
+  [ 119] SetLexicalEnvironment environment:reg4
+  [ 11c] GetById value_feedback:6, dst:reg5, base:fns~0, `map`
+  [ 129] NewFunction dst:reg6, shared_function_data_index:1
+  [ 134] Call value_feedback:7, call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
+  [ 14b] Return value:reg5
 
 
-map$04814a69 BuiltinFile:275:11
+map$632f2430 BuiltinFile:275:11
   Registers: 6
   Blocks:    8
   Locals:    object~0, length~1, array~2, k~3, kValue~4, mappedValue~5
@@ -73,46 +72,46 @@ map$04814a69 BuiltinFile:275:11
 
 block0:
   [   0] Enter
-  [   8] ToObject dst:reg5, value:this
-  [  18] Mov dst:object~0, src:reg5
-  [  28] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:object~0
-  [  40] ToLength dst:reg5, value:reg5
-  [  50] Mov dst:length~1, src:reg5
-  [  60] IsCallable dst:reg5, value:arg0
-  [  70] Not dst:reg5, src:reg5
-  [  80] JumpFalse condition:reg5, target:block2
+  [   1] ToObject dst:reg5, value:this
+  [   6] Mov dst:object~0, src:reg5
+  [   b] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:object~0
+  [  18] ToLength dst:reg5, value:reg5
+  [  1d] Mov dst:length~1, src:reg5
+  [  22] IsCallable dst:reg5, value:arg0
+  [  27] Not dst:reg5, src:reg5
+  [  2c] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  90] ThrowNotAFunction src:arg0
+  [  33] ThrowNotAFunction src:arg0
 
 block2:
-  [  98] Call value_feedback:1, call_feedback:0, dst:reg5, callee:Value([object RawNativeFunction]), this_value:Undefined, arguments:[object~0, length~1]
-  [  c0] Mov dst:array~2, src:reg5
-  [  d0] Mov dst:k~3, src:Int32(0)
-  [  e0] Jump target:block6
+  [  36] Call value_feedback:1, call_feedback:0, dst:reg5, callee:Value([object RawNativeFunction]), this_value:Undefined, arguments:[object~0, length~1]
+  [  4f] Mov dst:array~2, src:reg5
+  [  54] Mov dst:k~3, src:Int32(0)
+  [  59] Jump target:block6
 
 block3:
-  [  e8] In dst:reg5, lhs:k~3, rhs:object~0
-  [  f8] JumpFalse condition:reg5, target:block5
+  [  5e] In dst:reg5, lhs:k~3, rhs:object~0
+  [  65] JumpFalse condition:reg5, target:block5
 
 block4:
-  [ 108] GetByValue value_feedback:2, keyed_feedback:1, dst:reg5, base:object~0, property:k~3
-  [ 128] Mov dst:kValue~4, src:reg5
-  [ 138] Call value_feedback:3, call_feedback:1, dst:reg5, callee:arg0, this_value:arg1, arguments:[kValue~4, k~3, object~0]
-  [ 168] Mov dst:mappedValue~5, src:reg5
-  [ 178] CreateDataPropertyOrThrow object:array~2, property:k~3, value:mappedValue~5
+  [  6c] GetByValue value_feedback:2, keyed_feedback:1, dst:reg5, base:object~0, property:k~3
+  [  7b] Mov dst:kValue~4, src:reg5
+  [  80] Call value_feedback:3, call_feedback:1, dst:reg5, callee:arg0, this_value:arg1, arguments:[kValue~4, k~3, object~0]
+  [  9b] Mov dst:mappedValue~5, src:reg5
+  [  a0] CreateDataPropertyOrThrow object:array~2, property:k~3, value:mappedValue~5
 
 block5:
-  [ 188] Increment arith_feedback:0, dst:k~3
+  [  a7] Increment arith_feedback:0, dst:k~3
 
 block6:
-  [ 190] JumpLessThanLoop arith_feedback:1, lhs:k~3, rhs:length~1, true_target:block3, false_target:block7
+  [  ac] JumpLessThanLoop arith_feedback:1, lhs:k~3, rhs:length~1, true_target:block3, false_target:block7
 
 block7:
-  [ 1a8] Return value:array~2
+  [  bb] Return value:array~2
 
 
-$dd56fdd7 for-loop-scoping.js:6:20
+$0904d52e for-loop-scoping.js:6:20
   Registers: 6
   Blocks:    1
   Constants:
@@ -120,18 +119,18 @@ $dd56fdd7 for-loop-scoping.js:6:20
 
 block0:
   [   0] Enter
-  [   8] Call value_feedback:0, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined
-  [  28] Return value:reg5
+  [   1] Call value_feedback:0, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined
+  [  16] Return value:reg5
 
 
-$f491848b for-loop-scoping.js:4:18
+$856ebfe0 for-loop-scoping.js:4:18
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] GetBinding value_feedback:0, dst:reg5, `i`
-  [  20] Return value:reg5
+  [   1] GetBinding value_feedback:0, dst:reg5, `i`
+  [  10] Return value:reg5
 
 
 Array [0, 1, 2]

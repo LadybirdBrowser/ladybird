@@ -157,7 +157,7 @@ fn bytecode_field_type_name(field: &crate::metadata::Field) -> String {
 fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &Type) -> bool {
     if field.is_array {
         return match field.ty.as_str() {
-            "Operand" | "Optional<Operand>" => *parameter_type == Type::Sequence(Box::new(Type::U32)),
+            "Operand" | "Optional<Operand>" => *parameter_type == Type::Sequence(Box::new(Type::U16)),
             "Value" => *parameter_type == Type::Sequence(Box::new(Type::Value)),
             _ => false,
         };

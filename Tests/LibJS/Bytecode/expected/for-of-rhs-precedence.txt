@@ -1,4 +1,4 @@
-$511dd735
+$7ccbae8c
   Registers: 6
   Blocks:    1
   Constants:
@@ -6,5 +6,5 @@ $511dd735
 
 block0:
   [   0] Enter
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] End value:reg5
+  [   1] Mov dst:reg5, src:Undefined
+  [   6] End value:reg5

@@ -8,12 +8,15 @@
 
 use core::cell::Cell;
 
+use ak::ScopeGuard;
 use ak::Utf16FlyString;
 use libjs_abi::{EnvironmentMode, register};
 
-use crate::bytecode::encoding::{IdentifierTableIndex, InstructionHeader};
+use super::strict_at;
+use crate::bytecode::encoding::IdentifierTableIndex;
 use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryType};
 use crate::bytecode::op;
+use crate::bytecode::operand::UNCACHED_SITE;
 use crate::bytecode::property_access::{Strict, get_cached_property_value};
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
@@ -249,10 +252,6 @@ fn get_identifier(vm: &Vm, index: IdentifierTableIndex) -> Utf16FlyString {
     current_executable(vm).identifier_table()[index.0 as usize].clone()
 }
 
-fn strict_of(header: &InstructionHeader) -> Strict {
-    if header.strict { Strict::Yes } else { Strict::No }
-}
-
 fn environment_mode_of(raw_mode: u32) -> EnvironmentMode {
     match raw_mode {
         0 => EnvironmentMode::Lexical,
@@ -304,6 +303,13 @@ impl EnvironmentCoordinateCacheSlot {
 
     fn get(&self) -> &Cell<EnvironmentCoordinate> {
         self.executable.environment_coordinate_cache(self.index)
+    }
+
+    /// Remembers where a binding was resolved from `environment`, unless this is the slot that sites share.
+    fn update(&self, environment: Gc<Environment>, coordinate: Option<EnvironmentCoordinate>) {
+        if self.index != UNCACHED_SITE {
+            update_environment_coordinate_cache(environment, coordinate, self.get());
+        }
     }
 }
 
@@ -395,7 +401,7 @@ fn asm_dynamic_get_binding(
         pc,
         vm.resolve_binding(&get_identifier(vm, identifier_index), strict, None)
     );
-    update_environment_coordinate_cache(current_environment, reference.environment_coordinate(), cache.get());
+    cache.update(current_environment, reference.environment_coordinate());
     update_dynamic_global_variable_cache(vm, current_environment, &reference, cache);
 
     *dst = asm_try!(vm, pc, reference.get_value(vm));
@@ -438,7 +444,7 @@ fn asm_dynamic_get_callee_and_this_from_environment(
         pc,
         vm.resolve_binding(&get_identifier(vm, identifier_index), strict, None)
     );
-    update_environment_coordinate_cache(current_environment, reference.environment_coordinate(), cache.get());
+    cache.update(current_environment, reference.environment_coordinate());
     update_dynamic_global_variable_cache(vm, current_environment, &reference, cache);
 
     let callee = asm_try!(vm, pc, reference.get_value(vm));
@@ -511,7 +517,7 @@ fn cached_dynamic_global_variable_value(
     let identifier = &cache.executable.identifier_table()[identifier_index.0 as usize];
     if is_global_environment_at_hops(vm, current_environment, hops, identifier) {
         let global_variable_cache = cache.executable.dynamic_global_variable_cache(cache.index);
-        if let Some(value) = global_variable_value(vm, identifier_index, global_variable_cache, strict)? {
+        if let Some(value) = global_variable_value(vm, identifier_index, global_variable_cache, cache.index, strict)? {
             return Ok(Some(value));
         }
     }
@@ -526,7 +532,7 @@ fn update_dynamic_global_variable_cache(
     reference: &Reference,
     cache: &EnvironmentCoordinateCacheSlot,
 ) {
-    if cache.get().get().is_valid() || !reference.is_environment_reference() {
+    if cache.index == UNCACHED_SITE || cache.get().get().is_valid() || !reference.is_environment_reference() {
         return;
     }
     let base_environment = reference.base_environment();
@@ -634,7 +640,7 @@ fn asm_dynamic_initialize_or_set_binding(
         pc,
         vm.resolve_binding(&get_identifier(vm, identifier_index), strict, Some(environment))
     );
-    update_environment_coordinate_cache(environment, reference.environment_coordinate(), cache.get());
+    cache.update(environment, reference.environment_coordinate());
     match initialization_mode {
         BindingInitializationMode::Initialize => {
             asm_try!(
@@ -695,7 +701,7 @@ pub fn initialize_lexical_binding(
         pc,
         EnvironmentMode::Lexical,
         BindingInitializationMode::Initialize,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
         instruction.cache,
     );
@@ -714,7 +720,7 @@ pub fn initialize_variable_binding(
         pc,
         EnvironmentMode::Var,
         BindingInitializationMode::Initialize,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
         instruction.cache,
     );
@@ -727,13 +733,13 @@ pub fn dynamic_get_binding(
     instruction: &op::DynamicGetBinding,
     values: &mut op::DynamicGetBindingValues,
 ) -> SlowPathControl {
-    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache);
+    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into());
     let next_pc = asm_dynamic_get_binding(
         vm,
         pc,
         &mut values.dst,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         &cache,
         AsmBindingIsKnownToBeInitialized::No,
     );
@@ -746,13 +752,13 @@ pub fn dynamic_get_initialized_binding(
     instruction: &op::DynamicGetInitializedBinding,
     values: &mut op::DynamicGetInitializedBindingValues,
 ) -> SlowPathControl {
-    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache);
+    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into());
     let next_pc = asm_dynamic_get_binding(
         vm,
         pc,
         &mut values.dst,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         &cache,
         AsmBindingIsKnownToBeInitialized::Yes,
     );
@@ -790,14 +796,14 @@ pub fn dynamic_get_callee_and_this(
     instruction: &op::DynamicGetCalleeAndThisFromEnvironment,
     values: &mut op::DynamicGetCalleeAndThisFromEnvironmentValues,
 ) -> SlowPathControl {
-    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache);
+    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into());
     let next_pc = asm_dynamic_get_callee_and_this_from_environment(
         vm,
         pc,
         &mut values.callee,
         &mut values.this_value,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         &cache,
     );
     advance_or_continue(pc, next_pc, op::DynamicGetCalleeAndThisFromEnvironment::LENGTH)
@@ -840,14 +846,15 @@ pub fn get_new_target(
 }
 
 pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op::GetGlobalValues) -> SlowPathControl {
-    let strict = strict_of(&instruction.header);
+    let strict = strict_at(vm, pc);
     match asm_try!(
         vm,
         pc,
         global_variable_value(
             vm,
             instruction.identifier,
-            current_executable(vm).global_variable_cache(instruction.cache),
+            current_executable(vm).global_variable_cache(instruction.cache.into()),
+            instruction.cache.into(),
             strict
         )
     ) {
@@ -872,14 +879,15 @@ pub fn typeof_global(
     instruction: &op::TypeofGlobal,
     values: &mut op::TypeofGlobalValues,
 ) -> SlowPathControl {
-    let strict = strict_of(&instruction.header);
+    let strict = strict_at(vm, pc);
     let value = asm_try!(
         vm,
         pc,
         global_variable_value(
             vm,
             instruction.identifier,
-            current_executable(vm).global_variable_cache(instruction.cache),
+            current_executable(vm).global_variable_cache(instruction.cache.into()),
+            instruction.cache.into(),
             strict
         )
     );
@@ -894,8 +902,11 @@ fn global_variable_value(
     vm: &Vm,
     identifier: IdentifierTableIndex,
     cache: &GlobalVariableCache,
+    cache_index: u32,
     strict: Strict,
 ) -> ThrowCompletionOr<Option<Value>> {
+    // NB: Sites past the last slot share it, and what one of them remembers means nothing for the others.
+    let _forget = (cache_index == UNCACHED_SITE).then(|| ScopeGuard::new(|| cache.reset()));
     let binding_object = vm.global_object();
     let declarative_record = vm.global_declarative_environment();
 
@@ -963,10 +974,12 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
     let binding_object = vm.global_object();
     let declarative_record = vm.global_declarative_environment();
     let executable = current_executable(vm);
-    let cache = || executable.global_variable_cache(instruction.cache);
+    let cache = || executable.global_variable_cache(instruction.cache.into());
+    // NB: Sites past the last slot share it, and what one of them remembers means nothing for the others.
+    let _forget = (u32::from(instruction.cache) == UNCACHED_SITE).then(|| ScopeGuard::new(|| cache().reset()));
     let shape = binding_object.shape();
     let src = values.src;
-    let strict = strict_of(&instruction.header);
+    let strict = strict_at(vm, pc);
 
     if cache().environment_serial_number.get() == declarative_record.environment_serial_number() {
         if let Some(entry) = cache().first_entry()
@@ -1100,9 +1113,9 @@ pub fn dynamic_initialize_lexical_binding(
         EnvironmentMode::Lexical,
         BindingInitializationMode::Initialize,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
-        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache),
+        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into()),
     );
     advance_or_continue(pc, next_pc, op::DynamicInitializeLexicalBinding::LENGTH)
 }
@@ -1119,9 +1132,9 @@ pub fn dynamic_initialize_variable_binding(
         EnvironmentMode::Var,
         BindingInitializationMode::Initialize,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
-        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache),
+        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into()),
     );
     advance_or_continue(pc, next_pc, op::DynamicInitializeVariableBinding::LENGTH)
 }
@@ -1137,7 +1150,7 @@ pub fn set_lexical_binding(
         pc,
         EnvironmentMode::Lexical,
         BindingInitializationMode::Set,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
         instruction.cache,
     );
@@ -1156,9 +1169,9 @@ pub fn dynamic_set_lexical_binding(
         EnvironmentMode::Lexical,
         BindingInitializationMode::Set,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
-        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache),
+        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into()),
     );
     advance_or_continue(pc, next_pc, op::DynamicSetLexicalBinding::LENGTH)
 }
@@ -1174,7 +1187,7 @@ pub fn set_variable_binding(
         pc,
         EnvironmentMode::Var,
         BindingInitializationMode::Set,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
         instruction.cache,
     );
@@ -1193,9 +1206,9 @@ pub fn dynamic_set_variable_binding(
         EnvironmentMode::Var,
         BindingInitializationMode::Set,
         instruction.identifier,
-        strict_of(&instruction.header),
+        strict_at(vm, pc),
         values.src,
-        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache),
+        &EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into()),
     );
     advance_or_continue(pc, next_pc, op::DynamicSetVariableBinding::LENGTH)
 }
@@ -1264,11 +1277,7 @@ pub fn resolve_binding(
     values: &mut op::ResolveBindingValues,
 ) -> SlowPathControl {
     let identifier = get_identifier(vm, instruction.identifier);
-    let reference = asm_try!(
-        vm,
-        pc,
-        vm.resolve_binding(&identifier, strict_of(&instruction.header), None)
-    );
+    let reference = asm_try!(vm, pc, vm.resolve_binding(&identifier, strict_at(vm, pc), None));
     if reference.is_unresolvable() {
         values.dst = Value::NULL;
         return SlowPathControl::continue_at(pc + op::ResolveBinding::LENGTH);
@@ -1288,11 +1297,7 @@ pub fn resolve_global_binding(
     values: &mut op::ResolveGlobalBindingValues,
 ) -> SlowPathControl {
     let identifier = get_identifier(vm, instruction.identifier);
-    let reference = asm_try!(
-        vm,
-        pc,
-        vm.resolve_binding(&identifier, strict_of(&instruction.header), None)
-    );
+    let reference = asm_try!(vm, pc, vm.resolve_binding(&identifier, strict_at(vm, pc), None));
     let is_resolvable = !reference.is_unresolvable();
     if is_resolvable {
         let global_environment = vm
@@ -1327,7 +1332,7 @@ pub fn get_resolved_binding(
     values: &mut op::GetResolvedBindingValues,
 ) -> SlowPathControl {
     let identifier = get_identifier(vm, instruction.identifier);
-    let strict = strict_of(&instruction.header);
+    let strict = strict_at(vm, pc);
     let reference = if values.environment.is_null() {
         Reference::with_base_type(BaseType::Unresolvable, PropertyKey::from(identifier), strict)
     } else {
@@ -1344,7 +1349,7 @@ pub fn set_resolved_binding(
     values: &mut op::SetResolvedBindingValues,
 ) -> SlowPathControl {
     let identifier = get_identifier(vm, instruction.identifier);
-    let strict = strict_of(&instruction.header);
+    let strict = strict_at(vm, pc);
     let environment = values.environment;
     let reference = if environment.is_null() {
         Reference::with_base_type(BaseType::Unresolvable, PropertyKey::from(identifier), strict)
@@ -1361,7 +1366,8 @@ pub fn typeof_binding(
     instruction: &op::TypeofBinding,
     values: &mut op::TypeofBindingValues,
 ) -> SlowPathControl {
-    assert!(instruction.cache.is_valid());
+    let cache = instruction.cache;
+    assert!(cache.is_valid());
 
     let environment = environment_at_hops(running_lexical_environment(vm), instruction.cache.hops);
 
@@ -1380,7 +1386,7 @@ pub fn dynamic_typeof_binding(
     instruction: &op::DynamicTypeofBinding,
     values: &mut op::DynamicTypeofBindingValues,
 ) -> SlowPathControl {
-    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache);
+    let cache = EnvironmentCoordinateCacheSlot::of_running_executable(vm, instruction.cache.into());
     let current_environment = running_lexical_environment(vm);
     if let Some(environment) = get_cached_environment(current_environment, cache.get()) {
         let value = asm_try!(
@@ -1395,11 +1401,7 @@ pub fn dynamic_typeof_binding(
     let reference = asm_try!(
         vm,
         pc,
-        vm.resolve_binding(
-            &get_identifier(vm, instruction.identifier),
-            strict_of(&instruction.header),
-            None
-        )
+        vm.resolve_binding(&get_identifier(vm, instruction.identifier), strict_at(vm, pc), None)
     );
     if reference.is_unresolvable() {
         values.dst = Value::from_string(PrimitiveString::create_from_fly_string(
@@ -1409,7 +1411,7 @@ pub fn dynamic_typeof_binding(
         return SlowPathControl::continue_at(pc + op::DynamicTypeofBinding::LENGTH);
     }
 
-    update_environment_coordinate_cache(current_environment, reference.environment_coordinate(), cache.get());
+    cache.update(current_environment, reference.environment_coordinate());
     let value = asm_try!(vm, pc, reference.get_value(vm));
     values.dst = Value::from_string(value.typeof_(vm));
     SlowPathControl::continue_at(pc + op::DynamicTypeofBinding::LENGTH)
@@ -1629,11 +1631,7 @@ pub fn delete_variable(
     values: &mut op::DeleteVariableValues,
 ) -> SlowPathControl {
     let string = get_identifier(vm, instruction.identifier);
-    let reference = asm_try!(
-        vm,
-        pc,
-        vm.resolve_binding(&string, strict_of(&instruction.header), None)
-    );
+    let reference = asm_try!(vm, pc, vm.resolve_binding(&string, strict_at(vm, pc), None));
     let result = asm_try!(vm, pc, reference.delete_(vm));
     values.dst = Value::from_bool(result);
     SlowPathControl::continue_at(pc + op::DeleteVariable::LENGTH)

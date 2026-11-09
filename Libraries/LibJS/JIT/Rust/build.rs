@@ -419,7 +419,7 @@ fn generate_rust_code(mut w: impl Write, ops: &[InstructionDefinition], record_f
     generate_encoded_size_method(&mut w, ops)?;
     writeln!(
         w,
-        "    pub fn encode(&self, strict: bool, bytes: &mut Vec<u8>) {{ self.encode_with(strict, &mut TestEncoder {{ bytes }}); }}"
+        "    pub fn encode(&self, bytes: &mut Vec<u8>) {{ self.encode_with(&mut TestEncoder {{ bytes }}); }}"
     )?;
     writeln!(w, "}}")?;
     writeln!(w)?;

@@ -48,6 +48,7 @@ fn rust_type(ty: &str) -> String {
             let info = field_type_info(ty);
             match info.kind {
                 "bool" | "u8" | "u16" | "i32" | "u32" | "u64" => info.kind.to_string(),
+                "cache_index" => "u16".to_string(),
                 other => panic!("no Rust view for bytecode field type {ty} ({other})"),
             }
         }
@@ -64,7 +65,7 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
         }
         let _ = writeln!(
             out,
-            "#[repr(C)]\npub struct {} {{\n    pub header: InstructionHeader,",
+            "#[repr(C, packed)]\npub struct {} {{\n    pub header: InstructionHeader,",
             op.name
         );
         let mut assertions = String::new();
@@ -99,11 +100,19 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
             let count_field = field_name(&op.fields[array.count_field_index].name);
             let name = field_name(&array_field.name);
             let ty = rust_type(&array_field.ty);
-            let _ = writeln!(
-                out,
-                "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> &[{ty}] {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<{ty}>() <= self.length() as usize);\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within.\n        unsafe {{ ak::slice_from_raw_parts(self.{name}.as_ptr(), count) }}\n    }}\n}}",
-                op_name = op.name
-            );
+            let accessor = if ty == "Value" {
+                format!(
+                    "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> impl ExactSizeIterator<Item = Value> + '_ {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<Value>() <= self.length() as usize);\n        let elements = core::ptr::addr_of!(self.{name}).cast::<Value>();\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within. They can be unaligned, so they are read as such.\n        (0..count).map(move |index| unsafe {{ elements.add(index).read_unaligned() }})\n    }}\n}}",
+                    op_name = op.name
+                )
+            } else {
+                format!(
+                    "impl {op_name} {{\n    /// The elements the instruction holds after its fixed fields, within the length it records.\n    pub fn {name}(&self) -> &[{ty}] {{\n        let count = self.{count_field} as usize;\n        assert!(core::mem::offset_of!({op_name}, {name}) + count * size_of::<{ty}>() <= self.length() as usize);\n        // SAFETY: The instruction is a view of bytecode that holds the length it records, which the elements are\n        //         within. {ty} has an alignment of 1.\n        unsafe {{ ak::slice_from_raw_parts(core::ptr::addr_of!(self.{name}).cast::<{ty}>(), count) }}\n    }}\n}}",
+                    op_name = op.name
+                )
+            };
+            out.push_str(&accessor);
+            out.push('\n');
         }
         match (op.layout.size, op.layout.m_length_offset) {
             (Some(size), _) => {

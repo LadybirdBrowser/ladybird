@@ -168,6 +168,23 @@ pub struct LocalVariableMetadata {
     pub scope_end: SourceOffset,
 }
 
+/// A range of bytecode offsets, from `start_offset` up to but not including `end_offset`.
+#[derive(Clone, Copy)]
+pub struct StrictRange {
+    pub start_offset: u32,
+    pub end_offset: u32,
+}
+
+impl StrictRange {
+    /// The same range, `distance` bytes later.
+    pub fn shifted(self, distance: u32) -> Self {
+        Self {
+            start_offset: self.start_offset + distance,
+            end_offset: self.end_offset + distance,
+        }
+    }
+}
+
 /// One compiled script, module or function body: everything about it that does not depend on where it runs. Nothing
 /// here changes once it is compiled, so any number of [`Executable`]s can link it, each with caches, constants and
 /// functions of its own, and they all run the same bytecode.
@@ -186,6 +203,8 @@ pub struct ExecutableData {
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
+    /// Sorted by start offset. Where a class body makes the code strict, if the function is not.
+    pub strict_ranges: Box<[StrictRange]>,
     pub cache_counts: ExecutableCacheCounts,
     pub identifier_table: BlockSlice<ak::Utf16FlyString>,
     pub string_table: BlockSlice<ak::Utf16FlyString>,
@@ -250,6 +269,7 @@ impl ExecutableData {
             + size_of_val(&*self.bytecode)
             + size_of_val(&*self.exception_handlers)
             + size_of_val(&*self.source_map)
+            + size_of_val(&*self.strict_ranges)
             + size_of_val(&*self.identifier_table)
             + size_of_val(&*self.string_table)
             + size_of_val(&*self.variable_names)

@@ -1,4 +1,4 @@
-$63498670 lexical-env-teardown.js:13:1
+$bb13b34b lexical-env-teardown.js:13:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -6,48 +6,48 @@ $63498670 lexical-env-teardown.js:13:1
 
 block0:
   [   0] Enter
-  [   8] GetLexicalEnvironment dst:reg4
-  [  10] Mov dst:reg5, src:Undefined
-  [  20] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  30] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  48] GetGlobal value_feedback:2, dst:reg8, `withTeardown`
-  [  58] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
-  [  78] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  a0] GetGlobal value_feedback:5, dst:reg6, `console`
-  [  b0] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  c8] GetGlobal value_feedback:7, dst:reg8, `blockTeardown`
-  [  d8] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined
-  [  f8] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 120] GetGlobal value_feedback:10, dst:reg6, `console`
-  [ 130] GetById value_feedback:11, dst:reg7, base:reg6, `log`
-  [ 148] GetGlobal value_feedback:12, dst:reg8, `forInTeardown`
-  [ 158] Call value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:Undefined
-  [ 178] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 1a0] GetGlobal value_feedback:15, dst:reg6, `console`
-  [ 1b0] GetById value_feedback:16, dst:reg7, base:reg6, `log`
-  [ 1c8] GetGlobal value_feedback:17, dst:reg8, `forOfTeardown`
-  [ 1d8] Call value_feedback:18, call_feedback:6, dst:reg8, callee:reg8, this_value:Undefined
-  [ 1f8] Call value_feedback:19, call_feedback:7, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 220] GetGlobal value_feedback:20, dst:reg6, `console`
-  [ 230] GetById value_feedback:21, dst:reg7, base:reg6, `log`
-  [ 248] GetGlobal value_feedback:22, dst:reg8, `catchTeardown`
-  [ 258] Call value_feedback:23, call_feedback:8, dst:reg8, callee:reg8, this_value:Undefined
-  [ 278] Call value_feedback:24, call_feedback:9, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 2a0] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [ 2b8] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
-  [ 2c8] NewFunction dst:reg6, shared_function_data_index:0
-  [ 2e0] InitializeLexicalBinding `myName`, src:reg6
-  [ 2f8] SetLexicalEnvironment environment:reg4
-  [ 300] SetGlobal `namedFn`, src:reg6
-  [ 310] GetGlobal value_feedback:25, dst:reg6, `console`
-  [ 320] GetById value_feedback:26, dst:reg7, base:reg6, `log`
-  [ 338] GetGlobal value_feedback:27, dst:reg8, `namedFn`
-  [ 348] Call value_feedback:28, call_feedback:10, dst:reg8, callee:reg8, this_value:Undefined
-  [ 368] Call value_feedback:29, call_feedback:11, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 390] End value:reg5
+  [   1] GetLexicalEnvironment dst:reg4
+  [   4] Mov dst:reg5, src:Undefined
+  [   9] GetGlobal value_feedback:0, dst:reg6, `console`
+  [  12] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  1f] GetGlobal value_feedback:2, dst:reg8, `withTeardown`
+  [  28] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  3d] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  54] GetGlobal value_feedback:5, dst:reg6, `console`
+  [  5d] GetById value_feedback:6, dst:reg7, base:reg6, `log`
+  [  6a] GetGlobal value_feedback:7, dst:reg8, `blockTeardown`
+  [  73] Call value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:Undefined
+  [  88] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  9f] GetGlobal value_feedback:10, dst:reg6, `console`
+  [  a8] GetById value_feedback:11, dst:reg7, base:reg6, `log`
+  [  b5] GetGlobal value_feedback:12, dst:reg8, `forInTeardown`
+  [  be] Call value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:Undefined
+  [  d3] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  ea] GetGlobal value_feedback:15, dst:reg6, `console`
+  [  f3] GetById value_feedback:16, dst:reg7, base:reg6, `log`
+  [ 100] GetGlobal value_feedback:17, dst:reg8, `forOfTeardown`
+  [ 109] Call value_feedback:18, call_feedback:6, dst:reg8, callee:reg8, this_value:Undefined
+  [ 11e] Call value_feedback:19, call_feedback:7, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 135] GetGlobal value_feedback:20, dst:reg6, `console`
+  [ 13e] GetById value_feedback:21, dst:reg7, base:reg6, `log`
+  [ 14b] GetGlobal value_feedback:22, dst:reg8, `catchTeardown`
+  [ 154] Call value_feedback:23, call_feedback:8, dst:reg8, callee:reg8, this_value:Undefined
+  [ 169] Call value_feedback:24, call_feedback:9, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 180] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [ 18e] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
+  [ 198] NewFunction dst:reg6, shared_function_data_index:0
+  [ 1a3] InitializeLexicalBinding `myName`, src:reg6
+  [ 1b0] SetLexicalEnvironment environment:reg4
+  [ 1b3] SetGlobal `namedFn`, src:reg6
+  [ 1ba] GetGlobal value_feedback:25, dst:reg6, `console`
+  [ 1c3] GetById value_feedback:26, dst:reg7, base:reg6, `log`
+  [ 1d0] GetGlobal value_feedback:27, dst:reg8, `namedFn`
+  [ 1d9] Call value_feedback:28, call_feedback:10, dst:reg8, callee:reg8, this_value:Undefined
+  [ 1ee] Call value_feedback:29, call_feedback:11, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 205] End value:reg5
 
 
-withTeardown$fdddfea9 lexical-env-teardown.js:7:9
+withTeardown$c6953928 lexical-env-teardown.js:7:9
   Registers: 9
   Blocks:    1
   Locals:    inner~0
@@ -57,22 +57,22 @@ withTeardown$fdddfea9 lexical-env-teardown.js:7:9
 
 block0:
   [   0] Enter
-  [   8] CreateVariable `outer`, is_immutable:false, is_global:false, is_strict:false
-  [  18] GetLexicalEnvironment dst:reg4
-  [  20] InitializeLexicalBinding `outer`, src:Int32(1)
-  [  38] NewObject dst:reg5
-  [  48] InitObjectLiteralProperty object:reg5, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
-  [  60] CacheObjectShape object:reg5
-  [  70] EnterObjectEnvironment dst:reg6, object:reg5
-  [  80] DynamicGetBinding value_feedback:0, dst:reg7, `x`
-  [  90] DynamicGetBinding value_feedback:1, dst:reg8, `outer`
-  [  a0] Add arith_feedback:0, dst:inner~0, lhs:reg7, rhs:reg8
-  [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] GetBinding value_feedback:2, dst:reg5, `outer`
-  [  d0] Return value:reg5
+  [   1] CreateVariable `outer`, is_immutable:false, is_global:false, is_strict:false
+  [   b] GetLexicalEnvironment dst:reg4
+  [   e] InitializeLexicalBinding `outer`, src:Int32(1)
+  [  1b] NewObject dst:reg5
+  [  20] InitObjectLiteralProperty object:reg5, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
+  [  2f] CacheObjectShape object:reg5
+  [  34] EnterObjectEnvironment dst:reg6, object:reg5
+  [  39] DynamicGetBinding value_feedback:0, dst:reg7, `x`
+  [  42] DynamicGetBinding value_feedback:1, dst:reg8, `outer`
+  [  4b] Add arith_feedback:0, dst:inner~0, lhs:reg7, rhs:reg8
+  [  54] SetLexicalEnvironment environment:reg4
+  [  57] GetBinding value_feedback:2, dst:reg5, `outer`
+  [  66] Return value:reg5
 
 
-blockTeardown$14c2496c lexical-env-teardown.js:17:9
+blockTeardown$f043e1b2 lexical-env-teardown.js:17:9
   Registers: 5
   Blocks:    1
   Locals:    outer~0, inner~1
@@ -82,12 +82,12 @@ blockTeardown$14c2496c lexical-env-teardown.js:17:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:outer~0, src:Int32(2)
-  [  18] Mov dst:inner~1, src:Int32(3)
-  [  28] Return value:outer~0
+  [   1] Mov dst:outer~0, src:Int32(2)
+  [   6] Mov dst:inner~1, src:Int32(3)
+  [   b] Return value:outer~0
 
 
-forInTeardown$67161a97 lexical-env-teardown.js:28:9
+forInTeardown$5a818456 lexical-env-teardown.js:28:9
   Registers: 11
   Blocks:    5
   Locals:    outer~0, k~1
@@ -100,69 +100,67 @@ forInTeardown$67161a97 lexical-env-teardown.js:28:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:outer~0, src:Int32(4)
-  [  18] Mov dst:k~1, src:<Empty>
-  [  28] NewObject dst:reg6
-  [  38] InitObjectLiteralProperty object:reg6, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  50] InitObjectLiteralProperty object:reg6, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  68] CacheObjectShape object:reg6
-  [  78] Mov dst:reg5, src:reg6
-  [  88] JumpNullish condition:reg5, true_target:block4, false_target:block1
+  [   1] Mov dst:outer~0, src:Int32(4)
+  [   6] Mov dst:k~1, src:<Empty>
+  [   b] NewObject dst:reg6
+  [  10] InitObjectLiteralProperty object:reg6, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  1f] InitObjectLiteralProperty object:reg6, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  2e] CacheObjectShape object:reg6
+  [  33] Mov dst:reg5, src:reg6
+  [  38] JumpNullish condition:reg5, true_target:block4, false_target:block1
 
 block1:
-  [  98] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
-  [  b0] Mov dst:reg8, src:Int32(0)
+  [  43] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  4e] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  c0] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  d8] JumpTrue condition:reg10, target:block4
+  [  53] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
+  [  5e] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  e8] Mov dst:k~1, src:reg9
-  [  f8] JumpLoop target:block2
+  [  65] Mov dst:k~1, src:reg9
+  [  6a] JumpLoop target:block2
 
 block4:
-  [ 100] Return value:outer~0
+  [  6f] Return value:outer~0
 
 
-forOfTeardown$26f278e0 lexical-env-teardown.js:38:9
+forOfTeardown$d2e5e52c lexical-env-teardown.js:38:9
   Registers: 12
   Blocks:    5
   Locals:    outer~0, v~1
   Constants:
     [0] = Int32(5)
     [1] = <Empty>
-    [2] = Int32(10)
-    [3] = Int32(20)
 
 block0:
   [   0] Enter
-  [   8] Mov dst:outer~0, src:Int32(5)
-  [  18] Mov dst:v~1, src:<Empty>
-  [  28] NewPrimitiveArray dst:reg5, elements:[10, 20]
-  [  48] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+  [   1] Mov dst:outer~0, src:Int32(5)
+  [   6] Mov dst:v~1, src:<Empty>
+  [   b] NewPrimitiveArray dst:reg5, elements:[10, 20]
+  [  26] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block1:
-  [  68] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  80] JumpTrue condition:reg10, target:block4
+  [  36] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  41] JumpTrue condition:reg10, target:block4
 
 block2:
-  [  90] Mov dst:v~1, src:reg9
-  [  a0] JumpLoop target:block1
+  [  48] Mov dst:v~1, src:reg9
+  [  4d] JumpLoop target:block1
 
 block3:
-  [  a8] Catch value_feedback:0, dst:reg11
-  [  b0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  d0] Throw src:reg11
+  [  52] Catch value_feedback:0, dst:reg11
+  [  57] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  66] Throw src:reg11
 
 block4:
-  [  d8] Return value:outer~0
+  [  69] Return value:outer~0
 
 Exception handlers:
-  [  90 ..   a8] => handler block3
+  [  48 ..   52] => handler block3
 
 
-catchTeardown$082ed7f1 lexical-env-teardown.js:48:9
+catchTeardown$4ef2e03f lexical-env-teardown.js:48:9
   Registers: 6
   Blocks:    4
   Locals:    outer~0, e~1
@@ -173,34 +171,34 @@ catchTeardown$082ed7f1 lexical-env-teardown.js:48:9
 
 block0:
   [   0] Enter
-  [   8] Mov dst:outer~0, src:Int32(6)
+  [   1] Mov dst:outer~0, src:Int32(6)
 
 block1:
-  [  18] GetGlobal value_feedback:0, dst:reg5, `Error`
-  [  28] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, arguments:[String("test")]
-  [  50] Throw src:reg5
+  [   6] GetGlobal value_feedback:0, dst:reg5, `Error`
+  [   f] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, arguments:[String("test")]
+  [  24] Throw src:reg5
 
 block2:
-  [  58] Catch value_feedback:2, dst:reg5
-  [  60] Mov dst:e~1, src:<Empty>
-  [  70] Mov dst:e~1, src:reg5
-  [  80] Jump target:block3
+  [  27] Catch value_feedback:2, dst:reg5
+  [  2c] Mov dst:e~1, src:<Empty>
+  [  31] Mov dst:e~1, src:reg5
+  [  36] Jump target:block3
 
 block3:
-  [  88] Return value:outer~0
+  [  3b] Return value:outer~0
 
 Exception handlers:
-  [  18 ..   58] => handler block2
+  [   6 ..   27] => handler block2
 
 
-myName$36b03aef lexical-env-teardown.js:60:5
+myName$5cd63026 lexical-env-teardown.js:60:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] TypeofBinding dst:reg5, `myName`
-  [  20] Return value:reg5
+  [   1] TypeofBinding dst:reg5, `myName`
+  [   e] Return value:reg5
 
 
 1

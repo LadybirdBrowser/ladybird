@@ -171,7 +171,6 @@ pub struct DecodedInstruction {
     pub pc: u32,
     /// Encoded length in bytes; the next instruction starts at `pc + length`.
     pub length: u32,
-    pub strict: bool,
     pub instruction: Instruction,
 }
 
@@ -215,6 +214,14 @@ impl DecodedInstruction {
     }
 }
 
+#[cfg(test)]
+fn narrow_index(index: u32) -> u16 {
+    if index == u32::MAX {
+        return u16::MAX;
+    }
+    u16::try_from(index).expect("bytecode indices fit in 16 bits")
+}
+
 fn read_u16(bytes: &[u8], at: usize) -> u16 {
     u16::from_ne_bytes(bytes[at..at + 2].try_into().unwrap())
 }
@@ -231,12 +238,10 @@ fn read_u64(bytes: &[u8], at: usize) -> u64 {
 pub fn decode_instruction(bytes: &[u8], pc: u32) -> Result<DecodedInstruction, DecodeError> {
     let error = |kind| DecodeError { pc, kind };
     let at = pc as usize;
-    // The two byte header holds the opcode and the strict mode flag.
-    if at.checked_add(2).is_none_or(|header_end| header_end > bytes.len()) {
+    if at >= bytes.len() {
         return Err(error(DecodeErrorKind::TruncatedInstruction));
     }
     let opcode = bytes[at];
-    let strict = bytes[at + 1] != 0;
     let length = instruction_length_from_bytes(opcode, bytes, at).map_err(error)?;
     if length == 0 || at + length > bytes.len() {
         return Err(error(DecodeErrorKind::TruncatedInstruction));
@@ -246,7 +251,6 @@ pub fn decode_instruction(bytes: &[u8], pc: u32) -> Result<DecodedInstruction, D
     Ok(DecodedInstruction {
         pc,
         length: length_u32,
-        strict,
         instruction,
     })
 }
@@ -289,15 +293,13 @@ mod tests {
 
     #[test]
     fn decodes_hand_assembled_mov() {
-        let mut bytes = vec![OpCode::Mov as u8, 1, 0, 0];
-        bytes.extend(7u32.to_ne_bytes()); // dst
-        bytes.extend(12u32.to_ne_bytes()); // src
-        bytes.extend([0; 4]); // Padding to the 8 byte instruction alignment.
+        let mut bytes = vec![OpCode::Mov as u8];
+        bytes.extend(7u16.to_ne_bytes()); // dst
+        bytes.extend(12u16.to_ne_bytes()); // src
 
         let decoded = decode_instruction(&bytes, 0).unwrap();
         assert_eq!(decoded.pc, 0);
-        assert_eq!(decoded.length, 16);
-        assert!(decoded.strict);
+        assert_eq!(decoded.length, 5);
         assert_eq!(
             decoded.instruction,
             Instruction::Mov {
@@ -317,17 +319,16 @@ mod tests {
     #[test]
     fn decodes_hand_assembled_jump_if() {
         let mut bytes = vec![0; 16];
-        let mut jump = vec![OpCode::JumpIf as u8, 0, 0, 0];
-        jump.extend(5u32.to_ne_bytes()); // condition
+        let mut jump = vec![OpCode::JumpIf as u8];
+        jump.extend(5u16.to_ne_bytes()); // condition
         jump.extend(32u32.to_ne_bytes()); // true_target
         jump.extend(48u32.to_ne_bytes()); // false_target
         bytes.extend(jump);
 
         let decoded = decode_instruction(&bytes, 16).unwrap();
         assert_eq!(decoded.pc, 16);
-        assert_eq!(decoded.length, 16);
-        assert_eq!(decoded.next_pc(), 32);
-        assert!(!decoded.strict);
+        assert_eq!(decoded.length, 11);
+        assert_eq!(decoded.next_pc(), 27);
         assert_eq!(
             decoded.instruction,
             Instruction::JumpIf {
@@ -359,8 +360,7 @@ mod tests {
             arguments: vec![operand(8), operand(20), operand(21)],
         };
         let mut bytes = Vec::new();
-        call.encode(true, &mut bytes);
-        assert_eq!(bytes.len() % 8, 0);
+        call.encode(&mut bytes);
 
         let decoded = decode_instruction(&bytes, 0).unwrap();
         assert_eq!(decoded.length as usize, bytes.len());
@@ -437,17 +437,16 @@ mod tests {
             },
         ];
         let mut bytes = Vec::new();
-        for (index, instruction) in instructions.iter().enumerate() {
-            instruction.encode(index % 2 == 0, &mut bytes);
+        for instruction in &instructions {
+            instruction.encode(&mut bytes);
         }
 
         let decoded = decode_all(&bytes).unwrap();
         assert_eq!(decoded.len(), instructions.len());
         let mut pc = 0;
-        for (index, (decoded, instruction)) in decoded.iter().zip(&instructions).enumerate() {
+        for (decoded, instruction) in decoded.iter().zip(&instructions) {
             assert_eq!(&decoded.instruction, instruction);
             assert_eq!(decoded.pc, pc);
-            assert_eq!(decoded.strict, index % 2 == 0);
             pc += u32::try_from(instruction.encoded_size()).unwrap();
         }
 
@@ -486,8 +485,8 @@ mod tests {
             dst: operand(5),
             src: operand(6),
         }
-        .encode(false, &mut mov);
-        assert_eq!(error(&mov[..8]), DecodeErrorKind::TruncatedInstruction);
+        .encode(&mut mov);
+        assert_eq!(error(&mov[..4]), DecodeErrorKind::TruncatedInstruction);
 
         let mut call = Vec::new();
         Instruction::Call {
@@ -500,23 +499,23 @@ mod tests {
             expression_string: None,
             arguments: vec![operand(8)],
         }
-        .encode(false, &mut call);
-        // Call's layout: header, value and call feedback slots, m_length at 8, dst, callee, this_value,
-        // argument_count at 24.
+        .encode(&mut call);
+        // Call's layout: header, value and call feedback slots, m_length at 5, dst, callee, this_value,
+        // argument_count at 15.
         let mut short_length = call.clone();
-        short_length[8..12].copy_from_slice(&4u32.to_ne_bytes());
+        short_length[5..9].copy_from_slice(&4u32.to_ne_bytes());
         assert_eq!(error(&short_length), DecodeErrorKind::InvalidLength);
         let mut too_many_arguments = call.clone();
-        too_many_arguments[24..28].copy_from_slice(&100u32.to_ne_bytes());
+        too_many_arguments[15..19].copy_from_slice(&100u32.to_ne_bytes());
         assert_eq!(error(&too_many_arguments), DecodeErrorKind::InvalidLength);
-        assert_eq!(error(&call[..call.len() - 8]), DecodeErrorKind::TruncatedInstruction);
+        assert_eq!(error(&call[..call.len() - 2]), DecodeErrorKind::TruncatedInstruction);
 
         let mut stream = mov.clone();
-        stream.extend(&mov[..8]);
+        stream.extend(&mov[..4]);
         assert_eq!(
             decode_all(&stream).unwrap_err(),
             DecodeError {
-                pc: 16,
+                pc: 5,
                 kind: DecodeErrorKind::TruncatedInstruction
             }
         );
