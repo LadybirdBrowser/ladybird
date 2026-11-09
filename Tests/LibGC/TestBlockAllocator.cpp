@@ -112,9 +112,12 @@ TEST_CASE(pages_of_a_block_that_stays_unused_go_back_to_the_system)
 
     // NB: MADV_FREE leaves the contents until the system runs short of memory, so only a real return zeroes the page.
     //     Nothing has to collect garbage for this to happen.
+    // The worker zeroes the pages before it puts the block back in the pool, so wait until the block is back: An
+    // allocation before then would get a fresh slot.
     auto deadline = MonotonicTime::now() + AK::Duration::from_seconds(30);
-    while (block[0] != 0 && MonotonicTime::now() < deadline)
+    while (allocator.returned_block_count_for_testing() == 0 && MonotonicTime::now() < deadline)
         (void)Core::System::sleep_ms(1);
+    EXPECT_EQ(allocator.returned_block_count_for_testing(), 1u);
     u8 first_byte = block[0];
     EXPECT_EQ(first_byte, 0);
 

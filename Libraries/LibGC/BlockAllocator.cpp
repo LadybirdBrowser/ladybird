@@ -546,6 +546,12 @@ size_t BlockAllocator::block_count()
     return m_blocks.size() + m_returned_blocks.size();
 }
 
+size_t BlockAllocator::returned_block_count_for_testing()
+{
+    MutexLocker locker(m_mutex);
+    return m_returned_blocks.size();
+}
+
 HeapRegionBaseCopyRegistration::HeapRegionBaseCopyRegistration(FlatPtr& copy)
     : m_copy(&copy)
 {
