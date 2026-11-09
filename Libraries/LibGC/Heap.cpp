@@ -993,8 +993,12 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     m_idle_collection_policy.reset(m_total_allocated_bytes);
 
     // Marking is synchronous, so this collection has already seen any graph the timer was waiting to collect.
-    if (m_abandoned_object_graph_timer)
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToCollect) {
+        m_abandoned_object_graph_state = AbandonedObjectGraphState::WaitingToReleaseMemory;
         m_abandoned_object_graph_timer->stop();
+    }
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToReleaseMemory && !m_incremental_sweep_active)
+        schedule_release_of_abandoned_object_graph_memory();
 }
 
 void Heap::update_allocation_rate()
@@ -1809,7 +1813,7 @@ void Heap::finish_incremental_sweep()
     update_gc_bytes_threshold(m_sweep_live_external_bytes);
 
     // NB: A graph abandoned during this sweep was alive when marking ran, so the threshold just set counts it.
-    if (m_abandoned_object_graph_timer && m_abandoned_object_graph_timer->is_active())
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToCollect)
         limit_gc_bytes_threshold_for_abandoned_object_graph();
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Sweep complete ===");
@@ -1832,6 +1836,9 @@ void Heap::finish_incremental_sweep()
 
     // Sweep is done; kick the global decommit worker so the slots we just freed get madvise()'d off the GC pause path.
     BlockAllocator::wake_decommit_worker_async();
+
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToReleaseMemory)
+        schedule_release_of_abandoned_object_graph_memory();
 }
 
 void Heap::finish_pending_incremental_sweep()
@@ -1945,31 +1952,46 @@ void Heap::did_abandon_object_graph()
     VERIFY(is_on_owner_thread());
     limit_gc_bytes_threshold_for_abandoned_object_graph();
 
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToCollect)
+        return;
+    m_abandoned_object_graph_state = AbandonedObjectGraphState::WaitingToCollect;
+
     if (!m_abandoned_object_graph_timer) {
         m_abandoned_object_graph_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS), [this] {
-            collect_abandoned_object_graph_on_timer();
+            on_abandoned_object_graph_timer();
         });
     }
-    if (m_abandoned_object_graph_timer->is_active())
-        return;
 
     // Marking pauses everything, so a heap that is expensive to mark waits longer. After this long, one marking pause
     // makes up the share of running time we want to spend collecting.
     auto marking_cost_budget_ns = static_cast<double>(m_mark_duration_ns) * (1 - GC_TARGET_TIME_FRACTION) / GC_TARGET_TIME_FRACTION;
-    m_abandoned_object_graph_timer->start(max(AK::Duration::from_milliseconds(GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS), AK::Duration::from_nanoseconds(static_cast<i64>(marking_cost_budget_ns))));
+    m_abandoned_object_graph_timer->restart(max(AK::Duration::from_milliseconds(GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS), AK::Duration::from_nanoseconds(static_cast<i64>(marking_cost_budget_ns))));
 }
 
-void Heap::collect_abandoned_object_graph_on_timer()
+void Heap::on_abandoned_object_graph_timer()
 {
+    if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToReleaseMemory) {
+        m_abandoned_object_graph_state = AbandonedObjectGraphState::None;
+        ak_kmalloc_collect();
+        return;
+    }
+
     // A collection now would have to finish the sweep in one go, and a deferral means now is not a safe time to
     // collect.
     if (m_incremental_sweep_active || is_gc_deferred()) {
-        m_abandoned_object_graph_timer->start();
+        m_abandoned_object_graph_timer->restart();
         return;
     }
 
     m_allocated_bytes_since_last_gc = 0;
     collect_garbage();
+}
+
+void Heap::schedule_release_of_abandoned_object_graph_memory()
+{
+    // NB: A timer, since a sweep can finish in the middle of any allocation, and the allocator can't be collected from
+    //     everywhere.
+    m_abandoned_object_graph_timer->restart(AK::Duration::zero());
 }
 
 void Heap::defer_gc()
