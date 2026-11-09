@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::svg_formatting_context::css_pixel_rect_of;
 use crate::painting::node_painting;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
@@ -24,23 +25,13 @@ pub(crate) fn first_child_paintable_of_kind(
     arena.paintable_row_is_populated(node).then_some(node)
 }
 
-/// The object bounding box covers the target's geometry alone. The paintable's border box is not
-/// that: SVG layout inflates it by the visible stroke width. So, take the bounding box from the
-/// target's geometry path, which carries no stroke. A group or a foreign object has no single
-/// geometry path, and we have no object bounding box for it, so its border box still stands in.
+/// The object bounding box of `target` in its user space, as layout committed it. A foreign object's box comes from a
+/// run of its own and carries no SVG geometry, so its border box stands in.
 pub(crate) fn target_user_space_object_bounding_box(arena: &impl PaintRead, target: NodeSlotId) -> CssPixelRect {
-    if arena.node_kind_if_live(target).is_some_and(node_painting::is_svg_path)
-        && let Some(path) = paintable_geometry::committed_svg_path(arena, target)
-    {
-        let [x, y, width, height] = path.bounding_box();
-        return CssPixelRect::new(
-            CssPixels::nearest_value_for_f32(x),
-            CssPixels::nearest_value_for_f32(y),
-            CssPixels::nearest_value_for_f32(width),
-            CssPixels::nearest_value_for_f32(height),
-        );
-    }
-    paintable_geometry::absolute_border_box_rect(arena, target)
+    paintable_geometry::committed_svg_geometry(arena, target).map_or_else(
+        || paintable_geometry::absolute_border_box_rect(arena, target),
+        |geometry| css_pixel_rect_of(geometry.object_bounding_box),
+    )
 }
 
 pub(crate) fn object_bounding_box_content_units_transform(
@@ -60,15 +51,6 @@ pub(crate) fn object_bounding_box_content_units_transform(
     }
 }
 
-fn css_pixel_rect_from_float(rect: FloatRect) -> CssPixelRect {
-    CssPixelRect::new(
-        CssPixels::nearest_value_for_f32(rect.x),
-        CssPixels::nearest_value_for_f32(rect.y),
-        CssPixels::nearest_value_for_f32(rect.width),
-        CssPixels::nearest_value_for_f32(rect.height),
-    )
-}
-
 /// The masking area of the mask that `target` references, in the target's user space. Percentages
 /// in a userSpaceOnUse masking area resolve against the SVG viewport. An empty area conveys that
 /// a negative value or a value of zero disables rendering of the element; a mask layer with an
@@ -82,13 +64,9 @@ pub(crate) fn mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
     }
     let mask_box = first_child_paintable_of_kind(arena, target, NodeKind::SVGMaskBox)?;
     let facts = paintable_geometry::committed_svg_mask_area_facts(arena, mask_box)?;
-    let viewport_size =
-        crate::painting::svg_viewport::nearest_svg_viewport_user_rect(arena, mask_box).map_or((0.0, 0.0), |rect| {
-            (
-                CssPixels::nearest_value_for_f32(rect.width).to_float(),
-                CssPixels::nearest_value_for_f32(rect.height).to_float(),
-            )
-        });
+    let viewport = paintable_geometry::committed_svg_geometry(arena, mask_box)
+        .map(|geometry| geometry.viewport_user_rect)
+        .unwrap_or_default();
     let target_bounding_box = target_user_space_object_bounding_box(arena, target);
     let masking_area = if facts.units_are_object_bounding_box {
         let target_x = target_bounding_box.x.to_float();
@@ -103,10 +81,10 @@ pub(crate) fn mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
         )
     } else {
         let user_space_masking_area = FloatRect::new(
-            facts.x.resolve_relative_to(viewport_size.0),
-            facts.y.resolve_relative_to(viewport_size.1),
-            facts.width.resolve_relative_to(viewport_size.0),
-            facts.height.resolve_relative_to(viewport_size.1),
+            facts.x.resolve_relative_to(viewport.width),
+            facts.y.resolve_relative_to(viewport.height),
+            facts.width.resolve_relative_to(viewport.width),
+            facts.height.resolve_relative_to(viewport.height),
         );
         if user_space_masking_area.is_empty() {
             return Some(CssPixelRect::default());
@@ -116,11 +94,12 @@ pub(crate) fn mask_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
     if masking_area.is_empty() {
         return Some(CssPixelRect::default());
     }
-    Some(css_pixel_rect_from_float(masking_area))
+    Some(css_pixel_rect_of(masking_area))
 }
 
-fn committed_svg_element_transform_or_identity(arena: &impl PaintRead, slot: NodeSlotId) -> AffineTransform {
-    paintable_geometry::committed_svg_element_transform(arena, slot).map_or_else(AffineTransform::identity, Into::into)
+fn committed_local_transform(arena: &impl PaintRead, slot: NodeSlotId) -> AffineTransform {
+    paintable_geometry::committed_svg_geometry(arena, slot)
+        .map_or_else(AffineTransform::identity, |geometry| geometry.local_transform.into())
 }
 
 /// https://drafts.csswg.org/css-masking-1/#ClipPathElement
@@ -173,7 +152,7 @@ fn svg_clip_path_geometry_bounds(
     if node_painting::is_svg_path(kind) {
         let path = paintable_geometry::committed_svg_path(arena, node)?;
         let [x, y, width, height] = path.copy_transformed(additional_transform.values).bounding_box();
-        return Some(css_pixel_rect_from_float(FloatRect::new(x, y, width, height)));
+        return Some(css_pixel_rect_of(FloatRect::new(x, y, width, height)));
     }
     let mut bounding_box = ClipPathBoundingBox {
         min_x: CssPixels::default(),
@@ -192,10 +171,7 @@ fn svg_clip_path_geometry_bounds(
         if !arena.paintable_row_is_populated(child_node) || !node_painting::is_svg(child_kind) {
             continue;
         }
-        let child_transform = multiply_affine(
-            additional_transform,
-            committed_svg_element_transform_or_identity(arena, child_node),
-        );
+        let child_transform = multiply_affine(additional_transform, committed_local_transform(arena, child_node));
         let Some(child_bounds) = svg_clip_path_geometry_bounds(arena, child_node, child_transform) else {
             continue;
         };
@@ -222,7 +198,7 @@ pub(crate) fn clip_area(arena: &impl PaintRead, target: NodeSlotId) -> Option<Cs
         return None;
     }
     let clip_box = first_child_paintable_of_kind(arena, target, NodeKind::SVGClipBox)?;
-    let mut clip_path_transform = committed_svg_element_transform_or_identity(arena, clip_box);
+    let mut clip_path_transform = committed_local_transform(arena, clip_box);
     if paintable_geometry::committed_svg_resource_content_units_are_object_bounding_box(arena, clip_box) {
         clip_path_transform = multiply_affine(
             object_bounding_box_content_units_transform(arena, target),

@@ -70,15 +70,8 @@ impl<Arena: PaintRead> TransformGeometry for CommittedTransformGeometry<'_, Aren
         paintable_geometry::scrollable_overflow_rect(self.arena, self.node)
     }
 
-    fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect> {
-        crate::painting::svg_viewport::nearest_svg_viewport_user_rect(self.arena, self.node).map(|rect| {
-            CssPixelRect::new(
-                CssPixels::default(),
-                CssPixels::default(),
-                CssPixels::nearest_value_for(rect.width as f64),
-                CssPixels::nearest_value_for(rect.height as f64),
-            )
-        })
+    fn svg_geometry(&self) -> Option<crate::layout::svg_formatting_context::SvgGeometry> {
+        paintable_geometry::committed_svg_geometry(self.arena, self.node)
     }
 
     fn containing_block_box(&self, coord_box: u16) -> CssPixelRect {
@@ -583,14 +576,8 @@ fn svg_filter_bounds(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<
     if !bounds.is_empty() {
         return Some(bounds);
     }
-    crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, slot).map(|rect| {
-        CssPixelRect::new(
-            CssPixels::nearest_value_for(f64::from(rect.x)),
-            CssPixels::nearest_value_for(f64::from(rect.y)),
-            CssPixels::nearest_value_for(f64::from(rect.width)),
-            CssPixels::nearest_value_for(f64::from(rect.height)),
-        )
-    })
+    paintable_geometry::committed_svg_geometry(layout_arena, slot)
+        .map(|geometry| crate::layout::svg_formatting_context::css_pixel_rect_of(geometry.viewport_user_rect))
 }
 
 fn published_svg_filter(

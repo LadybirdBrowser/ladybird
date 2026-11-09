@@ -18,7 +18,6 @@ use crate::painting::display_list::recorder::{
 };
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiSvgGradientKind, FfiSvgGradientSpreadMethod};
-use crate::painting::node_painting;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -46,8 +45,6 @@ struct SvgPaintFacts {
     non_scaling_stroke: bool,
     paint_order: [u8; 3],
     paint_order_count: u32,
-    has_viewport: bool,
-    viewport: [f32; 4],
     references_paint_server: bool,
 }
 
@@ -57,16 +54,7 @@ fn svg_paint_facts<O: Observer>(
 ) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::fill_rule;
     let layout_arena = recorder.source;
-    let viewport = layout_arena
-        .node_kind_if_live(paintable)
-        .is_some_and(node_painting::is_svg_path)
-        .then(|| crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, paintable))
-        .flatten();
-    let mut facts = SvgPaintFacts {
-        has_viewport: viewport.is_some(),
-        viewport: viewport.map_or([0.0; 4], |rect| [rect.x, rect.y, rect.width, rect.height]),
-        ..SvgPaintFacts::default()
-    };
+    let mut facts = SvgPaintFacts::default();
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return (facts, Vec::new());
     };
@@ -182,7 +170,7 @@ fn gradient_paint_transform(
 
 fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &SvgPaintContext) -> PaintStyle {
     let description = &gradient.description;
-    let bounding_box = paint_context.path_bounding_box;
+    let bounding_box = paint_context.object_bounding_box;
     let viewport = paint_context.viewport;
     let point_in_bounding_box = |x: f32, y: f32| libgfx_rust::FloatPoint {
         x: bounding_box.x + x * bounding_box.width,
@@ -258,7 +246,9 @@ fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &SvgPain
 
 pub(crate) struct SvgPaintContext {
     pub viewport: FloatRect,
+    /// The bounds of the path as recorded, from which a gradient is positioned when it is drawn.
     pub path_bounding_box: FloatRect,
+    pub object_bounding_box: FloatRect,
     pub paint_transform: AffineTransform,
     pub content_scale: libgfx_rust::FloatSize,
 }
@@ -274,7 +264,7 @@ fn pattern_paint_style<O: Observer>(
     if !recorder.source.paintable_row_is_populated(pattern_box) {
         return None;
     }
-    let bounding_box = paint_context.path_bounding_box;
+    let bounding_box = paint_context.object_bounding_box;
     let viewport = paint_context.viewport;
     let (tile_x, tile_y, tile_width, tile_height) = if description.units_are_object_bounding_box {
         (
@@ -451,13 +441,12 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
         return;
     }
 
+    let geometry =
+        crate::painting::paintable_geometry::committed_svg_geometry(recorder.source, paintable).unwrap_or_default();
     let paint_context = SvgPaintContext {
-        viewport: if facts.has_viewport {
-            FloatRect::from_array(facts.viewport)
-        } else {
-            FloatRect::default()
-        },
+        viewport: geometry.viewport_user_rect,
         path_bounding_box: FloatRect::from_array(computed_path.bounding_box()),
+        object_bounding_box: geometry.object_bounding_box,
         paint_transform: affine(paint_transform),
         content_scale: recorder.own_accumulated_2d_scale(paintable),
     };

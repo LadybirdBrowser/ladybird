@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>transform-box: value change from 'view-box' to 'fill-box'</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/greensquare200x200.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="400" height="200">
+  <rect width="200" height="200" fill="red"/>
+  <rect id="target" x="100" width="200" height="200" fill="green"
+        style="transform-box: view-box; transform: translateX(-50%)"/>
+</svg>
+<script>
+requestAnimationFrame(function() {
+  requestAnimationFrame(function() {
+    document.querySelector('#target').style.transformBox = 'fill-box';
+    document.documentElement.classList.remove('reftest-wait');
+  });
+});
+</script>

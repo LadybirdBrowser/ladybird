@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>transform-box: stroke-box, on group (&lt;g>), child shape mutated</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/svgbox-rect-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-box">
+<script src="../../../common/reftest-wait.js"></script>
+<script src="../../../common/rendering-utils.js"></script>
+<meta name="assert" content="This should display a rect whose center of rotation is at (20, 0) of its stroke-box."/>
+<style>
+#target {
+  transform-box: stroke-box;
+  transform-origin: 20px 0px;
+  transform: rotate(90deg);
+}
+#target > rect {
+  fill: green;
+  stroke: black;
+  stroke-width: 20;
+}
+</style>
+<svg width="400" height="300">
+  <g id="target">
+    <rect width="100" height="100" x="100" y="100"/>
+  </g>
+</svg>
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    const rect = document.querySelector('#target > rect');
+    rect.setAttribute('height', '50');
+    takeScreenshot();
+  });
+</script>

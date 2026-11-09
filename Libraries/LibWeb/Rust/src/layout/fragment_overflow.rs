@@ -8,11 +8,12 @@ use crate::css::css_enums::{overflow, positioning, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
-use crate::layout::fragment_tree::{Fragment, FragmentLink, OuterLinks};
+use crate::layout::fragment_tree::{Fragment, FragmentLink, OuterLinks, SvgPayload};
 use crate::layout::geometry::{Frame, Sides};
 use crate::layout::inline_content::{InlineContent, PhysicalPlane};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
+use crate::layout::svg_formatting_context::SvgGeometry;
 use crate::layout::used_transform::TransformGeometry;
 use crate::layout::used_values::FfiCssPixelSize;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
@@ -84,7 +85,7 @@ impl ContainedBoxesRelativeToContainerPaddingBox {
 struct ContainedBoxTransformGeometry<'boxes> {
     contained: &'boxes ContainedBoxesRelativeToContainerPaddingBox,
     container: &'boxes BoxesRelativeToOwnPaddingBox,
-    svg_additional_element_transform: Option<AffineTransform>,
+    svg: Option<&'boxes SvgPayload>,
 }
 
 impl TransformGeometry for ContainedBoxTransformGeometry<'_> {
@@ -100,8 +101,8 @@ impl TransformGeometry for ContainedBoxTransformGeometry<'_> {
         None
     }
 
-    fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect> {
-        None
+    fn svg_geometry(&self) -> Option<SvgGeometry> {
+        self.svg.map(|svg| svg.geometry)
     }
 
     fn containing_block_box(&self, coord_box: u16) -> CssPixelRect {
@@ -114,7 +115,7 @@ impl TransformGeometry for ContainedBoxTransformGeometry<'_> {
     }
 
     fn svg_additional_element_transform(&self) -> Option<AffineTransform> {
-        self.svg_additional_element_transform
+        self.svg?.facts.additional_element_transform.map(Into::into)
     }
 }
 
@@ -465,17 +466,15 @@ pub(crate) fn scrollable_overflow_of<'link>(
         }
         let transform = child_has_css_transform
             .then(|| {
-                let svg_additional_element_transform = style_queries::kind_is_svg_element_box(child_row.kind())
-                    .then(|| child.svg()?.facts.additional_element_transform)
-                    .flatten()
-                    .map(Into::into);
                 node_values::compute_transform_against(
                     arena,
                     child_node,
                     &ContainedBoxTransformGeometry {
                         contained: &contained,
                         container: &own,
-                        svg_additional_element_transform,
+                        svg: child
+                            .svg()
+                            .filter(|_| style_queries::kind_is_svg_element_box(child_row.kind())),
                     },
                     1.0,
                 )

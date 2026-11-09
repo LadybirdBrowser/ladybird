@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>transform-box: border-box (SVG layout)</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/svgbox-rect-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-box">
+<meta name="assert" content="This should display a rect whose center of rotation is at (20, 0) of its stroke-box."/>
+
+<style>
+#target {
+  fill: green;
+  stroke: black;
+  stroke-width: 20;
+  transform-box: border-box; /* alias for stroke-box */
+  transform-origin: 20px 0px;
+  transform: rotate(90deg);
+}
+</style>
+
+<svg width="400" height="300">
+  <rect id="target" width="100" height="50" x="100" y="100"/>
+</svg>
+
+<div id="error"></div>
+<script>
+var refStyle = "border-box";
+var compStyle = getComputedStyle(document.getElementById('target')).transformBox;
+if (refStyle != compStyle)
+  document.getElementById('error').textContent = "Error, got computed style " + compStyle;
+</script>

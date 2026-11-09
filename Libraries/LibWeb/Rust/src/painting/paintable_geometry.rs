@@ -223,13 +223,6 @@ pub(crate) fn committed_svg_mask_area_facts(
     })
 }
 
-pub(crate) fn committed_svg_view_box(
-    arena: &impl GeometryRead,
-    slot: NodeSlotId,
-) -> Option<svg_formatting_context::FfiSvgViewBox> {
-    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg()?.facts.view_box))
-}
-
 pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
     arena: &impl GeometryRead,
     slot: NodeSlotId,

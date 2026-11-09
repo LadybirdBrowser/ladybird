@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>transform-box: initial (SVG layout)</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/svgbox-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#transform-box">
+<meta name="assert" content="This should display a C shape with the center of the top endpoint at 200,100."/>
+
+<style>
+#target {
+  fill: green;
+  stroke: black;
+  stroke-width: 50;
+  transform-origin: 200px 100px;
+  transform: rotate(90deg);
+}
+</style>
+
+<svg width="400" height="300">
+    <path id="target" d="M 200 100 v 100 h 100 v -100"/>
+</svg>
+
+<div id="error"></div>
+<script>
+var refStyle = "view-box";
+var compStyle = getComputedStyle(document.getElementById('target')).transformBox;
+if (refStyle != compStyle)
+    document.getElementById('error').textContent = "Error, got computed style " + compStyle;
+</script>

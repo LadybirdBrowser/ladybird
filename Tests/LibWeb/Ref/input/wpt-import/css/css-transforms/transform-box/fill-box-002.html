@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>transform-box: fill-box on an SVG container element</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/greensquare200x200.html">
+<style>
+#container {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(2);
+}
+</style>
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="200" height="200">
+  <rect width="200" height="200" fill="red"/>
+  <g id="container">
+    <rect x="50" y="50" width="100" height="100" fill="green"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html class="reftest-wait">
+<title>transform-box: view-box, viewport mutated, &lt;text></title>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/transform-box/reference/greensquare200x200.html">
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-box">
+<script src="../../../common/reftest-wait.js"></script>
+<script src="../../../common/rendering-utils.js"></script>
+<style>
+#target {
+  transform-box: view-box;
+  transform: translate(-50%, 0);
+}
+</style>
+<p>There should be a green 200x200 rectangle below, and no red.</p>
+<svg width="400" height="200">
+  <rect width="200" height="200" fill="red"/>
+  <text id="target" x="100" y="160" fill="green"
+        font-family="Ahem" font-size="200">X</text>
+</svg>
+<script>
+  waitForAtLeastOneFrame().then(() => {
+    document.querySelector('svg').setAttribute('width', 200);
+    takeScreenshot();
+  });
+</script>
