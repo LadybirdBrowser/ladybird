@@ -1,0 +1,11 @@
+Ladybird fetches a CSS image when layout builds the box of an element
+whose computed style uses it, and it updates layout before the load
+event so that those fetches delay it. The other engines do the same.
+Blink loads an element’s images after the cascade, skipping elements
+whose display is none, in StyleResolverState::LoadPendingResources(),
+and its Document::FinishedParsing() calls UpdateStyleAndLayoutTree().
+Gecko starts them from nsIFrame::DidSetComputedStyle(), through
+ComputedStyle::StartImageLoads(), so only for elements that get a frame.
+And WebKit loads them through Style::loadPendingResources() as a
+RenderElement takes its style, after its Document::finishedParsing()
+has called updateStyleIfNeeded().
