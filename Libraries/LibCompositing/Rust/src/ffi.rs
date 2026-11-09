@@ -459,20 +459,26 @@ const ENCODED_IN_THIS_PROCESS: &str = "a value this process encoded for itself d
 ///
 /// # Safety
 ///
-/// The storage of `display_list` must be a live display list storage handle. `receive` must copy the UTF-8 bytes it
-/// keeps synchronously.
+/// The storage of `display_list` must be a live display list storage handle, and `visual_context_tree` a live tree
+/// handle where there is a display list. `receive` must copy the UTF-8 bytes it keeps synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn recorded_display_list_async_scrolling_state_json(
     display_list: Option<&FfiDisplayList<'_>>,
+    visual_context_tree: *const c_void,
     receiver: *mut c_void,
     receive: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>),
 ) {
     let state = match display_list {
         None => crate::scrolling::AsyncScrollingState::default(),
         Some(display_list) => {
-            // SAFETY: The caller lends a live storage handle.
-            let display_list = unsafe { display_list.share() }.expect(ENCODED_IN_THIS_PROCESS);
-            crate::scrolling::async_scrolling_state_from_display_list(&display_list)
+            // SAFETY: The caller lends live storage and tree handles.
+            let (display_list, visual_context_tree) = unsafe {
+                (
+                    display_list.share().expect(ENCODED_IN_THIS_PROCESS),
+                    tree_sharing_handle(visual_context_tree),
+                )
+            };
+            crate::scrolling::async_scrolling_state_from(&display_list, visual_context_tree.as_arc())
         }
     };
     let json = crate::scrolling::async_scrolling_state_to_json(&state);
@@ -507,7 +513,8 @@ unsafe fn recorded_scroll_tree_of(
         .decode::<crate::scrolling::ScrollStateSnapshot>()
         .expect(ENCODED_IN_THIS_PROCESS);
     snapshot.set_node_count(visual_context_tree.spatial_node_count());
-    let async_scrolling_state = crate::scrolling::async_scrolling_state_from_display_list(&display_list);
+    let async_scrolling_state =
+        crate::scrolling::async_scrolling_state_from(&display_list, visual_context_tree.as_arc());
     let admission = crate::scrolling::wheel_routing_admission_for_with_generation(
         &async_scrolling_state,
         newest_wheel_event_listener_state_generation,
