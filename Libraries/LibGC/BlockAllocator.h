@@ -36,6 +36,9 @@ public:
 
     size_t block_count();
 
+    // How many blocks are back in the pool after their pages went back to the system. Tests wait on it.
+    size_t returned_block_count_for_testing();
+
     // Gives the pages of the free blocks back to the system right away, rather than leaving them for the system to take
     // when it runs short of memory. For a heap that went away, whose blocks may never be reused.
     void return_freed_blocks_to_system();
