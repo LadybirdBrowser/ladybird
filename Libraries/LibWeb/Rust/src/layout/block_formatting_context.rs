@@ -4285,8 +4285,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) -> bool {
         let facts = self.facts(node);
         let container_facts = self.facts(block_container);
-        !self.run.pass.reads_no_memoized_layout()
-            && !self.run.should_collect_devtools_layout_data
+        !self.run.should_collect_devtools_layout_data
             && containing_line_box_fragment.is_none()
             && !self.is_line_clamp_container
             && self.max_lines.get().is_none()
@@ -4333,12 +4332,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         std::sync::Arc<fragment_tree::Fragment>,
     )> {
         let pass = &self.run.pass;
+        let store = pass.in_flow_block_cache_store()?;
         pass.arena()
             .with_current_committed_fragment(node, |fragment| fragment.clone())
             .and_then(|fragment| {
-                let entry =
-                    pass.in_flow_block_cache_store()
-                        .matching(node.slot_index(), validity, key, fragment.identity)?;
+                let entry = store.matching(node.slot_index(), validity, key, fragment.identity)?;
                 Some((entry, fragment))
             })
     }
@@ -4355,7 +4353,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         continues_from_previous_fragment: bool,
     ) -> InFlowReuse {
         if let Some(fragmentainer) = self.run.fragmentainer.as_deref() {
-            if continues_from_previous_fragment
+            // NB: A discarded run lays out every column afresh, so that the verification checks the column box layouts
+            //     the run reuses.
+            if self.run.pass.is_discarded_run()
+                || continues_from_previous_fragment
                 || !self.in_flow_child_reads_only_its_key_and_floats_in_any_run(
                     node,
                     block_container,
@@ -4388,7 +4389,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                     fragment: layout.fragment.clone(),
                 });
         }
-        if !self.in_flow_child_may_be_reused(node, block_container, containing_line_box_fragment) {
+        if self.run.pass.in_flow_block_cache_store().is_none()
+            || !self.in_flow_child_may_be_reused(node, block_container, containing_line_box_fragment)
+        {
             return InFlowReuse::Ineligible;
         }
         let pass = &self.run.pass;
@@ -4842,11 +4845,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
             return;
         }
-        let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
-        self.run
-            .pass
-            .in_flow_block_cache_store()
-            .store(node.slot_index(), entry, committed_identity);
+        if let Some(store) = self.run.pass.in_flow_block_cache_store() {
+            let committed_identity = arena.with_current_committed_fragment(node, |fragment| fragment.identity);
+            store.store(node.slot_index(), entry, committed_identity);
+        }
     }
 
     /// Whether a float placed so far reaches below `block_offset` in `block_container`.
@@ -5134,6 +5136,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             == abspos_containing_block_info_contributions_received
             && self.run.pass.host_findings_noted_so_far() == host_findings_noted_so_far
             && let Some(placed) = reused.placed.as_ref().filter(|placed| !placed.exports_payloads)
+            && let Some(store) = self.run.pass.in_flow_block_cache_store()
         {
             entry.fragment_identity = placed.fragment.identity;
             entry.floats_read_by_contents.margins_before_box = margins_before_box;
@@ -5144,10 +5147,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .pass
                 .arena()
                 .with_current_committed_fragment(node, |fragment| fragment.identity);
-            self.run
-                .pass
-                .in_flow_block_cache_store()
-                .store(node.slot_index(), entry, committed_identity);
+            store.store(node.slot_index(), entry, committed_identity);
         }
         Some(LaidOutBlockLevelBox {
             content_offset: Some(reused.content_offset),

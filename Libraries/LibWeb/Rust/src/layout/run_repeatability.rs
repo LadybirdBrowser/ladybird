@@ -40,7 +40,7 @@ pub(super) fn lay_out_discarded_run(
     pass: &LayoutPass<'_>,
     run: impl for<'discarded> FnOnce(LayoutPass<'discarded>) -> formatting_context::RunOutputs,
 ) -> Option<formatting_context::RunOutputs> {
-    if run_repeatability_verification() == RunRepeatabilityVerification::Off || pass.reads_no_memoized_layout() {
+    if run_repeatability_verification() == RunRepeatabilityVerification::Off || pass.is_discarded_run() {
         return None;
     }
     Some(pass.lay_out_discarded_run(run))
@@ -186,7 +186,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         LayoutInput,
     ) -> formatting_context::RunOutputs,
 ) {
-    if !unobserved_own_block_size_verification_is_enabled() || pass.reads_no_memoized_layout() {
+    if !unobserved_own_block_size_verification_is_enabled() || pass.is_discarded_run() {
         return;
     }
     let checked = format!("the run of {box_:?}, which never observed its own block size or block margins,");

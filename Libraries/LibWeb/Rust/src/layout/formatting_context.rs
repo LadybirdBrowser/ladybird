@@ -2042,31 +2042,6 @@ pub(super) fn run_formatting_context(
         !parent_collects_fragments || builds_fragments,
         "the run of {box_:?} builds no fragments for its parent to commit"
     );
-    if pass.reads_no_memoized_layout() {
-        let outputs = execute_formatting_context_run(
-            builds_fragments,
-            root_cells,
-            box_,
-            root_containing_block,
-            subgrid_parent,
-            fc_type,
-            should_collect_devtools_layout_data,
-            pass,
-            &input,
-            None,
-            table_inline_layout,
-            None,
-        );
-        return child_layout_from_outputs(
-            &pass,
-            parent_collects_fragments,
-            box_,
-            &input,
-            root_cells,
-            RunOutputsHandle::Owned(outputs),
-            false,
-        );
-    }
     let key = fc_run_cache::FcRunCacheKey::new(&pass, fc_type, input, root_cells);
     let attempt = fc_run_cache::FcRunCacheAttempt::probe(
         box_,
@@ -3536,9 +3511,6 @@ pub(crate) fn lay_out_shape_for_its_result(pass: LayoutPass<'_>, shape: ChildRun
         pass.receive_host_findings(host_findings);
         result
     };
-    if pass.reads_no_memoized_layout() {
-        return result_with_host_findings(RunOutputsHandle::Owned(lay_out(pass, root_cells, input, None)));
-    }
     // NB: The only shapes of table cells are those laid out ahead of the intrinsic block padding their table hands them.
     let runs_ahead_of_intrinsic_block_padding = builds_fragments && NodeFacts::new(&pass, node).is_table_cell();
     let cache_attempt =
