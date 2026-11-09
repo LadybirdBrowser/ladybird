@@ -44,8 +44,8 @@ fn link_content_rect(link: &crate::layout::fragment_tree::FragmentLink) -> CssPi
     CssPixelRect::new(
         link.committed_offset.x,
         link.committed_offset.y,
-        link.fragment.content_inline_size,
-        link.fragment.content_block_size,
+        link.fragment.sides.content_size.width,
+        link.fragment.sides.content_size.height,
     )
 }
 
@@ -83,7 +83,8 @@ pub(crate) fn committed_content_size(arena: &impl GeometryRead, slot: NodeSlotId
     let frame = data.frame();
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(used_values::FfiCssPixelSize::default, |link| {
-            frame.size_to_physical(link.fragment.content_inline_size, link.fragment.content_block_size)
+            let size = link.fragment.sides.content_size;
+            frame.size_to_physical(size.width, size.height)
         })
     })
 }
@@ -120,27 +121,11 @@ pub(crate) fn committed_margin(arena: &impl GeometryRead, slot: NodeSlotId) -> F
 }
 
 fn border_of(fragment: &crate::layout::fragment_tree::Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(
-        frame,
-        FfiPixelBox {
-            top: fragment.border_top,
-            right: fragment.border_right,
-            bottom: fragment.border_bottom,
-            left: fragment.border_left,
-        },
-    )
+    sides_to_physical(frame, fragment.sides.border.into())
 }
 
 fn padding_of(fragment: &crate::layout::fragment_tree::Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(
-        frame,
-        FfiPixelBox {
-            top: fragment.padding_top,
-            right: fragment.padding_right,
-            bottom: fragment.padding_bottom,
-            left: fragment.padding_left,
-        },
-    )
+    sides_to_physical(frame, fragment.sides.padding.into())
 }
 
 pub(crate) fn committed_border(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
@@ -176,7 +161,7 @@ pub(crate) fn committed_inset(arena: &impl GeometryRead, slot: NodeSlotId) -> Ff
 
 pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
-        link.is_some_and(|link| link.fragment.uses_collapsing_borders_model)
+        link.is_some_and(|link| link.fragment.sides.collapsing.uses_collapsing_borders_model())
     })
 }
 
@@ -445,8 +430,8 @@ pub(crate) fn absolute_fragment_rect(arena: &impl GeometryRead, slot: NodeSlotId
             CssPixelRect::new(
                 link.committed_offset.x,
                 link.committed_offset.y,
-                link.fragment.content_inline_size,
-                link.fragment.content_block_size,
+                link.fragment.sides.content_size.width,
+                link.fragment.sides.content_size.height,
             ),
             fragment.containing_block_fragment,
         )
@@ -472,7 +457,7 @@ fn with_later_box_fragment<R>(
 pub(crate) fn unbroken_content_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
     let mut size = committed_content_size(arena, slot);
     for fragment in arena.committed_side_data(slot).box_fragments() {
-        size.height += fragment.link.fragment.content_block_size;
+        size.height += fragment.link.fragment.sides.content_size.height;
     }
     size
 }
@@ -489,8 +474,8 @@ pub(crate) fn unbroken_box_model(
     if let Some(last) = arena.committed_side_data(slot).box_fragments().last() {
         let fragment = &last.link.fragment;
         margin.bottom = last.link.margin_bottom;
-        padding.bottom = fragment.padding_bottom;
-        border.bottom = fragment.border_bottom;
+        padding.bottom = fragment.sides.padding.bottom;
+        border.bottom = fragment.sides.border.bottom;
     }
     (margin, padding, border)
 }
@@ -534,10 +519,10 @@ pub(crate) fn committed_fragment_border(arena: &impl GeometryRead, slot: NodeSlo
 pub(crate) fn committed_fragment_present_edges(arena: &impl GeometryRead, slot: NodeSlotId, index: usize) -> u8 {
     let edges_of = |fragment: &crate::layout::fragment_tree::Fragment| {
         let mut edges = PIECE_EDGE_LEFT | PIECE_EDGE_RIGHT;
-        if !fragment.continues_from_previous_fragment {
+        if !fragment.breaks.continues_from_previous {
             edges |= PIECE_EDGE_TOP;
         }
-        if !fragment.continues_in_next_fragment {
+        if !fragment.breaks.continues_in_next {
             edges |= PIECE_EDGE_BOTTOM;
         }
         edges
@@ -677,8 +662,10 @@ pub(crate) fn first_fragment_padding_box_rect(arena: &impl GeometryRead, slot: N
 pub(crate) fn committed_border_box_edges(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     let border = committed_border(arena, slot);
     let Some(is_table_box) = arena.with_committed_fragment_link(slot, |link| {
-        link.filter(|link| link.fragment.uses_collapsing_borders_model)
-            .map(|link| link.fragment.is_collapsed_borders_table_box)
+        let collapsing = link?.fragment.sides.collapsing;
+        collapsing
+            .uses_collapsing_borders_model()
+            .then(|| collapsing.is_collapsed_borders_table_box())
     }) else {
         return border;
     };

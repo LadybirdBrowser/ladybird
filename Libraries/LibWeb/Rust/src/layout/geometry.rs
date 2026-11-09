@@ -49,6 +49,15 @@ const FRAME_SIDES_IN_PHYSICAL_PLANE: [[u8; 4]; 5] = [
 /// The frame side that each physical side lies on, indexed by the physical side.
 const PHYSICAL_SIDES_IN_FRAME: [[u8; 4]; 5] = [[0, 1, 2, 3], [3, 0, 1, 2], [3, 2, 1, 0], [3, 0, 1, 2], [1, 2, 3, 0]];
 
+/// The widths of the sides of a box, such as its borders or paddings, in a frame or in the physical plane.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Sides {
+    pub(crate) top: CssPixels,
+    pub(crate) right: CssPixels,
+    pub(crate) bottom: CssPixels,
+    pub(crate) left: CssPixels,
+}
+
 /// The frame of a writing mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Frame(u8);

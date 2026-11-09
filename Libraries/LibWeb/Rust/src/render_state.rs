@@ -1286,8 +1286,8 @@ mod tests {
             // The viewport's fragment holds scrollable overflow it no longer has, and a read settles it first since.
             let mut link = crate::layout::fragment_tree::FragmentLink::for_test(viewport);
             let fragment = std::sync::Arc::get_mut(&mut link.fragment).unwrap();
-            fragment.content_inline_size = crate::css::css_pixels::CssPixels::from_integer(100);
-            fragment.content_block_size = crate::css::css_pixels::CssPixels::from_integer(100);
+            fragment.sides.content_size.width = crate::css::css_pixels::CssPixels::from_integer(100);
+            fragment.sides.content_size.height = crate::css::css_pixels::CssPixels::from_integer(100);
             fragment.scrollable_overflow.has_scrollable_overflow = true;
             arena.set_committed_fragment_link(viewport, link, None);
             arena.request_fragment_overflow_recalculation(viewport);

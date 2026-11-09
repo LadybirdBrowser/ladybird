@@ -29,39 +29,24 @@ pub(crate) struct FragmentScrollableOverflow {
 }
 
 pub(crate) fn physical_content_size(fragment: &Fragment, frame: Frame) -> FfiCssPixelSize {
-    frame.size_to_physical(fragment.content_inline_size, fragment.content_block_size)
+    let size = fragment.sides.content_size;
+    frame.size_to_physical(size.width, size.height)
 }
 
 pub(crate) fn physical_padding(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(
-        frame,
-        FfiPixelBox {
-            top: fragment.padding_top,
-            right: fragment.padding_right,
-            bottom: fragment.padding_bottom,
-            left: fragment.padding_left,
-        },
-    )
+    sides_to_physical(frame, fragment.sides.padding.into())
 }
 
 fn physical_border(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
-    sides_to_physical(
-        frame,
-        FfiPixelBox {
-            top: fragment.border_top,
-            right: fragment.border_right,
-            bottom: fragment.border_bottom,
-            left: fragment.border_left,
-        },
-    )
+    sides_to_physical(frame, fragment.sides.border.into())
 }
 
 fn physical_border_box_edges(fragment: &Fragment, frame: Frame) -> FfiPixelBox {
     let border = physical_border(fragment, frame);
-    if !fragment.uses_collapsing_borders_model {
+    if !fragment.sides.collapsing.uses_collapsing_borders_model() {
         return border;
     }
-    let is_table_box = fragment.is_collapsed_borders_table_box;
+    let is_table_box = fragment.sides.collapsing.is_collapsed_borders_table_box();
     FfiPixelBox {
         top: used_values::collapsed_border_share(border.top, true, is_table_box),
         right: used_values::collapsed_border_share(border.right, false, is_table_box),
@@ -120,8 +105,8 @@ impl ContainedBoxesRelativeToContainerPaddingBox {
                 CssPixelRect::new(
                     link.committed_offset.x,
                     link.committed_offset.y,
-                    fragment.content_inline_size,
-                    fragment.content_block_size,
+                    fragment.sides.content_size.width,
+                    fragment.sides.content_size.height,
                 ),
                 container.content_size,
             )
@@ -232,8 +217,8 @@ fn hidden_content_is_scrollable_overflow(
     let mut ancestor = arena.node_parent_if_live(hidden_box);
     while let Some(node) = ancestor {
         if node == fragment_being_built.node {
-            if fragment_being_built.has_line_clamp_point {
-                return fragment_being_built.clamped_content_is_scrollable_overflow;
+            if fragment_being_built.line_clamp.has_line_clamp_point {
+                return fragment_being_built.line_clamp.clamped_content_is_scrollable_overflow;
             }
         } else if let Some(keeps_clamped_content) = line_clamp_container_keeps_clamped_content_scrollable(arena, node) {
             return keeps_clamped_content;
@@ -330,8 +315,9 @@ pub(crate) fn scrollable_overflow_of<'link>(
     }
 
     let box_is_scroll_container = node_facts::kind_and_style_make_scroll_container(kind, style);
+    let line_clamp = fragment.line_clamp;
     let line_clamp_clip =
-        (fragment.has_line_clamp_point && !fragment.clamped_content_is_scrollable_overflow).then(|| {
+        (line_clamp.has_line_clamp_point && !line_clamp.clamped_content_is_scrollable_overflow).then(|| {
             Frame::of(style.map_or(writing_mode::HORIZONTAL_TB, |style| style.writing_mode()))
                 .half_plane_before_block_end(own.content_size)
                 .translated_by(own.content_box.location())
@@ -893,13 +879,13 @@ mod tests {
             arena.insert_child(container, child, NodeSlotId::INVALID);
             let mut container_link = FragmentLink::for_test(container);
             let fragment = std::sync::Arc::get_mut(&mut container_link.fragment).unwrap();
-            fragment.content_inline_size = CssPixels::from_integer(100);
-            fragment.content_block_size = CssPixels::from_integer(200);
-            fragment.padding_bottom = CssPixels::from_integer(10);
+            fragment.sides.content_size.width = CssPixels::from_integer(100);
+            fragment.sides.content_size.height = CssPixels::from_integer(200);
+            fragment.sides.padding.bottom = CssPixels::from_integer(10);
             let mut child_link = FragmentLink::for_test(child);
             let fragment = std::sync::Arc::get_mut(&mut child_link.fragment).unwrap();
-            fragment.content_inline_size = CssPixels::from_integer(20);
-            fragment.content_block_size = CssPixels::from_integer(20);
+            fragment.sides.content_size.width = CssPixels::from_integer(20);
+            fragment.sides.content_size.height = CssPixels::from_integer(20);
             child_link.committed_offset.y = CssPixels::from_integer(180).into();
             child_link.containing_block = container;
             let overflow = scrollable_overflow_of(

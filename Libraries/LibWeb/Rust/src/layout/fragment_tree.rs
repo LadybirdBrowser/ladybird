@@ -8,21 +8,69 @@ use super::*;
 use crate::layout::used_values::CommittedSvgFacts;
 use smallvec::SmallVec;
 
+/// Which border model a box follows, and in the collapsing borders model, whether the box is the table box or a cell:
+/// the two own different parts of the collapsed borders at their edges (see `used_values::collapsed_border_share`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum CollapsingBorders {
+    #[default]
+    Separate,
+    CollapsedCell,
+    CollapsedTableBox,
+}
+
+impl CollapsingBorders {
+    pub(crate) fn of(uses_collapsing_borders_model: bool, is_collapsed_borders_table_box: bool) -> Self {
+        match (uses_collapsing_borders_model, is_collapsed_borders_table_box) {
+            (false, _) => Self::Separate,
+            (true, false) => Self::CollapsedCell,
+            (true, true) => Self::CollapsedTableBox,
+        }
+    }
+
+    pub(crate) fn uses_collapsing_borders_model(self) -> bool {
+        self != Self::Separate
+    }
+
+    pub(crate) fn is_collapsed_borders_table_box(self) -> bool {
+        self == Self::CollapsedTableBox
+    }
+}
+
+/// The content size, borders and paddings a fragment shows of its box.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BoxSides {
+    pub(crate) content_size: FfiCssPixelSize,
+    pub(crate) border: geometry::Sides,
+    pub(crate) padding: geometry::Sides,
+    pub(crate) collapsing: CollapsingBorders,
+}
+
+/// Whether fragmentation broke the box, so that its fragment continues one in an earlier fragmentainer, or continues
+/// in a later one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BreakFacts {
+    pub(crate) continues_from_previous: bool,
+    pub(crate) continues_in_next: bool,
+}
+
+impl BreakFacts {
+    pub(crate) fn box_is_broken(self) -> bool {
+        self.continues_from_previous || self.continues_in_next
+    }
+}
+
+/// For a line-clamp container: whether its contents hold the clamp point, and whether what follows the clamp point
+/// still counts as scrollable overflow.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LineClampFacts {
+    pub(crate) has_line_clamp_point: bool,
+    pub(crate) clamped_content_is_scrollable_overflow: bool,
+}
+
 pub(crate) struct Fragment {
     pub(crate) identity: u64,
     pub(crate) node: crate::layout::node_data::NodeSlotId,
-    pub(crate) content_inline_size: CssPixels,
-    pub(crate) content_block_size: CssPixels,
-    pub(crate) border_left: CssPixels,
-    pub(crate) border_right: CssPixels,
-    pub(crate) border_top: CssPixels,
-    pub(crate) border_bottom: CssPixels,
-    pub(crate) padding_left: CssPixels,
-    pub(crate) padding_right: CssPixels,
-    pub(crate) padding_top: CssPixels,
-    pub(crate) padding_bottom: CssPixels,
-    pub(crate) uses_collapsing_borders_model: bool,
-    pub(crate) is_collapsed_borders_table_box: bool,
+    pub(crate) sides: BoxSides,
     pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
@@ -34,10 +82,8 @@ pub(crate) struct Fragment {
     pub(crate) svg: Option<Box<CommittedSvgFacts>>,
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
-    pub(crate) has_line_clamp_point: bool,
-    pub(crate) clamped_content_is_scrollable_overflow: bool,
-    pub(crate) continues_from_previous_fragment: bool,
-    pub(crate) continues_in_next_fragment: bool,
+    pub(crate) line_clamp: LineClampFacts,
+    pub(crate) breaks: BreakFacts,
     pub(crate) scrollable_overflow: fragment_overflow::FragmentScrollableOverflow,
     pub(crate) holds_links_of_outer_containing_blocks: bool,
     pub(crate) children: Vec<FragmentLink>,
@@ -124,18 +170,7 @@ impl Fragment {
         Self {
             identity: self.identity,
             node: self.node,
-            content_inline_size: self.content_inline_size,
-            content_block_size: self.content_block_size,
-            border_left: self.border_left,
-            border_right: self.border_right,
-            border_top: self.border_top,
-            border_bottom: self.border_bottom,
-            padding_left: self.padding_left,
-            padding_right: self.padding_right,
-            padding_top: self.padding_top,
-            padding_bottom: self.padding_bottom,
-            uses_collapsing_borders_model: self.uses_collapsing_borders_model,
-            is_collapsed_borders_table_box: self.is_collapsed_borders_table_box,
+            sides: self.sides,
             collapsed_table_borders: self.collapsed_table_borders.clone(),
             line_data: self.line_data.clone(),
             grid_layout_data: self.grid_layout_data.clone(),
@@ -146,10 +181,8 @@ impl Fragment {
             svg: self.svg.clone(),
             computed_svg_path: self.computed_svg_path.clone(),
             svg_text_character_cells: self.svg_text_character_cells.clone(),
-            has_line_clamp_point: self.has_line_clamp_point,
-            clamped_content_is_scrollable_overflow: self.clamped_content_is_scrollable_overflow,
-            continues_from_previous_fragment: self.continues_from_previous_fragment,
-            continues_in_next_fragment: self.continues_in_next_fragment,
+            line_clamp: self.line_clamp,
+            breaks: self.breaks,
             scrollable_overflow,
             holds_links_of_outer_containing_blocks: self.holds_links_of_outer_containing_blocks,
             children,
@@ -180,18 +213,7 @@ impl Fragment {
 
     fn has_same_box_properties_comparing_payloads(&self, previous: &Fragment, payloads: PayloadComparison) -> bool {
         self.node == previous.node
-            && self.content_inline_size == previous.content_inline_size
-            && self.content_block_size == previous.content_block_size
-            && self.border_left == previous.border_left
-            && self.border_right == previous.border_right
-            && self.border_top == previous.border_top
-            && self.border_bottom == previous.border_bottom
-            && self.padding_left == previous.padding_left
-            && self.padding_right == previous.padding_right
-            && self.padding_top == previous.padding_top
-            && self.padding_bottom == previous.padding_bottom
-            && self.uses_collapsing_borders_model == previous.uses_collapsing_borders_model
-            && self.is_collapsed_borders_table_box == previous.is_collapsed_borders_table_box
+            && self.sides == previous.sides
             && payloads.matches(
                 self.collapsed_table_borders.as_ref(),
                 previous.collapsed_table_borders.as_ref(),
@@ -207,10 +229,8 @@ impl Fragment {
                 self.svg_text_character_cells.as_ref(),
                 previous.svg_text_character_cells.as_ref(),
             )
-            && self.has_line_clamp_point == previous.has_line_clamp_point
-            && self.clamped_content_is_scrollable_overflow == previous.clamped_content_is_scrollable_overflow
-            && self.continues_from_previous_fragment == previous.continues_from_previous_fragment
-            && self.continues_in_next_fragment == previous.continues_in_next_fragment
+            && self.line_clamp == previous.line_clamp
+            && self.breaks == previous.breaks
     }
 
     pub(crate) fn has_same_child_placements(&self, previous: &Fragment) -> bool {
@@ -240,18 +260,7 @@ impl FragmentLink {
             fragment: std::sync::Arc::new(Fragment {
                 identity: 1,
                 node,
-                content_inline_size: CssPixels::default(),
-                content_block_size: CssPixels::default(),
-                border_left: CssPixels::default(),
-                border_right: CssPixels::default(),
-                border_top: CssPixels::default(),
-                border_bottom: CssPixels::default(),
-                padding_left: CssPixels::default(),
-                padding_right: CssPixels::default(),
-                padding_top: CssPixels::default(),
-                padding_bottom: CssPixels::default(),
-                uses_collapsing_borders_model: false,
-                is_collapsed_borders_table_box: false,
+                sides: BoxSides::default(),
                 collapsed_table_borders: None,
                 line_data: None,
                 grid_layout_data: None,
@@ -262,10 +271,8 @@ impl FragmentLink {
                 svg: None,
                 computed_svg_path: None,
                 svg_text_character_cells: None,
-                has_line_clamp_point: false,
-                clamped_content_is_scrollable_overflow: false,
-                continues_from_previous_fragment: false,
-                continues_in_next_fragment: false,
+                line_clamp: LineClampFacts::default(),
+                breaks: BreakFacts::default(),
                 scrollable_overflow: Default::default(),
                 holds_links_of_outer_containing_blocks: false,
                 children: Vec::new(),
@@ -630,10 +637,7 @@ fn previously_committed_fragment_where(
     candidate: &Fragment,
     matches: impl FnOnce(&Fragment, &Fragment) -> bool,
 ) -> Option<std::sync::Arc<Fragment>> {
-    if candidate.continues_from_previous_fragment
-        || candidate.continues_in_next_fragment
-        || !pass.has_committed_fragment_link(candidate.node)
-    {
+    if candidate.breaks.box_is_broken() || !pass.has_committed_fragment_link(candidate.node) {
         return None;
     }
     pass.arena()
@@ -656,10 +660,7 @@ pub(crate) struct FragmentPayloads {
     pub(crate) svg: CommittedSvgFacts,
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
-    /// For a line-clamp container: whether its contents hold the clamp point, and whether what follows the clamp
-    /// point still counts as scrollable overflow.
-    pub(crate) has_line_clamp_point: bool,
-    pub(crate) clamped_content_is_scrollable_overflow: bool,
+    pub(crate) line_clamp: LineClampFacts,
 }
 
 impl FragmentPayloads {
@@ -674,8 +675,7 @@ impl FragmentPayloads {
             svg: fragment.svg.as_deref().copied().unwrap_or_default(),
             computed_svg_path: fragment.computed_svg_path.clone(),
             svg_text_character_cells: fragment.svg_text_character_cells.clone(),
-            has_line_clamp_point: fragment.has_line_clamp_point,
-            clamped_content_is_scrollable_overflow: fragment.clamped_content_is_scrollable_overflow,
+            line_clamp: fragment.line_clamp,
         }
     }
 }
@@ -690,19 +690,8 @@ pub(crate) struct FragmentGeometry {
 
 impl FragmentGeometry {
     pub(crate) fn shows_box_of_fragment(&self, fragment: &Fragment) -> bool {
-        let cells = &self.cells;
-        same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
-            && fragment.content_inline_size == cells.content_inline_size
-            && fragment.content_block_size == cells.content_block_size
-            && fragment.border_left == cells.border_left
-            && fragment.border_right == cells.border_right
-            && fragment.border_top == cells.border_top
-            && fragment.border_bottom == cells.border_bottom
-            && fragment.padding_left == cells.padding_left
-            && fragment.padding_right == cells.padding_right
-            && fragment.padding_top == cells.padding_top
-            && fragment.padding_bottom == cells.padding_bottom
-            && fragment.uses_collapsing_borders_model == cells.uses_collapsing_borders_model
+        fragment.sides == self.cells.box_sides()
+            && same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
     }
 }
 
@@ -725,10 +714,9 @@ fn snapshot_fragment(
         svg,
         computed_svg_path,
         svg_text_character_cells,
-        has_line_clamp_point,
-        clamped_content_is_scrollable_overflow,
+        line_clamp,
     } = payloads.map(|payloads| *payloads).unwrap_or_default();
-    if has_line_clamp_point && !fragment_facts.continues_in_next_fragment {
+    if line_clamp.has_line_clamp_point && !fragment_facts.continues_in_next_fragment {
         line_clamp_edge::clip_floats_at_block_end_content_edge(
             pass,
             node,
@@ -741,18 +729,7 @@ fn snapshot_fragment(
     let mut fragment = Fragment {
         identity: 0,
         node,
-        content_inline_size: cells.content_inline_size,
-        content_block_size: cells.content_block_size,
-        border_left: cells.border_left,
-        border_right: cells.border_right,
-        border_top: cells.border_top,
-        border_bottom: cells.border_bottom,
-        padding_left: cells.padding_left,
-        padding_right: cells.padding_right,
-        padding_top: cells.padding_top,
-        padding_bottom: cells.padding_bottom,
-        uses_collapsing_borders_model: cells.uses_collapsing_borders_model,
-        is_collapsed_borders_table_box: cells.is_collapsed_borders_table_box,
+        sides: cells.box_sides(),
         collapsed_table_borders,
         line_data,
         grid_layout_data,
@@ -763,10 +740,11 @@ fn snapshot_fragment(
         svg: (svg != CommittedSvgFacts::default()).then(|| Box::new(svg)),
         computed_svg_path,
         svg_text_character_cells,
-        has_line_clamp_point,
-        clamped_content_is_scrollable_overflow,
-        continues_from_previous_fragment: fragment_facts.continues_from_previous_fragment,
-        continues_in_next_fragment: fragment_facts.continues_in_next_fragment,
+        line_clamp,
+        breaks: BreakFacts {
+            continues_from_previous: fragment_facts.continues_from_previous_fragment,
+            continues_in_next: fragment_facts.continues_in_next_fragment,
+        },
         scrollable_overflow: Default::default(),
         holds_links_of_outer_containing_blocks: fragment_overflow::holds_links_of_outer_containing_blocks(
             node, &children,
@@ -821,8 +799,8 @@ fn fragment_of_placed_box(
     };
     let shows_box_as_placed = children.is_empty()
         && geometry.shows_box_of_fragment(&arrived)
-        && arrived.continues_from_previous_fragment == fragment_facts.continues_from_previous_fragment
-        && arrived.continues_in_next_fragment == fragment_facts.continues_in_next_fragment;
+        && arrived.breaks.continues_from_previous == fragment_facts.continues_from_previous_fragment
+        && arrived.breaks.continues_in_next == fragment_facts.continues_in_next_fragment;
     if shows_box_as_placed {
         return arrived;
     }

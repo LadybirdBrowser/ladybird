@@ -203,6 +203,32 @@ impl RootInputCells {
         self.resolve_vertical_box_model(style, basis);
     }
 
+    /// The content size, borders and paddings the fragment of the box shows.
+    pub(crate) fn box_sides(&self) -> fragment_tree::BoxSides {
+        fragment_tree::BoxSides {
+            content_size: FfiCssPixelSize {
+                width: self.content_inline_size,
+                height: self.content_block_size,
+            },
+            border: geometry::Sides {
+                top: self.border_top,
+                right: self.border_right,
+                bottom: self.border_bottom,
+                left: self.border_left,
+            },
+            padding: geometry::Sides {
+                top: self.padding_top,
+                right: self.padding_right,
+                bottom: self.padding_bottom,
+                left: self.padding_left,
+            },
+            collapsing: fragment_tree::CollapsingBorders::of(
+                self.uses_collapsing_borders_model,
+                self.is_collapsed_borders_table_box,
+            ),
+        }
+    }
+
     /// The sizes and box sides `link` and its fragment show, with both sizes definite.
     pub(crate) fn of_committed_fragment_link(link: &fragment_tree::FragmentLink) -> Self {
         let mut cells = Self {
@@ -215,21 +241,21 @@ impl RootInputCells {
 
     /// Takes the sizes and box sides `link` and its fragment show.
     pub(crate) fn take_box_metrics_of_committed_link(&mut self, link: &fragment_tree::FragmentLink) {
-        let fragment = &link.fragment;
-        self.set_content_inline_size(fragment.content_inline_size);
-        self.set_content_block_size(fragment.content_block_size);
+        let sides = &link.fragment.sides;
+        self.set_content_inline_size(sides.content_size.width);
+        self.set_content_block_size(sides.content_size.height);
         self.margin_left = link.margin_left;
         self.margin_right = link.margin_right;
         self.margin_top = link.margin_top;
         self.margin_bottom = link.margin_bottom;
-        self.border_left = fragment.border_left;
-        self.border_right = fragment.border_right;
-        self.border_top = fragment.border_top;
-        self.border_bottom = fragment.border_bottom;
-        self.padding_left = fragment.padding_left;
-        self.padding_right = fragment.padding_right;
-        self.padding_top = fragment.padding_top;
-        self.padding_bottom = fragment.padding_bottom;
+        self.border_left = sides.border.left;
+        self.border_right = sides.border.right;
+        self.border_top = sides.border.top;
+        self.border_bottom = sides.border.bottom;
+        self.padding_left = sides.padding.left;
+        self.padding_right = sides.padding.right;
+        self.padding_top = sides.padding.top;
+        self.padding_bottom = sides.padding.bottom;
     }
 
     /// The cells, with the sizes, size constraints and box sides they hold in frame `from` read in frame `to` instead.
