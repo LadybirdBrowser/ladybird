@@ -139,10 +139,16 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
-void DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
+RequiresDisplayListRecording DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
 {
-    if (Layout::RustFFI::render_state_refresh_scroll_state(m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel()))
+    auto outcome = Layout::RustFFI::render_state_refresh_scroll_state(
+        m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel(),
+        document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>());
+    if (outcome.scroll_state_changed)
         m_scroll_state_changed = true;
+    if (outcome.table_changed)
+        did_update_visual_context_values();
+    return outcome.requires_display_list_recording ? RequiresDisplayListRecording::Yes : RequiresDisplayListRecording::No;
 }
 
 Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(Compositing::AccumulatedVisualContextTree const& visual_context_tree, double device_pixels_per_css_pixel) const

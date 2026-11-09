@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scroller { width: 100px; height: 100px; overflow: hidden; }
+    #content { height: 300px; }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState(scroller);
+        const node = () => state().scrollNodes.find(node => !node.isViewport);
+        async function until(condition) {
+            while (!condition())
+                await animationFrame();
+        }
+        await until(() => state().document === document && node());
+
+        const maximum = () => Math.round(node().maxScrollOffset.y / state().devicePixelsPerCssPixel);
+        await until(() => maximum() === 200);
+        content.style.height = "600px";
+        await until(() => maximum() === 500);
+        println(`grown range: ${maximum()}`);
+        scroller.scrollTop = 450;
+        await until(() => state().scrollOffset.y === 450);
+        content.style.height = "200px";
+        await until(() => maximum() === 100 && state().scrollOffset.y === 100);
+        println(`shrunk range: ${maximum()}`);
+        println(`clamped compositor offset: ${state().scrollOffset.y}`);
+    });
+</script>

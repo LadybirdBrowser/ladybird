@@ -1,0 +1,3 @@
+grown range: 500
+shrunk range: 100
+clamped compositor offset: 100

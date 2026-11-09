@@ -1,0 +1,3 @@
+unpainted scroller has a node: true
+scroll range: 200
+compositor offset: 75

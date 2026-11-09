@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #ancestor { scale: 0; }
+    #scroller { width: 100px; height: 100px; overflow: hidden; }
+</style>
+<div id="ancestor"><div id="scroller"><div style="height: 300px"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState(scroller);
+        const node = () => state().scrollNodes.find(node => !node.isViewport);
+        async function until(condition) {
+            while (!condition())
+                await animationFrame();
+        }
+        await until(() => state().document === document && node());
+
+        println(`unpainted scroller has a node: ${!!node()}`);
+        println(`scroll range: ${Math.round(node().maxScrollOffset.y / state().devicePixelsPerCssPixel)}`);
+        scroller.scrollTop = 75;
+        await until(() => state().scrollOffset?.y === 75);
+        println(`compositor offset: ${state().scrollOffset.y}`);
+    });
+</script>

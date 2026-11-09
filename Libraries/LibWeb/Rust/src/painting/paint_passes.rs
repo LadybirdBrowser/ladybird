@@ -13,13 +13,16 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome, RootBackgroundSource};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
+use crate::painting::visual_context::compositor_scroll_table::{
+    CompositorScrollInputs, refresh_compositor_scroll_table,
+};
 use crate::painting::visual_context::dirty::VisualContextUpdateScope;
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
 use crate::painting::visual_context::{VisualContextState, VisualContextTree};
 use crate::render_state::{BegunRead, DocumentHost};
-use libgfx_rust::FloatPoint;
+use libgfx_rust::{FloatPoint, IntSize};
 use std::sync::Arc;
 
 /// What a paint pass writes, which decides what the host lets go of before it sends the pass, and whether the paint and
@@ -47,6 +50,14 @@ pub struct FfiRenderingPreparationOutcome {
     pub requires_display_list_recording: bool,
     pub requires_visual_context_update: bool,
     pub visual_context_values_changed: bool,
+}
+
+#[derive(Default)]
+#[repr(C)]
+pub struct FfiCompositorScrollRefreshOutcome {
+    pub scroll_state_changed: bool,
+    pub table_changed: bool,
+    pub requires_display_list_recording: bool,
 }
 
 /// What preparing for rendering answers: its outcome, and the scroll offsets the new overflow moved out of range,
@@ -87,6 +98,17 @@ pub(crate) fn prepare_for_clock_tick(
             "SVG paint resources or the root background moved",
         ));
     }
+    let scroll_table_changed = arena.with_visual_context_state_lent(|arena, state| {
+        if !state.dirty_boxes.boxes.is_empty()
+            || !state.dirty_boxes.removed.is_empty()
+            || state.dirty_boxes.scope.rebuilds_every_box()
+        {
+            return false;
+        }
+        state
+            .last_compositor_scroll_inputs
+            .is_some_and(|inputs| refresh_compositor_scroll_table(arena, state, inputs).table_changed)
+    });
     let (inputs, compositor_animations) = {
         let paint_state = arena.paint_state_mut();
         let state = &mut paint_state.visual_context;
@@ -98,7 +120,7 @@ pub(crate) fn prepare_for_clock_tick(
         }
         if state.dirty_boxes.boxes.is_empty() && state.dirty_boxes.removed.is_empty() {
             // A tick that stopped compositor animations of the host's takes the tree without them to the compositor.
-            if tree.visual_animations() == state.published_compositor_animations.as_slice() {
+            if !scroll_table_changed && tree.visual_animations() == state.published_compositor_animations.as_slice() {
                 return Ok(None);
             }
             state.published_compositor_animations = tree.visual_animations().to_vec();
@@ -124,6 +146,9 @@ pub(crate) fn prepare_for_clock_tick(
         return Err(VisualContextsNeedHost("a full visual context tree build"));
     }
     arena.with_visual_context_state_lent(|arena, state| {
+        if let Some(inputs) = state.last_compositor_scroll_inputs {
+            refresh_compositor_scroll_table(arena, state, inputs);
+        }
         let tree = state.tree.as_mut().expect("an incremental update keeps the tree");
         if !outcome.structural_epoch_changed {
             return Ok(Some(ClockTickVisualContexts {
@@ -349,15 +374,24 @@ pub(crate) fn prepare_for_rendering(
 pub(crate) fn refresh_scroll_state(
     arena: &mut LayoutNodeArena,
     device_pixels_per_css_pixel: f64,
-) -> Option<Vec<FloatPoint>> {
+    device_viewport_size: IntSize,
+) -> (Option<Vec<FloatPoint>>, FfiCompositorScrollRefreshOutcome) {
     arena.settle_scrollable_overflow();
     arena.with_visual_context_state_lent(|arena, state| {
+        let outcome = refresh_compositor_scroll_table(
+            arena,
+            state,
+            CompositorScrollInputs {
+                device_pixels_per_css_pixel,
+                device_viewport_size,
+            },
+        );
         if !state.needs_to_refresh_scroll_state {
-            return None;
+            return (None, outcome);
         }
         let snapshot = scroll_state_snapshot(&arena.paintable_rows(), state, device_pixels_per_css_pixel);
         state.needs_to_refresh_scroll_state = false;
-        Some(snapshot)
+        (Some(snapshot), outcome)
     })
 }
 

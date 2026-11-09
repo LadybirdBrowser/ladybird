@@ -1,0 +1,4 @@
+viewport snap strictness: proximity
+viewport snaps vertically: true
+viewport snap area y: 125
+viewport snap area height: 50

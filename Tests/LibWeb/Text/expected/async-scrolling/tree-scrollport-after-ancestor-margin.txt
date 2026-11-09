@@ -1,0 +1,2 @@
+moved by 37 CSS pixels, rounded to device pixels: true
+other dimensions unchanged: true

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html { scroll-snap-type: y proximity; }
+    body { margin: 0; }
+    #area { margin-top: 125px; height: 50px; scroll-snap-align: start; }
+</style>
+<div id="area"></div><div style="height: 2000px"></div>
+<script>
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState();
+        const container = () => {
+            const current = state();
+            const viewport = current.scrollNodes.find(node => node.isViewport);
+            return current.snapContainers.find(container => container.scrollNodeIndex === viewport?.scrollNodeIndex);
+        };
+        while (state().document !== document || container()?.areas.length !== 1)
+            await animationFrame();
+        const snap = container();
+        println(`viewport snap strictness: ${snap.strictness}`);
+        println(`viewport snaps vertically: ${snap.snapsY}`);
+        println(`viewport snap area y: ${snap.areas[0].rect.y}`);
+        println(`viewport snap area height: ${snap.areas[0].rect.height}`);
+    });
+</script>

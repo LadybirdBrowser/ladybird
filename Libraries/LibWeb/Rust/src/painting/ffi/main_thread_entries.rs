@@ -483,17 +483,21 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
 /// sticky nodes' offsets on top of them, and has `host` keep them as its document's scroll state; otherwise the host
-/// keeps the one it has. Answers whether the offsets changed.
+/// keeps the one it has. Refreshes the compositor scroll table of the tree as well. Answers whether the offsets
+/// changed, and what refreshing the table changed.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_refresh_scroll_state(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     device_pixels_per_css_pixel: f64,
-) -> bool {
-    let device_offsets = run_paint_pass(read, host, PassEffect::RewritesRows, |arena| {
-        crate::painting::paint_passes::refresh_scroll_state(arena, device_pixels_per_css_pixel)
+    device_viewport_size: libgfx_rust::IntSize,
+) -> crate::painting::paint_passes::FfiCompositorScrollRefreshOutcome {
+    let (device_offsets, mut outcome) = run_paint_pass(read, host, PassEffect::RewritesRows, |arena| {
+        crate::painting::paint_passes::refresh_scroll_state(arena, device_pixels_per_css_pixel, device_viewport_size)
     });
-    device_offsets.is_some_and(|device_offsets| host.refresh_scroll_state(device_offsets))
+    outcome.scroll_state_changed =
+        device_offsets.is_some_and(|device_offsets| host.refresh_scroll_state(device_offsets));
+    outcome
 }
 
 /// Has `host` forget its document's scroll state, as the viewport's row or the document's paint state starts over.

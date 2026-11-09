@@ -95,6 +95,16 @@ fn compositor_snap_area_command(
 }
 
 impl<O: Observer> PaintRecorder<'_, O> {
+    pub(crate) fn has_compositor_scroll_node(&self, paintable: NodeSlotId) -> bool {
+        let index = self.data(paintable).own_scroll_node_index;
+        self.paint_state.visual_context_tree.as_ref().is_some_and(|tree| {
+            tree.compositor_scroll_table()
+                .nodes
+                .binary_search_by_key(&index, |node| node.scroll_node_index)
+                .is_ok()
+        })
+    }
+
     fn wheel_scrollable_axes(&mut self, paintable: NodeSlotId) -> PhysicalAxes {
         let facts = self.hit_test_facts(paintable);
         PhysicalAxes {
@@ -114,7 +124,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             }
 
             paintables_to_cache.push(current);
-            if compositor_scroll_node_kind(self.source, current, |slot| self.wheel_scrollable_axes(slot)).is_some() {
+            if self.has_compositor_scroll_node(current) {
                 target = self.data(current).own_scroll_node_index;
                 break;
             }
@@ -126,7 +136,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             if let Some(block) = containing_block
                 && style_queries::is_fixed_position(self.source, block)
             {
-                if compositor_scroll_node_kind(self.source, block, |slot| self.wheel_scrollable_axes(slot)).is_some() {
+                if self.has_compositor_scroll_node(block) {
                     target = self.data(block).own_scroll_node_index;
                 }
                 if target != VISUAL_VIEWPORT_NODE_INDEX {
@@ -302,7 +312,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         colors: ScrollbarColors,
     ) {
         if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
-            || compositor_scroll_node_kind(self.source, paintable, |slot| self.wheel_scrollable_axes(slot)).is_none()
+            || !self.has_compositor_scroll_node(paintable)
             || !self.visibility_is_visible(paintable)
             || !self.visible_for_hit_testing(paintable)
         {

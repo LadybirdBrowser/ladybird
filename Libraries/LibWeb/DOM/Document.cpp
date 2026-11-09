@@ -3188,8 +3188,10 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
 
     // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
     // the snapshot must be derived only after structure work is done.
-    if (has_committed_viewport_box())
-        paint_state().refresh_scroll_state(read, *this);
+    if (has_committed_viewport_box() && paint_state().refresh_scroll_state(read, *this) == Painting::RequiresDisplayListRecording::Yes) {
+        set_needs_to_record_display_list();
+        m_document->set_needs_repaint();
+    }
 }
 
 bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const& layout_node) const
@@ -12269,7 +12271,7 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
     }
 
     if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source)
-        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, referenced_resources());
+        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, referenced_resources(), recording.visual_context_tree);
     return adoption;
 }
 
