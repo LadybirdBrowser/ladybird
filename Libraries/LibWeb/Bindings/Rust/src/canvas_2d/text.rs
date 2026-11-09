@@ -107,17 +107,35 @@ pub(crate) fn path_of_runs(runs: &[ShapedRun]) -> Path {
     Path::from_glyph_runs(&glyph_runs)
 }
 
+/// How far the top of the font's em square is above the alphabetic baseline, and its bottom below it. The em square is
+/// as tall as the font size, and it's divided at the baseline in the same proportion as the font's ascent and descent.
+pub(crate) fn em_square_ascent_and_descent(font: &FontHandle) -> (f32, f32) {
+    let facts = font.facts();
+    let font_height = facts.ascent + facts.descent;
+    let ascent = if font_height > 0.0 {
+        facts.pixel_size * facts.ascent / font_height
+    } else {
+        facts.pixel_size / 2.0
+    };
+    (ascent, facts.pixel_size - ascent)
+}
+
 /// The distance from the alphabetic baseline down to the baseline that textBaseline names, in the metrics of the
 /// first font of the cascade, https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textbaseline
 pub(crate) fn baseline_offset(text_baseline: CanvasTextBaseline, first_font: &FontHandle) -> f32 {
     let ascent = first_font.facts().ascent;
     let descent = first_font.facts().descent;
+    let (em_ascent, em_descent) = em_square_ascent_and_descent(first_font);
     match text_baseline {
-        CanvasTextBaseline::Top => ascent,
+        // "The top of the em square"
+        CanvasTextBaseline::Top => em_ascent,
         CanvasTextBaseline::Hanging => ascent * 0.8,
-        CanvasTextBaseline::Middle => (ascent - descent) / 2.0,
+        // "The middle of the em square"
+        CanvasTextBaseline::Middle => (em_ascent - em_descent) / 2.0,
         CanvasTextBaseline::Alphabetic => 0.0,
-        CanvasTextBaseline::Ideographic | CanvasTextBaseline::Bottom => -descent,
+        CanvasTextBaseline::Ideographic => -descent,
+        // "The bottom of the em square"
+        CanvasTextBaseline::Bottom => -em_descent,
     }
 }
 
