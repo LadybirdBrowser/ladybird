@@ -4094,6 +4094,21 @@ impl<'pass> FlexFormattingContext<'pass> {
             return self.calculate_intrinsic_main_size_of_flex_container();
         }
         if !self.is_single_line() && layout_input.available_space.inline_size == AvailableSize::MaxContent {
+            // https://drafts.csswg.org/css-flexbox-1/#intrinsic-cross-sizes
+            // NB: An item with an aspect ratio has a main size that depends on its width. So size the items in the width of
+            //     the widest item's max-content contribution, rather than under a max-content constraint, which would leave
+            //     such an item without a width.
+            if (0..self.flex_items.len())
+                .any(|index| self.flex_item_details[index].inputs.preferred_aspect_ratio.is_some())
+            {
+                let widest = (0..self.flex_items.len())
+                    .map(|index| self.calculate_cross_content_contribution(index, true, true))
+                    .max()
+                    .unwrap_or_default();
+                let mut space = layout_input.available_space;
+                space.inline_size = AvailableSize::Definite(widest);
+                self.determine_available_space_for_items(space);
+            }
             self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
             self.resolve_flexible_lengths();
