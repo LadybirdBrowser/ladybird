@@ -57,6 +57,7 @@ use super::*;
 use bloom::{attribute_hash, class_hash, id_hash, tag_hash};
 pub(super) use cascade::DeclaredOnly;
 pub(super) use live::Live;
+pub(super) use live::SettlingComposition;
 #[cfg(test)]
 pub(super) use records::PseudoElementStyles;
 pub(super) use records::PseudoElementTarget;

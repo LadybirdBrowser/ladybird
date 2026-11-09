@@ -1,0 +1,7 @@
+kept before: rgb(191, 0, 64)
+replaced before: rgb(191, 0, 64)
+kept transition survives: true
+kept after: rgb(191, 0, 64)
+old transition replaced: true
+has replacement: true
+replacement starts from: rgb(191, 0, 64)

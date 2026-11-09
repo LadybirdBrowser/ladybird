@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #outer {
+        container: outer / inline-size;
+        width: 200px;
+    }
+    #inner {
+        container: inner / inline-size;
+        width: 100px;
+    }
+    #kept, #replaced {
+        background-color: red;
+        transition: background-color 1000s linear;
+    }
+    #kept.moved, #replaced.moved {
+        background-color: blue;
+    }
+    @container outer (width < 150px) {
+        #inner {
+            width: 200px;
+        }
+        #kept.moved, #replaced.moved {
+            transition-property: none;
+        }
+    }
+    @container inner (width > 150px) {
+        #kept.moved, #replaced.moved {
+            transition-property: background-color;
+        }
+        #replaced.moved {
+            background-color: lime;
+        }
+    }
+</style>
+<div id="outer">
+    <div id="inner">
+        <div id="kept">kept</div>
+        <div id="replaced">replaced</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        document.body.getBoundingClientRect();
+        kept.className = "moved";
+        replaced.className = "moved";
+        document.body.getBoundingClientRect();
+        for (const element of [kept, replaced]) {
+            const transition = element.getAnimations()[0];
+            transition.pause();
+            transition.currentTime = 250000;
+        }
+        println(`kept before: ${getComputedStyle(kept).backgroundColor}`);
+        println(`replaced before: ${getComputedStyle(replaced).backgroundColor}`);
+        const keptTransition = kept.getAnimations()[0];
+        const replacedTransition = replaced.getAnimations()[0];
+
+        // Layout makes the outer query match, which cancels both transitions in one pass, and then the inner query
+        // match, which brings their transition-property back in a later pass of the same update.
+        outer.style.width = "100px";
+        document.body.getBoundingClientRect();
+
+        println(`kept transition survives: ${kept.getAnimations()[0] === keptTransition}`);
+        println(`kept after: ${getComputedStyle(kept).backgroundColor}`);
+
+        println(`old transition replaced: ${replacedTransition.playState === "idle"}`);
+        const replacement = replaced.getAnimations()[0];
+        println(`has replacement: ${replacement !== undefined}`);
+        if (replacement) {
+            replacement.pause();
+            replacement.currentTime = 0;
+            println(`replacement starts from: ${getComputedStyle(replaced).backgroundColor}`);
+        }
+    });
+</script>
