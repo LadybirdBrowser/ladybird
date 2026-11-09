@@ -168,6 +168,11 @@ public:
     void did_allocate_external_memory(size_t);
     void did_free_external_memory(size_t);
 
+    // Tells the heap that a large graph of objects, such as a page that went away, has likely just become garbage.
+    // Nothing about allocation shows that, so this brings the next collection forward. It never collects from here,
+    // since the graph is often still on the caller's stack.
+    void did_abandon_object_graph();
+
 private:
     friend struct CAPI;
     friend class CellAllocator;
@@ -259,6 +264,7 @@ private:
     void update_allocation_rate();
     double next_growth_factor(size_t live_cell_bytes);
     void update_gc_bytes_threshold(size_t live_external_bytes);
+    void limit_gc_bytes_threshold_for_abandoned_object_graph();
 
     enum class IncludeIncomingCrossHeapMembers {
         No,
@@ -301,6 +307,7 @@ private:
 
     void start_idle_gc_timer();
     void idle_gc_on_timer();
+    void collect_abandoned_object_graph_on_timer();
 
     struct Stats {
         AK_ALLOC_WITH_KMALLOC;
@@ -365,6 +372,7 @@ private:
     RefPtr<Core::Timer> m_incremental_sweep_timer;
 
     RefPtr<Core::Timer> m_idle_gc_timer;
+    RefPtr<Core::Timer> m_abandoned_object_graph_timer;
     u64 m_total_allocated_bytes { 0 };
     // The context a heap created through LibGC/CAPI.h was created with.
     void* m_foreign_context { nullptr };

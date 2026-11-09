@@ -77,6 +77,11 @@ static constexpr int GC_INCREMENTAL_SWEEP_SLICE_MS = 5;
 // whether to proactively collect. See idle_gc_on_timer().
 static constexpr int GC_IDLE_GC_INTERVAL_MS = 4000;
 
+// The shortest time from hearing of an abandoned object graph to collecting it. Whatever replaces the graph, like the
+// next page, gets this long to settle, and a burst of abandoned graphs, like closing a window of tabs, shares one
+// collection.
+static constexpr int GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS = 1000;
+
 // Every thread that runs a VM has a heap of its own, and all but the main thread may come and go.
 AK_TLS_INITIAL_EXEC static thread_local constinit Heap* s_the = nullptr;
 
@@ -986,6 +991,10 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // A collection just happened: restart the idle policy's episode (peak rate and watchdog tick count) from here, so
     // a threshold-driven GC mid-episode doesn't leave it comparing against stale state.
     m_idle_collection_policy.reset(m_total_allocated_bytes);
+
+    // Marking is synchronous, so this collection has already seen any graph the timer was waiting to collect.
+    if (m_abandoned_object_graph_timer)
+        m_abandoned_object_graph_timer->stop();
 }
 
 void Heap::update_allocation_rate()
@@ -1799,6 +1808,10 @@ void Heap::finish_incremental_sweep()
 {
     update_gc_bytes_threshold(m_sweep_live_external_bytes);
 
+    // NB: A graph abandoned during this sweep was alive when marking ran, so the threshold just set counts it.
+    if (m_abandoned_object_graph_timer && m_abandoned_object_graph_timer->is_active())
+        limit_gc_bytes_threshold_for_abandoned_object_graph();
+
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Sweep complete ===");
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_marked_cell_bytes, m_marked_cell_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_sweep_live_external_bytes, m_sweep_live_external_bytes / KiB);
@@ -1918,6 +1931,45 @@ void Heap::idle_gc_on_timer()
         m_idle_gc_timer->stop();
         return;
     }
+}
+
+void Heap::limit_gc_bytes_threshold_for_abandoned_object_graph()
+{
+    // The threshold came from a live size that still counts the abandoned objects. Left alone, whatever comes next
+    // could allocate that whole budget on top of them.
+    m_gc_bytes_threshold = min(m_gc_bytes_threshold, m_allocated_bytes_since_last_gc + GC_MIN_BYTES_THRESHOLD);
+}
+
+void Heap::did_abandon_object_graph()
+{
+    VERIFY(is_on_owner_thread());
+    limit_gc_bytes_threshold_for_abandoned_object_graph();
+
+    if (!m_abandoned_object_graph_timer) {
+        m_abandoned_object_graph_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS), [this] {
+            collect_abandoned_object_graph_on_timer();
+        });
+    }
+    if (m_abandoned_object_graph_timer->is_active())
+        return;
+
+    // Marking pauses everything, so a heap that is expensive to mark waits longer. After this long, one marking pause
+    // makes up the share of running time we want to spend collecting.
+    auto marking_cost_budget_ns = static_cast<double>(m_mark_duration_ns) * (1 - GC_TARGET_TIME_FRACTION) / GC_TARGET_TIME_FRACTION;
+    m_abandoned_object_graph_timer->start(max(AK::Duration::from_milliseconds(GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS), AK::Duration::from_nanoseconds(static_cast<i64>(marking_cost_budget_ns))));
+}
+
+void Heap::collect_abandoned_object_graph_on_timer()
+{
+    // A collection now would have to finish the sweep in one go, and a deferral means now is not a safe time to
+    // collect.
+    if (m_incremental_sweep_active || is_gc_deferred()) {
+        m_abandoned_object_graph_timer->start();
+        return;
+    }
+
+    m_allocated_bytes_since_last_gc = 0;
+    collect_garbage();
 }
 
 void Heap::defer_gc()
