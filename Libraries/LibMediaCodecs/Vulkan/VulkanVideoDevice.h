@@ -45,6 +45,7 @@ public:
     VkDevice logical_device() const { return m_logical_device; }
     u32 api_version() const { return m_api_version; }
     ReadonlySpan<QueueFamily> queue_families() const { return m_queue_families; }
+    u32 compute_queue_family() const { return m_compute_queue_family; }
     ReadonlySpan<char const*> enabled_extensions() const { return m_enabled_extensions; }
     VkPhysicalDeviceFeatures2 const& enabled_features() const { return m_features; }
     bool has_enabled_extension(StringView) const;
@@ -73,6 +74,7 @@ private:
     VkPhysicalDevice m_physical_device { VK_NULL_HANDLE };
     VkDevice m_logical_device { VK_NULL_HANDLE };
     Vector<QueueFamily> m_queue_families;
+    u32 m_compute_queue_family { 0 };
     // One for each of the decode, compute and transfer families, which may coincide.
     Array<Mutex, 3> m_queue_mutexes;
     Vector<char const*> m_enabled_extensions;
