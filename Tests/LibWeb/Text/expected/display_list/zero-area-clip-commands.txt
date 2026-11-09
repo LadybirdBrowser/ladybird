@@ -11,10 +11,12 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[8,8 0x100] min_scroll_offset=[0,0] max_scroll_offset=[50,0] is_viewport=false
+ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[8,108 100x0] min_scroll_offset=[0,0] max_scroll_offset=[0,50] is_viewport=false
+
 DisplayList:
-CompositorScrollNode@s1/e0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[8,8 0x100] min_scroll_offset=[0,0] max_scroll_offset=[50,0] is_viewport=false
 FillRect@s2/c0/e0 rect=[8,8 50x50] color=rgb(255, 0, 0)
-CompositorScrollNode@s1/e0 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[8,108 100x0] min_scroll_offset=[0,0] max_scroll_offset=[0,50] is_viewport=false
 FillRect@s3/c1/e0 rect=[8,108 50x50] color=rgb(255, 0, 0)
 FillRect@s1/c2/e0 rect=[8,108 50x50] color=rgb(255, 0, 0)
 

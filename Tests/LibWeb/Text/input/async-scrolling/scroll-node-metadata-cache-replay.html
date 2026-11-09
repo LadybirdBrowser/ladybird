@@ -28,7 +28,7 @@
     function compositorScrollLines(displayList) {
         return displayList
             .split("\n")
-            .filter(line => line.includes("CompositorScrollNode"))
+            .filter(line => line.startsWith("ScrollNode "))
             .join("\n");
     }
 

@@ -10,13 +10,17 @@
 <body id="body">
 <div id="snap"><div class="area" id="area0"></div><div class="area" id="area1"></div><div class="area" id="area2"></div></div>
 <script>
-// Moving a snap area re-runs the scroll metadata of its snap container, which reads its
-// descendants' positions, while the container's own painting is copied.
+// Moving a snap area changes its snap container's scroll range, which records the container's
+// scroll metadata again while its own painting is copied. The area's new position reaches the
+// compositor through the visual context tree.
+const topOfSecondSnapArea = () => internals.recordedAsyncScrollingState().snapContainers[0].areas[1].rect.y;
+let topOfSecondSnapAreaBeforeTheMove;
 displayListTest({
     setup: removeBodyWhitespace,
     steps: [
         {
             name: "quiet before the move",
+            check: () => { topOfSecondSnapAreaBeforeTheMove = topOfSecondSnapArea(); },
             expect: `
                 damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
@@ -26,6 +30,9 @@ displayListTest({
         {
             name: "move the second snap area",
             mutate: () => { area1.style.marginTop = "10px"; },
+            check: equal => {
+                equal(topOfSecondSnapArea() - topOfSecondSnapAreaBeforeTheMove, 10, "how far the snap area moved");
+            },
             expect: `
                 damage: rows=6 moved=2 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)

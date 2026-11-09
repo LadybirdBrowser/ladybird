@@ -123,8 +123,7 @@ pub(crate) fn compositor_scroll_node_record(
 }
 
 // The compositor selects snap positions for the scrolls it performs from the same geometry the
-// main thread selects from, recorded with the scroll node so that it is as current as the rest
-// of the display list.
+// main thread selects from, kept in the tree beside the scroll node it belongs to.
 pub(crate) fn compositor_snap_container_and_area_records(
     source: &impl PaintRead,
     paintable: NodeSlotId,
@@ -206,7 +205,6 @@ pub(crate) fn refresh_compositor_scroll_table(
     let mut containers = Vec::new();
     let mut areas = Vec::new();
     let mut damaged_subtrees = Vec::new();
-    let mut removed_snap_container_owners = Vec::new();
     for (node, owner) in &nodes_with_owners {
         let previous_node = previous
             .nodes
@@ -240,14 +238,6 @@ pub(crate) fn refresh_compositor_scroll_table(
                     (container, previous.snap_areas[first..end].to_vec())
                 })
         };
-        if snap_records.is_none()
-            && previous
-                .snap_containers
-                .binary_search_by_key(&node.scroll_node_index, |container| container.scroll_node_index)
-                .is_ok()
-        {
-            removed_snap_container_owners.push(*owner);
-        }
         if let Some((mut container, container_areas)) = snap_records {
             container.first_area_index = areas.len().try_into().expect("snap area index fits in u32");
             container.area_count = container_areas.len().try_into().expect("snap area count fits in u32");
@@ -281,9 +271,6 @@ pub(crate) fn refresh_compositor_scroll_table(
     let requires_display_list_recording = !damaged_subtrees.is_empty();
     for owner in damaged_subtrees {
         arena.push_paint_damage_to_paint_subtree(owner, PaintDamage::SCROLL_METADATA);
-    }
-    for owner in removed_snap_container_owners {
-        arena.push_paint_damage(owner, PaintDamage::SCROLL_METADATA);
     }
     state.last_compositor_scroll_inputs = Some(inputs);
     state.compositor_snap_damage_revision = Some(arena.paint_damage_push_revision());

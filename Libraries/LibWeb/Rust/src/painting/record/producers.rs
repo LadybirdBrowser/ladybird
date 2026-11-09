@@ -22,7 +22,6 @@ use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::svg_resources::MaskLayerSet;
-use crate::painting::scroll_snap;
 use libgfx_rust::Color;
 use smallvec::SmallVec;
 use std::ops::Range;
@@ -307,13 +306,11 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         damage
     }
 
-    // SVG content is recorded by its root, and a snap container's scroll metadata lists the
-    // snap areas below it.
+    // SVG content is recorded by its root.
     fn producer_reads_descendants(&mut self, owner: NodeSlotId, kind: ProducerKind) -> bool {
         match kind {
             ProducerKind::Svg => true,
             ProducerKind::ScopePreamble => self.paints_svg_mask_or_clip_resource_subtree(owner),
-            ProducerKind::ScrollMetadata => scroll_snap::snap_container_geometry(self.source, owner).is_some(),
             ProducerKind::InlinePiece(_) | ProducerKind::TextFragment(_) => true,
             _ => false,
         }

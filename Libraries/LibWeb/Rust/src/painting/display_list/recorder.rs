@@ -1336,10 +1336,6 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn compositor_scroll_node(&mut self, node: CompositorScrollNode) {
-        self.append_command(&node, &[]);
-    }
-
     pub fn compositor_wheel_hit_test_target(&mut self, target: CompositorWheelHitTestTarget) {
         self.append_command(&target, &[]);
     }
@@ -1365,13 +1361,5 @@ impl DisplayListRecorder {
 
     pub fn compositor_blocking_wheel_event_region(&mut self, region: CompositorBlockingWheelEventRegion) {
         self.append_command(&region, &[]);
-    }
-
-    pub fn compositor_snap_container(&mut self, container: CompositorSnapContainer) {
-        self.append_command(&container, &[]);
-    }
-
-    pub fn compositor_snap_area(&mut self, area: CompositorSnapArea) {
-        self.append_command(&area, &[]);
     }
 }

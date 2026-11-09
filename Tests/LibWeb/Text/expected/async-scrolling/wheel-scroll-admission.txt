@@ -20,12 +20,14 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[0,0 200x200] min_scroll_offset=[0,0] max_scroll_offset=[800,900] is_viewport=false
+
 DisplayList:
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x213]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x200]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 200x200]
-CompositorScrollNode@s1/e0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[0,0 200x200] min_scroll_offset=[0,0] max_scroll_offset=[800,900] is_viewport=false
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 100x100]
 CompositorBlockingWheelEventRegion@s2/c0/e0 rect=[0,0 100x100]
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,100 1000x1000]

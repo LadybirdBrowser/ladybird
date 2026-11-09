@@ -15,7 +15,9 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+ScrollNodes:
+ScrollNode scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
+
 DisplayList:
-CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
 DrawGlyphRun@s3/e0 rect=[0,0 45x16] translation=[0,13] color=rgb(0, 0, 0)
 
