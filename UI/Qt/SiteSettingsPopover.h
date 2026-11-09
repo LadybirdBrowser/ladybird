@@ -56,6 +56,8 @@ public:
 
 private:
     virtual void content_settings_changed() override;
+    virtual void autoplay_settings_changed() override { update_autoplay(); }
+
     void update_autoplay();
     void update_reset_link();
     void update_icons();

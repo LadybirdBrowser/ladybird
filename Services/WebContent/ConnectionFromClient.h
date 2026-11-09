@@ -252,7 +252,7 @@ private:
     virtual void set_content_blockers(Core::AnonymousBuffer patterns) override;
 
     virtual void set_force_dark_settings(Web::PageId page_id, bool enabled, HashMap<String, bool> per_host) override;
-    virtual void set_autoplay_settings(Web::PageId page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) override;
+    virtual void set_autoplay_settings(Web::PageId page_id, Web::HTML::AutoplayPolicy policy, OrderedHashMap<String, Web::HTML::AutoplayPolicy> site_policies) override;
     virtual void set_preferred_color_scheme(Web::PageId page_id, Web::CSS::PreferredColorScheme) override;
     virtual void set_preferred_contrast(Web::PageId page_id, Web::CSS::PreferredContrast) override;
     virtual void set_preferred_motion(Web::PageId page_id, Web::CSS::PreferredMotion) override;

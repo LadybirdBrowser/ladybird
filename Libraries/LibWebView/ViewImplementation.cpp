@@ -1505,19 +1505,14 @@ static void send_browsing_behavior(WebContentPage const& page)
 
 static void send_autoplay_settings(WebContentPage const& page)
 {
-    auto const& autoplay_settings = Application::settings().autoplay_settings();
     auto const& web_content_options = Application::web_content_options();
 
-    auto policy = autoplay_settings.policy;
-    if (web_content_options.enable_autoplay == EnableAutoplay::Yes)
-        policy = Web::HTML::AutoplayPolicy::AllowAudioAndVideo;
-
-    Vector<Utf16String> allowlist;
-    allowlist.ensure_capacity(autoplay_settings.site_filters.size());
-    for (auto const& site_filter : autoplay_settings.site_filters)
-        allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
-
-    page.async_set_autoplay_settings(policy, move(allowlist));
+    if (web_content_options.enable_autoplay == EnableAutoplay::Yes) {
+        page.async_set_autoplay_settings(Web::HTML::AutoplayPolicy::AllowAudioAndVideo, {});
+    } else {
+        auto const& autoplay_settings = Application::settings().autoplay_settings();
+        page.async_set_autoplay_settings(autoplay_settings.policy, autoplay_settings.site_filters);
+    }
 }
 
 static void send_global_privacy_control(WebContentPage const& page)
@@ -4431,6 +4426,12 @@ void ViewImplementation::browsing_behavior_changed()
 void ViewImplementation::autoplay_settings_changed()
 {
     traversable().for_each_hosting_page(send_autoplay_settings);
+}
+
+void ViewImplementation::permission_settings_changed(Web::Permissions::PermissionName name)
+{
+    if (name == Web::Permissions::PermissionName::Geolocation)
+        geolocation_settings_changed();
 }
 
 void ViewImplementation::global_privacy_control_changed()

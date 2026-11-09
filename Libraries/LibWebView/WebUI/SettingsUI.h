@@ -57,7 +57,7 @@ private:
     virtual void crash_reports_changed() override;
     virtual void dns_settings_changed() override { broadcast_settings_change(); }
     virtual void config_variable_changed(ConfigVariableID) override { broadcast_settings_change(); }
-    virtual void geolocation_settings_changed() override { broadcast_settings_change(); }
+    virtual void permission_settings_changed(Web::Permissions::PermissionName) override { broadcast_settings_change(); }
     virtual void background_networking_settings_changed() override { broadcast_settings_change(); }
     virtual void content_blocker_settings_changed() override { broadcast_settings_change(); }
 
@@ -89,10 +89,6 @@ private:
     void add_site_setting_filter(JsonValue const&);
     void remove_site_setting_filter(JsonValue const&);
     void remove_all_site_setting_filters(JsonValue const&);
-    void set_location_policy(JsonValue const&);
-    void set_microphone_policy(JsonValue const&);
-    void set_notifications_policy(JsonValue const&);
-    void set_site_permission(JsonValue const&);
 
     OwnPtr<SettingsUISitePermissionsObserver> m_site_permissions_observer;
 

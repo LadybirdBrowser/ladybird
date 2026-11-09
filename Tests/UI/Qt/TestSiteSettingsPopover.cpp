@@ -87,7 +87,7 @@ TEST_CASE(private_site_controls_apply_saved_choices_without_changing_them)
     ScopeGuard cleanup { remove_settings };
     auto settings = WebView::Settings::create(settings_path());
     settings.set_force_dark_for_host("example.com"_string, true);
-    settings.add_autoplay_site_filter("example.com"_string);
+    settings.add_autoplay_site_filter("example.com"_string, Web::HTML::AutoplayPolicy::AllowAudioAndVideo);
     Ladybird::SiteSettingsPopover popover(nullptr, settings);
     popover.set_site(site_for("example.com"_string, true));
     auto& toggle = force_dark_switch(popover);

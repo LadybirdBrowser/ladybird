@@ -839,6 +839,7 @@ protected:
     void display_traversable(CanonicalTraversable&, Web::HTML::VisibilityState);
     void display_page_changed(RefPtr<WebContentPage> previous_page);
     void cancel_all_native_geolocation_requests();
+    void geolocation_settings_changed();
     void send_geolocation_emulated_position(WebContentPage&);
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
@@ -867,7 +868,7 @@ protected:
     virtual void content_settings_changed() override;
     virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;
-    virtual void geolocation_settings_changed() override;
+    virtual void permission_settings_changed(Web::Permissions::PermissionName name) override;
     virtual void global_privacy_control_changed() override;
 
     void send_context_menu_request(ContextMenuRequest, Gfx::IntPoint content_position);

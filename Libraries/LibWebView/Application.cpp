@@ -154,19 +154,9 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         Application::the().content_blocker_settings_changed({});
     }
 
-    virtual void geolocation_settings_changed() override
+    virtual void permission_settings_changed(Web::Permissions::PermissionName) override
     {
-        Application::the().location_policy_changed({});
-    }
-
-    virtual void microphone_settings_changed() override
-    {
-        Application::the().microphone_policy_changed({});
-    }
-
-    virtual void notifications_settings_changed() override
-    {
-        Application::the().notifications_policy_changed({});
+        Application::the().permission_settings_changed({});
     }
 };
 
@@ -2540,7 +2530,7 @@ bool Application::sites_can_ask_for_location() const
     // NB: Tests and WebDriver sessions get their positions from emulation, so they need no provider.
     auto has_location_source = Core::GeolocationProvider::is_available() || web_content_options().is_test_mode == IsTestMode::Yes
         || browser_options().webdriver_browser_endpoint.has_value();
-    return settings().location_policy() == LocationPolicy::Ask && has_location_source;
+    return settings().permission_policy(Web::Permissions::PermissionName::Geolocation) == PermissionPolicy::Ask && has_location_source;
 }
 
 void Application::permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const& manager)
@@ -2598,27 +2588,7 @@ void Application::schedule_permission_expiry()
     m_permission_expiry_timer->restart(delay + AK::Duration::from_milliseconds(1));
 }
 
-void Application::location_policy_changed(Badge<ApplicationSettingsObserver>)
-{
-    update_permission_defaults();
-}
-
-bool Application::sites_can_ask_for_microphone() const
-{
-    return settings().microphone_policy() == MicrophonePolicy::Ask;
-}
-
-void Application::microphone_policy_changed(Badge<ApplicationSettingsObserver>)
-{
-    update_permission_defaults();
-}
-
-bool Application::sites_can_ask_for_notifications() const
-{
-    return settings().notifications_policy() == NotificationsPolicy::Ask;
-}
-
-void Application::notifications_policy_changed(Badge<ApplicationSettingsObserver>)
+void Application::permission_settings_changed(Badge<ApplicationSettingsObserver>)
 {
     update_permission_defaults();
 }
@@ -2641,11 +2611,22 @@ Core::GeolocationAuthorization Application::geolocation_authorization()
 
 void Application::update_permission_defaults()
 {
-    // NB: A private session reads its defaults from the ordinary one.
-    auto state_for = [](bool sites_can_ask) { return sites_can_ask ? Web::Permissions::EffectiveState::Prompt : Web::Permissions::EffectiveState::Denied; };
-    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Geolocation, state_for(sites_can_ask_for_location()));
-    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Microphone, state_for(sites_can_ask_for_microphone()));
-    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Notifications, state_for(sites_can_ask_for_notifications()));
+    // A private session reads its defaults from the ordinary one.
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
+        auto state = [&]() {
+            switch (settings().permission_policy(name)) {
+            case PermissionPolicy::Ask:
+                return name == Web::Permissions::PermissionName::Geolocation && !sites_can_ask_for_location()
+                    ? Web::Permissions::EffectiveState::Denied
+                    : Web::Permissions::EffectiveState::Prompt;
+            case PermissionPolicy::Block:
+                return Web::Permissions::EffectiveState::Denied;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+
+        m_default_session->permission_manager->set_global_default(name, state);
+    }
 }
 
 void Application::languages_changed(Badge<ApplicationSettingsObserver>)
