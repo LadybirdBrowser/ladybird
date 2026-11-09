@@ -1,0 +1,34 @@
+<!doctype html>
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<title>TABLE fragment sizes</title>
+<link rel="author" title="Aleks Totic" href="atotic@chromium.org" />
+<link rel="help" href="https://drafts.csswg.org/css-tables-3/" />
+
+<main>
+<h1>TBODY/TR Element sizes and border spacing</h1>
+<p>Legacy Chrome:TR includes start/end, not before/after. 1st TBODY includes before/after, 2nd TBODY includes only after, not before.</p>
+<p>Firefox: TR/TBODY do not include start/end before/after.</p>
+<p>Proposal: match firefox</p>
+
+<table style="width:100px;border-spacing:10px;background:#ddd">
+  <tbody data-expected-width=80>
+    <tr data-expected-width=80>
+      <td data-expected-width=80>0,0</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>TR width is used for TD's percentage resolution</p>
+<table style="width:120px;border-spacing:10px;background:#ddd">
+  <tbody data-expected-width=100>
+    <tr data-expected-width=100>
+      <td style="padding:30%" data-expected-width=100 ><div data-offset-x=30>0,0</div></td>
+    </tr>
+  </tbody>
+</table>
+</main>
+<script>
+  checkLayout("table");
+</script>

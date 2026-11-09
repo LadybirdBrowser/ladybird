@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="
+  When a table cell has a percentage in the inline axis of the table,
+  it should resolve against zero when computing the column sizes,
+  but once we know the final size of the table, it should re-resolve
+  against that size minus the leading and trailing border spacing.
+  This matches what Blink and Gecko do (WebKit is different).
+
+  Note that Blink and Gecko disagree in case there is a caption:
+  Blink still behaves as per above, while Gecko re-resolves against
+  the sum of column sizes plus the interleaved border spacings.
+  Due to the lack of interoperability, this test doesn't use captions.
+">
+
+<style>
+table {
+  border-spacing: 10px 0;
+}
+td {
+  padding: 0;
+}
+td > div {
+  width: 100px;
+  height: 25px;
+  background: red;
+}
+td > div.green {
+  position: relative;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<!--
+There is one column, it's 100px wide. The percentage resolves against
+that amount, so the padding becomes 100px.
+There is an extra spacing of 10px before the 1st column,
+that's why the table has a -110px margin.
+-->
+<table style="margin-left: -110px">
+  <td style="padding-left: 100%">
+    <div class="green"></div>
+  </td>
+</table>
+
+<!--
+The 1st column is 110px wide, the 2nd column is 100px wide.
+And they are separated by 10px, so that's a total of 220px.
+The percentage resolves against that amount, so the padding
+becomes 0.5 * 220px + 10px = 120px.
+There is an extra spacing of 10px before the 1st column,
+that's why the table has a -130px margin.
+-->
+<table style="margin-left: -130px">
+  <td style="padding-left: calc(50% + 10px)">
+    <div class="green"></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+</table>
+
+<!--
+There are 3 columns, each one is 100px wide. They are separated by 10px,
+so that's a total of 100px * 3 + 10px * 2 = 320px.
+The percentage resolves against that amount, so the padding becomes
+320px - 100px = 220px.
+There is an extra spacing of 10px before the 1st column,
+that's why the table has a -230px margin.
+-->
+<table style="margin-left: -230px">
+  <td style="padding-left: calc(100% - 100px)">
+    <div class="green"></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+</table>
+
+<!--
+There are 4 columns, the 1st one is 330px wide, each one of the others
+is 100px wide. They are separated by 10px, so that's a total of
+330px + 100px * 3 + 10px * 3 = 660px.
+The percentage resolves against that amount, so the padding becomes
+0.5 * 660px + 230px = 560px.
+There is an extra spacing of 10px before the 1st column,
+that's why the table has a -570px margin.
+-->
+<table style="margin-left: -570px">
+  <td style="padding-left: calc(50% + 230px)">
+    <div class="green"></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+  <td>
+    <div></div>
+  </td>
+</table>
