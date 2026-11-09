@@ -1544,8 +1544,11 @@ bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryS
     auto is_reload = operation.parameters.has<Web::ReloadHistoryOperationParameters>();
     auto is_traversal_load = !is_reload && populates_target_entry_document && !operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
     if (auto view = this->view(); view.has_value() && navigable.is_top_level_traversable() && (is_reload || is_traversal_load)) {
-        if (is_traversal_load)
+        // NB: A traversal's load returns to a page already visited. A reload's visit transition is the reload's own.
+        if (is_traversal_load) {
+            view->set_next_history_visit_transition(HistoryVisitTransition::Restore);
             operation.has_unactivated_traversal_load = true;
+        }
 
         // NB: A load a history operation starts, rather than a navigation, is tracked as the active document's.
         clear_active_document_load();
