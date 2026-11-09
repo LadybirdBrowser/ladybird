@@ -37,8 +37,8 @@ pub struct BoundFunction {
 pub static BOUND_FUNCTION_METHODS: ObjectMethods = ObjectMethods {
     internal_call: Some(BoundFunction::internal_call),
     internal_construct: Some(BoundFunction::internal_construct),
-    is_strict_mode: |object| as_bound_function(object).bound_target_function().is_strict_mode(),
-    has_constructor: |object| as_bound_function(object).bound_target_function().has_constructor(),
+    is_strict_mode: |object| as_bound_function(object).innermost_target().is_strict_mode(),
+    has_constructor: |object| as_bound_function(object).innermost_target().has_constructor(),
     get_stack_frame_info: BoundFunction::get_stack_frame_info,
     name_for_call_stack: |object| as_bound_function(object).name_for_call_stack(),
     ..FUNCTION_OBJECT_METHODS
@@ -150,6 +150,16 @@ impl BoundFunction {
         self.bound_target_function.get()
     }
 
+    /// The first target down the chain of bound functions that is not itself a bound function. A chain can be longer
+    /// than the native stack allows recursing through.
+    fn innermost_target(&self) -> Gc<FunctionObject> {
+        let mut target = self.bound_target_function();
+        while let Some(bound_target) = target.downcast::<BoundFunction>() {
+            target = bound_target.bound_target_function();
+        }
+        target
+    }
+
     pub fn bound_this(&self) -> Value {
         self.bound_this.get()
     }
@@ -199,14 +209,22 @@ impl BoundFunction {
         let function = as_bound_function(object);
 
         // 1. Let target be F.[[BoundTargetFunction]].
-        let target = function.bound_target_function();
+        let mut target = function.bound_target_function();
 
         // 2. Let boundThis be F.[[BoundThis]].
-        let bound_this = function.bound_this();
+        let mut bound_this = function.bound_this();
 
         // 3. Let boundArgs be F.[[BoundArguments]].
         // 4. Let args be the list-concatenation of boundArgs and argumentsList.
         function.prepend_bound_arguments(callee_context);
+
+        // OPTIMIZATION: [[Call]] of a bound target repeats steps 1-4 for it, so they are repeated here instead of
+        //               recursing, which would run a long chain of bound functions out of native stack.
+        while let Some(bound_target) = target.downcast::<BoundFunction>() {
+            target = bound_target.bound_target_function();
+            bound_this = bound_target.bound_this();
+            bound_target.prepend_bound_arguments(callee_context);
+        }
 
         // 5. Return ? Call(target, boundThis, args).
         let internal_call = target
@@ -225,7 +243,7 @@ impl BoundFunction {
         let function = as_bound_function(object);
 
         // 1. Let target be F.[[BoundTargetFunction]].
-        let target = function.bound_target_function();
+        let mut target = function.bound_target_function();
 
         // 2. Assert: IsConstructor(target) is true.
         assert!(Value::from_object(target).is_constructor());
@@ -240,6 +258,17 @@ impl BoundFunction {
             final_new_target = target;
         }
 
+        // OPTIMIZATION: [[Construct]] of a bound target repeats steps 1-5 for it, so they are repeated here instead of
+        //               recursing, which would run a long chain of bound functions out of native stack.
+        while let Some(bound_target) = target.downcast::<BoundFunction>() {
+            let next_target = bound_target.bound_target_function();
+            bound_target.prepend_bound_arguments(callee_context);
+            if final_new_target == target {
+                final_new_target = next_target;
+            }
+            target = next_target;
+        }
+
         // 6. Return ? Construct(target, args, newTarget).
         let internal_construct = target
             .internal_construct_method()
@@ -249,15 +278,19 @@ impl BoundFunction {
 
     fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) -> ThrowCompletionOr<()> {
         let function = as_bound_function(object);
-        function
-            .bound_target_function()
-            .get_stack_frame_info(vm, stack_frame_info)?;
+        let mut target = function.bound_target_function();
+        let mut bound_arguments_count = function.bound_arguments_count();
+        while let Some(bound_target) = target.downcast::<BoundFunction>() {
+            bound_arguments_count += bound_target.bound_arguments_count();
+            target = bound_target.bound_target_function();
+        }
+        target.get_stack_frame_info(vm, stack_frame_info)?;
         stack_frame_info.argument_count +=
-            u32::try_from(function.bound_arguments_count()).expect("the bound argument count fits in u32");
+            u32::try_from(bound_arguments_count).expect("the bound argument count fits in u32");
         Ok(())
     }
 
     pub fn name_for_call_stack(&self) -> Utf16String {
-        self.bound_target_function().name_for_call_stack()
+        self.innermost_target().name_for_call_stack()
     }
 }
