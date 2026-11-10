@@ -13,7 +13,7 @@ use super::FfiCssPixelRect;
 use super::node_data::NodeSlotId;
 use super::query::inline_cursor::{self, CaretPosition, InlineCursor};
 use super::used_values::{FfiCssPixelPoint, FfiCssPixelSize};
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::text_queries::FfiDomTextRange;
@@ -154,6 +154,38 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     read_rows(host, |arena| {
         let paintable_rows = arena;
         let viewport_mapping = viewport_mapping.mapping();
+
+        // A collapsed range has the rect of the caret it is in text, with no width.
+        if selection_state == crate::painting::paintable_data::SELECTION_STATE_START_AND_END
+            && range_start_offset == range_end_offset
+        {
+            let cursor = InlineCursor::new(arena);
+            if let Some(position) = cursor.line_of(primary, range_start_offset, true)
+                && let Some(index) = position.fragment
+            {
+                let root = position.line.root;
+                let side = arena.committed_side_data(root);
+                let fragment = &side.fragments()[index as usize];
+                let mut rect = cursor
+                    .caret_rect_in_fragment(root, fragment, range_start_offset, true)
+                    .rect;
+                if crate::painting::text_fragment::is_horizontal(fragment) {
+                    rect.width = CssPixels::default();
+                } else {
+                    rect.height = CssPixels::default();
+                }
+                let rect = viewport_mapping.line_content_rect_to_viewport(
+                    arena,
+                    root,
+                    fragment.layout_node,
+                    rect,
+                    ViewportSpace::LayoutViewport,
+                );
+                // SAFETY: The consumer copies the plain-data rect synchronously.
+                unsafe { push_rect(context, rect.into()) };
+            }
+            return;
+        }
 
         let fragments = arena.text_fragments(primary);
         let node_slots = fragments.as_slice();
