@@ -512,6 +512,7 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};
         m_selected_bookmark_menu_parent_folder_id = {};
+        report_context_menu_item();
 
         replace_context_menu(m_context_menu, *this, Application::bookmarks().bookmarks_bar_context_menu()).popup(position);
     } else if (auto* button = as_if<QToolButton>(item)) {
@@ -519,6 +520,7 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         auto* menu = context_menu_for_selected_item();
         if (!menu)
             return true;
+        report_context_menu_item();
 
         auto& context_menu = replace_context_menu(m_context_menu, *this, *menu);
         button->setProperty(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY, true);
@@ -529,17 +531,21 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         });
         context_menu.popup(position);
     } else if (auto* dropdown = as_if<QMenu>(item)) {
+        if (!dropdown->rect().contains(event->pos()))
+            return false;
+
+        QObject* clicked_item = dropdown;
         if (auto* action = dropdown->actionAt(event->pos())) {
             QObject* submenu = action->menu();
-            extract_item_properties(submenu ?: action);
+            if (auto* entry = submenu ?: action; entry->property("type").isValid())
+                clicked_item = entry;
         }
-
-        if (m_selected_bookmark_menu_item_type.isEmpty())
-            extract_item_properties(dropdown);
+        extract_item_properties(clicked_item);
 
         auto* menu = context_menu_for_selected_item();
         if (!menu)
             return true;
+        report_context_menu_item();
 
         // NB: The context menu is parented to the dropdown. Otherwise, Qt complains that the context menu's parent does
         //     not match the current topmost popup.
