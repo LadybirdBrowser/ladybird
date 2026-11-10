@@ -2136,8 +2136,9 @@ void BrowserWindow::bring_to_front()
 Tab* BrowserWindow::tab_for_view(RemoteView const& view) const
 {
     for (int index = 0; index < m_tabs_container->count(); ++index) {
+        // A restored tab that hasn't loaded yet has no view, so it can't be the tab of this one.
         auto* tab = m_tabs_container->tab(index);
-        if (tab && &tab->view() == &view)
+        if (tab && tab->is_loaded() && &tab->view() == &view)
             return tab;
     }
     return nullptr;
