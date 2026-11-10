@@ -37,12 +37,17 @@ public:
     Optional<Entry const&> open_entry(URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode);
 
     void create_entry(URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers);
-    void finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body);
+    // Returns whether the response was stored.
+    bool finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body);
     // Drops the oldest pending entry with the request's cache and vary keys, for a response whose body will not be
     // finalized.
     void abandon_entry(URL::URL const&, StringView method, HeaderList const& request_headers, HeaderList const& response_headers);
 
     void invalidate(URL::URL const&);
+
+    // Removes the complete entries, and keeps the pending ones for the responses that are still arriving.
+    void clear_complete_entries() { m_complete_entries.clear(); }
+    bool has_pending_entries() const { return !m_pending_entries.is_empty(); }
 
 private:
     Optional<Entry> take_pending_entry(u64 cache_key, Optional<u64> vary_key);

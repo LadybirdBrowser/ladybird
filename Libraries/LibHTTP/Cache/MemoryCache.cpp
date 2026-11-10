@@ -143,15 +143,15 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
 // FIXME: It would be nicer if create_entry just returned the cache and vary keys. But the call sites of create_entry and
 //        finalize_entry are pretty far apart, so passing that information along is rather awkward in Fetch.
-void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& received_response_headers, Core::ImmutableBytes response_body)
+bool MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& received_response_headers, Core::ImmutableBytes response_body)
 {
     auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
     auto const& response_headers = *response_headers_without_connection_specific_fields;
 
     if (!is_cacheable(method, request_headers))
-        return;
+        return false;
     if (!is_cacheable(status_code, response_headers))
-        return;
+        return false;
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
@@ -159,7 +159,7 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderL
 
     auto cache_entry = take_pending_entry(cache_key, vary_key);
     if (!cache_entry.has_value())
-        return;
+        return false;
 
     dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", url, response_body.size());
     cache_entry->response_body = move(response_body);
@@ -167,6 +167,7 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderL
     auto& complete_entries = m_complete_entries.ensure(cache_key);
     complete_entries.remove_all_matching([&](auto const& entry) { return entry.vary_key == cache_entry->vary_key; });
     complete_entries.append(cache_entry.release_value());
+    return true;
 }
 
 void MemoryCache::abandon_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, HeaderList const& received_response_headers)

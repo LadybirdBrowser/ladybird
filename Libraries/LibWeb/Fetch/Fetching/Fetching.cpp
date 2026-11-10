@@ -209,10 +209,37 @@ public:
     void clear_cache()
     {
         m_cache.clear();
+        m_responses_stored_since_clear = 0;
+        m_bytes_in_memory_stored_since_clear = 0;
+    }
+
+    // Drops the stored responses once there may be more than a limit, as the cache otherwise keeps every response for
+    // a URL that is not fetched again for as long as the agent lives. A response body that is a mapped file costs a
+    // mapping, and others cost their size in memory.
+    void did_store_response(Core::ImmutableBytes const& body)
+    {
+        ++m_responses_stored_since_clear;
+        if (!body.is_file_backed() && !body.is_readonly_mapped())
+            m_bytes_in_memory_stored_since_clear += body.size();
+        if (m_responses_stored_since_clear <= stored_response_limit && m_bytes_in_memory_stored_since_clear <= stored_bytes_in_memory_limit)
+            return;
+
+        // NB: A fetch that is still running holds its partition and has a pending entry in it, which must stay the
+        //     partition for its key.
+        for (auto& it : m_cache)
+            it.value->clear_complete_entries();
+        m_cache.remove_all_matching([](auto const&, auto const& cache) { return !cache->has_pending_entries() && cache->ref_count() == 1; });
+        m_responses_stored_since_clear = 0;
+        m_bytes_in_memory_stored_since_clear = 0;
     }
 
 private:
+    static constexpr size_t stored_response_limit = 1024;
+    static constexpr size_t stored_bytes_in_memory_limit = 32 * MiB;
+
     HashMap<Utf16String, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
+    size_t m_responses_stored_since_clear { 0 };
+    size_t m_bytes_in_memory_stored_since_clear { 0 };
 };
 
 Optional<Utf16String> http_cache_partition(Infrastructure::Request const& request)
@@ -3554,6 +3581,11 @@ bool disk_cache_enabled_for_navigations_for_testing()
 bool http_memory_cache_enabled()
 {
     return g_http_memory_cache_enabled;
+}
+
+void did_store_response_in_http_memory_cache(Core::ImmutableBytes const& body)
+{
+    HTTPCache::the().did_store_response(body);
 }
 
 void clear_http_memory_cache()
