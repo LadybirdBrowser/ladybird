@@ -359,6 +359,10 @@ pub struct CssPixelPoint {
 }
 
 impl CssPixelPoint {
+    pub fn is_zero(self) -> bool {
+        self.x == CssPixels::default() && self.y == CssPixels::default()
+    }
+
     pub const fn new(x: CssPixels, y: CssPixels) -> Self {
         Self { x, y }
     }

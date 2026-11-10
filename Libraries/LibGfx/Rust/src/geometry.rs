@@ -68,6 +68,53 @@ pub enum Orientation {
     Vertical,
 }
 
+impl FloatPoint {
+    pub fn is_zero(self) -> bool {
+        self.x == 0.0 && self.y == 0.0
+    }
+
+    pub fn translate_by(&mut self, delta: Self) {
+        self.x += delta.x;
+        self.y += delta.y;
+    }
+
+    pub fn scaled(self, factor: f32) -> Self {
+        Self {
+            x: self.x * factor,
+            y: self.y * factor,
+        }
+    }
+
+    pub fn distance_from(self, other: Self) -> f32 {
+        if self == other {
+            return 0.0;
+        }
+        ak::math::hypot(self.x - other.x, self.y - other.y)
+    }
+}
+
+impl Add for FloatPoint {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub for FloatPoint {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
 impl FloatVector3 {
     pub fn dot(self, other: Self) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z
