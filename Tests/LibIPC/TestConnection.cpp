@@ -110,8 +110,9 @@ public:
     }
 
 protected:
-    OwnPtr<IPC::Message> try_parse_message(ReadonlyBytes bytes, Queue<IPC::Attachment>&) override
+    OwnPtr<IPC::Message> try_parse_message(IPC::ReceivedMessageBytes const& received_bytes, Queue<IPC::Attachment>&) override
     {
+        auto bytes = received_bytes.bytes();
         if (bytes.size() != sizeof(u32))
             return nullptr;
         return make<TestMessage>(static_cast<int>(AK::ByteReader::load32(bytes.data())));

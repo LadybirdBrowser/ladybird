@@ -19,6 +19,8 @@
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
+#include <LibIPC/RawMessage.h>
+#include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/Transport.h>
 
 namespace IPC {
@@ -127,7 +129,7 @@ protected:
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
     virtual void shutdown_with_error(Error const&);
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<Attachment>&) = 0;
+    virtual OwnPtr<Message> try_parse_message(ReceivedMessageBytes const&, Queue<Attachment>&) = 0;
 
     ErrorOr<void> post_sync_request(Message const&);
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel = MayCancel::No);
@@ -165,8 +167,18 @@ public:
     }
 
 protected:
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<Attachment>& attachments) override
+    virtual OwnPtr<Message> try_parse_message(ReceivedMessageBytes const& received_bytes, Queue<Attachment>& attachments) override
     {
+        auto bytes = received_bytes.bytes();
+        if (auto header = RawMessage::read_header(bytes); header.has_value() && header->endpoint_magic == LocalEndpoint::static_magic()) {
+            if (auto message_name = LocalEndpoint::name_of_request_that_arrives_raw(header->message_id); message_name.has_value()) {
+                Vector<Attachment> attachments_of_message;
+                while (!attachments.is_empty())
+                    attachments_of_message.append(attachments.dequeue());
+                return make<RawMessage>(*header, *message_name, received_bytes, move(attachments_of_message));
+            }
+        }
+
         auto local_message = LocalEndpoint::decode_message(bytes, attachments);
         if (!local_message.is_error())
             return local_message.release_value();

@@ -634,6 +634,39 @@ pub fn decode_message_header(decoder: &mut Decoder<'_>) -> Result<(u32, i32), De
     Ok((decoder.decode()?, decoder.decode()?))
 }
 
+/// A message as it goes to a transport: its bytes, which start with its header, and its attachments.
+pub type EncodedMessage = (Vec<u8>, Vec<Attachment>);
+
+/// What a peer did that it must not do, for which its connection is closed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Misbehavior(pub &'static str);
+
+/// Why the stub of an endpoint did not get to answer a message.
+#[derive(Debug)]
+pub enum DispatchError {
+    Decode(DecodeError),
+    Misbehavior(Misbehavior),
+    EncodeResponse(EncodeError),
+}
+
+impl From<DecodeError> for DispatchError {
+    fn from(error: DecodeError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl From<Misbehavior> for DispatchError {
+    fn from(misbehavior: Misbehavior) -> Self {
+        Self::Misbehavior(misbehavior)
+    }
+}
+
+impl From<EncodeError> for DispatchError {
+    fn from(error: EncodeError) -> Self {
+        Self::EncodeResponse(error)
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;

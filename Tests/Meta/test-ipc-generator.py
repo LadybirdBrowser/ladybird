@@ -34,6 +34,14 @@ def generate(contents: str) -> str:
 
 
 class TestIPCGenerator(unittest.TestCase):
+    def test_messages_received_in_rust_carry_no_claim_by_their_sender(self) -> None:
+        header, _ = generate_files(
+            "endpoint Test { [RustReceiver] update(Web::PageId page_id, u32 value) =| other(u64 value) =| }"
+        )
+        self.assertIn("static_assert(__is_empty(IPC::SenderClaimReceiver<Web::PageId>),", header)
+        self.assertIn("static_assert(__is_empty(IPC::SenderClaimReceiver<u32>),", header)
+        self.assertNotIn("IPC::SenderClaimReceiver<u64>)", header)
+
     def test_non_template_implementations_are_only_in_the_cpp_file(self) -> None:
         header, implementation = generate_files(ENDPOINT)
         self.assertIn('#include "TestEndpoint.h"', implementation)
@@ -610,6 +618,33 @@ class TestIPCRustGenerator(unittest.TestCase):
         self.assertIn("if magic != ENDPOINT_MAGIC", generated)
         self.assertIn('InvalidValue("message ID")', generated)
         self.assertNotIn("decoder.is_at_end()", generated)
+
+    def test_messages_received_in_rust_get_a_stub_and_a_dispatcher(self) -> None:
+        generated = self.generate(
+            "endpoint Test { [RustReceiver] update(u32 value) =| [RustReceiver] query() => (u32 value) other() =| }"
+        )
+        self.assertIn(
+            """\
+    pub trait Stub {
+        fn update(&mut self, message: messages::Update) -> ::std::result::Result<(), ::libipc_rust::wire::Misbehavior>;
+        fn query(&mut self, message: messages::Query) -> ::std::result::Result<messages::QueryResponse, ::libipc_rust::wire::Misbehavior>;
+    }
+""",
+            generated,
+        )
+        self.assertIn(
+            """\
+            <messages::Query as ::libipc_rust::wire::EndpointMessage>::MESSAGE_ID => {
+                let response = stub.query(decoder.decode()?)?;
+                ::std::result::Result::Ok(::std::option::Option::Some(::libipc_rust::wire::EndpointMessage::encode_message(response)?))
+            }
+""",
+            generated,
+        )
+        self.assertNotIn("pub enum Message", generated)
+        self.assertNotIn("Other", generated)
+
+        self.assertNotIn("Stub", self.generate("endpoint Test { [RustSender] update(u32 value) =| }"))
 
     def test_owned_encoding_moves_every_field(self) -> None:
         generated = self.generate("endpoint Test { send(Vector<IPC::File> files) =| }")
