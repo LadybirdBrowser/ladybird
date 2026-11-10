@@ -1003,7 +1003,6 @@ set(SOURCES
     WebVTT/VTTRegion.cpp
     XHR/EventNames.cpp
     XHR/FormData.cpp
-    XHR/ProgressEvent.cpp
     XHR/XMLHttpRequest.cpp
     XHR/XMLHttpRequestEventTarget.cpp
     XHR/XMLHttpRequestUpload.cpp

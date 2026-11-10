@@ -13,8 +13,10 @@ use ak::Utf16String;
 use libjs_rust::api::{JSVM, vm_from_abi};
 
 use super::form_data::{Entry, FormData, FormDataEntryValue, StringOrBlob, create_an_entry};
+use super::progress_event::{ProgressEvent, ProgressEventInit};
 use crate::bindings::conversions::UsvString;
-use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{Ref, allocate, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::dom::event::EventInit;
 use crate::file_api::exports::any_blob_from_abi;
 
 #[repr(C)]
@@ -170,4 +172,33 @@ pub unsafe extern "C" fn web_html_create_an_entry(
         StringOrBlob::Blob(unsafe { any_blob_from_abi(blob) })
     };
     EntryAbi::from_entry(&create_an_entry(vm, &name, value, None))
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `event_name` a raw string that C++ owns a reference to.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_xhr_create_progress_event(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    event_name: usize,
+    length_computable: bool,
+    loaded: f64,
+    total: f64,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm, and hands over the name.
+    let ((vm, realm), event_name) = unsafe { (realm_arguments(vm, realm), Utf16String::from_raw_owned(event_name)) };
+    let event_init = ProgressEventInit {
+        parent: EventInit {
+            bubbles: false,
+            cancelable: false,
+            composed: false,
+        },
+        length_computable,
+        loaded,
+        total,
+    };
+    ProgressEvent::create(vm, realm, &event_name, event_init)
+        .event()
+        .as_ptr()
 }

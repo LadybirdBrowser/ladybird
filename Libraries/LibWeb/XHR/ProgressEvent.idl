@@ -1,5 +1,5 @@
 // https://xhr.spec.whatwg.org/#interface-progressevent
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface ProgressEvent : Event {
     constructor(DOMString type, optional ProgressEventInit eventInitDict = {});
 
