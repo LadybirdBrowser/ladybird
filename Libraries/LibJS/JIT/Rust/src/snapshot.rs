@@ -1392,10 +1392,9 @@ pub struct RopeAllocationInfo {
 /// `cell_size`) and, unless `count` is 0, a storage cell of the first
 /// storage size class with a `capacity` of at least `count`. JIT code only
 /// allocates both itself if both local free lists have a cell: it checks
-/// the heap's threshold for the array cell (storage cells never start a
-/// collection, nor count towards one), pops both cells, adds both cell
-/// sizes to the heap's total allocated bytes and the array's to its
-/// allocated bytes since the last collection. Then:
+/// the heap's threshold for both cells, pops both cells, and adds both cell
+/// sizes to the heap's total allocated bytes and to its allocated bytes
+/// since the last collection. Then:
 /// 1. Copy `template` to the array cell and store
 ///    `array + inline_storage_offset` at `array + named_properties_offset`
 ///    (see `ObjectAllocationInfo`).

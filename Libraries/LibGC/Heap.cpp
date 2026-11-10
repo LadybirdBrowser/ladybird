@@ -419,16 +419,14 @@ void Heap::will_allocate(size_t size, TriggersCollection triggers_collection)
 {
     ASSERT(!heap_access_is_forbidden_on_this_thread());
     ASSERT(is_on_owner_thread());
-    if (triggers_collection == TriggersCollection::No) {
-        m_total_allocated_bytes += size;
-        return;
-    }
-
     // NB: Sweeping a block destroys its dead cells, and a destructor may allocate. A collection started from there
     //     would mark the block's reachable cells and queue the block for the next sweep, the rest of the current sweep
     //     would then clear those marks, and the next sweep of the block would free cells that are still in use. So an
     //     allocation made while a block is swept leaves the collection to the first allocation after the sweep.
-    if (m_block_sweeps_in_progress == 0) {
+    // NB: An allocation that must not collect still counts towards the next collection, which the next allocation that
+    //     may collect starts. Otherwise a program that allocates mostly storage (as one making large arrays does) would
+    //     keep gigabytes of dead storage before its few other allocations reached the threshold.
+    if (m_block_sweeps_in_progress == 0 && triggers_collection == TriggersCollection::Yes) {
         if (should_collect_on_every_allocation()) {
             m_allocated_bytes_since_last_gc = 0;
             collect_garbage();

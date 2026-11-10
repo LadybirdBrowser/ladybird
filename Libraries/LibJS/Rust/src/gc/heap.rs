@@ -302,9 +302,9 @@ impl Heap {
     }
 
     /// allocate_with_size_class() for a cell that another cell keeps its storage in, instead of malloc memory: it never
-    /// collects garbage and does not count towards the next collection, so storage can grow while its owner is between
-    /// states nothing may observe, and callers can hold on to anything across the growth. Live storage counts once a
-    /// collection finds it, through the live cell bytes that set the next threshold.
+    /// collects garbage, so storage can grow while its owner is between states nothing may observe, and callers can hold
+    /// on to anything across the growth. It still counts towards the next collection, which the next allocation that
+    /// may collect starts.
     pub fn allocate_storage_with_size_class<T: GcCell, E: Copy>(
         &self,
         size_class: SizeClassAllocator,
@@ -486,13 +486,11 @@ impl Heap {
                 cursor_cell
             };
             let cell = NonNull::new_unchecked(cell);
-            if let AllocationKind::Cell = kind {
-                let allocated_bytes = info.allocated_bytes_since_last_gc.read() + cell_size;
-                if allocated_bytes > info.gc_bytes_threshold.read() {
-                    return None;
-                }
-                info.allocated_bytes_since_last_gc.write(allocated_bytes);
+            let allocated_bytes = info.allocated_bytes_since_last_gc.read() + cell_size;
+            if matches!(kind, AllocationKind::Cell) && allocated_bytes > info.gc_bytes_threshold.read() {
+                return None;
             }
+            info.allocated_bytes_since_last_gc.write(allocated_bytes);
             info.total_allocated_bytes
                 .write(info.total_allocated_bytes.read() + cell_size);
             if from_list {
