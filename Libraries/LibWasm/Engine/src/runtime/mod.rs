@@ -355,6 +355,8 @@ impl Instance {
     }
 }
 
+const MEMORY_ALLOCATION_FAILED: &str = "cannot allocate memory";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstantiationError {
     Link(String),
@@ -645,8 +647,37 @@ impl Store {
     }
 
     pub fn allocate_memory(&mut self, ty: crate::types::MemoryType) -> Option<MemoryAddress> {
-        let memory = MemoryInstance::new(ty, &self.heap)?;
+        let memory = match MemoryInstance::new(ty, &self.heap) {
+            Some(memory) => memory,
+            None => {
+                // NB: Collections are deferred while a module instantiates, which retries once they are not.
+                if !self.release_reservations_of_dead_memories() {
+                    return None;
+                }
+                MemoryInstance::new(ty, &self.heap)?
+            }
+        };
         Some(entity::allocate(&self.heap, memory))
+    }
+
+    /// Collects garbage so that the memories that died release their reservations, before failing to allocate one.
+    /// Each memory reserves gigabytes of address space, which a memory that died keeps until a collection sweeps it, and
+    /// nothing counts the reservations towards a collection. So a page that makes memories in a loop runs out of address
+    /// space with most of them dead. Returns whether it collected.
+    fn release_reservations_of_dead_memories(&self) -> bool {
+        let Some(gc) = self.heap.gc() else {
+            return false;
+        };
+        if self.heap.is_gc_deferred() {
+            return false;
+        }
+        // NB: A collection leaves the sweep of what it found dead to later. The next one finishes that sweep first,
+        //     which releases the reservations.
+        for _ in 0..2 {
+            // SAFETY: The heap is live, and allocating memory is a point where garbage may be collected.
+            unsafe { (gc.interface.gc_heap_collect_garbage)(gc.interface.heap, 0, false) };
+        }
+        true
     }
 
     /// Add a table of `ty.limits.min` elements set to `initial`. Returns None if it would be too large.
@@ -675,15 +706,33 @@ impl Store {
     ) -> Result<InstanceAddress, InstantiationError> {
         // Instantiation keeps references in places the collector does not look, like the values of constant
         // expressions on their way into globals and segments. The start function runs once they are in place.
-        self.heap.defer_gc();
-        let instance = self.instantiate_without_starting(module, imports);
-        self.heap.undefer_gc();
+        let mut instance = self.instantiate_deferring_gc(&module, imports);
+        if matches!(&instance, Err(InstantiationError::Link(message)) if message == MEMORY_ALLOCATION_FAILED)
+            && self.release_reservations_of_dead_memories()
+        {
+            // NB: Nothing the failed attempt did is visible yet: a module's memories are allocated before any segment
+            //     is written to what it imports.
+            instance = self.instantiate_deferring_gc(&module, imports);
+        }
         let (instance, start) = instance?;
         jit::instantiated(self, instance);
         if let Some(start) = start {
             self.invoke(start, &[]).map_err(InstantiationError::Trap)?;
         }
         Ok(instance)
+    }
+
+    fn instantiate_deferring_gc(
+        &mut self,
+        module: &Arc<Module>,
+        imports: &[ExternValue],
+    ) -> Result<(InstanceAddress, Option<FunctionAddress>), InstantiationError> {
+        // Instantiation keeps references in places the collector does not look, like the values of constant
+        // expressions on their way into globals and segments. The start function runs once they are in place.
+        self.heap.defer_gc();
+        let instance = self.instantiate_without_starting(Arc::clone(module), imports);
+        self.heap.undefer_gc();
+        instance
     }
 
     fn instantiate_without_starting(
@@ -898,7 +947,7 @@ impl Store {
         for memory in &module.memories {
             let address = self
                 .allocate_memory(*memory)
-                .ok_or_else(|| InstantiationError::Link("cannot allocate memory".to_string()))?;
+                .ok_or_else(|| InstantiationError::Link(MEMORY_ALLOCATION_FAILED.to_string()))?;
             memories.push(address);
         }
         instance.memories = memories;
