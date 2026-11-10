@@ -312,22 +312,25 @@ def extra_vcpkg_variables_path(build_dir: Path) -> Path:
 
 def historically_heavy_ports(deps_dir: Path) -> set[str]:
     heavy = set()
-    log_path = deps_dir / ".ninja_log"
-    if not log_path.exists():
-        return heavy
-    for line in log_path.read_text().splitlines():
-        if line.startswith("#"):
-            continue
-        fields = line.split("\t")
-        if len(fields) < 4:
-            continue
+    for cost_path in deps_dir.glob(f"*/{BUILD_COST_FILE}"):
         try:
-            duration = int(fields[1]) - int(fields[0])
+            cost = int(cost_path.read_text())
         except ValueError:
             continue
-        if duration >= HEAVY_THRESHOLD_MS:
-            heavy.add(Path(fields[3]).parent.name)
+        if cost >= HEAVY_THRESHOLD_CPU_MS:
+            heavy.add(cost_path.parent.name)
     return heavy
+
+
+def record_build_cost(node_dir: Path, cpu_ms: int):
+    # NOTE: This keeps the largest cost ever seen, as restoring a port from the binary cache costs next to nothing.
+    cost_path = node_dir / BUILD_COST_FILE
+    try:
+        previous = int(cost_path.read_text())
+    except (FileNotFoundError, ValueError):
+        previous = 0
+    if cpu_ms > previous:
+        cost_path.write_text(f"{cpu_ms}\n")
 
 
 # Large enough that the configure time is insignificant compared to build time, build parallelism will determine build time if on the critical path.
@@ -345,32 +348,46 @@ SEED_HEAVY_PORTS = {
     "sdl3",
     "skia",
 }
-HEAVY_THRESHOLD_MS = 45_000
+# Ports are weighed by the CPU time vcpkg spent on them, not by how long their node ran: the latter includes the wait for
+# build tokens and depends on how many of them the node got, so every contended build would make more ports heavy.
+# A light node builds with two jobs, so this is about 45 seconds of building as one.
+HEAVY_THRESHOLD_CPU_MS = 90_000
+BUILD_COST_FILE = ".cpu-ms"
 
 
-def acquire_build_tokens(fifo_fd: int, pool: int, heavy: bool) -> int:
+def acquire_build_tokens(fifo_fd: int, pool: int, heavy: bool, accumulation_lock: Path) -> int:
     # For light nodes, a single token is sufficient, so they get dispatched as soon as there's one free and run at whatever parallelism is there.
     # heavy nodes need guaranteed available compute to not thrash on the build, so they hold off until there are enough tokens to guarantee a parallel build.
-    held = len(os.read(fifo_fd, 1))
     if not heavy:
-        return held
+        return len(os.read(fifo_fd, 1))
 
-    target = min(pool, max(2, pool // 4))
-    while held < target:
-        held += len(os.read(fifo_fd, 1))
+    import fcntl
 
-    cap = max(target, pool - 8)
-    os.set_blocking(fifo_fd, False)
+    # Only one heavy node may be accumulating tokens at a time: several of them accumulating at once can split the
+    # whole pool between themselves, each short of its target, and then wait on each other forever.
+    lock_fd = os.open(accumulation_lock, os.O_RDWR | os.O_CREAT, 0o644)
     try:
-        while held < cap:
-            extra = os.read(fifo_fd, cap - held)
-            if not extra:
-                break
-            held += len(extra)
-    except BlockingIOError:
-        pass
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+        held = 0
+        target = min(pool, max(2, pool // 4))
+        while held < target:
+            held += len(os.read(fifo_fd, 1))
+
+        cap = max(target, pool - 8)
+        os.set_blocking(fifo_fd, False)
+        try:
+            while held < cap:
+                extra = os.read(fifo_fd, cap - held)
+                if not extra:
+                    break
+                held += len(extra)
+        except BlockingIOError:
+            pass
+        finally:
+            os.set_blocking(fifo_fd, True)
     finally:
-        os.set_blocking(fifo_fd, True)
+        os.close(lock_fd)
     return held
 
 
@@ -400,7 +417,7 @@ def run_node(arguments: argparse.Namespace):
         pool = int(environment.get("LADYBIRD_VCPKG_TOKEN_POOL", "0")) or (os.cpu_count() or 2) + 2
         heavy = (node_dir / ".weight").exists() and (node_dir / ".weight").read_text().strip() == "heavy"
         fifo_fd = os.open(token_fifo, os.O_RDWR)
-        held = acquire_build_tokens(fifo_fd, pool, heavy)
+        held = acquire_build_tokens(fifo_fd, pool, heavy, Path(token_fifo + ".lock"))
         environment["VCPKG_MAX_CONCURRENCY"] = str(held if heavy else 2)
 
     log_path = node_dir / "build.log"
@@ -413,7 +430,9 @@ def run_node(arguments: argparse.Namespace):
                     f" build tokens, -j{environment['VCPKG_MAX_CONCURRENCY']}\n"
                 )
                 log.flush()
+            times_before = os.times()
             result = subprocess.run(install_arguments, env=environment, stdout=log, stderr=subprocess.STDOUT)
+            times_after = os.times()
     finally:
         if fifo_fd is not None:
             os.write(fifo_fd, b"x" * held)
@@ -424,6 +443,11 @@ def run_node(arguments: argparse.Namespace):
         print("\n".join(log_lines[-60:]), file=sys.stderr)
         print(f"\nFull build log: {log_path}", file=sys.stderr)
         sys.exit(result.returncode)
+
+    cpu_seconds = (times_after.children_user - times_before.children_user) + (
+        times_after.children_system - times_before.children_system
+    )
+    record_build_cost(node_dir, int(cpu_seconds * 1000))
 
     Path(arguments.stamp).touch()
 
