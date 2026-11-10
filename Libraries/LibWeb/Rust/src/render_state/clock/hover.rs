@@ -22,6 +22,7 @@ use crate::css::style_compute::FfiEffectTiming;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
+use crate::painting::hit_test::walk::{PointQuery, topmost_hit};
 use crate::painting::hit_test::{HitTestItemKind, HitTestList};
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::record::PublishedHitTestItems;
@@ -207,9 +208,15 @@ impl Drop for HoverLinkReporter {
     }
 }
 
+/// A frame paints the overlays of its stacking contexts, the scrollbars among them, which a hit test of what the
+/// frame shows finds.
+const FRAMES_PAINT_OVERLAYS: bool = true;
+
 /// The immutable inputs needed to hit test the presented frame and resolve its predefined cursors.
 struct ReadOnlyHoverFrame {
     rows: crate::painting::published_frame::PublishedRows,
+    /// The row the frame's paint order starts at.
+    viewport: NodeSlotId,
     bound_rows: crate::layout::PublishedBoundRows,
     cursors: Arc<crate::css::style::hover_lane::HoverCursorFacts>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
@@ -343,12 +350,16 @@ impl HoverPlan {
                 .all(|&record| record == 0 || state.engine_ref().style_record_is_held(record)),
             "a row of a hover frame names a record nothing holds"
         );
+        // A hit test of the frame skips the boxes whose ink overflow the pointer misses.
+        state.arena.arena_mut().settle_ink_overflow();
+        let viewport = state.arena.arena().layout_root();
         let rows = state.arena.arena_mut().publish_rows();
         let style_records = state
             .engine_mut()
             .lease_hover_frame_style_records(rows.paint_nodes().clone());
         self.read_only_frame = Some(ReadOnlyHoverFrame {
             rows,
+            viewport,
             bound_rows: state.arena.arena_mut().bound_rows_mut().publish(),
             cursors: state.engine_mut().hover_cursor_facts(),
             image_map_areas: state.arena.arena().image_map_areas().clone(),
@@ -1327,11 +1338,6 @@ impl Lane {
             };
             let absolute_rects = std::cell::RefCell::default();
             let source = PaintSource::over_rows(&frame.rows, &absolute_rects);
-            let mut list = HitTestList {
-                items: Arc::clone(&published.items),
-                ..HitTestList::default()
-            };
-            list.build_spatial_indexes_if_needed();
             let offsets = self.scroll_offsets_on_screen(&source, &frame.visual_context, &plan);
             let callbacks =
                 FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &offsets, plan.chrome_metrics);
@@ -1342,8 +1348,17 @@ impl Lane {
                 CssPixels::nearest_value_for_f32(position.x / ratio),
                 CssPixels::nearest_value_for_f32(position.y / ratio),
             );
-            let hit = list.find_topmost_item(&source, tree, &callbacks, point)?;
-            let item = &list.items[hit.index];
+            let hit = topmost_hit(
+                &source,
+                PointQuery {
+                    tree,
+                    callbacks: &callbacks,
+                    viewport: frame.viewport,
+                    paint_overlay: FRAMES_PAINT_OVERLAYS,
+                    point,
+                },
+            )?;
+            let item = &hit.item;
             if item.kind == HitTestItemKind::ChromeWidget {
                 return None;
             }
@@ -1369,7 +1384,7 @@ impl Lane {
             if kind == NodeKind::ImageBox && frame.image_map_areas.has_areas(item.paintable) {
                 return None;
             }
-            let resolved = list.resolve_hit(&source, hit.index, hit.local_point);
+            let resolved = crate::painting::hit_test::resolve::resolve_hit(&source, &hit.item, hit.local_point);
             let target = if kind == NodeKind::Viewport {
                 plan.style.as_ref().map(|&(root, _)| root)
             } else {
