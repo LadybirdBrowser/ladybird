@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/Message.h>
 #include <LibIPC/RawAttachment.h>
 
 namespace IPC {
@@ -39,6 +40,13 @@ Vector<RawAttachment> release_raw_attachments(Vector<Attachment> attachments)
 #endif
     }
     return raw;
+}
+
+MessageBuffer adopt_encoded_message(ReadonlyBytes bytes, ReadonlySpan<RawAttachment> attachments)
+{
+    MessageDataType data;
+    MUST(data.try_append(bytes.data(), bytes.size()));
+    return { move(data), adopt_raw_attachments(attachments) };
 }
 
 }

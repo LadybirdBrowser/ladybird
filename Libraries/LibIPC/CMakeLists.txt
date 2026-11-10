@@ -6,8 +6,10 @@ set(SOURCES
     File.cpp
     Message.cpp
     RawAttachment.cpp
+    RawMessage.cpp
     ReceivedMessageBytes.cpp
     StartupTransport.cpp
+    ThreadSafeMessagePoster.cpp
     TransportHandle.cpp
 )
 

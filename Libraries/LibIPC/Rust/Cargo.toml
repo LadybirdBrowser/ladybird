@@ -8,6 +8,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ak = { path = "../../../AK/Rust" }
 libc = "0.2"
 
 [lints]
