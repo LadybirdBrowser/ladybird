@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #rounded, #shaped, #focus { width: 50px; height: 30px; margin: 40px; }
+    #rounded, #shaped { border-radius: 20px; box-shadow: -15px 25px 18px 35px black; }
+    #shaped { corner-shape: bevel; box-shadow: -15px 25px 18px 35px black, 0 0 0 35px blue; }
+    #focus { outline: none; }
+</style>
+<div id="rounded"></div><div id="shaped"></div><div id="focus"></div>
+<script>
+    test(() => {
+        internals.setAccessibilityFocusTarget(document.getElementById("focus"));
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

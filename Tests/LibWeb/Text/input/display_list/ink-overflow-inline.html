@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 130px; font: 20px sans-serif; }
+    span { box-shadow: 12px -8px 9px 14px black; outline: 9px dashed blue; outline-offset: 12px; }
+</style>
+<div><span>Several words that wrap across three lines</span></div>
+<script>
+    test(() => {
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

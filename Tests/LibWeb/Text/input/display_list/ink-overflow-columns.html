@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #columns { columns: 3; column-gap: 4px; column-rule: 48px dotted blue; width: 180px; height: 100px; }
+</style>
+<div id="columns"><div style="height: 270px"></div></div>
+<script>
+    test(() => {
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

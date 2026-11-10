@@ -105,6 +105,7 @@ fn record_display_list_impl<O: Observer>(
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
         svg_resource_walk: None,
         viewport,
+        ink_bounds_audit: super::ink_bounds::InkBoundsAudit::new(),
         source_recording,
         source_items,
         live_producer: false,
@@ -180,6 +181,7 @@ fn record_display_list_impl<O: Observer>(
             Arc::new(recorder.recorder.into_builder().finish())
         }
     };
+    recorder.ink_bounds_audit.report();
     let mut hit_test_list = recorder.list;
     hit_test_list.generation = paint_state.hit_test_list_generation + 1;
     hit_test_list.recorded_structural_epoch = structural_epoch;

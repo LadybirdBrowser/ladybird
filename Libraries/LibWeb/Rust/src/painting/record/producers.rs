@@ -228,6 +228,9 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             }
         }
         let end = self.output_position();
+        if self.ink_bounds_audit.enabled {
+            self.verify_producer_ink(owner, kind, start.bytes as usize..end.bytes as usize);
+        }
         self.observer
             .observe(|log| log.end(end.bytes == start.bytes && end.hits == start.hits));
         debug_assert!(

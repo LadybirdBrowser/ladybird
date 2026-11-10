@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .tiny { width: 1px; height: 2px; overflow: scroll; resize: both; }
+    .tiny div { width: 100px; height: 100px; }
+</style>
+<div class="tiny"><div></div></div>
+<div class="tiny" style="position: absolute; left: -200px; top: -150px"><div></div></div>
+<script>
+    test(() => {
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+            internals.recordDisplayListForTesting(true, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>
