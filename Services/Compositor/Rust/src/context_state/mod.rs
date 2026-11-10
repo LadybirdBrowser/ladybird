@@ -715,17 +715,24 @@ impl ContextState {
         self.parent_context_id = parent_context_id;
     }
 
+    // Returns false, leaving everything as it was, for scrolling state with numbers no scroll can be calculated with.
     pub fn install_display_list_update(
         &mut self,
         display_list: Rc<DisplayList>,
         visual_context_tree: AccumulatedVisualContextTree,
         scroll_state_snapshot: ScrollStateSnapshot,
         now: MonotonicTime,
-    ) {
+    ) -> bool {
         assert_eq!(
             display_list.compatible_visual_context_tree_structural_epoch(),
             visual_context_tree.structural_epoch()
         );
+        let async_scrolling_state = async_scrolling_state_from_display_list(&display_list);
+        if !scroll_state_snapshot.has_only_finite_offsets()
+            || !async_scrolling_state.has_only_numbers_scrolls_can_be_calculated_with()
+        {
+            return false;
+        }
         let scroll_offsets_of_known_nodes = self.scroll_offsets_by_stable_id();
         self.scene.install(display_list, visual_context_tree, now);
         self.keyboard_scroll_controller.forget_target();
@@ -734,8 +741,6 @@ impl ContextState {
             .set_node_count(self.scene.visual_context_tree().as_ref().unwrap().spatial_node_count());
         let display_list = self.scene.display_list().as_ref().unwrap().clone();
         self.restart_caret_blink_for(&display_list, now);
-        let async_scrolling_state =
-            async_scrolling_state_from_display_list(self.scene.display_list().as_ref().unwrap());
         let mut async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
         self.wheel_gesture_routing
             .did_install_scrolling_state(&async_scrolling_state);
@@ -772,6 +777,7 @@ impl ContextState {
         if let Some(metadata) = self.scene.display_list().as_ref().unwrap().async_scrolling_metadata() {
             self.adopt_keyboard_scroll_state(metadata.keyboard_scroll_state.clone());
         }
+        true
     }
 
     // Repaints the blinking caret of a display list each time its blink cycle turns it on or off.

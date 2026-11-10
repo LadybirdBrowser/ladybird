@@ -180,7 +180,8 @@ pub extern "C" fn compositor_core_set_scroll_capabilities(
     );
 }
 
-/// Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
+/// Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode, or that hold
+/// numbers no scroll can be calculated with.
 ///
 /// # Safety
 ///
@@ -209,8 +210,7 @@ pub unsafe extern "C" fn compositor_core_install_display_list_update(
         unsafe { tree_sharing_handle(visual_context_tree) },
         scroll_state_snapshot,
         MonotonicTime::from_nanoseconds(now_nanoseconds),
-    );
-    true
+    )
 }
 
 /// Answers false, leaving everything as it was, for a tree that does not fit the installed display list.

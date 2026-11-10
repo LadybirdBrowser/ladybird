@@ -211,6 +211,7 @@ impl CompositorCore {
         context.borrow_mut().set_scroll_capabilities(capabilities);
     }
 
+    // Returns false, leaving everything as it was, for scrolling state with numbers no scroll can be calculated with.
     pub fn install_display_list_update(
         &self,
         context_id: CompositorContextId,
@@ -218,13 +219,13 @@ impl CompositorCore {
         visual_context_tree: AccumulatedVisualContextTree,
         scroll_state_snapshot: ScrollStateSnapshot,
         now: MonotonicTime,
-    ) {
+    ) -> bool {
         let _entered = self.enter();
 
         let context = self.context_if_present(context_id).expect("context exists");
         context
             .borrow_mut()
-            .install_display_list_update(display_list, visual_context_tree, scroll_state_snapshot, now);
+            .install_display_list_update(display_list, visual_context_tree, scroll_state_snapshot, now)
     }
 
     // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
