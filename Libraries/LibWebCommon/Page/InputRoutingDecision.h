@@ -78,3 +78,5 @@ enum class InputRoutingDecision : u8 {
 WEBCOMMON_API StringView input_routing_decision_name(InputRoutingDecision);
 
 }
+
+#include <LibWebCommon/Page/InputRoutingDecisionCodecs.h>

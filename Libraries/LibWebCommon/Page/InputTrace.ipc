@@ -1,0 +1,24 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+//
+// SPDX-License-Identifier: BSD-2-Clause
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibWebCommon/Page/InputTrace.h>
+
+[ExistingCpp]
+enum Web::InputTraceStage : u8 {
+    Compositor,
+    CompositorForMainThread,
+    WebContent,
+}
+
+[ExistingCpp]
+struct Web::InputTraceRecord {
+    u64 input_event_id;
+    Web::InputTraceStage stage;
+    Web::InputRoutingDecision decision;
+    Optional<Web::AsyncScrollNodeStableID> scroller;
+    Optional<Web::UniqueNodeID> dom_target;
+}

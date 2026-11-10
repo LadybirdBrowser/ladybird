@@ -144,16 +144,6 @@ COMPOSITING_API ErrorOr<void> validate_display_list_references_live_visual_conte
 namespace IPC {
 
 template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList::AsyncScrollingMetadata const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::DisplayList::AsyncScrollingMetadata> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList::Properties const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::DisplayList::Properties> decode(Decoder&);
-
-template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList const&);
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, NonnullRefPtr<Compositing::DisplayList> const&);
@@ -161,3 +151,5 @@ template<>
 COMPOSITING_API ErrorOr<NonnullRefPtr<Compositing::DisplayList>> decode(Decoder&);
 
 }
+
+#include <LibCompositing/DisplayList/DisplayListPropertiesCodecs.h>

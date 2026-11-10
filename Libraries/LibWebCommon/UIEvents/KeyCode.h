@@ -283,3 +283,5 @@ inline KeyCode code_point_to_key_code(u32 code_point)
 }
 
 }
+
+#include <LibWebCommon/UIEvents/KeyCodeCodecs.h>

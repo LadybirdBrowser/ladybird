@@ -1,0 +1,42 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+//
+// SPDX-License-Identifier: BSD-2-Clause
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
+
+[ExistingCpp, RustDerive=Hash]
+enum Web::AsyncScrollNodeKind : u8 {
+    Viewport,
+    Element,
+    PseudoElement,
+    VisualViewport,
+}
+
+[ExistingCpp, RustDerive=Copy+Eq+Hash]
+struct Web::AsyncScrollNodeStableID {
+    Web::UniqueNodeID node_id;
+    Web::AsyncScrollNodeKind kind;
+    u8 pseudo_element_type;
+}
+
+[ExistingCpp, RustDerive=Copy]
+struct Web::CompositorScrollOffset {
+    Web::AsyncScrollNodeStableID scroll_node;
+    Web::CSSPixelPoint offset;
+}
+
+[ExistingCpp, RustDerive=Copy+Eq+Hash]
+struct Web::ScrollbarDraggedByCompositor {
+    Web::CompositorContextId context_id;
+    Web::AsyncScrollNodeStableID scroller_stable_node_id;
+}
+
+[ExistingCpp, RustDerive=Copy+Eq+Hash]
+struct Web::OverlayScrollbarVisibility {
+    Web::AsyncScrollNodeStableID scroller_stable_node_id;
+    bool vertical;
+    bool hidden;
+}

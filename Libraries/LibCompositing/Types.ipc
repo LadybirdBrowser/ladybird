@@ -1,0 +1,196 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+//
+// SPDX-License-Identifier: BSD-2-Clause
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibCompositing/Types.h>
+#include <LibCompositing/WebGL/Types.h>
+
+[ExistingCpp]
+enum Compositing::WindowResizingInProgress : u8 {
+    No,
+    Yes,
+}
+
+[ExistingCpp]
+enum Compositing::ContextVisibility : u8 {
+    Visible,
+    Hidden,
+}
+
+[ExistingCpp]
+enum Compositing::AsyncScrollUpdateFreshness : u8 {
+    Pushed,
+    FromCompositor,
+}
+
+[ExistingCpp]
+enum Compositing::ScrollAnimationKind : u8 {
+    SmoothScroll,
+    Wheel,
+    Momentum,
+}
+
+[ExistingCpp]
+enum Compositing::AsyncScrollOperationTracking : u8 {
+    No,
+    Yes,
+}
+
+[ExistingCpp]
+enum Compositing::WheelEventRouting : u8 {
+    BeforeDispatch,
+    AfterDispatch,
+}
+
+[ExistingCpp]
+enum Compositing::WheelStepDispatch : u8 {
+    NotYetDispatched,
+    DispatchedAndNotCanceled,
+}
+
+[ExistingCpp]
+enum Compositing::SmoothScrollInitiator : u8 {
+    Programmatic,
+    UserInput,
+}
+
+[ExistingCpp]
+enum Compositing::WebGL::WebGLVersion : u8 {
+    WebGL1,
+    WebGL2,
+}
+
+[ExistingCpp]
+struct Compositing::KeyboardScrollState {
+    u64 generation;
+    u64 visual_context_tree_structural_epoch;
+    Optional<Web::AsyncScrollNodeStableID> target;
+    float page_scroll_distance;
+    float arrow_scroll_distance;
+}
+
+[ExistingCpp]
+struct Compositing::AsyncScrollOffset {
+    Web::AsyncScrollNodeStableID stable_node_id;
+    Gfx::FloatPoint compositor_scroll_offset;
+    Gfx::FloatPoint unadopted_scroll_delta;
+    Gfx::FloatPoint last_relative_scroll_delta;
+    Optional<float> visual_viewport_scale;
+    u64 applied_scroll_request_id;
+    u64 user_input_scroll_count;
+    u64 context_user_input_scroll_count;
+}
+
+[ExistingCpp]
+struct Compositing::SnapAreaIdentity {
+    Web::UniqueNodeID node_id;
+    u8 pseudo_element_type;
+}
+
+[ExistingCpp]
+struct Compositing::SnappedAreas {
+    Vector<Compositing::SnapAreaIdentity> x;
+    Vector<Compositing::SnapAreaIdentity> y;
+}
+
+// NB: CSS pixel points travel as their raw fixed-point values, so that a destination is exactly the one selected.
+[ExistingCpp]
+struct Compositing::SnapDestination {
+    Web::CSSPixelPoint position;
+    bool snapped_x;
+    bool snapped_y;
+    bool evaluated_x;
+    bool evaluated_y;
+    Compositing::SnappedAreas snapped_areas;
+}
+
+[ExistingCpp]
+struct Compositing::StartedUserScroll {
+    Web::AsyncScrollNodeStableID stable_node_id;
+    u64 operation_id;
+    Web::CSSPixelPoint initial_scroll_offset;
+    Web::CSSPixelPoint unsnapped_scroll_destination;
+    Web::CSSPixelPoint relative_scroll_delta;
+    Compositing::SnapDestination selection;
+    bool settles_gesture;
+    bool is_absolute_scroll;
+    Optional<Compositing::ScrollAnimationKind> animation_kind;
+}
+
+[ExistingCpp]
+struct Compositing::AppliedScrollRequest {
+    Web::AsyncScrollNodeStableID stable_node_id;
+    u64 request_id;
+    bool moved_the_box;
+}
+
+[ExistingCpp]
+struct Compositing::PendingAsyncScrollUpdates {
+    Optional<Web::UniqueNodeID> document_id;
+    u64 sequence;
+    Vector<Compositing::AsyncScrollOffset> scroll_offsets;
+    Vector<u64> completed_operation_ids;
+    Vector<u64> operation_ids_taken_over_by_user_input;
+    Vector<Compositing::StartedUserScroll> started_user_scrolls;
+    Vector<Compositing::AppliedScrollRequest> applied_scroll_requests;
+    Vector<Web::AsyncScrollNodeStableID> boxes_in_user_scroll_gesture;
+    Vector<Web::AsyncScrollNodeStableID> boxes_whose_user_scroll_gesture_ended;
+    Optional<Web::AsyncScrollNodeStableID> wheel_latched_scroller;
+}
+
+[ExistingCpp]
+struct Compositing::RequestedRelativeScroll {
+    Gfx::FloatPoint delta;
+    Gfx::FloatPoint lower_bound;
+    Gfx::FloatPoint upper_bound;
+}
+
+[ExistingCpp]
+struct Compositing::RequestedSmoothScroll {
+    u64 operation_id;
+    Gfx::FloatPoint destination_offset;
+    bool destination_is_relative;
+    Gfx::FloatPoint relative_lower_bound;
+    Gfx::FloatPoint relative_upper_bound;
+    Compositing::ScrollAnimationKind animation_kind;
+    Compositing::SmoothScrollInitiator initiator;
+    bool retargets_operation;
+    Optional<u64> settled_user_input_scroll_count;
+}
+
+[ExistingCpp]
+struct Compositing::ScrollRequest {
+    Web::AsyncScrollNodeStableID stable_node_id;
+    u64 request_id;
+    Optional<Gfx::FloatPoint> jump_offset;
+    Optional<float> visual_viewport_scale;
+    Optional<Compositing::RequestedRelativeScroll> relative_scroll;
+    bool relative_scroll_moves_visual_viewport_first;
+    bool instant_scroll_is_for_user_input;
+    Optional<Compositing::RequestedSmoothScroll> smooth_scroll;
+    bool takes_over_from_momentum;
+}
+
+[ExistingCpp]
+struct Compositing::WheelEventAnswer {
+    bool performed_default_action;
+    Optional<Web::WheelGestureMark> wheel_gesture_mark;
+    Optional<u64> operation_id;
+    Optional<Web::CompositorContextId> operation_context_id;
+    Optional<Web::InputRoutingDecision> routing_decision;
+    Optional<Web::AsyncScrollNodeStableID> routed_scroller;
+}
+
+[ExistingCpp]
+struct Compositing::WheelStepLetThrough {
+    Web::UniqueNodeID document_id;
+    Web::WheelGestureMark wheel_gesture_mark;
+    Gfx::FloatPoint position;
+    Gfx::FloatPoint delta_in_css_pixels;
+    Web::WheelDeltaPrecision wheel_delta_precision;
+    Web::ScrollGesturePhase scroll_gesture_phase;
+    Vector<Web::AsyncScrollNodeStableID> scroll_chain;
+}
