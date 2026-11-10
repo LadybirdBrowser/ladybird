@@ -51,7 +51,6 @@ set(SOURCES
     Loader/SiteCompatibility.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
-    Page/AsyncScrollNodeStableID.cpp
     Page/DragEvent.cpp
     Page/InputEvent.cpp
     Page/InputRoutingDecision.cpp
@@ -118,9 +117,14 @@ invoke_py_generator(
 compile_ipc(ContentSecurityPolicy/RemoteViolationDirective.ipc ContentSecurityPolicy/RemoteViolationDirectiveCodecs.h)
 compile_ipc(HTML/NavigationResponse.ipc HTML/NavigationResponseCodecs.h)
 compile_ipc(MixedContent/ProhibitsMixedSecurityContexts.ipc MixedContent/ProhibitsMixedSecurityContextsCodecs.h)
+compile_ipc(Page/AsyncScrollNodeStableID.ipc Page/AsyncScrollNodeStableIDCodecs.h)
 compile_ipc(Page/InputEvent.ipc Page/InputEventCodecs.h)
+compile_ipc(Page/InputRoutingDecision.ipc Page/InputRoutingDecisionCodecs.h)
+compile_ipc(Page/InputTrace.ipc Page/InputTraceCodecs.h)
 compile_ipc(Page/TextEditingCommand.ipc Page/TextEditingCommandCodecs.h)
 compile_ipc(PixelUnits.ipc PixelUnitsCodecs.h)
+compile_ipc(UIEvents/KeyCode.ipc UIEvents/KeyCodeCodecs.h)
+compile_ipc(UIEvents/MouseButton.ipc UIEvents/MouseButtonCodecs.h)
 compile_ipc(UpgradeInsecureRequests/InsecureRequestsPolicy.ipc UpgradeInsecureRequests/InsecureRequestsPolicyCodecs.h)
 compile_ipc(WebView/AccessibilityNodeData.ipc WebView/AccessibilityNodeDataCodecs.h)
 compile_ipc(WebView/DictionaryLookup.ipc WebView/DictionaryLookupCodecs.h)

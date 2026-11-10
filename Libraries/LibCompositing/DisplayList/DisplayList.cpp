@@ -182,60 +182,6 @@ ErrorOr<void> validate_display_list_references_live_visual_context_nodes(Display
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList::AsyncScrollingMetadata const& metadata)
-{
-    TRY(encoder.encode(metadata.document_id));
-    TRY(encoder.encode(metadata.viewport_rect));
-    TRY(encoder.encode(metadata.wheel_event_listener_state_generation));
-    TRY(encoder.encode(metadata.has_blocking_wheel_event_listeners));
-    TRY(encoder.encode(metadata.has_blocking_wheel_event_region_covering_viewport));
-    TRY(encoder.encode(metadata.viewport_keeps_horizontal_scrolls));
-    TRY(encoder.encode(metadata.viewport_keeps_vertical_scrolls));
-    TRY(encoder.encode(metadata.device_pixels_per_css_pixel));
-    TRY(encoder.encode(metadata.keyboard_scroll_state));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::DisplayList::AsyncScrollingMetadata> decode(Decoder& decoder)
-{
-    return Compositing::DisplayList::AsyncScrollingMetadata {
-        .document_id = TRY(decoder.decode<Optional<Web::UniqueNodeID>>()),
-        .viewport_rect = TRY(decoder.decode<Gfx::IntRect>()),
-        .wheel_event_listener_state_generation = TRY(decoder.decode<u64>()),
-        .has_blocking_wheel_event_listeners = TRY(decoder.decode<bool>()),
-        .has_blocking_wheel_event_region_covering_viewport = TRY(decoder.decode<bool>()),
-        .viewport_keeps_horizontal_scrolls = TRY(decoder.decode<bool>()),
-        .viewport_keeps_vertical_scrolls = TRY(decoder.decode<bool>()),
-        .device_pixels_per_css_pixel = TRY(decoder.decode<double>()),
-        .keyboard_scroll_state = TRY(decoder.decode<Compositing::KeyboardScrollState>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList::Properties const& properties)
-{
-    TRY(encoder.encode(properties.id));
-    TRY(encoder.encode(properties.compatible_visual_context_tree_structural_epoch));
-    TRY(encoder.encode(properties.surface_clear_color));
-    TRY(encoder.encode(properties.root_group_color));
-    TRY(encoder.encode(properties.async_scrolling_metadata));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::DisplayList::Properties> decode(Decoder& decoder)
-{
-    return Compositing::DisplayList::Properties {
-        .id = TRY(decoder.decode<u64>()),
-        .compatible_visual_context_tree_structural_epoch = TRY(decoder.decode<u64>()),
-        .surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>()),
-        .root_group_color = TRY(decoder.decode<Gfx::Color>()),
-        .async_scrolling_metadata = TRY(decoder.decode<Optional<Compositing::DisplayList::AsyncScrollingMetadata>>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList const& display_list)
 {
     TRY(encoder.encode(display_list.properties()));

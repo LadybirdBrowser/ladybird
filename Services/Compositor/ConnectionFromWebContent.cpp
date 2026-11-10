@@ -630,6 +630,8 @@ static bool is_valid_scroll_request(Compositing::ScrollRequest const& scroll_req
     if (auto const& smooth_scroll = scroll_request.smooth_scroll; smooth_scroll.has_value()) {
         if (!is_finite(smooth_scroll->destination_offset))
             return false;
+        if (!(smooth_scroll->relative_lower_bound.x() <= smooth_scroll->relative_upper_bound.x() && smooth_scroll->relative_lower_bound.y() <= smooth_scroll->relative_upper_bound.y()))
+            return false;
         // WebContent names the compositor's own scrolls only to head them somewhere else.
         if (smooth_scroll->operation_id < Compositing::first_operation_id_the_main_thread_requests && !smooth_scroll->retargets_operation)
             return false;

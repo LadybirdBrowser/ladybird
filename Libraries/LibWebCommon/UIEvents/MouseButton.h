@@ -61,3 +61,5 @@ constexpr MouseButton button_code_to_mouse_button(i16 button)
 }
 
 }
+
+#include <LibWebCommon/UIEvents/MouseButtonCodecs.h>

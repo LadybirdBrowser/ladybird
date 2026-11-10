@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibWebCommon/Page/InputTrace.h>
 
 namespace Web {
@@ -38,33 +36,6 @@ Vector<InputTraceRecord> InputTraceRecorder::take()
     if (!m_records.has_value())
         return {};
     return m_records.release_value();
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::InputTraceRecord const& record)
-{
-    TRY(encoder.encode(record.input_event_id));
-    TRY(encoder.encode(record.stage));
-    TRY(encoder.encode(record.decision));
-    TRY(encoder.encode(record.scroller));
-    TRY(encoder.encode(record.dom_target));
-    return {};
-}
-
-template<>
-ErrorOr<Web::InputTraceRecord> decode(Decoder& decoder)
-{
-    return Web::InputTraceRecord {
-        .input_event_id = TRY(decoder.decode<u64>()),
-        .stage = TRY(decoder.decode<Web::InputTraceStage>()),
-        .decision = TRY(decoder.decode<Web::InputRoutingDecision>()),
-        .scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
-        .dom_target = TRY(decoder.decode<Optional<Web::UniqueNodeID>>()),
-    };
 }
 
 }

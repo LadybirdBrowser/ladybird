@@ -52,11 +52,4 @@ private:
 
 }
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::InputTraceRecord const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::InputTraceRecord> decode(Decoder&);
-
-}
+#include <LibWebCommon/Page/InputTraceCodecs.h>

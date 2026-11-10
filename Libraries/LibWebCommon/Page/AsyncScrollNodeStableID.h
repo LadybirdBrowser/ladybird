@@ -72,26 +72,4 @@ struct AK::Traits<Web::AsyncScrollNodeStableID> : DefaultTraits<Web::AsyncScroll
     }
 };
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::AsyncScrollNodeStableID const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::AsyncScrollNodeStableID> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::CompositorScrollOffset const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::CompositorScrollOffset> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ScrollbarDraggedByCompositor const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::ScrollbarDraggedByCompositor> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::OverlayScrollbarVisibility const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::OverlayScrollbarVisibility> decode(Decoder&);
-
-}
+#include <LibWebCommon/Page/AsyncScrollNodeStableIDCodecs.h>
