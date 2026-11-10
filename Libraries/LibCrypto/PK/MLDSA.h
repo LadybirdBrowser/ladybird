@@ -67,7 +67,7 @@ class MLDSA : public PKSystem<MLDSAPrivateKey, MLDSAPublicKey> {
 public:
     using KeyPairType = MLDSAKeyPair<PublicKeyType, PrivateKeyType>;
 
-    static ErrorOr<KeyPairType> parse_mldsa_key(MLDSASize, ReadonlyBytes der, Vector<StringView> current_scope);
+    static ErrorOr<KeyPairType> parse_mldsa_key(MLDSASize, ReadonlyBytes der);
     static ErrorOr<KeyPairType> generate_key_pair(MLDSASize, ByteBuffer seed = {});
 
     MLDSA(MLDSASize size, PrivateKeyType const& priv_key, ByteBuffer context)
