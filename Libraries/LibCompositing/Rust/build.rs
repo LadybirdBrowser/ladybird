@@ -296,6 +296,10 @@ fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), B
             "TextEditingCommand.rs",
         ),
         (
+            "Services/Compositor/CompositorWebContentClient.ipc",
+            "CompositorWebContentClientEndpoint.rs",
+        ),
+        (
             "Services/Compositor/RenderClockClient.ipc",
             "RenderClockClientEndpoint.rs",
         ),
