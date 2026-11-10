@@ -60,7 +60,6 @@ public:
     virtual void post_message_to_web_content(IPC::MessageBuffer&) = 0;
     virtual void post_message_to_render_clock(IPC::MessageBuffer&) = 0;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) = 0;
-    virtual void clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> const& scroll_offsets) = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
     virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts) { }
@@ -329,6 +328,7 @@ private:
     void schedule_pending_present_frame_if_unblocked(Web::CompositorContextId, ContextState&);
     bool try_present_frame_during_resize(Web::CompositorContextId, ContextState&);
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
+    DisplayTickResult display_tick(Web::CompositorContextId, ContextState&, MonotonicTime frame_time, MonotonicTime now, DisplayTickInputs const&);
     void present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time);
     void publish_backing_stores(Web::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
     BackingStoreManager::GpuSharing gpu_sharing_for_context(Web::CompositorContextId) const;

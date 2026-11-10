@@ -26,6 +26,13 @@ struct PendingFrame {
     static PendingFrame repainting_changes(Gfx::IntRect viewport_rect) { return { viewport_rect, {} }; }
 };
 
+enum class PresentScheduling : u8 {
+    // The frame is presented on the next tick of the context's display, which the request asks for.
+    OnNextDisplayTick,
+    // The frame joins what the display tick in progress presents.
+    WithDisplayTickInProgress,
+};
+
 // A frame that the scroll and input logic of a context wants presented. The compositor schedules it once the call that
 // asked for it has returned.
 struct PresentRequest {
@@ -33,6 +40,22 @@ struct PresentRequest {
     // Empty for a frame at the viewport rect the context is presented at.
     Optional<Gfx::IntRect> viewport_rect;
     Gfx::IntRect forced_damage_rect;
+    PresentScheduling scheduling { PresentScheduling::OnNextDisplayTick };
+};
+
+// What the presentation knows of a context as a tick of a display begins.
+struct DisplayTickInputs {
+    bool context_is_on_tick_display { false };
+    bool present_is_scheduled_on_tick_display { false };
+    bool ui_overlay_fades_need_frame { false };
+    // Set when the render clock of the context is due a tick now.
+    Optional<double> clock_tick_interval_in_milliseconds;
+};
+
+struct DisplayTickResult {
+    bool presents_on_display { false };
+    // As of the end of the tick, and without the fades of the UI overlays.
+    bool needs_animation_frames { false };
 };
 
 enum class ContextTimer : u8 {

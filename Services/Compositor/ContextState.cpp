@@ -124,6 +124,11 @@ void ContextState::request_rendering_update()
     post_to_web_content<Messages::CompositorWebContentClient::RequestRenderingUpdate>();
 }
 
+void ContextState::post_clock_tick(MonotonicTime frame_time, double frame_interval_milliseconds)
+{
+    post_to_render_clock_of_web_content<Messages::RenderClockClient::ClockTick>(m_context_id, frame_time.nanoseconds(), frame_interval_milliseconds, scroll_offsets());
+}
+
 void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event, bool nested_context_scrolled_since_last_frame)
 {
     VERIFY(m_page_id.has_value());
