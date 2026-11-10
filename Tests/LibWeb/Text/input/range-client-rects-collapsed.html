@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+div { position: absolute; font: 20px/30px Ahem; }
+#wrapped { left: 10px; top: 10px; width: 120px; }
+#pre { left: 200px; top: 10px; white-space: pre; }
+#vertical { left: 400px; top: 10px; writing-mode: vertical-rl; height: 120px; }
+#scroller { left: 10px; top: 200px; width: 200px; height: 60px; overflow: scroll; }
+</style>
+<div id="wrapped">aaa bbbbb ccc</div>
+<div id="pre">one
+
+three</div>
+<div id="vertical">abc def</div>
+<div id="scroller">one<br>two<br>three<br>four<br>five</div>
+<script src="include.js"></script>
+<script>
+    // A collapsed range in text has a zero-width rect where its caret is: at the start of the next line at a soft wrap,
+    // and none on a line with no text.
+    test(() => {
+        const format = rect => `${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`;
+        const collapsedRects = (text, offset) => {
+            const range = document.createRange();
+            range.setStart(text, offset);
+            const rects = [...range.getClientRects()].map(format).join(" ") || "none";
+            return `${rects}, bounding ${format(range.getBoundingClientRect())}`;
+        };
+        document.getElementById("scroller").scrollTop = 20;
+        for (const [id, offsets, child] of [["wrapped", [0, 4, 9, 10, 13]], ["pre", [0, 3, 4, 5, 10]], ["vertical", [0, 2, 7]], ["scroller", [1], 4]]) {
+            const text = document.getElementById(id).childNodes[child ?? 0];
+            for (const offset of offsets)
+                println(`${id} ${offset}: ${collapsedRects(text, offset)}`);
+        }
+    });
+</script>

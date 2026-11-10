@@ -1330,7 +1330,6 @@ Vector<Gfx::DoubleRect> Range::client_rects()
     Vector<Gfx::DoubleRect> rects;
     Optional<Layout::RustFFI::FfiViewportMapping> viewport_mapping;
 
-    // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
     auto next_after_subtree = [](Node& node) -> GC::Ptr<Node> {
         for (auto* current = &node; current; current = current->parent_node()) {
@@ -1370,10 +1369,7 @@ Vector<Gfx::DoubleRect> Range::client_rects()
         auto const is_end_container = node.ptr() == m_end_container.ptr();
         auto selection_state = Painting::SelectionState::Full;
         if (is_start_container && is_end_container) {
-            if (m_start_offset == m_end_offset)
-                selection_state = Painting::SelectionState::None;
-            else
-                selection_state = Painting::SelectionState::StartAndEnd;
+            selection_state = Painting::SelectionState::StartAndEnd;
         } else if (is_start_container) {
             selection_state = Painting::SelectionState::Start;
         } else if (is_end_container) {
@@ -1394,8 +1390,6 @@ Vector<Gfx::DoubleRect> Range::client_rects()
             // 2. For each Text node selected or partially selected by the range (including when the boundary-points
             // are identical), include scaled DOMRect object (for the part that is selected, not the whole line box).
             auto const& text = static_cast<DOM::Text const&>(*node);
-            if (selection_state == Painting::SelectionState::None)
-                continue;
 
             // A text node without a box renders nothing, so it has no rects.
             auto const* layout_node = text.layout_node(read);
