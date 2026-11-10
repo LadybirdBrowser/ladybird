@@ -160,9 +160,16 @@ class PortNode:
         self.dependencies: set[str] = set()
 
 
-def query_dependency_graph(vcpkg: Path, triplet: str, preset: str) -> dict[str, PortNode]:
+def query_dependency_graph(vcpkg: Path, triplet: str, preset: str, install_root: Path) -> dict[str, PortNode]:
+    # NOTE: depend-info still takes the install root's lock, so keep it out of the source tree.
     result = subprocess.run(
-        [str(vcpkg), "depend-info", *common_vcpkg_arguments(triplet, preset), "--format=list"],
+        [
+            str(vcpkg),
+            "depend-info",
+            *common_vcpkg_arguments(triplet, preset),
+            f"--x-install-root={install_root}",
+            "--format=list",
+        ],
         cwd=LADYBIRD_SOURCE_DIR,
         env=vcpkg_environment(),
         capture_output=True,
@@ -491,7 +498,7 @@ def build_dependencies(
             )
             return triplet
 
-        graph = query_dependency_graph(vcpkg, triplet, preset)
+        graph = query_dependency_graph(vcpkg, triplet, preset, build_dir / "vcpkg_installed")
         generate_build_files(platform, preset, build_dir, vcpkg, triplet, graph)
 
         # Wipe the stamps if the binary cache is gone.
