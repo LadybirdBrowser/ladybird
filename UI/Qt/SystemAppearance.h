@@ -6,9 +6,15 @@
 
 #pragma once
 
+#include <AK/Platform.h>
+#include <AK/StringView.h>
 #include <LibWebView/Settings.h>
 
 #include <QObject>
+
+#if defined(AK_OS_LINUX)
+typedef struct _GVariant GVariant;
+#endif
 
 namespace Ladybird {
 
@@ -29,6 +35,11 @@ public:
 
     void apply_interface_theme(WebView::ThemePreference);
     void apply_color_theme(WebView::ColorTheme);
+
+#if defined(AK_OS_LINUX)
+    // Takes in a setting that the desktop's settings portal reported.
+    void apply_portal_setting(StringView key, GVariant* value);
+#endif
 
 signals:
     void changed();
