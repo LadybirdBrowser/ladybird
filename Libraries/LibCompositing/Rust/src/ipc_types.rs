@@ -129,3 +129,39 @@ include!(concat!(env!("OUT_DIR"), "/Types.rs"));
 
 include!(concat!(env!("OUT_DIR"), "/RenderClockClientEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/RenderClockServerEndpoint.rs"));
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Compositing_ScreenshotRequestId(pub u64);
+
+impl Encode for Compositing_ScreenshotRequestId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.0)
+    }
+}
+
+impl Decode for Compositing_ScreenshotRequestId {
+    const MIN_ENCODED_SIZE: usize = size_of::<u64>();
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self(decoder.decode()?))
+    }
+}
+
+pub type Compositing_CanvasId = crate::display_list::commands::CanvasId;
+
+impl Encode for Compositing_CanvasId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.0)
+    }
+}
+
+impl Decode for Compositing_CanvasId {
+    const MIN_ENCODED_SIZE: usize = size_of::<u64>();
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self(decoder.decode()?))
+    }
+}
+
+include!(concat!(env!("OUT_DIR"), "/CompositorWebContentClientEndpoint.rs"));

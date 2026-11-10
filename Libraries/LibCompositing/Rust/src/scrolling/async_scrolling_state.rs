@@ -520,3 +520,32 @@ pub fn wheel_routing_admission_for_with_generation(
     }
     wheel_routing_admission_for(state)
 }
+
+impl crate::ipc_types::Compositing_RequestedRelativeScroll {
+    pub fn applied_to(&self, offset: FloatPoint) -> FloatPoint {
+        let clamp = |value: f32, min: f32, max: f32| {
+            if value > max {
+                max
+            } else if value < min {
+                min
+            } else {
+                value
+            }
+        };
+        FloatPoint {
+            x: clamp(offset.x + self.delta.x, self.lower_bound.x, self.upper_bound.x),
+            y: clamp(offset.y + self.delta.y, self.lower_bound.y, self.upper_bound.y),
+        }
+    }
+}
+
+impl crate::ipc_types::Compositing_RequestedSmoothScroll {
+    pub fn relative_scroll(&self) -> crate::ipc_types::Compositing_RequestedRelativeScroll {
+        assert!(self.destination_is_relative);
+        crate::ipc_types::Compositing_RequestedRelativeScroll {
+            delta: self.destination_offset,
+            lower_bound: self.relative_lower_bound,
+            upper_bound: self.relative_upper_bound,
+        }
+    }
+}

@@ -16,6 +16,8 @@ mod rust_demangle;
 mod rust_panic;
 
 pub mod async_scroll_update_outbox;
+pub mod context_scene;
+pub mod context_state;
 pub mod elastic_overscroll_controller;
 pub mod frame_inputs;
 pub mod host;
