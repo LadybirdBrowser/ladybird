@@ -29,6 +29,9 @@ public:
     Function<void()> on_connection_error;
     Function<void()> on_ready_to_read;
 
+    // Called with how many of the bytes passed to send() have been written to the connection, in order.
+    Function<void(size_t)> on_bytes_written;
+
 protected:
     WebSocketImpl();
 };

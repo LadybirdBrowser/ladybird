@@ -1104,6 +1104,10 @@ void ConnectionFromClient::open_websocket(u64 websocket_id, u64 originating_page
         }
         strong_self->async_websocket_received(websocket_id, message.is_text(), data);
     };
+    connection->on_message_bytes_transmitted = [self = weak_self, websocket_id](u64 byte_count) {
+        if (auto strong_self = self.strong_ref())
+            strong_self->async_websocket_transmitted(websocket_id, byte_count);
+    };
     connection->on_error = [self = weak_self, websocket_id](auto message) {
         if (auto strong_self = self.strong_ref())
             strong_self->async_websocket_errored(websocket_id, (i32)message);

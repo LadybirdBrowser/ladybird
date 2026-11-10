@@ -46,7 +46,11 @@ ErrorOr<ByteBuffer> AcceptedSocket::read(int max_size)
 
 bool AcceptedSocket::send(ReadonlyBytes bytes)
 {
-    return !m_socket->write_until_depleted(bytes).is_error();
+    if (m_socket->write_until_depleted(bytes).is_error())
+        return false;
+    if (on_bytes_written)
+        on_bytes_written(bytes.size());
+    return true;
 }
 
 bool AcceptedSocket::eof()

@@ -45,6 +45,8 @@ public:
         on_ready_to_read();
     }
 
+    void write(size_t byte_count) { on_bytes_written(byte_count); }
+
     Vector<ByteBuffer> const& sent_frames() const { return m_sent_frames; }
     bool fail_writes { false };
 
@@ -446,6 +448,37 @@ TEST_CASE(ping_is_answered_only_while_open)
     implementation->receive(MUST(ByteBuffer::copy(ping)));
     EXPECT(websocket->ready_state() == WebSocket::ReadyState::Closing);
     EXPECT_EQ(implementation->sent_frames().size(), 2u);
+}
+
+TEST_CASE(only_message_bytes_count_as_transmitted)
+{
+    Core::EventLoop event_loop;
+
+    auto implementation = adopt_ref(*new TestWebSocketImpl);
+    auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
+    auto websocket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(move(url)), implementation);
+    u64 transmitted = 0;
+    websocket->on_message_bytes_transmitted = [&](u64 byte_count) { transmitted += byte_count; };
+    websocket->start();
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
+
+    // A 5-byte message after a 2-byte header and a 4-byte mask, a 7-byte pong, and a 200-byte message after a 4-byte
+    // header and the mask.
+    websocket->send(WebSocket::Message { ByteString { "hello"sv } });
+    u8 const ping[] { 0x89, 1, 'P' };
+    implementation->receive(MUST(ByteBuffer::copy(ping)));
+    websocket->send(WebSocket::Message { ByteString::repeated('x', 200) });
+
+    implementation->write(6);
+    EXPECT_EQ(transmitted, 0u);
+    implementation->write(3);
+    EXPECT_EQ(transmitted, 3u);
+    implementation->write(2 + 7 + 8);
+    EXPECT_EQ(transmitted, 5u);
+    implementation->write(150);
+    EXPECT_EQ(transmitted, 155u);
+    implementation->write(50);
+    EXPECT_EQ(transmitted, 205u);
 }
 
 TEST_CASE(oversized_ping_fails_connection)
