@@ -1866,7 +1866,14 @@ void CompositorState::schedule_requested_presents()
             viewport_rect = context->presenter().viewport_rect_for_ui_overlay();
         if (!viewport_rect.has_value())
             continue;
-        schedule_present_frame(request.context_id, *context, PendingFrame { *viewport_rect, request.forced_damage_rect });
+        switch (request.scheduling) {
+        case PresentScheduling::OnNextDisplayTick:
+            schedule_present_frame(request.context_id, *context, PendingFrame { *viewport_rect, request.forced_damage_rect });
+            break;
+        case PresentScheduling::WithDisplayTickInProgress:
+            context->presenter().queue_present_frame(PendingFrame { *viewport_rect, request.forced_damage_rect });
+            break;
+        }
     }
 }
 
@@ -1967,14 +1974,44 @@ VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> displ
     });
 }
 
+DisplayTickResult CompositorState::display_tick(Web::CompositorContextId context_id, ContextState& context, MonotonicTime frame_time, MonotonicTime now, DisplayTickInputs const& inputs)
+{
+    auto has_active_animation_on_display = (context.needs_animation_frames(now) || inputs.ui_overlay_fades_need_frame) && inputs.context_is_on_tick_display;
+    auto presents_on_display = inputs.present_is_scheduled_on_tick_display || has_active_animation_on_display;
+    if (presents_on_display) {
+        if (inputs.context_is_on_tick_display)
+            dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time), frame_time);
+        if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
+            m_present_requests.append({ context_id, *animation_frame, {}, PresentScheduling::WithDisplayTickInProgress });
+        if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())
+            m_present_requests.append({ context_id, *rebound_frame, {}, PresentScheduling::WithDisplayTickInProgress });
+        if (auto damage_rect = context.advance_scrollbar_fades_and_return_damage_rect(frame_time); !damage_rect.is_empty())
+            m_present_requests.append({ context_id, {}, damage_rect, PresentScheduling::WithDisplayTickInProgress });
+    }
+
+    // A render clock tick goes to the process's render clock thread, beside what its main thread is doing, with
+    // where the compositor has scrolled to for this vsync, which that main thread may not have taken in yet.
+    if (inputs.clock_tick_interval_in_milliseconds.has_value())
+        context.post_clock_tick(frame_time, *inputs.clock_tick_interval_in_milliseconds);
+
+    if (presents_on_display) {
+        publish_pending_async_scroll_updates(context_id, context);
+        if (context.visual_animations_need_frame(now)) {
+            context.advance_visual_animations(frame_time);
+            m_present_requests.append({ context_id, {}, {}, PresentScheduling::WithDisplayTickInProgress });
+        }
+    }
+    return { .presents_on_display = presents_on_display, .needs_animation_frames = context.needs_animation_frames(now) };
+}
+
 void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time)
 {
     update_video_sinks_for_display(display_id);
 
     for (auto& context_entry : m_contexts) {
-        auto now = MonotonicTime::now();
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
+        auto now = MonotonicTime::now();
         if (!context_is_effectively_visible(context)) {
             context.presenter().unschedule_pending_present_frame();
             continue;
@@ -1991,56 +2028,40 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
             }
         }
 
-        auto has_active_animation_on_display = needs_animation_frames(context, now) && display_id_for_context(context) == display_id;
-        auto presents_on_display = has_pending_present_frame_scheduled_on(context, display_id) || has_active_animation_on_display;
-        if (presents_on_display) {
-            if (display_id_for_context(context) == display_id)
-                dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time), frame_time);
-            schedule_requested_presents();
-            if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
-                context.presenter().queue_present_frame(PendingFrame::repainting_changes(*animation_frame));
-            if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())
-                context.presenter().queue_present_frame(PendingFrame::repainting_changes(*rebound_frame));
-            if (auto fade_frame = context.presenter().advance_ui_overlay_fades(frame_time); fade_frame.has_value())
-                context.presenter().queue_present_frame(*fade_frame);
-            if (auto damage_rect = context.advance_scrollbar_fades_and_return_damage_rect(frame_time); !damage_rect.is_empty()) {
-                if (auto viewport_rect = context.presenter().viewport_rect_for_ui_overlay(); viewport_rect.has_value())
-                    context.presenter().queue_present_frame({ *viewport_rect, damage_rect });
-            }
-        }
-
-        // A render clock tick goes to the process's render clock thread, beside what its main thread is doing, with
-        // where the compositor has scrolled to for this vsync, which that main thread may not have taken in yet.
-        if (context.clock_tick_requested() && display_id_for_context(context) == display_id) {
+        auto context_is_on_tick_display = display_id_for_context(context) == display_id;
+        DisplayTickInputs inputs {
+            .context_is_on_tick_display = context_is_on_tick_display,
+            .present_is_scheduled_on_tick_display = has_pending_present_frame_scheduled_on(context, display_id),
+            .ui_overlay_fades_need_frame = context.presenter().ui_overlay_fades_need_frame(),
+            .clock_tick_interval_in_milliseconds = {},
+        };
+        if (context.clock_tick_requested() && context_is_on_tick_display) {
             auto display_refresh_rate = display_refresh_rate_for_context(context);
             if (context.clock_tick_is_due(frame_time, display_refresh_rate)) {
-                auto frame_interval = context.clock_tick_interval(display_refresh_rate);
+                inputs.clock_tick_interval_in_milliseconds = context.clock_tick_interval(display_refresh_rate);
                 context.did_deliver_clock_tick(frame_time);
-                web_content_client_of(context).clock_tick(context_id, frame_time.nanoseconds(), frame_interval, context.scroll_offsets());
             } else {
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
             }
         }
 
-        if (!presents_on_display)
+        VERIFY(m_present_requests.is_empty());
+        auto tick = display_tick(context_id, context, frame_time, now, inputs);
+        schedule_requested_presents();
+        if (!tick.presents_on_display)
             continue;
-
-        publish_pending_async_scroll_updates(context_id, context);
-        if (context.visual_animations_need_frame(now)) {
-            context.advance_visual_animations(frame_time);
-            if (auto viewport_rect = context.presenter().viewport_rect_for_ui_overlay(); viewport_rect.has_value())
-                context.presenter().queue_present_frame(PendingFrame::repainting_changes(*viewport_rect));
-        }
+        if (auto fade_frame = context.presenter().advance_ui_overlay_fades(frame_time); fade_frame.has_value())
+            context.presenter().queue_present_frame(*fade_frame);
 
         add_backing_store_for_pending_frame_if_needed(context_id, context);
+        auto needs_animation_frames = tick.needs_animation_frames || context.presenter().ui_overlay_fades_need_frame();
         auto pending_present_frame = context.presenter().take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
-            has_active_animation_on_display = needs_animation_frames(context, now) && display_id_for_context(context) == display_id;
-            if (has_pending_present_frame_scheduled_on(context, display_id) || has_active_animation_on_display)
+            if (has_pending_present_frame_scheduled_on(context, display_id) || (needs_animation_frames && context_is_on_tick_display))
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
             continue;
         }
-        if (needs_animation_frames(context, now))
+        if (needs_animation_frames)
             schedule_present_frame(context_id, context, PendingFrame::repainting_changes(pending_present_frame->viewport_rect));
         present_frame(context_id, context, *pending_present_frame);
     }

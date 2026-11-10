@@ -105,7 +105,6 @@ private:
     virtual void post_message_to_web_content(IPC::MessageBuffer&) override;
     virtual void post_message_to_render_clock(IPC::MessageBuffer&) override;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
-    virtual void clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> const& scroll_offsets) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
     virtual void request_animated_image_frames(AnimatedImage::FrameRequest const&) override;

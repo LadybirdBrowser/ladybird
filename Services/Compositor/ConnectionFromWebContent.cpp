@@ -67,12 +67,6 @@ void ConnectionFromWebContent::install_render_clock_channel(IPC::TransportHandle
     };
 }
 
-void ConnectionFromWebContent::clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> const& scroll_offsets)
-{
-    if (m_render_clock_connection)
-        m_render_clock_connection->async_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds, scroll_offsets);
-}
-
 void ConnectionFromWebContent::drop_image_decoder()
 {
     if (!m_image_decoder)
