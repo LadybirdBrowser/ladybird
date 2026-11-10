@@ -1117,11 +1117,6 @@ impl PortableMacroAssembler for MacroAssembler {
     }
 
     fn emit_prologue(&mut self, frame: &MachineFrame) {
-        self.emit_prologue_unprobed(frame);
-        self.probe_frame(frame);
-    }
-
-    fn emit_prologue_unprobed(&mut self, frame: &MachineFrame) {
         self.assembler.push(RBP);
         self.assembler.mov_rr(W64, RBP, RSP);
         for register in frame.saved_gprs.iter() {
@@ -1136,10 +1131,7 @@ impl PortableMacroAssembler for MacroAssembler {
             let offset = frame.locals_size + 8 * i as u32;
             self.assembler.movsd_mr(&Address::new(RSP, offset as i32), register);
         }
-    }
-
-    fn probe_frame(&mut self, frame: &MachineFrame) {
-        let reserved = Self::reserved_frame_bytes(frame) as i32;
+        let reserved = reserved as i32;
         if needs_stack_probes(reserved) {
             // NB: The pushes touched the stack down to where the reserved part starts.
             self.assembler.lea(W64, SCRATCH, &Address::new(RSP, reserved));
