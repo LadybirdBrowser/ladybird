@@ -12,6 +12,7 @@ const searchSuggestions = document.querySelector("#search-suggestions");
 const searchSuggestionsEnabled = document.querySelector("#search-suggestions-enabled");
 const searchSuggestionsDescription = document.querySelector("#search-suggestions-description");
 const tabLayoutInputs = document.querySelectorAll('input[name="tab-layout"]');
+const colorThemeInputs = document.querySelectorAll('input[name="color-theme"]');
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
 const saveStatus = document.querySelector("#save-status");
 
@@ -101,12 +102,18 @@ function updateTabLayout() {
     for (const input of tabLayoutInputs) input.checked = input.value === layout;
 }
 
+function updateColorTheme() {
+    const colorTheme = settings.appearance.colorTheme || "neutral";
+    for (const input of colorThemeInputs) input.checked = input.value === colorTheme;
+}
+
 function initialize() {
     if (initialized || !settings || !engines || !features) return;
     initialized = true;
 
     document.querySelector("#tab-layout-section").classList.toggle("hidden", !features.verticalTabs);
     updateTabLayout();
+    updateColorTheme();
 
     renderSearchEngines();
     updateSearchSuggestions();
@@ -126,6 +133,16 @@ for (const input of tabLayoutInputs) {
             everythingInSidebar: input.value === "sidebar",
         };
         ladybird.sendMessage("setTabSettings", settings.tabs);
+    });
+}
+
+// Picking a color recolors the window around the page at once.
+for (const input of colorThemeInputs) {
+    input.addEventListener("change", () => {
+        if (!initialized || !input.checked) return;
+        // NB: Keep our copy current, as the settings update for this change can arrive after the next one is made.
+        settings.appearance = { ...settings.appearance, colorTheme: input.value };
+        ladybird.sendMessage("setAppearance", settings.appearance);
     });
 }
 
@@ -171,6 +188,7 @@ document.addEventListener("WebUIMessage", event => {
 
         if (initialized) {
             if (Object.hasOwn(data, "tabs")) updateTabLayout();
+            if (Object.hasOwn(data, "appearance")) updateColorTheme();
             if (Object.hasOwn(data, "searchEngine")) {
                 for (const radio of searchEngines.querySelectorAll("input"))
                     radio.checked = radio.value === settings.searchEngine.engine;
