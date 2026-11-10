@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<!-- Repeated background tiles wider than a bitmap can be must not crash the compositor. -->
+<style>
+    div { width: 400px; height: 400px; background-repeat: repeat; background-size: 70000px 1px; }
+    .svg { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><rect width='10' height='10' fill='green'/></svg>"); }
+    .gradient { height: 4000px; background-image: linear-gradient(to right, red, blue); }
+</style>
+<div class="svg"></div>
+<div class="gradient"></div>
