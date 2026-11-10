@@ -475,6 +475,11 @@ void PageClient::set_palette_impl(Gfx::PaletteImpl& impl)
 {
     m_palette_impl = impl;
     page().invalidate_style_for_preference_change();
+    // NB: Painting reads the palette's selection colors, which no style depends on.
+    for (auto const& navigable : page().hosted_navigables()) {
+        navigable->set_needs_to_record_display_list();
+        navigable->set_needs_repaint();
+    }
     request_frame();
 }
 
