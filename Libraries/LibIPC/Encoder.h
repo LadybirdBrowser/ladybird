@@ -222,6 +222,13 @@ ErrorOr<void> encode(Encoder& encoder, T const& variant)
     });
 }
 
+template<Concepts::Encoded T>
+ErrorOr<void> encode(Encoder& encoder, T const& value)
+{
+    TRY(encoder.encode_size(value.bytes().size()));
+    return encoder.append(value.bytes().data(), value.bytes().size());
+}
+
 // This must be last so that it knows about the above specializations.
 template<typename T>
 ErrorOr<void> Encoder::encode(T const& value)

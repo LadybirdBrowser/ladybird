@@ -12,7 +12,9 @@
 use core::ffi::{c_int, c_void};
 
 use crate::attachment::Attachment;
-use crate::wire::{DispatchError, EncodeError, EncodedMessage, EndpointMessage, Misbehavior};
+use crate::wire::{
+    Decode, DecodeError, Decoder, DispatchError, EncodeError, EncodedMessage, EndpointMessage, Misbehavior,
+};
 
 /// A Mach port name and its disposition on Apple, and a descriptor elsewhere: `IPC::RawAttachment`.
 #[repr(C)]
@@ -140,6 +142,21 @@ impl RawMessage<'_> {
             Err(DispatchError::Misbehavior(Misbehavior(what_the_peer_did))) => did_misbehave(what_the_peer_did),
             Err(DispatchError::EncodeResponse(error)) => panic!("The response to a message does not encode: {error:?}"),
         }
+    }
+}
+
+/// A value as C++ encoded it for Rust to decode, lent for a call: the bytes of an `IPC::Encoded<T>`.
+#[repr(transparent)]
+pub struct EncodedValue<'a>(ak::Span<'a, u8>);
+
+impl EncodedValue<'_> {
+    pub fn decode<T: Decode>(&self) -> Result<T, DecodeError> {
+        let mut decoder = Decoder::new(self.0.as_slice(), []);
+        let value = decoder.decode()?;
+        if !decoder.is_at_end() {
+            return Err(DecodeError::InvalidValue("bytes after an encoded value"));
+        }
+        Ok(value)
     }
 }
 

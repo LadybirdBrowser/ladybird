@@ -272,6 +272,12 @@ ErrorOr<T> decode(Decoder& decoder)
     return Detail::decode_variant<T>(decoder, index);
 }
 
+template<Concepts::Encoded T>
+ErrorOr<T> decode(Decoder& decoder)
+{
+    return T::from_bytes(TRY(decoder.decode<ByteBuffer>()));
+}
+
 // This must be last so that it knows about the above specializations.
 template<typename T>
 ErrorOr<T> Decoder::decode()
