@@ -1,0 +1,6 @@
+text: 10,35 40x20
+br1: left 290, middle -5
+br2: left 290, middle 25
+br3: left 250, middle 55
+sticky text: 30,155 40x20
+text after sticky: 10,185 80x20
