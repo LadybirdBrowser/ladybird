@@ -13,7 +13,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
-#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
@@ -22,7 +21,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -373,230 +371,66 @@ CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
     return absolute_position(node);
 }
 
-static bool has_content(Layout::Node const& node)
+Layout::RustFFI::FfiCaret caret_at_position(Layout::BegunRead const& read, DOM::Position const& position, Layout::RustFFI::FfiViewportMapping viewport_mapping)
 {
-    // Interrupting block-in-inline children produce only placeholder pieces, so any child
-    // paintable also counts as content.
-    return Layout::RustFFI::render_state_inline_paintable_has_content_pieces(node.document_host(), committed_row_slot(node))
-        || Layout::RustFFI::layout_row_paintable_has_child_paintables(node.document_host(), committed_row_slot(node));
-}
-
-static CSSPixelRect caret_rect_for_empty_line(Layout::NodeWithStyle const& node, CSSPixelPoint position)
-{
-    // NB: Match the font-height caret used by text fragments, centered in the empty line's line-height box.
-    auto const& font_metrics = node.first_available_font().pixel_metrics();
-    auto line_height = node.line_height();
-    auto caret_height = min(line_height, CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent));
-    return { position.x(), position.y() + (line_height - caret_height) / 2, 1, caret_height };
-}
-
-static Optional<Layout::RustFFI::FfiCaretRectResult> caret_at_atomic_child(Layout::Node const& layout_node, size_t offset)
-{
-    auto const& read = layout_node.held_read();
-    auto* node = layout_node.dom_node();
-    if (!node)
-        return {};
-    auto resolve = [&](size_t child_offset) -> Optional<Layout::RustFFI::FfiCaretRectResult> {
-        auto const* child = node->child_at_index(child_offset);
-        auto* child_layout_node = child ? child->unsafe_layout_node(read) : nullptr;
-        if (!child_layout_node || !child_layout_node->is_atomic_inline())
-            return {};
-        Layout::RustFFI::FfiCaretRectResult result;
-        Layout::RustFFI::layout_script_atomic_inline_caret_rect_for_position(
-            layout_node.document_host(), Layout::Node::slot_id(child_layout_node), child_offset < offset, &result);
-        if (!result.found)
-            return {};
-        return result;
+    Layout::RustFFI::FfiCaret caret {};
+    auto const& node = *position.node();
+    auto const* layout_node = node.unsafe_layout_node(read);
+    if (!layout_node)
+        return caret;
+    auto slot_of = [&](DOM::Node const* child) {
+        auto const* child_layout_node = child ? child->unsafe_layout_node(read) : nullptr;
+        return child_layout_node ? Layout::Node::slot_id(child_layout_node) : Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
     };
-    if (offset > 0) {
-        if (auto result = resolve(offset - 1); result.has_value())
-            return result;
-    }
-    return resolve(offset);
-}
-
-// Caret rect for a cursor parked on this paintable's DOM node at the given child offset, e.g. on an empty line
-// rendered by a <br> child or in an empty editable element.
-CSSPixelRect caret_rect_for_child_offset(Layout::BegunRead const& read, Layout::Node const& block, size_t offset)
-{
-    if (!has_committed_box(block))
-        return {};
-    auto const& styled_block = as<Layout::NodeWithStyle>(block);
-
-    auto content_box = absolute_padding_box_rect(block);
-    auto line_height = styled_block.line_height();
-    auto rect = caret_rect_for_empty_line(styled_block, content_box.location());
-    auto caret_offset_in_line = rect.y() - content_box.y();
-
-    auto dom_node = block.dom_node();
-    if (!dom_node)
-        return rect;
-
-    if (auto atomic_caret = caret_at_atomic_child(block, offset); atomic_caret.has_value())
-        return atomic_caret->rect;
-
-    // NB: A boundary beside a text child has the same geometry as the corresponding text offset.
-    //     Editors can leave the selection on the parent after inserting their first character.
-    //     Use the text fragment's position and font metrics instead of the empty-block fallback.
-    auto caret_rect_in_text = [&](DOM::Node const* node, size_t text_offset) -> Optional<CSSPixelRect> {
-        auto const* text = as_if<DOM::Text>(node);
-        auto const* layout_node = text ? text->unsafe_layout_node(read) : nullptr;
-        if (!layout_node)
-            return {};
-        Layout::RustFFI::FfiCaretRectResult result;
-        Layout::RustFFI::layout_script_text_caret_rect_for_position(
-            block.document_host(), Layout::Node::slot_id(layout_node), text_offset, true, &result);
-        if (result.found)
-            return result.rect;
-        return {};
+    auto offset = position.offset();
+    auto const* child_before = offset > 0 ? node.child_at_index(offset - 1) : nullptr;
+    Layout::RustFFI::FfiCaretPosition ffi_position {
+        .node = Layout::Node::slot_id(layout_node),
+        .offset = offset,
+        .downstream = position.affinity() == TextAffinity::Downstream,
+        .child_before = slot_of(child_before),
+        .child_before_length = child_before ? child_before->length() : 0,
+        .child_after = slot_of(node.child_at_index(offset)),
     };
-    if (offset > 0) {
-        auto const* previous_child = dom_node->child_at_index(offset - 1);
-        if (auto text_rect = caret_rect_in_text(previous_child, previous_child ? previous_child->length() : 0); text_rect.has_value())
-            return *text_rect;
-    }
-    if (auto text_rect = caret_rect_in_text(dom_node->child_at_index(offset), 0); text_rect.has_value())
-        return *text_rect;
-
-    auto* child = dom_node->child_at_index(offset);
-    if (!child || !is<HTML::HTMLBRElement>(*child))
-        return rect;
-
-    if (auto const* break_layout_node = child->unsafe_layout_node(read)) {
-        CSSPixelPoint line_position;
-        if (Layout::RustFFI::layout_script_empty_line_ended_by_forced_break_position(block.document_host(), committed_row_slot(block), Layout::Node::slot_id(break_layout_node), &line_position))
-            return caret_rect_for_empty_line(styled_block, line_position);
-    }
-
-    // A caret parked before a <br> sits on the line below the content preceding the <br>. Layout produces no
-    // fragments for <br>, so start below the fragments of any preceding content, and add one line height for each
-    // empty line rendered by earlier <br>s.
-    struct PrecedingContentContext {
-        GC::Ref<DOM::Node> child;
-        Layout::BegunRead const& read;
-        Optional<CSSPixels> preceding_content_bottom;
-    } preceding_context {
-        .child = const_cast<DOM::Node&>(*child),
-        .read = read,
-        .preceding_content_bottom = {},
-    };
-    Layout::RustFFI::render_state_for_each_subtree_fragment_rect(
-        block.document_host(), committed_row_slot(block), &preceding_context,
-        [](void* context_pointer, Compositing::RustFFI::NodeSlotId fragment_slot, CSSPixelRect rect) {
-            auto& context = *static_cast<PrecedingContentContext*>(context_pointer);
-            auto const* fragment_layout_node = context.child->document().layout_node_arena().node_if_live(context.read, fragment_slot);
-            auto* fragment_dom_node = fragment_layout_node ? const_cast<DOM::Node*>(fragment_layout_node->dom_node()) : nullptr;
-            if (!fragment_dom_node || !(context.child->compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
-                return;
-            auto bottom = rect.bottom();
-            if (!context.preceding_content_bottom.has_value() || bottom > *context.preceding_content_bottom)
-                context.preceding_content_bottom = bottom;
-        });
-    auto& preceding_content_bottom = preceding_context.preceding_content_bottom;
-
-    size_t preceding_empty_lines = 0;
-    dom_node->for_each_in_subtree_of_type<HTML::HTMLBRElement>([&](auto& br) {
-        if (&br == child)
-            return TraversalDecision::Break;
-        if (br.represents_empty_line(read))
-            ++preceding_empty_lines;
-        return TraversalDecision::Continue;
-    });
-
-    rect.set_y(preceding_content_bottom.value_or(content_box.y()) + line_height * preceding_empty_lines + caret_offset_in_line);
-    return rect;
+    Layout::RustFFI::layout_script_caret(layout_node->document_host(), ffi_position, viewport_mapping, &caret);
+    return caret;
 }
 
 Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead const& read, DOM::Document& document)
 {
-    Layout::RustFFI::FfiCaretPaint caret {};
+    Layout::RustFFI::FfiCaretPaint caret_paint {};
     Compositing::RustFFI::NodeSlotId const no_slot { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
-    caret.kind = Layout::RustFFI::FfiCaretPaintKind::None;
-    caret.block = no_slot;
-    caret.owner = no_slot;
+    caret_paint.kind = Layout::RustFFI::FfiCaretPaintKind::None;
+    caret_paint.block = no_slot;
+    caret_paint.owner = no_slot;
 
     auto cursor_position = document.cursor_position();
     if (!cursor_position)
-        return caret;
+        return caret_paint;
     // The caret paints only while the cursor node is editable (or a mutable text control has focus), and the recorder
-    // paints it only while the window has focus; every candidate box below has a committed box.
-    auto const* cursor_node = cursor_position->node().ptr();
-    if (!cursor_node)
-        return caret;
+    // paints it only while the window has focus.
     bool cursor_is_editable = false;
     if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr()); text_control && text_control->text_control_to_html_element().is_mutable())
         cursor_is_editable = true;
     else
-        cursor_is_editable = cursor_node->is_editable_or_editing_host();
+        cursor_is_editable = cursor_position->node()->is_editable_or_editing_host();
     if (!cursor_is_editable)
-        return caret;
+        return caret_paint;
 
-    auto fill = [&](Layout::RustFFI::FfiCaretPaintKind kind, Compositing::RustFFI::NodeSlotId block, Compositing::RustFFI::NodeSlotId owner, CSSPixelRect rect, Color color) {
-        caret.kind = kind;
-        caret.block = block;
-        caret.owner = owner;
-        caret.rect = rect;
-        caret.color = color;
-        caret.blink_cycle_start_time_ns = document.cursor_blink_cycle_start_time_ns();
-        caret.should_blink = !HTML::Window::in_test_mode();
-    };
-
-    if (auto const* text = as_if<DOM::Text>(cursor_node)) {
-        auto const* text_layout_node = text->unsafe_layout_node(read);
-        if (!text_layout_node)
-            return caret;
-        auto* host = text_layout_node->document_host();
-        Layout::RustFFI::FfiCaretRectResult result;
-        Layout::RustFFI::layout_script_text_caret_rect_for_position(
-            host, Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
-            cursor_position->affinity() == TextAffinity::Downstream, &result);
-        if (result.found) {
-            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(read, result.style_source));
-            if (style_source && layout_node_is_visible(*style_source))
-                fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, result.owner_paintable, result.nearest_self_painting_inline, result.rect, style_source->caret_color());
-            return caret;
-        }
-        // No fragment holds the position: the caret sits on an empty line of the block that lays the text out.
-        for (auto const* block = text_layout_node->parent(); block; block = block->parent()) {
-            if (!has_committed_box(*block) || !is_visible(*block))
-                continue;
-            Layout::RustFFI::FfiEmptyLineCaretRect empty_line;
-            Layout::RustFFI::layout_script_paintable_empty_line_caret_rect(
-                host, committed_row_slot(*block), Layout::Node::slot_id(text_layout_node), cursor_position->offset(), &empty_line);
-            if (!empty_line.has_value)
-                continue;
-            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(read, empty_line.style_source));
-            if (!style_source)
-                return caret;
-            auto empty_line_rect = empty_line.rect;
-            fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, committed_row_slot(*block), no_slot, CSSPixelRect { empty_line_rect.x(), empty_line_rect.y(), 1, empty_line_rect.height() }, style_source->caret_color());
-            return caret;
-        }
-        return caret;
-    }
-
-    // The cursor is parked on an element: its own box paints the caret at the child offset, or, for an
-    // empty editable inline, at the box's position.
-    auto const* layout_node = cursor_node->layout_node(read);
-    if (!layout_node || !has_committed_box(*layout_node))
-        return caret;
-    auto const& styled_node = as<Layout::NodeWithStyle>(*layout_node);
-    if (is_inline_paintable(*layout_node)) {
-        if (auto atomic_caret = caret_at_atomic_child(*layout_node, cursor_position->offset()); atomic_caret.has_value()) {
-            if (layout_node_is_visible(styled_node))
-                fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, atomic_caret->owner_paintable, atomic_caret->nearest_self_painting_inline, atomic_caret->rect, styled_node.caret_color());
-            return caret;
-        }
-        if (has_content(*layout_node))
-            return caret;
-        auto position = box_type_agnostic_position(*layout_node);
-        fill(Layout::RustFFI::FfiCaretPaintKind::EmptyInline, committed_row_slot(*layout_node), no_slot, caret_rect_for_empty_line(styled_node, position), styled_node.caret_color());
-        return caret;
-    }
-    if (!is_visible(*layout_node))
-        return caret;
-    fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, committed_row_slot(*layout_node), no_slot, caret_rect_for_child_offset(read, *layout_node, cursor_position->offset()), styled_node.caret_color());
-    return caret;
+    auto caret = caret_at_position(read, *cursor_position, {});
+    if (!caret.found)
+        return caret_paint;
+    auto const* style_source = static_cast<Layout::NodeWithStyle const*>(document.layout_node_arena().node_if_live(read, caret.style_source));
+    if (!style_source || !layout_node_is_visible(*style_source))
+        return caret_paint;
+    caret_paint.kind = caret.paint;
+    caret_paint.block = caret.block;
+    caret_paint.owner = caret.owner;
+    caret_paint.rect = caret.rect;
+    caret_paint.color = style_source->caret_color();
+    caret_paint.blink_cycle_start_time_ns = document.cursor_blink_cycle_start_time_ns();
+    caret_paint.should_blink = !HTML::Window::in_test_mode();
+    return caret_paint;
 }
 
 Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(Layout::BegunRead const& read, DOM::Document const& document)

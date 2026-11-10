@@ -50,6 +50,7 @@ pub use libcompositing_rust::node_slot_id;
 pub(crate) mod frameset_formatting_context;
 mod partial_relayout;
 pub(crate) mod prepared_inline_content;
+pub(crate) mod query;
 pub(crate) mod quote_depth;
 pub(crate) mod rendered_text;
 pub(crate) mod replaced_sizing;

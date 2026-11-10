@@ -717,22 +717,6 @@ pub extern "C" fn render_state_paintable_svg_text_character_cells(
     })
 }
 
-#[repr(C)]
-pub struct FfiCaretRectResult {
-    pub found: bool,
-    pub rect: FfiCssPixelRect,
-    pub style_source: NodeSlotId,
-    pub owner_paintable: NodeSlotId,
-    pub nearest_self_painting_inline: NodeSlotId,
-}
-
-#[repr(C)]
-pub struct FfiEmptyLineCaretRect {
-    pub has_value: bool,
-    pub rect: FfiCssPixelRect,
-    pub style_source: NodeSlotId,
-}
-
 /// The part of `rect`, in the viewport, that the content clips of the containing blocks of the box in `slot` leave.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_visible_rect_in_containing_blocks(
@@ -790,24 +774,6 @@ pub unsafe extern "C" fn render_state_collect_boxes_with_auto_content_visibility
         // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
         unsafe { push_box(context, slot) };
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_inline_paintable_has_content_pieces(
-    host: &DocumentHost,
-    inline_paintable: NodeSlotId,
-) -> bool {
-    read_arena(host, node_read(), inline_paintable, |arena, inline_paintable| {
-        let mut has_content = false;
-        with_inline_pieces(&arena.paintable_rows(), inline_paintable, |piece| {
-            if !piece.is_geometry_only_placeholder {
-                has_content = true;
-                return false;
-            }
-            true
-        });
-        has_content
-    })
 }
 
 #[repr(C)]
@@ -881,8 +847,7 @@ pub unsafe extern "C" fn render_state_text_visual_lines(
 ) {
     let lines = {
         read_arena(host, node_read(), primary, |arena, primary| {
-            let fragments = arena.text_fragments(primary);
-            crate::painting::visual_lines::collect_visual_lines(&arena.paintable_rows(), fragments.as_slice())
+            crate::layout::query::inline_cursor::InlineCursor::new(&arena.paintable_rows()).lines_of_text(primary)
         })
     };
     for line in lines {
@@ -895,8 +860,8 @@ pub unsafe extern "C" fn render_state_text_visual_lines(
                     end_offset: line.end_offset,
                     end_offset_with_trailing_whitespace: line.end_offset_with_trailing_whitespace,
                     has_fragments: line.has_fragments,
-                    owner_paintable: line.owner.index,
-                    line_index: line.line_index,
+                    owner_paintable: line.line.root.index,
+                    line_index: line.line.index,
                 },
             );
         }
@@ -1019,12 +984,6 @@ pub extern "C" fn render_state_visual_line_offset_closest_to_inline_coordinate(
             .unwrap_or(fallback_offset)
         },
     )
-}
-
-#[repr(C)]
-pub struct FfiOptionalCssPixelRect {
-    pub has_value: bool,
-    pub rect: FfiCssPixelRect,
 }
 
 /// # Safety

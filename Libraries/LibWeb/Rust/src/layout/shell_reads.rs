@@ -296,13 +296,6 @@ pub extern "C" fn layout_row_paintable_is_positioned(host: &DocumentHost, slot: 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_row_paintable_has_child_paintables(host: &DocumentHost, slot: NodeSlotId) -> bool {
-    read_rows(host, |rows| {
-        crate::painting::paint_order::first_paint_child(rows, slot).is_some()
-    })
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn layout_row_paintable_is_chrome_mirrored(host: &DocumentHost, slot: NodeSlotId) -> bool {
     read_rows(host, |rows| {
         crate::painting::chrome_geometry::is_chrome_mirrored(rows, slot)

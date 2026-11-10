@@ -246,17 +246,19 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
 
     auto* layout = text_node.layout_node(read);
 
-    // The caret rect at a DOM offset is document-absolute and spans the height of the line the offset
+    // The caret rect at a DOM offset is document-absolute and spans the height of the text on the line the offset
     // renders on, which is what a line's geometry is read from here.
     auto line_rect_at_offset = [&](size_t offset) -> Optional<CSSPixelRect> {
         if (!layout)
             return {};
-        Layout::RustFFI::FfiOptionalCssPixelRect result;
-        Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
-            layout->document_host(), Layout::Node::slot_id(layout), offset, &result);
-        if (!result.has_value)
+        Compositing::RustFFI::NodeSlotId const no_slot { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
+        Layout::RustFFI::FfiCaret caret;
+        Layout::RustFFI::layout_script_caret(layout->document_host(),
+            { .node = Layout::Node::slot_id(layout), .offset = offset, .downstream = true, .child_before = no_slot, .child_before_length = 0, .child_after = no_slot },
+            {}, &caret);
+        if (!caret.found)
             return {};
-        return result.rect;
+        return caret.rect;
     };
 
     struct RenderedLine {

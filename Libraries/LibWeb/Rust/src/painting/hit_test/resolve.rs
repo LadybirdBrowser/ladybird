@@ -9,7 +9,6 @@ use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::node_facts::NodeShape;
 use crate::painting::host::{FfiCaretBoundaryKind, FfiNodeIdentity, FfiResolvedCaret};
 use crate::painting::paint_read::{PaintRead, PaintRow};
-use crate::painting::paintable_data::SELECTION_STATE_START_AND_END;
 
 pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &impl PaintRead, item: &HitTestItem) -> bool {
     arena.node_kind_if_live(item.caret_node) == Some(crate::layout::node_data::NodeKind::BreakNode)
@@ -113,7 +112,9 @@ impl HitTestList {
                 let node = row_node_identity(arena, fragment.layout_node, false);
                 let affinity_is_upstream = offset >= fragment.dom_end_offset_in_node
                     && offset == fragment.dom_end_offset_with_trailing_whitespace;
-                let debug_rect = fragment_caret_range_rect(arena, fragment, offset);
+                let debug_rect = crate::layout::query::inline_cursor::InlineCursor::new(arena)
+                    .caret_rect_in_fragment(item.paintable, fragment, offset, !affinity_is_upstream)
+                    .rect;
                 FfiResolvedCaret {
                     has_position: true,
                     node,
@@ -240,22 +241,4 @@ pub(crate) fn fragment_index_in_node_for_point(
         crate::painting::text_fragment::index_in_node_for_point(paintable_rows, fragment, local_point)
     })
     .unwrap_or(0)
-}
-
-fn fragment_caret_range_rect(
-    arena: &impl PaintRead,
-    fragment: &crate::painting::paintable_data::FragmentRecord,
-    offset: usize,
-) -> CssPixelRect {
-    let paintable_rows = arena;
-    let Some(offsets) = crate::painting::text_fragment::compute_selection_offsets(
-        paintable_rows,
-        fragment,
-        SELECTION_STATE_START_AND_END,
-        offset,
-        offset,
-    ) else {
-        return CssPixelRect::default();
-    };
-    crate::painting::text_fragment::rect_for_selection_offsets(paintable_rows, fragment, offsets)
 }

@@ -89,7 +89,8 @@ WEB_API Optional<String> grid_layout_json(Layout::Node const&, UniqueNodeID);
 WEB_API Optional<String> flex_layout_json(Layout::Node const&, UniqueNodeID);
 
 WEB_API CSSPixelPoint box_type_agnostic_position(Layout::Node const&);
-WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::BegunRead const&, Layout::Node const&, size_t offset);
+// The caret layout gives a cursor position, its viewport rect mapped through `viewport_mapping`.
+WEB_API Layout::RustFFI::FfiCaret caret_at_position(Layout::BegunRead const&, DOM::Position const&, Layout::RustFFI::FfiViewportMapping);
 
 // Per-document paint facts the recording inputs carry, resolved once per recording.
 WEB_API Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead const&, DOM::Document&);

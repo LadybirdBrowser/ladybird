@@ -11,12 +11,14 @@
 
 use super::FfiCssPixelRect;
 use super::node_data::NodeSlotId;
+use super::query::inline_cursor::{self, CaretPosition, InlineCursor};
 use super::used_values::{FfiCssPixelPoint, FfiCssPixelSize};
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::text_queries::FfiDomTextRange;
-use crate::painting::ffi::{FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect};
+use crate::painting::ffi::FfiBoxModelMetrics;
+use crate::painting::host::FfiCaretPaintKind;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow, PaintSource};
 use crate::painting::viewport_mapping::{FfiViewportMapping, ViewportSpace};
 use crate::render_state::{DocumentHost, ScriptForcedRead};
@@ -189,30 +191,6 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     });
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_script_text_caret_rect_in_dom_range(
-    host: &DocumentHost,
-    primary: NodeSlotId,
-    offset: usize,
-    out: &mut FfiOptionalCssPixelRect,
-) {
-    *out = read_rows(host, |arena| {
-        let paintable_rows = arena;
-        let fragments = arena.text_fragments(primary);
-        let node_slots = fragments.as_slice();
-        match crate::painting::caret::caret_rect_in_dom_range(paintable_rows, node_slots, offset) {
-            Some(rect) => FfiOptionalCssPixelRect {
-                has_value: true,
-                rect: rect.into(),
-            },
-            None => FfiOptionalCssPixelRect {
-                has_value: false,
-                rect: FfiCssPixelRect::default(),
-            },
-        }
-    });
-}
-
 /// Calls `push_source` with what the character geometry of the text node `primary` is computed from: for each of its
 /// layout nodes, a retained reference to its containing block's line content, and the raw document-absolute position
 /// of that block. The same references at the same positions mean the same geometry. The consumer owns every reference
@@ -298,94 +276,96 @@ pub unsafe extern "C" fn layout_script_text_character_x_positions(
     });
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_script_text_caret_rect_for_position(
-    host: &DocumentHost,
-    primary: NodeSlotId,
-    offset: usize,
-    affinity_is_downstream: bool,
-    out: &mut FfiCaretRectResult,
-) {
-    let mut result = FfiCaretRectResult {
-        found: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-        owner_paintable: NodeSlotId::INVALID,
-        nearest_self_painting_inline: NodeSlotId::INVALID,
-    };
-    *out = read_rows(host, |arena| {
-        let paintable_rows = arena;
-        let fragments = arena.text_fragments(primary);
-        let node_slots = fragments.as_slice();
-        let Some(answer) =
-            crate::painting::caret::caret_rect_for_position(paintable_rows, node_slots, offset, affinity_is_downstream)
-        else {
-            return result;
-        };
-        result.found = true;
-        result.rect = answer.rect.into();
-        result.style_source = answer.style_source;
-        result.owner_paintable = answer.owner;
-        result.nearest_self_painting_inline =
-            crate::painting::fragment_ownership::nearest_self_painting_inline_box(paintable_rows, answer.node)
-                .unwrap_or(NodeSlotId::INVALID);
-        result
-    });
+/// A caret position as the host names it: `offset` in the DOM text whose layout node is `node`, or, where `node` is the
+/// box of an element, the position between the children of the element whose boxes are `child_before` and
+/// `child_after` (`NodeSlotId::INVALID` for none), where the DOM text of `child_before` is `child_before_length` long.
+#[repr(C)]
+pub struct FfiCaretPosition {
+    pub node: NodeSlotId,
+    pub offset: usize,
+    pub downstream: bool,
+    pub child_before: NodeSlotId,
+    pub child_before_length: usize,
+    pub child_after: NodeSlotId,
+}
+
+/// The caret layout gives a position, as the recorder paints it and in the layout viewport.
+#[repr(C)]
+pub struct FfiCaret {
+    pub found: bool,
+    pub paint: FfiCaretPaintKind,
+    pub block: NodeSlotId,
+    pub owner: NodeSlotId,
+    pub rect: FfiCssPixelRect,
+    pub viewport_rect: FfiCssPixelRect,
+    pub style_source: NodeSlotId,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_script_atomic_inline_caret_rect_for_position(
+pub extern "C" fn layout_script_caret(
     host: &DocumentHost,
-    primary: NodeSlotId,
-    after: bool,
-    out: &mut FfiCaretRectResult,
+    position: FfiCaretPosition,
+    viewport_mapping: FfiViewportMapping<'_>,
+    out: &mut FfiCaret,
 ) {
-    let mut result = FfiCaretRectResult {
-        found: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-        owner_paintable: NodeSlotId::INVALID,
-        nearest_self_painting_inline: NodeSlotId::INVALID,
-    };
     *out = read_rows(host, |arena| {
-        let paintable_rows = arena;
-        let Some(answer) = crate::painting::caret::caret_rect_for_atomic_inline(paintable_rows, primary, after) else {
-            return result;
-        };
-        result.found = true;
-        result.rect = answer.rect.into();
-        result.style_source = answer.style_source;
-        result.owner_paintable = answer.owner;
-        result.nearest_self_painting_inline =
-            crate::painting::fragment_ownership::nearest_self_painting_inline_box(paintable_rows, answer.node)
-                .unwrap_or(NodeSlotId::INVALID);
-        result
-    });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_script_paintable_empty_line_caret_rect(
-    host: &DocumentHost,
-    block: NodeSlotId,
-    primary: NodeSlotId,
-    offset: usize,
-    out: &mut FfiEmptyLineCaretRect,
-) {
-    let mut result = FfiEmptyLineCaretRect {
-        has_value: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-    };
-    *out = read_rows(host, |arena| {
-        let fragments = arena.text_fragments(primary);
-        if let Some(caret) =
-            crate::painting::caret::caret_rect_on_empty_line(arena, block, fragments.as_slice(), offset)
+        let cursor = InlineCursor::new(arena);
+        let caret = if arena
+            .node_kind_if_live(position.node)
+            .is_some_and(super::node_facts::kind_is_text)
         {
-            result.has_value = true;
-            result.rect = caret.rect.into();
-            result.style_source = caret.style_source;
+            cursor.caret_rect(CaretPosition::Text {
+                text: position.node,
+                offset: position.offset,
+                downstream: position.downstream,
+            })
+        } else {
+            inline_cursor::caret_positions_between_children(
+                arena,
+                position.node,
+                position.child_before,
+                position.child_before_length,
+                position.child_after,
+            )
+            .find_map(|candidate| cursor.caret_rect(candidate))
+        };
+        let Some(caret) = caret else {
+            return FfiCaret {
+                found: false,
+                paint: FfiCaretPaintKind::None,
+                block: NodeSlotId::INVALID,
+                owner: NodeSlotId::INVALID,
+                rect: FfiCssPixelRect::default(),
+                viewport_rect: FfiCssPixelRect::default(),
+                style_source: NodeSlotId::INVALID,
+            };
+        };
+        // A box with no line content around the caret paints the caret itself.
+        let at_start_of_box = caret.owner == caret.node;
+        FfiCaret {
+            found: true,
+            paint: if at_start_of_box && crate::painting::node_painting::is_fragmented_inline(arena, caret.owner) {
+                FfiCaretPaintKind::EmptyInline
+            } else {
+                FfiCaretPaintKind::InBlock
+            },
+            block: caret.owner,
+            owner: crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, caret.node)
+                .filter(|_| !at_start_of_box)
+                .unwrap_or(NodeSlotId::INVALID),
+            rect: caret.rect.into(),
+            viewport_rect: viewport_mapping
+                .mapping()
+                .line_content_rect_to_viewport(
+                    arena,
+                    caret.owner,
+                    caret.node,
+                    caret.rect,
+                    ViewportSpace::LayoutViewport,
+                )
+                .into(),
+            style_source: caret.style_source,
         }
-        result
     });
 }
 
@@ -517,30 +497,19 @@ pub extern "C" fn layout_script_paintable_unbroken_border_box_size(
     });
 }
 
+/// Whether the forced break `forced_break` ends an empty line of `block`.
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_script_empty_line_ended_by_forced_break_position(
+pub extern "C" fn layout_script_forced_break_ends_empty_line(
     host: &DocumentHost,
     block: NodeSlotId,
     forced_break: NodeSlotId,
-    out: &mut super::used_values::FfiCssPixelPoint,
 ) -> bool {
-    let position = read_rows(host, |arena| {
-        if !arena.paintable_row_is_populated(block) {
-            return None;
-        }
-        let side = arena.committed_side_data(block);
-        let line = side.lines().iter().find(|line| {
-            line.forced_break.is_some_and(|position| position.node == forced_break) && line.fragment_count == 0
-        })?;
-        let root_position =
-            crate::painting::paintable_geometry::LineRootPositions::new(arena, block).of_fragment(line.box_fragment);
-        Some(CssPixelRect::from(line.rect).translated_by(root_position).location())
-    });
-    let Some(position) = position else {
-        return false;
-    };
-    *out = position.into();
-    true
+    read_rows(host, |arena| {
+        arena.paintable_row_is_populated(block)
+            && arena.committed_side_data(block).lines().iter().any(|line| {
+                line.fragment_count == 0 && line.forced_break.is_some_and(|position| position.node == forced_break)
+            })
+    })
 }
 
 #[unsafe(no_mangle)]
