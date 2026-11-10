@@ -193,6 +193,31 @@ describe("the prototype property of normal functions that never had it looked at
         });
     });
 
+    test("an inherited prototype setter cached from methods is not called for it", () => {
+        const receivers = [];
+        Object.defineProperty(Function.prototype, "prototype", {
+            configurable: true,
+            set() {
+                receivers.push(this);
+            },
+        });
+        try {
+            const set = (f, value) => {
+                f.prototype = value;
+            };
+            const method = { m() {} }.m;
+            for (let i = 0; i < 10; ++i) set(method, 1);
+            function f() {}
+            const prototype = {};
+            set(f, prototype);
+            expect(receivers.length).toBe(10);
+            expect(receivers.includes(f)).toBeFalse();
+            expect(Object.getPrototypeOf(new f())).toBe(prototype);
+        } finally {
+            delete Function.prototype.prototype;
+        }
+    });
+
     test("functions made in a loop", () => {
         const make = () => {
             function F(x) {}
