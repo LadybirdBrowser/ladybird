@@ -1,0 +1,4 @@
+body container-type: inline-size: viewport overflow auto, scrolled by wheel: true
+body container-type: normal: viewport overflow hidden, scrolled by wheel: false
+body container-type: size: viewport overflow auto, scrolled by wheel: true
+html container-type: inline-size: viewport overflow auto, scrolled by wheel: true

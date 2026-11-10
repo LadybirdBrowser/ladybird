@@ -51,11 +51,19 @@ fn published_style(engine: &RetainedState, node: StyleNodeID) -> Option<Computed
 
 fn has_any_containment(style: ComputedValuesView<'_>) -> bool {
     let values = style.box_values();
+    // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+    // Applies style containment and size containment to the principal box, and establishes an independent formatting
+    // context.
+    // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-inline-size
+    // Applies style containment and inline-size containment to the principal box, and establishes an independent
+    // formatting context.
     values.size_containment
         || values.inline_size_containment
         || values.layout_containment
         || values.style_containment
         || values.paint_containment
+        || values.is_size_container
+        || values.is_inline_size_container
 }
 
 /// The document element, which is the first DOM child of the style node the viewport box was
