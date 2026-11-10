@@ -353,7 +353,7 @@ TEST_CASE(browser_history_traversal)
     {
         auto transport = TRY_OR_FAIL(IPC::Transport::create_paired());
         auto initial_page_id = app->allocate_page_id();
-        auto initial_client = adopt_ref(*new WebView::WebContentClient(move(transport.local), client.is_private(), initial_page_id, app->allocate_ui_process_cross_process_id()));
+        auto initial_client = adopt_ref(*new WebView::WebContentClient(move(transport.local), client.session(), initial_page_id, app->allocate_ui_process_cross_process_id()));
         VERIFY(!initial_client->page(initial_page_id));
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, {}, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
