@@ -261,6 +261,9 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     m_websocket->on_message = GC::weak_callback(*this, [](auto& self, auto message) {
         self.on_message(move(message.data), message.is_text);
     });
+    m_websocket->on_message_bytes_transmitted = GC::weak_callback(*this, [](auto& self, u64 byte_count) {
+        self.on_message_bytes_transmitted(byte_count);
+    });
     m_websocket->on_close = GC::weak_callback(*this, [](auto& self, auto code, auto reason, bool was_clean) {
         self.on_close(code, Utf16String::from_utf8(StringView { reason.bytes() }), was_clean);
     });
@@ -380,8 +383,19 @@ u64 WebSocket::buffered_amount() const
 {
     // The bufferedAmount getter steps are to return the number of bytes of application data (UTF-8 text and binary
     // data) that have been queued using send() but that, as of the last time the event loop reached step 1, had not
-    // yet been transmitted to the network.
+    // yet been transmitted to the network. (This thus includes any text sent during the execution of the current task,
+    // regardless of whether the user agent is able to transmit text in the background in parallel with script
+    // execution.) This does not include framing overhead incurred by the protocol, or buffering done by the operating
+    // system or network hardware.
     return m_buffered_amount;
+}
+
+void WebSocket::on_message_bytes_transmitted(u64 byte_count)
+{
+    // Applied in a task of its own, so that bufferedAmount never changes while a task runs.
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }, byte_count), [](auto& self, auto& byte_count) {
+        self->m_buffered_amount -= min(byte_count, self->m_buffered_amount);
+    }));
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
@@ -430,14 +444,6 @@ WebIDL::ExceptionOr<void> WebSocket::send(WebSocketSendData const& data)
     //       agent must flag the WebSocket as full and then close the WebSocket connection.
 
     m_buffered_amount += message_size;
-
-    // NB: A sent message is handed to the network process right away, so it counts as transmitted to the network once
-    //     the event loop has moved on from the current task.
-    if (is_open && message_size > 0) {
-        HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *this }, message_size), [](auto& self, auto& message_size) {
-            self->m_buffered_amount -= message_size;
-        }));
-    }
 
     return {};
 }

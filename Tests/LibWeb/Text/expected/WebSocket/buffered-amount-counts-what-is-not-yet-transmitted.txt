@@ -1,0 +1,3 @@
+Buffered after send(): true
+Buffered while the server reads nothing: true
+Echoed 67108864 bytes, bufferedAmount: 0

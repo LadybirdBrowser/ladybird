@@ -66,6 +66,7 @@ public:
 private:
     void on_open();
     void on_message(ByteBuffer message, bool is_text);
+    void on_message_bytes_transmitted(u64 byte_count);
     void on_closing_handshake_started();
     void on_error();
     void on_close(u16 code, Utf16String reason, bool was_clean);

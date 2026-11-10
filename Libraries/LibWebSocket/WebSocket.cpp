@@ -59,6 +59,7 @@ WebSocket::~WebSocket()
         m_impl->on_connection_error = nullptr;
         m_impl->on_connected = nullptr;
         m_impl->on_ready_to_read = nullptr;
+        m_impl->on_bytes_written = nullptr;
         m_impl->discard_connection();
     }
 }
@@ -104,6 +105,9 @@ void WebSocket::start()
     m_impl->on_ready_to_read = [this] {
         auto protector = NonnullRefPtr { *this };
         drain_read();
+    };
+    m_impl->on_bytes_written = [this](size_t byte_count) {
+        did_write_bytes(byte_count);
     };
     set_state(WebSocket::InternalState::EstablishingProtocolConnection);
     m_impl->connect(m_connection);
@@ -304,7 +308,7 @@ static bool contains_header_token(ByteString const& value, StringView token)
 void WebSocket::reject_client_handshake(StringView status)
 {
     auto response = ByteString::formatted("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", status);
-    m_impl->send(response.bytes());
+    send_bytes(response.bytes());
     fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), Error::ConnectionUpgradeFailed, {});
 }
 
@@ -366,7 +370,7 @@ void WebSocket::read_client_handshake()
                 return;
             }
             if (!version.has_value() || *version != "13"sv) {
-                m_impl->send("HTTP/1.1 426 Upgrade Required\r\nSec-WebSocket-Version: 13\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"sv.bytes());
+                send_bytes("HTTP/1.1 426 Upgrade Required\r\nSec-WebSocket-Version: 13\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"sv.bytes());
                 fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), Error::ConnectionUpgradeFailed, {});
                 return;
             }
@@ -382,7 +386,7 @@ void WebSocket::read_client_handshake()
             auto digest = Crypto::Hash::digest(Crypto::Hash::HashKind::SHA1, accept_input.bytes());
             auto accept = MUST(encode_base64(digest.bytes()));
             auto response = ByteString::formatted("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n", accept);
-            if (!m_impl->send(response.bytes())) {
+            if (!send_bytes(response.bytes())) {
                 fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), Error::ConnectionUpgradeFailed, {});
                 return;
             }
@@ -712,8 +716,40 @@ void WebSocket::send_frame(WebSocket::OpCode op_code, ReadonlyBytes payload, boo
         buf.overwrite(offset, payload.data(), payload.size());
         offset += payload.size();
     }
-    if (!m_impl->send(buf.span().slice(0, offset)) && m_role == Role::Server)
+    auto is_message_frame = op_code == OpCode::Text || op_code == OpCode::Binary || op_code == OpCode::Continuation;
+    if (!send_bytes(buf.span().slice(0, offset), is_message_frame ? payload.size() : 0) && m_role == Role::Server)
         fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), Error::ServerClosedSocket, "Unable to send a frame");
+}
+
+bool WebSocket::send_bytes(ReadonlyBytes bytes, u64 message_byte_count)
+{
+    // A frame's message bytes come last. Record them first, as the connection may write them before send() returns.
+    auto end = m_bytes_passed_to_connection + bytes.size();
+    if (message_byte_count > 0)
+        m_unwritten_message_bytes.enqueue({ end - message_byte_count, end });
+    m_bytes_passed_to_connection = end;
+    return m_impl->send(bytes);
+}
+
+void WebSocket::did_write_bytes(size_t byte_count)
+{
+    auto written_before = m_bytes_written;
+    m_bytes_written += byte_count;
+
+    u64 message_byte_count = 0;
+    while (!m_unwritten_message_bytes.is_empty()) {
+        auto const& message_bytes = m_unwritten_message_bytes.head();
+        auto start = max(message_bytes.start, written_before);
+        auto end = min(message_bytes.end, m_bytes_written);
+        if (end > start)
+            message_byte_count += end - start;
+        if (message_bytes.end > m_bytes_written)
+            break;
+        (void)m_unwritten_message_bytes.dequeue();
+    }
+
+    if (message_byte_count > 0 && on_message_bytes_transmitted)
+        on_message_bytes_transmitted(message_byte_count);
 }
 
 void WebSocket::discard_connection()
@@ -730,6 +766,7 @@ void WebSocket::discard_connection()
         m_impl->on_connection_error = nullptr;
         m_impl->on_connected = nullptr;
         m_impl->on_ready_to_read = nullptr;
+        m_impl->on_bytes_written = nullptr;
         m_impl = nullptr;
     });
 }

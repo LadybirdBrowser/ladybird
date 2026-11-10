@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const port = internals.getEchoServerPort();
+        const token = `buffered-amount-${Math.random()}`;
+        const ws = new WebSocket(`ws://localhost:${port}/?read_unblock_token=${token}`);
+        ws.binaryType = "arraybuffer";
+        await new Promise(resolve => (ws.onopen = resolve));
+
+        // Far more than the operating system buffers while the server reads nothing. Windows takes in the whole of a
+        // message while its buffer has room, however large, so there the second message is what stays behind.
+        const size = 32 * 1024 * 1024;
+        ws.send(new Uint8Array(size));
+        ws.send(new Uint8Array(size));
+        println(`Buffered after send(): ${ws.bufferedAmount === 2 * size}`);
+
+        // A round trip to the server runs many tasks.
+        await fetch(`http://localhost:${port}/recorded-request-count/nothing`);
+        println(`Buffered while the server reads nothing: ${ws.bufferedAmount > 0}`);
+
+        // The first echo can arrive while the second message is still being sent.
+        let echoed = 0;
+        ws.onmessage = event => {
+            echoed += event.data.byteLength;
+            if (echoed < 2 * size) return;
+            println(`Echoed ${echoed} bytes, bufferedAmount: ${ws.bufferedAmount}`);
+            done();
+        };
+        await fetch(`http://localhost:${port}/unblock/${token}`);
+    });
+</script>
