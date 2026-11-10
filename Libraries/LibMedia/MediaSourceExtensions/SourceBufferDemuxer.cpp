@@ -58,13 +58,18 @@ bool SourceBufferDemuxer::is_within_start_gap_allowance(AK::Duration timestamp, 
 
 Media::TimeRanges SourceBufferDemuxer::coalesced_track_buffer_ranges(TrackData const& data)
 {
+    VERIFY(data.coalesced_ranges_gap == maximum_time_range_gap(data));
+    return data.coalesced_ranges;
+}
+
+void SourceBufferDemuxer::recoalesce_track_buffer_ranges(TrackData& data)
+{
     // https://w3c.github.io/media-source/#track-buffer-ranges
     // NOTE: Implementations MAY coalesce adjacent ranges separated by a gap smaller than 2 times the
     //       maximum frame duration buffered so far in this track buffer.
     auto max_gap = maximum_time_range_gap(data);
-    if (max_gap.is_zero())
-        return data.track_buffer_ranges;
-    return data.track_buffer_ranges.coalesced(max_gap);
+    data.coalesced_ranges = max_gap.is_zero() ? data.track_buffer_ranges : data.track_buffer_ranges.coalesced(max_gap);
+    data.coalesced_ranges_gap = max_gap;
 }
 
 Media::TimeRanges SourceBufferDemuxer::track_buffer_ranges(Media::Track const& track) const
@@ -225,7 +230,12 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
     }
 
     count_frame_duration(data, frame.duration());
-    data.track_buffer_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
+    auto frame_end = frame.presentation_timestamp() + frame.duration();
+    data.track_buffer_ranges.add_range(frame.presentation_timestamp(), frame_end);
+    if (data.coalesced_ranges_gap == maximum_time_range_gap(data))
+        data.coalesced_ranges.add_range(frame.presentation_timestamp(), frame_end, data.coalesced_ranges_gap);
+    else
+        recoalesce_track_buffer_ranges(data);
     data.last_appended_decode_timestamp = frame.decode_timestamp();
 
     if (run_to_continue.has_value()) {
@@ -335,11 +345,12 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     size_t bytes = 0;
     size_t frame_count = 0;
     size_t removed_frames_with_the_maximum_duration = 0;
+    Media::TimeRanges removed_ranges;
     for (size_t index = first_frame; index < run.frames.size(); index++) {
         auto const& frame = run.frames[index];
         if (frame_count >= minimum_frame_count && frame.is_keyframe())
             break;
-        data.track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
+        removed_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
         if (data.highest_delivered_presentation_end.has_value() && frame.presentation_timestamp() < data.highest_delivered_presentation_end.value())
             m_invalidated_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
         bytes += buffered_byte_count(frame);
@@ -361,7 +372,9 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
 
     data.total_bytes -= bytes;
     run.frames.remove(first_frame, frame_count);
+    data.track_buffer_ranges.remove_ranges(removed_ranges);
     decrement_frames_with_maximum_duration(data, removed_frames_with_the_maximum_duration);
+    recoalesce_track_buffer_ranges(data);
 
     if (data.current_run == run_index) {
         if (data.current_frame >= first_frame + frame_count) {
