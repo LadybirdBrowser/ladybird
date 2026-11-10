@@ -133,7 +133,16 @@ private:
     RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
 
-    void* m_curl_multi { nullptr };
+    struct CurlMulti {
+        ConnectionFromClient* client { nullptr };
+        void* handle { nullptr };
+        RefPtr<Core::Timer> timer;
+        Optional<MonotonicTime> timer_due_at;
+    };
+    void set_up_curl_multi(CurlMulti&);
+
+    CurlMulti m_fetch_curl;
+    CurlMulti m_websocket_curl;
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
     HashMap<u64, NonnullOwnPtr<Request>> m_active_revalidation_requests;
@@ -153,8 +162,6 @@ private:
     HashMap<u64, WebSocketCookieRequest> m_websocket_cookie_requests;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
-    RefPtr<Core::Timer> m_timer;
-    Optional<MonotonicTime> m_curl_timer_due_at;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 
