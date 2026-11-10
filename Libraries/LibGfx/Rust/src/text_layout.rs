@@ -452,6 +452,14 @@ impl GlyphBuffer {
         }
     }
 
+    fn heap_size_in_bytes(&self) -> usize {
+        let glyphs = size_of_val(self.glyphs.as_slice());
+        let placements = self.placements.as_ref().map_or(0, |placements| {
+            size_of::<GlyphStorage<GlyphPlacement>>() + size_of_val(placements.as_slice())
+        });
+        glyphs + placements
+    }
+
     /// The same glyphs in the form that clones without copying them.
     #[must_use]
     pub fn into_shared(self) -> Self {
@@ -677,6 +685,10 @@ impl ShapedText {
 const SINGLE_ASCII_SHAPE_CACHE_SIZE: usize = 128;
 const MAX_SHAPE_CACHE_FONTS: usize = 64;
 const MAX_SHAPE_CACHE_TEXTS_PER_FONT: usize = 16384;
+/// How many bytes the shapes of texts in one thread's cache may hold. Every thread that lays out text has its own
+/// cache, and a text costs its code units and glyphs, so without this the counts above alone would let each thread
+/// keep hundreds of megabytes of long lines (of code, say) that it shaped once.
+const MAX_SHAPE_CACHE_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 struct ShapeParams {
@@ -704,6 +716,10 @@ struct CachedShape {
 }
 
 impl CachedShape {
+    fn size_in_bytes(&self) -> usize {
+        size_of::<CachedShape>() + self.glyphs.heap_size_in_bytes()
+    }
+
     fn is_bitwise_equal_to(&self, other: &CachedShape) -> bool {
         self.width.to_bits() == other.width.to_bits()
             && self.trailing_whitespace_length_in_code_units == other.trailing_whitespace_length_in_code_units
@@ -773,12 +789,27 @@ struct ShapesForText {
     shapes: Vec<ShapeForParams>,
 }
 
+impl ShapesForText {
+    /// About what the entry for `text` holds: the text, the entry, and its shapes.
+    fn size_in_bytes(&self, text: &[u16]) -> usize {
+        size_of_val(text)
+            + size_of::<(Box<[u16]>, ShapesForText)>()
+            + self
+                .shapes
+                .iter()
+                .map(|shape| size_of::<ShapeForParams>() + shape.shape.size_in_bytes())
+                .sum::<usize>()
+    }
+}
+
 type FastMap<K, V> = hashbrown::HashMap<K, V, foldhash::fast::RandomState>;
 
 struct FontShapeCache {
     last_used_tick: u64,
     single_ascii_common_shapes: [Option<Arc<CachedShape>>; SINGLE_ASCII_SHAPE_CACHE_SIZE],
     shapes_by_text: FastMap<Box<[u16]>, ShapesForText>,
+    /// What the entries of `shapes_by_text` hold, see `ShapesForText::size_in_bytes()`.
+    bytes: usize,
 }
 
 impl Default for FontShapeCache {
@@ -787,16 +818,20 @@ impl Default for FontShapeCache {
             last_used_tick: 0,
             single_ascii_common_shapes: [const { None }; SINGLE_ASCII_SHAPE_CACHE_SIZE],
             shapes_by_text: FastMap::default(),
+            bytes: 0,
         }
     }
 }
 
 impl FontShapeCache {
+    /// Like `ShapingCache::shape_for()`, counting what an entry made here adds in `bytes` and in `total_bytes`, the
+    /// bytes of the whole cache.
     fn shape_for(
         &mut self,
         tick: u64,
         text: &[u16],
         params: ShapeParams,
+        total_bytes: &mut usize,
         shape_uncached: impl FnOnce() -> CachedShape,
     ) -> &Arc<CachedShape> {
         if let &[code_unit] = text
@@ -809,8 +844,10 @@ impl FontShapeCache {
                 .get_or_insert_with(|| Arc::new(shape_uncached()));
         }
 
-        if self.shapes_by_text.len() > MAX_SHAPE_CACHE_TEXTS_PER_FONT {
-            self.evict_least_recently_used_texts();
+        if self.shapes_by_text.len() > MAX_SHAPE_CACHE_TEXTS_PER_FONT
+            && let Some(threshold) = median_tick(self.shapes_by_text.values().map(|entry| entry.last_used_tick))
+        {
+            *total_bytes -= self.evict_texts_used_at_or_before(threshold);
         }
         let entry = match self.shapes_by_text.entry_ref(text) {
             EntryRef::Occupied(entry) => entry.into_mut(),
@@ -823,33 +860,65 @@ impl FontShapeCache {
             ),
         };
         entry.last_used_tick = tick;
-        let shapes = &mut entry.shapes;
-        let index = shapes
-            .iter()
-            .position(|entry| entry.params.matches(&params))
-            .unwrap_or_else(|| {
-                shapes.push(ShapeForParams {
+        let index = match entry.shapes.iter().position(|entry| entry.params.matches(&params)) {
+            Some(index) => index,
+            None => {
+                let bytes_before = if entry.shapes.is_empty() {
+                    0
+                } else {
+                    entry.size_in_bytes(text)
+                };
+                entry.shapes.push(ShapeForParams {
                     params,
                     shape: Arc::new(shape_uncached()),
                 });
-                shapes.len() - 1
-            });
-        &shapes[index].shape
+                let added_bytes = entry.size_in_bytes(text) - bytes_before;
+                self.bytes += added_bytes;
+                *total_bytes += added_bytes;
+                entry.shapes.len() - 1
+            }
+        };
+        &entry.shapes[index].shape
     }
 
-    fn evict_least_recently_used_texts(&mut self) {
-        let mut ticks: Vec<u64> = self.shapes_by_text.values().map(|entry| entry.last_used_tick).collect();
-        let median_index = ticks.len() / 2;
-        let (_, median_tick, _) = ticks.select_nth_unstable(median_index);
-        let threshold = *median_tick;
-        self.shapes_by_text.retain(|_, entry| entry.last_used_tick > threshold);
+    /// Returns the bytes the evicted texts held.
+    fn evict_texts_used_at_or_before(&mut self, threshold: u64) -> usize {
+        let mut evicted_bytes = 0;
+        self.shapes_by_text.retain(|text, entry| {
+            if entry.last_used_tick > threshold {
+                return true;
+            }
+            evicted_bytes += entry.size_in_bytes(text);
+            false
+        });
+        self.bytes -= evicted_bytes;
+        // NB: The table keeps its room otherwise, which is as much as it ever held. It keeps room to grow back to
+        //     twice what it holds, as an eviction leaves about half of the texts.
+        let text_count = self.shapes_by_text.len();
+        if self.shapes_by_text.capacity() > 4 * text_count {
+            self.shapes_by_text.shrink_to(2 * text_count);
+        }
+        evicted_bytes
     }
+}
+
+fn median_tick(ticks: impl Iterator<Item = u64>) -> Option<u64> {
+    let mut ticks: Vec<u64> = ticks.collect();
+    if ticks.is_empty() {
+        return None;
+    }
+    // NB: The lower middle tick, so that eviction at or before it keeps the newer half.
+    let median_index = (ticks.len() - 1) / 2;
+    let (_, median_tick, _) = ticks.select_nth_unstable(median_index);
+    Some(*median_tick)
 }
 
 #[derive(Default)]
 struct ShapingCache {
     caches_by_font_id: FastMap<u64, FontShapeCache>,
     tick: u64,
+    /// What the texts of all fonts hold, see `FontShapeCache::bytes`.
+    bytes: usize,
 }
 
 impl ShapingCache {
@@ -859,14 +928,17 @@ impl ShapingCache {
         text: &[u16],
         params: ShapeParams,
         shape_uncached: impl FnOnce() -> CachedShape,
-    ) -> &Arc<CachedShape> {
+    ) -> Arc<CachedShape> {
         self.tick += 1;
         if self.caches_by_font_id.len() > MAX_SHAPE_CACHE_FONTS {
             self.evict_least_recently_used_font();
         }
         let font_cache = self.caches_by_font_id.entry(font_id).or_default();
         font_cache.last_used_tick = self.tick;
-        font_cache.shape_for(self.tick, text, params, shape_uncached)
+        let shape = Arc::clone(font_cache.shape_for(self.tick, text, params, &mut self.bytes, shape_uncached));
+        // NB: This keeps the text just used, as it is the most recently used one, unless it alone is over the budget.
+        while self.bytes > MAX_SHAPE_CACHE_BYTES && self.evict_least_recently_used_half_of_texts() {}
+        shape
     }
 
     fn evict_least_recently_used_font(&mut self) {
@@ -875,9 +947,32 @@ impl ShapingCache {
             .iter()
             .min_by_key(|(_, font_cache)| font_cache.last_used_tick)
             .map(|(font_id, _)| *font_id);
-        if let Some(font_id) = least_recently_used_font_id {
-            self.caches_by_font_id.remove(&font_id);
+        if let Some(font_id) = least_recently_used_font_id
+            && let Some(font_cache) = self.caches_by_font_id.remove(&font_id)
+        {
+            self.bytes -= font_cache.bytes;
         }
+    }
+
+    /// Evicts the least recently used half of the texts of all fonts, and the fonts left with none of them. Returns
+    /// whether there were texts to evict.
+    fn evict_least_recently_used_half_of_texts(&mut self) -> bool {
+        let Some(threshold) = median_tick(
+            self.caches_by_font_id
+                .values()
+                .flat_map(|font_cache| font_cache.shapes_by_text.values().map(|entry| entry.last_used_tick)),
+        ) else {
+            return false;
+        };
+        self.caches_by_font_id.retain(|_, font_cache| {
+            self.bytes -= font_cache.evict_texts_used_at_or_before(threshold);
+            let keep = !font_cache.shapes_by_text.is_empty() || font_cache.last_used_tick > threshold;
+            if !keep {
+                self.bytes -= font_cache.bytes;
+            }
+            keep
+        });
+        true
     }
 }
 
@@ -965,7 +1060,7 @@ fn with_cached_shape<R>(
         word_spacing,
     };
     SHAPING_CACHE.with_borrow_mut(|cache| {
-        use_shape(cache.shape_for(font.id().0, text, params, || {
+        use_shape(&cache.shape_for(font.id().0, text, params, || {
             shape_text_uncached(font, text, text_type, letter_spacing, word_spacing)
         }))
     })
@@ -1347,6 +1442,92 @@ mod shaping_cache_tests {
         assert!(cache.caches_by_font_id.contains_key(&one_font_over_capacity));
     }
 
+    fn counted_bytes(cache: &ShapingCache) -> usize {
+        cache
+            .caches_by_font_id
+            .values()
+            .flat_map(|font_cache| font_cache.shapes_by_text.iter())
+            .map(|(text, entry)| entry.size_in_bytes(text))
+            .sum()
+    }
+
+    #[test]
+    fn median_tick_is_the_lower_middle_one() {
+        assert_eq!(median_tick([].into_iter()), None);
+        assert_eq!(median_tick([7].into_iter()), Some(7));
+        assert_eq!(median_tick([9, 3].into_iter()), Some(3));
+        assert_eq!(median_tick([4, 1, 3, 2].into_iter()), Some(2));
+    }
+
+    #[test]
+    fn overflowing_the_byte_budget_evicts_the_least_recently_used_half_of_all_texts() {
+        let mut cache = ShapingCache::default();
+        let glyph_count = 1000;
+        let text_bytes = {
+            let mut probe = ShapingCache::default();
+            let probe_text: Vec<u16> = "text-000000".encode_utf16().collect();
+            probe.shape_for(1, &probe_text, params_with_letter_spacing(0.0), || {
+                shape_with_glyph_count(glyph_count)
+            });
+            probe.bytes
+        };
+        let text_count = MAX_SHAPE_CACHE_BYTES / text_bytes;
+        let texts: Vec<Vec<u16>> = (0..text_count)
+            .map(|text_index| format!("text-{text_index:06}").encode_utf16().collect())
+            .collect();
+        for (text_index, text) in texts.iter().enumerate() {
+            let font_id = (text_index % 2) as u64;
+            cache.shape_for(font_id, text, params_with_letter_spacing(0.0), || {
+                shape_with_glyph_count(glyph_count)
+            });
+        }
+        assert!(cache.bytes <= MAX_SHAPE_CACHE_BYTES);
+        assert_eq!(cache.bytes, text_count * text_bytes);
+        assert_eq!(cache.bytes, counted_bytes(&cache));
+
+        let overflowing_text: Vec<u16> = "one-more".encode_utf16().collect();
+        cache.shape_for(0, &overflowing_text, params_with_letter_spacing(0.0), || {
+            shape_with_glyph_count(glyph_count)
+        });
+        assert!(cache.bytes <= MAX_SHAPE_CACHE_BYTES / 2 + text_bytes);
+        assert_eq!(cache.bytes, counted_bytes(&cache));
+        let has_text = |font_id: u64, text: &[u16]| cache.caches_by_font_id[&font_id].shapes_by_text.contains_key(text);
+        assert!(!has_text(0, &texts[0]));
+        assert!(!has_text(1, &texts[1]));
+        assert!(has_text(((text_count - 1) % 2) as u64, &texts[text_count - 1]));
+        assert!(has_text(0, &overflowing_text));
+    }
+
+    #[test]
+    fn a_text_over_the_byte_budget_by_itself_is_not_kept() {
+        let mut cache = ShapingCache::default();
+        let glyph_count = MAX_SHAPE_CACHE_BYTES / size_of::<DrawGlyph>() + 1;
+        let text: Vec<u16> = "huge".encode_utf16().collect();
+        let shape = cache.shape_for(1, &text, params_with_letter_spacing(0.0), || {
+            shape_with_glyph_count(glyph_count)
+        });
+        assert_eq!(shape.glyphs.len(), glyph_count);
+        assert_eq!(cache.bytes, 0);
+        assert_eq!(cache.bytes, counted_bytes(&cache));
+    }
+
+    #[test]
+    fn a_text_over_the_byte_budget_by_itself_is_not_kept_after_older_texts() {
+        let mut cache = ShapingCache::default();
+        let older_text: Vec<u16> = "older".encode_utf16().collect();
+        cache.shape_for(1, &older_text, params_with_letter_spacing(0.0), || {
+            shape_with_glyph_count(1)
+        });
+        let glyph_count = MAX_SHAPE_CACHE_BYTES / size_of::<DrawGlyph>() + 1;
+        let text: Vec<u16> = "huge".encode_utf16().collect();
+        let shape = cache.shape_for(1, &text, params_with_letter_spacing(0.0), || {
+            shape_with_glyph_count(glyph_count)
+        });
+        assert_eq!(shape.glyphs.len(), glyph_count);
+        assert_eq!(cache.bytes, 0);
+        assert_eq!(cache.bytes, counted_bytes(&cache));
+    }
+
     #[test]
     fn overflowing_the_per_font_text_capacity_evicts_the_least_recently_used_half_of_that_font() {
         let mut cache = ShapingCache::default();
@@ -1369,6 +1550,7 @@ mod shaping_cache_tests {
         cache.shape_for(1, &texts[0], params_with_letter_spacing(0.0), || unreachable!());
         let font_cache = &cache.caches_by_font_id[&1];
         assert_eq!(font_cache.shapes_by_text.len(), MAX_SHAPE_CACHE_TEXTS_PER_FONT / 2);
+        assert!(font_cache.shapes_by_text.capacity() <= 4 * font_cache.shapes_by_text.len());
         assert!(font_cache.shapes_by_text.contains_key(texts[0].as_slice()));
         assert!(!font_cache.shapes_by_text.contains_key(texts[1].as_slice()));
         assert!(
@@ -1378,6 +1560,7 @@ mod shaping_cache_tests {
         );
         assert!(font_cache.shapes_by_text.contains_key(overflowing_text.as_slice()));
         assert_eq!(cache.caches_by_font_id[&2].shapes_by_text.len(), 1);
+        assert_eq!(cache.bytes, counted_bytes(&cache));
 
         cache.shape_for(1, &overflowing_text, params_with_letter_spacing(0.0), || unreachable!());
     }
