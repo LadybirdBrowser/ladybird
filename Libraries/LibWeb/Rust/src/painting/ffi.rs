@@ -8,6 +8,7 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor, LineEdge};
 use crate::layout::svg_formatting_context;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
@@ -915,75 +916,173 @@ pub extern "C" fn render_state_text_has_rendered_text_after(
 }
 
 #[repr(C)]
+#[derive(Default)]
 pub struct FfiOptionalCssPixels {
     pub has_value: bool,
     pub value: CssPixels,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_visual_line_caret_inline_coordinate(
-    host: &DocumentHost,
-    owner_paintable: u32,
-    line_index: u32,
-    primary: NodeSlotId,
-    offset: usize,
-    out: &mut FfiOptionalCssPixels,
-) {
-    *out = {
-        read_arena(
-            host,
-            node_read(),
-            (owner_paintable, line_index, primary, offset),
-            |arena, (owner_paintable, line_index, primary, offset)| {
-                let paintable_rows = arena.paintable_rows();
-                let fragments = arena.text_fragments(primary);
-                let node_slots = fragments.as_slice();
-                let coordinate = crate::painting::visual_lines::caret_inline_coordinate(
-                    &paintable_rows,
-                    owner_paintable,
-                    line_index,
-                    node_slots,
-                    offset,
-                );
-                match coordinate {
-                    Some(value) => FfiOptionalCssPixels { has_value: true, value },
-                    None => FfiOptionalCssPixels {
-                        has_value: false,
-                        value: CssPixels::from_raw(0),
-                    },
-                }
-            },
-        )
-    };
+impl FfiOptionalCssPixels {
+    fn of(value: Option<CssPixels>) -> Self {
+        Self {
+            has_value: value.is_some(),
+            value: value.unwrap_or_default(),
+        }
+    }
 }
 
+/// The inline coordinate of the caret at `offset` in the DOM text whose layout node is `primary`, where a fragment holds
+/// it, which a move to another line keeps.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_visual_line_offset_closest_to_inline_coordinate(
+pub extern "C" fn render_state_text_caret_inline_coordinate(
     host: &DocumentHost,
-    owner_paintable: u32,
-    line_index: u32,
     primary: NodeSlotId,
-    inline_coordinate: CssPixels,
-    fallback_offset: usize,
-) -> usize {
-    read_arena(
+    offset: usize,
+    downstream: bool,
+    out: &mut FfiOptionalCssPixels,
+) {
+    *out = read_arena(
         host,
         node_read(),
-        (owner_paintable, line_index, primary, inline_coordinate, fallback_offset),
-        |arena, (owner_paintable, line_index, primary, inline_coordinate, fallback_offset)| {
-            let paintable_rows = arena.paintable_rows();
-            let fragments = arena.text_fragments(primary);
-            let node_slots = fragments.as_slice();
-            crate::painting::visual_lines::offset_closest_to_inline_coordinate(
-                &paintable_rows,
-                owner_paintable,
-                line_index,
-                node_slots,
-                inline_coordinate,
-            )
-            .unwrap_or(fallback_offset)
+        (primary, offset, downstream),
+        |arena, (text, offset, downstream)| {
+            let rows = arena.paintable_rows();
+            let cursor = InlineCursor::new(&rows);
+            let position = CaretPosition::Text {
+                text,
+                offset,
+                downstream,
+            };
+            let line = cursor
+                .line_of(text, offset, downstream)
+                .filter(|line| line.fragment.is_some());
+            FfiOptionalCssPixels::of(line.and_then(|line| cursor.caret_inline_coordinate(line.line, position)))
         },
-    )
+    );
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
+pub enum FfiTextCaretMovement {
+    NextLine,
+    PreviousLine,
+    NextPage,
+    PreviousPage,
+    LineStart,
+    LineEnd,
+    LineLeft,
+    LineRight,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct FfiTextCaretMove {
+    pub found: bool,
+    pub offset: usize,
+    pub downstream: bool,
+    /// For a move to another line, the inline coordinate it kept, for the next such move to keep.
+    pub inline_coordinate: FfiOptionalCssPixels,
+}
+
+/// Moves the caret at `offset` in the DOM text (`text_length` long) whose layout node is `primary`: to an edge of its
+/// line, or to the position nearest `inline_coordinate` (or else the caret's own) on the next or previous line, or on
+/// the farthest line no more than `page_distance` away. A move past the last or first line goes to the end or start of
+/// the text.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub extern "C" fn render_state_text_caret_move(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    offset: usize,
+    downstream: bool,
+    text_length: usize,
+    movement: FfiTextCaretMovement,
+    inline_coordinate: FfiOptionalCssPixels,
+    page_distance: CssPixels,
+    out: &mut FfiTextCaretMove,
+) {
+    let args = (
+        primary,
+        offset,
+        downstream,
+        text_length,
+        movement,
+        inline_coordinate,
+        page_distance,
+    );
+    *out = read_arena(host, node_read(), args, |arena, args| {
+        use FfiTextCaretMovement::*;
+        let (text, offset, downstream, text_length, movement, inline_coordinate, page_distance) = args;
+        let rows = arena.paintable_rows();
+        let cursor = InlineCursor::new(&rows);
+        let fragments = arena.text_fragments(text);
+        let in_text = |node: &NodeSlotId| fragments.as_slice().contains(node);
+        let moved = |position, inline_coordinate| match position {
+            Some(CaretPosition::Text {
+                text,
+                offset,
+                downstream,
+            }) if in_text(&text) => FfiTextCaretMove {
+                found: true,
+                offset,
+                downstream,
+                inline_coordinate: FfiOptionalCssPixels::of(inline_coordinate),
+            },
+            _ => FfiTextCaretMove::default(),
+        };
+        let mut position = CaretPosition::Text {
+            text,
+            offset,
+            downstream,
+        };
+        let Some(start) = cursor.line_of(text, offset, downstream) else {
+            return FfiTextCaretMove::default();
+        };
+        let accepts = |fragment: &FragmentRecord| in_text(&fragment.layout_node);
+        let edge = |edge| moved(cursor.line_edge(start.line, edge, accepts), None);
+        let forward = match movement {
+            LineStart => return edge(LineEdge::Start),
+            LineEnd => return edge(LineEdge::End),
+            LineLeft => return edge(LineEdge::Left),
+            LineRight => return edge(LineEdge::Right),
+            NextLine | NextPage => true,
+            PreviousLine | PreviousPage => false,
+        };
+        let page_distance = matches!(movement, NextPage | PreviousPage).then_some(page_distance);
+        let goal = if inline_coordinate.has_value {
+            inline_coordinate.value
+        } else if let Some(coordinate) = cursor.caret_inline_coordinate(start.line, position) {
+            coordinate
+        } else {
+            return FfiTextCaretMove::default();
+        };
+        let start_coordinate = cursor.line_block_coordinate(start.line);
+        let mut line = start.line;
+        while let Some(next) = cursor.adjacent_line(line, forward) {
+            let distance = cursor.line_block_coordinate(next) - start_coordinate;
+            if page_distance.is_some_and(|page_distance| distance.max(-distance) > page_distance) {
+                return moved(Some(position), Some(goal));
+            }
+            let Some(position_on_next) = cursor.position_at_inline_coordinate(next, goal, accepts) else {
+                return moved(Some(position), Some(goal));
+            };
+            position = position_on_next;
+            line = next;
+            if page_distance.is_none() {
+                return moved(Some(position), Some(goal));
+            }
+        }
+        let offset = if forward { text_length } else { 0 };
+        moved(
+            Some(CaretPosition::Text {
+                text,
+                offset,
+                downstream: true,
+            }),
+            Some(goal),
+        )
+    });
 }
 
 /// # Safety

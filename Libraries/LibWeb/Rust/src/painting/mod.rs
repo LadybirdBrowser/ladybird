@@ -53,6 +53,5 @@ pub mod text_fragment;
 pub mod viewport_mapping;
 pub mod visual_animation_builder;
 pub mod visual_context;
-pub(crate) mod visual_lines;
 
 pub use libcompositing_rust::{filter_bytes, force_dark, visual_animation};

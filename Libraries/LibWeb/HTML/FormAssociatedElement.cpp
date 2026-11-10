@@ -841,6 +841,7 @@ void FormAssociatedTextControlElement::relevant_value_was_changed()
     if (static_cast<DOM::Element&>(element).dir() == DOM::Element::Dir::Auto)
         CSS::Invalidation::invalidate_style_after_directionality_change(element);
 
+    m_line_move_inline_coordinate = {};
     auto the_relevant_value = relevant_value();
     auto relevant_value_length = the_relevant_value.length_in_code_units();
 
@@ -1270,6 +1271,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     m_selection_start = new_selection_start;
     m_selection_end = new_selection_end;
     m_selection_end_affinity = TextAffinity::Downstream;
+    m_line_move_inline_coordinate = {};
 
     // 4. If direction is not identical to either "backward" or "forward", or if the direction
     //    argument was not given, set direction to "none".
@@ -1477,6 +1479,8 @@ void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t posit
 
 void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, TextAffinity affinity, CollapseSelection collapse)
 {
+    if (m_selection_end != offset || m_selection_end_affinity != affinity || (collapse == CollapseSelection::Yes && m_selection_start != offset))
+        m_line_move_inline_coordinate = {};
     if (collapse == CollapseSelection::Yes)
         m_selection_start = offset;
     m_selection_end = offset;
@@ -1618,24 +1622,38 @@ void FormAssociatedTextControlElement::move_cursor_to_end(CollapseSelection coll
     selection_was_changed(SelectionSource::UI);
 }
 
+void FormAssociatedTextControlElement::move_cursor_on_lines(Layout::RustFFI::FfiTextCaretMovement movement, CollapseSelection collapse, CSSPixels page_distance)
+{
+    auto text = form_associated_element_to_text_node();
+    if (!text)
+        return;
+    auto& document = text_control_to_html_element().document();
+    Layout::ForcedReadScope read { document };
+    document.update_layout_if_needed_for_node(*text, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto const* layout_node = text->layout_node(read);
+    if (!layout_node)
+        return;
+    Layout::RustFFI::FfiTextCaretMove move;
+    Layout::RustFFI::render_state_text_caret_move(layout_node->document_host(), Layout::Node::slot_id(layout_node),
+        m_selection_end, m_selection_end_affinity == TextAffinity::Downstream, text->length(), movement,
+        { .has_value = m_line_move_inline_coordinate.has_value(), .value = m_line_move_inline_coordinate.value_or(0) },
+        page_distance, &move);
+    if (!move.found)
+        return;
+    move_selection_end_to(move.offset, move.downstream ? TextAffinity::Downstream : TextAffinity::Upstream, collapse);
+    if (move.inline_coordinate.has_value)
+        m_line_move_inline_coordinate = move.inline_coordinate.value;
+    selection_was_changed(SelectionSource::UI);
+}
+
 void FormAssociatedTextControlElement::move_cursor_to_start_of_current_line(CollapseSelection collapse)
 {
-    auto text_node = form_associated_element_to_text_node();
-    if (!text_node)
-        return;
-    auto new_offset = find_visual_line_start(*text_node, m_selection_end, m_selection_end_affinity);
-    move_selection_end_to(new_offset, TextAffinity::Downstream, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(Layout::RustFFI::FfiTextCaretMovement::LineStart, collapse);
 }
 
 void FormAssociatedTextControlElement::move_cursor_to_end_of_current_line(CollapseSelection collapse)
 {
-    auto text_node = form_associated_element_to_text_node();
-    if (!text_node)
-        return;
-    auto new_position = find_visual_line_end(*text_node, m_selection_end, m_selection_end_affinity);
-    move_selection_end_to(new_position.offset, new_position.affinity, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(Layout::RustFFI::FfiTextCaretMovement::LineEnd, collapse);
 }
 
 void FormAssociatedTextControlElement::move_cursor_to_start_of_paragraph(CollapseSelection collapse)
@@ -1666,10 +1684,7 @@ void FormAssociatedTextControlElement::move_cursor_to_end_of_paragraph(CollapseS
 
 void FormAssociatedTextControlElement::move_cursor_by_page(bool forward, CollapseSelection collapse)
 {
-    auto text = form_associated_element_to_text_node();
     auto& element = text_control_to_html_element();
-    if (!text)
-        return;
     Layout::ForcedReadScope read { element.document() };
     element.document().update_layout_if_needed_for_node(element, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto* layout = element.layout_node(read);
@@ -1683,30 +1698,12 @@ void FormAssociatedTextControlElement::move_cursor_by_page(bool forward, Collaps
 #ifdef AK_OS_MACOS
     distance = max(distance, page_height - 40);
 #endif
-    auto position = compute_cursor_position_by_page(*text, m_selection_end, m_selection_end_affinity, forward, max(distance, 1));
-    if (!position.has_value())
-        return;
-    move_selection_end_to(position->offset, position->affinity, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(forward ? Layout::RustFFI::FfiTextCaretMovement::NextPage : Layout::RustFFI::FfiTextCaretMovement::PreviousPage, collapse, max(distance, 1));
 }
 
 void FormAssociatedTextControlElement::move_cursor_to_physical_line_boundary(bool left, CollapseSelection collapse)
 {
-    auto text = form_associated_element_to_text_node();
-    if (!text)
-        return;
-    auto& document = text_control_to_html_element().document();
-    Layout::ForcedReadScope read { document };
-    document.update_layout_if_needed_for_node(*text, DOM::UpdateLayoutReason::CursorLineNavigation);
-    auto position = document.caret_position_at_line_edge(read, *text, m_selection_end, m_selection_end_affinity,
-        left ? Painting::CaretLineEdge::Left : Painting::CaretLineEdge::Right);
-    if (!position.has_value())
-        return;
-    auto boundary = position->boundary_point();
-    if (!boundary.has_value() || boundary->node != text)
-        return;
-    move_selection_end_to(boundary->offset, position->affinity, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(left ? Layout::RustFFI::FfiTextCaretMovement::LineLeft : Layout::RustFFI::FfiTextCaretMovement::LineRight, collapse);
 }
 
 void FormAssociatedTextControlElement::increment_cursor_position_offset(CollapseSelection collapse)
@@ -1781,30 +1778,12 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
 
 void FormAssociatedTextControlElement::increment_cursor_position_to_next_line(CollapseSelection collapse)
 {
-    auto text_node = form_associated_element_to_text_node();
-    if (!text_node)
-        return;
-
-    auto new_position = compute_cursor_position_on_next_line(*text_node, m_selection_end, m_selection_end_affinity);
-    if (!new_position.has_value())
-        return;
-
-    move_selection_end_to(new_position->offset, new_position->affinity, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(Layout::RustFFI::FfiTextCaretMovement::NextLine, collapse);
 }
 
 void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_line(CollapseSelection collapse)
 {
-    auto text_node = form_associated_element_to_text_node();
-    if (!text_node)
-        return;
-
-    auto new_position = compute_cursor_position_on_previous_line(*text_node, m_selection_end, m_selection_end_affinity);
-    if (!new_position.has_value())
-        return;
-
-    move_selection_end_to(new_position->offset, new_position->affinity, collapse);
-    selection_was_changed(SelectionSource::UI);
+    move_cursor_on_lines(Layout::RustFFI::FfiTextCaretMovement::PreviousLine, collapse);
 }
 
 GC::Ptr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const

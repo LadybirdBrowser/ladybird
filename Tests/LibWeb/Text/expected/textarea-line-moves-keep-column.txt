@@ -1,0 +1,3 @@
+Down, Down, Up, Up: 10 -> 20 -> 31 -> 20 -> 10
+Down, Left, Down, Up: 10 -> 20 -> 19 -> 22 -> 19
+Down, End, Down: 4 -> 20 -> 20 -> 25
