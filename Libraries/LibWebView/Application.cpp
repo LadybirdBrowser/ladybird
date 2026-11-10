@@ -81,6 +81,7 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebDriverBiDi.h>
 #include <LibWebView/WebDriverBrowserConnection.h>
+#include <LibWebView/WebUI/SupportUI.h>
 #include <LibWebView/WorkerAgentManager.h>
 
 #if defined(AK_OS_MACOS)
@@ -1933,6 +1934,39 @@ void Application::system_facts_arrived(SystemFacts const& facts)
 void Application::reevaluate_platform_features()
 {
     m_platform_feature_decisions = PlatformFeatureDecisions::evaluate(m_system_facts, m_feature_overrides, m_feature_runtime_failures);
+    SupportUI::platform_features_changed();
+}
+
+JsonObject Application::platform_features_report() const
+{
+    JsonArray features;
+    for (auto feature : PlatformFeatures::all_features) {
+        auto const& status = m_platform_feature_decisions->status_of(feature);
+        if (status.state == FeatureStatus::State::NotBuilt)
+            continue;
+        JsonObject object;
+        object.set("id"sv, PlatformFeatures::feature_id(feature));
+        object.set("process"sv, PlatformFeatures::process_name(PlatformFeatures::process_of(feature)));
+        if (auto dependency = PlatformFeatures::dependency_of(feature); dependency.has_value())
+            object.set("dependency"sv, PlatformFeatures::feature_id(*dependency));
+        object.set("state"sv, feature_state_name(status.state));
+        object.set("forced"sv, status.forced);
+        object.set("reason"sv, status.reason);
+        if (!status.rule_id.is_empty())
+            object.set("rule"sv, status.rule_id);
+        if (status.blocking_feature.has_value())
+            object.set("blocked_by"sv, PlatformFeatures::feature_id(*status.blocking_feature));
+        features.must_append(move(object));
+    }
+
+    JsonObject report;
+    report.set("features"sv, move(features));
+    report.set("describes_gpu"sv, PlatformFeatures::this_build.paints_through_vulkan);
+    report.set("describes_ffmpeg"sv, PlatformFeatures::this_build.decodes_video_through_vulkan());
+    report.set("facts"sv, m_system_facts.to_json());
+    if (m_system_facts.probe_failure.has_value())
+        report.set("probe_failure"sv, *m_system_facts.probe_failure);
+    return report;
 }
 
 void Application::when_platform_features_are_current(Function<void()> callback)
