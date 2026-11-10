@@ -38,18 +38,14 @@ namespace WebDriver {
 static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 static HashMap<String, NonnullRefPtr<Session>> s_http_sessions;
 
-struct SessionCreationState;
-static WeakPtr<SessionCreationState> s_http_session_creation;
+// The session whose browser is starting, until it is appended to the active sessions or closed.
+static RefPtr<Session> s_session_being_created;
 
-struct SessionCreationState
-    : public RefCounted<SessionCreationState>
-    , public Weakable<SessionCreationState> {
-    SessionCreationState(JsonValue capabilities, Web::WebDriver::SessionFlags flags)
+struct SessionCreationState : public RefCounted<SessionCreationState> {
+    SessionCreationState(JsonValue capabilities)
         : capabilities(move(capabilities))
         , promise(Session::NewSessionPromise::construct())
     {
-        if (has_flag(flags, Web::WebDriver::SessionFlags::Http))
-            s_http_session_creation = *this;
     }
 
     JsonValue capabilities;
@@ -64,16 +60,17 @@ static Web::WebDriver::Error session_not_created_error(AK::Error const& error)
 // https://w3c.github.io/webdriver/#dfn-create-a-session
 ErrorOr<NonnullRefPtr<Session::NewSessionPromise>> Session::create(NonnullRefPtr<Client> client, JsonValue capabilities, Web::WebDriver::SessionFlags flags)
 {
-    if (has_flag(flags, Web::WebDriver::SessionFlags::Http) && s_http_session_creation)
-        return Error::from_string_literal("An HTTP session is already being created");
+    if (s_session_being_created)
+        return Error::from_string_literal("A session is already being created");
 
-    auto state = adopt_ref(*new SessionCreationState(move(capabilities), flags));
+    auto state = adopt_ref(*new SessionCreationState(move(capabilities)));
 
     // 1. Let session id be the result of generating a UUID.
     auto session_id = generate_random_uuid();
 
     // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
     auto session = adopt_ref(*new Session(client, state->capabilities.as_object(), move(session_id), flags));
+    s_session_being_created = session;
     auto start_result = session->start(client->launch_browser_callback());
     if (start_result.is_error()) {
         auto error = start_result.release_error();
@@ -205,6 +202,7 @@ ErrorOr<NonnullRefPtr<Session::NewSessionPromise>> Session::create(NonnullRefPtr
                      }
 
                      // 12. Append session to active sessions.
+                     s_session_being_created = nullptr;
                      s_sessions.set(session->session_id(), session);
 
                      // 13. If flags contains "http", append session to active HTTP sessions.
@@ -279,7 +277,7 @@ size_t Session::session_count(Web::WebDriver::SessionFlags session_flags)
 
 bool Session::has_pending_http_session_creation()
 {
-    return s_http_session_creation;
+    return s_session_being_created && has_flag(s_session_being_created->session_flags(), Web::WebDriver::SessionFlags::Http);
 }
 
 NonnullRefPtr<Session::WebDriverPromise> Session::enqueue_http_request(Function<NonnullRefPtr<WebDriverPromise>()> handler)
@@ -327,12 +325,13 @@ void Session::dequeue_current_http_request()
 
 void Session::close_all()
 {
-    // close() unregisters each session as it runs, so snapshot first. s_sessions holds every
-    // session (HTTP ones are also in s_http_sessions), so iterating it alone covers all of them.
+    // Closing unregisters sessions, so snapshot both active and starting sessions first.
     Vector<NonnullRefPtr<Session>> sessions;
-    sessions.ensure_capacity(s_sessions.size());
+    sessions.ensure_capacity(s_sessions.size() + 1);
     for (auto& session : s_sessions)
         sessions.unchecked_append(session.value);
+    if (s_session_being_created)
+        sessions.unchecked_append(*s_session_being_created);
     for (auto& session : sessions)
         session->close();
 }
@@ -388,6 +387,8 @@ void Session::close()
 
     // 2. Remove session from active sessions.
     s_sessions.remove(m_session_id);
+    if (s_session_being_created == this)
+        s_session_being_created = nullptr;
 
     // https://w3c.github.io/webdriver-bidi/#cleanup-the-session
     // 1. Close the WebSocket connections with session.
