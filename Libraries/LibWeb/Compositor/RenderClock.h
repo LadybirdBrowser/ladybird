@@ -9,7 +9,6 @@
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Function.h>
-#include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
@@ -17,10 +16,10 @@
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
+#include <LibIPC/ThreadSafeMessagePoster.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibThreading/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
 namespace Web::Layout::RustFFI {
@@ -29,17 +28,15 @@ struct ClockTicks;
 
 }
 
+namespace Web::Compositor::RustFFI {
+
+struct RenderClockLanes;
+
+}
+
 namespace Web::Compositor {
 
 class RenderClockChannel;
-
-// What a document's clock lanes want once they heard where the pointer went.
-enum class PointerAnswer : u8 {
-    // The moves that follow, but no display tick: no lane hovers the move.
-    Moves = 1,
-    // Display ticks too, until a tick declines the next one.
-    Ticks = 2,
-};
 
 // A reference to the ticks of a document's clock lanes, which hands them on to the lane that follows the frame the
 // document presented last.
@@ -53,18 +50,7 @@ public:
     }
     ~ClockTicksHandle();
 
-    // Hands the lane a tick, with where the Compositor had scrolled to then, and answers whether it wants the next one.
-    bool tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>) const;
-
-    // Hands the lane where the pointer went, or that it left, with the input event id of the mouse event the main thread
-    // takes beside it, and answers what the lanes want next.
-    PointerAnswer pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const;
-
-    // Hands the lane that the pointer rests where the Compositor's animations move what is under it, which the next
-    // tick hovers again, and answers what the lanes want next.
-    PointerAnswer pointer_rests_on_moving_content() const;
-
-    bool hands_on_to(ClockTicksHandle const& other) const { return m_ticks == other.m_ticks; }
+    Layout::RustFFI::ClockTicks const* ticks() const { return m_ticks; }
 
 private:
     Layout::RustFFI::ClockTicks const* m_ticks { nullptr };
@@ -114,11 +100,6 @@ public:
     bool is_manual_for_testing() const { return m_manual_for_testing; }
 
 private:
-    struct ArmedContext {
-        double maximum_frames_per_second { 60.0 };
-        NonnullRefPtr<ClockTicksHandle> ticks;
-    };
-
     friend class RenderClockChannel;
 
     RenderClock();
@@ -129,10 +110,6 @@ private:
     // On the clock thread.
     ErrorOr<void> replace_channel(IPC::TransportHandle);
     void drop_channel();
-    void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
-    void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>);
-    void did_receive_pointer_move(Web::CompositorContextId, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id);
-    void did_receive_pointer_rest(Web::CompositorContextId);
     void did_lose_channel();
 
     NonnullRefPtr<Threading::Thread> m_thread;
@@ -145,13 +122,8 @@ private:
 
     // Owned by the clock thread.
     RefPtr<RenderClockChannel> m_channel;
-    HashMap<Web::CompositorContextId, ArmedContext> m_armed_contexts;
-    struct PointerLane {
-        double maximum_frames_per_second { 60.0 };
-        NonnullRefPtr<ClockTicksHandle> ticks;
-    };
-    HashMap<Web::CompositorContextId, PointerLane> m_pointer_lanes;
-    void arm_lane_for_pointer_answer(Web::CompositorContextId, PointerLane const&, PointerAnswer);
+    RefPtr<IPC::ThreadSafeMessagePoster> m_poster_of_channel;
+    RustFFI::RenderClockLanes& m_lanes;
 };
 
 }

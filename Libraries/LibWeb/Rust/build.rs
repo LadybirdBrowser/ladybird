@@ -3070,6 +3070,36 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("Layout/TreeBuilderRustFFI.h"),
     );
 
+    // The lanes of the render clock - namespace Web::Compositor::RustFFI, layered on the layout header for the ticks
+    // the lanes hand on.
+    let mut render_clock_config = base_config.clone();
+    render_clock_config.namespaces = Some(vec!["Web".to_string(), "Compositor".to_string(), "RustFFI".to_string()]);
+    for (rust_name, cpp_name) in [
+        ("ArcRef", "Web::Layout::RustFFI::ArcRef"),
+        ("ClockTicks", "Web::Layout::RustFFI::ClockTicks"),
+        ("FfiThreadSafeMessagePoster", "IPC::FfiThreadSafeMessagePoster"),
+        ("RawMessage", "IPC::FfiRawMessage"),
+    ] {
+        render_clock_config
+            .export
+            .rename
+            .insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    render_clock_config.includes.extend(
+        [
+            "LibIPC/RawMessage.h",
+            "LibIPC/ThreadSafeMessagePoster.h",
+            "LibWeb/Layout/LayoutRustFFI.h",
+        ]
+        .map(String::from),
+    );
+    generate_ffi_header(
+        render_clock_config,
+        &[manifest_dir.join("src/render_state/clock/render_clock.rs")],
+        &out_dir,
+        Path::new("Compositor/RenderClockRustFFI.h"),
+    );
+
     // Layout engine header - namespace Web::Layout::RustFFI, layered on the tree-builder
     // header.
     let mut layout_config = base_config;

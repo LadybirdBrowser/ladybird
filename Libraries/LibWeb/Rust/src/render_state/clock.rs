@@ -64,6 +64,7 @@ use std::sync::{Arc, Mutex};
 mod effects;
 pub(crate) mod hover;
 mod lane;
+mod render_clock;
 mod selection;
 pub(crate) use hover::PendingPointer;
 pub(crate) use lane::LaneDelivery;
@@ -1891,17 +1892,6 @@ impl ClockRecorder {
         self.presented_hit_test_items = None;
         self.presented = TickPresented::LeftToHost;
     }
-}
-
-/// Hands the lanes `ticks` belong to a display tick at `frame_time_nanoseconds`, at which the compositor had scrolled to
-/// the offsets `scroll_offsets`, and answers whether they want the next one.
-#[unsafe(no_mangle)]
-pub extern "C" fn clock_ticks_tick(
-    ticks: crate::css::ffi_support::ArcRef<'_, ClockTicks>,
-    frame_time_nanoseconds: i64,
-    scroll_offsets: ak::Span<'_, FfiScrollOffset>,
-) -> bool {
-    ticks.to_arc().tick(frame_time_nanoseconds, scroll_offsets.as_slice())
 }
 
 /// Gives up the reference `ticks` holds.

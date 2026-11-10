@@ -1096,6 +1096,7 @@ sync_rust_crate_ffi_headers(
         SelectorStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
+        Compositor/RenderClockRustFFI.h
 )
 add_dependencies(LibWeb libweb_rust-ffi-headers)
 target_link_libraries(libweb_bindings_rust INTERFACE LibGfx LibGC LibUnicode)
