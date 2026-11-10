@@ -6,6 +6,7 @@ set(SOURCES
     Canvas2DCommandPlayer.cpp
     CanvasHost.cpp
     ColorSpaceSkia.cpp
+    CompositorCore.cpp
     CompositorState.cpp
     ContextPresenter.cpp
     ContextScene.cpp
