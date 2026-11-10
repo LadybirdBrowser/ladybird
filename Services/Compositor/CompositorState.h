@@ -43,17 +43,13 @@ class CompositorStateClient {
 public:
     virtual ~CompositorStateClient() = default;
 
+    virtual PresentationId presentation_id() const = 0;
+    virtual void post_message_to_presentation(IPC::MessageBuffer&) = 0;
     virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     // The stores join the ones allocated last, and leave them again once retired.
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) = 0;
-    // The compositor performed the event's whole default action, so the UI hears nothing more about it.
-    virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) = 0;
-    // No context could take the event; the UI sends it to WebContent itself.
-    virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) = 0;
-    // The compositor forwarded the key event to WebContent, after performing its default action by scrolling if it says so.
-    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool performed_default_action) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -100,7 +96,7 @@ public:
     };
 
     // Each root context presents to the presentation it is bound to. Unbound contexts keep rendering, but publish nothing.
-    void register_presentation(CompositorStateClient&, PresentationCapabilities);
+    PresentationId register_presentation(CompositorStateClient&, PresentationCapabilities);
     void unregister_presentation(CompositorStateClient&);
     void bind_presentation(Web::CompositorContextId, CompositorStateClient&);
     CompositorStateClient* presentation_for_context(Web::CompositorContextId) const;
@@ -187,10 +183,18 @@ public:
 private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>);
 
+    template<typename Message, typename... Arguments>
+    void post_to_presentation(PresentationId presentation_id, Arguments&&... arguments)
+    {
+        auto buffer = MUST(Message::static_encode(forward<Arguments>(arguments)...));
+        post_message_to_presentation(presentation_id, buffer);
+    }
+
     CompositorStateWebContentClient* web_content_client_if_present(WebContentClientId) const;
     CompositorStateWebContentClient& web_content_client_of(ContextState const&);
     virtual void post_message_to_web_content(WebContentClientId, IPC::MessageBuffer&) override;
     virtual void post_message_to_render_clock_of_web_content(WebContentClientId, IPC::MessageBuffer&) override;
+    virtual void post_message_to_presentation(PresentationId, IPC::MessageBuffer&) override;
     virtual void request_display_ticks(Web::CompositorContextId) override;
     virtual void set_timer(Web::CompositorContextId, ContextTimer, AK::Duration delay) override;
     virtual void cancel_timer(Web::CompositorContextId, ContextTimer) override;
@@ -278,7 +282,7 @@ private:
         bool presents_frame { false };
     };
     // A process only knows the ids of its own nodes, and only follows the operations of its own contexts.
-    AppliedWheelStep apply_wheel_step_result(Web::CompositorContextId, ContextState&, ContextState::ContextUpdateResult const&, WebContentClientId reporting_client);
+    AppliedWheelStep apply_wheel_step_result(Web::CompositorContextId, ContextState&, ContextState::ContextUpdateResult const&, WebContentClientId reporting_client, MonotonicTime now);
     static Compositing::WheelEventAnswer wheel_event_answer_for(AppliedWheelStep const&, Optional<Web::WheelGestureMark>);
     AppliedWheelStep hand_wheel_step_to_nested_context(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, ContextState::NestedContextWheelStep const&, ContextState::WheelEventListenerGate const&, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
     struct NestedContextTakingWheelStep {
@@ -315,6 +319,8 @@ private:
     bool page_under_pinch_may_cancel_it(Web::CompositorContextId, ContextState&, Gfx::FloatPoint position);
     void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<Web::MouseEvent>, MonotonicTime now);
     void present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
+    void request_present(Web::CompositorContextId, PendingFrame const&);
+    void schedule_requested_presents();
     void schedule_present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
     void schedule_pending_present_frame(Web::CompositorContextId, ContextState&);
@@ -322,7 +328,6 @@ private:
     void schedule_containing_context_present(ContextState&);
     void schedule_pending_present_frame_if_unblocked(Web::CompositorContextId, ContextState&);
     bool try_present_frame_during_resize(Web::CompositorContextId, ContextState&);
-    void schedule_caret_repaint(Web::CompositorContextId, Gfx::IntRect damage_rect);
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time);
     void publish_backing_stores(Web::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
@@ -339,6 +344,7 @@ private:
     u64 m_next_web_content_client_id { 1 };
     HashMap<WebContentClientId, CompositorStateWebContentClient*> m_web_content_clients;
     HashMap<Web::CompositorContextId, HashMap<ContextTimer, NonnullRefPtr<Core::Timer>>> m_context_timers;
+    Vector<PresentRequest> m_present_requests;
 
     DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
@@ -348,6 +354,8 @@ private:
     RefPtr<Core::Timer> m_gpu_completion_timer;
 
     HashMap<CompositorStateClient*, PresentationCapabilities> m_presentations;
+    u64 m_next_presentation_id { 1 };
+    HashMap<PresentationId, CompositorStateClient*> m_presentations_by_id;
     HashMap<Web::CompositorContextId, CompositorStateClient*> m_context_presentations;
 
     struct VideoSinkState {

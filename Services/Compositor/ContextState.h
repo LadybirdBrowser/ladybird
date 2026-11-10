@@ -169,6 +169,8 @@ public:
     bool scrolled_since_last_frame() const;
     bool can_dispatch_input_to_web_content() const { return m_page_id.has_value(); }
     Optional<u64> page_id() const { return m_page_id; }
+    void set_bound_presentation(Optional<PresentationId> presentation_id) { m_bound_presentation = presentation_id; }
+    Optional<PresentationId> bound_presentation() const { return m_bound_presentation; }
 
     bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client();
@@ -299,11 +301,13 @@ public:
     bool absorbs_wheel_event_of_interrupted_momentum(Web::MouseEvent const&);
     // What the presentation a context is shown through makes of the user's scrolling.
     struct ScrollCapabilities {
+        bool synthesizes_scroll_momentum { false };
         bool scrolls_elastically { false };
         bool scrollbar_track_press_jumps { false };
         Compositing::TouchpadGestureEnd touchpad_gesture_end { Compositing::TouchpadGestureEnd::AfterIdleDelay };
     };
     void set_scroll_capabilities(ScrollCapabilities const&);
+    bool presentation_synthesizes_scroll_momentum() const { return m_presentation_synthesizes_scroll_momentum; }
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Gfx::IntRect advance_scrollbar_fades_and_return_damage_rect(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
@@ -495,6 +499,7 @@ private:
     WebContentClientId m_web_content_client_id;
     Web::CompositorContextId m_context_id;
     Optional<u64> m_page_id;
+    Optional<PresentationId> m_bound_presentation;
 
     Optional<Web::CompositorContextId> m_parent_context_id;
 
@@ -536,6 +541,7 @@ private:
     };
     Optional<ScrollbarPaging> m_scrollbar_paging;
     bool m_scrollbar_track_press_jumps { false };
+    bool m_presentation_synthesizes_scroll_momentum { false };
     bool m_scrollbar_paging_timer_is_armed { false };
     PointerInNestedContexts m_pointer_in_nested_contexts;
     Optional<Gfx::FloatPoint> m_pointer_position;

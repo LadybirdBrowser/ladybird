@@ -6,8 +6,10 @@
 
 #include <AK/Math.h>
 #include <AK/Random.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/CanvasHost.h>
+#include <Compositor/CompositorPresentationClientEndpoint.h>
 #include <Compositor/CompositorState.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StatsLog.h>
@@ -68,6 +70,12 @@ void CompositorState::post_message_to_render_clock_of_web_content(WebContentClie
         client->post_message_to_render_clock(buffer);
 }
 
+void CompositorState::post_message_to_presentation(PresentationId presentation_id, IPC::MessageBuffer& buffer)
+{
+    if (auto* presentation = m_presentations_by_id.get(presentation_id).value_or(nullptr))
+        presentation->post_message_to_presentation(buffer);
+}
+
 void CompositorState::request_display_ticks(Web::CompositorContextId context_id)
 {
     if (auto* context = context_if_present(context_id); context && context_is_effectively_visible(*context))
@@ -95,18 +103,24 @@ void CompositorState::cancel_timer(Web::CompositorContextId context_id, ContextT
 
 void CompositorState::context_timer_fired(Web::CompositorContextId context_id, ContextTimer timer)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto* context = context_if_present(context_id);
     if (!context)
         return;
     auto now = MonotonicTime::now();
     auto caret_damage_rect = context->timer_fired(timer, now);
     if (caret_damage_rect.has_value())
-        schedule_caret_repaint(context_id, *caret_damage_rect);
+        m_present_requests.append({ context_id, {}, *caret_damage_rect });
 }
 
-void CompositorState::register_presentation(CompositorStateClient& presentation, PresentationCapabilities capabilities)
+PresentationId CompositorState::register_presentation(CompositorStateClient& presentation, PresentationCapabilities capabilities)
 {
+    PresentationId presentation_id { m_next_presentation_id++ };
     m_presentations.set(&presentation, capabilities);
+    m_presentations_by_id.set(presentation_id, &presentation);
+    return presentation_id;
 }
 
 void CompositorState::unregister_presentation(CompositorStateClient& presentation)
@@ -119,6 +133,7 @@ void CompositorState::unregister_presentation(CompositorStateClient& presentatio
     for (auto context_id : bound_context_ids)
         unbind_presentation(context_id);
     m_presentations.remove(&presentation);
+    m_presentations_by_id.remove(presentation.presentation_id());
 }
 
 void CompositorState::bind_presentation(Web::CompositorContextId context_id, CompositorStateClient& presentation)
@@ -134,6 +149,7 @@ void CompositorState::bind_presentation(Web::CompositorContextId context_id, Com
 
     unbind_presentation(context_id);
     m_context_presentations.set(context_id, &presentation);
+    context->set_bound_presentation(presentation.presentation_id());
     update_scroll_capabilities();
 
     // The new presentation has seen none of the context's buffers, so it gets buffers of its own.
@@ -147,6 +163,7 @@ void CompositorState::unbind_presentation(Web::CompositorContextId context_id)
         return;
     auto* context = context_if_present(context_id);
     VERIFY(context);
+    context->set_bound_presentation({});
 
     for (auto& pending_present : m_pending_async_presents) {
         if (pending_present.context_id == context_id)
@@ -825,13 +842,18 @@ void CompositorState::invalidate_keyboard_scroll_state(Web::CompositorContextId 
 
 void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     // NB: The presentation connection only passes on input for the contexts bound to it.
-    auto* presentation = presentation_for_context(context_id);
-    VERIFY(presentation);
     auto* context = context_if_present(context_id);
-    if (!context || !context->can_dispatch_input_to_web_content()) {
-        presentation->did_not_dispatch_input_event(context_id, event.id);
+    VERIFY(context);
+    VERIFY(context->bound_presentation().has_value());
+    auto presentation_id = *context->bound_presentation();
+    if (!context->can_dispatch_input_to_web_content()) {
+        // No context could take the event; the UI sends it to WebContent itself.
+        post_to_presentation<Messages::CompositorPresentationClient::DidNotDispatchInputEvent>(presentation_id, context_id, event.id);
         return;
     }
 
@@ -849,23 +871,27 @@ void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId con
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
     context->dispatch_key_event_to_web_content(event);
-    presentation->did_dispatch_input_event(context_id, event.id, later_keys_need_not_wait);
+    // The compositor forwarded the key event to WebContent, after performing its default action by scrolling if it says so.
+    post_to_presentation<Messages::CompositorPresentationClient::DidDispatchInputEvent>(presentation_id, context_id, event.id, later_keys_need_not_wait);
 }
 
 void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     // NB: The presentation connection only passes on input for the contexts bound to it.
-    auto* presentation = presentation_for_context(context_id);
-    VERIFY(presentation);
     auto* context = context_if_present(context_id);
+    VERIFY(context);
+    VERIFY(context->bound_presentation().has_value());
+    auto presentation_id = *context->bound_presentation();
     auto record_routing = [&](Web::InputRoutingDecision decision, Optional<Web::AsyncScrollNodeStableID> scroller = {}) {
         context->input_trace().record({ .input_event_id = event.id, .stage = Web::InputTraceStage::Compositor, .decision = decision, .scroller = scroller });
     };
-    if (!context || !context->can_dispatch_input_to_web_content()) {
-        if (context)
-            record_routing(Web::InputRoutingDecision::NotDispatchedByCompositor);
-        presentation->did_not_dispatch_input_event(context_id, event.id);
+    if (!context->can_dispatch_input_to_web_content()) {
+        record_routing(Web::InputRoutingDecision::NotDispatchedByCompositor);
+        post_to_presentation<Messages::CompositorPresentationClient::DidNotDispatchInputEvent>(presentation_id, context_id, event.id);
         return;
     }
 
@@ -884,7 +910,8 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // over again.
         if (context->absorbs_wheel_event_of_interrupted_momentum(event)) {
             record_routing(Web::InputRoutingDecision::MomentumInterrupted);
-            presentation->did_consume_input_event(context_id, event.id);
+            // The compositor performed the event's whole default action, so the UI hears nothing more about it.
+            post_to_presentation<Messages::CompositorPresentationClient::DidConsumeInputEvent>(presentation_id, context_id, event.id);
             return;
         }
         auto noted = context->note_wheel_event_from_ui(event, now);
@@ -895,7 +922,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // flicked gesture, so it does not stop the fling.
         if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->has_active_scroll_fling()) {
             record_routing(Web::InputRoutingDecision::GestureEndAbsorbedByFling);
-            presentation->did_consume_input_event(context_id, event.id);
+            post_to_presentation<Messages::CompositorPresentationClient::DidConsumeInputEvent>(presentation_id, context_id, event.id);
             return;
         }
 
@@ -903,10 +930,10 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         dispatch_scroll_fling_step(context_id, *context, context->interrupt_scroll_fling(event, now), now);
 
         // If the gesture continues as a fling, the end of the fling is the end of the gesture.
-        if (m_presentations.get(presentation)->synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event, now)) {
+        if (context->presentation_synthesizes_scroll_momentum() && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event, now)) {
             record_routing(Web::InputRoutingDecision::FlingStarted);
-            presentation->did_consume_input_event(context_id, event.id);
-            schedule_animation_frames_if_needed(*context);
+            post_to_presentation<Messages::CompositorPresentationClient::DidConsumeInputEvent>(presentation_id, context_id, event.id);
+            context->request_display_ticks_if_needed(now);
             return;
         }
     }
@@ -923,13 +950,13 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         record_routing(*result.routing_decision, result.routed_scroller);
     }
 
-    // Schedules the present, publishes the scroll updates the event produced and asks for a rendering update, all of
-    // which reach WebContent ahead of the event itself on the same connection. Those of a nested context another
-    // process owns go on that process's connection instead, while the event reaches it through the UI.
+    // Asks for the present, publishes the scroll updates the event produced and asks for a rendering update, the last
+    // two of which reach WebContent ahead of the event itself on the same connection. Those of a nested context
+    // another process owns go on that process's connection instead, while the event reaches it through the UI.
     auto handled = apply_context_update_result(context_id, *context, result);
     // A wheel event that lets go of a stretched scroller presents nothing itself; the rebound does from here on. A press
     // beside the thumb of a scrollbar scrolls there in an animation too.
-    schedule_animation_frames_if_needed(*context);
+    context->request_display_ticks_if_needed(now);
     if (is_wheel_event) {
         event.async_scroll_performed_default_action = handled;
         if (!handled)
@@ -938,7 +965,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.
         if (!result.scrollbar_dragged_by_compositor.has_value()) {
             record_routing(Web::InputRoutingDecision::ConsumedByCompositor);
-            presentation->did_consume_input_event(context_id, event.id);
+            post_to_presentation<Messages::CompositorPresentationClient::DidConsumeInputEvent>(presentation_id, context_id, event.id);
             return;
         }
         event.scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
@@ -1014,7 +1041,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
     // The nested context presents and publishes what the event changed, and this context reports how the event went.
     auto result_of_nested_context = [&](Web::CompositorContextId nested_context_id, ContextState& nested_context, ContextState::ContextUpdateResult const& nested_result, Optional<PendingFrame> frame_of_this_context) {
         apply_context_update_result(nested_context_id, nested_context, nested_result);
-        schedule_animation_frames_if_needed(nested_context);
+        nested_context.request_display_ticks_if_needed(now);
         // Node ids are only unique within the process that made them.
         bool ids_are_of_this_process = nested_context.is_owned_by(context.web_content_client_id());
         return ContextState::ContextUpdateResult {
@@ -1055,7 +1082,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
         if (auto* context_left = context_still_nested_in(context_id, pointer.context_under_pointer)) {
             context_left->note_pointer_position({});
             if (auto frame_to_present = context_left->clear_scrollbar_hover(); frame_to_present.has_value())
-                schedule_present_frame(*pointer.context_under_pointer, *context_left, *frame_to_present);
+                request_present(*pointer.context_under_pointer, *frame_to_present);
         }
         pointer.context_under_pointer = nested_context_id;
     };
@@ -1098,7 +1125,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
             }
             if (containing_context != &context) {
                 apply_context_update_result(containing_context_id, *containing_context, result);
-                schedule_animation_frames_if_needed(*containing_context);
+                containing_context->request_display_ticks_if_needed(now);
             }
             containing_context_id = hit.child_context_id;
             containing_context = nested_context;
@@ -1129,7 +1156,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
         if (auto* context_under_pointer = context_still_nested_in(context_id, pointer.context_under_pointer); context_under_pointer && pointer.context_under_pointer != context_with_captured_scrollbar_id) {
             auto nested_result = context_under_pointer->handle_mouse_event_from_containing_context(event, {}, now);
             apply_context_update_result(*pointer.context_under_pointer, *context_under_pointer, nested_result);
-            schedule_animation_frames_if_needed(*context_under_pointer);
+            context_under_pointer->request_display_ticks_if_needed(now);
         }
         pointer.context_under_pointer.clear();
 
@@ -1221,10 +1248,10 @@ ContextState::ContextUpdateResult CompositorState::scroll_for_wheel_step(Web::Co
     return result;
 }
 
-CompositorState::AppliedWheelStep CompositorState::apply_wheel_step_result(Web::CompositorContextId context_id, ContextState& context, ContextState::ContextUpdateResult const& result, WebContentClientId reporting_client)
+CompositorState::AppliedWheelStep CompositorState::apply_wheel_step_result(Web::CompositorContextId context_id, ContextState& context, ContextState::ContextUpdateResult const& result, WebContentClientId reporting_client, MonotonicTime now)
 {
     apply_context_update_result(context_id, context, result);
-    schedule_animation_frames_if_needed(context);
+    context.request_display_ticks_if_needed(now);
     // Node ids are only unique within the process that made them, and only that process follows the operations of the
     // context.
     bool ids_are_of_reporting_process = context.is_owned_by(reporting_client);
@@ -1256,7 +1283,7 @@ CompositorState::AppliedWheelStep CompositorState::hand_wheel_step_to_nested_con
         auto nested_result = nested_context->take_latched_wheel_step_from_containing_context(step, admission, now);
         if (nested_result.routing_decision == Web::InputRoutingDecision::NestedContextUnavailable)
             context.forget_wheel_gesture_latch();
-        return apply_wheel_step_result(nested_step.context_id, *nested_context, nested_result, context.web_content_client_id());
+        return apply_wheel_step_result(nested_step.context_id, *nested_context, nested_result, context.web_content_client_id(), now);
     }
 
     auto first_step = first_wheel_step_in_nested_contexts(context_id, *nested_step.hit, step.delta_in_css_pixels, step.wheel_delta_precision);
@@ -1272,7 +1299,7 @@ CompositorState::AppliedWheelStep CompositorState::hand_wheel_step_to_nested_con
     if (taking_context->context && taking_context->route.kind != ContextState::FirstWheelStepRoute::Kind::Declined) {
         step.position = taking_context->position;
         auto nested_result = taking_context->context->take_first_wheel_step_from_containing_context(taking_context->route, step, now);
-        applied_step = apply_wheel_step_result(taking_context->context_id, *taking_context->context, nested_result, context.web_content_client_id());
+        applied_step = apply_wheel_step_result(taking_context->context_id, *taking_context->context, nested_result, context.web_content_client_id(), now);
         context.latch_wheel_gesture_to_nested_context(taking_context->context_id, applied_step.result.routed_scroller, step.scroll_gesture_phase);
     } else {
         applied_step.result = ContextState::ContextUpdateResult::declined(taking_context->route.decision);
@@ -1345,7 +1372,7 @@ CompositorState::AppliedWheelStep CompositorState::route_wheel_step_the_page_let
             if (!page_may_scroll_in(routing_context, routing_context, page_client, step))
                 return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
             auto result = routing_context.scroll_for_first_wheel_step_the_page_let_through(step, scroll_chain, now);
-            return apply_wheel_step_result(routing_context_id, routing_context, result, reporting_client);
+            return apply_wheel_step_result(routing_context_id, routing_context, result, reporting_client, now);
         }
 
         auto route = context->route_first_wheel_step_from_containing_context(step.position, step.delta_in_css_pixels, step.wheel_delta_precision, Compositing::NestedContextRegions::Ignore, ContextState::WheelStepAdmission::LetThroughByThePage, scroll_chain);
@@ -1355,7 +1382,7 @@ CompositorState::AppliedWheelStep CompositorState::route_wheel_step_the_page_let
             auto nested_result = context->take_first_wheel_step_from_containing_context(route, step, now);
             auto latched_scroller = context->is_owned_by(routing_context.web_content_client_id()) ? nested_result.routed_scroller : Optional<Web::AsyncScrollNodeStableID> {};
             routing_context.latch_wheel_gesture_to_nested_context(context_id, latched_scroller, step.scroll_gesture_phase);
-            return apply_wheel_step_result(context_id, *context, nested_result, reporting_client);
+            return apply_wheel_step_result(context_id, *context, nested_result, reporting_client, now);
         }
         if (route.kind != Kind::PassedOn)
             return declined(route.decision);
@@ -1404,7 +1431,7 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     event->async_scroll_performed_default_action = apply_context_update_result(context_id, context, result);
     if (!event->async_scroll_performed_default_action)
         context.note_wheel_event_left_to_the_page(*event);
-    schedule_animation_frames_if_needed(context);
+    context.request_display_ticks_if_needed(now);
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
@@ -1437,12 +1464,16 @@ bool CompositorState::page_under_pinch_may_cancel_it(Web::CompositorContextId co
 
 void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     // NB: The presentation connection only passes on input for the contexts bound to it.
-    auto* presentation = presentation_for_context(context_id);
-    VERIFY(presentation);
     auto* context = context_if_present(context_id);
-    if (!context || !context->can_dispatch_input_to_web_content()) {
-        presentation->did_not_dispatch_input_event(context_id, event.id);
+    VERIFY(context);
+    VERIFY(context->bound_presentation().has_value());
+    auto presentation_id = *context->bound_presentation();
+    if (!context->can_dispatch_input_to_web_content()) {
+        post_to_presentation<Messages::CompositorPresentationClient::DidNotDispatchInputEvent>(presentation_id, context_id, event.id);
         return;
     }
 
@@ -1458,7 +1489,7 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
     context->dispatch_pinch_event_to_web_content(event);
-    presentation->did_dispatch_input_event(context_id, event.id, event.async_zoom_performed_default_action);
+    post_to_presentation<Messages::CompositorPresentationClient::DidDispatchInputEvent>(presentation_id, context_id, event.id, event.async_zoom_performed_default_action);
 }
 
 Compositing::WheelEventAnswer CompositorState::wheel_event_answer_for(AppliedWheelStep const& applied_step, Optional<Web::WheelGestureMark> wheel_gesture_mark)
@@ -1476,6 +1507,9 @@ Compositing::WheelEventAnswer CompositorState::wheel_event_answer_for(AppliedWhe
 
 Compositing::WheelEventAnswer CompositorState::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     auto* context = context_if_present(context_id);
     VERIFY(context);
@@ -1484,11 +1518,14 @@ Compositing::WheelEventAnswer CompositorState::take_wheel_event_from_main_thread
     if (routing == Compositing::WheelEventRouting::AfterDispatch)
         return { .wheel_gesture_mark = noted.wheel_gesture_mark };
     auto result = scroll_for_wheel_step(context_id, *context, event, WheelStepOrigin::MainThread, noted.is_first_wheel_event_with_delta, operation_tracking, now);
-    return wheel_event_answer_for(apply_wheel_step_result(context_id, *context, result, context->web_content_client_id()), noted.wheel_gesture_mark);
+    return wheel_event_answer_for(apply_wheel_step_result(context_id, *context, result, context->web_content_client_id(), now), noted.wheel_gesture_mark);
 }
 
 Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId listener_context_id, Compositing::WheelStepLetThrough const& let_through, Compositing::AsyncScrollOperationTracking operation_tracking, WebContentClientId page_client)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     auto* listener_context = context_if_present(listener_context_id);
     VERIFY(listener_context);
@@ -1517,7 +1554,7 @@ Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_l
     auto* routing_context = routing_context_id.has_value() ? context_if_present(*routing_context_id) : nullptr;
     if (!routing_context || routing_context->wheel_step_was_overtaken(step.scroll_gesture_phase, let_through.wheel_gesture_mark.step_number)) {
         auto result = listener_context->scroll_for_overtaken_wheel_step(step, scroll_chain, now);
-        return answer(apply_wheel_step_result(listener_context_id, *listener_context, result, page_client));
+        return answer(apply_wheel_step_result(listener_context_id, *listener_context, result, page_client, now));
     }
 
     routing_context->set_wheel_event_listener_context(listener_context_id);
@@ -1543,12 +1580,12 @@ Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_l
             if (!page_may_scroll_in(*nested_context, *routing_context, page_client, step))
                 return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
             auto nested_result = nested_context->take_latched_wheel_step_from_containing_context(step, ContextState::WheelStepAdmission::LetThroughByThePage, now);
-            return answer(apply_wheel_step_result(*nested_context_id, *nested_context, nested_result, page_client));
+            return answer(apply_wheel_step_result(*nested_context_id, *nested_context, nested_result, page_client, now));
         }
         if (!page_may_scroll_in(*routing_context, *routing_context, page_client, step))
             return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
         if (auto result = routing_context->scroll_for_latched_wheel_step_the_page_let_through(step, now); result.has_value())
-            return answer(apply_wheel_step_result(*routing_context_id, *routing_context, *result, page_client));
+            return answer(apply_wheel_step_result(*routing_context_id, *routing_context, *result, page_client, now));
     }
 
     return answer(route_wheel_step_the_page_let_through(*routing_context_id, *routing_context, listener_context_id, *listener_context, step, scroll_chain, page_client, now));
@@ -1572,6 +1609,9 @@ static bool scroll_request_smoothly_scrolls_for_script(Compositing::ScrollReques
 
 void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id, ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     auto* context = context_if_present(context_id);
     if (!context)
@@ -1584,8 +1624,8 @@ void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id,
             dispatch_scroll_fling_step(context_id, *context, context->end_momentum_scrolling(scroll_request.stable_node_id), now);
     }
     if (auto frame_to_present = context->apply_scroll_requests(scroll_requests, now); frame_to_present.has_value())
-        schedule_present_frame(context_id, *context, frame_to_present.value());
-    schedule_animation_frames_if_needed(*context);
+        request_present(context_id, frame_to_present.value());
+    context->request_display_ticks_if_needed(now);
     publish_pending_async_scroll_updates(context_id, *context);
 }
 
@@ -1662,6 +1702,9 @@ void CompositorState::set_display_metadata(Web::CompositorContextId context_id, 
 
 void CompositorState::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
+    VERIFY(m_present_requests.is_empty());
+    ScopeGuard schedule_presents_on_exit = [&] { schedule_requested_presents(); };
+
     auto now = MonotonicTime::now();
     auto* context = context_if_present(context_id);
     if (!context)
@@ -1806,6 +1849,27 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Context
     schedule_gpu_completion_check();
 }
 
+void CompositorState::request_present(Web::CompositorContextId context_id, PendingFrame const& frame)
+{
+    m_present_requests.append({ context_id, frame.viewport_rect, frame.forced_damage_rect });
+}
+
+void CompositorState::schedule_requested_presents()
+{
+    auto requests = move(m_present_requests);
+    for (auto const& request : requests) {
+        auto* context = context_if_present(request.context_id);
+        if (!context)
+            continue;
+        auto viewport_rect = request.viewport_rect;
+        if (!viewport_rect.has_value())
+            viewport_rect = context->presenter().viewport_rect_for_ui_overlay();
+        if (!viewport_rect.has_value())
+            continue;
+        schedule_present_frame(request.context_id, *context, PendingFrame { *viewport_rect, request.forced_damage_rect });
+    }
+}
+
 void CompositorState::schedule_present_frame(Web::CompositorContextId context_id, ContextState& context, PendingFrame pending_frame)
 {
     context.presenter().queue_present_frame(pending_frame);
@@ -1894,17 +1958,6 @@ bool CompositorState::try_present_frame_during_resize(Web::CompositorContextId c
     return true;
 }
 
-void CompositorState::schedule_caret_repaint(Web::CompositorContextId context_id, Gfx::IntRect damage_rect)
-{
-    auto* context = context_if_present(context_id);
-    if (!context)
-        return;
-    auto viewport_rect = context->presenter().viewport_rect_for_ui_overlay();
-    if (!viewport_rect.has_value())
-        return;
-    schedule_present_frame(context_id, *context, { *viewport_rect, damage_rect });
-}
-
 VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> display_id)
 {
     return *m_vsync_schedulers_by_display.ensure(display_id, [this, display_id] {
@@ -1943,6 +1996,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         if (presents_on_display) {
             if (display_id_for_context(context) == display_id)
                 dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time), frame_time);
+            schedule_requested_presents();
             if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
                 context.presenter().queue_present_frame(PendingFrame::repainting_changes(*animation_frame));
             if (auto rebound_frame = context.advance_elastic_overscroll_rebounds(frame_time); rebound_frame.has_value())
@@ -2210,6 +2264,7 @@ void CompositorState::update_scroll_capabilities()
         ContextState::ScrollCapabilities capabilities;
         if (auto* presentation = presentation_for_context(root_context_of(*context)->context_id())) {
             auto const& presentation_capabilities = *m_presentations.get(presentation);
+            capabilities.synthesizes_scroll_momentum = presentation_capabilities.synthesizes_scroll_momentum;
             capabilities.scrolls_elastically = presentation_capabilities.scrolls_elastically;
             capabilities.scrollbar_track_press_jumps = presentation_capabilities.scrollbar_track_press_jumps;
             if (!presentation_capabilities.synthesizes_scroll_momentum)
@@ -2362,7 +2417,7 @@ bool CompositorState::apply_context_update_result(
     ContextState::ContextUpdateResult const& result)
 {
     if (result.frame_to_present.has_value())
-        schedule_present_frame(context_id, context, *result.frame_to_present);
+        request_present(context_id, *result.frame_to_present);
     publish_pending_async_scroll_updates(context_id, context);
     if (result.should_request_rendering_update)
         context.request_rendering_update();
