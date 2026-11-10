@@ -317,6 +317,8 @@ pub struct GcHeap {
     pub interface: GcInterface,
     layout: GcLayout,
     allocators: &'static Allocators,
+    /// How many defer_gc() calls have no matching undefer_gc() yet.
+    deferrals: core::cell::Cell<u32>,
 }
 
 pub enum Heap {
@@ -352,6 +354,7 @@ impl Heap {
             interface,
             layout,
             allocators,
+            deferrals: core::cell::Cell::new(0),
         }))
     }
 
@@ -414,14 +417,21 @@ impl Heap {
     /// does not look.
     pub fn defer_gc(&self) {
         if let Self::Gc(heap) = self {
+            heap.deferrals.set(heap.deferrals.get() + 1);
             unsafe { (heap.interface.gc_heap_defer_gc)(heap.interface.heap) };
         }
     }
 
     pub fn undefer_gc(&self) {
         if let Self::Gc(heap) = self {
+            heap.deferrals.set(heap.deferrals.get() - 1);
             unsafe { (heap.interface.gc_heap_undefer_gc)(heap.interface.heap) };
         }
+    }
+
+    /// Whether this runtime deferred garbage collection, with defer_gc().
+    pub fn is_gc_deferred(&self) -> bool {
+        matches!(self, Self::Gc(heap) if heap.deferrals.get() != 0)
     }
 }
 

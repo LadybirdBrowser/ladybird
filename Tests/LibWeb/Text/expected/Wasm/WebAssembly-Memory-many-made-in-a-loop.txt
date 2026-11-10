@@ -1,0 +1,2 @@
+new WebAssembly.Memory(): made 20000
+new WebAssembly.Instance(): made 20000
