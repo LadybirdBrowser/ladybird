@@ -14,6 +14,7 @@
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Method.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -64,12 +65,17 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XHR/EventNames.h>
-#include <LibWeb/XHR/ProgressEvent.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWeb/XHR/XMLHttpRequestUpload.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 
 namespace Web::XHR {
+
+extern "C" {
+
+// Defined in Bindings/Rust/src/xhr/exports.rs.
+void* web_rust_xhr_create_progress_event(JSVM*, void* realm, FlatPtr event_name, bool length_computable, double loaded, double total);
+}
 
 GC_DEFINE_ALLOCATOR(XMLHttpRequest);
 
@@ -184,12 +190,9 @@ static void fire_progress_event(JS::Object& relevant_global_object, XMLHttpReque
     // To fire a progress event named e at target, given transmitted and length, means to fire an event named e at target, using ProgressEvent,
     // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
     // and the total attribute initialized to length.
-    ProgressEventInit event_init {};
-    event_init.length_computable = length;
-    event_init.loaded = transmitted;
-    event_init.total = length;
-    target.dispatch_event(*ProgressEvent::create(event_name, event_init,
-        HighResolutionTime::current_high_resolution_time(relevant_global_object)));
+    auto& realm = HTML::relevant_realm(relevant_global_object);
+    auto* event = web_rust_xhr_create_progress_event(JS::HostABI::vm_to_abi(realm.vm()), &realm, event_name.to_utf16_string().into_raw(), length != 0, transmitted, length);
+    target.dispatch_event(*static_cast<DOM::Event*>(static_cast<GC::Cell*>(event)));
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetext
