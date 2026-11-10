@@ -51,7 +51,7 @@ impl HitTestList {
             HitTestItemKind::Box | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => {
                 resolver.in_box(item.paintable)
             }
-            HitTestItemKind::SvgPath | HitTestItemKind::EmptyLine => Some(resolver.at_start_of(item.paintable)),
+            HitTestItemKind::SvgPath => Some(resolver.at_start_of(item.paintable)),
         };
         if let Some(caret) = caret.filter(|caret| caret.caret.has_position) {
             return Some(caret);

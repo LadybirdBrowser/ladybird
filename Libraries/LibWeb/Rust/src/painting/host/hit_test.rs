@@ -159,10 +159,8 @@ impl FfiCaretAt {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiHitTestItemExport {
-    pub can_produce_caret_position: bool,
     pub paintable: NodeSlotId,
     pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
-    pub caret_rect: used_values::FfiCssPixelRect,
     pub context: ContextRef,
 }

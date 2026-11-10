@@ -22,9 +22,8 @@ pub enum HitTestItemKind {
     Box = 0,
     SvgPath = 1,
     TextFragment = 2,
-    EmptyLine = 3,
-    EmptyEditable = 4,
-    ChromeWidget = 5,
+    EmptyEditable = 3,
+    ChromeWidget = 4,
 }
 
 pub const CHROME_WIDGET_NONE: u8 = 0;
@@ -42,12 +41,7 @@ pub struct HitTestItem {
     pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
     pub text_fragment_index: Option<u32>,
-    pub caret_node: NodeSlotId,
-    pub caret_offset: usize,
     pub rect: CssPixelRect,
-    pub caret_rect: CssPixelRect,
-    pub caret_line_index: Option<usize>,
-    pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
     pub path: Option<Arc<libgfx_rust::path::Path>>,
@@ -56,11 +50,6 @@ pub struct HitTestItem {
     pub svg_hit_areas: u8,
     /// For an SVG path whose stroke pointer events can target, the shape of that stroke.
     pub svg_stroke: Option<Arc<SvgStrokeHitRegion>>,
-    pub writing_mode: u8,
-    pub inline_axis_is_reverse: bool,
-    pub block_axis_is_reverse: bool,
-    pub containing_block: NodeSlotId,
-    pub can_produce_caret_position: bool,
 }
 
 /// The areas of an SVG graphics element that pointer events can target.
@@ -175,10 +164,7 @@ impl HitTestList {
         }
         self.spatial_indexes_built = true;
         for item_index in 0..self.items.len() {
-            let item_is_caret_target_only = self.items[item_index].kind == HitTestItemKind::EmptyLine;
-            if !item_is_caret_target_only {
-                self.add_item_to_spatial_index(item_index);
-            }
+            self.add_item_to_spatial_index(item_index);
         }
     }
 

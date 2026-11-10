@@ -927,11 +927,9 @@ pub extern "C" fn layout_hit_test_item_facts(
             "exporting a hit-test item that names a non-live paintable"
         );
         Some(crate::painting::host::FfiHitTestItemExport {
-            can_produce_caret_position: item.can_produce_caret_position,
             paintable: item.paintable,
             hit_node: item.hit_node,
             chrome_widget_kind: item.chrome_widget_kind,
-            caret_rect: item.caret_rect.into(),
             context: item.context,
         })
     })

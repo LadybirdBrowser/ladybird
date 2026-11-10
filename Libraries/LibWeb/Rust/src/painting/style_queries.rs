@@ -376,10 +376,6 @@ pub(crate) fn has_css_transform(arena: &impl PaintRead, node: NodeSlotId, style:
     has_transform && is_transformable(arena, node)
 }
 
-pub(crate) fn is_atomic_inline(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.node(node).is_some_and(PaintRow::is_atomic_inline)
-}
-
 pub(crate) fn is_transformable(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(row) = arena.node(node) else {
         return false;

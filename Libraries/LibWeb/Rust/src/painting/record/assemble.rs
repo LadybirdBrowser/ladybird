@@ -690,24 +690,14 @@ mod tests {
                     paintable: owner,
                     hit_node: owner,
                     chrome_widget_kind: 0,
-                    text_fragment_index: None,
-                    caret_node: NodeSlotId::INVALID,
-                    caret_offset: 0,
+                    text_fragment_index: Some(index + u32::from(content.version) * 100),
                     rect: CssPixelRect::default(),
-                    caret_rect: CssPixelRect::default(),
-                    caret_line_index: Some(index as usize + content.version as usize * 100),
-                    block_container: NodeSlotId::INVALID,
                     context: ContextRef::default(),
                     border_radii: BorderRadii::default(),
                     path: None,
                     winding_rule: libgfx_rust::WindingRule::Nonzero,
                     svg_hit_areas: 0,
                     svg_stroke: None,
-                    writing_mode: 0,
-                    inline_axis_is_reverse: false,
-                    block_axis_is_reverse: false,
-                    containing_block: NodeSlotId::INVALID,
-                    can_produce_caret_position: false,
                 });
             }
             output.blocking_wheel_event_region_count += content.blocking;
@@ -826,10 +816,10 @@ mod tests {
         );
         assert_eq!(assembled.display_list.command_runs, fresh.display_list.command_runs);
         // Comparing whole items would compare their paths through the host's path equality.
-        let item_identities = |items: &[HitTestItem]| -> Vec<(NodeSlotId, Option<usize>)> {
+        let item_identities = |items: &[HitTestItem]| -> Vec<(NodeSlotId, Option<u32>)> {
             items
                 .iter()
-                .map(|item| (item.paintable, item.caret_line_index))
+                .map(|item| (item.paintable, item.text_fragment_index))
                 .collect()
         };
         assert_eq!(

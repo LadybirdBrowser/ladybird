@@ -123,8 +123,6 @@ impl HitTestList {
                             .is_some_and(|stroke| stroke.contains(path, x, y)))
             }
             HitTestItemKind::TextFragment => item.rect.contains_point(local_point),
-            // Empty lines are caret targets only; they never contain a point for regular hit testing.
-            HitTestItemKind::EmptyLine => false,
             HitTestItemKind::EmptyEditable => item.rect.contains_point(local_point),
             HitTestItemKind::ChromeWidget => {
                 if !layout_arena.paintable_row_is_populated(item.paintable) {

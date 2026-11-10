@@ -745,10 +745,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.paintable_facts(paintable).visible_for_hit_testing
     }
 
-    fn is_replaced_box(&self, paintable: NodeSlotId) -> bool {
-        crate::painting::style_queries::is_replaced_box(self.source, paintable)
-    }
-
     pub(crate) fn with_context<R>(&mut self, context: ContextRef, paint: impl FnOnce(&mut Self) -> R) -> R {
         let previous_context = self.recorder.accumulated_visual_context();
         self.recorder.set_accumulated_visual_context(context);

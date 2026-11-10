@@ -170,13 +170,6 @@ pub(crate) fn committed_svg_text_character_cells(
     })
 }
 
-pub(crate) fn committed_containing_line_box_index(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<usize> {
-    arena.with_committed_fragment_link(slot, |link| {
-        link.and_then(|link| link.placement.containing_line_box_index)
-            .map(|index| index as usize)
-    })
-}
-
 pub(crate) fn committed_svg_viewport_transform(
     arena: &impl GeometryRead,
     slot: NodeSlotId,

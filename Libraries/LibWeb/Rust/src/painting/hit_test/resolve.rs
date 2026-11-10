@@ -30,7 +30,6 @@ impl HitTestList {
         match item.kind {
             HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item)
                 .map_or_else(FfiNodeIdentity::default, |slot| row_node_identity(arena, slot, true)),
-            HitTestItemKind::EmptyLine => row_node_identity(arena, item.caret_node, false),
             _ => event_dispatch_target_of_paintable(arena, item.paintable),
         }
     }
