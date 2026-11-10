@@ -1,0 +1,5 @@
+seed: imported
+expandedKey: NotSupportedError
+both: imported
+seedWithoutItsTag: DataError
+expandedKeyThatIsNotAValidKey: NotSupportedError
