@@ -54,6 +54,7 @@ pub mod common_property_names;
 pub mod completion;
 pub mod console_object;
 pub mod console_object_prototype;
+mod console_preview;
 pub mod cyclic_module;
 pub mod data_view;
 pub mod data_view_constructor;

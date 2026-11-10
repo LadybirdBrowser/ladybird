@@ -27,9 +27,12 @@ Vector<JsonValue> DevToolsLoggedObjects::serialize_message_arguments(ReadonlySpa
     start_message();
 
     Vector<JsonValue> serialized_arguments;
-    serialized_arguments.ensure_capacity(arguments.size());
-    for (auto argument : arguments)
+    auto preview_arguments = arguments.slice(0, min(arguments.size(), 100uz));
+    serialized_arguments.ensure_capacity(preview_arguments.size());
+    for (auto argument : preview_arguments)
         serialized_arguments.unchecked_append(m_current_table.serialize_value_as_grip(argument));
+    if (preview_arguments.size() < arguments.size())
+        serialized_arguments.append("..."_string);
     return serialized_arguments;
 }
 

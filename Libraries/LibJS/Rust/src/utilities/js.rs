@@ -1093,6 +1093,7 @@ fn print_inline(vm: &Vm, value: Value, stream: &mut dyn Write) -> io::Result<()>
         stream,
         strip_ansi: STRIP_ANSI.load(Ordering::Relaxed),
         raw_strings: RAW_STRINGS.load(Ordering::Relaxed),
+        compact: false,
     };
     print(value, &mut print_context)
 }
