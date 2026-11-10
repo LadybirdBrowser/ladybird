@@ -5,6 +5,8 @@
  */
 
 #include <AK/JsonArray.h>
+#include <AK/MemoryStream.h>
+#include <LibJS/Print.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Date.h>
@@ -34,6 +36,15 @@ static constexpr size_t PREVIEW_ITEM_COUNT = 10;
 // A preview lists what its object holds only for the object a value is, and not for those it holds, so a preview stays
 // one level deep: An array of elements shows each element's name, but an array of arrays shows only their lengths.
 static constexpr u8 MAX_PREVIEW_DEPTH = 1;
+
+static String preview_text(Utf16View text)
+{
+    constexpr size_t limit = 1024;
+    auto prefix = text.substring_view(0, min(text.length_in_code_units(), limit)).to_utf8_but_should_be_ported_to_utf16();
+    if (text.length_in_code_units() > limit)
+        return MUST(String::formatted("{}...", prefix));
+    return prefix;
+}
 
 WebView::DebuggerValue DevToolsObjectTable::serialize_value(JS::Value value)
 {
@@ -140,6 +151,20 @@ WebView::DebuggerValue DevToolsObjectTable::serialize_value(JS::Value value, u8 
 // object actor.
 JsonValue DevToolsObjectTable::grip_value(JS::Value value, u8 depth)
 {
+    if (value.is_bigint() || value.is_symbol()) {
+        auto& vm = value.is_bigint() ? value.as_bigint().vm() : value.as_symbol().vm();
+        AllocatingMemoryStream stream;
+        JS::PrintContext context { .vm = vm, .stream = &stream, .strip_ansi = true, .compact = true };
+        MUST(JS::print(value, context));
+        auto text = MUST(String::from_stream(stream, stream.used_buffer_size()));
+        if (value.is_symbol())
+            return text;
+        JsonObject grip;
+        grip.set("type"sv, "BigInt"sv);
+        grip.set("text"sv, move(text));
+        return grip;
+    }
+
     auto serialized = serialize_value(value, depth);
 
     JsonObject grip;
@@ -168,7 +193,7 @@ JsonValue DevToolsObjectTable::grip_value(JS::Value value, u8 depth)
         }
         return serialized.number_value;
     case WebView::DebuggerValueType::String:
-        return serialized.text.to_utf8();
+        return preview_text(serialized.text);
     case WebView::DebuggerValueType::BigInt:
         grip.set("type"sv, "BigInt"sv);
         grip.set("text"sv, serialized.text.to_utf8());
@@ -248,7 +273,7 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
         preview.set("nodeType"sv, node->node_type());
         preview.set("isConnected"sv, node->is_connected());
 
-        auto node_name = node->node_name().view().to_utf8_but_should_be_ported_to_utf16();
+        auto node_name = preview_text(node->node_name().view());
         if (auto const* element = as_if<DOM::Element>(*node)) {
             // The nodeName of an HTML element is its tag name in uppercase, but a console writes the tag the way the
             // markup does.
@@ -256,13 +281,13 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
                 node_name = node_name.to_ascii_lowercase();
 
             JsonObject attributes;
-            element->for_each_attribute([&](Utf16FlyString name, Utf16String value) {
-                attributes.set(name.view().to_utf8_but_should_be_ported_to_utf16(), value.to_utf8());
-            });
+            for (auto const& attribute : element->attribute_list().slice(0, min(element->attribute_list_size(), PREVIEW_ITEM_COUNT))) {
+                attributes.set(preview_text(attribute.name.as_string().view()), preview_text(attribute.value));
+            }
             preview.set("attributes"sv, move(attributes));
             preview.set("attributesLength"sv, element->attribute_list_size());
         } else if (auto const* character_data = as_if<DOM::CharacterData>(*node)) {
-            preview.set("textContent"sv, character_data->data().to_utf8());
+            preview.set("textContent"sv, preview_text(character_data->data()));
         } else if (auto const* document = as_if<DOM::Document>(*node)) {
             preview.set("location"sv, document->url().serialize());
         }
@@ -331,7 +356,7 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
     if (object.is_function()) {
         auto name = read_property_without_running_script(object, "name"sv);
         if (name.has_value() && name->is_string()) {
-            auto function_name = name->as_string().utf16_string().to_utf8();
+            auto function_name = preview_text(name->as_string().utf16_string_view());
             fields.set("name"sv, function_name);
             fields.set("displayName"sv, move(function_name));
         }
@@ -345,7 +370,7 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
     }
 
     if (auto* regexp = as_if<JS::RegExpObject>(object)) {
-        fields.set("displayString"sv, MUST(String::formatted("/{}/{}", regexp->pattern(), regexp->flags())));
+        fields.set("displayString"sv, MUST(String::formatted("/{}/{}", preview_text(regexp->pattern()), regexp->flags())));
         return fields;
     }
 
@@ -368,12 +393,14 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
 
     JsonObject own_properties;
     size_t own_properties_length = 0;
+    size_t previewed_properties = 0;
     for (auto const& key : keys.value()) {
         if (!key.is_string())
             continue;
         ++own_properties_length;
-        if (!lists_contents || own_properties.size() >= PREVIEW_ITEM_COUNT)
+        if (!lists_contents || previewed_properties >= PREVIEW_ITEM_COUNT)
             continue;
+        ++previewed_properties;
 
         auto name = key.as_string().utf16_string();
         auto descriptor = object.internal_get_own_property(JS::PropertyKey { name });
@@ -391,7 +418,7 @@ JsonObject DevToolsObjectTable::grip_fields_for_object(JS::Object& object, u8 de
         }
         serialized.set("configurable"sv, property.configurable.value_or(false));
         serialized.set("enumerable"sv, property.enumerable.value_or(false));
-        own_properties.set(name.to_utf8(), move(serialized));
+        own_properties.set(preview_text(name), move(serialized));
     }
 
     preview.set("kind"sv, "Object"sv);

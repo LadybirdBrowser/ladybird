@@ -134,4 +134,4 @@ block0:
   [  20] Return value:reg5
 
 
-[ 0, 1, 2 ]
+Array [0, 1, 2]

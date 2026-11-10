@@ -8,11 +8,15 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/MemoryStream.h>
+#include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -40,11 +44,35 @@ DevToolsConsoleClient::DevToolsConsoleClient(JS::Console& console, PageClient& c
 
 DevToolsConsoleClient::~DevToolsConsoleClient() = default;
 
+static String console_text(JS::Realm& realm, JS::Value value)
+{
+    if (value.is_object()) {
+        if (auto const* element = Web::Bindings::impl_from<Web::DOM::Element>(&value.as_object())) {
+            StringBuilder builder;
+            builder.append('<');
+            auto name = element->local_name().view();
+            builder.append(name.substring_view(0, min(name.length_in_code_units(), 256uz)).to_utf8_but_should_be_ported_to_utf16());
+            if (element->id().has_value()) {
+                auto id = element->id()->view();
+                builder.append(" id=\""sv);
+                builder.append(id.substring_view(0, min(id.length_in_code_units(), 256uz)).to_utf8_but_should_be_ported_to_utf16());
+                builder.append('"');
+            }
+            builder.append('>');
+            return MUST(builder.to_string());
+        }
+    }
+
+    Web::HTML::TemporaryExecutionContext execution_context { realm };
+    AllocatingMemoryStream stream;
+    JS::PrintContext context { .vm = realm.vm(), .stream = &stream, .strip_ansi = true, .compact = true };
+    MUST(JS::print(value, context));
+    return MUST(String::from_stream(stream, stream.used_buffer_size()));
+}
+
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#grips
 JsonValue DevToolsConsoleClient::serialize_value(JS::Realm& realm, JS::Value value)
 {
-    auto& vm = realm.vm();
-
     auto serialize_type = [](StringView type) {
         JsonObject serialized;
         serialized.set("type"sv, type);
@@ -60,8 +88,13 @@ JsonValue DevToolsConsoleClient::serialize_value(JS::Realm& realm, JS::Value val
     if (value.is_boolean())
         return value.as_bool();
 
-    if (value.is_string())
-        return value.as_string().utf16_string_view().to_utf8_but_should_be_ported_to_utf16();
+    if (value.is_string()) {
+        auto text = value.as_string().utf16_string_view();
+        auto prefix = text.substring_view(0, min(text.length_in_code_units(), 1024uz)).to_utf8_but_should_be_ported_to_utf16();
+        if (text.length_in_code_units() > 1024)
+            return MUST(String::formatted("{}...", prefix));
+        return prefix;
+    }
 
     if (value.is_number()) {
         if (value.is_nan())
@@ -77,23 +110,16 @@ JsonValue DevToolsConsoleClient::serialize_value(JS::Realm& realm, JS::Value val
 
     if (value.is_bigint()) {
         auto serialized = serialize_type("BigInt"sv);
-        serialized.set("text"sv, MUST(value.as_bigint().big_integer().to_base(10)));
+        auto text = console_text(realm, value);
+        serialized.set("text"sv, text.ends_with('n') ? MUST(text.substring_from_byte_offset(0, text.bytes_as_string_view().length() - 1)) : text);
         return serialized;
     }
 
     if (value.is_symbol())
-        return value.as_symbol().descriptive_string().to_utf8();
+        return console_text(realm, value);
 
-    // FIXME: Handle serialization of object grips. For now, we stringify the object.
-    if (value.is_object()) {
-        Web::HTML::TemporaryExecutionContext execution_context { realm };
-        AllocatingMemoryStream stream;
-
-        JS::PrintContext context { .vm = vm, .stream = &stream, .strip_ansi = true };
-        MUST(JS::print(value, context));
-
-        return MUST(String::from_stream(stream, stream.used_buffer_size()));
-    }
+    if (value.is_object())
+        return console_text(realm, value);
 
     return {};
 }
@@ -231,7 +257,31 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
 
     auto const& argument_values = arguments.get<GC::RootVector<JS::Value>>();
 
-    auto output = TRY(generically_format_values(argument_values));
+    Vector<JsonValue> printed_arguments;
+    Utf16StringBuilder output_builder;
+    auto argument_count = min(argument_values.size(), 100uz);
+    for (size_t index = 0; index < argument_count; ++index) {
+        if (output_builder.length_in_code_units() >= 8192) {
+            output_builder.append_ascii(" ..."sv);
+            printed_arguments.append("..."_string);
+            break;
+        }
+        auto value = argument_values[index];
+        auto serialized = serialize_value(m_console->realm(), value);
+        auto text = value.is_object() ? serialized.as_string() : console_text(m_console->realm(), value);
+        if (index > 0)
+            output_builder.append_ascii(' ');
+        auto utf16_text = Utf16String::from_utf8(text);
+        auto remaining = 8192 - output_builder.length_in_code_units();
+        output_builder.append(utf16_text.utf16_view().substring_view(0, min(utf16_text.length_in_code_units(), remaining)));
+        printed_arguments.append(move(serialized));
+        if (utf16_text.length_in_code_units() > remaining || (index + 1 == argument_count && argument_count < argument_values.size())) {
+            output_builder.append_ascii(" ..."sv);
+            printed_arguments.append("..."_string);
+            break;
+        }
+    }
+    auto output = output_builder.to_string();
     m_console->output_debug_message(log_level, output);
 
     auto timestamp = UnixDateTime::now();
@@ -252,13 +302,9 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
     auto is_table = log_level == JS::Console::LogLevel::Table && !argument_values.is_empty() && argument_values.first().is_object();
 
     // The buffer keeps the arguments printed, so it keeps no objects alive, and a table as its text.
-    Vector<JsonValue> printed_arguments;
     if (is_table) {
+        printed_arguments.clear();
         printed_arguments.append(output.to_utf8());
-    } else {
-        printed_arguments.ensure_capacity(argument_values.size());
-        for (auto value : argument_values)
-            printed_arguments.unchecked_append(serialize_value(m_console->realm(), value));
     }
     m_client->buffer_console_output(console_log(is_table ? JS::Console::LogLevel::Log : log_level, printed_arguments));
 

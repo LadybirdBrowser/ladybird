@@ -1232,7 +1232,11 @@ impl ConsoleClient {
     pub fn generically_format_values(&self, vm: &Vm, values: &MarkedVec<'_, Value>) -> ThrowCompletionOr<Utf16String> {
         let mut builder: Vec<u8> = Vec::new();
         let mut first = true;
-        for index in 0..values.len() {
+        for index in 0..values.len().min(100) {
+            if builder.len() >= 8192 {
+                builder.extend_from_slice(b" ...");
+                break;
+            }
             let value = values.get(index).expect("the index is in bounds");
             if !first {
                 builder.push(b' ');
@@ -1242,8 +1246,21 @@ impl ConsoleClient {
                 stream: &mut builder,
                 strip_ansi: true,
                 raw_strings: false,
+                compact: true,
             };
             print(value, &mut context).expect("printing into a buffer succeeds");
+            if builder.len() > 8192 {
+                let mut end = 8192;
+                while builder[end] & 0xc0 == 0x80 {
+                    end -= 1;
+                }
+                builder.truncate(end);
+                builder.extend_from_slice(b" ...");
+                break;
+            }
+            if index == 99 && values.len() > 100 {
+                builder.extend_from_slice(b" ...");
+            }
             first = false;
         }
         Ok(utf16_from_wtf8(&builder).map_or_else(

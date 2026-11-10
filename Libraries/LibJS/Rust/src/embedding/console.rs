@@ -237,7 +237,8 @@ impl io::Write for ByteSinkWriter<'_> {
 
 /// JS::print(): writes the value to the sink the way the js REPL shows it, as UTF-8 in which lone surrogates are
 /// encoded on their own, in ANSI colors unless `strip_ansi` is set, and with strings quoted and escaped unless
-/// `raw_strings` is set. Returns false if the sink refused bytes, which ends the printing. The sink may run JavaScript,
+/// `raw_strings` is set. With `compact`, writes a bounded preview without looking up properties. Returns false if the
+/// sink refused bytes, which ends the printing. The sink may run JavaScript,
 /// even JavaScript that changes the value being printed. Only on the VM's thread.
 ///
 /// # Safety
@@ -250,6 +251,7 @@ pub unsafe extern "C" fn js_console_print_value(
     sink: *const JSByteSink,
     strip_ansi: bool,
     raw_strings: bool,
+    compact: bool,
 ) -> bool {
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
@@ -261,6 +263,7 @@ pub unsafe extern "C" fn js_console_print_value(
         stream: &mut writer,
         strip_ansi,
         raw_strings,
+        compact,
     };
     print(Value::from_bits(value), &mut print_context).is_ok()
 }
