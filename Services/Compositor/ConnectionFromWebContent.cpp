@@ -20,6 +20,7 @@ namespace Compositor {
 ConnectionFromWebContent::ConnectionFromWebContent(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<CompositorState> compositor_state, int client_id)
     : IPC::ConnectionFromClient<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport), client_id)
     , m_compositor_state(move(compositor_state))
+    , m_web_content_client_id(m_compositor_state->register_web_content_client(*this))
     , m_canvas_host(m_compositor_state->skia_backend_context(), m_compositor_state->canvas_surface_registry(), m_video_frame_holds)
 {
 }
@@ -70,24 +71,6 @@ void ConnectionFromWebContent::clock_tick(Web::CompositorContextId context_id, i
 {
     if (m_render_clock_connection)
         m_render_clock_connection->async_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds, scroll_offsets);
-}
-
-void ConnectionFromWebContent::pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame, u64 input_event_id)
-{
-    if (m_render_clock_connection)
-        m_render_clock_connection->async_pointer_moved(context_id, position, buttons, scrolled_since_frame, input_event_id);
-}
-
-void ConnectionFromWebContent::pointer_left(Web::CompositorContextId context_id, u64 input_event_id)
-{
-    if (m_render_clock_connection)
-        m_render_clock_connection->async_pointer_left(context_id, input_event_id);
-}
-
-void ConnectionFromWebContent::pointer_rests_on_moving_content(Web::CompositorContextId context_id)
-{
-    if (m_render_clock_connection)
-        m_render_clock_connection->async_pointer_rests_on_moving_content(context_id);
 }
 
 void ConnectionFromWebContent::drop_image_decoder()
@@ -220,9 +203,15 @@ void ConnectionFromWebContent::notify_compositor_lost()
     async_did_lose_compositor();
 }
 
-void ConnectionFromWebContent::request_rendering_update()
+void ConnectionFromWebContent::post_message_to_web_content(IPC::MessageBuffer& buffer)
 {
-    async_request_rendering_update();
+    (void)post_message(buffer);
+}
+
+void ConnectionFromWebContent::post_message_to_render_clock(IPC::MessageBuffer& buffer)
+{
+    if (m_render_clock_connection)
+        (void)m_render_clock_connection->post_message(buffer);
 }
 
 void ConnectionFromWebContent::rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
@@ -230,39 +219,9 @@ void ConnectionFromWebContent::rendering_opportunity(Web::CompositorContextId co
     async_rendering_opportunity(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
 }
 
-void ConnectionFromWebContent::async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates const& updates)
-{
-    async_async_scroll_updates(context_id, updates);
-}
-
-void ConnectionFromWebContent::animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
-{
-    async_animated_content_moved_under_pointer(context_id, frame_time_nanoseconds);
-}
-
-void ConnectionFromWebContent::overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const& visibilities)
-{
-    async_overlay_scrollbar_visibilities_changed(visibilities);
-}
-
-void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
-{
-    async_mouse_event(page_id, event);
-}
-
-void ConnectionFromWebContent::dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const& event)
-{
-    async_key_event(page_id, event);
-}
-
-void ConnectionFromWebContent::dispatch_pinch_event_to_web_content(u64 page_id, Web::PinchEvent const& event)
-{
-    async_pinch_event(page_id, event);
-}
-
 bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::CompositorContextId context_id)
 {
-    switch (m_compositor_state->check_context_owner(context_id, *this)) {
+    switch (m_compositor_state->check_context_owner(context_id, web_content_client_id())) {
     case CompositorState::ContextOwnerCheckResult::OwnedByClient:
         return true;
     case CompositorState::ContextOwnerCheckResult::ContextUnavailable:
@@ -601,7 +560,7 @@ Messages::CompositorWebContentServer::WheelEventLetThroughResponse ConnectionFro
 {
     if (!context_is_owned_by_this_connection(context_id) || !is_valid_wheel_step_let_through(step))
         return Compositing::WheelEventAnswer {};
-    return m_compositor_state->scroll_for_wheel_event_the_page_let_through(context_id, step, operation_tracking, *this);
+    return m_compositor_state->scroll_for_wheel_event_the_page_let_through(context_id, step, operation_tracking, web_content_client_id());
 }
 
 void ConnectionFromWebContent::wheel_event_canceled(Web::CompositorContextId context_id, u64 wheel_gesture_id)

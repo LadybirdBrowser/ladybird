@@ -5,7 +5,6 @@ set(SOURCES
     BitmapExport.cpp
     Canvas2DCommandPlayer.cpp
     CanvasHost.cpp
-    CaretBlinkTimer.cpp
     ColorSpaceSkia.cpp
     CompositorState.cpp
     ContextPresenter.cpp

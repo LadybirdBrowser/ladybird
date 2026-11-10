@@ -101,18 +101,11 @@ private:
     virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::CompositorContextId, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) override;
 
-    virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) override;
-    virtual void dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const&) override;
-    virtual void dispatch_pinch_event_to_web_content(u64 page_id, Web::PinchEvent const&) override;
-    virtual void request_rendering_update() override;
+    virtual WebContentClientId web_content_client_id() const override { return m_web_content_client_id; }
+    virtual void post_message_to_web_content(IPC::MessageBuffer&) override;
+    virtual void post_message_to_render_clock(IPC::MessageBuffer&) override;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds, Vector<Web::CompositorScrollOffset> const& scroll_offsets) override;
-    virtual void pointer_moved(Web::CompositorContextId, Web::DevicePixelPoint, u32 buttons, bool scrolled_since_frame, u64 input_event_id) override;
-    virtual void pointer_left(Web::CompositorContextId, u64 input_event_id) override;
-    virtual void pointer_rests_on_moving_content(Web::CompositorContextId) override;
-    virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override;
-    virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
-    virtual void overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const&) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
     virtual void request_animated_image_frames(AnimatedImage::FrameRequest const&) override;
@@ -123,6 +116,7 @@ private:
     bool context_is_owned_by_this_connection(Web::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;
+    WebContentClientId m_web_content_client_id;
     VideoFrameHolds m_video_frame_holds;
     CanvasHost m_canvas_host;
 
