@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p { width: 300px; margin: 60px; background: lightblue; }
+    .inline { position: relative; z-index: 2; background: orange; }
+    .plain-inline { position: relative; background: yellow; }
+    .absolute { position: absolute; left: 260px; top: 70px; width: 90px; height: 50px; background: green; box-shadow: 0 0 25px black; }
+</style>
+<p>before <span class="inline">positioned inline <span class="absolute">absolute</span> wrapping over<br>two lines</span> after</p>
+<p>before <span class="plain-inline">positioned inline <span class="absolute" style="left: -55px; top: -45px">absolute</span></span> after</p>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .containing-block { position: relative; width: 200px; height: 100px; margin: 40px; background: lightblue; }
+    .context { opacity: 0.5; width: 100px; height: 50px; background: orange; }
+    .escaper { position: absolute; left: 350px; top: 220px; width: 80px; height: 60px; background: green; box-shadow: 30px 30px 10px black; }
+</style>
+<div class="containing-block">
+    <div class="context"><div><div class="escaper">absolute</div></div></div>
+</div>
+<div class="containing-block">
+    <div class="context" style="mix-blend-mode: multiply"><span><span class="escaper" style="left: -30px; top: -35px">absolute</span></span></div>
+</div>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

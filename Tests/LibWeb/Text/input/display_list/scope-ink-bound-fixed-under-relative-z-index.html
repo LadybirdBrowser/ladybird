@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .context { position: relative; z-index: 1; width: 100px; height: 50px; margin-top: 3000px; background: orange; }
+    .fixed { position: fixed; left: 300px; top: 20px; width: 80px; height: 60px; background: green; outline: 12px solid black; }
+    .transformed { transform: translateX(20px); width: 100px; height: 50px; background: lightblue; }
+</style>
+<div class="context"><div><div class="fixed">fixed</div></div></div>
+<div class="transformed"><div class="context" style="margin-top: 0"><div class="fixed" style="top: -200px">fixed</div></div></div>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

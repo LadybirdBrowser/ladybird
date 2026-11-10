@@ -11,7 +11,8 @@
 //! are explicit references, so a consumer can record them, reuse them, or collect their order.
 
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::paint_read::PaintRead;
+use crate::layout::node_facts::{self, NodeShape};
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::record::PaintPhase;
 use crate::painting::{node_painting, paint_order, style_queries};
 use smallvec::SmallVec;
@@ -55,6 +56,26 @@ impl PaintScope {
             owner,
             kind: PaintScopeKind::PaintedAsStackingContext,
         }
+    }
+
+    /// Whether every box the scope paints has the owner on its containing block chain, so that what the owner
+    /// gathers along that chain covers the whole scope. A walk below the owner only meets boxes laid out against it
+    /// when the owner forms the containing block of its children: an inline box or a table row does not. A stacking
+    /// context also paints the positioned descendants hoisted to it, and those are laid out against it only when
+    /// it establishes both positioning containing blocks.
+    pub(crate) fn paints_only_what_its_owner_contains(self, arena: &impl PaintRead) -> bool {
+        let Some(row) = arena.node(self.owner) else {
+            return false;
+        };
+        if row.kind() == NodeKind::Viewport {
+            return true;
+        }
+        if !node_facts::node_forms_containing_block_for_children(&row, row.style()) {
+            return false;
+        }
+        self.kind != PaintScopeKind::PaintedAsStackingContext
+            || !arena.paintable_data(self.owner).establishes_stacking_context
+            || style_queries::establishes_positioning_containing_blocks(arena, self.owner) == (true, true)
     }
 }
 

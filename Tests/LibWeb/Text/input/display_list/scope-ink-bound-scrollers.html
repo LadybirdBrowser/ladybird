@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .scroller { width: 150px; height: 100px; margin: 30px; overflow: auto; background: lightblue; }
+    .tall { height: 600px; width: 400px; background: linear-gradient(orange, green); }
+    .sticky { position: sticky; top: 10px; left: 10px; width: 60px; height: 20px; background: yellow; box-shadow: 0 0 20px black; }
+    .absolute { position: absolute; left: 300px; top: 500px; width: 60px; height: 60px; background: pink; }
+</style>
+<div id="outer" class="scroller" style="position: relative">
+    <div class="sticky">sticky</div>
+    <div class="tall">
+        <div id="inner" class="scroller"><div class="sticky">sticky</div><div class="tall">text in a nested scroller</div></div>
+    </div>
+    <div class="absolute">absolute</div>
+</div>
+<div class="scroller"><div class="absolute" style="top: 40px">escapes the scroller</div><div class="tall"></div></div>
+<script>
+    test(() => {
+        outer.scrollTop = 150;
+        outer.scrollLeft = 40;
+        inner.scrollTop = 90;
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

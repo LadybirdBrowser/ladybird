@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    table { border-collapse: separate; border-spacing: 6px; margin: 50px; }
+    tbody { background: lightblue; }
+    tr { background: orange; }
+    td { width: 60px; height: 20px; background: yellow; }
+    .overflowing { width: 300px; height: 120px; margin-left: -40px; margin-top: -30px; background: green; box-shadow: 20px 20px 10px black; }
+    .collapsed { border-collapse: collapse; }
+    .collapsed td { border: 9px solid black; }
+</style>
+<table>
+    <colgroup><col style="background: pink"><col></colgroup>
+    <tbody>
+        <tr><td><div class="overflowing">cell</div></td><td rowspan="2">spanning</td></tr>
+        <tr><td style="position: relative"><div class="overflowing" style="position: absolute">absolute</div></td></tr>
+    </tbody>
+</table>
+<table class="collapsed"><tr><td>a</td><td><div class="overflowing">b</div></td></tr></table>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

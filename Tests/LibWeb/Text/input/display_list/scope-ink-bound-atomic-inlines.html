@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p { width: 260px; line-height: 16px; margin: 70px; background: lightblue; }
+    .inline-block { display: inline-block; width: 60px; height: 120px; vertical-align: middle; background: orange; box-shadow: 0 0 20px black; }
+    .inline-block > div { width: 200px; height: 30px; margin-left: -80px; margin-top: -50px; background: green; }
+    .inline-flex { display: inline-flex; width: 50px; height: 20px; background: yellow; }
+    .inline-flex > div { flex: none; width: 150px; height: 90px; margin-top: -40px; background: pink; }
+    img { width: 40px; height: 90px; outline: 8px solid black; }
+</style>
+<p>before <span class="inline-block"><div>inside</div></span> between <span style="background: silver"><span class="inline-flex"><div>item</div></span></span> and <img> after</p>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>
