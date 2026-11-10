@@ -1545,6 +1545,10 @@ impl<U: Unit> Parser<'_, U> {
                 }
             }
             tag::OBJECT | tag::OBJECT_PATTERN => {
+                if self.marks && self.ast.tag[node as usize] == tag::OBJECT {
+                    let mark = self.ast.b[node as usize];
+                    self.ast.tag[mark as usize] = tag::EMPTY;
+                }
                 self.ast.tag[node as usize] = tag::OBJECT_PATTERN;
                 let list = self.ast.a[node as usize];
                 let count = self.ast.extra[list as usize];
