@@ -661,6 +661,45 @@ fn highlight_rects<O: Observer>(
     text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets)
 }
 
+pub(crate) fn text_shadow_layers_and_bounds(
+    shadow_layers: &[ShadowLayer],
+    fragment_device_rect: IntRect,
+    scale: f64,
+) -> (Vec<TextShadowLayer>, IntRect) {
+    let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(scale);
+    let mut shadows_bounding_rect = IntRect::default();
+    let layers: Vec<TextShadowLayer> = shadow_layers
+        .iter()
+        .rev()
+        .map(|layer| {
+            let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
+            let offset = FloatPoint {
+                x: layer.offset_x.to_float() * scale as f32,
+                y: layer.offset_y.to_float() * scale as f32,
+            };
+            let rounded_offset = IntPoint {
+                x: offset.x.round() as i32,
+                y: offset.y.round() as i32,
+            };
+            // Space around the painted text to allow it to blur.
+            let margin = blur_radius * 2;
+            shadows_bounding_rect = shadows_bounding_rect.united(IntRect::new(
+                fragment_device_rect.x + rounded_offset.x - margin,
+                fragment_device_rect.y + rounded_offset.y - margin,
+                fragment_device_rect.width + margin * 2,
+                fragment_device_rect.height + margin * 2,
+            ));
+            TextShadowLayer {
+                offset,
+                rounded_offset,
+                blur_radius,
+                color: Color(layer.color),
+            }
+        })
+        .collect();
+    (layers, shadows_bounding_rect)
+}
+
 fn paint_text_shadow<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
@@ -716,36 +755,7 @@ fn paint_text_shadow<O: Observer>(
     // filter text shadows either: DarkModeFilter::ApplyToFlagsIfNeeded recolors only the paint flags, never the
     // shadow filter that TextShadowPainter puts on the text's layer.
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
-    let mut shadows_bounding_rect = IntRect::default();
-    let layers: Vec<TextShadowLayer> = shadow_layers
-        .iter()
-        .rev()
-        .map(|layer| {
-            let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
-            let offset = FloatPoint {
-                x: layer.offset_x.to_float() * scale as f32,
-                y: layer.offset_y.to_float() * scale as f32,
-            };
-            let rounded_offset = IntPoint {
-                x: offset.x.round() as i32,
-                y: offset.y.round() as i32,
-            };
-            // Space around the painted text to allow it to blur.
-            let margin = blur_radius * 2;
-            shadows_bounding_rect = shadows_bounding_rect.united(IntRect::new(
-                fragment_device_rect.x + rounded_offset.x - margin,
-                fragment_device_rect.y + rounded_offset.y - margin,
-                fragment_device_rect.width + margin * 2,
-                fragment_device_rect.height + margin * 2,
-            ));
-            TextShadowLayer {
-                offset,
-                rounded_offset,
-                blur_radius,
-                color: Color(layer.color),
-            }
-        })
-        .collect();
+    let (layers, shadows_bounding_rect) = text_shadow_layers_and_bounds(shadow_layers, fragment_device_rect, scale);
     recorder.recorder.paint_text_shadow(
         &layers,
         shadows_bounding_rect,

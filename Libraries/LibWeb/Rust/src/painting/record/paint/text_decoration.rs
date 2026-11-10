@@ -459,14 +459,28 @@ fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Pat
     path
 }
 
-pub(crate) fn paint_decoration_lines<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    block: NodeSlotId,
-    fragment_index: u32,
+pub(crate) enum DecorationStrokeGeometry {
+    Single(LineStyle),
+    Double { first_y: i32, second_y: i32 },
+    Wavy { center_y: i32, amplitude: i32 },
+}
+
+pub(crate) struct DecorationLineGeometry {
+    pub start: IntPoint,
+    pub end: IntPoint,
+    pub thickness: i32,
+    pub color: Color,
+    pub should_skip_ink: bool,
+    pub stroke: DecorationStrokeGeometry,
+}
+
+pub(crate) fn decoration_line_geometry(
     fragment_box: CssPixelRect,
     set: &TextDecorationSet,
-) {
-    let converter = recorder.converter;
+    device_pixel_ratio: f64,
+) -> Vec<DecorationLineGeometry> {
+    let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(device_pixel_ratio);
+    let mut lines = Vec::new();
     let glyph_height = CssPixels::nearest_value_for_f32(set.decorating_font_pixel_size);
     let baseline = set.baseline;
     let two = CssPixels::from_integer(2);
@@ -509,7 +523,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
         // Compute the center Y of the decoration stroke. For underline and overline, offset by half the thickness
         // so the near edge of the stroke aligns with the intended position.
         let line_center_y = match line {
-            text_decoration_line::NONE => return,
+            text_decoration_line::NONE => break,
             text_decoration_line::UNDERLINE => {
                 // https://drafts.csswg.org/css-text-decor-4/#text-underline-position-property
                 // FIXME: Support text-decoration: underline on vertical text
@@ -540,7 +554,7 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 baseline - point_size * CssPixels::nearest_value_for_f32(0.5)
             }
             // Blink: conforming user agents may simply not blink the text.
-            _ => return,
+            _ => break,
         };
 
         let line_start_point = converter.rounded_device_point(
@@ -563,6 +577,66 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
             && set.anchored_at_fragment_baseline
             && (line == text_decoration_line::UNDERLINE || line == text_decoration_line::OVERLINE);
 
+        let line_y = line_start_point.y;
+        let stroke = match line_style {
+            text_decoration_style::SOLID => DecorationStrokeGeometry::Single(LineStyle::Solid),
+            text_decoration_style::DASHED => DecorationStrokeGeometry::Single(LineStyle::Dashed),
+            text_decoration_style::DOTTED => DecorationStrokeGeometry::Single(LineStyle::Dotted),
+            text_decoration_style::DOUBLE => {
+                // Two parallel lines with a 1px gap, expanding away from the text.
+                let step = device_line_thickness + 1;
+                let mut first_y = line_y;
+                let mut second_y = line_y;
+                match line {
+                    text_decoration_line::UNDERLINE => second_y += step,
+                    text_decoration_line::OVERLINE => second_y -= step,
+                    _ => {
+                        first_y -= step / 2;
+                        second_y = first_y + step;
+                    }
+                }
+                DecorationStrokeGeometry::Double { first_y, second_y }
+            }
+            _ => {
+                // Wavy: the wave oscillates amplitude/2 above and below its center.
+                let amplitude = device_line_thickness * 3;
+                let mut wave_y = line_y;
+                match line {
+                    text_decoration_line::UNDERLINE => wave_y += device_line_thickness / 2 + 1,
+                    text_decoration_line::OVERLINE => wave_y -= device_line_thickness / 2 + 1,
+                    _ => {}
+                }
+                DecorationStrokeGeometry::Wavy {
+                    center_y: wave_y,
+                    amplitude,
+                }
+            }
+        };
+        lines.push(DecorationLineGeometry {
+            start: line_start_point,
+            end: line_end_point,
+            thickness: device_line_thickness,
+            color: line_color,
+            should_skip_ink,
+            stroke,
+        });
+    }
+    lines
+}
+
+pub(crate) fn paint_decoration_lines<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    block: NodeSlotId,
+    fragment_index: u32,
+    fragment_box: CssPixelRect,
+    set: &TextDecorationSet,
+) {
+    for geometry in decoration_line_geometry(fragment_box, set, recorder.inputs.device_pixels_per_css_pixel) {
+        let line_start_point = geometry.start;
+        let line_end_point = geometry.end;
+        let device_line_thickness = geometry.thickness;
+        let line_color = geometry.color;
+        let should_skip_ink = geometry.should_skip_ink;
         let segments = if !should_skip_ink {
             vec![DecorationSegment {
                 start_x: line_start_point.x,
@@ -595,49 +669,22 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 );
             };
 
-        match line_style {
-            text_decoration_style::SOLID => {
+        match geometry.stroke {
+            DecorationStrokeGeometry::Single(style) => {
                 for segment in &segments {
-                    draw_line_for_segment(recorder, *segment, line_y, LineStyle::Solid);
+                    draw_line_for_segment(recorder, *segment, line_y, style);
                 }
             }
-            text_decoration_style::DOUBLE => {
-                // Two parallel lines with a 1px gap, expanding away from the text.
-                let step = device_line_thickness + 1;
-                let mut first_y = line_y;
-                let mut second_y = line_y;
-                match line {
-                    text_decoration_line::UNDERLINE => second_y += step,
-                    text_decoration_line::OVERLINE => second_y -= step,
-                    _ => {
-                        first_y -= step / 2;
-                        second_y = first_y + step;
-                    }
-                }
+            DecorationStrokeGeometry::Double { first_y, second_y } => {
                 for segment in &segments {
                     draw_line_for_segment(recorder, *segment, first_y, LineStyle::Solid);
                     draw_line_for_segment(recorder, *segment, second_y, LineStyle::Solid);
                 }
             }
-            text_decoration_style::DASHED => {
-                for segment in &segments {
-                    draw_line_for_segment(recorder, *segment, line_y, LineStyle::Dashed);
-                }
-            }
-            text_decoration_style::DOTTED => {
-                for segment in &segments {
-                    draw_line_for_segment(recorder, *segment, line_y, LineStyle::Dotted);
-                }
-            }
-            _ => {
-                // Wavy: the wave oscillates amplitude/2 above and below its center.
-                let amplitude = device_line_thickness * 3;
-                let mut wave_y = line_y;
-                match line {
-                    text_decoration_line::UNDERLINE => wave_y += device_line_thickness / 2 + 1,
-                    text_decoration_line::OVERLINE => wave_y -= device_line_thickness / 2 + 1,
-                    _ => {}
-                }
+            DecorationStrokeGeometry::Wavy {
+                center_y: wave_y,
+                amplitude,
+            } => {
                 for segment in &segments {
                     let from = IntPoint {
                         x: segment.start_x,
