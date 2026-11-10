@@ -125,6 +125,9 @@ struct ControlFrameColors {
 // The corner radius of a button's frame on the chrome.
 constexpr inline qreal CONTROL_FRAME_RADIUS = 6;
 // The colors of a button's frame in the button's current state, or nothing while it shows no frame.
+// The Ladybird and all-tabs buttons sit in a group that moves between the tab strip and the sidebar or the toolbar.
+bool is_in_tab_strip_button_group(QWidget const&);
+
 Optional<ControlFrameColors> control_frame_colors(QAbstractButton const&, ControlFrameStyle = ControlFrameStyle::InteractionOnly);
 void paint_control_frame(QPainter&, QAbstractButton const&, ControlFrameStyle = ControlFrameStyle::InteractionOnly);
 // The frame of a badge over a collapsed sidebar's tab that is not a button, as a button's frame looks at rest.
