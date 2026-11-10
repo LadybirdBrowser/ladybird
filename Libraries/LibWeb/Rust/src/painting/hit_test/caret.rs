@@ -4,14 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::resolve::with_item_fragment;
 use super::*;
 use crate::painting::host::{
-    FfiCaretAt, FfiCaretBoundaryKind, FfiCaretPositionQuery, FfiHitTestQueryCallbacks, FfiNodeIdentity,
-    FfiResolvedCaret,
+    FfiCaretAt, FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiNodeIdentity, FfiResolvedCaret,
 };
 use crate::painting::paint_read::PaintRead;
-use crate::painting::text_fragment::CaretMatch;
 use crate::painting::viewport_mapping::ViewportSpace;
 use crate::painting::visual_context::{ClipBehavior, SpatialNodeIndex};
 
@@ -34,21 +31,10 @@ impl NodeScopes for HostNodeScopes<'_> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
 pub enum CaretPositionType {
-    Closest = 0,
-    Before = 1,
-    After = 2,
-}
-
-impl CaretPositionType {
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            value if value == Self::Before as u8 => Self::Before,
-            value if value == Self::After as u8 => Self::After,
-            _ => Self::Closest,
-        }
-    }
+    Closest,
+    Before,
+    After,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,12 +55,6 @@ impl CaretPositionMode {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum CaretLineDirection {
-    Previous = 0,
-    Next = 1,
-}
 // Treat small block-axis gaps between caret line fragments as the same visual row.
 const CARET_LINE_BLOCK_AXIS_RANGE_SLOP: i64 = 4;
 // Prefer a nearby line in the same visual column over a slightly closer line in another column.
@@ -131,10 +111,6 @@ fn caret_line_is_better_candidate(
     block_distance < closest_block_distance
 }
 
-fn line_block_middle(rect: CssPixelRect, writing_mode: u8) -> CssPixels {
-    block_axis_start(rect, writing_mode)
-        + (block_axis_end(rect, writing_mode) - block_axis_start(rect, writing_mode)).scaled(0.5)
-}
 #[derive(Clone, Copy, Debug)]
 pub struct ClosestLine {
     pub index: Option<usize>,
@@ -167,85 +143,6 @@ impl Default for ClosestLine {
 }
 
 impl HitTestList {
-    pub(crate) fn caret_line_for_position(
-        &self,
-        arena: &impl PaintRead,
-        query: &FfiCaretPositionQuery,
-        offset: usize,
-        affinity_is_downstream: bool,
-    ) -> Option<usize> {
-        // At a soft wrap, prefer the fragment whose line directly owns the position. Only use the preceding
-        // fragment's fallback match when no direct match exists.
-        for allow_soft_wrap_fallback in [false, true] {
-            for (line_index, line) in self.caret_lines.iter().enumerate() {
-                for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
-                    let item_index = self.caret_item_indices[caret_item_index];
-                    let position_match =
-                        self.item_position_match(arena, query, item_index, offset, affinity_is_downstream);
-                    match position_match {
-                        CaretMatch::None => continue,
-                        CaretMatch::SoftWrapFallback if !allow_soft_wrap_fallback => continue,
-                        CaretMatch::Direct | CaretMatch::SoftWrapFallback => return Some(line_index),
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn item_position_match(
-        &self,
-        arena: &impl PaintRead,
-        query: &FfiCaretPositionQuery,
-        item_index: usize,
-        offset: usize,
-        affinity_is_downstream: bool,
-    ) -> CaretMatch {
-        let item = &self.items[item_index];
-        match item.kind {
-            HitTestItemKind::TextFragment => resolve::with_item_fragment(arena, item, |fragment| {
-                let node = resolve::row_dom_style_node(arena, fragment.layout_node);
-                if query.is_query_node(node) {
-                    return crate::painting::text_fragment::caret_match(fragment, offset, affinity_is_downstream);
-                }
-                if fragment.dom_start_offset_in_node == 0 && query.boundary_descends_to(node) {
-                    return CaretMatch::Direct;
-                }
-                if query.boundary_follows_end(node, fragment.dom_end_offset_with_trailing_whitespace) {
-                    return CaretMatch::Direct;
-                }
-                CaretMatch::None
-            })
-            .unwrap_or(CaretMatch::None),
-            HitTestItemKind::EmptyLine => {
-                let node = resolve::row_dom_style_node(arena, item.caret_node);
-                let matches = if super::resolve::empty_line_is_anchored_to_its_forced_break(arena, item) {
-                    query.boundary_precedes(node)
-                } else {
-                    item.caret_offset == offset && query.is_query_node(node)
-                };
-                if matches { CaretMatch::Direct } else { CaretMatch::None }
-            }
-            HitTestItemKind::EmptyEditable => {
-                let node = resolve::row_dom_style_node(arena, item.paintable);
-                if offset == 0 && query.is_query_node(node) {
-                    CaretMatch::Direct
-                } else {
-                    CaretMatch::None
-                }
-            }
-            HitTestItemKind::Box => {
-                let node = resolve::row_dom_style_node(arena, item.paintable);
-                if query.is_adjacent_to(node) {
-                    CaretMatch::Direct
-                } else {
-                    CaretMatch::None
-                }
-            }
-            HitTestItemKind::SvgPath | HitTestItemKind::ChromeWidget => CaretMatch::None,
-        }
-    }
-
     pub fn box_point_is_before(&self, item_index: usize, local_point: CssPixelPoint) -> bool {
         let item = &self.items[item_index];
         debug_assert_eq!(item.kind, HitTestItemKind::Box);
@@ -274,16 +171,6 @@ impl HitTestList {
     }
 
     pub fn item_at_line_edge(&self, line_index: usize, position_type: CaretPositionType) -> usize {
-        self.item_at_line_edge_matching(line_index, position_type, |_| true)
-            .expect("a caret line has at least one item")
-    }
-
-    fn item_at_line_edge_matching(
-        &self,
-        line_index: usize,
-        position_type: CaretPositionType,
-        accepts_item: impl Fn(usize) -> bool,
-    ) -> Option<usize> {
         // Choose the furthest caret-capable painted item along the logical inline axis. Display-list order and DOM
         // order don't necessarily describe that edge.
         debug_assert!(self.caret_lines_built);
@@ -320,7 +207,7 @@ impl HitTestList {
             }
         };
         let first_index = self.caret_item_indices[line.first_caret_item_index];
-        let mut best_item_index = accepts_item(first_index).then_some(first_index);
+        let mut best_item_index = first_index;
         let mut best_coordinate = coordinate_for_item(&self.items[first_index]);
         let item_is_on_line = |item: &HitTestItem| -> bool {
             if let Some(recorded_line) = first_item.recorded_caret_line() {
@@ -338,12 +225,12 @@ impl HitTestList {
         // inferred visual line even when other caret runs separate them.
         for item_index in &self.caret_item_indices {
             let item = &self.items[*item_index];
-            if !item_is_on_line(item) || !accepts_item(*item_index) {
+            if !item_is_on_line(item) {
                 continue;
             }
             let coordinate = coordinate_for_item(item);
-            if best_item_index.is_none() || coordinate_is_closer_to_line_edge(coordinate, best_coordinate) {
-                best_item_index = Some(*item_index);
+            if coordinate_is_closer_to_line_edge(coordinate, best_coordinate) {
+                best_item_index = *item_index;
                 best_coordinate = coordinate;
             }
         }
@@ -442,13 +329,6 @@ impl HitTestList {
             }
         }
         closest_item_index.map(|index| (index, CaretPositionType::Closest))
-    }
-
-    pub fn line_block_coordinate(&self, line_index: usize) -> CssPixels {
-        debug_assert!(self.caret_lines_built);
-        let line = &self.caret_lines[line_index];
-        let writing_mode = self.first_item_of_line(line).writing_mode;
-        line_block_middle(line.rect, writing_mode)
     }
 
     pub fn item_is_inline_adjacent_to_line(&self, item_index: usize, line_index: usize) -> bool {
@@ -680,155 +560,6 @@ impl HitTestList {
             return closest_line_after_point;
         }
         closest_line
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn adjacent_line(
-        &self,
-        scopes: &impl NodeScopes,
-        arena: &impl PaintRead,
-        current_line_index: usize,
-        direction: CaretLineDirection,
-        inline_coordinate: CssPixels,
-        scope: FfiNodeIdentity,
-    ) -> Option<(usize, CssPixelPoint)> {
-        // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than
-        // DOM tree order. Rank candidates in the requested logical block direction, prefer the current line-producing
-        // context, then minimize block distance and finally distance from the remembered inline coordinate.
-
-        // Keep these coordinates fractional. Rounding line geometry before comparison can reorder candidates when
-        // layout positions or device scaling produce subpixel line centers.
-        debug_assert!(self.caret_lines_built);
-        let current_line = self.caret_lines[current_line_index].clone();
-        let current_first_item = self.first_item_of_line(&current_line);
-        let writing_mode = current_first_item.writing_mode;
-        let block_axis_is_reverse = current_first_item.block_axis_is_reverse;
-        let physically_after = (direction == CaretLineDirection::Next) != block_axis_is_reverse;
-        let current_line_context = current_first_item.paintable;
-        let current_block_coordinate = line_block_middle(current_line.rect, writing_mode);
-
-        let fragment_rects: smallvec::SmallVec<[CssPixelRect; 2]> = if current_line.block_container.is_invalid()
-            || !arena.paintable_row_is_populated(current_line.block_container)
-        {
-            smallvec::SmallVec::new()
-        } else {
-            (0..crate::painting::paintable_geometry::fragment_count(arena, current_line.block_container))
-                .map(|index| {
-                    crate::painting::paintable_geometry::absolute_fragment_rect(
-                        arena,
-                        current_line.block_container,
-                        index,
-                    )
-                })
-                .collect()
-        };
-        let fragment_inline_start = |box_fragment: u32| {
-            fragment_rects
-                .get(box_fragment as usize)
-                .map(|rect| inline_axis_start(*rect, writing_mode))
-        };
-        let mut inline_coordinate = inline_coordinate;
-        if fragment_rects.len() > 1
-            && let Some(source_fragment) = fragment_rects.iter().position(|rect| {
-                inline_coordinate >= inline_axis_start(*rect, writing_mode)
-                    && inline_coordinate < inline_axis_end(*rect, writing_mode)
-            })
-            && let (Some(current_start), Some(source_start)) = (
-                fragment_inline_start(current_line.box_fragment),
-                fragment_inline_start(source_fragment as u32),
-            )
-        {
-            inline_coordinate += current_start - source_start;
-        }
-        let mut closest_line_index: Option<usize> = None;
-        let mut closest_line_shares_context = false;
-        let mut closest_block_distance = CssPixels::from_raw(i32::MAX);
-        let mut closest_inline_distance = CssPixels::from_raw(i32::MAX);
-        let is_in_other_fragment_of_current_block_container = |line: &CaretLine| {
-            !current_line.block_container.is_invalid()
-                && line.block_container == current_line.block_container
-                && line.box_fragment != current_line.box_fragment
-        };
-        for line_index in 0..self.caret_lines.len() {
-            let line = &self.caret_lines[line_index];
-            // INTEROP: Keyboard navigation follows layout geometry across clips, effects, and transforms.
-            //          Separate paint contexts inside one editing host must not isolate its editable lines.
-            if line_index == current_line_index
-                || is_in_other_fragment_of_current_block_container(line)
-                || !self.line_in_scope(scopes, arena, line_index, scope)
-            {
-                continue;
-            }
-            let candidate_block_coordinate = line_block_middle(line.rect, writing_mode);
-            if (physically_after && candidate_block_coordinate <= current_block_coordinate)
-                || (!physically_after && candidate_block_coordinate >= current_block_coordinate)
-            {
-                continue;
-            }
-            let block_distance = absolute_difference(candidate_block_coordinate, current_block_coordinate);
-            let inline_distance = distance_to_range(
-                inline_coordinate,
-                inline_axis_start(line.rect, writing_mode),
-                inline_axis_end(line.rect, writing_mode),
-            );
-            let candidate_first_item = self.first_item_of_line(line);
-            // Prefer lines produced by the same line paintable. Independently painted content, such as a floated first
-            // letter, may occupy the same block-axis neighborhood without being the next line of the current content.
-            let shares_line_context = candidate_first_item.paintable == current_line_context;
-            if closest_line_index.is_none()
-                || (shares_line_context && !closest_line_shares_context)
-                || (shares_line_context == closest_line_shares_context
-                    && (block_distance < closest_block_distance
-                        || (block_distance == closest_block_distance && inline_distance < closest_inline_distance)))
-            {
-                closest_line_index = Some(line_index);
-                closest_line_shares_context = shares_line_context;
-                closest_block_distance = block_distance;
-                closest_inline_distance = inline_distance;
-            }
-        }
-        let adjacent_fragment = if direction == CaretLineDirection::Next {
-            current_line.box_fragment.checked_add(1)
-        } else {
-            current_line.box_fragment.checked_sub(1)
-        };
-        let continues_in_adjacent_fragment = closest_line_index
-            .is_none_or(|index| self.caret_lines[index].block_container != current_line.block_container);
-        if continues_in_adjacent_fragment
-            && let Some(adjacent_fragment) = adjacent_fragment
-            && let Some(line_index) = (0..self.caret_lines.len())
-                .filter(|&line_index| {
-                    let line = &self.caret_lines[line_index];
-                    is_in_other_fragment_of_current_block_container(line)
-                        && line.box_fragment == adjacent_fragment
-                        && self.line_in_scope(scopes, arena, line_index, scope)
-                })
-                .min_by_key(|&line_index| {
-                    let block_coordinate = line_block_middle(self.caret_lines[line_index].rect, writing_mode);
-                    if physically_after {
-                        block_coordinate
-                    } else {
-                        -block_coordinate
-                    }
-                })
-        {
-            if let (Some(target_start), Some(current_start)) = (
-                fragment_inline_start(self.caret_lines[line_index].box_fragment),
-                fragment_inline_start(current_line.box_fragment),
-            ) {
-                inline_coordinate += target_start - current_start;
-            }
-            closest_line_index = Some(line_index);
-        }
-        let closest_line_index = closest_line_index?;
-        let closest_line = &self.caret_lines[closest_line_index];
-        let block_coordinate = line_block_middle(closest_line.rect, writing_mode);
-        let point = if writing_mode_is_horizontal(writing_mode) {
-            CssPixelPoint::new(inline_coordinate, block_coordinate)
-        } else {
-            CssPixelPoint::new(block_coordinate, inline_coordinate)
-        };
-        Some((closest_line_index, point))
     }
 }
 
@@ -1073,77 +804,5 @@ impl HitTestList {
             }
         }
         Some(caret)
-    }
-
-    /// The caret position at the start or end of the painted line holding the position. A visual line can span several
-    /// DOM nodes and atomic inline boxes, so a text-node or block-element boundary is not necessarily a line boundary.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn caret_at_line_edge(
-        &self,
-        scopes: &impl NodeScopes,
-        arena: &impl PaintRead,
-        query: &FfiCaretPositionQuery,
-        offset: usize,
-        affinity_is_downstream: bool,
-        edge: CaretPositionType,
-        physical: bool,
-        scope: FfiNodeIdentity,
-    ) -> Option<FfiCaretAt> {
-        let line_index = self.caret_line_for_position(arena, query, offset, affinity_is_downstream)?;
-        let mut logical_edge = edge;
-        if physical
-            && self
-                .first_item_of_line(&self.caret_lines[line_index])
-                .inline_axis_is_reverse
-        {
-            logical_edge = if edge == CaretPositionType::Before {
-                CaretPositionType::After
-            } else {
-                CaretPositionType::Before
-            };
-        }
-        let item_index = self.item_at_line_edge_matching(line_index, logical_edge, |index| {
-            scope.is_none() || scopes.contains(scope, self.item_target(arena, index))
-        })?;
-        let mut caret = self.caret_at_item(arena, item_index, CssPixelPoint::default(), logical_edge)?;
-        if physical {
-            let item = &self.items[item_index];
-            if item.kind == HitTestItemKind::TextFragment
-                && let Some((offset, upstream)) = with_item_fragment(arena, item, |fragment| {
-                    crate::painting::text_fragment::physical_edge_offset(
-                        arena,
-                        fragment,
-                        edge == CaretPositionType::Before,
-                    )
-                })
-                .flatten()
-            {
-                caret.caret.offset = offset;
-                caret.caret.affinity_is_upstream = upstream;
-                caret.caret.has_debug_rect = false;
-            }
-        }
-        Some(caret)
-    }
-
-    /// The caret position on the visually adjacent line within `scope`, preserving the requested inline coordinate.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn caret_on_adjacent_line(
-        &self,
-        scopes: &impl NodeScopes,
-        arena: &impl PaintRead,
-        query: &FfiCaretPositionQuery,
-        offset: usize,
-        affinity_is_downstream: bool,
-        direction: CaretLineDirection,
-        inline_coordinate: CssPixels,
-        scope: FfiNodeIdentity,
-    ) -> Option<FfiCaretAt> {
-        let line_index = self.caret_line_for_position(arena, query, offset, affinity_is_downstream)?;
-        let (adjacent_line_index, point) =
-            self.adjacent_line(scopes, arena, line_index, direction, inline_coordinate, scope)?;
-        // Reuse point-to-caret resolution after choosing the line so text, atomic boxes, and empty lines share one rule
-        // for selecting the position closest to the preferred inline coordinate.
-        self.caret_at_line(arena, adjacent_line_index, point, CaretPositionMode::Normal)
     }
 }

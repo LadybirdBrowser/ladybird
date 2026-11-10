@@ -13,6 +13,12 @@
 #include <LibWeb/TextAffinity.h>
 #include <LibWebCommon/PixelUnits.h>
 
+namespace Web::Layout::RustFFI {
+
+struct FfiInlineLine;
+
+}
+
 namespace Web::Selection {
 
 enum class SelectionAlteration : u8 {
@@ -65,6 +71,8 @@ private:
     Optional<CaretLocation> move_to_editing_host_boundary(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_to_paragraph_boundary(CaretLocation const&, SelectionDirection);
     Optional<CaretLocation> move_by_page(CaretLocation const&, SelectionDirection, CSSPixels inline_coordinate);
+    Optional<CaretLocation> position_on_adjacent_line(CaretLocation const&, SelectionDirection, CSSPixels inline_coordinate);
+    Optional<CaretLocation> first_position_on_another_line(CaretLocation const&, DOM::Node& editing_host, SelectionDirection, Layout::RustFFI::FfiInlineLine const* line);
     Optional<CaretLocation> move_by_word(CaretLocation const&, SelectionAlteration, SelectionDirection);
     GC::Ptr<DOM::Node> adjacent_caret_host(DOM::Node&, DOM::Node& editing_host, SelectionDirection);
     Optional<CaretLocation> location_before_atomic_inline(DOM::Node&, SelectionAlteration);

@@ -371,28 +371,33 @@ CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
     return absolute_position(node);
 }
 
-Layout::RustFFI::FfiCaret caret_at_position(Layout::BegunRead const& read, DOM::Position const& position, Layout::RustFFI::FfiViewportMapping viewport_mapping)
+Optional<Layout::RustFFI::FfiCaretPosition> layout_caret_position(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity)
 {
-    Layout::RustFFI::FfiCaret caret {};
-    auto const& node = *position.node();
     auto const* layout_node = node.unsafe_layout_node(read);
     if (!layout_node)
-        return caret;
+        return {};
     auto slot_of = [&](DOM::Node const* child) {
         auto const* child_layout_node = child ? child->unsafe_layout_node(read) : nullptr;
         return child_layout_node ? Layout::Node::slot_id(child_layout_node) : Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
     };
-    auto offset = position.offset();
     auto const* child_before = offset > 0 ? node.child_at_index(offset - 1) : nullptr;
-    Layout::RustFFI::FfiCaretPosition ffi_position {
+    return Layout::RustFFI::FfiCaretPosition {
         .node = Layout::Node::slot_id(layout_node),
         .offset = offset,
-        .downstream = position.affinity() == TextAffinity::Downstream,
+        .downstream = affinity == TextAffinity::Downstream,
         .child_before = slot_of(child_before),
         .child_before_length = child_before ? child_before->length() : 0,
         .child_after = slot_of(node.child_at_index(offset)),
     };
-    Layout::RustFFI::layout_script_caret(layout_node->document_host(), ffi_position, viewport_mapping, &caret);
+}
+
+Layout::RustFFI::FfiCaret caret_at_position(Layout::BegunRead const& read, DOM::Position const& position, Layout::RustFFI::FfiViewportMapping viewport_mapping)
+{
+    Layout::RustFFI::FfiCaret caret {};
+    auto ffi_position = layout_caret_position(read, *position.node(), position.offset(), position.affinity());
+    if (!ffi_position.has_value())
+        return caret;
+    Layout::RustFFI::layout_script_caret(position.node()->unsafe_layout_node(read)->document_host(), *ffi_position, viewport_mapping, &caret);
     return caret;
 }
 

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Noncopyable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -99,36 +98,6 @@ static Layout::RustFFI::FfiNodeIdentity ffi_identity_of(DOM::Node const* node)
     auto identity = DOM::NodeIdentity::of(node);
     return { .style_node = identity.style_node().value(), .is_document = identity == DOM::NodeIdentity::of_document() };
 }
-
-// A caret boundary resolved to the node identities a hit test item is compared against. The query
-// asks five questions of every candidate item, and each one is answered by the node a child of the
-// boundary's node names, so they are all resolved here, once, before the query runs.
-// The query points into the descent this context owns, so the context stays where it was built.
-struct CaretPositionQueryContext {
-    AK_MAKE_NONCOPYABLE(CaretPositionQueryContext);
-    AK_MAKE_NONMOVABLE(CaretPositionQueryContext);
-
-public:
-    Vector<u32, 8> boundary_descent;
-    Layout::RustFFI::FfiCaretPositionQuery query {};
-
-    CaretPositionQueryContext(DOM::Node const& node, size_t offset)
-    {
-        auto style_node_of = [](DOM::Node const* node) { return Layout::Node::style_node_of(node).value(); };
-        query.node = style_node_of(&node);
-        auto const* child_at_offset = node.child_at_index(offset);
-        query.child_at_offset = style_node_of(child_at_offset);
-        if (offset > 0) {
-            auto const* child_before_offset = node.child_at_index(offset - 1);
-            query.child_before_offset = style_node_of(child_before_offset);
-            query.child_before_offset_length = child_before_offset ? child_before_offset->length() : 0;
-        }
-        for (auto const* descendant = child_at_offset; descendant; descendant = descendant->first_child())
-            boundary_descent.append(style_node_of(descendant));
-        query.boundary_descent = boundary_descent.data();
-        query.boundary_descent_len = boundary_descent.size();
-    }
-};
 
 Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(Layout::RustFFI::FfiTopmostItem const& item)
 {
@@ -286,42 +255,6 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from(Layout::RustFFI:
         .secondary_boundary = is_before ? after_boundary : before_boundary,
         .debug_rect = debug_rect,
     };
-}
-
-Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
-{
-    if (!is_current())
-        return {};
-    CaretPositionQueryContext context { node, offset };
-    auto type = first_is_one_of(edge, CaretLineEdge::Start, CaretLineEdge::Left) ? CaretPositionType::Before : CaretPositionType::After;
-    auto physical = first_is_one_of(edge, CaretLineEdge::Left, CaretLineEdge::Right);
-    QueryContext query_context { nullptr, m_arena->document() };
-    auto scope = physical ? const_cast<DOM::Node&>(node).editing_host() : nullptr;
-    Layout::RustFFI::FfiCaretAt caret_at;
-    Layout::RustFFI::layout_hit_test_caret_at_line_edge(m_arena->host(), &read, query_context.callbacks(), context.query, offset, affinity == TextAffinity::Downstream, to_underlying(type), physical, ffi_identity_of(scope.ptr()), &caret_at);
-    return caret_position_from(caret_at);
-}
-
-Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
-{
-    if (!is_current())
-        return {};
-    CaretPositionQueryContext position_context { node, offset };
-    QueryContext context { nullptr, m_arena->document() };
-    Layout::RustFFI::FfiCaretAt caret_at;
-    Layout::RustFFI::layout_hit_test_caret_on_adjacent_line(m_arena->host(), &read, context.callbacks(), position_context.query, offset, affinity == TextAffinity::Downstream, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value(), ffi_identity_of(&scope), &caret_at);
-    return caret_position_from(caret_at);
-}
-
-Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity) const
-{
-    if (!is_current())
-        return {};
-    CaretPositionQueryContext context { node, offset };
-    i32 coordinate = 0;
-    if (!Layout::RustFFI::layout_hit_test_caret_line_block_coordinate(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream, &coordinate))
-        return {};
-    return CSSPixels::from_raw(coordinate);
 }
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const

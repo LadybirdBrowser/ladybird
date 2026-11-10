@@ -24,13 +24,12 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
     auto origin = Editing::VisiblePosition::create(*m_selection->document(), { *focus, static_cast<WebIDL::UnsignedLong>(m_selection->focus_offset()) }, m_selection->focus_affinity());
 
     // INTEROP: Major engines remember a preferred inline-axis position across consecutive Up/Down operations. Without
-    // this state, traversing a short line permanently shifts the caret column for every subsequent line.
+    // this state, traversing a short line permanently shifts the caret column for every subsequent line. Any other
+    // change of the selection forgets it, but a move that leaves the caret where it was keeps it.
     auto preferred_inline_coordinate = m_selection->m_preferred_inline_coordinate;
     auto is_vertical_movement = granularity == SelectionGranularity::Line || granularity == SelectionGranularity::Page;
     if (is_vertical_movement && !preferred_inline_coordinate.has_value())
         preferred_inline_coordinate = origin.inline_coordinate();
-    else if (!is_vertical_movement)
-        m_selection->m_preferred_inline_coordinate.clear();
 
     Optional<Editing::VisiblePosition> destination;
     Optional<DOM::BoundaryPoint> canonical_anchor;
@@ -47,6 +46,9 @@ void SelectionModifier::modify(SelectionAlteration alteration, SelectionDirectio
         return;
 
     auto destination_boundary = destination->boundary();
+    if (alteration == SelectionAlteration::Move && m_selection->is_collapsed() && destination_boundary.node.ptr() == focus.ptr()
+        && destination_boundary.offset == m_selection->focus_offset() && destination->affinity() == m_selection->focus_affinity())
+        return;
     // Apply exactly one selection mutation after navigation has produced a complete destination. In particular, do
     // not use Selection itself as scratch state while walking across DOM nodes or painted lines.
     if (alteration == SelectionAlteration::Move) {

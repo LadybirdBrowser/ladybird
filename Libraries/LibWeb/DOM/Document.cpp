@@ -12381,30 +12381,6 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
-{
-    auto query = prepare_hit_test_query(read);
-    if (!query.has_value())
-        return {};
-    return query->list().caret_position_at_line_edge(read, node, offset, affinity, edge);
-}
-
-Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
-{
-    auto query = prepare_hit_test_query(read);
-    if (!query.has_value())
-        return {};
-    return query->list().caret_position_on_adjacent_line(read, node, offset, affinity, direction, inline_coordinate, scope);
-}
-
-Optional<CSSPixels> Document::caret_line_block_coordinate(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity)
-{
-    auto query = prepare_hit_test_query(read);
-    if (!query.has_value())
-        return {};
-    return query->list().caret_line_block_coordinate(read, node, offset, affinity);
-}
-
 TraversalDecision Document::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
 {
     auto query = prepare_hit_test_query(read);

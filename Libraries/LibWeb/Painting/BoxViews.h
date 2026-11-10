@@ -15,6 +15,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/PaintableTypes.h>
+#include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
@@ -89,6 +90,8 @@ WEB_API Optional<String> grid_layout_json(Layout::Node const&, UniqueNodeID);
 WEB_API Optional<String> flex_layout_json(Layout::Node const&, UniqueNodeID);
 
 WEB_API CSSPixelPoint box_type_agnostic_position(Layout::Node const&);
+// The position `offset` in `node` as layout names it, if `node` has a layout node.
+WEB_API Optional<Layout::RustFFI::FfiCaretPosition> layout_caret_position(Layout::BegunRead const&, DOM::Node const&, size_t offset, TextAffinity);
 // The caret layout gives a cursor position, its viewport rect mapped through `viewport_mapping`.
 WEB_API Layout::RustFFI::FfiCaret caret_at_position(Layout::BegunRead const&, DOM::Position const&, Layout::RustFFI::FfiViewportMapping);
 

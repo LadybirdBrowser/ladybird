@@ -312,6 +312,7 @@ pub unsafe extern "C" fn layout_script_text_character_x_positions(
 /// box of an element, the position between the children of the element whose boxes are `child_before` and
 /// `child_after` (`NodeSlotId::INVALID` for none), where the DOM text of `child_before` is `child_before_length` long.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiCaretPosition {
     pub node: NodeSlotId,
     pub offset: usize,
@@ -319,6 +320,33 @@ pub struct FfiCaretPosition {
     pub child_before: NodeSlotId,
     pub child_before_length: usize,
     pub child_after: NodeSlotId,
+}
+
+impl FfiCaretPosition {
+    /// The caret positions the position can take, in the order to try them.
+    pub(crate) fn candidates(&self, arena: &impl PaintRead) -> impl Iterator<Item = CaretPosition> {
+        let is_text = arena
+            .node_kind_if_live(self.node)
+            .is_some_and(super::node_facts::kind_is_text);
+        let text = is_text.then_some(CaretPosition::Text {
+            text: self.node,
+            offset: self.offset,
+            downstream: self.downstream,
+        });
+        let between_children = (!is_text)
+            .then(|| {
+                inline_cursor::caret_positions_between_children(
+                    arena,
+                    self.node,
+                    self.child_before,
+                    self.child_before_length,
+                    self.child_after,
+                )
+            })
+            .into_iter()
+            .flatten();
+        text.into_iter().chain(between_children)
+    }
 }
 
 /// The caret layout gives a position, as the recorder paints it and in the layout viewport.
@@ -342,26 +370,10 @@ pub extern "C" fn layout_script_caret(
 ) {
     *out = read_rows(host, |arena| {
         let cursor = InlineCursor::new(arena);
-        let caret = if arena
-            .node_kind_if_live(position.node)
-            .is_some_and(super::node_facts::kind_is_text)
-        {
-            cursor.caret_rect(CaretPosition::Text {
-                text: position.node,
-                offset: position.offset,
-                downstream: position.downstream,
-            })
-        } else {
-            inline_cursor::caret_positions_between_children(
-                arena,
-                position.node,
-                position.child_before,
-                position.child_before_length,
-                position.child_after,
-            )
+        let Some(caret) = position
+            .candidates(arena)
             .find_map(|candidate| cursor.caret_rect(candidate))
-        };
-        let Some(caret) = caret else {
+        else {
             return FfiCaret {
                 found: false,
                 paint: FfiCaretPaintKind::None,
