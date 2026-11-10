@@ -105,19 +105,6 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
     return CursorLinePosition { *previous_offset, TextAffinity::Downstream };
 }
 
-Optional<CSSPixels> cursor_inline_coordinate(Layout::BegunRead const& read, DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    const_cast<DOM::Document&>(dom_node.document()).update_layout_if_needed_for_node(dom_node, DOM::UpdateLayoutReason::CursorLineNavigation);
-    auto const* layout_node = dom_node.layout_node(read);
-    if (!layout_node)
-        return {};
-    Layout::RustFFI::FfiOptionalCssPixels result;
-    Layout::RustFFI::render_state_text_caret_inline_coordinate(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset, affinity == TextAffinity::Downstream, &result);
-    if (!result.has_value)
-        return {};
-    return result.value;
-}
-
 Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const& dom_node)
 {
     auto lines = visual_lines_with_up_to_date_layout(dom_node);

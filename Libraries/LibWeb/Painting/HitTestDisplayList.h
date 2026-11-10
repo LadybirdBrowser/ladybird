@@ -28,18 +28,6 @@ enum class CaretPositionMode : u8 {
     Selection,
 };
 
-enum class CaretLineEdge : u8 {
-    Start,
-    End,
-    Left,
-    Right,
-};
-
-enum class CaretLineDirection : u8 {
-    Previous,
-    Next,
-};
-
 class HitTestDisplayList;
 
 // A query of a document's hit test list, with what it reads besides the list: the visual context tree and the scroll
@@ -87,13 +75,6 @@ public:
     // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
     // outside it resolve to the closest position within it.
     [[nodiscard]] Optional<CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, CaretPositionMode = CaretPositionMode::Normal, GC::Ptr<DOM::Node const> constraint_scope = nullptr) const;
-    // Resolve Home/End against the painted line containing the caret. A visual line can span several DOM nodes and
-    // atomic inline boxes, so a text-node or block-element boundary is not necessarily a rendered line boundary.
-    [[nodiscard]] Optional<CaretPosition> caret_position_at_line_edge(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity, CaretLineEdge) const;
-    // Find the visually adjacent caret line within scope, preserving the requested inline-axis coordinate. This is a
-    // rendered-content query: DOM adjacency alone cannot describe wrapping, writing modes, floats, or empty lines.
-    [[nodiscard]] Optional<CaretPosition> caret_position_on_adjacent_line(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity, CaretLineDirection, CSSPixels inline_coordinate, DOM::Node const& scope) const;
-    [[nodiscard]] Optional<CSSPixels> caret_line_block_coordinate(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity) const;
     TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
@@ -108,12 +89,6 @@ private:
         Compositing::RustFFI::NodeSlotId hit_node() const { return facts.hit_node; }
         ChromeWidgetKind chrome_widget_kind() const { return static_cast<ChromeWidgetKind>(facts.chrome_widget_kind); }
         Compositing::ContextRef context() const { return facts.context; }
-    };
-
-    enum class CaretPositionType : u8 {
-        Closest,
-        Before,
-        After,
     };
 
     struct TopmostItem {

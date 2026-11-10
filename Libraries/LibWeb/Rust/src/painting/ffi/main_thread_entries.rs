@@ -821,21 +821,6 @@ fn with_hit_test_list_items_only<R>(
     with_hit_test_list(host, read, default, |_, _| {}, |list, _, source| query(list, source))
 }
 
-fn with_hit_test_list_and_caret_lines<R>(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    default: R,
-    query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::painting::paint_read::PaintSource<'_>) -> R,
-) -> R {
-    with_hit_test_list(
-        host,
-        read,
-        default,
-        |list, source| list.build_caret_lines_if_needed(source),
-        |list, _, source| query(list, source),
-    )
-}
-
 fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
@@ -1062,116 +1047,6 @@ pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
         )
     })
     .unwrap_or_else(FfiCaretAt::none);
-}
-
-/// The caret position at the start (`edge` 1) or end (`edge` 2) of the painted line holding the position `query`
-/// describes.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; the query must stay valid for this synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_at_line_edge(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    query: crate::painting::host::FfiCaretPositionQuery,
-    offset: usize,
-    affinity_is_downstream: bool,
-    edge: u8,
-    physical: bool,
-    scope: crate::painting::host::FfiNodeIdentity,
-    out: &mut FfiCaretAt,
-) {
-    let edge = crate::painting::hit_test::caret::CaretPositionType::from_u8(edge);
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
-        list.caret_at_line_edge(
-            &HostNodeScopes {
-                main_thread: &main_thread,
-                callbacks: &callbacks,
-            },
-            arena,
-            &query,
-            offset,
-            affinity_is_downstream,
-            edge,
-            physical,
-            scope,
-        )
-    })
-    .unwrap_or_else(FfiCaretAt::none);
-}
-
-/// The caret position on the line visually after (`direction` 1) or before (`direction` 0) the line holding the
-/// position `query` describes, among the lines inside `scope`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; the query and callbacks must stay valid for this
-/// synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_on_adjacent_line(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    query: crate::painting::host::FfiCaretPositionQuery,
-    offset: usize,
-    affinity_is_downstream: bool,
-    direction: u8,
-    inline_coordinate: i32,
-    scope: crate::painting::host::FfiNodeIdentity,
-    out: &mut FfiCaretAt,
-) {
-    let direction = if direction == 1 {
-        crate::painting::hit_test::caret::CaretLineDirection::Next
-    } else {
-        crate::painting::hit_test::caret::CaretLineDirection::Previous
-    };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    *out = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
-        list.caret_on_adjacent_line(
-            &HostNodeScopes {
-                main_thread: &main_thread,
-                callbacks: &callbacks,
-            },
-            arena,
-            &query,
-            offset,
-            affinity_is_downstream,
-            direction,
-            CssPixels::from_raw(inline_coordinate),
-            scope,
-        )
-    })
-    .unwrap_or_else(FfiCaretAt::none);
-}
-
-/// The block-axis middle of the painted line holding the position `query` describes, if a line holds it.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; the query must stay valid for this synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_hit_test_caret_line_block_coordinate(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-    query: crate::painting::host::FfiCaretPositionQuery,
-    offset: usize,
-    affinity_is_downstream: bool,
-    out_coordinate: &mut i32,
-) -> bool {
-    let coordinate = with_hit_test_list_and_caret_lines(host, read, None, |list, arena| {
-        let line_index = list.caret_line_for_position(arena, &query, offset, affinity_is_downstream)?;
-        Some(list.line_block_coordinate(line_index))
-    });
-    let Some(coordinate) = coordinate else {
-        return false;
-    };
-    *out_coordinate = coordinate.raw_value();
-    true
 }
 
 /// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape

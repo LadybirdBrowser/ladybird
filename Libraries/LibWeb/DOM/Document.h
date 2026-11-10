@@ -1701,9 +1701,6 @@ public:
     Optional<Painting::CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(Layout::BegunRead const& read, CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection(Layout::BegunRead const& read, CSSPixelPoint, GC::Ptr<Node const> constraint_scope = nullptr);
-    Optional<Painting::CaretPosition> caret_position_at_line_edge(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity, Painting::CaretLineEdge);
-    Optional<Painting::CaretPosition> caret_position_on_adjacent_line(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity, Painting::CaretLineDirection, CSSPixels inline_coordinate, Node const& scope);
-    Optional<CSSPixels> caret_line_block_coordinate(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity);
     using CaretPositionFromPointOptions = Bindings::CaretPositionFromPointOptions;
     GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, CaretPositionFromPointOptions const&);
     TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);

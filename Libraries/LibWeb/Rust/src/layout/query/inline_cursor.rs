@@ -8,8 +8,8 @@
 //! pre-transform space of absolute rects; a caller maps it into the viewport through the context the line content is
 //! painted in.
 
-use crate::css::css_enums::writing_mode;
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::css_enums::{white_space_collapse, writing_mode};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::RenderedTextBoundary;
 use crate::layout::inline_content::LineRecord;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
@@ -70,7 +70,8 @@ pub(crate) struct CaretRect {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LineEdge {
+#[repr(u8)]
+pub enum LineEdge {
     Start,
     End,
     Left,
@@ -85,6 +86,14 @@ pub(crate) struct TextLine {
     pub(crate) end_offset: usize,
     pub(crate) end_offset_with_trailing_whitespace: usize,
     pub(crate) has_fragments: bool,
+}
+
+#[derive(Clone, Copy)]
+struct LineExtent {
+    inline_start: CssPixels,
+    inline_end: CssPixels,
+    block_start: CssPixels,
+    block_end: CssPixels,
 }
 
 pub(crate) struct InlineCursor<'a, A: PaintRead> {
@@ -146,6 +155,59 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
                 },
                 fragment: None,
             })
+        })
+    }
+
+    /// The line the caret at `position` is on. A position at the start of a box with no line content is on none.
+    pub(crate) fn line_of_position(&self, position: CaretPosition) -> Option<InlineLine> {
+        match position {
+            CaretPosition::Text {
+                text,
+                offset,
+                downstream,
+            } => Some(self.line_of(text, offset, downstream)?.line),
+            CaretPosition::BesideAtomicInline { node, .. } => {
+                let root = text_fragment::containing_block_paintable_of_node(self.arena, node)?;
+                let side = self.arena.committed_side_data(root);
+                let fragment = side
+                    .fragments()
+                    .iter()
+                    .find(|fragment| fragment.layout_node == node && fragment.is_atomic_inline)?;
+                Some(InlineLine {
+                    root,
+                    index: fragment.line_index,
+                })
+            }
+            CaretPosition::BeforeForcedBreak { node } => self.line_ended_by_forced_break(node),
+            CaretPosition::StartOfBox { .. } => None,
+        }
+    }
+
+    /// The line that holds `line` outside the atomic inline boxes its line root is in.
+    pub(crate) fn line_outside_atomic_inlines(&self, mut line: InlineLine) -> InlineLine {
+        while self.arena.node(line.root).is_some_and(|row| row.is_atomic_inline()) {
+            let Some(outer_line) = self.line_of_position(CaretPosition::BesideAtomicInline {
+                node: line.root,
+                after: false,
+            }) else {
+                break;
+            };
+            line = outer_line;
+        }
+        line
+    }
+
+    /// The line the <br> `node` ends.
+    fn line_ended_by_forced_break(&self, node: NodeSlotId) -> Option<InlineLine> {
+        let root = text_fragment::containing_block_paintable_of_node(self.arena, node)?;
+        let side = self.arena.committed_side_data(root);
+        let index = side
+            .lines()
+            .iter()
+            .position(|line| line.forced_break.is_some_and(|position| position.node == node))?;
+        Some(InlineLine {
+            root,
+            index: index as u32,
         })
     }
 
@@ -298,24 +360,17 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
     }
 
     fn caret_rect_before_forced_break(&self, node: NodeSlotId) -> Option<CaretRect> {
-        let root = text_fragment::containing_block_paintable_of_node(self.arena, node)?;
-        let side = self.arena.committed_side_data(root);
-        let index = side
-            .lines()
-            .iter()
-            .position(|line| line.forced_break.is_some_and(|position| position.node == node))?;
-        let record = &side.lines()[index];
+        let line = self.line_ended_by_forced_break(node)?;
+        let side = self.arena.committed_side_data(line.root);
+        let record = &side.lines()[line.index as usize];
         if record.fragment_count == 0 {
-            return self.caret_rect_on_empty_line(InlineLine {
-                root,
-                index: index as u32,
-            });
+            return self.caret_rect_on_empty_line(line);
         }
         let last = &side.fragments()[(record.first_fragment + record.fragment_count - 1) as usize];
         if last.is_atomic_inline {
             return self.caret_rect_beside_atomic_inline(last.layout_node, true);
         }
-        Some(self.caret_rect_in_fragment(root, last, last.dom_end_offset_with_trailing_whitespace, false))
+        Some(self.caret_rect_in_fragment(line.root, last, last.dom_end_offset_with_trailing_whitespace, false))
     }
 
     fn caret_rect_at_start_of_box(&self, node: NodeSlotId) -> Option<CaretRect> {
@@ -397,6 +452,19 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         Some((coordinate - root_coordinate).floor() + root_coordinate)
     }
 
+    /// The inline coordinate of the caret at `position`, which a move to another line keeps.
+    pub(crate) fn inline_coordinate_of(&self, position: CaretPosition) -> Option<CssPixels> {
+        if let Some(line) = self.line_of_position(position) {
+            return self.caret_inline_coordinate(line, position);
+        }
+        let caret = self.caret_rect(position)?;
+        let horizontal = self
+            .arena
+            .node_style_if_live(caret.style_source)
+            .is_none_or(|style| style.writing_mode() == writing_mode::HORIZONTAL_TB);
+        Some(if horizontal { caret.rect.x } else { caret.rect.y })
+    }
+
     /// The fragments of `line` that `accepts` takes, in line order.
     fn fragments_on_line<'b>(
         &self,
@@ -440,6 +508,120 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         }
     }
 
+    /// The extents of the lines of `root` along the inline axis and along the block direction, with the block coordinate
+    /// growing in the block direction, and the map from a point to those coordinates.
+    fn line_extents(&self, root: NodeSlotId) -> (Vec<LineExtent>, impl Fn(CssPixelPoint) -> (CssPixels, CssPixels)) {
+        let side = self.arena.committed_side_data(root);
+        let (horizontal, block_axis_is_reverse) = match side.lines().first().map(|record| record.writing_mode) {
+            Some(writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL) => (false, true),
+            Some(writing_mode::HORIZONTAL_TB) | None => (true, false),
+            _ => (false, false),
+        };
+        let logical = move |point: CssPixelPoint| match (horizontal, block_axis_is_reverse) {
+            (true, _) => (point.x, point.y),
+            (false, false) => (point.y, point.x),
+            (false, true) => (point.y, -point.x),
+        };
+        let positions = LineRootPositions::new(self.arena, root);
+        let extents = side
+            .lines()
+            .iter()
+            .map(|record| {
+                let rect = CssPixelRect::from(record.rect).translated_by(positions.of_fragment(record.box_fragment));
+                let (inline_start, block_start) = logical(rect.location());
+                let (inline_end, block_end) = logical(CssPixelPoint::new(rect.right(), rect.bottom()));
+                LineExtent {
+                    inline_start,
+                    inline_end,
+                    block_start: block_start.min(block_end),
+                    block_end: block_start.max(block_end),
+                }
+            })
+            .collect();
+        (extents, logical)
+    }
+
+    /// The columns the lines of `extents` lie in, as the inline extent of their lines and the index of their first line.
+    /// A column is a run of lines that goes on in the block direction.
+    fn columns(extents: &[LineExtent]) -> Vec<(CssPixels, CssPixels, usize)> {
+        let mut columns: Vec<(CssPixels, CssPixels, usize)> = Vec::new();
+        for (index, extent) in extents.iter().enumerate() {
+            match columns.last_mut() {
+                Some(column) if index > 0 && extent.block_start >= extents[index - 1].block_start => {
+                    column.0 = column.0.min(extent.inline_start);
+                    column.1 = column.1.max(extent.inline_end);
+                }
+                _ => columns.push((extent.inline_start, extent.inline_end, index)),
+            }
+        }
+        columns
+    }
+
+    /// `x`, an inline coordinate a move between lines keeps, moved from the column of the line root it falls in to the
+    /// column of `line`, so that it keeps its place in the column.
+    fn inline_coordinate_in_column_of(&self, line: InlineLine, x: CssPixels) -> CssPixels {
+        let columns = Self::columns(&self.line_extents(line.root).0);
+        if columns.len() < 2 {
+            return x;
+        }
+        let Some(&(source_start, _, _)) = columns.iter().find(|&&(start, end, _)| start <= x && x < end) else {
+            return x;
+        };
+        let target = columns.partition_point(|&(_, _, first_line)| first_line <= line.index as usize) - 1;
+        x + columns[target].0 - source_start
+    }
+
+    /// The caret position for `point` among the lines of `root`: on the first line of the column nearest the point that
+    /// ends past it in the block direction, or at the start of the column's first line before it, or at the end of its
+    /// last line past it.
+    pub(crate) fn position_for_point(
+        &self,
+        root: NodeSlotId,
+        point: CssPixelPoint,
+        accepts: &dyn Fn(&FragmentRecord) -> bool,
+    ) -> Option<CaretPosition> {
+        let (extents, logical) = self.line_extents(root);
+        let (inline, block) = logical(point);
+        let side = self.arena.committed_side_data(root);
+        let holds_caret = |index: usize| {
+            let record = &side.lines()[index];
+            (record.fragment_count > 0 && !record.has_block_level_box) || record.forced_break.is_some()
+        };
+        let columns = Self::columns(&extents);
+        let distance_to_column = |&(start, end, _): &(CssPixels, CssPixels, usize)| {
+            if inline < start {
+                start - inline
+            } else if inline > end {
+                inline - end
+            } else {
+                CssPixels::default()
+            }
+        };
+        let column = columns
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, column)| distance_to_column(column))
+            .map(|(index, _)| index)?;
+        let column_end = columns.get(column + 1).map_or(extents.len(), |next| next.2);
+        let mut lines = (columns[column].2..column_end).filter(|&index| holds_caret(index));
+        let first = lines.next()?;
+        let line = |index: usize| InlineLine {
+            root,
+            index: index as u32,
+        };
+        if block < extents[first].block_start {
+            return self.line_edge(line(first), LineEdge::Start, accepts);
+        }
+        let mut last = first;
+        for index in std::iter::once(first).chain(lines) {
+            if block < extents[index].block_end {
+                return self.position_at_inline_coordinate(line(index), inline, accepts);
+            }
+            last = index;
+        }
+        self.line_edge(line(last), LineEdge::End, accepts)
+    }
+
     /// The caret position on `line` nearest the inline coordinate `x`, in the fragment `accepts` takes that is the last
     /// to start before `x`, or else the first, or in front of the line's forced break where it takes none.
     pub(crate) fn position_at_inline_coordinate(
@@ -451,9 +633,10 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let arena = self.arena;
         let side = arena.committed_side_data(line.root);
         let horizontal = self.line_is_horizontal(line);
+        let x = self.inline_coordinate_in_column_of(line, x);
         let inline_start = |rect: CssPixelRect| if horizontal { rect.x } else { rect.y };
         let mut chosen = None;
-        for fragment in self.fragments_on_line(&side, line, accepts) {
+        for fragment in self.fragments_on_line(&side, line, &accepts) {
             let rect = text_fragment::absolute_rect(arena, fragment);
             if chosen.is_none() || inline_start(rect) <= x {
                 chosen = Some((fragment, rect));
@@ -462,6 +645,33 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         let Some((fragment, rect)) = chosen else {
             return self.position_before_forced_break(line);
         };
+        // An inline-block takes the position in its own lines, or at its start where it has no content.
+        if fragment.is_atomic_inline && node_painting::has_lines(arena, fragment.layout_node) {
+            let line_rect = self.line_rect(line, &side.lines()[line.index as usize]);
+            let point = if horizontal {
+                CssPixelPoint::new(x, line_rect.y)
+            } else {
+                CssPixelPoint::new(line_rect.x, x)
+            };
+            if let Some(position) = self.position_for_point(fragment.layout_node, point, &accepts) {
+                return Some(position);
+            }
+        }
+        if fragment.is_atomic_inline && self.is_empty_inline_block(fragment.layout_node) {
+            return Some(CaretPosition::StartOfBox {
+                node: fragment.layout_node,
+            });
+        }
+        if fragment.is_atomic_inline {
+            let center = if horizontal { rect.center().x } else { rect.center().y };
+            let reverse = arena
+                .node_style_if_live(fragment.layout_node)
+                .is_some_and(|style| style.inline_axis_is_reverse());
+            return Some(CaretPosition::BesideAtomicInline {
+                node: fragment.layout_node,
+                after: (x > center) != reverse,
+            });
+        }
         let mut point = rect.center();
         if horizontal {
             point.x = rect.x.max(x);
@@ -472,8 +682,13 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         Some(self.text_position_in_fragment(fragment, offset))
     }
 
+    /// Whether `node` is an atomic inline box with no content of its own, which holds a caret position inside it.
+    fn is_empty_inline_block(&self, node: NodeSlotId) -> bool {
+        !crate::painting::style_queries::is_replaced_box(self.arena, node) && self.arena.children(node).next().is_none()
+    }
+
     /// The caret position at `edge` of `line`, among the fragments `accepts` takes, or in front of the line's forced
-    /// break where it takes none.
+    /// break where it takes none. The logical edges are those of the first and last fragment in line order.
     pub(crate) fn line_edge(
         &self,
         line: InlineLine,
@@ -482,29 +697,42 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
     ) -> Option<CaretPosition> {
         let arena = self.arena;
         let side = arena.committed_side_data(line.root);
-        let fragments = self.fragments_on_line(&side, line, accepts);
+        let mut fragments = self.fragments_on_line(&side, line, accepts);
+        let horizontal = self.line_is_horizontal(line);
         let rect = |fragment: &&FragmentRecord| text_fragment::absolute_rect(arena, fragment);
         let fragment = match edge {
-            LineEdge::Start => fragments.min_by_key(|fragment| fragment.dom_start_offset_in_node),
-            LineEdge::End => fragments.max_by_key(|fragment| fragment.dom_end_offset_with_trailing_whitespace),
+            LineEdge::Start => fragments.next(),
+            LineEdge::End => fragments.last(),
             LineEdge::Left => fragments.min_by_key(|fragment| {
                 let rect = rect(fragment);
-                if self.line_is_horizontal(line) { rect.x } else { rect.y }
+                if horizontal { rect.x } else { rect.y }
             }),
             LineEdge::Right => fragments.max_by_key(|fragment| {
                 let rect = rect(fragment);
-                if self.line_is_horizontal(line) {
-                    rect.right()
-                } else {
-                    rect.bottom()
-                }
+                if horizontal { rect.right() } else { rect.bottom() }
             }),
         };
         let Some(fragment) = fragment else {
             return self.position_before_forced_break(line);
         };
-        let physical_edge = text_fragment::physical_edge_offset(arena, fragment, edge == LineEdge::Left);
-        let offset = match (edge, physical_edge) {
+        if fragment.is_atomic_inline {
+            let reverse = arena
+                .node_style_if_live(fragment.layout_node)
+                .is_some_and(|style| style.inline_axis_is_reverse());
+            return Some(CaretPosition::BesideAtomicInline {
+                node: fragment.layout_node,
+                after: match edge {
+                    LineEdge::Start => false,
+                    LineEdge::End => true,
+                    LineEdge::Left => reverse,
+                    LineEdge::Right => !reverse,
+                },
+            });
+        }
+        let offset = match (
+            edge,
+            text_fragment::physical_edge_offset(arena, fragment, edge == LineEdge::Left),
+        ) {
             (LineEdge::Left | LineEdge::Right, Some((offset, at_cluster_end))) => {
                 return Some(CaretPosition::Text {
                     text: fragment.layout_node,
@@ -512,10 +740,47 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
                     downstream: !at_cluster_end,
                 });
             }
+            (LineEdge::End, _) if self.only_collapsible_whitespace_follows(fragment) => fragment.dom_end_offset_in_node,
             (LineEdge::End, _) => fragment.dom_end_offset_with_trailing_whitespace,
             _ => fragment.dom_start_offset_in_node,
         };
         Some(self.text_position_in_fragment(fragment, offset))
+    }
+
+    // INTEROP: Collapsed whitespace at the end of the text of a block is not a caret stop, unlike whitespace that hangs
+    //          at a soft wrap.
+    fn only_collapsible_whitespace_follows(&self, fragment: &FragmentRecord) -> bool {
+        if !matches!(
+            fragment.white_space_collapse,
+            white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
+        ) {
+            return false;
+        }
+        let end = fragment.start + fragment.length_in_code_units;
+        let is_space_or_tab = |unit: &u16| *unit == u16::from(b' ') || *unit == u16::from(b'\t');
+        self.arena.rendered_text(fragment.layout_node).is_some_and(|rendered| {
+            rendered
+                .text
+                .get(end..)
+                .is_none_or(|rest| rest.iter().all(is_space_or_tab))
+        })
+    }
+
+    /// The position nearest `offset` in the DOM text whose layout node is `text` that a line holds: the end of the
+    /// rendered text before it, as for a position in collapsed whitespace after it, or else the start of the first line.
+    pub(crate) fn nearest_text_position_on_a_line(&self, text: NodeSlotId, offset: usize) -> Option<CaretPosition> {
+        let lines = self.lines_of_text(text);
+        let (offset, downstream) = lines
+            .iter()
+            .rev()
+            .find(|line| line.end_offset_with_trailing_whitespace <= offset)
+            .map(|line| (line.end_offset_with_trailing_whitespace, false))
+            .or_else(|| lines.first().map(|line| (line.start_offset, true)))?;
+        Some(CaretPosition::Text {
+            text,
+            offset,
+            downstream,
+        })
     }
 
     /// The lines of the DOM text whose layout node is `text`, in DOM order.

@@ -7,8 +7,9 @@
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::NodeSlotId;
-use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor, LineEdge};
+use crate::layout::node_data::{DomPaintFact, NodeSlotId};
+use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor, InlineLine, LineEdge};
+use crate::layout::script_entries::FfiCaretPosition;
 use crate::layout::svg_formatting_context;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
@@ -952,34 +953,229 @@ impl FfiOptionalCssPixels {
     }
 }
 
-/// The inline coordinate of the caret at `offset` in the DOM text whose layout node is `primary`, where a fragment holds
-/// it, which a move to another line keeps.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_text_caret_inline_coordinate(
-    host: &DocumentHost,
-    primary: NodeSlotId,
-    offset: usize,
-    downstream: bool,
-    out: &mut FfiOptionalCssPixels,
-) {
-    *out = read_arena(
-        host,
-        node_read(),
-        (primary, offset, downstream),
-        |arena, (text, offset, downstream)| {
-            let rows = arena.paintable_rows();
-            let cursor = InlineCursor::new(&rows);
-            let position = CaretPosition::Text {
+/// A line of the line root `root`, or none where `root` is invalid.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiInlineLine {
+    pub root: NodeSlotId,
+    pub index: u32,
+}
+
+impl FfiInlineLine {
+    fn of(line: Option<InlineLine>) -> Self {
+        line.map_or(
+            Self {
+                root: NodeSlotId::INVALID,
+                index: 0,
+            },
+            |line| Self {
+                root: line.root,
+                index: line.index,
+            },
+        )
+    }
+
+    fn line(self, arena: &impl PaintRead) -> Option<InlineLine> {
+        let line = InlineLine {
+            root: self.root,
+            index: self.index,
+        };
+        (!self.root.is_invalid()
+            && arena.paintable_row_is_populated(self.root)
+            && (line.index as usize) < arena.committed_side_data(self.root).lines().len())
+        .then_some(line)
+    }
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FfiInlineCaretPositionKind {
+    None,
+    Text,
+    BesideAtomicInline,
+    BeforeForcedBreak,
+    StartOfBox,
+}
+
+/// A caret position as InlineCursor names it: `offset` in the DOM text whose layout node is `node` (leaning to the next
+/// line where `downstream`), beside the atomic inline `node` (`after` it or before it), before the <br> `node`, or at the
+/// start of the box `node`.
+#[repr(C)]
+pub struct FfiInlineCaretPosition {
+    pub kind: FfiInlineCaretPositionKind,
+    pub node: NodeSlotId,
+    pub offset: usize,
+    pub downstream: bool,
+    pub after: bool,
+}
+
+impl FfiInlineCaretPosition {
+    fn of(position: Option<CaretPosition>) -> Self {
+        let (kind, node, offset, downstream, after) = match position {
+            None => (FfiInlineCaretPositionKind::None, NodeSlotId::INVALID, 0, true, false),
+            Some(CaretPosition::Text {
                 text,
                 offset,
                 downstream,
+            }) => (FfiInlineCaretPositionKind::Text, text, offset, downstream, false),
+            Some(CaretPosition::BesideAtomicInline { node, after }) => {
+                (FfiInlineCaretPositionKind::BesideAtomicInline, node, 0, true, after)
+            }
+            Some(CaretPosition::BeforeForcedBreak { node }) => {
+                (FfiInlineCaretPositionKind::BeforeForcedBreak, node, 0, true, false)
+            }
+            Some(CaretPosition::StartOfBox { node }) => (FfiInlineCaretPositionKind::StartOfBox, node, 0, true, false),
+        };
+        Self {
+            kind,
+            node,
+            offset,
+            downstream,
+            after,
+        }
+    }
+}
+
+/// The caret positions that produce a caret: those in DOM text and beside DOM elements, not in generated content.
+fn produces_caret(arena: &impl PaintRead, fragment: &FragmentRecord) -> bool {
+    arena.node_is_dom_backed(fragment.layout_node)
+}
+
+/// The caret positions a move between lines can start from at `position`: those it can take, and in DOM text that no line
+/// holds there, such as collapsed whitespace, the nearest position that one does.
+fn navigation_candidates<'a, A: PaintRead>(
+    cursor: &'a InlineCursor<'a, A>,
+    rows: &'a A,
+    position: &'a FfiCaretPosition,
+) -> impl Iterator<Item = CaretPosition> + 'a {
+    position.candidates(rows).chain(
+        std::iter::once_with(move || {
+            rows.node_kind_if_live(position.node)
+                .is_some_and(crate::layout::node_facts::kind_is_text)
+                .then(|| cursor.nearest_text_position_on_a_line(position.node, position.offset))
+                .flatten()
+        })
+        .flatten(),
+    )
+}
+
+/// The line the caret at `position` is on, if any.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_line(host: &DocumentHost, position: FfiCaretPosition) -> FfiInlineLine {
+    read_arena(host, node_read(), position, |arena, position| {
+        let rows = arena.paintable_rows();
+        let cursor = InlineCursor::new(&rows);
+        FfiInlineLine::of(
+            navigation_candidates(&cursor, &rows, &position).find_map(|candidate| cursor.line_of_position(candidate)),
+        )
+    })
+}
+
+/// The line that holds `line` outside the atomic inline boxes its line root is in.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_line_outside_atomic_inlines(
+    host: &DocumentHost,
+    line: FfiInlineLine,
+) -> FfiInlineLine {
+    read_arena(host, node_read(), line, |arena, line| {
+        let rows = arena.paintable_rows();
+        FfiInlineLine::of(
+            line.line(&rows)
+                .map(|line| InlineCursor::new(&rows).line_outside_atomic_inlines(line)),
+        )
+    })
+}
+
+/// The next line after `line` (or the previous one) in its line root that holds a caret position, if any.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_adjacent_caret_line(
+    host: &DocumentHost,
+    line: FfiInlineLine,
+    forward: bool,
+) -> FfiInlineLine {
+    read_arena(host, node_read(), (line, forward), |arena, (line, forward)| {
+        let rows = arena.paintable_rows();
+        FfiInlineLine::of(
+            line.line(&rows)
+                .and_then(|line| InlineCursor::new(&rows).adjacent_line(line, forward)),
+        )
+    })
+}
+
+/// The caret position on `line` nearest the inline coordinate `x`, which a move between lines kept.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_position_at_inline_coordinate(
+    host: &DocumentHost,
+    line: FfiInlineLine,
+    x: CssPixels,
+) -> FfiInlineCaretPosition {
+    read_arena(host, node_read(), (line, x), |arena, (line, x)| {
+        let rows = arena.paintable_rows();
+        FfiInlineCaretPosition::of(line.line(&rows).and_then(|line| {
+            InlineCursor::new(&rows).position_at_inline_coordinate(line, x, |fragment| produces_caret(&rows, fragment))
+        }))
+    })
+}
+
+/// The caret position at `edge` of `line`, among its editable line content where `editable_only`.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_position_at_line_edge(
+    host: &DocumentHost,
+    line: FfiInlineLine,
+    edge: LineEdge,
+    editable_only: bool,
+) -> FfiInlineCaretPosition {
+    read_arena(
+        host,
+        node_read(),
+        (line, edge, editable_only),
+        |arena, (line, edge, editable_only)| {
+            let rows = arena.paintable_rows();
+            let is_editable = |node: NodeSlotId| {
+                [Some(node), rows.node_parent_if_live(node)]
+                    .into_iter()
+                    .flatten()
+                    .any(|node| rows.node_has_dom_paint_fact(node, DomPaintFact::EditableOrEditingHost))
             };
-            let line = cursor
-                .line_of(text, offset, downstream)
-                .filter(|line| line.fragment.is_some());
-            FfiOptionalCssPixels::of(line.and_then(|line| cursor.caret_inline_coordinate(line.line, position)))
+            FfiInlineCaretPosition::of(line.line(&rows).and_then(|line| {
+                InlineCursor::new(&rows).line_edge(line, edge, |fragment| {
+                    produces_caret(&rows, fragment) && (!editable_only || is_editable(fragment.layout_node))
+                })
+            }))
         },
-    );
+    )
+}
+
+/// The middle of `line` along the block axis.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_line_block_coordinate(
+    host: &DocumentHost,
+    line: FfiInlineLine,
+    out: &mut CssPixels,
+) {
+    *out = read_arena(host, node_read(), line, |arena, line| {
+        let rows = arena.paintable_rows();
+        line.line(&rows)
+            .map(|line| InlineCursor::new(&rows).line_block_coordinate(line))
+            .unwrap_or_default()
+    });
+}
+
+/// The inline coordinate of the caret at `position`, which a move to another line keeps.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_caret_inline_coordinate(
+    host: &DocumentHost,
+    position: FfiCaretPosition,
+    out: &mut FfiOptionalCssPixels,
+) {
+    *out = read_arena(host, node_read(), position, |arena, position| {
+        let rows = arena.paintable_rows();
+        let cursor = InlineCursor::new(&rows);
+        FfiOptionalCssPixels::of(
+            navigation_candidates(&cursor, &rows, &position)
+                .find_map(|candidate| cursor.inline_coordinate_of(candidate)),
+        )
+    });
 }
 
 #[repr(u8)]
