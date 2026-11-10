@@ -272,13 +272,10 @@ def generate_build_files(
         "",
     ]
 
-    heavy_ports = set(SEED_HEAVY_PORTS) | historically_heavy_ports(deps_dir)
-
     for name in sorted(graph):
         node_dir = deps_dir / name
         write_if_changed(node_dir / "vcpkg.json", solo_manifest(graph, name, baseline, overrides))
         write_if_changed(node_dir / "build-vcpkg-variables.cmake", variables)
-        write_if_changed(node_dir / ".weight", "heavy\n" if name in heavy_ports else "light\n")
 
         inputs = [
             str(node_dir / "vcpkg.json"),
@@ -310,85 +307,84 @@ def extra_vcpkg_variables_path(build_dir: Path) -> Path:
     return build_dir / "build-vcpkg-variables.cmake"
 
 
-def historically_heavy_ports(deps_dir: Path) -> set[str]:
-    heavy = set()
-    for cost_path in deps_dir.glob(f"*/{BUILD_COST_FILE}"):
-        try:
-            cost = int(cost_path.read_text())
-        except ValueError:
-            continue
-        if cost >= HEAVY_THRESHOLD_CPU_MS:
-            heavy.add(cost_path.parent.name)
-    return heavy
+# Without ladybird.py's shared pool, each port gets a private pool this large.
+PRIVATE_POOL_SIZE = 2
+# Builds that pass VCPKG_CONCURRENCY as their own -j run outside the pool.
+UNPOOLED_JOBS = 2
 
 
-def record_build_cost(node_dir: Path, cpu_ms: int):
-    # NOTE: This keeps the largest cost ever seen, as restoring a port from the binary cache costs next to nothing.
-    cost_path = node_dir / BUILD_COST_FILE
+# GNU Make takes a jobserver FIFO from 4.4 on, and Ninja from 1.13.
+FIFO_JOBSERVER_MAKE_VERSION = (4, 4)
+FIFO_JOBSERVER_NINJA_VERSION = (1, 13)
+
+
+def tool_version(executable: str, version_pattern: str) -> Optional[tuple[int, int]]:
     try:
-        previous = int(cost_path.read_text())
-    except (FileNotFoundError, ValueError):
-        previous = 0
-    if cpu_ms > previous:
-        cost_path.write_text(f"{cpu_ms}\n")
+        output = subprocess.run([executable, "--version"], capture_output=True, text=True).stdout
+    except OSError:
+        return None
+    match = re.match(version_pattern, output)
+    if not match:
+        return None
+    return (int(match[1]), int(match[2]))
 
 
-# Large enough that the configure time is insignificant compared to build time, build parallelism will determine build time if on the critical path.
-SEED_HEAVY_PORTS = {
-    "abseil",
-    "angle",
-    "curl",
-    "ffmpeg",
-    "harfbuzz",
-    "icu",
-    "libjxl",
-    "libvpx",
-    "openssl",
-    "qtbase",
-    "sdl3",
-    "skia",
-}
-# Ports are weighed by the CPU time vcpkg spent on them, not by how long their node ran: the latter includes the wait for
-# build tokens and depends on how many of them the node got, so every contended build would make more ports heavy.
-# A light node builds with two jobs, so this is about 45 seconds of building as one.
-HEAVY_THRESHOLD_CPU_MS = 90_000
-BUILD_COST_FILE = ".cpu-ms"
+def make_takes_jobserver_fifo(make: str) -> bool:
+    version = tool_version(make, r"GNU Make (\d+)\.(\d+)")
+    return version is not None and version >= FIFO_JOBSERVER_MAKE_VERSION
 
 
-def acquire_build_tokens(fifo_fd: int, pool: int, heavy: bool, accumulation_lock: Path) -> int:
-    # For light nodes, a single token is sufficient, so they get dispatched as soon as there's one free and run at whatever parallelism is there.
-    # heavy nodes need guaranteed available compute to not thrash on the build, so they hold off until there are enough tokens to guarantee a parallel build.
-    if not heavy:
-        return len(os.read(fifo_fd, 1))
+def jobserver_make_directory(deps_dir: Path) -> Optional[Path]:
+    make = shutil.which("make")
+    if make and make_takes_jobserver_fifo(make):
+        return None
 
-    import fcntl
+    # vcpkg's make helpers look for plain `make` in PATH, so offer a newer gmake (e.g. Homebrew's) under that name.
+    gmake = shutil.which("gmake")
+    if gmake and make_takes_jobserver_fifo(gmake):
+        directory = deps_dir / "gnu-make"
+        directory.mkdir(exist_ok=True)
+        link = directory / "make"
+        link.unlink(missing_ok=True)
+        link.symlink_to(gmake)
+        return directory
 
-    # Only one heavy node may be accumulating tokens at a time: several of them accumulating at once can split the
-    # whole pool between themselves, each short of its target, and then wait on each other forever.
-    lock_fd = os.open(accumulation_lock, os.O_RDWR | os.O_CREAT, 0o644)
+    print(
+        f"warning: GNU Make 4.4 or newer wasn't found, so ports built with make are limited to {UNPOOLED_JOBS} jobs."
+        " On macOS, install it with `brew install make`."
+    )
+    return None
+
+
+def warn_if_ninja_lacks_jobserver(vcpkg: Path, environment: dict[str, str]):
+    # This is the ninja that vcpkg will build ports with, which is the system's if VCPKG_FORCE_SYSTEM_BINARIES is set.
+    fetch = subprocess.run([str(vcpkg), "fetch", "ninja"], capture_output=True, text=True, env=environment)
+    output_lines = fetch.stdout.strip().splitlines()
+    if fetch.returncode != 0 or not output_lines:
+        return
+    version = tool_version(output_lines[-1], r"(\d+)\.(\d+)")
+    if version is not None and version < FIFO_JOBSERVER_NINJA_VERSION:
+        print(
+            f"warning: vcpkg's Ninja is older than 1.13, so ports built with Ninja are limited to {UNPOOLED_JOBS} jobs."
+            " Install Ninja 1.13 or newer."
+        )
+
+
+def warn_once_about_private_pools(deps_dir: Path):
+    # Every node of one ninja run shares a parent, so warn once per ninja run.
+    marker = deps_dir / ".private-pool-warning"
+    ninja_pid = str(os.getppid())
     try:
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)
-
-        held = 0
-        target = min(pool, max(2, pool // 4))
-        while held < target:
-            held += len(os.read(fifo_fd, 1))
-
-        cap = max(target, pool - 8)
-        os.set_blocking(fifo_fd, False)
-        try:
-            while held < cap:
-                extra = os.read(fifo_fd, cap - held)
-                if not extra:
-                    break
-                held += len(extra)
-        except BlockingIOError:
-            pass
-        finally:
-            os.set_blocking(fifo_fd, True)
-    finally:
-        os.close(lock_fd)
-    return held
+        if marker.read_text() == ninja_pid:
+            return
+    except FileNotFoundError:
+        pass
+    marker.write_text(ninja_pid)
+    print(
+        f"warning: vcpkg dependencies are being built without Meta/ladybird.py, so each port is limited to"
+        f" {PRIVATE_POOL_SIZE} jobs. Run `Meta/ladybird.py deps` instead.",
+        file=sys.stderr,
+    )
 
 
 def run_node(arguments: argparse.Namespace):
@@ -409,45 +405,43 @@ def run_node(arguments: argparse.Namespace):
 
     environment = vcpkg_environment()
 
-    fifo_fd = None
-    held = 0
-    heavy = False
+    private_fifo = None
     token_fifo = environment.get("LADYBIRD_VCPKG_TOKEN_FIFO")
     if token_fifo and Path(token_fifo).exists():
-        pool = int(environment.get("LADYBIRD_VCPKG_TOKEN_POOL", "0")) or (os.cpu_count() or 2) + 2
-        heavy = (node_dir / ".weight").exists() and (node_dir / ".weight").read_text().strip() == "heavy"
+        pool = int(environment["LADYBIRD_VCPKG_TOKEN_POOL"])
         fifo_fd = os.open(token_fifo, os.O_RDWR)
-        held = acquire_build_tokens(fifo_fd, pool, heavy, Path(token_fifo + ".lock"))
-        environment["VCPKG_MAX_CONCURRENCY"] = str(held if heavy else 2)
+    else:
+        warn_once_about_private_pools(node_dir.parent)
+        pool = PRIVATE_POOL_SIZE
+        private_fifo = node_dir / ".tokens"
+        private_fifo.unlink(missing_ok=True)
+        os.mkfifo(private_fifo)
+        token_fifo = str(private_fifo)
+        fifo_fd = os.open(token_fifo, os.O_RDWR)
+        os.write(fifo_fd, b"x" * pool)
+
+    # This token is the node's own job; the make and ninja under vcpkg take any more from the pool as jobserver clients.
+    own_token = os.read(fifo_fd, 1)
+    environment["MAKEFLAGS"] = f" --jobserver-auth=fifo:{token_fifo}"
+    environment["VCPKG_MAX_CONCURRENCY"] = str(UNPOOLED_JOBS)
 
     log_path = node_dir / "build.log"
     try:
         with open(log_path, "w") as log:
-            if held:
-                weight = "heavy" if heavy else "light"
-                log.write(
-                    f"[vcpkg-deps] {weight}, {held} of {environment.get('LADYBIRD_VCPKG_TOKEN_POOL')}"
-                    f" build tokens, -j{environment['VCPKG_MAX_CONCURRENCY']}\n"
-                )
-                log.flush()
-            times_before = os.times()
+            log.write(f"[vcpkg-deps] Taking build jobs from a pool of {pool} at {token_fifo}\n")
+            log.flush()
             result = subprocess.run(install_arguments, env=environment, stdout=log, stderr=subprocess.STDOUT)
-            times_after = os.times()
     finally:
-        if fifo_fd is not None:
-            os.write(fifo_fd, b"x" * held)
-            os.close(fifo_fd)
+        os.write(fifo_fd, own_token)
+        os.close(fifo_fd)
+        if private_fifo:
+            private_fifo.unlink(missing_ok=True)
 
     if result.returncode != 0:
         log_lines = log_path.read_text().splitlines()
         print("\n".join(log_lines[-60:]), file=sys.stderr)
         print(f"\nFull build log: {log_path}", file=sys.stderr)
         sys.exit(result.returncode)
-
-    cpu_seconds = (times_after.children_user - times_before.children_user) + (
-        times_after.children_system - times_before.children_system
-    )
-    record_build_cost(node_dir, int(cpu_seconds * 1000))
 
     Path(arguments.stamp).touch()
 
@@ -549,6 +543,11 @@ def build_dependencies(
             os.write(fifo_fd, b"x" * tokens)
 
             ninja_environment = os.environ.copy()
+            # Only the nodes take jobs from the pool; ninja joining it as well would count each node twice.
+            ninja_environment.pop("MAKEFLAGS", None)
+            if make_directory := jobserver_make_directory(deps_dir):
+                ninja_environment["PATH"] = os.pathsep.join([str(make_directory), ninja_environment.get("PATH", "")])
+            warn_if_ninja_lacks_jobserver(vcpkg, environment)
             ninja_environment["LADYBIRD_VCPKG_TOKEN_FIFO"] = str(token_fifo)
             ninja_environment["LADYBIRD_VCPKG_TOKEN_POOL"] = str(tokens)
 
