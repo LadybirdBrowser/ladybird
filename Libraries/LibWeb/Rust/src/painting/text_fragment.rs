@@ -377,14 +377,6 @@ pub(crate) fn rects_for_selection_offsets(
         .collect()
 }
 
-pub(crate) fn whole_range_rect(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> CssPixelRect {
-    let offsets = SelectionOffsets {
-        start: 0,
-        end: fragment.length_in_code_units,
-    };
-    rect_for_selection_offsets(layout_arena, fragment, offsets)
-}
-
 pub(crate) fn is_block_level_box(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> bool {
     layout_arena
         .node_style_if_live(fragment.layout_node)
