@@ -370,7 +370,7 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
                         rect.x += metrics.resize_gripper_size;
                     }
                 }
-                rect.y = (rect.bottom() - rect_thickness).max(zero);
+                rect.y = (rect.bottom() - rect_thickness).max(rect.y);
                 rect.height = rect_thickness;
             }
             ScrollDirection::Vertical => {
@@ -378,7 +378,7 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
                     rect.height = self.available_scrollbar_length(slot, direction);
                 }
                 if !mirrored {
-                    rect.x = (rect.right() - rect_thickness).max(zero);
+                    rect.x = (rect.right() - rect_thickness).max(rect.x);
                 }
                 rect.width = rect_thickness;
             }

@@ -1,0 +1,6 @@
+vertical=true track_rect=[-309,-300 9x80]
+vertical=false track_rect=[-400,-229 85x9]
+vertical=true track_rect=[141,-75 9x80]
+vertical=false track_rect=[50,-4 85x9]
+vertical=true track_rect=[200,100 9x3]
+vertical=false track_rect=[200,100 0x9]
