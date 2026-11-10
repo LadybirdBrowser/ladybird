@@ -545,15 +545,15 @@ void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
     if (!setting.has_value() || !filter.has_value() || !policy.has_value() || !policy->is_ascii())
         return;
 
+    auto origin = site_setting_origin(*filter);
+    if (!origin.has_value())
+        return;
+
     if (*setting == "autoplay"sv) {
         auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
         if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
-            Application::settings().add_autoplay_site_filter(*filter, *parsed);
+            Application::settings().add_autoplay_site_filter(origin->serialize(), *parsed);
     } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
-        auto origin = site_setting_origin(*filter);
-        if (!origin.has_value())
-            return;
-
         PermissionDecision decision;
         if (*policy == "allow"sv)
             decision = PermissionDecision::Allow;
@@ -576,13 +576,13 @@ void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
     if (!setting.has_value() || !filter.has_value())
         return;
 
-    if (*setting == "autoplay"sv) {
-        Application::settings().remove_autoplay_site_filter(*filter);
-    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
-        auto origin = site_setting_origin(*filter);
-        if (!origin.has_value())
-            return;
+    auto origin = site_setting_origin(*filter);
+    if (!origin.has_value())
+        return;
 
+    if (*setting == "autoplay"sv) {
+        Application::settings().remove_autoplay_site_filter(origin->serialize());
+    } else if (auto name = Web::Permissions::permission_name_from_string(*setting); name.has_value()) {
         Application::default_session().permission_manager->set_decision(*name, *origin, {});
     }
 }

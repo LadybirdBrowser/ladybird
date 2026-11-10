@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibURL/Origin.h>
 #include <LibWebCommon/Permissions/Permissions.h>
 #include <LibWebView/ContentBlocking.h>
 #include <LibWebView/PermissionManager.h>
@@ -33,10 +34,9 @@ public:
     explicit SiteSettingsPopover(QWidget* parent, WebView::Settings&);
 
     struct Site {
-        String host;
-        String force_dark_host;
+        URL::Origin origin;
+        String host_for_settings;
         bool is_private { false };
-        bool is_secure { false };
         QIcon favicon;
         WebView::ContentBlockingSnapshot content_blocking;
         Vector<WebView::SitePermissionRow> permissions;
@@ -71,7 +71,7 @@ private:
     };
 
     WebView::Settings& m_settings;
-    String m_host;
+    String m_origin;
     String m_force_dark_host;
     bool m_is_private { false };
     QLabel* m_force_dark_icon { nullptr };
