@@ -28,6 +28,7 @@ set(SOURCES
     PK/EC.cpp
     PK/MLDSA.cpp
     PK/MLKEM.cpp
+    PK/ModuleLatticePrivateKey.cpp
     PK/RSA.cpp
 )
 

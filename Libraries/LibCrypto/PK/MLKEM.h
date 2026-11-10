@@ -75,7 +75,7 @@ class MLKEM {
 public:
     using KeyPairType = MLKEMKeyPair<PublicKeyType, PrivateKeyType>;
 
-    static ErrorOr<KeyPairType> parse_mlkem_key(MLKEMSize, ReadonlyBytes der, Vector<StringView> current_scope);
+    static ErrorOr<KeyPairType> parse_mlkem_key(MLKEMSize, ReadonlyBytes der);
 
     static ErrorOr<MLKEMEncapsulation> encapsulate(MLKEMSize size, MLKEMPublicKey const& key);
     static ErrorOr<ByteBuffer> decapsulate(MLKEMSize size, MLKEMPrivateKey const& key, ByteBuffer ciphertext);
