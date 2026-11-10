@@ -101,7 +101,6 @@ if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
         NotificationBackendMacOS.mm
-        PlatformColorsMacOS.cpp
         ProcessReaper.cpp
         QuarantineMacOS.mm
         StringConversionsMacOS.mm

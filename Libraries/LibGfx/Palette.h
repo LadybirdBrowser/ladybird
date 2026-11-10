@@ -56,7 +56,8 @@ public:
     Color window_text() const { return color(ColorRole::WindowText); }
     Color selection() const { return color(ColorRole::Selection); }
     Color inactive_selection() const { return color(ColorRole::InactiveSelection); }
-    Color inactive_selection_text() const { return color(ColorRole::InactiveSelectionText); }
+    Color light_selection() const { return color(ColorRole::LightSelection); }
+    Color dark_selection() const { return color(ColorRole::DarkSelection); }
     Color desktop_background() const { return color(ColorRole::DesktopBackground); }
     Color active_window_border1() const { return color(ColorRole::ActiveWindowBorder1); }
     Color active_window_border2() const { return color(ColorRole::ActiveWindowBorder2); }
