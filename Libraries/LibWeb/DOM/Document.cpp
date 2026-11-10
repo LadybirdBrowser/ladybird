@@ -8152,6 +8152,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             auto const& fragment_directive = entry->directive_state()->value();
 
             // 2. Set document's pending text directives to the result of parsing fragment directive.
+            invalidate_text_fragment_range_paint(m_text_fragment_ranges);
             m_text_fragment_ranges.clear();
             m_pending_text_directives = fragment_directive.has_value()
                 ? Optional<Vector<HTML::TextDirective>> { HTML::parse_the_fragment_directive(*fragment_directive) }
