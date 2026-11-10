@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // When the audio server goes away, every capturing track starts its capture again. A track nothing holds can be
+    // collected while that restart still waits for the system's answer -- and once the answer arrives, nothing may
+    // touch the collected track.
+    asyncTest(async done => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        (() => stream.clone())();
+        await waitForCondition(() => !internals.audioCaptureIsPending());
+
+        internals.setSystemMicrophoneAuthorization("not-determined", "denied", true);
+        internals.disconnectAudioServer();
+        await waitForCondition(() => internals.audioCaptureIsPending());
+        await internals.gcAsync();
+
+        const track = stream.getTracks()[0];
+        const ended = new Promise(resolve => track.addEventListener("ended", resolve));
+        internals.releaseSystemMicrophoneAnswer();
+        await ended;
+        println(`the held track: ${track.readyState}`);
+        done();
+    });
+</script>

@@ -331,22 +331,25 @@ void MediaStreamTrack::start_audio_capture(GC::Ptr<GC::Function<void(ErrorOr<voi
                 return;
             fanout->deliver(reinterpret_cast<float const*>(data.data()), frame_count, channel_count, stream_specification.sample_rate());
         });
-    stream_promise->when_resolved([track = GC::Ref(*this), capture_request_id, on_started = GC::Root(on_started)](NonnullRefPtr<Audio::RecordStream>& stream) {
-        if (track->m_audio_capture_request_id != capture_request_id)
+    // The promise's callbacks don't keep the track alive, so a track nothing else holds can be collected while its
+    // capture start is pending, and then there's nothing left to start.
+    stream_promise->when_resolved([weak_track = GC::Weak<MediaStreamTrack>(*this), capture_request_id, on_started = GC::Root(on_started)](NonnullRefPtr<Audio::RecordStream>& stream) {
+        auto track = weak_track.ptr();
+        if (!track || track->m_audio_capture_request_id != capture_request_id)
             return;
         track->m_audio_capture_start_pending = false;
         if (track->m_state != MediaStreamTrackState::Live)
             return;
         track->m_audio_capture_stream = stream;
         // The backend behind the stream is gone for good; a fresh stream picks the capture up again.
-        stream->on_capture_lost = [weak_track = GC::Weak<MediaStreamTrack>(track), capture_request_id] {
+        stream->on_capture_lost = [weak_track = GC::Weak<MediaStreamTrack>(*track), capture_request_id] {
             auto track = weak_track.ptr();
             if (!track || track->m_audio_capture_request_id != capture_request_id)
                 return;
             track->m_audio_capture_stream = nullptr;
             track->start_audio_capture();
         };
-        stream->on_capture_revoked = [weak_track = GC::Weak<MediaStreamTrack>(track), capture_request_id] {
+        stream->on_capture_revoked = [weak_track = GC::Weak<MediaStreamTrack>(*track), capture_request_id] {
             auto track = weak_track.ptr();
             if (!track || track->m_audio_capture_request_id != capture_request_id)
                 return;
@@ -355,8 +358,9 @@ void MediaStreamTrack::start_audio_capture(GC::Ptr<GC::Function<void(ErrorOr<voi
         if (on_started)
             on_started->function()({});
     });
-    stream_promise->when_rejected([track = GC::Ref(*this), capture_request_id, on_started = GC::Root(on_started)](Error& error) {
-        if (track->m_audio_capture_request_id != capture_request_id)
+    stream_promise->when_rejected([weak_track = GC::Weak<MediaStreamTrack>(*this), capture_request_id, on_started = GC::Root(on_started)](Error& error) {
+        auto track = weak_track.ptr();
+        if (!track || track->m_audio_capture_request_id != capture_request_id)
             return;
         track->m_audio_capture_start_pending = false;
         if (on_started) {
