@@ -585,10 +585,15 @@ void Tab::initialize(Optional<u64> hub_view_id)
         m_permission_prompts.cancel(request);
     };
 
+    view().on_state_change = [this](Hub::ViewState const& previous_state) {
+        if (previous_state.page_mute_state != view().page_mute_state())
+            emit audio_state_changed(tab_index());
+    };
+
     view().on_tab_indicator_change = [this](WebView::TabIndicator indicator, bool visible) {
         switch (indicator) {
         case WebView::TabIndicator::PlayingAudio:
-            emit playing_audio_indicator_changed(tab_index());
+            emit audio_state_changed(tab_index());
             break;
         case WebView::TabIndicator::UsingLocation:
             m_location_edit->set_location_in_use(visible);
@@ -890,10 +895,8 @@ void Tab::create_tab_context_menu()
 
     auto* mute_tab_action = new QAction("&Mute Tab", this);
     QObject::connect(mute_tab_action, &QAction::triggered, this, [this]() {
-        if (is_loaded()) {
+        if (is_loaded())
             view().toggle_page_mute_state();
-            m_window->update_tab_audio_button(*this);
-        }
     });
 
     auto* move_to_new_window_action = new QAction("Move to New &Window", this);
