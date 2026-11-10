@@ -16,32 +16,26 @@
 #include <AK/Try.h>
 #include <AK/Vector.h>
 #include <Compositor/AsyncScrollUpdateOutbox.h>
-#include <Compositor/CompositedContext.h>
 #include <Compositor/CompositorCoreHost.h>
-#include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
 #include <Compositor/ElasticOverscrollController.h>
 #include <Compositor/Forward.h>
-#include <Compositor/FramePacer.h>
+#include <Compositor/FrameInputs.h>
 #include <Compositor/KeyboardScrollController.h>
-#include <Compositor/PaintingSurface.h>
 #include <Compositor/ScrollFlingController.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
 #include <Compositor/WheelGestureRouting.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCompositing/Types.h>
-#include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/InputTrace.h>
@@ -157,7 +151,7 @@ public:
         Optional<Compositing::NestedContextHit> nested_context_hit {};
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, WebContentClientId, CompositorCoreHost&, OwnedCanvasSurfaces);
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, WebContentClientId, CompositorCoreHost&);
 
     bool is_owned_by(WebContentClientId) const;
     WebContentClientId web_content_client_id() const { return m_web_content_client_id; }
@@ -178,8 +172,6 @@ public:
     void set_parent_context(Optional<Web::CompositorContextId>);
     Web::CompositorContextId context_id() const { return m_context_id; }
     Optional<Web::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
-    ContextPresenter& presenter() { return m_presenter; }
-    ContextPresenter const& presenter() const { return m_presenter; }
 
     void install_display_list_update(
         NonnullRefPtr<Compositing::DisplayList>,
@@ -328,30 +320,11 @@ public:
     void viewport_size_updated(Gfx::IntSize);
     void set_paused_debugger_overlay_is_shown(bool);
 
-    void set_display_metadata(Optional<u64> display_id, double refresh_rate);
-    Optional<u64> display_id() const { return m_display_id; }
-    double display_refresh_rate() const { return m_display_refresh_rate; }
     bool set_visibility(Compositing::ContextVisibility);
     Compositing::ContextVisibility visibility() const { return m_visibility; }
-    // Whether the presentation shows this context's frames from CPU memory for now, as when the UI paints it itself.
-    bool presents_from_cpu_memory() const { return m_presents_from_cpu_memory; }
-    void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { m_presents_from_cpu_memory = presents_from_cpu_memory; }
-
-    bool request_rendering_opportunity(double maximum_frames_per_second) { return m_rendering_opportunity_request.request(maximum_frames_per_second); }
-    bool rendering_opportunity_requested() const { return m_rendering_opportunity_request.is_requested(); }
-    double rendering_opportunity_frame_interval(double display_refresh_rate) const { return m_rendering_opportunity_request.frame_interval(display_refresh_rate); }
-    bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_rendering_opportunity_request.is_due(frame_time, display_refresh_rate); }
-    void did_deliver_rendering_opportunity(MonotonicTime frame_time) { m_rendering_opportunity_request.did_deliver(frame_time); }
-
-    bool request_clock_tick(double maximum_frames_per_second) { return m_clock_tick_request.request(maximum_frames_per_second); }
-    bool clock_tick_requested() const { return m_clock_tick_request.is_requested(); }
-    double clock_tick_interval(double display_refresh_rate) const { return m_clock_tick_request.frame_interval(display_refresh_rate); }
-    bool clock_tick_is_due(MonotonicTime frame_time, double display_refresh_rate) const { return m_clock_tick_request.is_due(frame_time, display_refresh_rate); }
-    void did_deliver_clock_tick(MonotonicTime frame_time) { m_clock_tick_request.did_deliver(frame_time); }
     void post_clock_tick(MonotonicTime frame_time, double frame_interval_milliseconds);
     // Where the compositor has scrolled each scroll node to.
     Vector<Web::CompositorScrollOffset> scroll_offsets() const;
-    bool display_tick_requested() const { return rendering_opportunity_requested() || clock_tick_requested(); }
 
     // Each frame shows the scrollbars as of when it is painted, so this updates which of them are shown. Empty until a
     // display list is installed.
@@ -505,7 +478,6 @@ private:
     Optional<Web::CompositorContextId> m_parent_context_id;
 
     ContextScene m_scene;
-    ContextPresenter m_presenter;
     bool m_presents_to_client { false };
     Gfx::IntSize m_viewport_size;
     bool m_paused_debugger_overlay_is_shown { false };
@@ -556,13 +528,7 @@ private:
 
     Optional<i64> m_caret_blink_cycle_start_time_ns;
     Web::InputTraceRecorder m_input_trace;
-    Optional<u64> m_display_id;
-    double m_display_refresh_rate { 60.0 };
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };
-    bool m_presents_from_cpu_memory { false };
-
-    PacedTickRequest m_rendering_opportunity_request;
-    PacedTickRequest m_clock_tick_request;
 };
 
 }

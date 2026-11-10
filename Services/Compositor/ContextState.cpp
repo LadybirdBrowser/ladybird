@@ -11,16 +11,8 @@
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/ContextState.h>
-#include <Compositor/DisplayListPlayerSkia.h>
-#include <Compositor/PaintingSurface.h>
-#include <Compositor/PausedDebuggerOverlay.h>
 #include <Compositor/RenderClockClientEndpoint.h>
-#include <Compositor/SkiaUtils.h>
-#include <LibCompositing/DisplayList/DisplayListDamage.h>
-#include <LibGfx/Bitmap.h>
 #include <LibWebCommon/Page/InputEvent.h>
-#include <core/SkCanvas.h>
-#include <core/SkImage.h>
 #include <math.h>
 
 namespace Compositor {
@@ -59,12 +51,11 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, WebContentClientId web_content_client_id, CompositorCoreHost& host, OwnedCanvasSurfaces canvas_surfaces)
+ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, WebContentClientId web_content_client_id, CompositorCoreHost& host)
     : m_host(host)
     , m_web_content_client_id(web_content_client_id)
     , m_context_id(context_id)
     , m_page_id(page_id)
-    , m_presenter(canvas_surfaces, page_id.has_value())
     , m_presents_to_client(page_id.has_value())
 {
 }
@@ -2074,12 +2065,6 @@ void ContextState::set_paused_debugger_overlay_is_shown(bool is_shown)
     if (is_shown)
         end_keyboard_scroll_gesture();
     m_paused_debugger_overlay_is_shown = is_shown;
-}
-
-void ContextState::set_display_metadata(Optional<u64> display_id, double refresh_rate)
-{
-    m_display_id = display_id;
-    m_display_refresh_rate = refresh_rate;
 }
 
 bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
