@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function der(tag, bytes) {
+        const length = bytes.length < 128 ? [bytes.length] : [0x82, bytes.length >> 8, bytes.length & 0xff];
+        return [tag, ...length, ...bytes];
+    }
+
+    function privateKeyInfo(privateKey) {
+        const algorithm = der(0x30, der(0x06, [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x04, 0x01]));
+        return new Uint8Array(der(0x30, [0x02, 0x01, 0x00, ...algorithm, ...der(0x04, privateKey)]));
+    }
+
+    // The ML-KEM-512 key generated from the seed 0, 1, ..., 63.
+    const seed = Array.from({ length: 64 }, (_, i) => i);
+    const expandedKey = Array.from(atob("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"), c => c.charCodeAt(0));
+
+    const forms = {
+        seed: der(0x80, seed),
+        expandedKey: der(0x04, expandedKey),
+        both: der(0x30, [...der(0x04, seed), ...der(0x04, expandedKey)]),
+        seedWithoutItsTag: seed,
+        expandedKeyThatIsNotAValidKey: der(0x04, new Array(1632).fill(0)),
+    };
+
+    asyncTest(async done => {
+        for (const [name, privateKey] of Object.entries(forms)) {
+            try {
+                await crypto.subtle.importKey("pkcs8", privateKeyInfo(privateKey), "ML-KEM-512", true, ["decapsulateBits"]);
+                println(`${name}: imported`);
+            } catch (e) {
+                println(`${name}: ${e.name}`);
+            }
+        }
+        done();
+    });
+</script>
