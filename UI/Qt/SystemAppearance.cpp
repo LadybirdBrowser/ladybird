@@ -51,8 +51,12 @@ SystemAppearance::SystemAppearance()
     QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this] {
         update();
         // While the interface theme is Light or Dark, our windows keep their appearance whatever Qt reports.
-        if (m_interface_theme == WebView::ThemePreference::System)
+        if (m_interface_theme == WebView::ThemePreference::System) {
+            // NB: The chrome takes its appearance from Qt's color scheme, but Qt can deliver the new palette before it
+            //     reports the new color scheme, so the chrome restyles again now.
+            notify_widgets_of_palette_change();
             emit interface_appearance_changed();
+        }
     });
     // The chrome's colors depend on the contrast preference, but changing it does not change the application palette.
     QObject::connect(QGuiApplication::styleHints()->accessibility(), &QAccessibilityHints::contrastPreferenceChanged, this, [] {
