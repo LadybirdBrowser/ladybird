@@ -94,6 +94,10 @@ def main():
                 client.evaluate("""(() => {
                     const cycle = {}; cycle.self = cycle;
                     console.log('cycle', cycle);
+                    console.log('primitive values', undefined, null, true, false, 42, -0, NaN, Infinity, -Infinity, 'text', 42n);
+                    console.log('buffered contents', { marker: 'terminal-property-value' });
+                    console.log('table begins');
+                    console.table([{ marker: 'table-property-value' }]);
                     console.log('large string', 'x'.repeat(1000000));
                     console.log('large array', Array(100000).fill('x'.repeat(1000)));
                     console.log('sparse array', new Array(0xffffffff));
@@ -137,8 +141,34 @@ def main():
                     assert isinstance(preview, str) and len(preview) < 16384, (label, type(preview))
                     assert preview, label
 
-                assert "Getter" in message_arguments("before watching")[1]
-                assert "inherited" not in message_arguments("before watching")[1]
+                for label, summary in {
+                    "before watching": "Object",
+                    "cycle": "Object",
+                    "buffered contents": "Object",
+                    "large array": "Array",
+                    "sparse array": "Array",
+                    "array getter": "Array",
+                    "large map": "Map",
+                    "large set": "Set",
+                    "deep object": "Object",
+                    "proxy": "ProxyObject",
+                }.items():
+                    assert message_arguments(label)[1] == summary, (label, message_arguments(label))
+                assert message_arguments("primitive values")[1:] == [
+                    {"type": "undefined"},
+                    {"type": "null"},
+                    True,
+                    False,
+                    42,
+                    {"type": "-0"},
+                    {"type": "NaN"},
+                    {"type": "Infinity"},
+                    {"type": "-Infinity"},
+                    "text",
+                    {"type": "BigInt", "text": "42"},
+                ]
+                table_start = next(i for i, message in enumerate(messages) if message["arguments"] == ["table begins"])
+                assert messages[table_start + 1]["arguments"] == ["Object"], messages[table_start + 1]
                 assert message_arguments("buffered DOM")[1] == '<dfn id="definition">'
                 assert len(message_arguments("large bigint")[1]["text"]) < 16384
                 assert sum(len(value) for value in message_arguments("many arguments")) < 16384
