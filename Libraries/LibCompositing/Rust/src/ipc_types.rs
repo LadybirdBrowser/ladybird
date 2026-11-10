@@ -17,6 +17,7 @@ use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encod
 pub type Web_CompositorContextId = CompositorContextId;
 pub type Web_UniqueNodeID = UniqueNodeId;
 pub type Web_CSSPixelPoint = CssPixelPoint;
+pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
 pub type Gfx_IntPoint = libgfx_rust::IntPoint;
 pub type Gfx_FloatPoint = libgfx_rust::FloatPoint;
 pub type Gfx_IntSize = libgfx_rust::IntSize;
@@ -127,58 +128,9 @@ include!(concat!(env!("OUT_DIR"), "/MouseButton.rs"));
 include!(concat!(env!("OUT_DIR"), "/TextEditingCommand.rs"));
 include!(concat!(env!("OUT_DIR"), "/Types.rs"));
 
+include!(concat!(env!("OUT_DIR"), "/CompositorPresentationClientEndpoint.rs"));
+include!(concat!(env!("OUT_DIR"), "/CompositorPresentationServerEndpoint.rs"));
+include!(concat!(env!("OUT_DIR"), "/CompositorWebContentClientEndpoint.rs"));
+include!(concat!(env!("OUT_DIR"), "/CompositorWebContentServerEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/RenderClockClientEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/RenderClockServerEndpoint.rs"));
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct Compositing_ScreenshotRequestId(pub u64);
-
-impl Encode for Compositing_ScreenshotRequestId {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0)
-    }
-}
-
-impl Decode for Compositing_ScreenshotRequestId {
-    const MIN_ENCODED_SIZE: usize = size_of::<u64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self(decoder.decode()?))
-    }
-}
-
-pub type Compositing_CanvasId = crate::display_list::commands::CanvasId;
-
-impl Encode for Compositing_CanvasId {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0)
-    }
-}
-
-impl Decode for Compositing_CanvasId {
-    const MIN_ENCODED_SIZE: usize = size_of::<u64>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self(decoder.decode()?))
-    }
-}
-
-include!(concat!(env!("OUT_DIR"), "/CompositorWebContentClientEndpoint.rs"));
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Gfx_SharedImage(std::convert::Infallible);
-
-impl Encode for Gfx_SharedImage {
-    fn encode(&self, _encoder: &mut Encoder) -> Result<(), EncodeError> {
-        match self.0 {}
-    }
-}
-
-impl Decode for Gfx_SharedImage {
-    fn decode(_decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Err(DecodeError::InvalidValue("Gfx::SharedImage"))
-    }
-}
-
-include!(concat!(env!("OUT_DIR"), "/CompositorPresentationClientEndpoint.rs"));

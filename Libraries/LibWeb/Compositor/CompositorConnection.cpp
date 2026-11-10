@@ -197,7 +197,7 @@ bool CompositorConnectionFrameSink::post_display_list_update(Web::CompositorCont
     }
     auto copy_time = timer.elapsed_time();
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.tape_size(), display_list.run_count(), display_list.properties(), update.visual_context_tree, update.resource_transaction, update.scroll_state_snapshot));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.tape_size(), display_list.run_count(), display_list.properties(), IPC::Encoded { display_list.async_scrolling_metadata() }, update.visual_context_tree, update.resource_transaction, IPC::Encoded { update.scroll_state_snapshot }));
     if (!post(encoded_message))
         return false;
     if (display_list_timing_enabled())

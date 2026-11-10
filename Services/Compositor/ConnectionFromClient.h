@@ -25,7 +25,7 @@ public:
     virtual ~ConnectionFromClient() override = default;
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<Gfx::SkiaBackendContext>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<Gfx::SkiaBackendContext>, bool scrollbars_always_shown);
 
     virtual void die() override;
 

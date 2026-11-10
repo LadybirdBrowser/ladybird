@@ -8,7 +8,6 @@
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/Sandbox.h>
-#include <Compositor/ScrollbarController.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
@@ -91,10 +90,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInteractive); result.is_error())
         warnln("Could not set main thread QoS: {}", result.error());
 
-    if (enable_test_mode) {
+    if (enable_test_mode)
         Compositor::force_font_hinting_for_testing();
-        Compositor::ScrollbarController::show_scrollbars_always_for_testing();
-    }
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(TRY(String::from_utf8(resource_root))));
     if (force_fontconfig)
@@ -123,7 +120,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
-        mach_server_name, move(skia_backend_context)));
+        mach_server_name, move(skia_backend_context), enable_test_mode));
     client->async_gpu_device_identity_reported(move(gpu_device_identity));
 
     if (stats_log)

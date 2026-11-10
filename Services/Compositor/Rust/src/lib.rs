@@ -20,6 +20,7 @@ pub mod context_scene;
 pub mod context_state;
 pub mod core;
 pub mod elastic_overscroll_controller;
+pub mod ffi;
 pub mod frame_inputs;
 pub mod host;
 pub mod input_event;

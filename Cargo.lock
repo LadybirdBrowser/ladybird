@@ -609,6 +609,7 @@ name = "compositor_core"
 version = "0.1.0"
 dependencies = [
  "ak",
+ "cbindgen",
  "ladybird_allocator",
  "libcompositing_rust",
  "libgfx_rust",

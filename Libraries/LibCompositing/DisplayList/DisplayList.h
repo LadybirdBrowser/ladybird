@@ -28,6 +28,7 @@ namespace Compositing {
 
 namespace RustFFI {
 
+struct FfiDisplayList;
 struct FfiDisplayListReplayCallbacks;
 
 }
@@ -52,13 +53,12 @@ public:
         Compositing::KeyboardScrollState keyboard_scroll_state {};
     };
 
-    // Everything about a list that travels alongside its tape when it is sent to the Compositor.
+    // What travels alongside the tape of a list for whatever plays the list.
     struct Properties {
         u64 id { 0 };
         u64 compatible_visual_context_tree_structural_epoch { 0 };
         Optional<Gfx::Color> surface_clear_color;
         Gfx::Color root_group_color { Gfx::Color::Transparent };
-        Optional<AsyncScrollingMetadata> async_scrolling_metadata;
     };
 
     // An empty list.
@@ -75,7 +75,6 @@ public:
     // write to, and checks the copies. Fails when the sizes do not fit the buffer or the tape is malformed.
     static ErrorOr<NonnullRefPtr<DisplayList>> create_from_shared_buffer(Properties, Core::AnonymousBuffer, u64 tape_size, u64 run_count);
 
-    // Taken at send time: the async scrolling metadata is restamped on every send.
     Properties properties() const;
 
     u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
@@ -83,6 +82,9 @@ public:
 
     // The Rust storage that holds the list's tape.
     void const* rust_handle() const { return m_storage; }
+    // The list as the scroll logic takes it, with the async scrolling metadata it goes with as IPC encodes an
+    // Optional of it.
+    RustFFI::FfiDisplayList for_scroll_logic(ReadonlyBytes encoded_async_scrolling_metadata) const;
 
     // The sizes a receiver needs to unpack the list from its shared buffer.
     u64 tape_size() const;

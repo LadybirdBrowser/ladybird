@@ -1,6 +1,5 @@
 set(SOURCES
     AnimatedImage.cpp
-    AsyncScrollUpdateOutbox.cpp
     BackingStoreManager.cpp
     BitmapExport.cpp
     Canvas2DCommandPlayer.cpp
@@ -9,8 +8,6 @@ set(SOURCES
     CompositorCore.cpp
     CompositorState.cpp
     ContextPresenter.cpp
-    ContextScene.cpp
-    ContextState.cpp
     DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
@@ -18,26 +15,20 @@ set(SOURCES
     ConnectionFromClient.cpp
     ConnectionFromPresentation.cpp
     ConnectionFromWebContent.cpp
-    ElasticOverscrollController.cpp
     FramePacer.cpp
     HostWebGLContext.cpp
-    KeyboardScrollController.cpp
     OpenGLContext.cpp
     PaintingSurface.cpp
     PausedDebuggerOverlay.cpp
     PictureInPictureControls.cpp
     RasterizeDisplayList.cpp
     RenderClockConnection.cpp
-    ScrollFlingController.cpp
-    ScrollSnapController.cpp
-    ScrollbarController.cpp
     SkiaBackendContext.cpp
     SkiaUtils.cpp
     VideoFrameHolds.cpp
     VideoFrameSkia.cpp
     VSyncScheduler.cpp
     WebGLObjectMap.cpp
-    WheelGestureRouting.cpp
 )
 
 invoke_py_generator(
@@ -63,7 +54,7 @@ set(GENERATED_SOURCES
     WebGLCommandReplayer.cpp
 )
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core FEATURES allocator)
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core FEATURES allocator FFI_HEADER CompositorCoreRustFFI.h)
 target_link_libraries(compositor_core INTERFACE LibGfx)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core)
 

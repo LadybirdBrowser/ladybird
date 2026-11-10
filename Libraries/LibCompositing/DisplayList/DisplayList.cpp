@@ -56,7 +56,7 @@ NonnullRefPtr<DisplayList> DisplayList::share_rust_command_storage(AccumulatedVi
 
 NonnullRefPtr<DisplayList> DisplayList::adopt_received_storage(Properties properties, void const* storage)
 {
-    return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, storage, properties.surface_clear_color, properties.root_group_color, move(properties.async_scrolling_metadata)));
+    return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, storage, properties.surface_clear_color, properties.root_group_color, {}));
 }
 
 // Copies a tape and run table that came from another process into Rust memory through `fill`, then checks them and
@@ -166,7 +166,16 @@ DisplayList::Properties DisplayList::properties() const
         .compatible_visual_context_tree_structural_epoch = m_compatible_visual_context_tree_structural_epoch,
         .surface_clear_color = m_surface_clear_color,
         .root_group_color = m_root_group_color,
-        .async_scrolling_metadata = m_async_scrolling_metadata,
+    };
+}
+
+RustFFI::FfiDisplayList DisplayList::for_scroll_logic(ReadonlyBytes encoded_async_scrolling_metadata) const
+{
+    return {
+        .storage = m_storage,
+        .id = m_id,
+        .compatible_visual_context_tree_structural_epoch = m_compatible_visual_context_tree_structural_epoch,
+        .async_scrolling_metadata = encoded_async_scrolling_metadata,
     };
 }
 

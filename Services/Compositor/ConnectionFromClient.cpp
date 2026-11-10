@@ -18,9 +18,9 @@ namespace Compositor {
 
 static IDAllocator s_web_content_connection_ids;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool scrollbars_always_shown)
     : IPC::ConnectionFromClient<CompositorControlClientEndpoint, CompositorControlServerEndpoint>(*this, move(transport), 1)
-    , m_compositor_state(CompositorState::create(move(skia_backend_context)))
+    , m_compositor_state(CompositorState::create(move(skia_backend_context), scrollbars_always_shown))
 {
 }
 

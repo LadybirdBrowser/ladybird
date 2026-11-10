@@ -17,6 +17,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
+#include <LibIPC/Encoded.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -42,10 +43,11 @@ endpoint CompositorWebContentServer
     stop_presenting_to_client(Web::CompositorContextId context_id) =|
     destroy_context(Web::CompositorContextId context_id) =|
 
-    update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot) =|
+    // The async scrolling metadata and the scroll state go still encoded: the scroll logic, which is Rust, decodes them.
+    update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, IPC::Encoded<Compositing::ScrollStateSnapshot> scroll_state_snapshot) =|
     update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction) =|
     update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction) =|
-    update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
+    [RustReceiver] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
@@ -76,21 +78,21 @@ endpoint CompositorWebContentServer
     webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
     webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => (bool success)
 
-    invalidate_wheel_event_listener_state(Web::CompositorContextId context_id, u64 generation) =|
-    invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation) => ()
-    take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing) => (Compositing::WheelEventAnswer answer)
-    wheel_event_let_through(Web::CompositorContextId context_id, Compositing::WheelStepLetThrough step, Compositing::AsyncScrollOperationTracking operation_tracking) => (Compositing::WheelEventAnswer answer)
-    wheel_event_canceled(Web::CompositorContextId context_id, u64 wheel_gesture_id) =|
-    apply_scroll_requests(Web::CompositorContextId context_id, Vector<Compositing::ScrollRequest> scroll_requests) =|
-    scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) => (String scroll_state)
+    [RustReceiver] invalidate_wheel_event_listener_state(Web::CompositorContextId context_id, u64 generation) =|
+    [RustReceiver] invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation) => ()
+    [RustReceiver] take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing) => (Compositing::WheelEventAnswer answer)
+    [RustReceiver] wheel_event_let_through(Web::CompositorContextId context_id, Compositing::WheelStepLetThrough step, Compositing::AsyncScrollOperationTracking operation_tracking) => (Compositing::WheelEventAnswer answer)
+    [RustReceiver] wheel_event_canceled(Web::CompositorContextId context_id, u64 wheel_gesture_id) =|
+    [RustReceiver] apply_scroll_requests(Web::CompositorContextId context_id, Vector<Compositing::ScrollRequest> scroll_requests) =|
+    [RustReceiver] scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) => (String scroll_state)
     // Returns once the compositor has handled every message WebContent sent before it.
     synchronize_for_testing() => ()
-    route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) => (Optional<Web::InputRoutingDecision> decision, Optional<Web::AsyncScrollNodeStableID> scroller, Optional<Web::UniqueNodeID> document_id)
-    begin_input_trace_for_testing(Web::CompositorContextId context_id) => ()
-    clear_per_test_input_state_for_testing(Web::CompositorContextId context_id) => ()
-    take_input_trace_for_testing(Web::CompositorContextId context_id) => (Vector<Web::InputTraceRecord> records)
+    [RustReceiver] route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) => (Optional<Web::InputRoutingDecision> decision, Optional<Web::AsyncScrollNodeStableID> scroller, Optional<Web::UniqueNodeID> document_id)
+    [RustReceiver] begin_input_trace_for_testing(Web::CompositorContextId context_id) => ()
+    [RustReceiver] clear_per_test_input_state_for_testing(Web::CompositorContextId context_id) => ()
+    [RustReceiver] take_input_trace_for_testing(Web::CompositorContextId context_id) => (Vector<Web::InputTraceRecord> records)
 
-    take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
+    [RustReceiver] take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
     viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress) =|
     request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
     hurry_rendering_opportunity(Web::CompositorContextId context_id) =|

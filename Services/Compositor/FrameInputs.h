@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <Compositor/CompositorCoreRustFFI.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGfx/Color.h>
@@ -26,19 +27,7 @@ struct PresentedScrollbar {
     float opacity { 1 };
 };
 
-struct ScrollbarOfFrame {
-    Compositing::SpatialNodeIndex scroll_node_index;
-    bool vertical { false };
-    bool is_painted_by_compositor { false };
-    Gfx::FloatRect gutter_rect;
-    Gfx::FloatRect thumb_rect;
-    float expansion { 0 };
-    float opacity { 1 };
-    Color thumb_color;
-    Color thumb_outline_color;
-    Color track_color;
-    Gfx::IntRect thin_and_expanded_gutter_rect;
-};
+using ScrollbarOfFrame = RustFFI::ScrollbarOfFrame;
 
 // A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
 inline Gfx::IntRect thumb_rect_kept_inside_track(Gfx::IntRect thumb_rect, Gfx::IntRect const& track_rect, bool vertical)

@@ -10,7 +10,11 @@
 use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex};
 use crate::display_list::storage::storage_from_handle;
 use crate::node_slot_id::NodeSlotId;
+use crate::scrolling::{AccumulatedVisualContextTree, DisplayList};
+use libipc_rust::DecodeError;
+use libipc_rust::cpp_connection::EncodedValue;
 use std::ffi::c_void;
+use std::sync::Arc;
 
 /// # Safety
 ///
@@ -755,4 +759,47 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_destroy(builder: *mut 
     }
     // SAFETY: The caller hands over the boxed tree the create call returned.
     drop(unsafe { Box::from_raw(builder.cast::<crate::visual_context::VisualContextTree>()) });
+}
+
+/// A C++ display list as the scroll logic takes it: its tape, and what travels beside the tape that the logic reads.
+#[repr(C)]
+pub struct FfiDisplayList<'a> {
+    pub storage: *const c_void,
+    pub id: u64,
+    pub compatible_visual_context_tree_structural_epoch: u64,
+    /// A `Compositing::DisplayList::AsyncScrollingMetadata`, or none.
+    pub async_scrolling_metadata: EncodedValue<'a>,
+}
+
+impl FfiDisplayList<'_> {
+    /// # Safety
+    ///
+    /// `storage` must be a live display list storage handle.
+    pub unsafe fn share(&self) -> Result<DisplayList, DecodeError> {
+        let async_scrolling_metadata = self.async_scrolling_metadata.decode()?;
+        let storage = self.storage.cast::<crate::display_list::storage::DisplayListStorage>();
+        // SAFETY: The caller lends a strong reference to the storage, of which this takes one more.
+        let storage = unsafe {
+            Arc::increment_strong_count(storage);
+            Arc::from_raw(storage)
+        };
+        Ok(DisplayList::new(
+            storage,
+            self.id,
+            self.compatible_visual_context_tree_structural_epoch,
+            async_scrolling_metadata,
+        ))
+    }
+}
+
+/// # Safety
+///
+/// `visual_context_tree` must be a live retained tree handle.
+pub unsafe fn tree_sharing_handle(visual_context_tree: *const c_void) -> AccumulatedVisualContextTree {
+    let tree = visual_context_tree.cast::<crate::visual_context::VisualContextTree>();
+    // SAFETY: The caller lends a strong reference to the tree, of which this takes one more.
+    AccumulatedVisualContextTree::from_arc(unsafe {
+        Arc::increment_strong_count(tree);
+        Arc::from_raw(tree)
+    })
 }
