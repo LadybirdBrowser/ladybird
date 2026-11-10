@@ -1,0 +1,6 @@
+CSS.supports("-webkit-font-feature-settings", '"tnum"'): true
+CSS.supports("-webkit-clip-path", "none"): true
+font-feature-settings: "tnum"
+-webkit-font-feature-settings: "tnum"
+clip-path: polygon(0px 0px, 100% 0px, 50% 100%)
+-webkit-clip-path: polygon(0px 0px, 100% 0px, 50% 100%)

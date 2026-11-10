@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    #a {
+        -webkit-font-feature-settings: "tnum";
+    }
+    #b {
+        -webkit-clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+</style>
+<span id="a">0123</span>
+<div id="b">b</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const a = getComputedStyle(document.getElementById("a"));
+        const b = getComputedStyle(document.getElementById("b"));
+        println(`CSS.supports("-webkit-font-feature-settings", '"tnum"'): ${CSS.supports("-webkit-font-feature-settings", '"tnum"')}`);
+        println(`CSS.supports("-webkit-clip-path", "none"): ${CSS.supports("-webkit-clip-path", "none")}`);
+        println(`font-feature-settings: ${a.fontFeatureSettings}`);
+        println(`-webkit-font-feature-settings: ${a.getPropertyValue("-webkit-font-feature-settings")}`);
+        println(`clip-path: ${b.clipPath}`);
+        println(`-webkit-clip-path: ${b.getPropertyValue("-webkit-clip-path")}`);
+    });
+</script>
