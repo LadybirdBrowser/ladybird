@@ -121,7 +121,7 @@ TEST_CASE(abandoned_response_is_not_stored)
     auto response_headers = create_cacheable_response_headers();
 
     cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
-    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers, HTTP::MemoryCache::StoredResponse::Keep);
     cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("partial"sv));
 
     EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
@@ -136,7 +136,7 @@ TEST_CASE(abandoning_a_response_leaves_other_pending_responses)
 
     cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
     cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
-    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *request_headers, *response_headers, HTTP::MemoryCache::StoredResponse::Keep);
     cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("complete"sv));
 
     auto entry = cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default);
@@ -160,7 +160,7 @@ TEST_CASE(abandoning_a_response_matches_its_vary_headers)
 
     cache->create_entry(url, "GET"sv, *abandoned_request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
     cache->create_entry(url, "GET"sv, *completed_request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
-    cache->abandon_entry(url, "GET"sv, *abandoned_request_headers, *response_headers);
+    cache->abandon_entry(url, "GET"sv, *abandoned_request_headers, *response_headers, HTTP::MemoryCache::StoredResponse::Keep);
     cache->finalize_entry(url, "GET"sv, *abandoned_request_headers, 200, *response_headers, immutable_bytes("partial"sv));
     cache->finalize_entry(url, "GET"sv, *completed_request_headers, 200, *response_headers, immutable_bytes("complete"sv));
 

@@ -96,10 +96,15 @@ void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
         m_channel->write_copy(bytes);
     }
 
-    if (m_http_cache && !m_cache_body_replaces_network_buffer) {
+    if (m_http_cache && !m_cache_body_replaces_network_buffer && !m_cache_body_too_large_for_memory) {
         if (file_backed && m_cache_buffer.is_empty()) {
             if (!m_cache_body.has_value())
                 m_cache_body = file_backed->payload;
+        } else if (!http_memory_cache_can_hold_body_in_memory(m_decoded_body_size)) {
+            // NB: A mapped file of the whole body may still arrive, which the cache can hold.
+            m_cache_body_too_large_for_memory = true;
+            m_cache_buffer.clear();
+            m_cache_body.clear();
         } else {
             if (m_cache_body.has_value()) {
                 m_cache_buffer.append(m_cache_body->bytes());
@@ -128,7 +133,7 @@ void NetworkBodyPump::handle_network_error(StringView error_message)
 {
     if (WebDriver::BiDi::network_events_enabled() && m_fetch_params)
         WebDriver::BiDi::network_fetch_error(*m_fetch_params, error_message);
-    abandon_cache_entry();
+    abandon_cache_entry(HTTP::MemoryCache::StoredResponse::Keep);
     m_channel->error({ .message = MUST(ByteBuffer::copy(error_message.bytes())) });
 }
 
@@ -140,6 +145,7 @@ void NetworkBodyPump::set_cached_response_body(Core::ImmutableBytes body)
     m_cache_buffer.clear();
     m_cache_body = move(body);
     m_cache_body_replaces_network_buffer = true;
+    m_cache_body_too_large_for_memory = false;
 }
 
 void NetworkBodyPump::finalize_cache_entry()
@@ -148,25 +154,33 @@ void NetworkBodyPump::finalize_cache_entry()
         return;
 
     auto request = m_fetch_params->request();
-    if (!m_fetch_params->is_canceled() && m_response && request->cache_mode() != HTTP::CacheMode::NoStore) {
-        auto response_body = m_cache_body.has_value()
-            ? m_cache_body.release_value()
-            : Core::ImmutableBytes::adopt(move(m_cache_buffer));
-        if (m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), response_body))
-            did_store_response_in_http_memory_cache(response_body);
+    if (m_fetch_params->is_canceled() || !m_response || request->cache_mode() == HTTP::CacheMode::NoStore) {
+        abandon_cache_entry(HTTP::MemoryCache::StoredResponse::Keep);
+        return;
     }
+
+    // NB: The cache cannot hold this response, which still replaces the one it has stored.
+    if (m_cache_body_too_large_for_memory) {
+        abandon_cache_entry(HTTP::MemoryCache::StoredResponse::Retire);
+        return;
+    }
+
+    auto response_body = m_cache_body.has_value()
+        ? m_cache_body.release_value()
+        : Core::ImmutableBytes::adopt(move(m_cache_buffer));
+    m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(response_body));
+    evict_http_memory_cache_entries_over_limits();
 
     m_http_cache.clear();
     m_cache_body.clear();
 }
 
-void NetworkBodyPump::abandon_cache_entry()
+void NetworkBodyPump::abandon_cache_entry(HTTP::MemoryCache::StoredResponse stored_response)
 {
-    if (!m_http_cache || !m_fetch_params || !m_response)
-        return;
-
-    auto request = m_fetch_params->request();
-    m_http_cache->abandon_entry(request->current_url(), request->method(), request->header_list(), m_response->header_list());
+    if (m_http_cache && m_fetch_params && m_response) {
+        auto request = m_fetch_params->request();
+        m_http_cache->abandon_entry(request->current_url(), request->method(), request->header_list(), m_response->header_list(), stored_response);
+    }
 
     m_http_cache.clear();
     m_cache_buffer.clear();

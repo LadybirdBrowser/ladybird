@@ -11,6 +11,7 @@
 
 #include <AK/Base64.h>
 #include <AK/Debug.h>
+#include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Heap.h>
@@ -186,8 +187,10 @@ public:
 
     HTTP::MemoryCache& get(Utf16String const& key)
     {
-        return *m_cache.ensure(key, [] {
-            return HTTP::MemoryCache::create();
+        return *m_cache.ensure(key, [this] {
+            if (!m_usage)
+                m_usage = adopt_ref(*new HTTP::MemoryCacheUsage);
+            return HTTP::MemoryCache::create(*m_usage);
         });
     }
 
@@ -209,37 +212,58 @@ public:
     void clear_cache()
     {
         m_cache.clear();
-        m_responses_stored_since_clear = 0;
-        m_bytes_in_memory_stored_since_clear = 0;
+        // NB: A fetch that is still running may hold a partition that is now gone, which must not count towards the
+        //     limits of the partitions that replace it. This allocates nothing, as the cache of an agent that shuts
+        //     down is never destroyed.
+        m_usage = nullptr;
     }
 
-    // Drops the stored responses once there may be more than a limit, as the cache otherwise keeps every response for
-    // a URL that is not fetched again for as long as the agent lives. A response body that is a mapped file costs a
-    // mapping, and others cost their size in memory.
-    void did_store_response(Core::ImmutableBytes const& body)
+    static bool can_hold_body_in_memory(size_t size) { return size <= largest_body_in_memory; }
+
+    // Evicts the least recently used responses of all partitions, once they hold more than a limit, down to three
+    // quarters of it. A response for a URL that is not fetched again would otherwise stay for as long as the agent does.
+    // NB: A response body that is a mapped file costs a mapping, while the kernel can drop its pages and read them again,
+    //     so those are limited by count. The memory of all else, which every entry has some of, is limited by size.
+    void evict_until_within_limits()
     {
-        ++m_responses_stored_since_clear;
-        if (!body.is_file_backed() && !body.is_readonly_mapped())
-            m_bytes_in_memory_stored_since_clear += body.size();
-        if (m_responses_stored_since_clear <= stored_response_limit && m_bytes_in_memory_stored_since_clear <= stored_bytes_in_memory_limit)
+        if (!m_usage)
+            return;
+        bool too_many_bytes = m_usage->bytes_in_memory > bytes_in_memory_limit;
+        bool too_many_mapped_bodies = m_usage->mapped_bodies > mapped_body_limit;
+        if (!too_many_bytes && !too_many_mapped_bodies)
             return;
 
-        // NB: A fetch that is still running holds its partition and has a pending entry in it, which must stay the
-        //     partition for its key.
-        for (auto& it : m_cache)
-            it.value->clear_complete_entries();
-        m_cache.remove_all_matching([](auto const&, auto const& cache) { return !cache->has_pending_entries() && cache->ref_count() == 1; });
-        m_responses_stored_since_clear = 0;
-        m_bytes_in_memory_stored_since_clear = 0;
+        struct Candidate {
+            HTTP::MemoryCache* cache { nullptr };
+            HTTP::MemoryCache::EntryUse use;
+        };
+        Vector<Candidate> candidates;
+        for (auto const& it : m_cache) {
+            for (auto const& use : it.value->complete_entry_uses())
+                candidates.append({ .cache = it.value.ptr(), .use = use });
+        }
+        quick_sort(candidates, [](auto const& a, auto const& b) { return a.use.last_use < b.use.last_use; });
+
+        for (auto const& candidate : candidates) {
+            too_many_bytes = too_many_bytes && m_usage->bytes_in_memory > bytes_in_memory_limit / 4 * 3;
+            too_many_mapped_bodies = too_many_mapped_bodies && m_usage->mapped_bodies > mapped_body_limit / 4 * 3;
+            if (!too_many_bytes && !too_many_mapped_bodies)
+                break;
+            if (too_many_bytes || (candidate.use.body_is_mapped && too_many_mapped_bodies))
+                candidate.cache->evict_complete_entry(candidate.use.cache_key, candidate.use.vary_key);
+        }
+
+        // NB: A fetch that is still running may hold a partition, which must then stay the one for its key.
+        m_cache.remove_all_matching([](auto const&, auto const& cache) { return cache->is_empty() && cache->ref_count() == 1; });
     }
 
 private:
-    static constexpr size_t stored_response_limit = 1024;
-    static constexpr size_t stored_bytes_in_memory_limit = 32 * MiB;
+    static constexpr size_t bytes_in_memory_limit = 16 * MiB;
+    static constexpr size_t largest_body_in_memory = bytes_in_memory_limit / 4;
+    static constexpr size_t mapped_body_limit = 1024;
 
+    RefPtr<HTTP::MemoryCacheUsage> m_usage;
     HashMap<Utf16String, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
-    size_t m_responses_stored_since_clear { 0 };
-    size_t m_bytes_in_memory_stored_since_clear { 0 };
 };
 
 Optional<Utf16String> http_cache_partition(Infrastructure::Request const& request)
@@ -3025,7 +3049,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         delivery_gate->attach_transport(*network_transport);
         network_transport->set_on_teardown([delivery_gate, channel, body_pump = GC::Root { body_pump }](Requests::Request::TeardownReason reason) {
             tear_down_network_body(*delivery_gate, *channel, reason);
-            body_pump->abandon_cache_entry();
+            body_pump->abandon_cache_entry(HTTP::MemoryCache::StoredResponse::Keep);
         });
         if (request->destination() == Infrastructure::Request::Destination::Font) {
             network_transport->set_on_requires_network([control_block = NonnullRefPtr { fetch_params.control_block() }] {
@@ -3605,9 +3629,14 @@ bool http_memory_cache_enabled()
     return g_http_memory_cache_enabled;
 }
 
-void did_store_response_in_http_memory_cache(Core::ImmutableBytes const& body)
+bool http_memory_cache_can_hold_body_in_memory(size_t size)
 {
-    HTTPCache::the().did_store_response(body);
+    return HTTPCache::can_hold_body_in_memory(size);
+}
+
+void evict_http_memory_cache_entries_over_limits()
+{
+    HTTPCache::the().evict_until_within_limits();
 }
 
 void clear_http_memory_cache()
