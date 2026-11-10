@@ -12890,13 +12890,22 @@ impl AlgorithmMethods for MlDsa {
             //    true.
             // NOTE: We already did this in parse_a_private_key_info
             // 8. If an error occurred while parsing, then throw a DataError.
-            // FIXME: 9. If mlDsaPrivateKey represents an ML-DSA key in the expandedKey format, or if mlDsaPrivateKey
+            let ml_dsa_private_key = private_key_info.mldsa_private_key();
+
+            // 9. If mlDsaPrivateKey represents an ML-DSA key in the expandedKey format, or if mlDsaPrivateKey
             //    represents an ML-DSA key in the both format and the both format is not supported, throw a
             //    NotSupportedError.
+            // NB: A key in the expandedKey format has no seed.
+            if libcrypto_rust::mldsa_seed_bytes(&ml_dsa_private_key).is_empty() {
+                return Err(dom_error(
+                    "NotSupportedError",
+                    b"ML-DSA private keys in the expandedKey format are not supported",
+                ));
+            }
+
             // 10. If mlDsaPrivateKey represents an ML-DSA key in the both format, and the seed field does not
             //    correspond to the expandedKey field, throw a DataError.
             // NB: LibCrypto checks the correspondence between the seed and expanded key while parsing.
-            let ml_dsa_private_key = private_key_info.mldsa_private_key();
 
             // 11. Let key be a new CryptoKey that represents the ML-DSA private key identified by mlDsaPrivateKey.
             key = CryptoKey::create(cx.vm(), ml_dsa_private_key);
