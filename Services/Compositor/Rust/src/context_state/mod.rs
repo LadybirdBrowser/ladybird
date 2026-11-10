@@ -465,6 +465,18 @@ impl ContextState {
     pub fn pointer_in_nested_contexts(&mut self) -> &mut PointerInNestedContexts {
         &mut self.pointer_in_nested_contexts
     }
+    pub fn pointer_in_nested_contexts_copy(&self) -> PointerInNestedContexts {
+        PointerInNestedContexts {
+            context_with_captured_scrollbar: self.pointer_in_nested_contexts.context_with_captured_scrollbar,
+            last_position_in_context_with_captured_scrollbar: self
+                .pointer_in_nested_contexts
+                .last_position_in_context_with_captured_scrollbar,
+            context_under_pointer: self.pointer_in_nested_contexts.context_under_pointer,
+        }
+    }
+    pub fn set_pointer_in_nested_contexts(&mut self, pointer: PointerInNestedContexts) {
+        self.pointer_in_nested_contexts = pointer;
+    }
     pub fn wheel_gesture_id(&self) -> Option<u64> {
         self.wheel_gesture_routing.gesture_id()
     }
@@ -534,6 +546,9 @@ impl ContextState {
         self.presentation_synthesizes_scroll_momentum
     }
     pub fn input_trace(&mut self) -> &mut InputTraceRecorder {
+        &mut self.input_trace
+    }
+    pub fn input_trace_mut(&mut self) -> &mut InputTraceRecorder {
         &mut self.input_trace
     }
     pub fn viewport_size(&self) -> IntSize {
