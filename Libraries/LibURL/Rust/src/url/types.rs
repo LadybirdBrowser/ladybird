@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
+use super::BlobUrlEntry;
 use super::UrlInput;
 use super::percent_encoding::PercentEncodeSet;
 use super::percent_encoding::percent_encode_input_into;
@@ -130,15 +132,34 @@ enum Offset {
 // https://url.spec.whatwg.org/#url-representation
 // A URL is a struct that represents a universal identifier.
 // To disambiguate from a valid URL string it can also be referred to as a URL record.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
-pub struct Url<Serialization = String> {
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Url<Serialization = String, BlobUrlEntrySlot = Option<BlobUrlEntry>> {
     pub(crate) serialization: Serialization,
     pub(crate) components: UrlComponents,
+
+    // https://url.spec.whatwg.org/#concept-url-blob-entry
+    // A URL also has an associated blob URL entry that is either null or a blob URL entry. It is initially null.
+    pub(crate) blob_url_entry: BlobUrlEntrySlot,
 }
 
-pub type UrlRef<'a> = Url<&'a str>;
+pub type UrlRef<'a> = Url<&'a str, ()>;
 
-impl<Serialization: AsRef<str>> Url<Serialization> {
+impl<Serialization: PartialEq, BlobUrlEntrySlot> PartialEq for Url<Serialization, BlobUrlEntrySlot> {
+    fn eq(&self, other: &Self) -> bool {
+        self.serialization == other.serialization && self.components == other.components
+    }
+}
+
+impl<Serialization: Eq, BlobUrlEntrySlot> Eq for Url<Serialization, BlobUrlEntrySlot> {}
+
+impl<Serialization: Hash, BlobUrlEntrySlot> Hash for Url<Serialization, BlobUrlEntrySlot> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.serialization.hash(state);
+        self.components.hash(state);
+    }
+}
+
+impl<Serialization: AsRef<str>, BlobUrlEntrySlot> Url<Serialization, BlobUrlEntrySlot> {
     fn slice(&self, start: u32, end: u32) -> &str {
         &self.as_str()[start as usize..end as usize]
     }
@@ -155,6 +176,7 @@ impl<Serialization: AsRef<str>> Url<Serialization> {
         Url {
             serialization: self.as_str(),
             components: self.components,
+            blob_url_entry: (),
         }
     }
 
@@ -287,6 +309,7 @@ impl From<UrlRef<'_>> for Url {
         Url {
             serialization: url.serialization.to_owned(),
             components: url.components,
+            blob_url_entry: None,
         }
     }
 }
@@ -694,4 +717,11 @@ impl Url {
 pub(crate) struct DetachedTail {
     query: Option<String>,
     fragment: Option<String>,
+}
+
+impl Url {
+    // https://url.spec.whatwg.org/#concept-url-blob-entry
+    pub fn blob_url_entry(&self) -> Option<&BlobUrlEntry> {
+        self.blob_url_entry.as_ref()
+    }
 }

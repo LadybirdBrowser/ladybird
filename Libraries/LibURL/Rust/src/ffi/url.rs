@@ -8,6 +8,7 @@ use crate::rust_panic::abort_on_panic;
 use std::ffi::c_void;
 
 use crate::url::BasicParseOptions;
+use crate::url::BlobUrlEntry;
 use crate::url::HostKind;
 use crate::url::State;
 use crate::url::Url;
@@ -75,13 +76,15 @@ impl RustUrlByteSlice {
 pub struct RustUrl {
     pub serialization: RustUrlByteSlice,
     pub components: UrlComponents,
+    pub blob_url_entry: *const c_void,
 }
 
 impl RustUrl {
-    fn from_url(url: &Url) -> Self {
+    pub fn from_url(url: &Url) -> Self {
         Self {
             serialization: RustUrlByteSlice::from_str(url.as_str()),
             components: url.components(),
+            blob_url_entry: url.blob_url_entry().map_or(std::ptr::null(), BlobUrlEntry::as_ptr),
         }
     }
 
@@ -91,13 +94,18 @@ impl RustUrl {
         Url {
             serialization: unsafe { self.serialization.borrow() }.unwrap_or(""),
             components: self.components,
+            blob_url_entry: (),
         }
     }
 
     /// # Safety
-    /// The serialization must be valid UTF-8 for the duration of this call, and the components must describe it.
+    /// The serialization must be valid UTF-8 for the duration of this call, the components must describe it, and the
+    /// blob URL entry must be null or live.
     pub unsafe fn to_url(&self) -> Url {
-        Url::from(unsafe { self.borrow() })
+        Url {
+            blob_url_entry: unsafe { BlobUrlEntry::from_borrowed(self.blob_url_entry) },
+            ..Url::from(unsafe { self.borrow() })
+        }
     }
 }
 
@@ -151,7 +159,7 @@ unsafe fn modify_url(
     on_complete: FfiUrlResultFn,
     modify: impl FnOnce(&mut Url),
 ) {
-    let mut url = Url::from(unsafe { (*url).borrow() });
+    let mut url = unsafe { (*url).to_url() };
     modify(&mut url);
     let result = RustUrl::from_url(&url);
     // SAFETY: result borrows from url, which lives until the callback returns.

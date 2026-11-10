@@ -173,10 +173,6 @@ public:
     void set_from_rust(FFI::RustUrl const&);
     static void set_from_rust_callback(void* url, FFI::RustUrl const*);
 
-private:
-    StringView view(u32 start, u32 end) const { return m_serialization.bytes_as_string_view().substring_view(start, end - start); }
-    u32 path_end() const;
-
     struct BlobURLEntryStorage : public RefCounted<BlobURLEntryStorage> {
         explicit BlobURLEntryStorage(BlobURLEntry entry)
             : entry(move(entry))
@@ -185,6 +181,10 @@ private:
 
         BlobURLEntry entry;
     };
+
+private:
+    StringView view(u32 start, u32 end) const { return m_serialization.bytes_as_string_view().substring_view(start, end - start); }
+    u32 path_end() const;
 
     String m_serialization;
     FFI::UrlComponents m_components {
