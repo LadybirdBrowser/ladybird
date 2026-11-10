@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Types.h>
 
 #include <QColor>
@@ -92,6 +93,10 @@ bool is_dark(QPalette const&);
 bool is_dark(QWidget const&);
 PanelColors const& panel();
 
+// The accent color the desktop's settings portal reports, as Qt's palette does not follow it.
+void set_desktop_accent(Optional<QColor>);
+Optional<QColor> const& desktop_accent();
+
 // The color theme's accent, or the system's accent color if the theme has none, adjusted so it stays clear on the chrome
 // in light and dark appearances. It is used only for focus rings, selection and load progress.
 QColor accent();
@@ -101,7 +106,7 @@ QColor focus_ring();
 
 // Selected text in a field. A color theme tints it with its accent and keeps the text in its normal color, so it stays
 // readable on every theme and looks unlike a selected row. A window in the background shows a gray tint instead.
-// Without a color theme, it is the system's own text selection color.
+// Without a color theme or a desktop accent, it is the system's own text selection color.
 struct TextSelectionColors {
     QColor background;
     QColor text;
