@@ -8,6 +8,7 @@ use super::RecordingInputs;
 use super::inputs::UncapturedContentInputs;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::published_frame::PublishedPaintState;
+use libgfx_rust::Color;
 
 /// The recording inputs every producer may read. A frame copies from the published recording only
 /// while they are unchanged; otherwise it records from scratch. They stay with the published
@@ -24,6 +25,19 @@ pub(crate) struct FrameInputs {
     // Whether any box but the viewport could take or keep a wheel event decides if the scroll metadata
     // inside subtree captures carries per-box wheel hit-test targets.
     pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
+    // The default selection colors come from the system palette, which changes with the system's highlight color.
+    pub(crate) selection_colors: SelectionColors,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct SelectionColors {
+    from_palette: Color,
+    light: Color,
+    dark: Color,
+    inactive_from_palette: Color,
+    inactive_light: Color,
+    inactive_dark: Color,
+    palette_is_dark: bool,
 }
 
 impl FrameInputs {
@@ -36,6 +50,15 @@ impl FrameInputs {
             should_paint_overlay: inputs.should_paint_overlay,
             uncaptured: inputs.uncaptured,
             has_non_viewport_wheel_scroll_target_candidate: paint_state.has_non_viewport_wheel_scroll_target_candidate,
+            selection_colors: SelectionColors {
+                from_palette: inputs.selection_background_from_palette,
+                light: inputs.selection_background_light,
+                dark: inputs.selection_background_dark,
+                inactive_from_palette: inputs.inactive_selection_background_from_palette,
+                inactive_light: inputs.inactive_selection_background_light,
+                inactive_dark: inputs.inactive_selection_background_dark,
+                palette_is_dark: inputs.palette_is_dark,
+            },
         }
     }
 
