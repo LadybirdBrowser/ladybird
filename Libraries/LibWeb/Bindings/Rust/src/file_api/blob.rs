@@ -155,7 +155,17 @@ pub(crate) struct Blob {
     r#type: Utf16String,
 }
 
-impl Wrappable for Blob {}
+impl Wrappable for Blob {
+    const OWNS_EXTERNAL_MEMORY: bool = true;
+    const COUNTS_EXTERNAL_MEMORY_WHEN_ALLOCATED: bool = true;
+
+    fn external_memory_size(&self) -> usize {
+        match &*self.byte_sequence.borrow() {
+            ByteSequence::Owned(bytes) => bytes.capacity(),
+            ByteSequence::Foreign(bytes) => bytes.as_slice().len(),
+        }
+    }
+}
 
 fn append_utf8(bytes: &mut Vec<u8>, string: &UsvString) {
     let length = string.utf8_length();
