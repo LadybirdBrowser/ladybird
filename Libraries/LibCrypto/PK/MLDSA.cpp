@@ -57,8 +57,11 @@ static size_t mldsa_expanded_key_size(MLDSASize size)
 
 ErrorOr<ByteBuffer> MLDSAPrivateKey::export_as_der() const
 {
-    ASN1::Encoder encoder;
+    // NB: The key is exported in the seed-only form, which a key without its seed cannot be.
+    if (m_seed.is_empty())
+        return Error::from_string_literal("Cannot export an ML-DSA private key without its seed");
 
+    ASN1::Encoder encoder;
     TRY(encoder.write<ReadonlyBytes>(m_seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
 
     return encoder.finish();
