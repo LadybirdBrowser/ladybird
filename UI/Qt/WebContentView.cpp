@@ -2029,16 +2029,18 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
         return color;
     };
 
-    auto active_highlight = qt_palette.color(QPalette::Active, QPalette::ColorRole::Highlight);
+    // NB: Qt's palette does not follow the desktop's accent color, which desktops such as GNOME select text in.
+    auto active_highlight = Theme::desktop_accent().value_or(qt_palette.color(QPalette::Active, QPalette::ColorRole::Highlight));
     auto inactive_highlight = qt_palette.color(QPalette::Inactive, QPalette::ColorRole::Highlight);
     auto palette_color_scheme = dark ? Web::CSS::PreferredColorScheme::Dark : Web::CSS::PreferredColorScheme::Light;
     palette.set_color(Gfx::ColorRole::Selection, selection_color(active_highlight, palette_color_scheme));
     palette.set_color(Gfx::ColorRole::LightSelection, selection_color(active_highlight, Web::CSS::PreferredColorScheme::Light));
     palette.set_color(Gfx::ColorRole::DarkSelection, selection_color(active_highlight, Web::CSS::PreferredColorScheme::Dark));
-    if (inactive_highlight != active_highlight) {
+    if (qt_palette_matches && !Theme::desktop_accent().has_value() && inactive_highlight != active_highlight) {
         palette.set_color(Gfx::ColorRole::InactiveSelection, selection_color(inactive_highlight, palette_color_scheme));
     } else {
-        // The Qt theme does not differentiate inactive selections; use a neutral gray.
+        // NB: Where the Qt theme has no inactive selection color of its own, its palette has the other appearance
+        //     than pages get, or the selection takes the desktop's accent, inactive selections are a neutral gray.
         auto inactive_selection = dark ? Gfx::Color(0x60, 0x60, 0x60) : Gfx::Color(0xd4, 0xd4, 0xd4);
         palette.set_color(Gfx::ColorRole::InactiveSelection, inactive_selection);
     }
