@@ -9,14 +9,14 @@
 #include <AK/Math.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
-#include <Compositor/CompositorState.h>
+#include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/ContextState.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/PausedDebuggerOverlay.h>
+#include <Compositor/RenderClockClientEndpoint.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
-#include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <core/SkCanvas.h>
@@ -59,32 +59,60 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint, Function<void()> request_animation_frames)
-    : m_web_content_client(web_content_client)
+ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, WebContentClientId web_content_client_id, CompositorCoreHost& host, OwnedCanvasSurfaces canvas_surfaces)
+    : m_host(host)
+    , m_web_content_client_id(web_content_client_id)
     , m_context_id(context_id)
     , m_page_id(page_id)
     , m_presenter(canvas_surfaces, page_id.has_value())
     , m_presents_to_client(page_id.has_value())
-    , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
-    , m_request_animation_frames(move(request_animation_frames))
 {
 }
 
-ContextState::~ContextState()
+bool ContextState::is_owned_by(WebContentClientId web_content_client_id) const
 {
-    if (m_scrollbar_paging_timer) {
-        m_scrollbar_paging_timer->on_timeout = {};
-        m_scrollbar_paging_timer->stop();
-    }
-    if (m_scrollbar_fade_out_timer) {
-        m_scrollbar_fade_out_timer->on_timeout = {};
-        m_scrollbar_fade_out_timer->stop();
-    }
+    return m_web_content_client_id == web_content_client_id;
 }
 
-bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
+void ContextState::request_display_ticks_if_needed(MonotonicTime now)
 {
-    return &m_web_content_client == &web_content_client;
+    if (needs_animation_frames(now))
+        m_host.request_display_ticks(m_context_id);
+}
+
+Optional<Gfx::IntRect> ContextState::timer_fired(ContextTimer timer, MonotonicTime now)
+{
+    switch (timer) {
+    case ContextTimer::ScrollStepGestureInput:
+        end_scroll_step_gestures_whose_input_ran_out(now);
+        break;
+    case ContextTimer::ScrollbarPaging:
+        m_scrollbar_paging_timer_is_armed = false;
+        // Paging ends with the press, and with the scrollbar the press holds.
+        if (!m_scrollbar_paging.has_value() || !m_scrollbar_controller.has_captured_scrollbar()) {
+            stop_scrollbar_paging();
+            return {};
+        }
+        // Once the thumb reaches the pointer, paging waits for the pointer to move.
+        if (!page_captured_scrollbar(now).has_value())
+            return {};
+        request_rendering_update();
+        request_display_ticks_if_needed(now);
+        m_host.set_timer(m_context_id, ContextTimer::ScrollbarPaging, scrollbar_paging_repeat_interval);
+        m_scrollbar_paging_timer_is_armed = true;
+        break;
+    case ContextTimer::ScrollbarFadeOut:
+        request_display_ticks_if_needed(now);
+        break;
+    case ContextTimer::CaretBlink: {
+        auto damage_rect = damage_rect_of_blinking_carets();
+        schedule_next_caret_blink(now);
+        if (!damage_rect.is_empty())
+            return damage_rect;
+        break;
+    }
+    }
+    return {};
 }
 
 void ContextState::request_rendering_update()
@@ -92,23 +120,23 @@ void ContextState::request_rendering_update()
     // The rendering update this asks for adopts the scroll updates it finds pushed by then. What is pending here goes
     // ahead of the request on the wire, so that an update run on the request never misses it.
     if (has_pending_async_scroll_updates())
-        m_web_content_client.async_scroll_updates(m_context_id, take_pending_async_scroll_updates());
-    m_web_content_client.request_rendering_update();
+        post_to_web_content<Messages::CompositorWebContentClient::AsyncScrollUpdates>(m_context_id, take_pending_async_scroll_updates());
+    post_to_web_content<Messages::CompositorWebContentClient::RequestRenderingUpdate>();
 }
 
 void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event, bool nested_context_scrolled_since_last_frame)
 {
     VERIFY(m_page_id.has_value());
-    m_web_content_client.dispatch_mouse_event_to_web_content(*m_page_id, event);
+    post_to_web_content<Messages::CompositorWebContentClient::MouseEvent>(*m_page_id, event);
 
     // The render clock hears where the pointer went too, without waiting for WebContent's main thread, so that hover
     // can follow the pointer while that thread runs a task. The lanes hit test it in the frames on screen, which a
     // scroll since, here or in a nested context, has moved. A button going up ends the drag a lane follows, whether or
     // not a move comes after it.
     if (event.type == Web::MouseEvent::Type::MouseMove || event.type == Web::MouseEvent::Type::MouseUp)
-        m_web_content_client.pointer_moved(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame() || nested_context_scrolled_since_last_frame, event.id);
+        post_to_render_clock_of_web_content<Messages::RenderClockClient::PointerMoved>(m_context_id, event.position, to_underlying(event.buttons), scrolled_since_last_frame() || nested_context_scrolled_since_last_frame, event.id);
     else if (event.type == Web::MouseEvent::Type::MouseLeave)
-        m_web_content_client.pointer_left(m_context_id, event.id);
+        post_to_render_clock_of_web_content<Messages::RenderClockClient::PointerLeft>(m_context_id, event.id);
 }
 
 bool ContextState::scrolled_since_last_frame() const
@@ -119,13 +147,13 @@ bool ContextState::scrolled_since_last_frame() const
 void ContextState::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
 {
     VERIFY(m_page_id.has_value());
-    m_web_content_client.dispatch_key_event_to_web_content(*m_page_id, event);
+    post_to_web_content<Messages::CompositorWebContentClient::KeyEvent>(*m_page_id, event);
 }
 
 void ContextState::dispatch_pinch_event_to_web_content(Web::PinchEvent const& event)
 {
     VERIFY(m_page_id.has_value());
-    m_web_content_client.dispatch_pinch_event_to_web_content(*m_page_id, event);
+    post_to_web_content<Messages::CompositorWebContentClient::PinchEvent>(*m_page_id, event);
 }
 
 void ContextState::stop_presenting_to_client()
@@ -153,7 +181,7 @@ void ContextState::install_display_list_update(
     m_keyboard_scroll_controller.forget_target();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_scene.visual_context_tree()->spatial_node_count());
-    m_caret_blink_timer.did_install_display_list(*m_scene.display_list());
+    restart_caret_blink_for(*m_scene.display_list(), now);
 
     auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*m_scene.display_list());
     auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
@@ -183,6 +211,39 @@ void ContextState::install_display_list_update(
     m_has_async_scrolling_state = true;
     if (auto const& metadata = m_scene.display_list()->async_scrolling_metadata(); metadata.has_value())
         adopt_keyboard_scroll_state(metadata->keyboard_scroll_state);
+}
+
+// Repaints the blinking caret of a display list each time its blink cycle turns it on or off.
+void ContextState::restart_caret_blink_for(Compositing::DisplayList const& display_list, MonotonicTime now)
+{
+    Optional<i64> blink_cycle_start_time_ns;
+    display_list.for_each_caret([&](auto, auto, auto const& caret) {
+        if (caret.should_blink)
+            blink_cycle_start_time_ns = caret.blink_cycle_start_time_ns;
+    });
+
+    if (blink_cycle_start_time_ns == m_caret_blink_cycle_start_time_ns)
+        return;
+    m_caret_blink_cycle_start_time_ns = blink_cycle_start_time_ns;
+
+    m_host.cancel_timer(m_context_id, ContextTimer::CaretBlink);
+    if (!m_caret_blink_cycle_start_time_ns.has_value())
+        return;
+
+    schedule_next_caret_blink(now);
+}
+
+void ContextState::schedule_next_caret_blink(MonotonicTime now)
+{
+    if (!m_caret_blink_cycle_start_time_ns.has_value())
+        return;
+
+    auto now_ns = now.nanoseconds();
+    auto elapsed_ns = now_ns > *m_caret_blink_cycle_start_time_ns
+        ? now_ns - *m_caret_blink_cycle_start_time_ns
+        : 0;
+    auto delay_ns = Compositing::caret_blink_interval_ns - elapsed_ns % Compositing::caret_blink_interval_ns;
+    m_host.set_timer(m_context_id, ContextTimer::CaretBlink, AK::Duration::from_nanoseconds(delay_ns));
 }
 
 Gfx::IntRect ContextState::damage_rect_of_blinking_carets()
@@ -567,24 +628,8 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event_at(Web::Mouse
                 result.frame_to_present = *frame_to_present;
                 result.should_request_rendering_update = true;
             }
-            if (!m_scrollbar_paging_timer) {
-                m_scrollbar_paging_timer = Core::Timer::create_single_shot(scrollbar_paging_initial_delay, [this] {
-                    auto now = MonotonicTime::now();
-                    // Paging ends with the press, and with the scrollbar the press holds.
-                    if (!m_scrollbar_paging.has_value() || !m_scrollbar_controller.has_captured_scrollbar()) {
-                        stop_scrollbar_paging();
-                        return;
-                    }
-                    // Once the thumb reaches the pointer, paging waits for the pointer to move.
-                    if (!page_captured_scrollbar(now).has_value())
-                        return;
-                    request_rendering_update();
-                    if (m_request_animation_frames)
-                        m_request_animation_frames();
-                    m_scrollbar_paging_timer->restart(scrollbar_paging_repeat_interval);
-                });
-            }
-            m_scrollbar_paging_timer->restart(scrollbar_paging_initial_delay);
+            m_host.set_timer(m_context_id, ContextTimer::ScrollbarPaging, scrollbar_paging_initial_delay);
+            m_scrollbar_paging_timer_is_armed = true;
             return result;
         }
 
@@ -603,8 +648,10 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event_at(Web::Mouse
             Optional<PendingFrame> frame_to_present;
             if (m_scrollbar_paging.has_value()) {
                 m_scrollbar_paging->primary_position = drag->primary_position;
-                if (!m_scrollbar_paging_timer->is_active())
-                    m_scrollbar_paging_timer->restart(scrollbar_paging_repeat_interval);
+                if (!m_scrollbar_paging_timer_is_armed) {
+                    m_host.set_timer(m_context_id, ContextTimer::ScrollbarPaging, scrollbar_paging_repeat_interval);
+                    m_scrollbar_paging_timer_is_armed = true;
+                }
             } else {
                 frame_to_present = apply_scrollbar_drag(*drag, now);
             }
@@ -2001,6 +2048,13 @@ bool ContextState::has_pending_async_scroll_updates() const
     return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_state());
 }
 
+void ContextState::publish_pending_async_scroll_updates()
+{
+    if (!has_pending_async_scroll_updates())
+        return;
+    post_to_web_content<Messages::CompositorWebContentClient::AsyncScrollUpdates>(m_context_id, take_pending_async_scroll_updates());
+}
+
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size)
 {
     m_scene.forget_whether_animated_content_may_affect_viewport();
@@ -2067,23 +2121,17 @@ void ContextState::update_scrollbar_visibility(MonotonicTime now)
     report_scrollbar_visibility_changes();
 
     // A hovered scrollbar starts to grow here, which needs display ticks before anything else asks for a frame.
-    if (m_request_animation_frames && m_scrollbar_controller.fades_need_frame(now))
-        m_request_animation_frames();
+    if (m_scrollbar_controller.fades_need_frame(now))
+        m_host.request_display_ticks(m_context_id);
 
     // The fade out runs on display ticks, which the wait before it does not need.
     auto fade_out_time = m_scrollbar_controller.next_fade_out_time();
-    if (!fade_out_time.has_value() || !m_request_animation_frames) {
-        if (m_scrollbar_fade_out_timer)
-            m_scrollbar_fade_out_timer->stop();
+    if (!fade_out_time.has_value()) {
+        m_host.cancel_timer(m_context_id, ContextTimer::ScrollbarFadeOut);
         return;
     }
-    if (!m_scrollbar_fade_out_timer) {
-        m_scrollbar_fade_out_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
-            m_request_animation_frames();
-        });
-    }
     auto delay = max(AK::Duration::zero(), *fade_out_time - now);
-    m_scrollbar_fade_out_timer->restart(delay);
+    m_host.set_timer(m_context_id, ContextTimer::ScrollbarFadeOut, delay);
 }
 
 // NB: This goes on the connection the compositor forwards input on, so the main thread knows which scrollbars have
@@ -2093,7 +2141,7 @@ void ContextState::report_scrollbar_visibility_changes()
 {
     auto changes = m_scrollbar_controller.take_visibility_changes();
     if (!changes.is_empty())
-        m_web_content_client.overlay_scrollbar_visibilities_changed(changes);
+        post_to_web_content<Messages::CompositorWebContentClient::OverlayScrollbarVisibilitiesChanged>(changes);
 }
 
 Gfx::IntRect ContextState::advance_scrollbar_fades_and_return_damage_rect(MonotonicTime frame_time)
@@ -2270,14 +2318,16 @@ WheelGestureRouting::ResolvedLatch ContextState::resolve_wheel_scroll_latch(Web:
 
 Compositing::WheelHitTestResult ContextState::route_first_wheel_step(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Compositing::WheelStepDispatch wheel_step_dispatch, Compositing::NestedContextRegions nested_context_regions, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain)
 {
-    Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> in_flight_destination_for;
-    if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
-        in_flight_destination_for = [this](auto stable_node_id) { return in_flight_wheel_destination(stable_node_id); };
+    auto in_flight_destination_for = [this, wheel_delta_precision](Web::AsyncScrollNodeStableID stable_node_id) -> Optional<Gfx::FloatPoint> {
+        if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
+            return in_flight_wheel_destination(stable_node_id);
+        return {};
+    };
     for (auto stable_node_id : scroll_chain) {
         if (auto scroll_node_index = m_async_scroll_tree.scroll_node_index_for_stable_id(stable_node_id); scroll_node_index.has_value())
-            return m_async_scroll_tree.hit_test_result_for_scroll_node(*scroll_node_index, delta, in_flight_destination_for);
+            return m_async_scroll_tree.hit_test_result_for_scroll_node(*scroll_node_index, delta, move(in_flight_destination_for));
     }
-    return m_async_scroll_tree.hit_test_scroll_node_for_wheel(m_scene.visual_context_tree_for_compositing(), position, delta, in_flight_destination_for, wheel_step_dispatch, nested_context_regions);
+    return m_async_scroll_tree.hit_test_scroll_node_for_wheel(m_scene.visual_context_tree_for_compositing(), position, delta, move(in_flight_destination_for), wheel_step_dispatch, nested_context_regions);
 }
 
 ContextState::WheelGestureLatchAttempt ContextState::route_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Optional<u64> gesture_id, Compositing::WheelStepDispatch wheel_step_dispatch, Compositing::NestedContextRegions nested_context_regions, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain)
@@ -2381,17 +2431,10 @@ void ContextState::schedule_end_of_scroll_step_gestures(MonotonicTime now)
 {
     auto deadline = m_scroll_snap_controller.earliest_gesture_input_deadline();
     if (!deadline.has_value()) {
-        if (m_scroll_step_gesture_input_timer)
-            m_scroll_step_gesture_input_timer->stop();
+        m_host.cancel_timer(m_context_id, ContextTimer::ScrollStepGestureInput);
         return;
     }
-    if (!m_scroll_step_gesture_input_timer) {
-        m_scroll_step_gesture_input_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
-            auto now = MonotonicTime::now();
-            end_scroll_step_gestures_whose_input_ran_out(now);
-        });
-    }
-    m_scroll_step_gesture_input_timer->restart(max(*deadline - now, AK::Duration::zero()));
+    m_host.set_timer(m_context_id, ContextTimer::ScrollStepGestureInput, max(*deadline - now, AK::Duration::zero()));
 }
 
 void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now)
@@ -2478,8 +2521,8 @@ ContextState::ActiveSmoothScrollAnimation* ContextState::running_scrollbar_press
 void ContextState::stop_scrollbar_paging()
 {
     m_scrollbar_paging.clear();
-    if (m_scrollbar_paging_timer)
-        m_scrollbar_paging_timer->stop();
+    m_host.cancel_timer(m_context_id, ContextTimer::ScrollbarPaging);
+    m_scrollbar_paging_timer_is_armed = false;
 }
 
 Optional<PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::Drag const& drag, MonotonicTime now)
@@ -2561,8 +2604,8 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
     auto animated_content_is_under_pointer = animations_are_active && m_pointer_position.has_value()
         && m_scene.visual_context_tree_for_compositing().running_transform_animation_covers_point(now.nanoseconds(), *m_pointer_position, m_scroll_state_snapshot);
     if (animated_content_is_under_pointer || m_animated_content_was_under_pointer) {
-        m_web_content_client.animated_content_moved_under_pointer(m_context_id, now.nanoseconds());
-        m_web_content_client.pointer_rests_on_moving_content(m_context_id);
+        post_to_web_content<Messages::CompositorWebContentClient::AnimatedContentMovedUnderPointer>(m_context_id, now.nanoseconds());
+        post_to_render_clock_of_web_content<Messages::RenderClockClient::PointerRestsOnMovingContent>(m_context_id);
     }
     m_animated_content_was_under_pointer = animated_content_is_under_pointer;
     return animations_are_active;

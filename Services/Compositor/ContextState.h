@@ -6,17 +6,18 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
+#include <AK/StdLibExtras.h>
+#include <AK/Try.h>
 #include <AK/Vector.h>
 #include <Compositor/AsyncScrollUpdateOutbox.h>
-#include <Compositor/CaretBlinkTimer.h>
 #include <Compositor/CompositedContext.h>
+#include <Compositor/CompositorCoreHost.h>
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
 #include <Compositor/ElasticOverscrollController.h>
@@ -53,8 +54,6 @@ class SkiaBackendContext;
 }
 
 namespace Compositor {
-
-class CompositorStateWebContentClient;
 
 class ContextState {
     AK_MAKE_NONCOPYABLE(ContextState);
@@ -158,11 +157,10 @@ public:
         Optional<Compositing::NestedContextHit> nested_context_hit {};
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_animation_frames = {});
-    ~ContextState();
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, WebContentClientId, CompositorCoreHost&, OwnedCanvasSurfaces);
 
-    bool is_owned_by(CompositorStateWebContentClient const&) const;
-    CompositorStateWebContentClient& web_content_client() const { return m_web_content_client; }
+    bool is_owned_by(WebContentClientId) const;
+    WebContentClientId web_content_client_id() const { return m_web_content_client_id; }
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&, bool nested_context_scrolled_since_last_frame = false);
     void dispatch_key_event_to_web_content(Web::KeyEvent const&);
@@ -280,6 +278,8 @@ public:
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool needs_animation_frames(MonotonicTime now) { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame(now) || m_scrollbar_controller.fades_need_frame(now); }
+    void request_display_ticks_if_needed(MonotonicTime now);
+    Optional<Gfx::IntRect> timer_fired(ContextTimer, MonotonicTime now);
 
     bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
     // The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
@@ -318,6 +318,7 @@ public:
     void note_pointer_position(Optional<Gfx::FloatPoint>);
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
+    void publish_pending_async_scroll_updates();
 
     Gfx::IntSize viewport_size() const { return m_viewport_size; }
     void viewport_size_updated(Gfx::IntSize);
@@ -358,6 +359,20 @@ public:
     ScreenshotInputs frame_inputs_for_screenshot(MonotonicTime now);
 
 private:
+    template<typename Message, typename... Arguments>
+    void post_to_web_content(Arguments&&... arguments)
+    {
+        auto buffer = MUST(Message::static_encode(forward<Arguments>(arguments)...));
+        m_host.post_message_to_web_content(m_web_content_client_id, buffer);
+    }
+
+    template<typename Message, typename... Arguments>
+    void post_to_render_clock_of_web_content(Arguments&&... arguments)
+    {
+        auto buffer = MUST(Message::static_encode(forward<Arguments>(arguments)...));
+        m_host.post_message_to_render_clock_of_web_content(m_web_content_client_id, buffer);
+    }
+
     struct ActiveSmoothScrollAnimation {
         Web::AsyncScrollNodeStableID stable_node_id;
         Compositing::AsyncScrollOperationID operation_id;
@@ -471,10 +486,13 @@ private:
     void rebuild_wheel_hit_test_targets();
     FrameInputs frame_inputs_as_presented_now();
     Gfx::IntRect damage_rect_of_blinking_carets();
+    void restart_caret_blink_for(Compositing::DisplayList const&, MonotonicTime now);
+    void schedule_next_caret_blink(MonotonicTime now);
     void update_scrollbar_visibility(MonotonicTime now);
     void report_scrollbar_visibility_changes();
 
-    CompositorStateWebContentClient& m_web_content_client;
+    CompositorCoreHost& m_host;
+    WebContentClientId m_web_content_client_id;
     Web::CompositorContextId m_context_id;
     Optional<u64> m_page_id;
 
@@ -507,7 +525,6 @@ private:
     KeyboardScrollController m_keyboard_scroll_controller;
     // The boxes that the keys held since none was have scrolled, whose gesture lasts until the last of them is released.
     Vector<Web::AsyncScrollNodeStableID> m_boxes_scrolled_by_held_keys;
-    RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     WheelGestureRouting m_wheel_gesture_routing;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     // The smooth scroll that a press beside the thumb of the captured scrollbar started.
@@ -519,7 +536,7 @@ private:
     };
     Optional<ScrollbarPaging> m_scrollbar_paging;
     bool m_scrollbar_track_press_jumps { false };
-    RefPtr<Core::Timer> m_scrollbar_paging_timer;
+    bool m_scrollbar_paging_timer_is_armed { false };
     PointerInNestedContexts m_pointer_in_nested_contexts;
     Optional<Gfx::FloatPoint> m_pointer_position;
     bool m_animated_content_was_under_pointer { false };
@@ -530,9 +547,7 @@ private:
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
 
-    CaretBlinkTimer m_caret_blink_timer;
-    Function<void()> m_request_animation_frames;
-    RefPtr<Core::Timer> m_scrollbar_fade_out_timer;
+    Optional<i64> m_caret_blink_cycle_start_time_ns;
     Web::InputTraceRecorder m_input_trace;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };

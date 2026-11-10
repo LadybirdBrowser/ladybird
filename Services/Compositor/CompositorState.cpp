@@ -37,6 +37,73 @@ CompositorState::~CompositorState()
     m_gpu_completion_timer->stop();
 }
 
+WebContentClientId CompositorState::register_web_content_client(CompositorStateWebContentClient& client)
+{
+    WebContentClientId client_id { m_next_web_content_client_id++ };
+    m_web_content_clients.set(client_id, &client);
+    return client_id;
+}
+
+CompositorStateWebContentClient* CompositorState::web_content_client_if_present(WebContentClientId client_id) const
+{
+    return m_web_content_clients.get(client_id).value_or(nullptr);
+}
+
+CompositorStateWebContentClient& CompositorState::web_content_client_of(ContextState const& context)
+{
+    auto* client = web_content_client_if_present(context.web_content_client_id());
+    VERIFY(client);
+    return *client;
+}
+
+void CompositorState::post_message_to_web_content(WebContentClientId client_id, IPC::MessageBuffer& buffer)
+{
+    if (auto* client = web_content_client_if_present(client_id))
+        client->post_message_to_web_content(buffer);
+}
+
+void CompositorState::post_message_to_render_clock_of_web_content(WebContentClientId client_id, IPC::MessageBuffer& buffer)
+{
+    if (auto* client = web_content_client_if_present(client_id))
+        client->post_message_to_render_clock(buffer);
+}
+
+void CompositorState::request_display_ticks(Web::CompositorContextId context_id)
+{
+    if (auto* context = context_if_present(context_id); context && context_is_effectively_visible(*context))
+        vsync_scheduler_for_display(display_id_for_context(*context)).schedule(display_refresh_rate_for_context(*context));
+}
+
+void CompositorState::set_timer(Web::CompositorContextId context_id, ContextTimer timer, AK::Duration delay)
+{
+    auto& context_timer = m_context_timers.ensure(context_id).ensure(timer, [&] {
+        return Core::Timer::create_single_shot(delay, [this, context_id, timer] {
+            context_timer_fired(context_id, timer);
+        });
+    });
+    context_timer->restart(delay);
+}
+
+void CompositorState::cancel_timer(Web::CompositorContextId context_id, ContextTimer timer)
+{
+    auto timers = m_context_timers.find(context_id);
+    if (timers == m_context_timers.end())
+        return;
+    if (auto context_timer = timers->value.get(timer); context_timer.has_value())
+        (*context_timer)->stop();
+}
+
+void CompositorState::context_timer_fired(Web::CompositorContextId context_id, ContextTimer timer)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    auto now = MonotonicTime::now();
+    auto caret_damage_rect = context->timer_fired(timer, now);
+    if (caret_damage_rect.has_value())
+        schedule_caret_repaint(context_id, *caret_damage_rect);
+}
+
 void CompositorState::register_presentation(CompositorStateClient& presentation, PresentationCapabilities capabilities)
 {
     m_presentations.set(&presentation, capabilities);
@@ -99,7 +166,7 @@ CompositorStateClient* CompositorState::presentation_for_context(Web::Compositor
     return m_context_presentations.get(context_id).value_or(nullptr);
 }
 
-CompositorState::ContextOwnerCheckResult CompositorState::check_context_owner(Web::CompositorContextId context_id, CompositorStateWebContentClient& client)
+CompositorState::ContextOwnerCheckResult CompositorState::check_context_owner(Web::CompositorContextId context_id, WebContentClientId client)
 {
     auto* context = context_if_present(context_id);
     if (!context)
@@ -114,7 +181,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
 {
     Vector<Web::CompositorContextId> context_ids;
     for (auto& context : m_contexts) {
-        if (context.value->is_owned_by(client))
+        if (context.value->is_owned_by(client.web_content_client_id()))
             context_ids.append(context.key);
     }
 
@@ -131,6 +198,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
         return true;
     });
+    m_web_content_clients.remove(client.web_content_client_id());
 }
 
 CompositorState::PlaceholderCanvasAllocation CompositorState::allocate_placeholder_canvas(CompositorStateWebContentClient& client)
@@ -193,14 +261,7 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
         VERIFY(context_id == Web::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        auto schedule_caret_repaint = [this, context_id](Gfx::IntRect damage_rect) {
-            this->schedule_caret_repaint(context_id, damage_rect);
-        };
-        auto request_animation_frames = [this, context_id] {
-            if (auto* context = context_if_present(context_id))
-                schedule_animation_frames_if_needed(*context);
-        };
-        return make<ContextState>(context_id, page_id, web_content_client, OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_animation_frames));
+        return make<ContextState>(context_id, page_id, web_content_client.web_content_client_id(), *this, OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() });
     });
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -221,6 +282,13 @@ void CompositorState::destroy_context(Web::CompositorContextId context_id)
             possible_child_context.set_parent_context({});
     }
     m_context_presentations.remove(context_id);
+    if (auto timers = m_context_timers.find(context_id); timers != m_context_timers.end()) {
+        for (auto& [_, timer] : timers->value) {
+            timer->on_timeout = {};
+            timer->stop();
+        }
+        m_context_timers.remove(timers);
+    }
     m_contexts.remove(context_id);
     update_scroll_capabilities();
     update_unpainted_video_update_scheduling();
@@ -396,7 +464,7 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
         update_unpainted_video_update_scheduling();
     });
     for (auto& context_entry : m_contexts) {
-        if (&context_entry.value->web_content_client() == &client)
+        if (context_entry.value->web_content_client_id() == client.web_content_client_id())
             resolve_video_sinks(*context_entry.value);
     }
     present_contexts_drawing_video_sink(client, handle);
@@ -494,7 +562,7 @@ bool CompositorState::animated_image_is_drawn(CompositorStateWebContentClient* c
 {
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (&context.web_content_client() == client && context_is_effectively_visible(context) && context.presenter().resource_storage().has_image_frame(id))
+        if (context.web_content_client_id() == client->web_content_client_id() && context_is_effectively_visible(context) && context.presenter().resource_storage().has_image_frame(id))
             return true;
     }
     return false;
@@ -504,7 +572,7 @@ void CompositorState::show_animated_image_frame(CompositorStateWebContentClient*
 {
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (&context.web_content_client() != client || !context.presenter().resource_storage().has_image_frame(id))
+        if (context.web_content_client_id() != client->web_content_client_id() || !context.presenter().resource_storage().has_image_frame(id))
             continue;
         context.presenter().resource_storage().replace_image_frame_pixels(id, frame);
         if (!context_is_effectively_visible(context))
@@ -516,7 +584,7 @@ void CompositorState::show_animated_image_frame(CompositorStateWebContentClient*
 
 void CompositorState::show_animated_image_frames_in(ContextState& context)
 {
-    auto images = m_animated_images.find(&context.web_content_client());
+    auto images = m_animated_images.find(&web_content_client_of(context));
     if (images == m_animated_images.end())
         return;
     for (auto& image_entry : images->value) {
@@ -577,7 +645,7 @@ void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebCont
 {
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (&context.web_content_client() != &client)
+        if (context.web_content_client_id() != client.web_content_client_id())
             continue;
         if (!context_is_effectively_visible(context))
             continue;
@@ -595,7 +663,7 @@ void CompositorState::present_contexts_drawing_canvas(CompositorStateWebContentC
 {
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (&context.web_content_client() != &client)
+        if (context.web_content_client_id() != client.web_content_client_id())
             continue;
         if (!context_is_effectively_visible(context) || !context.presenter().draws_canvas(canvas_id))
             continue;
@@ -606,7 +674,7 @@ void CompositorState::present_contexts_drawing_canvas(CompositorStateWebContentC
 
 void CompositorState::resolve_video_sinks(ContextState& context)
 {
-    auto& client = context.web_content_client();
+    auto& client = web_content_client_of(context);
     for (auto const& resource_entry : context.presenter().resource_storage().video_sink_handles()) {
         auto* sink_state = video_sink_state(client, resource_entry.value);
         context.presenter().resource_storage().set_video_sink(Compositing::VideoSinkResourceId { resource_entry.key }, sink_state ? sink_state->sink : nullptr);
@@ -617,7 +685,7 @@ bool CompositorState::video_sink_is_painted_by_any_context(CompositorStateWebCon
 {
     for (auto const& context_entry : m_contexts) {
         auto const& context = *context_entry.value;
-        if (&context.web_content_client() != client)
+        if (context.web_content_client_id() != client->web_content_client_id())
             continue;
         for (auto const& resource_entry : context.presenter().resource_storage().video_sink_handles()) {
             if (resource_entry.value == handle)
@@ -686,7 +754,7 @@ void CompositorState::update_video_sinks_for_display(Optional<u64> display_id)
         if (!context_is_effectively_visible(context))
             continue;
         for (auto const& resource_entry : context.presenter().resource_storage().video_sink_handles()) {
-            auto* sink_state = video_sink_state(context.web_content_client(), resource_entry.value);
+            auto* sink_state = video_sink_state(web_content_client_of(context), resource_entry.value);
             if (sink_state != nullptr && sink_state->requires_updates) {
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
                 break;
@@ -948,7 +1016,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
         apply_context_update_result(nested_context_id, nested_context, nested_result);
         schedule_animation_frames_if_needed(nested_context);
         // Node ids are only unique within the process that made them.
-        bool ids_are_of_this_process = nested_context.is_owned_by(context.web_content_client());
+        bool ids_are_of_this_process = nested_context.is_owned_by(context.web_content_client_id());
         return ContextState::ContextUpdateResult {
             .accepted = nested_result.accepted,
             .frame_to_present = move(frame_of_this_context),
@@ -1122,7 +1190,7 @@ ContextState::ContextUpdateResult CompositorState::scroll_for_wheel_step(Web::Co
         if (!position.has_value())
             return ContextState::ContextUpdateResult::declined(Web::InputRoutingDecision::NestedContextUnavailable);
         step.position = *position;
-        auto applied_step = route_wheel_step_the_page_let_through(context_id, context, listener_context_id, *listener_context, step, {}, nullptr, now);
+        auto applied_step = route_wheel_step_the_page_let_through(context_id, context, listener_context_id, *listener_context, step, {}, {}, now);
         result = move(applied_step.result);
         result.nested_context_hand_off = Web::InputRoutingDecision::HandedToNestedContext;
         presents_frame = applied_step.presents_frame;
@@ -1153,7 +1221,7 @@ ContextState::ContextUpdateResult CompositorState::scroll_for_wheel_step(Web::Co
     return result;
 }
 
-CompositorState::AppliedWheelStep CompositorState::apply_wheel_step_result(Web::CompositorContextId context_id, ContextState& context, ContextState::ContextUpdateResult const& result, CompositorStateWebContentClient const& reporting_client)
+CompositorState::AppliedWheelStep CompositorState::apply_wheel_step_result(Web::CompositorContextId context_id, ContextState& context, ContextState::ContextUpdateResult const& result, WebContentClientId reporting_client)
 {
     apply_context_update_result(context_id, context, result);
     schedule_animation_frames_if_needed(context);
@@ -1188,7 +1256,7 @@ CompositorState::AppliedWheelStep CompositorState::hand_wheel_step_to_nested_con
         auto nested_result = nested_context->take_latched_wheel_step_from_containing_context(step, admission, now);
         if (nested_result.routing_decision == Web::InputRoutingDecision::NestedContextUnavailable)
             context.forget_wheel_gesture_latch();
-        return apply_wheel_step_result(nested_step.context_id, *nested_context, nested_result, context.web_content_client());
+        return apply_wheel_step_result(nested_step.context_id, *nested_context, nested_result, context.web_content_client_id());
     }
 
     auto first_step = first_wheel_step_in_nested_contexts(context_id, *nested_step.hit, step.delta_in_css_pixels, step.wheel_delta_precision);
@@ -1204,7 +1272,7 @@ CompositorState::AppliedWheelStep CompositorState::hand_wheel_step_to_nested_con
     if (taking_context->context && taking_context->route.kind != ContextState::FirstWheelStepRoute::Kind::Declined) {
         step.position = taking_context->position;
         auto nested_result = taking_context->context->take_first_wheel_step_from_containing_context(taking_context->route, step, now);
-        applied_step = apply_wheel_step_result(taking_context->context_id, *taking_context->context, nested_result, context.web_content_client());
+        applied_step = apply_wheel_step_result(taking_context->context_id, *taking_context->context, nested_result, context.web_content_client_id());
         context.latch_wheel_gesture_to_nested_context(taking_context->context_id, applied_step.result.routed_scroller, step.scroll_gesture_phase);
     } else {
         applied_step.result = ContextState::ContextUpdateResult::declined(taking_context->route.decision);
@@ -1256,15 +1324,15 @@ CompositorState::FirstWheelStepInNestedContexts CompositorState::first_wheel_ste
 
 // The page of one process scrolls a context of another process only by what the UI left to the page in the gesture, so
 // that a page cannot scroll the document around it at will.
-static bool page_may_scroll_in(ContextState const& context, ContextState& routing_context, CompositorStateWebContentClient const* page_client, ContextState::WheelStep const& step)
+static bool page_may_scroll_in(ContextState const& context, ContextState& routing_context, Optional<WebContentClientId> page_client, ContextState::WheelStep const& step)
 {
-    return !page_client || context.is_owned_by(*page_client) || routing_context.take_wheel_delta_left_to_the_page(step.delta_in_css_pixels);
+    return !page_client.has_value() || context.is_owned_by(*page_client) || routing_context.take_wheel_delta_left_to_the_page(step.delta_in_css_pixels);
 }
 
-CompositorState::AppliedWheelStep CompositorState::route_wheel_step_the_page_let_through(Web::CompositorContextId routing_context_id, ContextState& routing_context, Web::CompositorContextId listener_context_id, ContextState& listener_context, ContextState::WheelStep step, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, CompositorStateWebContentClient const* page_client, MonotonicTime now)
+CompositorState::AppliedWheelStep CompositorState::route_wheel_step_the_page_let_through(Web::CompositorContextId routing_context_id, ContextState& routing_context, Web::CompositorContextId listener_context_id, ContextState& listener_context, ContextState::WheelStep step, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, Optional<WebContentClientId> page_client, MonotonicTime now)
 {
     using Kind = ContextState::FirstWheelStepRoute::Kind;
-    auto const& reporting_client = page_client ? *page_client : routing_context.web_content_client();
+    auto const& reporting_client = page_client.has_value() ? *page_client : routing_context.web_content_client_id();
     auto declined = [](Web::InputRoutingDecision decision) {
         return AppliedWheelStep { .result = ContextState::ContextUpdateResult::declined(decision) };
     };
@@ -1285,7 +1353,7 @@ CompositorState::AppliedWheelStep CompositorState::route_wheel_step_the_page_let
             if (!page_may_scroll_in(*context, routing_context, page_client, step))
                 return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
             auto nested_result = context->take_first_wheel_step_from_containing_context(route, step, now);
-            auto latched_scroller = context->is_owned_by(routing_context.web_content_client()) ? nested_result.routed_scroller : Optional<Web::AsyncScrollNodeStableID> {};
+            auto latched_scroller = context->is_owned_by(routing_context.web_content_client_id()) ? nested_result.routed_scroller : Optional<Web::AsyncScrollNodeStableID> {};
             routing_context.latch_wheel_gesture_to_nested_context(context_id, latched_scroller, step.scroll_gesture_phase);
             return apply_wheel_step_result(context_id, *context, nested_result, reporting_client);
         }
@@ -1416,10 +1484,10 @@ Compositing::WheelEventAnswer CompositorState::take_wheel_event_from_main_thread
     if (routing == Compositing::WheelEventRouting::AfterDispatch)
         return { .wheel_gesture_mark = noted.wheel_gesture_mark };
     auto result = scroll_for_wheel_step(context_id, *context, event, WheelStepOrigin::MainThread, noted.is_first_wheel_event_with_delta, operation_tracking, now);
-    return wheel_event_answer_for(apply_wheel_step_result(context_id, *context, result, context->web_content_client()), noted.wheel_gesture_mark);
+    return wheel_event_answer_for(apply_wheel_step_result(context_id, *context, result, context->web_content_client_id()), noted.wheel_gesture_mark);
 }
 
-Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId listener_context_id, Compositing::WheelStepLetThrough const& let_through, Compositing::AsyncScrollOperationTracking operation_tracking, CompositorStateWebContentClient const& page_client)
+Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId listener_context_id, Compositing::WheelStepLetThrough const& let_through, Compositing::AsyncScrollOperationTracking operation_tracking, WebContentClientId page_client)
 {
     auto now = MonotonicTime::now();
     auto* listener_context = context_if_present(listener_context_id);
@@ -1472,18 +1540,18 @@ Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_l
                 routing_context->forget_wheel_latch_of_gesture(gesture_id);
                 return declined(Web::InputRoutingDecision::NestedContextUnavailable);
             }
-            if (!page_may_scroll_in(*nested_context, *routing_context, &page_client, step))
+            if (!page_may_scroll_in(*nested_context, *routing_context, page_client, step))
                 return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
             auto nested_result = nested_context->take_latched_wheel_step_from_containing_context(step, ContextState::WheelStepAdmission::LetThroughByThePage, now);
             return answer(apply_wheel_step_result(*nested_context_id, *nested_context, nested_result, page_client));
         }
-        if (!page_may_scroll_in(*routing_context, *routing_context, &page_client, step))
+        if (!page_may_scroll_in(*routing_context, *routing_context, page_client, step))
             return declined(Web::InputRoutingDecision::StepExceedsInputLeftToThePage);
         if (auto result = routing_context->scroll_for_latched_wheel_step_the_page_let_through(step, now); result.has_value())
             return answer(apply_wheel_step_result(*routing_context_id, *routing_context, *result, page_client));
     }
 
-    return answer(route_wheel_step_the_page_let_through(*routing_context_id, *routing_context, listener_context_id, *listener_context, step, scroll_chain, &page_client, now));
+    return answer(route_wheel_step_the_page_let_through(*routing_context_id, *routing_context, listener_context_id, *listener_context, step, scroll_chain, page_client, now));
 }
 
 void CompositorState::forget_wheel_gesture_the_page_canceled(Web::CompositorContextId listener_context_id, u64 gesture_id)
@@ -1529,11 +1597,9 @@ Compositing::PendingAsyncScrollUpdates CompositorState::take_pending_async_scrol
     return context->take_pending_async_scroll_updates();
 }
 
-void CompositorState::publish_pending_async_scroll_updates(Web::CompositorContextId context_id, ContextState& context)
+void CompositorState::publish_pending_async_scroll_updates(Web::CompositorContextId, ContextState& context)
 {
-    if (!context.has_pending_async_scroll_updates())
-        return;
-    context.web_content_client().async_scroll_updates(context_id, context.take_pending_async_scroll_updates());
+    context.publish_pending_async_scroll_updates();
 }
 
 void CompositorState::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
@@ -1663,7 +1729,7 @@ void CompositorState::request_rendering_opportunity(Web::CompositorContextId con
         frame_time.has_value() && context->rendering_opportunity_is_due(*frame_time, display_refresh_rate)) {
         auto frame_interval = context->rendering_opportunity_frame_interval(display_refresh_rate);
         context->did_deliver_rendering_opportunity(*frame_time);
-        context->web_content_client().rendering_opportunity(context_id, frame_time->nanoseconds(), frame_interval);
+        web_content_client_of(*context).rendering_opportunity(context_id, frame_time->nanoseconds(), frame_interval);
         return;
     }
 
@@ -1687,7 +1753,7 @@ void CompositorState::hurry_rendering_opportunity(Web::CompositorContextId conte
     auto frame_interval = context->rendering_opportunity_frame_interval(display_refresh_rate);
     auto frame_time = MonotonicTime::now();
     context->did_deliver_rendering_opportunity(frame_time);
-    context->web_content_client().rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
+    web_content_client_of(*context).rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
 }
 
 void CompositorState::present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)
@@ -1866,7 +1932,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
             if (context.rendering_opportunity_is_due(frame_time, display_refresh_rate)) {
                 auto frame_interval = context.rendering_opportunity_frame_interval(display_refresh_rate);
                 context.did_deliver_rendering_opportunity(frame_time);
-                context.web_content_client().rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
+                web_content_client_of(context).rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
             } else {
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
             }
@@ -1896,7 +1962,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
             if (context.clock_tick_is_due(frame_time, display_refresh_rate)) {
                 auto frame_interval = context.clock_tick_interval(display_refresh_rate);
                 context.did_deliver_clock_tick(frame_time);
-                context.web_content_client().clock_tick(context_id, frame_time.nanoseconds(), frame_interval, context.scroll_offsets());
+                web_content_client_of(context).clock_tick(context_id, frame_time.nanoseconds(), frame_interval, context.scroll_offsets());
             } else {
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
             }
@@ -2181,7 +2247,7 @@ Optional<Compositing::FirstWheelStepRouteForTesting> CompositorState::route_firs
     if (!taking_context.has_value())
         return context->route_first_wheel_step_for_testing(position, delta_in_css_pixels, Compositing::NestedContextRegions::Ignore);
     // Node ids are only unique within the process that made them.
-    bool ids_are_of_this_process = taking_context->context && taking_context->context->is_owned_by(context->web_content_client());
+    bool ids_are_of_this_process = taking_context->context && taking_context->context->is_owned_by(context->web_content_client_id());
     Compositing::FirstWheelStepRouteForTesting route { .route = { taking_context->route.decision }, .document_id = {} };
     if (ids_are_of_this_process) {
         route.route.scroller = taking_context->route.scroller;
