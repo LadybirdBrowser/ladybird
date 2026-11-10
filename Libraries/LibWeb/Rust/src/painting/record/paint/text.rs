@@ -601,9 +601,7 @@ fn highlight_rects<O: Observer>(
         start: span.start_code_unit,
         end: span.end_code_unit,
     };
-    text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets, || {
-        text_fragment::first_available_font(recorder.source, fragment)
-    })
+    text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets)
 }
 
 fn paint_text_shadow<O: Observer>(
@@ -807,9 +805,7 @@ fn paint_text_fragment<O: Observer>(
             start: span.start_code_unit,
             end: span.end_code_unit,
         };
-        let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets, || {
-            text_fragment::first_available_font(recorder.source, fragment)
-        });
+        let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets);
         for range_rect in &range_rects {
             let span_rect = converter.rounded_device_rect(*range_rect);
             recorder.recorder.record_clipped_to(span_rect, |recorder| {
@@ -825,9 +821,7 @@ fn paint_text_fragment<O: Observer>(
                 );
             });
         }
-        let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets, || {
-            text_fragment::first_available_font(recorder.source, fragment)
-        });
+        let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets);
         decoration_box.x = range_rect.x;
         decoration_box.width = range_rect.width;
     }

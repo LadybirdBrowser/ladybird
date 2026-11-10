@@ -2306,7 +2306,7 @@ impl<'context> InlineFormattingContext<'context> {
                                     line_builder.break_if_needed(sequence_inline_size)
                                 };
                                 if broke_line {
-                                    line_builder.set_trailing_whitespace_on_previous_line();
+                                    line_builder.set_trailing_whitespace_on_previous_line(&item);
                                     let next_line_start = fragmentation::LinePosition {
                                         item_index: item_index + 1,
                                         offset_in_node: 0,

@@ -1515,13 +1515,24 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.current_block_offset = self.current_block_offset.max(clearance);
     }
 
-    pub(crate) fn set_trailing_whitespace_on_previous_line(&mut self) {
+    /// Gives the whitespace that a line break before it dropped from the start of the current line to the end of the
+    /// previous line, where it follows on from the same text.
+    pub(crate) fn set_trailing_whitespace_on_previous_line(&mut self, whitespace: &inline_level_iterator::Item) {
         if self.line_count() < 2 {
             return;
         }
         let previous = self.line_count() - 2;
-        if let Some(fragment) = self.line_mut(previous).fragments.last_mut() {
-            fragment.has_trailing_whitespace = true;
+        if let Some(fragment) = self.line_mut(previous).fragments.last_mut()
+            && fragment.layout_node == whitespace.node
+            && fragment.start
+                + fragment.length_in_code_units
+                + fragment.trimmed_trailing_whitespace.length_in_code_units
+                == whitespace.offset_in_node
+        {
+            fragment.record.trimmed_trailing_whitespace += line_box_fragment::TrailingWhitespace {
+                length_in_code_units: whitespace.length_in_node,
+                inline_size: whitespace.inline_size,
+            };
         }
     }
 
@@ -1599,7 +1610,7 @@ impl TextLayoutBounds {
     }
 }
 
-fn font_metric_in_whole_pixels(metric: f32) -> CssPixels {
+pub(crate) fn font_metric_in_whole_pixels(metric: f32) -> CssPixels {
     CssPixels::from_integer(metric.round_ties_even() as i64)
 }
 

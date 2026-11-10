@@ -92,13 +92,14 @@ impl HitTestList {
                     crate::painting::hit_test::caret::CaretPositionType::After => {
                         // INTEROP: Fully collapsed whitespace at the end of a text run is not a caret stop.
                         //          Keep the whitespace boundary at soft wraps for upstream affinity.
-                        let end = fragment.start
-                            + fragment.length_in_code_units
-                            + fragment.trailing_whitespace_length_in_code_units;
-                        if arena
-                            .rendered_text(fragment.layout_node)
-                            .is_some_and(|rendered| end < rendered.text.len())
-                        {
+                        let end = fragment.start + fragment.length_in_code_units;
+                        let is_space_or_tab = |unit: &u16| *unit == u16::from(b' ') || *unit == u16::from(b'\t');
+                        if arena.rendered_text(fragment.layout_node).is_some_and(|rendered| {
+                            rendered
+                                .text
+                                .get(end..)
+                                .is_some_and(|rest| !rest.iter().all(is_space_or_tab))
+                        }) {
                             fragment.dom_end_offset_with_trailing_whitespace
                         } else {
                             fragment.dom_end_offset_in_node
@@ -256,7 +257,5 @@ fn fragment_caret_range_rect(
     ) else {
         return CssPixelRect::default();
     };
-    crate::painting::text_fragment::rect_for_selection_offsets(paintable_rows, fragment, offsets, || {
-        crate::painting::text_fragment::first_available_font(paintable_rows, fragment)
-    })
+    crate::painting::text_fragment::rect_for_selection_offsets(paintable_rows, fragment, offsets)
 }
