@@ -211,7 +211,6 @@ impl FfiRecordingInputs {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiCaretPaintKind {
     None,
     /// `block` paints the caret, in the fragment run owned by the self-painting inline `owner`

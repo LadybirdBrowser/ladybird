@@ -11845,40 +11845,16 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     auto position = cursor_position();
     if (!position)
         return {};
-    auto& dom_node = *position->node();
 
     update_layout(UpdateLayoutReason::InputCaretRect);
 
-    auto* layout_node = dom_node.layout_node(read);
-    if (!layout_node)
+    auto caret = Painting::caret_at_position(read, *position, Painting::viewport_mapping(*this));
+    if (!caret.found)
         return {};
-
-    // The caret rects computed here are document-relative (absolute). Platform IME overlays are positioned relative to
-    // the viewport — so translate by scroll offset and map through any containing navigables to the local page viewport.
-    auto to_viewport_rect = [this](CSSPixelRect rect) -> CSSPixelRect {
-        auto navigable = this->navigable();
-        if (!navigable)
-            return rect;
-        auto scroll = navigable->viewport_scroll_offset();
-        CSSPixelRect viewport_rect { rect.x() - scroll.x(), rect.y() - scroll.y(), rect.width(), rect.height() };
-        return navigable->to_page_rect(viewport_rect);
-    };
-
-    if (is<DOM::Text>(dom_node)) {
-        Layout::RustFFI::FfiCaretRectResult result;
-        Layout::RustFFI::layout_script_text_caret_rect_for_position(
-            layout_node->document_host(), Layout::Node::slot_id(layout_node), position->offset(), position->affinity() == TextAffinity::Downstream, &result);
-        if (result.found)
-            return to_viewport_rect(result.rect);
-    }
-
-    // Empty editable elements have no fragments; use the same child-offset position and font metrics as caret
-    // painting, including empty lines rendered by <br>.
-    if (auto* node_with_style = as_if<Layout::NodeWithStyle>(*layout_node)) {
-        if (Painting::has_committed_box(*node_with_style))
-            return to_viewport_rect(Painting::caret_rect_for_child_offset(read, *node_with_style, position->offset()));
-    }
-    return {};
+    // Map through any containing navigables to the local page viewport.
+    if (auto navigable = this->navigable())
+        return navigable->to_page_rect(caret.viewport_rect);
+    return caret.viewport_rect;
 }
 
 void Document::reset_cursor_blink_cycle()

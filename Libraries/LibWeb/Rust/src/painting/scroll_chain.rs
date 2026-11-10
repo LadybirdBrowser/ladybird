@@ -7,9 +7,10 @@
 use crate::css::css_enums::writing_mode;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor};
 use crate::painting::paintable_geometry::{absolute_padding_box_rect, has_scrollable_overflow};
 use crate::painting::paintable_rows::PaintableRowsRead;
-use crate::painting::{caret, chrome_geometry, scroll_snap};
+use crate::painting::{chrome_geometry, scroll_snap};
 
 /// The nearest box, `start` included, that keeps a scroll step by the delta to itself: neither it nor a box inside it
 /// passes the step on to a scroller around it. A step belongs to one scroller, and a touchpad rarely moves along one
@@ -65,14 +66,11 @@ pub(crate) fn scroll_target_for_text_position(
     affinity_is_downstream: bool,
     scroll_block_axis: bool,
 ) -> Option<(NodeSlotId, CssPixelPoint)> {
-    let fragments = arena.text_fragments(text);
-    let node_slots = fragments.as_slice();
-    let caret = match caret::caret_rect_for_position(arena, node_slots, offset, affinity_is_downstream) {
-        Some(caret) => caret,
-        // No fragment holds the position: the caret sits on an empty line of the block that lays the text out.
-        None => std::iter::successors(arena.node_parent_if_live(text), |&node| arena.node_parent_if_live(node))
-            .find_map(|block| caret::caret_rect_on_empty_line(arena, block, node_slots, offset))?,
-    };
+    let caret = InlineCursor::new(arena).caret_rect(CaretPosition::Text {
+        text,
+        offset,
+        downstream: affinity_is_downstream,
+    })?;
     let style = arena.node_style_if_live(caret.style_source)?;
     let horizontal = style.writing_mode() == writing_mode::HORIZONTAL_TB;
     let one = CssPixels::from_integer(1);

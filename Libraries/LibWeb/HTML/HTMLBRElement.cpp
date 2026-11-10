@@ -59,9 +59,8 @@ bool HTMLBRElement::represents_empty_line(Layout::BegunRead const& read) const
     auto const* layout_node = this->layout_node(read);
     if (!layout_node || !layout_node->containing_block())
         return false;
-    CSSPixelPoint line_position;
-    return Layout::RustFFI::layout_script_empty_line_ended_by_forced_break_position(layout_node->document_host(),
-        Layout::Node::slot_id(layout_node->containing_block()), Layout::Node::slot_id(layout_node), &line_position);
+    return Layout::RustFFI::layout_script_forced_break_ends_empty_line(layout_node->document_host(),
+        Layout::Node::slot_id(layout_node->containing_block()), Layout::Node::slot_id(layout_node));
 }
 
 }

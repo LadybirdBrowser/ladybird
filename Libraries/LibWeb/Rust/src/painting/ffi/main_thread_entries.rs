@@ -474,40 +474,6 @@ pub unsafe extern "C" fn render_state_take_recording_trace(
     true
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
-    host: &crate::render_state::DocumentHost,
-    root: NodeSlotId,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, NodeSlotId, FfiCssPixelRect),
-) {
-    let rects = {
-        read_arena(host, super::node_read(), root, |arena, root| {
-            let paintable_rows = arena.paintable_rows();
-            let mut rects = Vec::new();
-            if !paintable_rows.paintable_row_is_populated(root) {
-                return rects;
-            }
-            crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |current| {
-                for fragment in arena.committed_side_data(current).fragments() {
-                    rects.push((
-                        fragment.layout_node,
-                        crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into(),
-                    ));
-                }
-            });
-            rects
-        })
-    };
-    for (layout_node, rect) in rects {
-        // SAFETY: The consumer copies its plain-data arguments synchronously.
-        unsafe { consume(context, layout_node, rect) };
-    }
-}
-
 /// The recorder state of `host`'s document, for a recording to take, once the last recording was published.
 fn take_recorder_for_recording(
     host: &crate::render_state::DocumentHost,
