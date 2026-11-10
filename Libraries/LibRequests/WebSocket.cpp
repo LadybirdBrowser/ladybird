@@ -81,6 +81,12 @@ void WebSocket::did_receive(Badge<RequestClient>, ByteBuffer data, bool is_text)
         on_message(WebSocket::Message { move(data), is_text });
 }
 
+void WebSocket::did_transmit(Badge<RequestClient>, u64 message_byte_count)
+{
+    if (on_message_bytes_transmitted)
+        on_message_bytes_transmitted(message_byte_count);
+}
+
 void WebSocket::did_error(Badge<RequestClient>, i32 error_code)
 {
     if (on_error)

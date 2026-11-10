@@ -262,6 +262,12 @@ void RequestClient::websocket_received(u64 websocket_id, bool is_text, ByteBuffe
         (*connection)->did_receive({}, move(data), is_text);
 }
 
+void RequestClient::websocket_transmitted(u64 websocket_id, u64 message_byte_count)
+{
+    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+        (*connection)->did_transmit({}, message_byte_count);
+}
+
 void RequestClient::websocket_received_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data)
 {
     auto connection = m_websockets.get(websocket_id);

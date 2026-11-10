@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
@@ -219,6 +220,16 @@ void WebSocketImplCurl::read_from_socket()
 
 bool WebSocketImplCurl::flush_pending_write_buffer()
 {
+    // Reported once per flush, as each report becomes a message to the client.
+    size_t written = 0;
+    ScopeGuard report_written_bytes = [&] {
+        if (written == 0)
+            return;
+        add_network_usage(0, written);
+        if (on_bytes_written)
+            on_bytes_written(written);
+    };
+
     while (m_pending_write_buffer_offset < m_pending_write_buffer.size()) {
         auto pending_bytes = m_pending_write_buffer.bytes().slice(m_pending_write_buffer_offset);
 
@@ -230,10 +241,9 @@ bool WebSocketImplCurl::flush_pending_write_buffer()
         }
 
         m_pending_write_buffer_offset += sent;
-        if (sent > 0) {
-            add_network_usage(0, sent);
+        written += sent;
+        if (sent > 0)
             continue;
-        }
 
         if (result == CURLE_AGAIN) {
             if (m_write_notifier)
