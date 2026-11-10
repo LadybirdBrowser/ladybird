@@ -117,6 +117,11 @@ private:
         Optional<FixedArray<u8>> codec_configuration_of_dropped_frame;
 
         Media::TimeRanges track_buffer_ranges;
+        // The track buffer ranges with every gap of at most coalesced_ranges_gap bridged, as buffered ranges report
+        // them. They're kept up to date as frames are added, since coalescing every frame's range on each query
+        // takes as long as the track has ranges.
+        Media::TimeRanges coalesced_ranges;
+        AK::Duration coalesced_ranges_gap;
         AK::Duration maximum_frame_duration;
         size_t frames_at_maximum_duration { 0 };
         size_t total_bytes { 0 };
@@ -131,6 +136,7 @@ private:
     static AK::Duration maximum_time_range_gap(TrackData const&);
     static bool is_within_start_gap_allowance(AK::Duration timestamp, AK::Duration first_data_start);
     static Media::TimeRanges coalesced_track_buffer_ranges(TrackData const&);
+    static void recoalesce_track_buffer_ranges(TrackData&);
     static void count_frame_duration(TrackData&, AK::Duration);
     static void decrement_frames_with_maximum_duration(TrackData&, size_t count);
     static Optional<ReadonlyBytes> codec_configuration_at_position(TrackData const&, size_t run_index, size_t frame_index);
