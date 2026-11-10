@@ -1076,18 +1076,15 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
         open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(BrowsingSession& session, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
-    // The client's WebContentClient picks up this same session when it is created.
-    auto session = session_for_new_view(is_private);
-
     auto cross_process_id_allocator = allocate_cross_process_id_allocator();
     auto root_navigable_id = navigable_to_adopt.has_value() ? *navigable_to_adopt : cross_process_id_allocator.allocate();
     if (!initial_document_state_id.has_value())
         initial_document_state_id = cross_process_id_allocator.allocate();
     auto initial_document_id = cross_process_id_allocator.allocate();
 
-    auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_navigable_id));
+    auto client = TRY(WebView::launch_web_content_process(session, initial_page_id, root_navigable_id));
     TRY(Application::the().connect_web_content_to_compositor(*client));
 
     // A tab's first process creates its traversable from this entry. A process hosting a navigable of an existing tab
@@ -1227,11 +1224,6 @@ RefPtr<BrowsingSession> Application::session_for_request_server_client(int clien
     if (auto it = m_request_server_client_sessions.find(client_id); it != m_request_server_client_sessions.end())
         return it->value.strong_ref();
     return {};
-}
-
-RefPtr<BrowsingSession> Application::existing_session(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes ? the().m_private_session.strong_ref() : the().m_default_session;
 }
 
 WebDriverBrowserConnection* Application::webdriver_browser_connection()
@@ -1530,27 +1522,27 @@ ErrorOr<NonnullRefPtr<WebContentPage>> Application::open_page_for_new_tab(IsPriv
 
     RefPtr<WebContentClient> web_content_client;
     if (is_private == IsPrivate::Yes) {
-        web_content_client = TRY(create_web_content_client(IsPrivate::Yes, allocate_page_id()));
+        web_content_client = TRY(create_web_content_client(session_for_new_view(IsPrivate::Yes), allocate_page_id()));
     } else if (m_spare_web_content_process) {
         web_content_client = m_spare_web_content_process.release_nonnull();
         launch_spare_web_content_process();
     } else {
         launch_spare_web_content_process();
-        web_content_client = TRY(create_web_content_client(IsPrivate::No, allocate_page_id()));
+        web_content_client = TRY(create_web_content_client(default_session(), allocate_page_id()));
     }
     return web_content_client->open_initial_page_for_new_top_level_traversable();
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process_without_page(IsPrivate is_private)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process_without_page(BrowsingSession& session)
 {
-    return create_web_content_client(is_private, allocate_page_id());
+    return create_web_content_client(session, allocate_page_id());
 }
 
 ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     auto page_id = allocate_page_id();
     auto initial_document_state_id = initial_history_entry.document_state.id;
-    auto client = TRY(create_web_content_client(is_private, page_id, root_navigable_id, initial_document_state_id, move(remote_navigables), move(initial_history_entry), system_visibility_state));
+    auto client = TRY(create_web_content_client(session_for_new_view(is_private), page_id, root_navigable_id, initial_document_state_id, move(remote_navigables), move(initial_history_entry), system_visibility_state));
     return ChildFrameWebContentProcess {
         .client = move(client),
         .page_id = page_id,
@@ -1578,7 +1570,7 @@ void Application::launch_spare_web_content_process()
     Core::deferred_invoke([this]() {
         m_has_queued_task_to_launch_spare_web_content_process = false;
 
-        auto web_content_client = create_web_content_client(IsPrivate::No, allocate_page_id());
+        auto web_content_client = create_web_content_client(default_session(), allocate_page_id());
         if (web_content_client.is_error()) {
             dbgln("Unable to create spare web content client: {}", web_content_client.error());
             return;

@@ -199,8 +199,6 @@ public:
 
     static NonnullRefPtr<BrowsingSession> session_for_new_view(IsPrivate);
 
-    static RefPtr<BrowsingSession> existing_session(IsPrivate);
-
     // Whether the windows and tabs of this run are kept for the next one. A headless run, a browser that WebDriver drives,
     // and one that logs process statistics never join a browser already running on their profile, so they keep none.
     bool persists_sessions() const { return m_persists_sessions; }
@@ -238,7 +236,7 @@ public:
         Web::PageId page_id { 0 };
     };
     // For what may share a process with no page. It ends once nothing keeps it.
-    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process_without_page(IsPrivate);
+    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process_without_page(BrowsingSession&);
     ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state);
     Web::PageId allocate_page_id();
     Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();
@@ -419,7 +417,7 @@ private:
     ErrorOr<void> create_profile(Optional<StringView> profile_name, Optional<StringView> profile_path, bool force_new_process, bool temporary_profile);
     void create_mach_port_server(ByteString const& profile_identity);
     void update_website_color_scheme();
-    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(IsPrivate, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables = {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry = {}, Web::HTML::VisibilityState system_visibility_state = Web::HTML::VisibilityState::Hidden);
+    ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(BrowsingSession&, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables = {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry = {}, Web::HTML::VisibilityState system_visibility_state = Web::HTML::VisibilityState::Hidden);
 
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();

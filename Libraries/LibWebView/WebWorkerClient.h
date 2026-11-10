@@ -34,7 +34,7 @@ class WEBVIEW_API WebWorkerClient final
     C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
-    WebWorkerClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Web::HTML::WorkerAgentId agent_id);
+    WebWorkerClient(NonnullOwnPtr<IPC::Transport>, BrowsingSession&, Web::HTML::WorkerAgentId agent_id);
     ~WebWorkerClient();
 
     RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }

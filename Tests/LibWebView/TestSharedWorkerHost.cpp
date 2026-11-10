@@ -402,6 +402,30 @@ static void cross_origin_isolated_owner_gets_a_process_without_a_page_for_its_wo
     browser.expect_clean_exit(*host_pid);
 }
 
+static void process_without_a_page_for_a_worker_has_the_session_of_its_owner(Browser& browser)
+{
+    auto tab = browser.open(browser.server().url("127.0.0.1"sv, "/isolated-page?name=isolated-private&script=/isolated-worker.js"sv), WebView::IsPrivate::Yes);
+    auto& session = tab->page().client().session();
+
+    // The page starts another worker once the private session it belongs to has been restarted.
+    WebView::Application::the().reset_private_browsing_session();
+    tab->run_javascript("window.laterWorker = new SharedWorker('/isolated-worker.js', { name: 'isolated-private-later' });"_string);
+    Core::EventLoop::current().spin_until([] { return worker_count() == 2; });
+
+    size_t host_count = 0;
+    WebView::WebContentClient::for_each_client([&](WebView::WebContentClient& client) {
+        if (WebView::WorkerAgentManager::the().hosts_shared_worker(client)) {
+            EXPECT_EQ(&client.session(), &session);
+            ++host_count;
+        }
+        return IterationDecision::Continue;
+    });
+    EXPECT_EQ(host_count, 2u);
+
+    browser.close(move(tab));
+    browser.wait_for_no_workers();
+}
+
 TEST_CASE(shared_worker_host)
 {
     Test::HeadlessTestEnvironment environment { "TestSharedWorkerHost"sv, 120 };
@@ -416,6 +440,7 @@ TEST_CASE(shared_worker_host)
     same_url_stays_apart_in_private_and_normal_sessions(browser);
     cross_site_pages_never_share_a_process(browser);
     cross_origin_isolated_owner_gets_a_process_without_a_page_for_its_worker(browser);
+    process_without_a_page_for_a_worker_has_the_session_of_its_owner(browser);
     extended_lifetime_ends_with_the_private_session(browser);
     extended_lifetime_outlives_the_last_tab(browser);
 }
