@@ -57,12 +57,13 @@ namespace Gfx {
     C(HighlightSearchingText)      \
     C(HoverHighlight)              \
     C(InactiveSelection)           \
-    C(InactiveSelectionText)       \
     C(InactiveWindowBorder1)       \
     C(InactiveWindowBorder2)       \
     C(InactiveWindowTitle)         \
     C(InactiveWindowTitleShadow)   \
     C(InactiveWindowTitleStripes)  \
+    C(LightSelection)              \
+    C(DarkSelection)               \
     C(Link)                        \
     C(Magenta)                     \
     C(MenuBase)                    \
