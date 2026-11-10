@@ -81,15 +81,12 @@ function renderSearchEngines() {
             setSearchEngine(null);
         });
 
-        const letter = document.createElement("span");
-        letter.className = "letter-tile";
-        letter.setAttribute("aria-hidden", "true");
-        letter.textContent = name.charAt(0).toUpperCase();
-
+        // NB: Engines are shown by name only. Logos would mean shipping other companies' trademarks, or contacting
+        //     their servers before anyone has chosen.
         const label = document.createElement("span");
         label.textContent = name;
 
-        tile.append(radio, letter, label);
+        tile.append(radio, label);
         searchEngines.append(tile);
     }
 }
