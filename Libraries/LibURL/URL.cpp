@@ -148,6 +148,7 @@ FFI::RustUrl URL::to_rust() const
     return {
         .serialization = { m_serialization.bytes().data(), m_serialization.bytes().size() },
         .components = m_components,
+        .blob_url_entry = m_blob_url_entry.ptr(),
     };
 }
 
@@ -155,6 +156,20 @@ void URL::set_from_rust(FFI::RustUrl const& rust_url)
 {
     m_serialization = String::from_ascii_without_validation({ rust_url.serialization.data, rust_url.serialization.length });
     m_components = rust_url.components;
+    m_blob_url_entry = static_cast<BlobURLEntryStorage const*>(rust_url.blob_url_entry);
+}
+
+extern "C" void url_rust_blob_url_entry_ref(void const* entry);
+extern "C" void url_rust_blob_url_entry_unref(void const* entry);
+
+extern "C" void url_rust_blob_url_entry_ref(void const* entry)
+{
+    static_cast<URL::BlobURLEntryStorage const*>(entry)->ref();
+}
+
+extern "C" void url_rust_blob_url_entry_unref(void const* entry)
+{
+    static_cast<URL::BlobURLEntryStorage const*>(entry)->unref();
 }
 
 void URL::set_from_rust_callback(void* url, FFI::RustUrl const* rust_url)

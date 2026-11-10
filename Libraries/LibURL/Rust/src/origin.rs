@@ -208,7 +208,7 @@ impl Origin {
     }
 }
 
-impl<Serialization: AsRef<str>> Url<Serialization> {
+impl<Serialization: AsRef<str>, BlobUrlEntrySlot> Url<Serialization, BlobUrlEntrySlot> {
     fn host(&self) -> Host {
         Host {
             kind: self.host_kind(),

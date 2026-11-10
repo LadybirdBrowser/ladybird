@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+mod blob_url_entry;
 pub mod form_urlencoded;
 mod host;
 mod input;
@@ -13,6 +14,7 @@ mod scheme;
 mod serialize;
 mod types;
 
+pub use self::blob_url_entry::BlobUrlEntry;
 pub(crate) use self::host::parse_host_into;
 pub use self::input::UrlInput;
 pub use self::percent_encoding::percent_decode_bytes;
