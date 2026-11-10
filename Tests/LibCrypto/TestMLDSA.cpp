@@ -59,6 +59,7 @@ TEST_CASE(expanded_key)
 
     EXPECT(parsed.private_key.seed().is_empty());
     EXPECT_EQ(parsed.private_key.private_key(), key_pair.private_key.private_key());
+    EXPECT(parsed.private_key.export_as_der().is_error());
 }
 
 TEST_CASE(expanded_key_in_a_constructed_octet_string)
