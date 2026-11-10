@@ -2430,8 +2430,7 @@ impl RegExpPrototype {
                 && !sticky
                 && let Some(compiled_regex) = get_or_compile_regex(&typed_regexp)
             {
-                let string_data = string.utf16_string();
-                let utf16_view = Utf16View::of_string(&string_data);
+                let utf16_view = string.utf16_string_view();
 
                 if !typed_regexp.legacy_features_enabled() {
                     // Fastest path: just test, no captures or legacy props.
