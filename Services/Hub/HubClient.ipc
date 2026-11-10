@@ -205,7 +205,7 @@ struct Hub::ViewState {
     Optional<ByteString> crash_report_name;
     Optional<String> crash_report_website;
     double zoom_level;
-    String force_dark_host;
+    String host_for_settings;
     i32 web_content_pid;
     bool can_report_website_issue;
     bool can_undo;

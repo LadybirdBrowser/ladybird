@@ -1,19 +1,101 @@
+import { registerDialogDeepLink } from "./dialog-deep-link.js";
+
 const defaultZoomLevel = document.querySelector("#default-zoom-level");
 const enableForceDark = document.querySelector("#enable-force-dark");
-const forceDarkSites = document.querySelector("#force-dark-sites");
+const hostSettings = document.querySelector("#host-settings");
+const hostSettingsTitle = document.querySelector("#host-settings-title");
+const hostSettingsList = document.querySelector("#host-settings-list");
+const hostSettingsResetAll = document.querySelector("#host-settings-reset-all");
+
+const HOST_SETTINGS = {
+    "force-dark": {
+        title: "Force dark mode overrides",
+        key: "forceDarkPerHost",
+        format: enabled => (enabled ? "On" : "Off"),
+    },
+    zoom: {
+        title: "Page zoom overrides",
+        key: "zoomPerHost",
+        format: factor => `${Math.round(factor * 100)}%`,
+    },
+};
 
 let CONTENT = {};
-let forceDarkSitesReadOnly = false;
+let CURRENT_HOST_SETTING = null;
+
+function renderHostSettings() {
+    const { key, format } = HOST_SETTINGS[CURRENT_HOST_SETTING];
+    const overrides = Object.entries(CONTENT[key] ?? {}).sort(([a], [b]) => a.localeCompare(b));
+    hostSettingsList.replaceChildren();
+    hostSettingsResetAll.disabled = overrides.length === 0;
+
+    if (overrides.length === 0) {
+        const placeholder = document.createElement("div");
+        placeholder.className = "dialog-list-item-placeholder";
+        placeholder.textContent = "No site overrides";
+        hostSettingsList.appendChild(placeholder);
+    }
+
+    for (const [host, value] of overrides) {
+        const row = document.createElement("div");
+        row.className = "dialog-list-item";
+        row.dataset.host = host;
+
+        const label = document.createElement("span");
+        label.className = "dialog-list-item-label";
+        label.textContent = host;
+
+        const savedValue = document.createElement("span");
+        savedValue.className = "dialog-list-item-value";
+        savedValue.textContent = format(value);
+
+        const reset = document.createElement("button");
+        reset.className = "secondary-button";
+        reset.textContent = "Use default";
+        reset.setAttribute("aria-label", `Use default for ${host}`);
+        reset.addEventListener("click", () => {
+            ladybird.sendMessage("resetHostSetting", { setting: CURRENT_HOST_SETTING, host });
+        });
+        row.append(label, savedValue, reset);
+        hostSettingsList.appendChild(row);
+    }
+}
+
+for (const [setting, { title }] of Object.entries(HOST_SETTINGS)) {
+    registerDialogDeepLink({
+        hash: setting,
+        tab: "appearance",
+        dialog: hostSettings,
+        onOpen: () => {
+            CURRENT_HOST_SETTING = setting;
+            hostSettingsTitle.textContent = title;
+            renderHostSettings();
+        },
+    });
+
+    document.querySelector(`#${setting}-settings`).addEventListener("click", () => {
+        location.hash = setting;
+    });
+}
+
+document.querySelector("#host-settings-close").addEventListener("click", () => {
+    hostSettings.close();
+});
+
+hostSettingsResetAll.addEventListener("click", () => {
+    ladybird.sendMessage("resetHostSetting", { setting: CURRENT_HOST_SETTING });
+});
 
 const loadSettings = settings => {
-    if (Object.hasOwn(settings, "forceDarkSitesReadOnly")) {
-        forceDarkSitesReadOnly = settings.forceDarkSitesReadOnly;
-    }
     if (!Object.hasOwn(settings, "content")) {
         return;
     }
 
     CONTENT = settings.content || {};
+
+    for (const [setting, { key }] of Object.entries(HOST_SETTINGS)) {
+        document.querySelector(`#${setting}-settings`).hidden = Object.keys(CONTENT[key] ?? {}).length === 0;
+    }
 
     const snapped = snapToClosestFactor(CONTENT.defaultZoomLevelFactor);
     if (snapped !== null) {
@@ -23,23 +105,8 @@ const loadSettings = settings => {
     }
 
     enableForceDark.checked = !!CONTENT.enableForceDark;
-    forceDarkSites.replaceChildren();
-    const choices = Object.entries(CONTENT.forceDarkPerHost || {}).sort(([a], [b]) => a.localeCompare(b));
-    forceDarkSites.hidden = choices.length === 0;
-    for (const [host, enabled] of choices) {
-        const row = document.createElement("div");
-        row.className = "dialog-list-item";
-        row.dataset.host = host;
-        const label = document.createElement("span");
-        label.className = "dialog-list-item-label";
-        label.textContent = `${host}: ${enabled ? "On" : "Off"}`;
-        const reset = document.createElement("button");
-        reset.textContent = "Use default";
-        reset.disabled = forceDarkSitesReadOnly;
-        reset.setAttribute("aria-label", `Use default force-dark setting for ${host}`);
-        reset.addEventListener("click", () => ladybird.sendMessage("resetForceDarkForHost", host));
-        row.append(label, reset);
-        forceDarkSites.appendChild(row);
+    if (hostSettings.open) {
+        renderHostSettings();
     }
 };
 

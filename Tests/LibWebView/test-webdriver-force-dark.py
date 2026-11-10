@@ -203,12 +203,16 @@ def run_test(default):
             status, _, raw = command("POST", "url", {"url": "about:settings"})
             assert status == 200, raw
             wait_for_page("about:settings")
-            wait_for_condition("return document.querySelector('#force-dark-sites button') !== null")
-            assert evaluate(
-                "return document.querySelector('#force-dark-sites').textContent.includes('localhost: ' + "
-                + ("'Off'" if default else "'On'")
-                + ")"
+            evaluate("document.querySelector('#force-dark-settings').click()")
+            wait_for_condition(
+                "return document.querySelector('#host-settings').open && document.querySelector('#host-settings-list button') !== null"
             )
+            assert evaluate(
+                "return document.querySelector('#host-settings-list [data-host=localhost] .dialog-list-item-value').textContent === "
+                + ("'Off'" if default else "'On'")
+            )
+            evaluate("document.querySelector('#host-settings-close').click()")
+            wait_for_condition("return !document.querySelector('#host-settings').open")
             evaluate("document.querySelector('#enable-force-dark').click()")
             wait_for_condition(
                 "return document.querySelector('#enable-force-dark').checked === " + str(not default).lower()
@@ -220,8 +224,12 @@ def run_test(default):
             wait_for_condition(
                 "return document.querySelector('#enable-force-dark').checked === " + str(default).lower()
             )
-            evaluate("document.querySelector('#force-dark-sites button').click()")
-            wait_for_condition("return document.querySelector('#force-dark-sites button') === null")
+            evaluate("document.querySelector('#force-dark-settings').click()")
+            wait_for_condition(
+                "return document.querySelector('#host-settings').open && document.querySelector('#host-settings-list button') !== null"
+            )
+            evaluate("document.querySelector('#host-settings-list button').click()")
+            wait_for_condition("return document.querySelector('#host-settings-list button') === null")
             switch_to(site_handle)
             wait_for_condition("return matchMedia('(prefers-color-scheme: dark)').matches === " + str(default).lower())
             assert_force_dark("Reset updates an already-open page", default, check_initial=False)
