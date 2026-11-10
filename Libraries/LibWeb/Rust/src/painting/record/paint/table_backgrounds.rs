@@ -76,7 +76,7 @@ pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecor
 }
 
 /// The cells that originate in a table row, row group, column or column group, in paint order.
-fn originating_cells(arena: &impl PaintRead, part: NodeSlotId) -> Vec<NodeSlotId> {
+pub(crate) fn originating_cells(arena: &impl PaintRead, part: NodeSlotId) -> Vec<NodeSlotId> {
     let mut cells = Vec::new();
     let display = style_queries::display(arena, part);
     if display.is_table_row() {

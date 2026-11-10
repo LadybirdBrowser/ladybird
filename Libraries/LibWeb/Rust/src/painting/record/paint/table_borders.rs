@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_enums::line_style;
-use crate::css::css_pixels::CssPixels;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::table_formatting_context;
 use crate::layout::used_values::{collapsed_border_part_after_line, collapsed_border_part_before_line};
@@ -184,6 +185,38 @@ fn paint_edge<O: Observer>(recorder: &mut PaintRecorder<'_, O>, rect: IntRect, e
     recorder.recorder.fill_rect(rect, edge.color, ForceDarkRole::Border);
 }
 
+pub(crate) fn collapsed_table_borders_bounds_and_grid_lines(
+    arena: &impl GeometryRead,
+    table_paintable: NodeSlotId,
+) -> Option<(CssPixelRect, Vec<CssPixels>, Vec<CssPixels>)> {
+    let borders = crate::painting::paintable_geometry::committed_collapsed_table_borders(arena, table_paintable)?;
+    if borders.column_offsets.len() < 2 || borders.row_offsets.len() < 2 {
+        return None;
+    }
+    // The grid lines, in CSS pixels: each border is centered on its grid line and its rectangle is only snapped to
+    // device pixels once its extent is known (see device_rect).
+    let origin = crate::painting::paintable_geometry::absolute_rect(arena, table_paintable).location();
+    let xs: Vec<CssPixels> = borders.column_offsets.iter().map(|offset| origin.x + *offset).collect();
+    let ys: Vec<CssPixels> = borders.row_offsets.iter().map(|offset| origin.y + *offset).collect();
+    let widest_border = borders
+        .horizontal_edges
+        .iter()
+        .chain(&borders.vertical_edges)
+        .map(|edge| edge.border_data.width)
+        .max()
+        .unwrap_or_default();
+    // Dotted and dashed borders stroke along the edge of their rect, so allow more than the half-width on each
+    // side of a grid line that a filled border occupies.
+    let reach = widest_border + widest_border;
+    let bounds = CssPixelRect::new(
+        xs[0] - reach,
+        ys[0] - reach,
+        xs[xs.len() - 1] - xs[0] + reach + reach,
+        ys[ys.len() - 1] - ys[0] + reach + reach,
+    );
+    Some((bounds, xs, ys))
+}
+
 pub(crate) fn paint_table_borders<O: Observer>(recorder: &mut PaintRecorder<'_, O>, table_paintable: NodeSlotId) {
     // Painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
@@ -204,11 +237,9 @@ pub(crate) fn paint_table_borders<O: Observer>(recorder: &mut PaintRecorder<'_, 
     debug_assert_eq!(borders.horizontal_edges.len(), (rows + 1) * columns);
     debug_assert_eq!(borders.vertical_edges.len(), (columns + 1) * rows);
 
-    // The grid lines, in CSS pixels: each border is centered on its grid line and its rectangle is only snapped to
-    // device pixels once its extent is known (see device_rect).
-    let origin = crate::painting::paintable_geometry::absolute_rect(recorder.source, table_paintable).location();
-    let xs: Vec<CssPixels> = borders.column_offsets.iter().map(|offset| origin.x + *offset).collect();
-    let ys: Vec<CssPixels> = borders.row_offsets.iter().map(|offset| origin.y + *offset).collect();
+    let Some((_, xs, ys)) = collapsed_table_borders_bounds_and_grid_lines(recorder.source, table_paintable) else {
+        return;
+    };
     let horizontal_edges: Vec<Edge> = borders.horizontal_edges.iter().map(|edge| Edge::from(*edge)).collect();
     let vertical_edges: Vec<Edge> = borders.vertical_edges.iter().map(|edge| Edge::from(*edge)).collect();
     let no_edge = Edge::default();

@@ -8,7 +8,7 @@ use crate::css::style_value::BorderImageSlicePayload;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
-use crate::css::computed_value_views::LengthPercentageRef;
+use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums::border_image_repeat;
 use crate::css::css_pixels::{CssPixelFraction, CssPixels};
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
@@ -517,21 +517,32 @@ fn sides_present(present_edges: u8) -> [bool; 4] {
     [PIECE_EDGE_TOP, PIECE_EDGE_RIGHT, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT].map(|edge| present_edges & edge != 0)
 }
 
+pub(crate) fn border_image_outsets(
+    style: ComputedValuesView<'_>,
+    border_widths: [CssPixels; 4],
+    present_edges: u8,
+) -> [CssPixels; 4] {
+    let outset_value = style_queries::handle_value(&style.border().border_image_outset)
+        .expect("computed border-image-outset lost its style value");
+    let outset_items = component_items(outset_value);
+    let side_is_present = sides_present(present_edges);
+    std::array::from_fn(|side| {
+        if side_is_present[side] {
+            resolve_outset_px(outset_items[side % outset_items.len()], border_widths[side])
+        } else {
+            CssPixels::default()
+        }
+    })
+}
+
 // https://drafts.csswg.org/css-backgrounds-3/#border-image-area
 fn border_image_area(
-    outset_items: &[&StyleValueData],
+    style: ComputedValuesView<'_>,
     border_box_rect: CssPixelRect,
     border_width: [CssPixels; 4],
     present_edges: u8,
 ) -> CssPixelRect {
-    let side_is_present = sides_present(present_edges);
-    let resolved_outset: [CssPixels; 4] = std::array::from_fn(|side| {
-        if side_is_present[side] {
-            resolve_outset_px(outset_items[side % outset_items.len()], border_width[side])
-        } else {
-            CssPixels::default()
-        }
-    });
+    let resolved_outset = border_image_outsets(style, border_width, present_edges);
     let mut border_image_rect = border_box_rect;
     border_image_rect.inflate(
         resolved_outset[0],
@@ -666,8 +677,6 @@ pub(crate) fn paint_border_image<O: Observer>(
     };
     let width_value = style_queries::handle_value(&border.border_image_width)
         .expect("computed border-image-width lost its style value");
-    let outset_value = style_queries::handle_value(&border.border_image_outset)
-        .expect("computed border-image-outset lost its style value");
     let repeat_value = style_queries::handle_value(&border.border_image_repeat)
         .expect("computed border-image-repeat lost its style value");
     let repeat_items = component_items(repeat_value);
@@ -680,12 +689,7 @@ pub(crate) fn paint_border_image<O: Observer>(
     let repeat_x = repeat_keyword(repeat_items[0]);
     let repeat_y = repeat_keyword(repeat_items[1 % repeat_items.len()]);
 
-    let border_image_rect = border_image_area(
-        &component_items(outset_value),
-        border_box_rect,
-        css_border_widths,
-        present_edges,
-    );
+    let border_image_rect = border_image_area(style, border_box_rect, css_border_widths, present_edges);
     let (content, source_size) = if is_gradient {
         // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
         // Gradients have no natural size, so their concrete size is the border image area.

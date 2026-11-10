@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::computed_value_views::ComputedValuesView;
@@ -28,12 +28,7 @@ pub(crate) fn paint_column_rules<O: Observer>(recorder: &mut PaintRecorder<'_, O
     let Some(style) = recorder.source.node_style_if_live(paintable) else {
         return;
     };
-    let Some(data) = paintable_geometry::committed_multicol_layout_data(recorder.source, paintable) else {
-        return;
-    };
-    let content_box = paintable_geometry::absolute_rect(recorder.source, paintable);
     let rule_width = style.column_rule_width();
-    let is_right_to_left = style.direction() == direction::RTL;
     let converter = recorder.converter;
     let borders_data = BordersDataDevicePixels {
         left: border_side(
@@ -50,21 +45,39 @@ pub(crate) fn paint_column_rules<O: Observer>(recorder: &mut PaintRecorder<'_, O
         force_dark_role: ForceDarkRole::Border,
         ..BordersDataDevicePixels::default()
     };
+    for rule_rect in column_rule_rects(recorder.source, paintable, style) {
+        paint_all_borders(
+            &mut recorder.recorder,
+            converter.rounded_device_rect(rule_rect),
+            CornerRadii::default(),
+            &borders_data,
+        );
+    }
+}
+
+/// The rules between the columns of each row of a multi-column container, in absolute CSS pixels.
+pub(crate) fn column_rule_rects(
+    arena: &impl GeometryRead,
+    paintable: NodeSlotId,
+    style: ComputedValuesView<'_>,
+) -> Vec<CssPixelRect> {
+    let Some(data) = paintable_geometry::committed_multicol_layout_data(arena, paintable) else {
+        return Vec::new();
+    };
+    let content_box = paintable_geometry::absolute_rect(arena, paintable);
+    let rule_width = style.column_rule_width();
+    let is_right_to_left = style.direction() == direction::RTL;
+    let mut rects = Vec::new();
     for row in &data.rows {
         for gap_index in 0..row.column_count.saturating_sub(1) {
             let gap_center = data.geometry.gap_center(gap_index, content_box.width, is_right_to_left);
-            let rule_rect = CssPixelRect::new(
+            rects.push(CssPixelRect::new(
                 content_box.x + gap_center - rule_width / 2usize,
                 content_box.y + row.block_offset,
                 rule_width,
                 row.block_size,
-            );
-            paint_all_borders(
-                &mut recorder.recorder,
-                converter.rounded_device_rect(rule_rect),
-                CornerRadii::default(),
-                &borders_data,
-            );
+            ));
         }
     }
+    rects
 }
