@@ -14,8 +14,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/ClientConnection.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/AsyncScrollTree.h>
-#include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Scrolling/RecordedDisplayListScrolling.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZone.h>
@@ -1081,7 +1080,7 @@ GC::Ref<JS::Object> Internals::compositor_scroll_state(GC::Ptr<DOM::Element> scr
         scroll_state = navigable->compositor_context().scroll_state_for_testing(stretched_scroller);
     auto report = JsonValue::from_string(scroll_state);
     if (report.is_error() || !report.value().is_object())
-        return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json({}));
+        report = JsonValue::from_string(Compositing::async_scrolling_state_as_json(nullptr));
     return scrolling_state_report_to_object(window(), report.value().as_object());
 }
 
@@ -1697,60 +1696,30 @@ GC::Ref<JS::Object> Internals::compositor_wheel_target_at(double x, double y, do
     return first_wheel_step_route_to_object(result.value_or({ .route = { InputRoutingDecision::NoAnswerFromCompositor }, .document_id = {} }));
 }
 
-namespace {
-
-struct RecordedScrollTree {
-    Compositing::AsyncScrollTree scroll_tree;
-    Compositing::AccumulatedVisualContextTree visual_context_tree;
-    Compositing::WheelRoutingAdmission admission;
-};
-
-}
-
-// The scroll tree of the display list the document last recorded, as the compositor builds it once the list reaches it.
-static Optional<RecordedScrollTree> recorded_scroll_tree_of(DOM::Document& document, Layout::BegunRead const& read)
-{
-    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
-    if (!display_list)
-        return {};
-    RecordedScrollTree recorded {
-        .scroll_tree = {},
-        .visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document),
-        .admission = {},
-    };
-    auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*display_list);
-    recorded.admission = Compositing::wheel_routing_admission_for(async_scrolling_state, document.wheel_event_listener_state_generation());
-    recorded.scroll_tree.set_state(move(async_scrolling_state));
-    recorded.scroll_tree.rebuild_wheel_hit_test_targets(display_list, &recorded.visual_context_tree, document.scroll_state_snapshot());
-    return recorded;
-}
-
 GC::Ref<JS::Object> Internals::recorded_display_list_wheel_target_at(double x, double y, double delta_x, double delta_y)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto recorded = recorded_scroll_tree_of(window().associated_document(), read);
-    if (!recorded.has_value())
+    auto& document = window().associated_document();
+    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
+    if (!display_list)
         return first_wheel_step_route_to_object({ .route = { InputRoutingDecision::NoAsyncScrollingState }, .document_id = {} });
-    auto const& scroll_tree = recorded->scroll_tree;
-
+    auto visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document);
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    auto delta = Gfx::FloatPoint { static_cast<float>(delta_x), static_cast<float>(delta_y) }.scaled(static_cast<float>(scroll_tree.device_pixels_per_css_pixel()));
-    return first_wheel_step_route_to_object({
-        .route = scroll_tree.route_first_wheel_step(recorded->admission, recorded->visual_context_tree, position, delta),
-        .document_id = scroll_tree.document_id(),
-    });
+    return first_wheel_step_route_to_object(Compositing::route_first_wheel_step_through_recorded_display_list(*display_list, visual_context_tree, document.scroll_state_snapshot(), document.wheel_event_listener_state_generation(), position, { static_cast<float>(delta_x), static_cast<float>(delta_y) }));
 }
 
 bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto recorded = recorded_scroll_tree_of(window().associated_document(), read);
-    if (!recorded.has_value())
+    auto& document = window().associated_document();
+    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
+    if (!display_list)
         return false;
+    auto visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document);
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    return recorded->scroll_tree.blocks_wheel_event_at_position(recorded->visual_context_tree, position);
+    return Compositing::recorded_display_list_blocks_wheel_event_at(*display_list, visual_context_tree, document.scroll_state_snapshot(), position);
 }
 
 void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
@@ -4071,8 +4040,8 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
 {
     auto* display_list = window().associated_document().paint_state().display_list_used_as_paint_command_cache_source();
-    auto state = display_list ? Compositing::async_scrolling_state_from_display_list(*display_list) : Compositing::AsyncScrollingState {};
-    return scrolling_state_report_to_object(window(), Compositing::async_scrolling_state_to_json(state));
+    auto report = MUST(JsonValue::from_string(Compositing::async_scrolling_state_as_json(display_list)));
+    return scrolling_state_report_to_object(window(), report.as_object());
 }
 
 }

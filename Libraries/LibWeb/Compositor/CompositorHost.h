@@ -16,7 +16,6 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/Bitmap.h>

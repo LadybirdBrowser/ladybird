@@ -88,16 +88,6 @@ ByteBuffer AccumulatedVisualContextTree::serialize_to_bytes() const
     return bytes;
 }
 
-size_t AccumulatedVisualContextTree::spatial_node_count() const
-{
-    return Compositing::RustFFI::visual_context_tree_spatial_node_count(m_rust_tree);
-}
-
-bool AccumulatedVisualContextTree::context_is_valid(ContextRef context) const
-{
-    return Compositing::RustFFI::visual_context_tree_context_is_valid(m_rust_tree, context);
-}
-
 size_t AccumulatedVisualContextTree::node_count() const
 {
     return Compositing::RustFFI::visual_context_tree_node_count(m_rust_tree);
@@ -108,32 +98,9 @@ size_t AccumulatedVisualContextTree::live_node_count() const
     return Compositing::RustFFI::visual_context_tree_live_node_count(m_rust_tree);
 }
 
-TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() const
-{
-    TransformWithOrigin transform;
-    Compositing::RustFFI::visual_context_tree_visual_viewport_transform(m_rust_tree, &transform);
-    return transform;
-}
-
-AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_viewport_transform(TransformWithOrigin const& transform) const
-{
-    return adopt_rust_handle(Compositing::RustFFI::visual_context_tree_with_visual_viewport_transform(m_rust_tree, transform));
-}
-
 bool AccumulatedVisualContextTree::has_visual_animations() const
 {
     return Compositing::RustFFI::visual_context_tree_has_visual_animations(m_rust_tree);
-}
-
-bool AccumulatedVisualContextTree::has_active_visual_animation_at(i64 monotonic_time_ns) const
-{
-    return Compositing::RustFFI::visual_context_tree_has_active_visual_animation_at(m_rust_tree, monotonic_time_ns);
-}
-
-bool AccumulatedVisualContextTree::running_transform_animation_covers_point(i64 monotonic_time_ns, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
-{
-    auto scroll_offsets = scroll_state.device_offsets();
-    return Compositing::RustFFI::visual_context_tree_running_transform_animation_covers_point(m_rust_tree, monotonic_time_ns, screen_point, scroll_offsets.data(), scroll_offsets.size());
 }
 
 VisualAnimationSummary AccumulatedVisualContextTree::visual_animation_summary() const
@@ -145,14 +112,6 @@ VisualAnimationSummary AccumulatedVisualContextTree::visual_animation_summary() 
         .share_timing_anchor = summary.share_timing_anchor,
         .targets_are_valid = summary.targets_are_valid,
     };
-}
-
-Vector<bool> AccumulatedVisualContextTree::spatial_nodes_in_subtrees_of_transform_animations() const
-{
-    Vector<bool> in_subtree;
-    in_subtree.resize(spatial_node_count());
-    Compositing::RustFFI::visual_context_tree_mark_spatial_subtrees_of_transform_animations(m_rust_tree, in_subtree.data(), in_subtree.size());
-    return in_subtree;
 }
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation_samples(i64 monotonic_time_ns) const
@@ -173,24 +132,11 @@ bool AccumulatedVisualContextTree::translations_snap_to_device_pixels(SpatialNod
     return Compositing::RustFFI::world_transforms_translations_snap_to_device_pixels(scroll_state.world_transforms(*this), spatial_node_index);
 }
 
-Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
-{
-    Gfx::FloatPoint local_point;
-    if (!Compositing::RustFFI::visual_context_tree_transform_point_for_hit_test(m_rust_tree, scroll_state.world_transforms(*this), context, screen_point, clip_behavior == ClipBehavior::Respect, &local_point))
-        return {};
-    return local_point;
-}
-
-Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialNodeIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
-{
-    Gfx::FloatRect rect;
-    Compositing::RustFFI::world_transforms_transform_rect_to_viewport(scroll_state.world_transforms(*this), index, source_rect, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes, &rect);
-    return rect;
-}
-
 Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
-    return Compositing::RustFFI::world_transforms_accumulated_matrix(scroll_state.world_transforms(*this), index, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
+    Gfx::FloatMatrix4x4 matrix;
+    Compositing::RustFFI::world_transforms_accumulated_matrix(scroll_state.world_transforms(*this), index, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes, &matrix);
+    return matrix;
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Function<void(u64)> const& visit) const
@@ -201,16 +147,6 @@ void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Functi
     Compositing::RustFFI::visual_context_tree_for_each_effects_filter_image_frame_id(m_rust_tree, &visitor, [](void* context, u64 image_frame_id) {
         static_cast<ImageFrameIdVisitor*>(context)->visit(image_frame_id);
     });
-}
-
-void resolve_sticky_offsets(AccumulatedVisualContextTree const& tree, ScrollStateSnapshot& scroll_state)
-{
-    auto scroll_offsets = scroll_state.device_offsets();
-    Compositing::RustFFI::visual_context_tree_resolve_sticky_offsets(
-        tree.rust_handle(), scroll_offsets.data(), scroll_offsets.size(),
-        &scroll_state, [](void* sink, SpatialNodeIndex index, Gfx::FloatPoint offset) {
-            static_cast<ScrollStateSnapshot*>(sink)->set_device_offset_for_index(index, offset);
-        });
 }
 
 }

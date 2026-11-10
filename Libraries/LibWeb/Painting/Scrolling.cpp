@@ -20,6 +20,19 @@
 
 namespace Web::Painting {
 
+static Web::AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind kind)
+{
+    switch (kind) {
+    case Compositing::CompositorScrollNodeKind::Viewport:
+        return Web::AsyncScrollNodeKind::Viewport;
+    case Compositing::CompositorScrollNodeKind::Element:
+        return Web::AsyncScrollNodeKind::Element;
+    case Compositing::CompositorScrollNodeKind::PseudoElement:
+        return Web::AsyncScrollNodeKind::PseudoElement;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 CSSPixelPoint scroll_offset(Layout::Node const& node)
 {
     if (!has_committed_box(node))
@@ -195,7 +208,7 @@ Optional<Web::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node 
 
     return Web::AsyncScrollNodeStableID {
         .node_id = scrollable_node_id_for(node),
-        .kind = Compositing::async_scroll_node_kind_for(*scroll_node_kind),
+        .kind = async_scroll_node_kind_for(*scroll_node_kind),
         .pseudo_element_type = pseudo_element_type_for(node),
     };
 }

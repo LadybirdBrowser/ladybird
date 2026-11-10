@@ -1,7 +1,6 @@
 ladybird_test_suite(Compositor)
 
 set(TEST_SOURCES
-    TestAsyncScrollTree.cpp
     TestBitmapExport.cpp
     TestCanvasSurfaceRegistry.cpp
     TestVideoFrameHolds.cpp

@@ -21,16 +21,10 @@ enum Compositing::ContextVisibility : u8 {
 }
 
 [ExistingCpp]
-enum Compositing::AsyncScrollUpdateFreshness : u8 {
-    Pushed,
-    FromCompositor,
-}
-
-[ExistingCpp]
 enum Compositing::ScrollAnimationKind : u8 {
-    SmoothScroll,
-    Wheel,
-    Momentum,
+    SmoothScroll = 0,
+    Wheel = 1,
+    Momentum = 2,
 }
 
 [ExistingCpp]
