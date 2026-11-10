@@ -497,6 +497,15 @@ void WorkerAgentManager::for_each_request_server_site_bindings(Function<Iteratio
     });
 }
 
+WebContentClient* WorkerAgentManager::host_of_request_server_client(int client_id) const
+{
+    for (auto const& client : m_clients) {
+        if (client->request_server_site_bindings().has_client(client_id))
+            return client->host();
+    }
+    return nullptr;
+}
+
 ErrorOr<void> WorkerAgentManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, Web::PageId page_id)
 {
     auto is_owned_by_page = [&](WorkerAgent const& agent) {

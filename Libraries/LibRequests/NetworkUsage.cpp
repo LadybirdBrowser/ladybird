@@ -13,7 +13,7 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Requests::NetworkUsage const& usage)
 {
-    TRY(encoder.encode(usage.process_id));
+    TRY(encoder.encode(usage.client_id));
     TRY(encoder.encode(usage.page_id));
     TRY(encoder.encode(usage.download_bytes));
     TRY(encoder.encode(usage.upload_bytes));
@@ -22,11 +22,11 @@ ErrorOr<void> encode(Encoder& encoder, Requests::NetworkUsage const& usage)
 template<>
 ErrorOr<Requests::NetworkUsage> decode(Decoder& decoder)
 {
-    auto process_id = TRY(decoder.decode<i32>());
+    auto client_id = TRY(decoder.decode<int>());
     auto page_id = TRY(decoder.decode<u64>());
     auto download_bytes = TRY(decoder.decode<u64>());
     auto upload_bytes = TRY(decoder.decode<u64>());
-    return Requests::NetworkUsage { process_id, page_id, download_bytes, upload_bytes };
+    return Requests::NetworkUsage { client_id, page_id, download_bytes, upload_bytes };
 }
 
 }
