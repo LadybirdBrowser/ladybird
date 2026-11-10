@@ -77,6 +77,14 @@ impl PreparedItem {
         }
     }
 
+    /// The forced break of a preserved newline at `offset_in_node` in the text of `node`.
+    pub(super) fn newline(node: Node, offset_in_node: usize) -> Self {
+        Self {
+            offset_in_node: u32::try_from(offset_in_node).expect("text offsets fit in 32 bits"),
+            ..Self::new(ItemType::ForcedBreak, node, 0)
+        }
+    }
+
     pub(super) fn text(
         node: Node,
         text_range: std::ops::Range<usize>,

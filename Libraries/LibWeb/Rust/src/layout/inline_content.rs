@@ -135,9 +135,17 @@ impl PartialEq for GlyphRunRecord {
     }
 }
 
+/// The <br> that ends a line, or the preserved newline at `rendered_offset` in the text of `node`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ForcedBreakPosition {
+    pub node: NodeSlotId,
+    pub rendered_offset: u32,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LineRecord {
     pub rect: used_values::FfiCssPixelRect,
+    pub first_fragment: u32,
     pub fragment_count: u32,
     pub(crate) is_empty: bool,
     pub(crate) horizontal_extent: CssPixels,
@@ -158,7 +166,7 @@ pub struct LineRecord {
     pub original_available_inline_size: AvailableSize,
     pub has_break: bool,
     pub has_forced_break: bool,
-    pub forced_break_node: NodeSlotId,
+    pub forced_break: Option<ForcedBreakPosition>,
     pub has_block_level_box: bool,
     pub box_fragment: u32,
 }
@@ -435,6 +443,7 @@ impl InlineContent {
                 .expect("fragment count overflowed");
             lines.push(LineRecord {
                 rect: inline_formatting_context::line_rect(line, content_inline_size),
+                first_fragment: (fragment_count - visible_fragment_count) as u32,
                 fragment_count: visible_fragment_count as u32,
                 reusable_atomic_prefix: !line.fragments.is_empty()
                     && !line.has_block_level_box
@@ -611,7 +620,11 @@ impl InlineContent {
         let fragment_offset = self.fragments.len() as u32;
         let piece_offset = self.inline_box_pieces.len() as u32;
         self.lines.extend(content.lines.iter().map(|line| {
-            let mut line = LineRecord { box_fragment, ..*line };
+            let mut line = LineRecord {
+                box_fragment,
+                first_fragment: line.first_fragment + fragment_offset,
+                ..*line
+            };
             line.rect.x += offset.x;
             line.rect.y += offset.y;
             line.block_start += offset.y;

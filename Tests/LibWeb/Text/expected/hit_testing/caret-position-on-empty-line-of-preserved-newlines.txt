@@ -1,0 +1,2 @@
+vertical: vertical text 4
+split: newlines text 1

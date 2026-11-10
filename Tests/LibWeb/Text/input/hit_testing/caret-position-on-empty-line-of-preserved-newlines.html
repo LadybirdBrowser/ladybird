@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+pre { font: 16px/20px "Liberation Mono", monospace; margin: 0 0 10px 0; height: 80px; }
+#vertical { writing-mode: vertical-rl; width: 80px; }
+</style>
+<pre id="vertical">one
+
+three</pre>
+<pre id="split">one<span id="newlines">
+
+</span>three</pre>
+<script src="../include.js"></script>
+<script>
+    // A point on the empty line between two preserved newlines takes the position between them, also in vertical
+    // text and where the newlines are in a text node of their own.
+    test(() => {
+        const describe = position => {
+            const node = position.offsetNode;
+            const owner = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            return `${owner.id} ${node.nodeType === Node.TEXT_NODE ? "text" : node.nodeName} ${position.offset}`;
+        };
+        const vertical = document.getElementById("vertical").getBoundingClientRect();
+        println(`vertical: ${describe(document.caretPositionFromPoint(vertical.right - 30, vertical.top + 10))}`);
+        const split = document.getElementById("split").getBoundingClientRect();
+        println(`split: ${describe(document.caretPositionFromPoint(split.left + 30, split.top + 30))}`);
+    });
+</script>

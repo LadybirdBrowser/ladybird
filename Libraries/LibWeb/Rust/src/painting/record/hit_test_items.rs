@@ -11,6 +11,7 @@ use super::{PaintPhase, PaintRecorder};
 use crate::css::computed_value_types::SVG_PAINT_NONE;
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::layout::inline_content::ForcedBreakPosition;
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::layout::node_facts::{self, NodeShape};
 use crate::painting::display_list::commands::ContextRef;
@@ -266,11 +267,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: ContextRef) {
-        let targets = crate::painting::visual_lines::empty_line_caret_targets(self.source, paintable);
-        for target in targets {
-            self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
-        }
-        let empty_lines_ended_by_forced_breaks: Vec<(usize, NodeSlotId, CssPixelRect, u32)> = {
+        let empty_lines: Vec<(usize, ForcedBreakPosition, CssPixelRect, u32)> = {
             let side = self.source.committed_side_data(paintable);
             if side.fragments().is_empty() {
                 return;
@@ -278,26 +275,37 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             side.lines()
                 .iter()
                 .enumerate()
-                .filter(|(_, line)| {
-                    line.fragment_count == 0 && self.forced_break_node_is_caret_target(line.forced_break_node)
-                })
-                .map(|(line_index, line)| {
-                    (
-                        line_index,
-                        line.forced_break_node,
-                        CssPixelRect::from(line.rect),
-                        line.box_fragment,
-                    )
+                .filter_map(|(line_index, line)| {
+                    let position = line.forced_break.filter(|position| {
+                        line.fragment_count == 0 && self.forced_break_is_caret_target(position.node)
+                    })?;
+                    Some((line_index, position, CssPixelRect::from(line.rect), line.box_fragment))
                 })
                 .collect()
         };
-        if empty_lines_ended_by_forced_breaks.is_empty() {
+        if empty_lines.is_empty() {
             return;
         }
         let positions = paintable_geometry::LineRootPositions::new(self.source, paintable);
-        for (line_index, forced_break_node, line_rect, box_fragment) in empty_lines_ended_by_forced_breaks {
+        for (line_index, forced_break, line_rect, box_fragment) in empty_lines {
+            let caret_offset = if self.source.node_kind_if_live(forced_break.node) == Some(NodeKind::BreakNode) {
+                0
+            } else {
+                self.source.dom_offset_for_rendered_text_offset(
+                    forced_break.node,
+                    forced_break.rendered_offset as usize,
+                    crate::layout::RenderedTextBoundary::Start,
+                )
+            };
             let line_rect = line_rect.translated_by(positions.of_fragment(box_fragment));
-            self.append_empty_line_for_node(paintable, forced_break_node, line_index, line_rect, context);
+            self.append_empty_line(
+                paintable,
+                forced_break.node,
+                caret_offset,
+                line_index,
+                line_rect,
+                context,
+            );
         }
     }
 
@@ -557,14 +565,15 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
 
     // A text node has no style of its own, so its parent both decides whether the fragment can be hit and is what an
     // event dispatched from it resolves against. Returns that node, or None when the fragment is not hit-testable.
-    fn forced_break_node_is_caret_target(&self, break_node: NodeSlotId) -> bool {
-        let Some(row) = self.source.node(break_node) else {
+    /// Whether the line that the <br> or the preserved newline in the text `node` ends is a caret target.
+    fn forced_break_is_caret_target(&self, node: NodeSlotId) -> bool {
+        let Some(row) = self.source.node(node) else {
             return false;
         };
-        if row.kind() != NodeKind::BreakNode || row.dom_paint_facts() & DomPaintFact::Inert as u8 != 0 {
+        if row.dom_paint_facts() & DomPaintFact::Inert as u8 != 0 {
             return false;
         }
-        let Some(style) = row.style() else {
+        let Some(style) = row.style().or_else(|| self.source.node_style_if_live(row.parent())) else {
             return false;
         };
         if style.visibility() != css_enums::visibility::VISIBLE
@@ -712,51 +721,18 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         self.list.append(item);
     }
 
-    fn append_empty_line_for_fragment(
-        &mut self,
-        owner: NodeSlotId,
-        sibling_fragment_index: u32,
-        caret_offset: usize,
-        line_box_index: usize,
-        line_rect: CssPixelRect,
-        context: ContextRef,
-    ) {
-        let fragment = self.fragment(owner, sibling_fragment_index as usize);
-        let Some(hit_node) = self.hit_node_for_text_fragment(&fragment) else {
-            return;
-        };
-        // Empty lines are only reachable through caret lines, never through regular hit testing,
-        // so they are recorded with the base's empty rect and stay out of the spatial index.
-        let block_container = self.block_container_of_fragment(&fragment);
-        let item = HitTestItem {
-            text_fragment_index: Some(sibling_fragment_index),
-            caret_node: fragment.layout_node,
-            caret_offset,
-            caret_rect: line_rect,
-            caret_line_index: Some(line_box_index),
-            block_container,
-            containing_block: self
-                .source
-                .node_containing_block_if_live(fragment.layout_node)
-                .unwrap_or(NodeSlotId::INVALID),
-            can_produce_caret_position: self.node_has_dom_node(fragment.layout_node),
-            hit_node,
-            ..self.base_hit_test_item(HitTestItemKind::EmptyLine, owner, context)
-        };
-        self.list.append(item);
-    }
-
-    fn append_empty_line_for_node(
+    fn append_empty_line(
         &mut self,
         block_container: NodeSlotId,
         caret_node: NodeSlotId,
+        caret_offset: usize,
         caret_line_index: usize,
         line_rect: CssPixelRect,
         context: ContextRef,
     ) {
         let item = HitTestItem {
             caret_node,
-            caret_offset: 0,
+            caret_offset,
             caret_rect: line_rect,
             caret_line_index: Some(caret_line_index),
             block_container,
