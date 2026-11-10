@@ -77,19 +77,25 @@ section {
 
 .search-engines {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
 }
 
 .search-engine {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
     height: 40px;
-    padding: 0 12px;
+    padding: 0 8px;
     border-radius: 10px;
     box-shadow: inset 0 0 0 1px var(--separator);
     cursor: pointer;
+}
+
+.search-engine span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .search-engine input {
@@ -147,6 +153,6 @@ footer .primary-button {
 
 @media (max-width: 520px) {
     .search-engines {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
