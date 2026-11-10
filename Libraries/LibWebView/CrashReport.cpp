@@ -27,6 +27,13 @@ namespace WebView {
 
 using namespace Core::CrashReportData;
 
+static DisableSandbox s_disable_sandbox { DisableSandbox::No };
+
+void CrashReport::set_sandbox_is_disabled(DisableSandbox disable_sandbox)
+{
+    s_disable_sandbox = disable_sandbox;
+}
+
 #if !defined(AK_OS_WINDOWS)
 
 // A record keeps a description of the build that wrote it after its last frame, where the crash handler never writes,
@@ -93,6 +100,8 @@ static void append_system_description(StringBuilder& builder)
             ++length;
         builder.appendff("Kernel release: {}\n", release.substring_view(0, length));
     }
+    if (s_disable_sandbox == DisableSandbox::Yes)
+        builder.append("Sandbox: off\n"sv);
 }
 
 ByteString CrashReport::describe_current_build(ProcessType process_type)

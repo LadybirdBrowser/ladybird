@@ -13,6 +13,7 @@
 #include <LibCore/File.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/ProcessType.h>
 
 namespace Core::CrashReportData {
@@ -38,6 +39,8 @@ public:
     // What a report says of the build and system that crashed. A browser records it with its record, since a later
     // launch formats the report, and that launch may be another build.
     static ByteString describe_current_build(ProcessType);
+    // Reports from a browser that runs without the sandbox say so.
+    static void set_sandbox_is_disabled(DisableSandbox);
     ErrorOr<void> record_build_description(StringView description);
 
     ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::the().directory(),

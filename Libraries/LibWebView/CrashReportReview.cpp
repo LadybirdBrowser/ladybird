@@ -83,6 +83,7 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& rep
     add_field("Process"sv, diagnostics.header("Process"sv));
     add_field("Architecture"sv, diagnostics.header("Architecture"sv));
     add_field("Git commit"sv, diagnostics.header("Git commit"sv), true);
+    add_field("Sandbox"sv, diagnostics.header("Sandbox"sv));
 
     return report;
 }

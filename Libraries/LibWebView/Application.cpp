@@ -51,6 +51,7 @@
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CompositorPresentationClient.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FontService.h>
@@ -617,6 +618,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     // Reports belong to the profile they came from, whose own setting decides what happens to them. A temporary
     // profile takes nothing over, since it would take it to its grave.
+    CrashReport::set_sandbox_is_disabled(m_browser_options.disable_sandbox);
     auto& crash_report_store = CrashReportStore::the();
     crash_report_store.set_directory(LexicalPath::join(profile().paths().data, "CrashReports"sv).string());
     if (!profile().is_temporary()) {
