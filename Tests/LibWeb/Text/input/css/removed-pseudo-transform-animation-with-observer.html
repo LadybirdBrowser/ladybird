@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #host { position: relative; height: 100px; }
+    #host.loading::after {
+        content: "";
+        position: absolute;
+        width: 100px;
+        height: 3px;
+        background: red;
+        animation: loading 0.5s infinite;
+    }
+    @keyframes loading {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+    }
+    #child { height: 50px; background: lightblue; transform: translateX(200px); }
+    #host.loaded #child { transform: translateX(0); transition: transform 0.1s; }
+</style>
+<div id="host" class="loading"><div id="child"></div></div>
+<script>
+    asyncTest(async done => {
+        const observer = new IntersectionObserver(() => {});
+        observer.observe(child);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        const finished = new Promise(resolve => child.addEventListener("transitionend", resolve, { once: true }));
+        host.classList.replace("loading", "loaded");
+        await finished;
+        println(`Completed transition: ${getComputedStyle(child).transform}`);
+        observer.disconnect();
+        done();
+    });
+</script>
