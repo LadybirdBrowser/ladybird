@@ -72,6 +72,11 @@ struct Appearance {
     ColorTheme color_theme { ColorTheme::Neutral };
 };
 
+enum class HostSetting : u8 {
+    Zoom,
+    ForceDark,
+};
+
 struct ContentSettings {
     double default_zoom_level_factor { 1.0 };
     HashMap<String, double> zoom_per_host;
@@ -293,10 +298,12 @@ public:
 
     bool force_dark_for_host(StringView host) const;
     void set_force_dark_for_host(String const& host, bool enabled);
-    void reset_force_dark_for_host(StringView host);
 
     double zoom_for_host(StringView host) const;
     void set_zoom_for_host(String const& host, double zoom_level);
+
+    // Omitting the host resets every override for this setting.
+    void reset_host_setting(HostSetting, Optional<StringView> host = {});
 
     static TabSettings parse_tab_settings(JsonValue const&);
     TabSettings const& tab_settings() const { return m_tab_settings; }

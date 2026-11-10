@@ -114,6 +114,7 @@
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/WebView/Utilities.h>
 
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
@@ -6847,9 +6848,8 @@ void LocalNavigable::update_force_dark_for_active_document()
     if (!is_top_level_traversable())
         return;
     auto enabled = m_force_dark_default;
-    if (auto document = active_document(); document && document->url().host().has_value()) {
-        auto host = MUST(String::from_utf8(document->url().serialized_host()));
-        if (!host.is_empty())
+    if (auto document = active_document()) {
+        if (auto host = WebView::host_for_settings(document->url()); !host.is_empty())
             enabled = m_force_dark_per_host.get(host).value_or(enabled);
     }
     set_force_dark_enabled(enabled);

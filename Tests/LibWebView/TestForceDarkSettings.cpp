@@ -35,7 +35,7 @@ TEST_CASE(force_dark_choices_survive_default_changes_and_restart)
         auto settings = WebView::Settings::create(path);
         EXPECT(!settings.force_dark_for_host("example.com"sv));
         EXPECT(settings.force_dark_for_host("other.example"sv));
-        settings.reset_force_dark_for_host("example.com"sv);
+        settings.reset_host_setting(WebView::HostSetting::ForceDark, "example.com"sv);
         EXPECT(settings.force_dark_for_host("example.com"sv));
         EXPECT_EQ(settings.content_settings().force_dark_per_host.size(), 1u);
     }
@@ -73,10 +73,10 @@ TEST_CASE(force_dark_notifies_only_when_a_choice_changes)
     EXPECT_EQ(observer.changes, 1u);
     settings.set_force_dark_for_host("example.com"_string, false);
     settings.set_force_dark_for_host({}, true);
-    settings.reset_force_dark_for_host("missing.example"sv);
+    settings.reset_host_setting(WebView::HostSetting::ForceDark, "missing.example"sv);
     EXPECT_EQ(observer.changes, 1u);
     settings.set_force_dark_for_host("example.com"_string, true);
-    settings.reset_force_dark_for_host("example.com"sv);
+    settings.reset_host_setting(WebView::HostSetting::ForceDark, "example.com"sv);
     EXPECT_EQ(observer.changes, 3u);
     MUST(FileSystem::remove(path, FileSystem::RecursionMode::Disallowed));
 }

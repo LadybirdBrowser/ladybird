@@ -277,10 +277,12 @@ public:
     void zoom_in();
     void zoom_out();
     void set_zoom(double zoom_level);
-    void set_device_pixel_ratio_for_testing(WebContentPage&, double device_pixel_ratio);
     void reset_zoom();
     double zoom_level() const { return m_zoom_level; }
+
+    void set_device_pixel_ratio_for_testing(WebContentPage&, double device_pixel_ratio);
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
+
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     // Sends the display metadata to every page hosting documents of the tab.
@@ -334,7 +336,8 @@ public:
         return m_backing_stores->displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
     }
 
-    String force_dark_host() const;
+    String current_host_for_settings() const;
+
     bool force_dark_enabled() const;
     bool can_set_force_dark() const;
     void set_force_dark_enabled(bool);
@@ -861,8 +864,6 @@ protected:
     void respawn_web_content_process_after_crash();
     void prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry = {});
     void set_crash_state(Optional<CrashState>);
-
-    String current_host_for_settings() const;
 
     virtual void languages_changed() override;
     virtual void content_settings_changed() override;

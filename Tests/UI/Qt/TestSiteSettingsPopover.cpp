@@ -12,6 +12,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/SiteSettingsPopover.h>
 
@@ -114,7 +115,7 @@ TEST_CASE(blob_site_uses_the_default_without_changing_its_origin_host_override)
     auto url = URL::Parser::basic_parse("blob:https://example.com/1234"sv).release_value();
     auto site = site_for();
     site.origin = url.origin();
-    site.host_for_settings = {};
+    site.host_for_settings = WebView::host_for_settings(url);
     popover.set_site(move(site));
     auto& toggle = force_dark_switch(popover);
     EXPECT(!toggle.isEnabled());

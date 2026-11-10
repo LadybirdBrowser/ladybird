@@ -144,8 +144,8 @@ void SettingsUI::register_interfaces()
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
     });
-    register_interface("resetForceDarkForHost"sv, [this](auto const& data) {
-        reset_force_dark_for_host(data);
+    register_interface("resetHostSetting"sv, [this](auto const& data) {
+        reset_host_setting(data);
     });
     register_interface("setContentSettings"sv, [this](auto const& data) {
         set_content_settings(data);
@@ -236,7 +236,6 @@ void SettingsUI::load_features()
 JsonObject SettingsUI::serialize_settings() const
 {
     auto settings = Application::settings().serialize_json();
-    settings.as_object().set("forceDarkSitesReadOnly"sv, !has_client() || client().is_private() == IsPrivate::Yes);
 
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_settings;
@@ -397,19 +396,29 @@ void SettingsUI::set_content_settings(JsonValue const& content_settings)
     auto parsed_content_settings = Settings::parse_content_settings(content_settings);
     auto const& current_content_settings = settings.content_settings();
 
-    // Zoom-per-host is not controlled by the settings UI. Don't overwrite it.
-    parsed_content_settings.zoom_per_host = current_content_settings.zoom_per_host;
     // Host choices change through their own controls, independently of edits to the default.
+    parsed_content_settings.zoom_per_host = current_content_settings.zoom_per_host;
     parsed_content_settings.force_dark_per_host = current_content_settings.force_dark_per_host;
 
     Application::settings().set_content_settings(move(parsed_content_settings));
 }
 
-void SettingsUI::reset_force_dark_for_host(JsonValue const& host)
+void SettingsUI::reset_host_setting(JsonValue const& data)
 {
-    if (!host.is_string() || !has_client() || client().is_private() == IsPrivate::Yes)
+    if (!data.is_object())
         return;
-    Application::settings().reset_force_dark_for_host(host.as_string());
+
+    auto setting = data.as_object().get_string("setting"sv);
+    auto host = data.as_object().get_string("host"sv);
+    if (data.as_object().has("host"sv) && !host.has_value())
+        return;
+
+    auto host_view = host.map([](auto const& value) { return value.bytes_as_string_view(); });
+
+    if (setting == "zoom"sv)
+        Application::settings().reset_host_setting(HostSetting::Zoom, host_view);
+    else if (setting == "force-dark"sv)
+        Application::settings().reset_host_setting(HostSetting::ForceDark, host_view);
 }
 
 void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
