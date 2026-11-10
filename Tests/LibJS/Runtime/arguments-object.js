@@ -368,6 +368,30 @@ test("lexical declaration named arguments takes the place of the arguments objec
     expect(laterBindingsStayDeclared()).toEqual(["ReferenceError", 2]);
 });
 
+test("lexical declaration named arguments is uninitialized until it is declared", () => {
+    function letDeclaration() {
+        arguments;
+        let arguments;
+    }
+    function constDeclaration() {
+        arguments;
+        const arguments = 1;
+    }
+    function destructuringDeclaration() {
+        arguments;
+        let [arguments] = [];
+    }
+    function usingDeclaration() {
+        arguments;
+        using arguments = null;
+    }
+
+    expect(letDeclaration).toThrow(ReferenceError);
+    expect(constDeclaration).toThrow(ReferenceError);
+    expect(destructuringDeclaration).toThrow(ReferenceError);
+    expect(usingDeclaration).toThrow(ReferenceError);
+});
+
 test("mapped arguments object in the strict code of a class", () => {
     function computedKey(first) {
         class C {
