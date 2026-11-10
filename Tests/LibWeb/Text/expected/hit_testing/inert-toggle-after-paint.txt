@@ -1,25 +1,25 @@
 before inert:
 text: text-row / #text
 contents: contents / #text
-pseudo: pseudo / null
+pseudo: pseudo / pseudo
 first letter: letter-row / #text
 container inert:
-text: body / body
-contents: body / body
-pseudo: pseudo / null
-first letter: letter-row / null
+text: body / #text
+contents: body / #text
+pseudo: pseudo / pseudo
+first letter: letter-row / #text
 container inert removed:
 text: text-row / #text
 contents: contents / #text
-pseudo: pseudo / null
+pseudo: pseudo / pseudo
 first letter: letter-row / #text
 display: contents span inert:
 text: text-row / #text
-contents: contents-row / contents-row
-pseudo: pseudo / null
+contents: contents-row / #text
+pseudo: pseudo / pseudo
 first letter: letter-row / #text
 display: contents span inert removed:
 text: text-row / #text
 contents: contents / #text
-pseudo: pseudo / null
+pseudo: pseudo / pseudo
 first letter: letter-row / #text

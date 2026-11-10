@@ -15,8 +15,6 @@ use super::StyleEngine;
 use super::tree::StyleNodeID;
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::layout::node_data::DomPaintFact;
-use crate::painting::hit_test::caret::NodeScopes;
-use crate::painting::host::FfiNodeIdentity;
 use smallvec::SmallVec;
 use std::collections::HashSet;
 
@@ -202,26 +200,5 @@ impl SelectionStyles {
     /// Notes that the rows of `element` hold its `::selection` styles.
     pub(crate) fn note_styled(&mut self, element: StyleNodeID) {
         self.styled.insert(element);
-    }
-}
-
-/// What `HitTestList`'s caret queries read of the DOM on the Render thread: the mirror, where the host asks the DOM.
-pub(crate) struct MirrorNodeScopes<'a>(pub(crate) &'a StyleEngine);
-
-impl NodeScopes for MirrorNodeScopes<'_> {
-    fn contains(&self, ancestor: FfiNodeIdentity, node: FfiNodeIdentity) -> bool {
-        let identity = |identity: FfiNodeIdentity| StyleNodeID::from_raw(identity.style_node);
-        match (ancestor.is_document, node.is_document) {
-            (_, true) => ancestor.is_document,
-            // A shadow tree's nodes are not the document's descendants.
-            (true, false) => identity(node).is_none_or(|node| {
-                let root = self.0.drag_root(node);
-                self.0.retained.host_of(root).is_none()
-            }),
-            (false, false) => match (identity(ancestor), identity(node)) {
-                (Some(ancestor), Some(node)) => self.0.drag_is_inclusive_ancestor(ancestor, node),
-                _ => false,
-            },
-        }
     }
 }

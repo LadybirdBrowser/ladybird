@@ -12,7 +12,6 @@ use std::ffi::c_void;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiHitTestQueryCallbacks {
-    pub context: *mut c_void,
     pub device_pixels_per_css_pixel: f64,
     pub scroll_offsets: *const libgfx_rust::FloatPoint,
     pub scroll_offsets_len: usize,
@@ -23,23 +22,17 @@ pub struct FfiHitTestQueryCallbacks {
     /// Where set, the query reads the compositor's animations at this time, as a frame of the compositor's shows them.
     pub has_visual_animation_sample_time: bool,
     pub visual_animation_sample_time_ns: i64,
-    /// Private: reached only through the method below, which takes the main thread token.
-    contains: extern "C" fn(*mut c_void, FfiNodeIdentity, FfiNodeIdentity) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
     /// Callbacks for a point query on the render owner, which reaches nothing of the host: the scroll offsets and
-    /// chrome metrics are copies the host sealed, and a caret query there asks the style engine's mirror about the DOM.
+    /// chrome metrics are copies the host sealed.
     pub(crate) fn sealed(
         device_pixels_per_css_pixel: f64,
         scroll_offsets: &[libgfx_rust::FloatPoint],
         chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     ) -> Self {
-        extern "C" fn no_contains(_: *mut c_void, _: FfiNodeIdentity, _: FfiNodeIdentity) -> bool {
-            panic!("a point query on the render owner asks the host nothing of the DOM");
-        }
         Self {
-            context: std::ptr::null_mut(),
             device_pixels_per_css_pixel,
             scroll_offsets: scroll_offsets.as_ptr(),
             scroll_offsets_len: scroll_offsets.len(),
@@ -48,7 +41,6 @@ impl FfiHitTestQueryCallbacks {
             chrome_metrics,
             has_visual_animation_sample_time: false,
             visual_animation_sample_time_ns: 0,
-            contains: no_contains,
         }
     }
 
@@ -57,15 +49,6 @@ impl FfiHitTestQueryCallbacks {
             .then_some(self.visual_animation_sample_time_ns)
     }
 
-    /// Whether `node` is `ancestor` or one of its descendants in the DOM.
-    pub(crate) fn contains(
-        &self,
-        _: &crate::stage::MainThread,
-        ancestor: FfiNodeIdentity,
-        node: FfiNodeIdentity,
-    ) -> bool {
-        (self.contains)(self.context, ancestor, node)
-    }
     /// The world transforms of `tree`, the tree the query reads, under these callbacks' offsets.
     pub(crate) fn build_world_transforms(
         &self,

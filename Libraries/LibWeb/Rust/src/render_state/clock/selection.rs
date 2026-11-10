@@ -21,15 +21,14 @@
 use super::{Lane, RenderState, hover};
 use crate::css::css_pixels::{CssPixelPoint, CssPixels};
 use crate::css::style::StyleEngine;
-use crate::css::style::drag_selection::{MirrorNodeScopes, SelectionStyles, UsedUserSelect};
+use crate::css::style::drag_selection::{SelectionStyles, UsedUserSelect};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::svg_formatting_context::FfiFloatRect;
 use crate::painting::hit_test::HitTestList;
-use crate::painting::hit_test::caret::CaretPositionMode;
 use crate::painting::hit_test::resolve::row_dom_style_node;
-use crate::painting::host::{FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiNodeIdentity, FfiResolvedCaret};
+use crate::painting::host::{FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiResolvedCaret};
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{
     FfiSelectionEntry, SELECTION_STATE_END, SELECTION_STATE_FULL, SELECTION_STATE_NONE, SELECTION_STATE_START,
@@ -494,7 +493,7 @@ impl Lane {
             .map_err(LeftToHost)?;
         let arena = state.arena.arena();
         let engine = state.engine_ref();
-        // NB: The caret lines take a walk over every item, which a drag need not repeat over the same frame.
+        // NB: The spatial indexes take a walk over every item, which a drag need not repeat over the same frame.
         let list = self
             .selection_hit_test_list
             .take()
@@ -505,7 +504,6 @@ impl Lane {
                     ..HitTestList::default()
                 };
                 list.build_spatial_indexes_if_needed();
-                list.build_caret_lines_if_needed(arena);
                 list
             });
         let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
@@ -531,15 +529,7 @@ impl Lane {
         }
         let (x, y) = drag.constrained(x, y);
         let caret = list
-            .caret_position_from_point(
-                &MirrorNodeScopes(engine),
-                arena,
-                &tree,
-                &callbacks,
-                css_point(x, y),
-                CaretPositionMode::Selection,
-                FfiNodeIdentity::default(),
-            )
+            .caret_position_from_point(arena, &tree, &callbacks, css_point(x, y), NodeSlotId::INVALID)
             .filter(|caret| caret.caret.has_position)
             .ok_or(LeftToHost("no caret position"))?;
         let (focus, focus_node) = focus_at(engine, &caret.caret, drag.anchor)?;

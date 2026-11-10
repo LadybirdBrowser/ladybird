@@ -1,4 +1,4 @@
-Wrapper padding around a block editor: focus body, caret in div#wrapper
+Wrapper padding around a block editor: focus body, caret in null
 Inside a block editor: focus p#editorInArea, caret in p#editorInArea
 Then far below it in its container: focus body
 Typing then leaves the editor as it was: true

@@ -63,13 +63,11 @@ HitTestDisplayList::Item HitTestDisplayList::item(Layout::BegunRead const& read,
 
 struct HitTestDisplayList::QueryContext {
     HitTestQuery const* query { nullptr };
-    GC::Ptr<DOM::Document> document;
 
     Layout::RustFFI::FfiHitTestQueryCallbacks callbacks()
     {
         auto scroll_offsets = query ? query->scroll_state().device_offsets() : ReadonlySpan<Gfx::FloatPoint> {};
         Layout::RustFFI::FfiHitTestQueryCallbacks callbacks {
-            .context = this,
             .device_pixels_per_css_pixel = query ? query->device_pixels_per_css_pixel() : 1,
             .scroll_offsets = scroll_offsets.data(),
             .scroll_offsets_len = scroll_offsets.size(),
@@ -78,26 +76,12 @@ struct HitTestDisplayList::QueryContext {
             .chrome_metrics = {},
             .has_visual_animation_sample_time = query && query->visual_animation_sample_time_nanoseconds().has_value(),
             .visual_animation_sample_time_ns = query ? query->visual_animation_sample_time_nanoseconds().value_or(0) : 0,
-            .contains = [](void* context_pointer, Layout::RustFFI::FfiNodeIdentity ancestor, Layout::RustFFI::FfiNodeIdentity node) -> bool {
-                auto& context = *static_cast<QueryContext*>(context_pointer);
-                if (!context.document)
-                    return false;
-                auto ancestor_node = node_identity_of(ancestor).resolve(*context.document);
-                auto dom_node = node_identity_of(node).resolve(*context.document);
-                return ancestor_node && dom_node && ancestor_node->is_inclusive_ancestor_of(*dom_node);
-            },
         };
         if (query)
             callbacks.chrome_metrics = query->chrome_metrics();
         return callbacks;
     }
 };
-
-static Layout::RustFFI::FfiNodeIdentity ffi_identity_of(DOM::Node const* node)
-{
-    auto identity = DOM::NodeIdentity::of(node);
-    return { .style_node = identity.style_node().value(), .is_document = identity == DOM::NodeIdentity::of_document() };
-}
 
 Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(Layout::RustFFI::FfiTopmostItem const& item)
 {
@@ -108,7 +92,7 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(
 
 Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
-    QueryContext context { &query, m_arena->document() };
+    QueryContext context { &query };
     Layout::RustFFI::FfiTopmostItem item;
     Layout::RustFFI::layout_hit_test_find_topmost_item(m_arena->host(), &read, context.callbacks(), point, &item);
     return topmost_item_from(item);
@@ -116,7 +100,7 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(
 
 Vector<HitTestDisplayList::TopmostItem> HitTestDisplayList::hit_items_topmost_first(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
-    QueryContext context { &query, m_arena->document() };
+    QueryContext context { &query };
     Vector<TopmostItem> hits;
     Layout::RustFFI::layout_hit_test_all(m_arena->host(), &read, context.callbacks(), point, &hits, [](void* sink, size_t index, CSSPixelPoint local_point) {
         static_cast<Vector<TopmostItem>*>(sink)->append({ index, local_point });
@@ -257,11 +241,13 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from(Layout::RustFFI:
     };
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, GC::Ptr<DOM::Node const> constraint_scope) const
 {
-    QueryContext context { &query, m_arena->document() };
+    QueryContext context { &query };
+    auto const* scope_layout_node = constraint_scope ? constraint_scope->unsafe_layout_node(read) : nullptr;
+    auto scope = scope_layout_node ? Layout::Node::slot_id(scope_layout_node) : Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
     Layout::RustFFI::FfiCaretAt caret_at;
-    Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, context.callbacks(), point, to_underlying(mode), ffi_identity_of(constraint_scope.ptr()), &caret_at);
+    Layout::RustFFI::layout_hit_test_caret_position_from_point(m_arena->host(), &read, context.callbacks(), point, scope, &caret_at);
     return caret_position_from(caret_at);
 }
 
