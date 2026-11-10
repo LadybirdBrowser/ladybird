@@ -544,6 +544,11 @@ input[type="checkbox"][switch]:checked::before {
     cursor: pointer;
 }
 
+/* The System theme follows the system's accent color, so its dot is a wheel of every hue, ringed in neutral gray. */
+.system-swatch {
+    background: conic-gradient(#ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30);
+}
+
 .color-swatch:has(input:checked) {
     box-shadow:
         0 0 0 2px var(--page),
