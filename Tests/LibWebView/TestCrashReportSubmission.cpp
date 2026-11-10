@@ -234,8 +234,12 @@ TEST_CASE(crash_report_submission)
     {
         WebView::CrashReportReview review_to_stop { store };
         MUST(review_to_stop.open(name));
+        auto requests_before = server.requests.size();
         VERIFY(!outbox.send_from_review(review_to_stop, ""_string, {}).has_value());
         VERIFY(outbox.is_sending(name));
+        // Stopping a request doesn't recall one already on its way, which could then reach the server later and take
+        // the response queued for the next report. So stop it once the server has it, unanswered.
+        Core::EventLoop::current().spin_until([&] { return server.requests.size() > requests_before; });
         outbox.discard_all();
         VERIFY(!outbox.is_sending(name));
     }
