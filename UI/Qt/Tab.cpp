@@ -1515,10 +1515,8 @@ void Tab::close_popovers()
 
 void Tab::show_site_settings_popover()
 {
-    auto url = view().url();
-    // A page on an inherited about:blank has its opener's origin and no host of its own; the panel is for it too.
     auto origin = view().permission_origin();
-    if (!url.host().has_value() && origin.is_opaque())
+    if (origin.is_opaque())
         return;
 
     if (!m_site_settings_popover) {
@@ -1556,10 +1554,9 @@ void Tab::show_site_settings_popover()
     m_site_settings_popover_origin = origin;
     m_site_settings_popover->update_chrome_style(palette());
     m_site_settings_popover->set_site({
-        .host = url.host().has_value() ? MUST(String::from_utf8(url.serialized_host())) : origin.host().serialize(),
-        .force_dark_host = view().force_dark_host(),
+        .origin = AK::move(origin),
+        .host_for_settings = view().force_dark_host(),
         .is_private = view().is_private() == WebView::IsPrivate::Yes,
-        .is_secure = (url.host().has_value() ? url.scheme() : origin.scheme().value_or({})) == "https"sv,
         .favicon = m_favicon,
         .content_blocking = view().content_blocking_snapshot(),
         .permissions = view().site_permission_rows(),

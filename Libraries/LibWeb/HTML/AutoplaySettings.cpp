@@ -62,8 +62,6 @@ void AutoplaySettings::set_policy(AutoplayPolicy policy, OrderedHashMap<String, 
         auto origin = Utf16String::from_utf8(filter);
         auto url = DOMURL::parse(origin);
 
-        if (!url.has_value())
-            url = DOMURL::parse(Utf16String::formatted("https://{}", origin));
         if (!url.has_value()) {
             dbgln("Invalid origin for autoplay exception: {}", origin);
             continue;

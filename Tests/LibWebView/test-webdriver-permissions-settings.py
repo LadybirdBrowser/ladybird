@@ -179,7 +179,7 @@ def check_site_settings(webdriver_binary):
     settings = {
         "autoplay": {
             "policy": "block-audio",
-            "siteFilters": [{"filter": "media.example", "policy": "allow-audio-and-video"}],
+            "siteFilters": [{"filter": "https://media.example", "policy": "allow-audio-and-video"}],
         },
     }
     decisions = [
@@ -232,27 +232,31 @@ def check_site_settings(webdriver_binary):
         def wait_for_decisions(condition):
             return wait_for_saved(permissions_file, lambda saved: condition(saved["decisions"]))["decisions"]
 
+        def check_invalid_urls():
+            for value in ("not a URL", "about:blank", "file:///tmp/test", "data:text/html,test"):
+                add_site(value)
+                assert script("return !document.querySelector('#site-settings-input').validity.valid;"), value
+
         for index, (permission, title, origin, decision) in enumerate(PERMISSIONS):
             open_settings(permission, [[origin, decision]], title)
 
             # Invalid origins stay in the form; valid URLs are stored as origins, without paths or queries.
-            add_site("not a URL")
-            assert script("return !document.querySelector('#site-settings-input').validity.valid;")
-            add_site("https://added.example.test/path?query", "block")
+            check_invalid_urls()
+            add_site("localhost:3000/path?query", "block")
             wait_for_decisions(
                 lambda decisions, permission=permission: (
                     {
-                        "origin": "https://added.example.test",
+                        "origin": "https://localhost:3000",
                         "permission": permission,
                         "decision": "block",
                     }
                     in decisions
                 )
             )
-            wait_for_rows([[origin, decision], ["https://added.example.test", "block"]], title)
+            wait_for_rows([[origin, decision], ["https://localhost:3000", "block"]], title)
 
             script("""
-                const row = document.querySelector('[data-filter="https://added.example.test"]');
+                const row = document.querySelector('[data-filter="https://localhost:3000"]');
                 const select = row.querySelector('select');
                 select.value = 'allow';
                 select.dispatchEvent(new Event('change'));
@@ -260,18 +264,18 @@ def check_site_settings(webdriver_binary):
             wait_for_decisions(
                 lambda decisions, permission=permission: (
                     {
-                        "origin": "https://added.example.test",
+                        "origin": "https://localhost:3000",
                         "permission": permission,
                         "decision": "allow",
                     }
                     in decisions
                 )
             )
-            wait_for_rows([[origin, decision], ["https://added.example.test", "allow"]], title)
+            wait_for_rows([[origin, decision], ["https://localhost:3000", "allow"]], title)
 
-            script("document.querySelector('[data-filter=\"https://added.example.test\"] button').click();")
+            script("document.querySelector('[data-filter=\"https://localhost:3000\"] button').click();")
             wait_for_decisions(
-                lambda decisions: all(entry["origin"] != "https://added.example.test" for entry in decisions)
+                lambda decisions: all(entry["origin"] != "https://localhost:3000" for entry in decisions)
             )
             wait_for_rows([[origin, decision]], title)
 
@@ -286,34 +290,43 @@ def check_site_settings(webdriver_binary):
                 assert {"origin": other_origin, "permission": other, "decision": other_decision} in remaining
 
         # Every autoplay level can be added and edited.
-        open_settings("autoplay", [["media.example", "allow-audio-and-video"]], "Autoplay")
+        open_settings("autoplay", [["https://media.example", "allow-audio-and-video"]], "Autoplay")
+        check_invalid_urls()
         assert script("""
             return Array.from(document.querySelector('#site-settings-decision').options, option => option.value);
         """) == ["allow-audio-and-video", "block-audio", "block-audio-and-video"]
-        add_site("  quiet.example  ", "block-audio")
-        wait_for_rows([["media.example", "allow-audio-and-video"], ["quiet.example", "block-audio"]], "Autoplay")
+        add_site("  quiet.example:8443/path  ", "block-audio")
+        wait_for_rows(
+            [["https://media.example", "allow-audio-and-video"], ["https://quiet.example:8443", "block-audio"]],
+            "Autoplay",
+        )
         script("""
-            const select = document.querySelector('[data-filter="media.example"] select');
+            const select = document.querySelector('[data-filter="https://media.example"] select');
             select.value = 'block-audio-and-video';
             select.dispatchEvent(new Event('change'));
         """)
-        wait_for_rows([["media.example", "block-audio-and-video"], ["quiet.example", "block-audio"]], "Autoplay")
+        wait_for_rows(
+            [["https://media.example", "block-audio-and-video"], ["https://quiet.example:8443", "block-audio"]],
+            "Autoplay",
+        )
         wait_for_saved(
             settings_file,
             lambda saved: (
                 sorted(saved["autoplay"]["siteFilters"], key=lambda site: site["filter"])
                 == [
-                    {"filter": "media.example", "policy": "block-audio-and-video"},
-                    {"filter": "quiet.example", "policy": "block-audio"},
+                    {"filter": "https://media.example", "policy": "block-audio-and-video"},
+                    {"filter": "https://quiet.example:8443", "policy": "block-audio"},
                 ]
             ),
         )
         # Reloading the page must retain the chosen policies.
         open_settings(
-            "autoplay", [["media.example", "block-audio-and-video"], ["quiet.example", "block-audio"]], "Autoplay"
+            "autoplay",
+            [["https://media.example", "block-audio-and-video"], ["https://quiet.example:8443", "block-audio"]],
+            "Autoplay",
         )
-        script("document.querySelector('[data-filter=\"quiet.example\"] button').click();")
-        wait_for_rows([["media.example", "block-audio-and-video"]], "Autoplay")
+        script("document.querySelector('[data-filter=\"https://quiet.example:8443\"] button').click();")
+        wait_for_rows([["https://media.example", "block-audio-and-video"]], "Autoplay")
         script("document.querySelector('#site-settings-remove-all').click();")
         wait_for_rows([], "Autoplay")
         wait_for_saved(settings_file, lambda saved: saved["autoplay"]["siteFilters"] == [])
