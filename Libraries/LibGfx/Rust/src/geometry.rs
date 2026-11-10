@@ -75,6 +75,20 @@ pub enum Orientation {
 }
 
 impl FloatPoint {
+    pub fn primary_offset_for_orientation(self, orientation: Orientation) -> f32 {
+        match orientation {
+            Orientation::Horizontal => self.x,
+            Orientation::Vertical => self.y,
+        }
+    }
+
+    pub fn set_primary_offset_for_orientation(&mut self, orientation: Orientation, value: f32) {
+        match orientation {
+            Orientation::Horizontal => self.x = value,
+            Orientation::Vertical => self.y = value,
+        }
+    }
+
     pub fn is_zero(self) -> bool {
         self.x == 0.0 && self.y == 0.0
     }
@@ -188,6 +202,27 @@ impl Neg for FloatVector3 {
 }
 
 impl IntRect {
+    pub fn primary_offset_for_orientation(self, orientation: Orientation) -> i32 {
+        match orientation {
+            Orientation::Horizontal => self.x,
+            Orientation::Vertical => self.y,
+        }
+    }
+
+    pub fn primary_size_for_orientation(self, orientation: Orientation) -> i32 {
+        match orientation {
+            Orientation::Horizontal => self.width,
+            Orientation::Vertical => self.height,
+        }
+    }
+
+    pub fn translate_primary_offset_for_orientation(&mut self, orientation: Orientation, delta: i32) {
+        match orientation {
+            Orientation::Horizontal => self.x += delta,
+            Orientation::Vertical => self.y += delta,
+        }
+    }
+
     pub const fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
         Self { x, y, width, height }
     }
@@ -254,6 +289,14 @@ impl IntRect {
 }
 
 impl FloatRect {
+    pub fn contains_vertically(self, y: f32) -> bool {
+        y >= self.y && y < self.bottom()
+    }
+
+    pub fn contains_horizontally(self, x: f32) -> bool {
+        x >= self.x && x < self.right()
+    }
+
     pub const fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self { x, y, width, height }
     }

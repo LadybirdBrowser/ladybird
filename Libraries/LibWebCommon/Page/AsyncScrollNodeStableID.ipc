@@ -7,7 +7,7 @@
 
 #include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 
-[ExistingCpp, RustDerive=Hash]
+[ExistingCpp, RustDerive=Hash+PartialOrd+Ord]
 enum Web::AsyncScrollNodeKind : u8 {
     Viewport,
     Element,
@@ -15,7 +15,7 @@ enum Web::AsyncScrollNodeKind : u8 {
     VisualViewport,
 }
 
-[ExistingCpp, RustDerive=Copy+Eq+Hash]
+[ExistingCpp, RustDerive=Copy+Eq+Hash+PartialOrd+Ord]
 struct Web::AsyncScrollNodeStableID {
     Web::UniqueNodeID node_id;
     Web::AsyncScrollNodeKind kind;

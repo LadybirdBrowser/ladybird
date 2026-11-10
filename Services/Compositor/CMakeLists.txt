@@ -63,6 +63,10 @@ set(GENERATED_SOURCES
     WebGLCommandReplayer.cpp
 )
 
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core FEATURES allocator)
+target_link_libraries(compositor_core INTERFACE LibGfx)
+test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core)
+
 add_library(compositorservice STATIC ${SOURCES} ${GENERATED_SOURCES})
 ladybird_generated_sources(compositorservice)
 
@@ -82,7 +86,11 @@ target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Serv
 target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox)
 # ANGLE must precede Skia so macOS GLES symbols bind to ANGLE rather than the
 # OpenGL framework pulled in by Skia.
-target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibImageDecoderClient LibIPC LibMedia LibCompositing ${ANGLE_TARGETS} skia)
+target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibImageDecoderClient LibIPC LibMedia LibCompositing compositor_core ${ANGLE_TARGETS} skia)
+
+if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+    target_link_options(compositorservice INTERFACE LINKER:--allow-multiple-definition)
+endif()
 
 if (HAS_VULKAN)
     target_sources(compositorservice PRIVATE SkiaVulkanMemoryAllocator.cpp)

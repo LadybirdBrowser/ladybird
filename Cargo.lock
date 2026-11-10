@@ -605,6 +605,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "compositor_core"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "ladybird_allocator",
+ "libcompositing_rust",
+ "libgfx_rust",
+ "libipc_rust",
+ "rustc-demangle",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
