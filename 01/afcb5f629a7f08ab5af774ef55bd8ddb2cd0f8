@@ -1,0 +1,16 @@
+Ladybird leaves pending children hidden when computing styles below a
+display:none ancestor. A retained SVG resource can require those styles
+without revealing ordinary descendants.
+
+Blink keeps hidden style resolution separate from attachment in
+Element::RecalcOwnStyle. It treats an IsEnsuredInDisplayNone record as
+absent before deciding if a style change requires reattachment.
+
+WebKit stops ordinary descendant traversal at display:none in
+Style::TreeResolver::resolveComposedTree, while allowing SVG containers
+that still require renderers to resolve their descendants.
+
+Gecko gates descendant traversal on the element being displayed in
+recalc_style_at, and resolves hidden styles on demand through
+resolve_style. Ladybird likewise keeps hidden style computation separate
+from revealing descendants.
