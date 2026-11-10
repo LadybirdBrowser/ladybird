@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A transaction that is aborted while it waits for an earlier transaction to finish stays aborted, and is not
+    // committed once the earlier transaction finishes.
+    promiseTest(async () => {
+        spoofCurrentURL("https://example.com/indexeddb-abort-blocked-transaction.html");
+
+        const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("abort-blocked-transaction-" + Date.now() + Math.random(), 1);
+            request.onupgradeneeded = () => request.result.createObjectStore("store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        const first = db.transaction("store", "readwrite");
+        first.objectStore("store").put("value", "key");
+        first.oncomplete = () => println("first: complete");
+
+        const blocked = db.transaction("store", "readwrite");
+        blocked.oncomplete = () => println("blocked: complete");
+        blocked.onabort = () => println("blocked: abort");
+        blocked.abort();
+
+        await new Promise(resolve => {
+            const last = db.transaction("store", "readwrite");
+            last.objectStore("store").get("key");
+            last.oncomplete = () => {
+                println("last: complete");
+                resolve();
+            };
+        });
+        db.close();
+    });
+</script>
