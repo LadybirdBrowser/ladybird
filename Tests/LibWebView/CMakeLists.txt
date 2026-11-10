@@ -103,10 +103,10 @@ if (LINUX)
     list(APPEND TEST_SOURCES TestAudioDaemonSocket.cpp)
 endif()
 
-if (APPLE AND NOT IOS)
+if ((APPLE AND NOT IOS) OR LINUX)
     target_link_libraries(TestLibWebView PRIVATE LibWebSocket OpenSSL::Crypto OpenSSL::SSL)
     target_sources(TestLibWebView PRIVATE
-        TestWebDriverMachBootstrap.cpp
+        TestWebDriverSession.cpp
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BiDiSession.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BrowserConnection.cpp"
         "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Client.cpp"
@@ -115,6 +115,10 @@ if (APPLE AND NOT IOS)
     )
     target_include_directories(TestLibWebView PRIVATE "${LADYBIRD_SOURCE_DIR}/Services" "${CMAKE_BINARY_DIR}/Services")
     set_tests_properties(TestLibWebView PROPERTIES TIMEOUT 120)
+endif()
+
+if (APPLE AND NOT IOS)
+    target_sources(TestLibWebView PRIVATE TestWebDriverMachBootstrap.cpp)
 endif()
 
 if (NOT WIN32)
