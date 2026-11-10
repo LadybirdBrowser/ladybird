@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        overflow-y: scroll;
+    }
+    .box {
+        height: 200px;
+    }
+    #css-subject {
+        animation: move linear both;
+        animation-timeline: view();
+    }
+    @keyframes move {
+        from {
+            transform: translateX(0px);
+        }
+        to {
+            transform: translateX(200px);
+        }
+    }
+    .fill {
+        height: 150vh;
+    }
+</style>
+<div class="fill"></div>
+<div class="box" id="subject"></div>
+<div class="box" id="css-subject"></div>
+<div class="fill"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const subject = document.getElementById("subject");
+        subject.scrollIntoView({ block: "center" });
+        const timeline = new ViewTimeline({ subject, axis: "block" });
+        subject.animate({ transform: ["translateX(0px)", "translateX(200px)"] }, { timeline, fill: "both" });
+        await animationFrame();
+        await animationFrame();
+        println(`new ViewTimeline: source ${timeline.source?.tagName}, currentTime ${timeline.currentTime}`);
+        println(`new ViewTimeline: transform ${getComputedStyle(subject).transform}`);
+        println(`animation-timeline: view(): transform ${getComputedStyle(document.getElementById("css-subject")).transform}`);
+    });
+</script>
