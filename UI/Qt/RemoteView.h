@@ -46,8 +46,10 @@ public:
 
     void set_state(Hub::ViewState state)
     {
-        m_state = move(state);
+        auto previous_state = exchange(m_state, move(state));
         update_view_actions();
+        if (on_state_change)
+            on_state_change(previous_state);
     }
     void set_initial_state(Hub::ViewState state) { set_state(move(state)); }
 
@@ -365,6 +367,7 @@ public:
     decltype(Hub::View::on_request_permission) on_request_permission;
     decltype(Hub::View::on_cancel_permission_prompt) on_cancel_permission_prompt;
     decltype(Hub::View::on_tab_indicator_change) on_tab_indicator_change;
+    Function<void(Hub::ViewState const& previous_state)> on_state_change;
     decltype(Hub::View::on_request_file_picker) on_request_file_picker;
     decltype(Hub::View::on_request_select_dropdown) on_request_select_dropdown;
     decltype(Hub::View::on_finish_handling_key_event) on_finish_handling_key_event;

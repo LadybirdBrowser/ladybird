@@ -243,7 +243,7 @@ public:
 public slots:
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
-    void tab_playing_audio_indicator_changed(int index);
+    void tab_audio_state_changed(int index);
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, TabLocation);
     void open_new_tab();
     void activate_tab(int index);
