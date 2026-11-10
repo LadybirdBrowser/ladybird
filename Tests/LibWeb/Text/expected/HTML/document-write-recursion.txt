@@ -1,0 +1,15 @@
+write: first chain ran 22 scripts
+write: unwinding markers: 1
+write: second chain ran 21 scripts
+write: 50 subsequent writes
+write: other document accepted writes: true
+writeln: first chain ran 22 scripts
+writeln: unwinding markers: 1
+writeln: second chain ran 21 scripts
+writeln: 50 subsequent writes
+writeln: other document accepted writes: true
+alternating: first chain ran 22 scripts
+alternating: unwinding markers: 1
+alternating: second chain ran 21 scripts
+alternating: 50 subsequent writes
+alternating: other document accepted writes: true

@@ -1532,6 +1532,19 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Utf16View text,
     if (m_active_parser_was_aborted)
         return {};
 
+    // AD-HOC: The document write steps don't bound recursive parser invocations. Limit nested writes so a script
+    // can't keep writing itself indefinitely, and suppress further writes until the outermost call returns.
+    static constexpr size_t maximum_write_depth = 21;
+    if (m_document_write_depth >= maximum_write_depth || m_document_write_limit_reached) {
+        m_document_write_limit_reached = true;
+        return {};
+    }
+    ++m_document_write_depth;
+    ScopeGuard restore_write_depth = [&] {
+        if (--m_document_write_depth == 0)
+            m_document_write_limit_reached = false;
+    };
+
     // 9. If the insertion point is undefined, then:
     if (!(m_parser && m_parser->tokenizer().is_insertion_point_defined())) {
         // 1. If document's unload counter is greater than 0 or document's ignore-destructive-writes counter is greater than 0, then return.
