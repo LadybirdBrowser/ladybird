@@ -165,3 +165,20 @@ impl Decode for Compositing_CanvasId {
 }
 
 include!(concat!(env!("OUT_DIR"), "/CompositorWebContentClientEndpoint.rs"));
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Gfx_SharedImage(std::convert::Infallible);
+
+impl Encode for Gfx_SharedImage {
+    fn encode(&self, _encoder: &mut Encoder) -> Result<(), EncodeError> {
+        match self.0 {}
+    }
+}
+
+impl Decode for Gfx_SharedImage {
+    fn decode(_decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Err(DecodeError::InvalidValue("Gfx::SharedImage"))
+    }
+}
+
+include!(concat!(env!("OUT_DIR"), "/CompositorPresentationClientEndpoint.rs"));

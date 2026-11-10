@@ -300,6 +300,10 @@ fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), B
             "CompositorWebContentClientEndpoint.rs",
         ),
         (
+            "Services/Compositor/CompositorPresentationClient.ipc",
+            "CompositorPresentationClientEndpoint.rs",
+        ),
+        (
             "Services/Compositor/RenderClockClient.ipc",
             "RenderClockClientEndpoint.rs",
         ),
