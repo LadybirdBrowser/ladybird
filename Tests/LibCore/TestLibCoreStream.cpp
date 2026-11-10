@@ -349,6 +349,19 @@ TEST_CASE(udp_socket_read_write)
 
 // LocalSocket tests
 
+TEST_CASE(local_server_can_lose_its_owner_during_accept)
+{
+    Core::EventLoop event_loop;
+    auto socket_path = temporary_path("accept-drops-server"sv);
+    RefPtr<Core::LocalServer> server = Core::LocalServer::construct();
+    EXPECT(server->listen(socket_path));
+    server->on_accept = [&](auto) { server = nullptr; };
+
+    auto client = TRY_OR_FAIL(Core::LocalSocket::connect(socket_path));
+    event_loop.spin_until([&] { return !server; });
+    TRY_OR_FAIL(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
+}
+
 TEST_CASE(local_socket_read)
 {
     Core::EventLoop event_loop;
