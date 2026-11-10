@@ -202,7 +202,14 @@ impl IDBTransaction {
     }
 
     pub(crate) fn set_state(&self, state: TransactionState) {
+        // NB: Finishing also has to remove the transaction from its connection, which set_finished() does.
+        assert!(state != TransactionState::Finished);
         self.state.set(state);
+    }
+
+    pub(crate) fn set_finished(vm: &Vm, transaction: Ref<Self>) {
+        transaction.state.set(TransactionState::Finished);
+        transaction.connection.remove_finished_transaction(vm, transaction);
     }
 
     pub(crate) fn is_upgrade_transaction(&self) -> bool {
