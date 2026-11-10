@@ -111,6 +111,7 @@ public:
     void create_context(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::CompositorContextId);
 
+    bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
     // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
