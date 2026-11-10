@@ -24,6 +24,7 @@ unsafe extern "C" {
     fn web_bindings_window_as_event_target(window: *mut c_void) -> *mut c_void;
     fn web_bindings_document_has_navigable(document: *mut c_void) -> bool;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
+    fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
     fn web_bindings_worker_global_scope_from_global_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_worker_global_scope_is_closing(worker_global_scope: *mut c_void) -> bool;
@@ -121,6 +122,12 @@ impl CppDocument {
     pub(crate) fn is_fully_active(&self) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_fully_active(self.0.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
+    pub(crate) fn has_been_destroyed(&self) -> bool {
+        // SAFETY: The Document is live.
+        unsafe { web_bindings_document_has_been_destroyed(self.0.as_ptr()) }
     }
 
     /// Whether the Document's node navigable is not null, https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable

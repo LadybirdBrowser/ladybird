@@ -22,6 +22,12 @@
 
 namespace Web::HTML {
 
+extern "C" {
+
+// Called by Bindings/Rust/src/xhr/xml_http_request.rs.
+void web_html_get_an_xml_encoding(ReadonlyBytes input, void* label, void (*on_label)(void*, ReadonlyBytes));
+}
+
 static Utf16FlyString prescan_attribute_name(Utf16StringBuilder const& attribute_name)
 {
     return Utf16FlyString::from_utf16(attribute_name.view());
@@ -740,6 +746,12 @@ EncodingSniffingResult sniff_encoding_after_prescan(DOM::Document& document, Rea
     //    In controlled environments or in environments where the encoding of documents can be prescribed (for example, for user agents intended for dedicated use in new
     //    networks), the comprehensive UTF-8 encoding is suggested.
     return { "UTF-8", EncodingConfidence::Tentative };
+}
+
+void web_html_get_an_xml_encoding(ReadonlyBytes input, void* label, void (*on_label)(void*, ReadonlyBytes))
+{
+    if (auto encoding = get_an_xml_encoding(input); encoding.has_value())
+        on_label(label, encoding->bytes());
 }
 
 }

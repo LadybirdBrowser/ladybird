@@ -1,4 +1,4 @@
 // https://xhr.spec.whatwg.org/#xmlhttprequestupload
-[Exposed=(Window,DedicatedWorker,SharedWorker)]
+[Exposed=(Window,DedicatedWorker,SharedWorker), ImplementedIn=Rust]
 interface XMLHttpRequestUpload : XMLHttpRequestEventTarget {
 };

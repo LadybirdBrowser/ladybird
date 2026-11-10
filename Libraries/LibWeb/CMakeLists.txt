@@ -1001,11 +1001,8 @@ set(SOURCES
     WebVTT/Parser.cpp
     WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
-    XHR/EventNames.cpp
     XHR/FormData.cpp
     XHR/XMLHttpRequest.cpp
-    XHR/XMLHttpRequestEventTarget.cpp
-    XHR/XMLHttpRequestUpload.cpp
     XLink/AttributeNames.cpp
     XML/XMLDocumentBuilder.cpp
     XML/XMLFragmentParser.cpp

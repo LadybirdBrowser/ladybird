@@ -19,6 +19,12 @@
 
 namespace Web::Fetch::Infrastructure {
 
+extern "C" {
+
+// Called by Bindings/Rust/src/fetch/infrastructure/http/bodies.rs.
+bool web_fetch_body_length(Body*, u64* out_length);
+}
+
 GC_DEFINE_ALLOCATOR(Body);
 
 FetchBody::FetchBody(Optional<Core::ImmutableBytes> source, Optional<u64> length)
@@ -233,6 +239,14 @@ ResponseBody byte_sequence_as_response_body(ReadonlyBytes bytes)
 void cancel_incremental_read(Streams::ReadableStreamDefaultReader& reader)
 {
     reader.cancel({});
+}
+
+bool web_fetch_body_length(Body* body, u64* out_length)
+{
+    if (!body->length().has_value())
+        return false;
+    *out_length = *body->length();
+    return true;
 }
 
 }

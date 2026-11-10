@@ -12,3 +12,9 @@ pub(crate) mod exports;
 pub(crate) mod form_data;
 #[cfg(not(test))]
 pub(crate) mod progress_event;
+#[cfg(not(test))]
+pub(crate) mod xml_http_request;
+#[cfg(not(test))]
+pub(crate) mod xml_http_request_event_target;
+#[cfg(not(test))]
+pub(crate) mod xml_http_request_upload;
