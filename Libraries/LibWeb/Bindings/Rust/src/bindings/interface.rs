@@ -51,6 +51,12 @@ pub(crate) trait Wrappable {
     /// implementation object.
     const OWNS_EXTERNAL_MEMORY: bool = false;
 
+    /// Whether the memory outside the heap that the object owns was made with it, so that allocating the object counts
+    /// it towards the next collection. Not so for an object that reports memory another object holds as well, as a CSS
+    /// rule does the rule its style sheet holds: counting it each time a new one is made would start collections that
+    /// free none of it.
+    const COUNTS_EXTERNAL_MEMORY_WHEN_ALLOCATED: bool = false;
+
     /// How much memory outside the heap the object owns, which LibGC asks for if OWNS_EXTERNAL_MEMORY is true.
     fn external_memory_size(&self) -> usize {
         0
@@ -173,10 +179,19 @@ impl<T: Wrappable + Trace + Sized + 'static> Interface for T {
 
 /// A new object of the interface, built as Heap::allocate() builds a cell.
 pub(crate) fn allocate<T: Interface>(vm: &Vm, build: impl FnOnce(&DeferGc<'_>) -> T) -> Ref<T> {
-    T::CELL_CLASS.allocate(vm, |defer_gc| Wrapped {
+    let object = T::CELL_CLASS.allocate(vm, |defer_gc| Wrapped {
         main_world_wrapper: Cell::new(None),
         implementation: build(defer_gc),
-    })
+    });
+    // NB: The memory the object owns outside the heap counts towards the next collection too, or a page could make
+    //     many objects that each own a lot of it, and keep the dead ones until its other allocations started one.
+    if T::OWNS_EXTERNAL_MEMORY && T::COUNTS_EXTERNAL_MEMORY_WHEN_ALLOCATED {
+        let size = object.external_memory_size();
+        if size != 0 {
+            vm.heap().did_allocate_external_memory(size);
+        }
+    }
+    object
 }
 
 /// What the constructor steps or the transfer-receiving steps of an interface create: the implementation of the new
