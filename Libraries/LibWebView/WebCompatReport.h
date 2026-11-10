@@ -19,6 +19,7 @@
 #include <LibGfx/Size.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/ReportDetail.h>
 #include <LibWebView/ReportSubmission.h>
 
@@ -81,6 +82,6 @@ private:
 };
 
 // A new issue on GitHub, with what we know of this build already filled in.
-WEBVIEW_API URL::URL new_bug_report_url();
+WEBVIEW_API URL::URL new_bug_report_url(DisableSandbox);
 
 }

@@ -229,7 +229,7 @@ void WebCompatReport::start_submission()
     submission->start();
 }
 
-URL::URL new_bug_report_url()
+URL::URL new_bug_report_url(DisableSandbox disable_sandbox)
 {
     StringBuilder url;
     url.append("https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml"sv);
@@ -242,7 +242,10 @@ URL::URL new_bug_report_url()
     append_field("os"sv, platform);
     append_field("architecture"sv, architecture == "x86_64"sv || architecture == "AArch64"sv ? architecture : "Other"sv);
     append_field("commit"sv, LADYBIRD_COMMIT);
-    append_field("build-flags"sv, ByteString::formatted("Ladybird {}, {}", browser_version, build_configuration));
+    auto build_flags = ByteString::formatted("Ladybird {}, {}", browser_version, build_configuration);
+    if (disable_sandbox == DisableSandbox::Yes)
+        build_flags = ByteString::formatted("{}, sandbox: off", build_flags);
+    append_field("build-flags"sv, build_flags);
 
     return URL::Parser::basic_parse(url.string_view()).release_value();
 }
