@@ -11,6 +11,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Agent.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
+#include <LibWeb/Fetch/Engine/NetworkActivityObservers.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -36,6 +37,8 @@ struct WEB_API Agent : public JS::Agent {
 
     // Set by whatever runs the agent's thread, before the agent fetches anything.
     RefPtr<Fetch::Engine::FetchExecutor> fetch_executor;
+
+    NonnullRefPtr<Fetch::Engine::NetworkActivityObservers> network_activity_observers { Fetch::Engine::NetworkActivityObservers::create() };
 
     // Rooted by Bindings::create_global_object_wrapper() until Bindings::cache_global_object_wrapper() runs.
     Vector<GC::Root<JS::HostObject>> global_object_wrappers_of_realms_being_set_up;

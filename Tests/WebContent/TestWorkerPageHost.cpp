@@ -34,7 +34,8 @@ static void run_on_worker_thread(Callback const& callback)
         IPC::ScopedSharedIOThread shared_io_thread;
         Core::EventLoop event_loop;
         Web::Bindings::initialize_agent(Web::HTML::AgentType::SharedWorker);
-        Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+        auto& agent = Web::HTML::surrounding_agent();
+        agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
 
         auto pair = MUST(IPC::Transport::create_paired());
         auto client = WebWorker::ConnectionFromClient::construct(move(pair.local), nullptr);

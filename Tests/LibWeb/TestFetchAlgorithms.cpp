@@ -22,6 +22,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
@@ -31,11 +32,13 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
+using Web::Fetch::Engine::Event::NetworkActivity;
 using Web::Fetch::Engine::Event::ReadRequestBodyStream;
 using Web::Fetch::Engine::Event::RequestBodyEndOfBody;
 using Web::Fetch::Engine::Event::RequestBodyProgress;
@@ -65,7 +68,8 @@ struct FetchHarness {
         , realm(document->relevant_settings_object().realm())
     {
         // Each case has an event loop of its own, which the window agent's fetches have to run on.
-        Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+        auto& agent = Web::HTML::surrounding_agent();
+        agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
     }
 
     // An unknown scheme: scheme fetch returns a network error, which has no body.
@@ -85,15 +89,18 @@ struct FetchHarness {
         return request;
     }
 
-    GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch(Request& request, FetchAlgorithms::Input input) const
+    // Fetches from the harness's document, or from the given one.
+    GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch(Request& request, FetchAlgorithms::Input input, GC::Ptr<Web::DOM::Document> from_document = {}) const
     {
-        return fetch_with(request, FetchAlgorithms::create(move(input)));
+        return fetch_with(request, FetchAlgorithms::create(move(input)), from_document);
     }
 
-    GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch_with(Request& request, FetchAlgorithms const& algorithms) const
+    GC::Ref<Web::Fetch::Infrastructure::FetchController> fetch_with(Request& request, FetchAlgorithms const& algorithms, GC::Ptr<Web::DOM::Document> from_document = {}) const
     {
-        Web::HTML::TemporaryExecutionContext execution_context { *realm, Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        return Web::Fetch::Fetching::fetch(*realm, request, algorithms);
+        auto& settings = (from_document ? *from_document : *document).relevant_settings_object();
+        request.set_client(settings.address());
+        Web::HTML::TemporaryExecutionContext execution_context { settings.realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        return Web::Fetch::Fetching::fetch(settings.realm(), request, algorithms);
     }
 
     // Runs the fetch's steps and the tasks they queue until the condition holds, or for ten seconds.
@@ -615,4 +622,235 @@ TEST_CASE(a_request_fetched_again_keeps_its_webdriver_bidi_request_id)
     VERIFY(events->request_ids.size() == 4);
     EXPECT_EQ(events->request_ids[3], events->request_ids[2]);
     EXPECT_NE(events->request_ids[2], events->request_ids[0]);
+}
+
+namespace {
+
+// A page client that records the network activity reported to it.
+class NetworkActivityPageClient final : public Web::PageClient {
+    GC_CELL(NetworkActivityPageClient, Web::PageClient);
+    GC_DECLARE_ALLOCATOR(NetworkActivityPageClient);
+
+public:
+    static GC::Ref<NetworkActivityPageClient> create(GC::Heap& heap, Web::PageId id)
+    {
+        auto client = heap.allocate<NetworkActivityPageClient>(id);
+        client->m_page = Web::Page::create(client);
+        return client;
+    }
+
+    virtual Web::PageId id() const override { return m_id; }
+    virtual Web::Page& page() override { return *m_page; }
+    virtual Web::Page const& page() const override { return *m_page; }
+    virtual bool is_connection_open() const override { return true; }
+    virtual Gfx::Palette palette() const override { VERIFY_NOT_REACHED(); }
+    virtual Web::DevicePixelRect screen_rect() const override { return {}; }
+    virtual double zoom_level() const override { return 1; }
+    virtual double device_pixel_ratio() const override { return 1; }
+    virtual double device_pixels_per_css_pixel() const override { return 1; }
+    virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return Web::CSS::PreferredColorScheme::Auto; }
+    virtual Web::CSS::PreferredContrast preferred_contrast() const override { return Web::CSS::PreferredContrast::Auto; }
+    virtual Web::CSS::PreferredMotion preferred_motion() const override { return Web::CSS::PreferredMotion::NoPreference; }
+    virtual size_t screen_count() const override { return 1; }
+    virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
+    virtual void report_finished_handling_input_event(Web::PageId, u64, Web::EventResult) override { }
+    virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return { 2, s_next_cross_process_id++ }; }
+    virtual void request_frame() override { }
+    virtual void request_file(Web::FileRequest) override { }
+    virtual bool is_headless() const override { return true; }
+
+    virtual void page_did_start_network_request(u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& request_headers, ReadonlyBytes request_body, Optional<String> initiator_type, String const& referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority) override
+    {
+        VERIFY(request_headers.size() == 1);
+        calls.append(ByteString::formatted("start {} {} {} {}: {} body {} initiator {} referrer policy {} navigation {} priority {}", request_id, method, url, request_headers[0].name, request_headers[0].value, StringView { request_body }, initiator_type.value_or("none"_string), referrer_policy, is_navigation_request, to_underlying(priority)));
+    }
+
+    virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> const& response_headers, Requests::CacheState cache_state) override
+    {
+        VERIFY(response_headers.size() == 1);
+        calls.append(ByteString::formatted("headers {} {} {} {}: {} cache state {}", request_id, status_code, reason_phrase.value_or("none"_string), response_headers[0].name, response_headers[0].value, to_underlying(cache_state)));
+    }
+
+    virtual void page_did_receive_network_response_body(u64 request_id, ReadonlyBytes data) override
+    {
+        calls.append(ByteString::formatted("body {} {}", request_id, StringView { data }));
+    }
+
+    virtual void page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) override
+    {
+        auto error = network_error.has_value() ? Requests::network_error_to_string(*network_error) : "none"sv;
+        calls.append(ByteString::formatted("finish {} {} encoded {} error {}", request_id, body_size, timing_info.encoded_body_size, error));
+    }
+
+    Vector<ByteString> calls;
+
+private:
+    explicit NetworkActivityPageClient(Web::PageId id)
+        : m_id(id)
+    {
+    }
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_page);
+    }
+
+    GC::Ptr<Web::Page> m_page;
+    Web::PageId m_id;
+    static inline u64 s_next_cross_process_id { 1 };
+};
+
+GC_DEFINE_ALLOCATOR(NetworkActivityPageClient);
+
+}
+
+// The active document of a new top-level traversable of the page.
+static GC::Ref<Web::DOM::Document> create_document_of_page(Web::Page& page)
+{
+    auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
+    page.set_top_level_traversable(traversable);
+    return *traversable->active_document();
+}
+
+// One of each network activity, of the RequestServer request with the id.
+static Vector<NetworkActivity> each_network_activity(u64 request_id)
+{
+    Vector<NetworkActivity> activities;
+    activities.append({
+        .request_id = Web::Fetch::Engine::RequestId { request_id },
+        .activity = NetworkActivity::RequestStarted {
+            .url = URL::Parser::basic_parse("https://example.com/upload"sv).release_value(),
+            .method = "POST",
+            .headers = { { "Accept"sv, "*/*"sv } },
+            .body = Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("hello"sv.bytes()))),
+            .initiator_type = "fetch"_string,
+            .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+            .is_navigation_request = false,
+            .priority = Web::Fetch::Infrastructure::RequestPriority::High,
+        },
+    });
+    activities.append({
+        .request_id = Web::Fetch::Engine::RequestId { request_id },
+        .activity = NetworkActivity::ResponseHeaders {
+            .status_code = 200,
+            .reason_phrase = "OK"_string,
+            .headers = { { "Content-Type"sv, "text/plain"sv } },
+            .cache_state = Requests::CacheState::Local,
+        },
+    });
+    activities.append({
+        .request_id = Web::Fetch::Engine::RequestId { request_id },
+        .activity = NetworkActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("world"sv.bytes()))) },
+    });
+    activities.append({
+        .request_id = Web::Fetch::Engine::RequestId { request_id },
+        .activity = NetworkActivity::RequestFinished {
+            .total_size = 5,
+            .timing_info = { .encoded_body_size = 5 },
+            .network_error = Requests::NetworkError::IncompleteContent,
+        },
+    });
+    return activities;
+}
+
+TEST_CASE(network_activity_is_reported_to_the_page_of_the_realm_that_started_the_fetch)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+
+    auto& heap = harness.realm->heap();
+    auto first_page_client = NetworkActivityPageClient::create(heap, Web::PageId { 1 });
+    auto second_page_client = NetworkActivityPageClient::create(heap, Web::PageId { 2 });
+    auto first_document = create_document_of_page(first_page_client->page());
+    auto second_document = create_document_of_page(second_page_client->page());
+
+    auto first_request = harness.create_request();
+    auto first_controller = harness.fetch(first_request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard }, first_document);
+    auto second_request = harness.create_request();
+    auto second_controller = harness.fetch(second_request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard }, second_document);
+
+    FetchEventSink first_event_sink { first_controller };
+    for (auto& activity : each_network_activity(7))
+        first_event_sink.handle_event(move(activity));
+    FetchEventSink { second_controller }.handle_event(each_network_activity(8).take_first());
+
+    EXPECT_EQ(first_page_client->calls, (Vector<ByteString> {
+                                            "start 7 POST https://example.com/upload Accept: */* body hello initiator fetch referrer policy no-referrer navigation false priority 0",
+                                            "headers 7 200 OK Content-Type: text/plain cache state 1",
+                                            "body 7 world",
+                                            "finish 7 5 encoded 5 error Connection was closed before entire response was received",
+                                        }));
+    EXPECT_EQ(second_page_client->calls, (Vector<ByteString> { "start 8 POST https://example.com/upload Accept: */* body hello initiator fetch referrer policy no-referrer navigation false priority 0" }));
+
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(first_request, second_request), [](auto& first_request, auto& second_request) {
+        return first_request->done() && second_request->done();
+    }));
+}
+
+TEST_CASE(loads_that_start_no_network_request_report_no_network_activity)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    ResourceLoaderWithoutRequestServer resource_loader { harness.realm->heap() };
+
+    auto& heap = harness.realm->heap();
+    auto page_client = NetworkActivityPageClient::create(heap, Web::PageId { 1 });
+    auto document = create_document_of_page(page_client->page());
+
+    // Each load reaches the loader and fails there: one finds no RequestServer, the other no resource.
+    auto record = make_ref_counted<AlgorithmCalls>();
+    for (auto url : { "http://127.0.0.1:8000/"sv, "resource://ladybird/no-such-resource"sv }) {
+        FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard };
+        input.process_response = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView> response) {
+            auto const& message = response->network_error_message();
+            record->calls.append(message.has_value() && message->starts_with_bytes("Load failed: "sv) ? "failed in the loader"sv : "other"sv);
+        });
+        auto request = harness.create_request_for(url);
+        request->set_destination(Request::Destination::Image);
+        (void)harness.fetch(request, move(input), document);
+    }
+
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->calls.size() == 2; }));
+    EXPECT_EQ(record->calls, (Vector<StringView> { "failed in the loader"sv, "failed in the loader"sv }));
+    EXPECT(page_client->calls.is_empty());
+}
+
+TEST_CASE(an_agent_has_a_devtools_client_while_any_page_of_it_has_one)
+{
+    auto observers = Web::Fetch::Engine::NetworkActivityObservers::create();
+    EXPECT(!observers->has_devtools_client());
+
+    observers->page_did_gain_devtools_client();
+    observers->page_did_gain_devtools_client();
+    observers->page_did_lose_devtools_client();
+    EXPECT(observers->has_devtools_client());
+
+    observers->page_did_lose_devtools_client();
+    EXPECT(!observers->has_devtools_client());
+}
+
+TEST_CASE(a_fetch_reads_the_network_activity_observers_of_its_agent)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+
+    auto& heap = harness.realm->heap();
+    auto request = harness.create_request();
+    auto controller = harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
+    auto fetch_params = controller->original_fetch_params();
+    VERIFY(fetch_params);
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(request), [](auto& request) { return request->done(); }));
+
+    auto& agent = Web::HTML::surrounding_agent();
+    VERIFY(fetch_params->engine_record());
+    EXPECT_EQ(&fetch_params->engine_record()->network_activity_observers(), agent.network_activity_observers.ptr());
+
+    agent.network_activity_observers->page_did_gain_devtools_client();
+    EXPECT(fetch_params->engine_record()->network_activity_observers().has_devtools_client());
+    agent.network_activity_observers->page_did_lose_devtools_client();
+    EXPECT(!fetch_params->engine_record()->network_activity_observers().has_devtools_client());
 }

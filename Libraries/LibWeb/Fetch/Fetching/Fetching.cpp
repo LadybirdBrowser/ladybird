@@ -384,6 +384,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     auto fetch_params = Infrastructure::FetchParams::create(controller, request, algorithms, timing_info, current_loader_config());
     controller->set_task_destination(task_destination);
     controller->set_keepalive(request.keepalive());
+    // AD-HOC: A fetch's network requests are loaded and reported for the page of the realm that starts it.
+    controller->set_page(Bindings::principal_host_defined_page(realm));
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
 
@@ -2846,6 +2848,28 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     return create_body_view(realm, response, nullptr);
 }
 
+static Engine::Event::NetworkActivity::RequestStarted network_request_started(LoadRequest const& load_request, Infrastructure::Request const& request)
+{
+    Core::ImmutableBytes body;
+    if (auto const* fetch_body = request.body().get_pointer<Infrastructure::FetchBody>(); fetch_body && fetch_body->source().has_value())
+        body = *fetch_body->source();
+
+    Optional<String> initiator_type;
+    if (load_request.initiator_type().has_value())
+        initiator_type = MUST(Infrastructure::initiator_type_to_string(*load_request.initiator_type()).view().to_utf8());
+
+    return {
+        .url = load_request.url().value(),
+        .method = load_request.method(),
+        .headers = load_request.headers().headers(),
+        .body = move(body),
+        .initiator_type = move(initiator_type),
+        .referrer_policy = load_request.referrer_policy(),
+        .is_navigation_request = load_request.is_navigation_request(),
+        .priority = load_request.priority(),
+    };
+}
+
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
@@ -2860,8 +2884,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     (void)is_new_connection_fetch;
 
     auto request = fetch_params.request();
-
-    auto& page = Bindings::principal_host_defined_page(realm);
+    auto* engine_record = fetch_params.engine_record();
+    VERIFY(engine_record);
 
     auto load_request_headers = request->header_list();
     if (g_disk_cache_enabled_for_navigations_for_testing && request->mode() == Infrastructure::Request::Mode::Navigate) {
@@ -2871,7 +2895,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     LoadRequest load_request { move(load_request_headers) };
     load_request.set_url(request->current_url());
-    load_request.set_page(page);
+    load_request.set_page(fetch_params.controller()->page());
     load_request.set_method(request->method());
     load_request.set_cache_mode(request->cache_mode());
     load_request.set_include_credentials(include_credentials);
@@ -2921,7 +2945,17 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // A load without a RequestServer request, such as one for a file: URL, hands over its whole body at once.
     auto whole_body_transport = create_whole_body_transport(*delivery_gate, *channel);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, pending_response, request, body_pump, channel, delivery_gate, whole_body_transport, http_cache), [](auto& fetch_params, auto& pending_response, auto& request, auto& body_pump, auto& channel, auto& delivery_gate, auto& whole_body_transport, auto& http_cache, Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
+    auto on_headers_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, NonnullRefPtr { *engine_record }, pending_response, request, body_pump, channel, delivery_gate, whole_body_transport, http_cache), [](auto& fetch_params, auto& engine_record, auto& pending_response, auto& request, auto& body_pump, auto& channel, auto& delivery_gate, auto& whole_body_transport, auto& http_cache, Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
+        if (network_transport) {
+            Engine::Event::NetworkActivity::ResponseHeaders headers {
+                .status_code = status_code.value_or(0),
+                .reason_phrase = reason_phrase,
+                .headers = response_headers.headers(),
+                .cache_state = cache_state,
+            };
+            engine_record->report_network_activity(network_transport->request_id(), move(headers));
+        }
+
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2998,7 +3032,12 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         body_pump->handle_network_data(move(data));
     });
 
-    auto on_data_received = GC::create_function(GC::Heap::the(), GC::captures(deliver_body_data, whole_body_transport), [](auto& deliver_body_data, auto& whole_body_transport, Requests::ResponseData data) {
+    auto on_data_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *engine_record }, deliver_body_data, whole_body_transport), [](auto& engine_record, auto& deliver_body_data, auto& whole_body_transport, Engine::NetworkTransportHandle* network_transport, Requests::ResponseData data) {
+        if (network_transport && engine_record->network_activity_observers().has_devtools_client()) {
+            Engine::Event::NetworkActivity::ResponseBodyBytes body_bytes { MUST(Core::ImmutableBytes::copy(data.bytes())) };
+            engine_record->report_network_activity(network_transport->request_id(), move(body_bytes));
+        }
+
         if (!whole_body_transport->is_attached()) {
             deliver_body_data->function()(move(data));
             return;
@@ -3030,7 +3069,16 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(complete_load, whole_body_transport), [](auto& complete_load, auto& whole_body_transport, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message) {
+    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *engine_record }, complete_load, whole_body_transport), [](auto& engine_record, auto& complete_load, auto& whole_body_transport, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
+        if (network_request_end.has_value()) {
+            Engine::Event::NetworkActivity::RequestFinished finished {
+                .total_size = network_request_end->total_size,
+                .timing_info = timing_info,
+                .network_error = network_request_end->network_error,
+            };
+            engine_record->report_network_activity(network_request_end->request_id, move(finished));
+        }
+
         if (!success || !whole_body_transport->is_attached()) {
             complete_load->function()(success, timing_info, error_message);
             return;
@@ -3045,6 +3093,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         : Requests::RequestClient::TransferLease::No;
     auto network_transport = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
     if (network_transport) {
+        engine_record->report_network_activity(network_transport->request_id(), network_request_started(load_request, *request));
         delivery_gate->attach_transport(*network_transport);
         network_transport->set_on_teardown([delivery_gate, channel, body_pump = GC::Root { body_pump }](Requests::Request::TeardownReason reason) {
             tear_down_network_body(*delivery_gate, *channel, reason);
@@ -3061,8 +3110,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     }
 
     // To transmit request’s body body, run these steps:
-    // NB: Only a CORS preflight's fetch params lack an engine record, and a preflight has no request body algorithms.
-    if (auto* engine_record = fetch_params.engine_record()) {
+    // NB: A CORS preflight's fetch params have no request body algorithms.
+    if (!fetch_params.is_cors_preflight()) {
         auto& event_sink = engine_record->event_sink();
 
         // 1. If body is null and fetchParams’s process request end-of-body is non-null, then queue a fetch task given
@@ -3164,6 +3213,13 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     auto preflight_controller = GC::make_root(Infrastructure::FetchController::create(controller_registry));
     auto preflight_algorithms = Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard });
     auto preflight_fetch_params = Infrastructure::FetchParams::create(*preflight_controller, preflight, preflight_algorithms, timing_info, fetch_params.loader_config_snapshot());
+    // AD-HOC: The preflight's network request is loaded for the page of the fetch it is for, and reported as one of
+    //         that fetch's network requests.
+    preflight_controller->set_page(fetch_params.controller()->page());
+    preflight_controller->set_preflighted_fetch_controller(fetch_params.controller());
+    VERIFY(fetch_params.engine_record());
+    preflight_fetch_params->set_engine_record(*fetch_params.engine_record());
+    preflight_fetch_params->set_is_cors_preflight();
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 

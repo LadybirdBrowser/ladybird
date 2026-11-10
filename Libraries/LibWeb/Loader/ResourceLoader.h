@@ -18,10 +18,12 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/CacheState.h>
 #include <LibRequests/Forward.h>
+#include <LibRequests/NetworkError.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 
@@ -47,10 +49,19 @@ public:
     // for requests without a site or without a client for that site.
     void set_client(Optional<Utf16String> const& top_level_site, NonnullRefPtr<Requests::RequestClient>);
 
+    // A callback's transport is that of the RequestServer request the load started, or null for a load that started
+    // none.
     using OnHeadersReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)>;
-    using OnDataReceived = GC::Function<void(Requests::ResponseData data)>;
+    using OnDataReceived = GC::Function<void(Fetch::Engine::NetworkTransportHandle*, Requests::ResponseData data)>;
     using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
-    using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
+
+    // What RequestServer reported at the end of the request a load started.
+    struct NetworkRequestEnd {
+        Fetch::Engine::RequestId request_id;
+        u64 total_size { 0 };
+        Optional<Requests::NetworkError> network_error;
+    };
+    using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<NetworkRequestEnd> const& network_request_end)>;
 
     // A request keeps roots into the heap of the agent that made it.
     void stop_all_requests();

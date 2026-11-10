@@ -27,6 +27,20 @@ static NEVER_INLINE FetchControllerToken create_unreferenced_controller(FetchCon
     return FetchController::create(registry)->token();
 }
 
+// Returns the token of a controller that only the given CORS preflight's controller references.
+static NEVER_INLINE FetchControllerToken create_preflighted_fetch_controller(FetchControllerRegistry& registry, GC::Root<FetchController>& preflight_controller)
+{
+    auto controller = FetchController::create(registry);
+    preflight_controller = GC::make_root(FetchController::create(registry));
+    preflight_controller->set_preflighted_fetch_controller(controller);
+    return controller->token();
+}
+
+static NEVER_INLINE bool is_registered(FetchControllerRegistry const& registry, FetchControllerToken token)
+{
+    return !!registry.find(token);
+}
+
 TEST_SETUP
 {
     GC::Heap::set_default_heap_for_testing(test_heap());
@@ -58,6 +72,22 @@ TEST_CASE(a_collected_controller_is_not_found)
     test_heap().collect_garbage();
 
     EXPECT(!registry.find(token));
+}
+
+TEST_CASE(a_cors_preflights_controller_keeps_the_controller_of_its_fetch)
+{
+    FetchControllerRegistry registry;
+    GC::Root<FetchController> preflight_controller;
+    auto token = create_preflighted_fetch_controller(registry, preflight_controller);
+    GC::scrub_stack_for_testing();
+
+    test_heap().collect_garbage();
+    EXPECT(is_registered(registry, token));
+
+    preflight_controller = {};
+    GC::scrub_stack_for_testing();
+    test_heap().collect_garbage();
+    EXPECT(!is_registered(registry, token));
 }
 
 TEST_CASE(a_controller_can_be_collected_after_its_registry_is_gone)

@@ -62,7 +62,8 @@ static intptr_t run_worker_thread(IPC::TransportHandle const& worker_handle, Web
 
     Core::EventLoop event_loop;
     Web::Bindings::initialize_agent(agent_type);
-    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+    auto& agent = Web::HTML::surrounding_agent();
+    agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
 
     auto event_loop_reference = Core::EventLoop::current_weak();
     {

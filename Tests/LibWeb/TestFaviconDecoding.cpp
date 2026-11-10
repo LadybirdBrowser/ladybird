@@ -54,7 +54,8 @@ TEST_CASE(each_favicon_is_decoded_once)
     Web::Platform::ImageCodecPlugin::install(image_codec);
 
     auto realm = Web::Bindings::create_a_principal_javascript_realm();
-    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+    auto& agent = Web::HTML::surrounding_agent();
+    agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
     auto& page = Web::Bindings::principal_host_defined_page(*realm);
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
     page.set_top_level_traversable(traversable);

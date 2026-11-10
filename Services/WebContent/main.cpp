@@ -283,7 +283,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Bindings::set_collect_garbage_on_every_allocation_in_new_agents(collect_garbage_on_every_allocation);
     Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
-    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+    auto& agent = Web::HTML::surrounding_agent();
+    agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
     if (stats_log)
         Web::Bindings::main_thread_vm().heap().enable_stats();
 

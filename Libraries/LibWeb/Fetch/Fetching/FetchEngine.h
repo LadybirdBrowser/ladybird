@@ -10,16 +10,22 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/EngineCommandSink.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
+#include <LibWeb/Fetch/Engine/NetworkActivityObservers.h>
 
 namespace Web::Fetch::Fetching {
 
 // Handles the commands posted for the fetches of the agent on whose thread it runs.
 class FetchEngine final : public Engine::EngineCommandSink {
 public:
+    explicit FetchEngine(NonnullRefPtr<Engine::NetworkActivityObservers const>);
+
     virtual void handle_command(Engine::EngineCommand) override;
+
+private:
+    NonnullRefPtr<Engine::NetworkActivityObservers const> m_network_activity_observers;
 };
 
 // Creates an executor that runs a fetch engine on the current thread's event loop.
-WEB_API NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor();
+WEB_API NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const>);
 
 }

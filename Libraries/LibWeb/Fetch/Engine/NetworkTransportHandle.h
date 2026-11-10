@@ -10,6 +10,7 @@
 #include <LibRequests/Request.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
+#include <LibWeb/Fetch/Engine/Ids.h>
 
 namespace Web::Fetch::Engine {
 
@@ -18,6 +19,8 @@ namespace Web::Fetch::Engine {
 class WEB_API NetworkTransportHandle final : public FetchBodyDeliveryGate::Transport {
 public:
     [[nodiscard]] static NonnullRefPtr<NetworkTransportHandle> create(NonnullRefPtr<Requests::Request>);
+
+    [[nodiscard]] RequestId request_id() const { return RequestId { m_request->id() }; }
 
     // The key another client adopts the request by, while this process holds its lease.
     [[nodiscard]] Optional<Requests::RequestTransferLeaseKey> const& transfer_lease() const { return m_request->transfer_lease(); }

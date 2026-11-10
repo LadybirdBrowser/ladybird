@@ -81,6 +81,12 @@ public:
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
 
+    // The page of the realm that started the fetch.
+    [[nodiscard]] GC::Ref<Page> page() const;
+    void set_page(Page& page) { m_page = page; }
+
+    void set_preflighted_fetch_controller(FetchController& controller) { m_preflighted_fetch_controller = controller; }
+
     // Moves the fetch, before its response has arrived, to another task destination and body intent.
     void retarget(TaskDestination, Engine::BodyIntent);
 
@@ -168,6 +174,12 @@ private:
     // task destination (default null)
     //     Null, a global object, or a parallel queue.
     TaskDestination m_task_destination;
+    GC::Ptr<Page> m_page;
+
+    // A CORS preflight's controller keeps alive the controller of the fetch the preflight is for, which the
+    // preflight's requests report to.
+    GC::Ptr<FetchController> m_preflighted_fetch_controller;
+
     bool m_is_keepalive { false };
 
     // NB: Assumes one waiting consumer for a pending preloaded response.

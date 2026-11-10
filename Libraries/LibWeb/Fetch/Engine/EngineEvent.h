@@ -10,6 +10,7 @@
 #include <LibWeb/Fetch/Engine/BodyPresentation.h>
 #include <LibWeb/Fetch/Engine/FetchTimingSeed.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkActivity.h>
 #include <LibWeb/Fetch/Engine/RequestEnd.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
@@ -102,6 +103,7 @@ using EngineEvent = Variant<
     Event::RequestBodyProgress,
     Event::RequestBodyEndOfBody,
     Event::ReadRequestBodyStream,
-    Event::RequestBodySentFromSource>;
+    Event::RequestBodySentFromSource,
+    Event::NetworkActivity>;
 
 }
