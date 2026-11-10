@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Calculates the velocity of a touchpad scroll gesture when the fingers lift.
+//! The momentum of a touchpad flick: its velocity as the fingers lift, and how it decays.
 
 // Velocities are in wheel delta units per second. Displacements are in wheel delta units.
 
