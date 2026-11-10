@@ -34,12 +34,10 @@ public:
             add_range(range.start, range.end);
     }
 
-    // Adds a range, merging it with the ranges it overlaps or touches, and with any it's separated from by a gap of at
-    // most maximum_gap.
-    void add_range(AK::Duration start, AK::Duration end, AK::Duration maximum_gap = AK::Duration::zero());
+    void add_range(AK::Duration start, AK::Duration end, AK::Duration maximum_gap_to_bridge = AK::Duration::zero());
+    // Takes linear time when the ranges are in order, and O(n log n) time in any order.
+    void add_ranges(Vector<Range> const&, AK::Duration maximum_gap_to_bridge = AK::Duration::zero());
     void remove_range(AK::Duration start, AK::Duration end);
-    // Removes every range in the given set, in one pass over both.
-    void remove_ranges(TimeRanges const&);
 
     size_t size() const { return m_ranges.size(); }
     bool is_empty() const { return m_ranges.is_empty(); }
