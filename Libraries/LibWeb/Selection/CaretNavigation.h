@@ -51,6 +51,10 @@ struct CaretLocation {
     TextAffinity affinity { TextAffinity::Downstream };
 };
 
+// One grapheme step in the text. At a soft wrap, the offset has a caret position at the end of the earlier line and at
+// the start of the next, and a step visits both.
+Optional<CaretLocation> location_after_character_step(DOM::Text&, size_t offset, TextAffinity, SelectionDirection);
+
 // Resolves visible caret positions without mutating Selection. Editing operations use this service to share the same
 // model of rendered text, atomic inline content, empty lines, and editing-host boundaries as keyboard navigation.
 class CaretNavigator {

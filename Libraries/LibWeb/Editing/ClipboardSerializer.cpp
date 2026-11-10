@@ -30,7 +30,6 @@
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/VisualLines.h>
 
 #include <LibWeb/Editing/StyledMarkupSerializer.h>
 
@@ -118,7 +117,7 @@ private:
                 return;
             // Source formatting whitespace between blocks has a layout node but produces no painted text. TextIterator
             // based engines omit it from the plain-text clipboard representation.
-            if (collect_visual_lines(read, *text).is_empty())
+            if (!Layout::RustFFI::render_state_text_has_lines(layout_node->document_host(), Layout::Node::slot_id(layout_node)))
                 return;
 
             Utf16String data;

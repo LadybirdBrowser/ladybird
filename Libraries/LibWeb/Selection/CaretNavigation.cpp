@@ -21,7 +21,6 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Selection/CaretNavigation.h>
-#include <LibWeb/VisualLines.h>
 
 namespace Web::Selection {
 
@@ -45,11 +44,8 @@ static WordSegmentKind word_segment_kind(Utf16View const& segment)
 static bool text_node_has_rendered_text(DOM::Text const& text)
 {
     Layout::ForcedReadScope read { text.document() };
-    for (auto const& line : collect_visual_lines(read, text)) {
-        if (line.has_fragments)
-            return true;
-    }
-    return false;
+    auto const* layout_node = text.unsafe_layout_node(read);
+    return layout_node && Layout::RustFFI::render_state_text_has_rendered_text(layout_node->document_host(), Layout::Node::slot_id(layout_node));
 }
 
 // A <br> that renders an empty line hosts a caret position on its parent, at its child index. This covers a leading
@@ -107,27 +103,32 @@ static bool is_empty_inline_block(DOM::Node& node)
     return is_atomic_inline_caret_host(node) && !node.has_children() && !layout_node->is_replaced_box();
 }
 
+// The line the rendered text of `text` starts on, or ends on, where that line holds rendered text of it.
+static Optional<Layout::RustFFI::FfiInlineLine> rendered_text_edge_line(DOM::Text const& text, bool end)
+{
+    Layout::ForcedReadScope read { text.document() };
+    auto const* layout_node = text.unsafe_layout_node(read);
+    if (!layout_node)
+        return {};
+    auto line = Layout::RustFFI::render_state_text_rendered_edge_line(layout_node->document_host(), Layout::Node::slot_id(layout_node), end);
+    if (line.root.index == Compositing::RustFFI::INVALID_NODE_SLOT_INDEX)
+        return {};
+    return line;
+}
+
 static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text const& after)
 {
-    Layout::ForcedReadScope read { before.document() };
-    auto before_lines = collect_visual_lines(read, before);
-    auto after_lines = collect_visual_lines(read, after);
-    if (before_lines.is_empty() || !before_lines.last().has_fragments || after_lines.is_empty() || !after_lines.first().has_fragments)
-        return false;
-
-    return before_lines.last().owner_paintable == after_lines.first().owner_paintable
-        && before_lines.last().line_index == after_lines.first().line_index;
+    auto before_line = rendered_text_edge_line(before, true);
+    auto after_line = rendered_text_edge_line(after, false);
+    return before_line.has_value() && after_line.has_value()
+        && before_line->root.index == after_line->root.index && before_line->index == after_line->index;
 }
 
 static bool boundary_visual_lines_share_inline_context(DOM::Text const& before, DOM::Text const& after)
 {
-    Layout::ForcedReadScope read { before.document() };
-    auto before_lines = collect_visual_lines(read, before);
-    auto after_lines = collect_visual_lines(read, after);
-    if (before_lines.is_empty() || !before_lines.last().has_fragments || after_lines.is_empty() || !after_lines.first().has_fragments)
-        return false;
-
-    return before_lines.last().owner_paintable == after_lines.first().owner_paintable;
+    auto before_line = rendered_text_edge_line(before, true);
+    auto after_line = rendered_text_edge_line(after, false);
+    return before_line.has_value() && after_line.has_value() && before_line->root.index == after_line->root.index;
 }
 
 // INTEROP: A forward vertical extension that ends at the start of text in another block ends at the equivalent boundary
@@ -203,6 +204,34 @@ static Optional<CaretLocation> caret_location_of(DOM::Document& document, Layout
         break;
     }
     VERIFY_NOT_REACHED();
+}
+
+// The caret location at the start of the first line of `text`, or at the end of its last line.
+static Optional<CaretLocation> text_edge_location(DOM::Text& text, bool end)
+{
+    Layout::ForcedReadScope read { text.document() };
+    text.document().update_layout_if_needed_for_node(text, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto const* layout_node = text.unsafe_layout_node(read);
+    if (!layout_node)
+        return {};
+    return caret_location_of(text.document(), read, Layout::RustFFI::render_state_text_edge(layout_node->document_host(), Layout::Node::slot_id(layout_node), end));
+}
+
+Optional<CaretLocation> location_after_character_step(DOM::Text& text, size_t offset, TextAffinity affinity, SelectionDirection direction)
+{
+    Layout::ForcedReadScope read { text.document() };
+    text.document().update_layout_if_needed_for_node(text, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto forward = direction == SelectionDirection::Forward;
+    auto grapheme_boundary = forward ? text.grapheme_segmenter().next_boundary(offset) : text.grapheme_segmenter().previous_boundary(offset);
+    auto const* layout_node = text.unsafe_layout_node(read);
+    if (!layout_node) {
+        if (!grapheme_boundary.has_value())
+            return {};
+        return CaretLocation { text, *grapheme_boundary, TextAffinity::Downstream };
+    }
+    return caret_location_of(text.document(), read,
+        Layout::RustFFI::render_state_text_character_step(layout_node->document_host(), Layout::Node::slot_id(layout_node),
+            offset, affinity == TextAffinity::Downstream, forward, grapheme_boundary.has_value(), grapheme_boundary.value_or(0)));
 }
 
 GC::Ptr<DOM::Node> CaretNavigator::adjacent_caret_host(DOM::Node& from, DOM::Node& editing_host, SelectionDirection direction)
@@ -293,7 +322,6 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
         return {};
 
     size_t offset = 0;
-    auto affinity = TextAffinity::Downstream;
 
     if (is_atomic_inline_caret_host(*target) && target->parent()) {
         auto target_is_in_origin_parent = target->parent() == origin.parent();
@@ -315,17 +343,10 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
         target = target->parent();
     }
 
-    if (auto* text = as_if<DOM::Text>(*target)) {
-        auto position = direction == SelectionDirection::Forward
-            ? cursor_position_at_visual_start(*text)
-            : cursor_position_at_visual_end(*text);
-        if (!position.has_value())
-            return {};
-        offset = position->offset;
-        affinity = position->affinity;
-    }
+    if (auto* text = as_if<DOM::Text>(*target))
+        return text_edge_location(*text, direction == SelectionDirection::Backward);
 
-    return CaretLocation { *target, offset, affinity };
+    return CaretLocation { *target, offset, TextAffinity::Downstream };
 }
 
 CaretLocation CaretNavigator::canonical_location_for_editing(CaretLocation const& location)
@@ -486,9 +507,8 @@ Optional<CaretLocation> CaretNavigator::location_before_atomic_inline(DOM::Node&
         return {};
     auto previous = adjacent_caret_host(atomic_inline, *editing_host, SelectionDirection::Backward);
     if (auto* previous_text = as_if<DOM::Text>(previous.ptr())) {
-        auto position = cursor_position_at_visual_end(*previous_text);
-        if (position.has_value())
-            return CaretLocation { *previous_text, position->offset, position->affinity };
+        if (auto position = text_edge_location(*previous_text, true); position.has_value())
+            return position;
     }
     return CaretLocation { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
 }
@@ -617,14 +637,8 @@ Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocat
             target = next_target;
     }
 
-    if (auto* text = as_if<DOM::Text>(*target)) {
-        auto position = direction == SelectionDirection::Forward
-            ? cursor_position_at_visual_end(*text)
-            : cursor_position_at_visual_start(*text);
-        if (!position.has_value())
-            return {};
-        return CaretLocation { *text, position->offset, position->affinity };
-    }
+    if (auto* text = as_if<DOM::Text>(*target))
+        return text_edge_location(*text, direction == SelectionDirection::Forward);
 
     if (is_atomic_inline_caret_host(*target) && target->parent())
         return CaretLocation { *target->parent(), target->index() + (direction == SelectionDirection::Forward ? 1 : 0), TextAffinity::Downstream };
@@ -639,9 +653,7 @@ Optional<CaretLocation> CaretNavigator::first_position_on_another_line(CaretLoca
     for (auto host = adjacent_caret_host(navigation_origin(location, direction), editing_host, direction); host; host = adjacent_caret_host(*host, editing_host, direction)) {
         Optional<CaretLocation> candidate;
         if (auto* text = as_if<DOM::Text>(*host)) {
-            auto position = direction == SelectionDirection::Forward ? cursor_position_at_visual_start(*text) : cursor_position_at_visual_end(*text);
-            if (position.has_value())
-                candidate = CaretLocation { *text, position->offset, position->affinity };
+            candidate = text_edge_location(*text, direction == SelectionDirection::Backward);
         } else if (is_empty_inline_block(*host)) {
             candidate = CaretLocation { *host, 0 };
         } else if (is_atomic_inline_caret_host(*host)) {
@@ -822,11 +834,8 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
 
     if (granularity == SelectionGranularity::Character) {
         if (text) {
-            auto position = direction == SelectionDirection::Forward
-                ? compute_cursor_position_on_next_character(*text, location.offset, location.affinity)
-                : compute_cursor_position_on_previous_character(*text, location.offset, location.affinity);
-            if (position.has_value())
-                return CaretLocation { *text, position->offset, position->affinity };
+            if (auto position = location_after_character_step(*text, location.offset, location.affinity, direction); position.has_value())
+                return position;
         }
         auto adjacent = move_to_adjacent_caret_host(location, direction);
         if (!adjacent.has_value())
@@ -838,8 +847,8 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
             && location.node->child_at_index(location.offset) == adjacent_text) {
             auto* previous = location.node->child_at_index(location.offset - 1);
             if (previous && is_atomic_inline_caret_host(*previous)) {
-                if (auto position = compute_cursor_position_on_next_character(*adjacent_text, adjacent->offset, adjacent->affinity); position.has_value())
-                    return CaretLocation { *adjacent_text, position->offset, position->affinity };
+                if (auto position = location_after_character_step(*adjacent_text, adjacent->offset, adjacent->affinity, direction); position.has_value())
+                    return position;
             }
         }
         if (text && adjacent_text) {
@@ -847,11 +856,8 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
                 ? boundary_visual_lines_share_line(*text, *adjacent_text)
                 : boundary_visual_lines_share_line(*adjacent_text, *text);
             if (shares_line) {
-                auto position = direction == SelectionDirection::Forward
-                    ? compute_cursor_position_on_next_character(*adjacent_text, adjacent->offset, adjacent->affinity)
-                    : compute_cursor_position_on_previous_character(*adjacent_text, adjacent->offset, adjacent->affinity);
-                if (position.has_value())
-                    return CaretLocation { *adjacent_text, position->offset, position->affinity };
+                if (auto position = location_after_character_step(*adjacent_text, adjacent->offset, adjacent->affinity, direction); position.has_value())
+                    return position;
             }
         }
         return adjacent;
