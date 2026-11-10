@@ -100,7 +100,6 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_connections(connections)
     , m_request_transfer_leases(request_transfer_leases)
     , m_disk_cache(disk_cache)
-    , m_curl_multi(curl_multi_init())
     , m_resolver(is_private == IsPrivate::Yes ? Resolver::private_resolver() : Resolver::default_resolver())
 {
     if (m_is_private == IsPrivate::Yes)
@@ -108,33 +107,44 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
     m_connections.set(client_id(), *this);
 
-    auto set_option = [this](auto option, auto value) {
-        auto result = curl_multi_setopt(m_curl_multi, option, value);
+    set_up_curl_multi(m_fetch_curl);
+    auto result = curl_multi_setopt(m_fetch_curl.handle, CURLMOPT_MAX_HOST_CONNECTIONS, 6L);
+    VERIFY(result == CURLM_OK);
+    set_up_curl_multi(m_websocket_curl);
+}
+
+void ConnectionFromClient::set_up_curl_multi(CurlMulti& multi)
+{
+    multi.client = this;
+    multi.handle = curl_multi_init();
+
+    auto set_option = [&multi](auto option, auto value) {
+        auto result = curl_multi_setopt(multi.handle, option, value);
         VERIFY(result == CURLM_OK);
     };
     set_option(CURLMOPT_SOCKETFUNCTION, &on_socket_callback);
-    set_option(CURLMOPT_SOCKETDATA, this);
+    set_option(CURLMOPT_SOCKETDATA, &multi);
     set_option(CURLMOPT_TIMERFUNCTION, &on_timeout_callback);
-    set_option(CURLMOPT_TIMERDATA, this);
+    set_option(CURLMOPT_TIMERDATA, &multi);
 
     // https://curl.se/libcurl/c/CURLMOPT_TIMERFUNCTION.html
     // Your callback function timer_callback should install a single non-repeating timer with an expire time of
     // timeout_ms milliseconds.
-    m_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this] {
+    multi.timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(0), [this, &multi] {
         auto now = MonotonicTime::now();
-        if (m_curl_timer_due_at.has_value() && now < *m_curl_timer_due_at) {
-            m_timer->restart(*m_curl_timer_due_at - now);
+        if (multi.timer_due_at.has_value() && now < *multi.timer_due_at) {
+            multi.timer->restart(*multi.timer_due_at - now);
             return;
         }
 
-        m_curl_timer_due_at = {};
+        multi.timer_due_at = {};
         note_event_tick("curl-timer-fired"sv);
         s_curl_timer_due_at = {};
 
         // When that timer fires, call either curl_multi_socket_action or curl_multi_perform, depending on which
         // interface you use.
-        auto result = time_curl_call("multi_socket_action(timeout)"sv, [this] {
-            return curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, nullptr);
+        auto result = time_curl_call("multi_socket_action(timeout)"sv, [&multi] {
+            return curl_multi_socket_action(multi.handle, CURL_SOCKET_TIMEOUT, 0, nullptr);
         });
         VERIFY(result == CURLM_OK);
         check_active_requests();
@@ -145,8 +155,10 @@ ConnectionFromClient::~ConnectionFromClient()
 {
     cancel_owned_work();
 
-    curl_multi_cleanup(m_curl_multi);
-    m_curl_multi = nullptr;
+    curl_multi_cleanup(m_fetch_curl.handle);
+    m_fetch_curl.handle = nullptr;
+    curl_multi_cleanup(m_websocket_curl.handle);
+    m_websocket_curl.handle = nullptr;
 
     if (m_is_private == IsPrivate::Yes && --s_private_connection_count == 0) {
         clear_aia_state(IsPrivate::Yes);
@@ -184,7 +196,7 @@ void ConnectionFromClient::cancel_owned_work()
     m_websockets.clear();
 
     for (auto& fetch : m_aia_fetches) {
-        curl_multi_remove_handle(m_curl_multi, fetch.key);
+        curl_multi_remove_handle(m_fetch_curl.handle, fetch.key);
         curl_easy_cleanup(fetch.key);
         if (fetch.value->resolve_list)
             curl_slist_free_all(fetch.value->resolve_list);
@@ -343,7 +355,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     auto transfer_lease = create_transfer_lease
         ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
-    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, same_site_context, transfer_lease, address_selection_hint, notify_on_cache_miss);
+    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_fetch_curl.handle, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, same_site_context, transfer_lease, address_selection_hint, notify_on_cache_miss);
     request->set_performance_origin(originating_process_id, originating_page_id);
     m_active_requests.set(request_id, move(request));
 
@@ -437,13 +449,14 @@ void ConnectionFromClient::start_revalidation_request(Badge<Request>, HTTP::Netw
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
 
-    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, same_site_context);
+    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_fetch_curl.handle, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, same_site_context);
     m_active_revalidation_requests.set(request_id, move(request));
 }
 
 int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* user_data, void*)
 {
-    auto* client = static_cast<ConnectionFromClient*>(user_data);
+    auto* multi = static_cast<CurlMulti*>(user_data);
+    auto* client = multi->client;
 
     if (what == CURL_POLL_REMOVE) {
         client->m_read_notifiers.remove(sockfd);
@@ -451,14 +464,14 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
         return 0;
     }
 
-    auto update_notifier = [client, sockfd, what](auto& notifiers, Core::NotificationType type, int poll_flag, int select_flag) {
+    auto update_notifier = [client, multi_handle = multi->handle, sockfd, what](auto& notifiers, Core::NotificationType type, int poll_flag, int select_flag) {
         if (!(what & poll_flag)) {
             if (auto notifier = notifiers.get(sockfd); notifier.has_value())
                 notifier.value()->set_enabled(false);
             return;
         }
 
-        auto& notifier = notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi, type, select_flag] {
+        auto& notifier = notifiers.ensure(sockfd, [client, sockfd, multi = multi_handle, type, select_flag] {
             auto notifier = Core::Notifier::construct(sockfd, type);
             notifier->on_activation = [client, sockfd, multi, select_flag] {
                 note_event_tick("curl-socket-ready"sv);
@@ -484,21 +497,21 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
 
 int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user_data)
 {
-    auto* client = static_cast<ConnectionFromClient*>(user_data);
-    if (!client->m_timer)
+    auto* multi = static_cast<CurlMulti*>(user_data);
+    if (!multi->timer)
         return 0;
 
     // https://curl.se/libcurl/c/CURLMOPT_TIMERFUNCTION.html
     // A timeout_ms value of -1 passed to this callback means you should delete the timer.
     if (timeout_ms == -1) {
-        client->m_timer->stop();
-        client->m_curl_timer_due_at = {};
+        multi->timer->stop();
+        multi->timer_due_at = {};
         s_curl_timer_due_at = {};
     } else {
         // All other values are valid expire times in number of milliseconds - including zero milliseconds.
         VERIFY(timeout_ms >= 0);
         auto due_at = MonotonicTime::now() + AK::Duration::from_milliseconds(timeout_ms);
-        client->m_curl_timer_due_at = due_at;
+        multi->timer_due_at = due_at;
         s_curl_timer_due_at = due_at;
 
         // If this callback is called when a timer is already running, this new expire time replaces the former timeout.
@@ -507,7 +520,7 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
         // WARNING: do not call libcurl directly from within the callback itself when the timeout_ms value is zero, since
         // it risks triggering an unpleasant recursive behavior that immediately calls another call to the callback with
         // a zero timeout...
-        client->m_timer->restart(AK::Duration::from_milliseconds(timeout_ms));
+        multi->timer->restart(AK::Duration::from_milliseconds(timeout_ms));
     }
 
     // The timer callback should return 0 on success, and -1 on error.
@@ -519,35 +532,37 @@ void ConnectionFromClient::check_active_requests()
     note_event_tick("check-active-requests"sv);
     int msgs_in_queue = 0;
     u64 completions_drained = 0;
-    while (auto* msg = curl_multi_info_read(m_curl_multi, &msgs_in_queue)) {
-        if (msg->msg != CURLMSG_DONE)
-            continue;
+    for (auto* multi_handle : { m_fetch_curl.handle, m_websocket_curl.handle }) {
+        while (auto* msg = curl_multi_info_read(multi_handle, &msgs_in_queue)) {
+            if (msg->msg != CURLMSG_DONE)
+                continue;
 
-        void* application_private = nullptr;
-        auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &application_private);
-        VERIFY(result == CURLE_OK);
-        VERIFY(application_private != nullptr);
+            void* application_private = nullptr;
+            auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &application_private);
+            VERIFY(result == CURLE_OK);
+            VERIFY(application_private != nullptr);
 
-        // FIXME: Come up with a unified way to track websockets and standard fetches instead of this nasty tagged pointer
-        if (reinterpret_cast<uintptr_t>(application_private) & websocket_private_tag) {
-            auto* websocket_impl = reinterpret_cast<WebSocketImplCurl*>(reinterpret_cast<uintptr_t>(application_private) & ~websocket_private_tag);
-            if (msg->data.result == CURLE_OK) {
-                if (!websocket_impl->did_connect())
+            // FIXME: Come up with a unified way to track websockets and standard fetches instead of this nasty tagged pointer
+            if (reinterpret_cast<uintptr_t>(application_private) & websocket_private_tag) {
+                auto* websocket_impl = reinterpret_cast<WebSocketImplCurl*>(reinterpret_cast<uintptr_t>(application_private) & ~websocket_private_tag);
+                if (msg->data.result == CURLE_OK) {
+                    if (!websocket_impl->did_connect())
+                        websocket_impl->on_connection_error();
+                } else {
                     websocket_impl->on_connection_error();
-            } else {
-                websocket_impl->on_connection_error();
+                }
+                continue;
             }
-            continue;
-        }
 
-        if (reinterpret_cast<uintptr_t>(application_private) & aia_fetch_private_tag) {
-            complete_aia_fetch(msg->easy_handle, msg->data.result);
-            continue;
-        }
+            if (reinterpret_cast<uintptr_t>(application_private) & aia_fetch_private_tag) {
+                complete_aia_fetch(msg->easy_handle, msg->data.result);
+                continue;
+            }
 
-        ++completions_drained;
-        auto* request = static_cast<Request*>(application_private);
-        request->notify_fetch_complete({}, msg->data.result);
+            ++completions_drained;
+            auto* request = static_cast<Request*>(application_private);
+            request->notify_fetch_complete({}, msg->data.result);
+        }
     }
 
     if (completions_drained > 1)
@@ -676,7 +691,7 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
         }
     }
 
-    auto result = curl_multi_add_handle(m_curl_multi, easy_handle);
+    auto result = curl_multi_add_handle(m_fetch_curl.handle, easy_handle);
     VERIFY(result == CURLM_OK);
 
     m_aia_fetches.set(easy_handle, move(fetch));
@@ -688,7 +703,7 @@ void ConnectionFromClient::complete_aia_fetch(void* easy_handle, int result_code
     curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &response_code);
 
     auto fetch = m_aia_fetches.take(easy_handle);
-    curl_multi_remove_handle(m_curl_multi, easy_handle);
+    curl_multi_remove_handle(m_fetch_curl.handle, easy_handle);
     curl_easy_cleanup(easy_handle);
     if (!fetch.has_value())
         return;
@@ -830,7 +845,7 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
     if (!is_fetchable_url(url))
         return;
 
-    auto request = Request::connect(request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
+    auto request = Request::connect(request_id, *this, m_fetch_curl.handle, m_resolver, move(url), cache_level);
     m_active_requests.set(request_id, move(request));
 }
 
@@ -997,7 +1012,7 @@ void ConnectionFromClient::open_websocket(u64 websocket_id, URL::URL url, ByteSt
     if (auto const& path = default_certificate_path(); !path.is_empty())
         connection_info.set_root_certificates_path(path);
 
-    auto impl = WebSocketImplCurl::create(m_curl_multi);
+    auto impl = WebSocketImplCurl::create(m_websocket_curl.handle);
     impl->set_proxy(move(proxy));
     auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
 
