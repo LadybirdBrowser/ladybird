@@ -1,0 +1,3 @@
+notification 1: width=200
+notifications after five more frames: 1
+notification 2: width=300
