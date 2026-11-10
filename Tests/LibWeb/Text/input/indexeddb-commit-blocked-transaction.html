@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A transaction that commit() is called on while it waits for an earlier transaction to finish is committed
+    // once, not again when the earlier transaction finishes.
+    promiseTest(async () => {
+        spoofCurrentURL("https://example.com/indexeddb-commit-blocked-transaction.html");
+
+        const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open("commit-blocked-transaction-" + Date.now() + Math.random(), 1);
+            request.onupgradeneeded = () => request.result.createObjectStore("store");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        const first = db.transaction("store", "readwrite");
+        first.commit();
+
+        const blocked = db.transaction("store", "readwrite");
+        blocked.oncomplete = () => println("blocked: complete");
+        blocked.onabort = () => println("blocked: abort");
+        blocked.commit();
+
+        await new Promise(resolve => {
+            const last = db.transaction("store", "readwrite");
+            last.objectStore("store").get("key");
+            last.oncomplete = () => {
+                println("last: complete");
+                resolve();
+            };
+        });
+        db.close();
+    });
+</script>
