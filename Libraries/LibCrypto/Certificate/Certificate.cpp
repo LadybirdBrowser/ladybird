@@ -325,7 +325,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         return private_key;
     }
     if (private_key.algorithm.identifier.span() == ASN1::ml_dsa_44_oid.span()) {
-        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA44, value.bytes(), current_scope);
+        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA44, value.bytes());
         if (maybe_key.is_error()) {
             ERROR_WITH_SCOPE(maybe_key.release_error());
         }
@@ -335,7 +335,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         return private_key;
     }
     if (private_key.algorithm.identifier.span() == ASN1::ml_dsa_65_oid.span()) {
-        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA65, value.bytes(), current_scope);
+        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA65, value.bytes());
         if (maybe_key.is_error()) {
             ERROR_WITH_SCOPE(maybe_key.release_error());
         }
@@ -345,7 +345,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         return private_key;
     }
     if (private_key.algorithm.identifier.span() == ASN1::ml_dsa_87_oid.span()) {
-        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA87, value.bytes(), current_scope);
+        auto maybe_key = Crypto::PK::MLDSA::parse_mldsa_key(PK::MLDSA87, value.bytes());
         if (maybe_key.is_error()) {
             ERROR_WITH_SCOPE(maybe_key.release_error());
         }
