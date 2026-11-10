@@ -82,8 +82,15 @@ void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options
 {
     // 1. If target is in [[observationTargets]] slot, call unobserve() with argument target.
     auto observation = m_observation_targets.find_if([&](auto& observation) { return observation->target().ptr() == &target; });
-    if (!observation.is_end())
+    if (!observation.is_end()) {
+        // INTEROP: Other engines keep an observation of the same box as it is. Replacing it would forget the size it
+        //          last reported, and notify the observer again about a size that has not changed, so a page that
+        //          re-observes its targets from its callback would be notified on every frame.
+        //          https://github.com/web-platform-tests/wpt/issues/30708
+        if ((*observation)->observed_box() == options.box)
+            return;
         unobserve(target);
+    }
 
     // 2. Let observedBox be the value of the box dictionary member of options.
     auto observed_box = options.box;

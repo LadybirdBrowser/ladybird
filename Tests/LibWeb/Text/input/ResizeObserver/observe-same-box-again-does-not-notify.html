@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+#box {
+    width: 200px;
+    height: 100px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="box"></div>
+<script>
+    // Observing a target again with the box it is already observed with keeps its observation, so the observer is not
+    // notified again about a size that has not changed. Pages re-observe from their callbacks, and would otherwise
+    // be notified on every frame.
+    promiseTest(async () => {
+        const box = document.getElementById("box");
+        let notifications = 0;
+        let notified;
+        const observer = new ResizeObserver(entries => {
+            ++notifications;
+            println(`notification ${notifications}: width=${entries[0].contentRect.width}`);
+            observer.observe(box);
+            notified?.();
+        });
+
+        await new Promise(resolve => {
+            notified = resolve;
+            observer.observe(box);
+        });
+        for (let i = 0; i < 5; ++i)
+            await animationFrame();
+        println(`notifications after five more frames: ${notifications}`);
+
+        await new Promise(resolve => {
+            notified = resolve;
+            box.style.width = "300px";
+        });
+        observer.disconnect();
+    });
+</script>
