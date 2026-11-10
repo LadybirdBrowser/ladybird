@@ -230,6 +230,12 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         let end = self.output_position();
         if self.ink_bounds_audit.enabled {
             self.verify_producer_ink(owner, kind, start.bytes as usize..end.bytes as usize);
+            self.verify_producer_against_open_scopes(
+                owner,
+                kind,
+                start.bytes as usize..end.bytes as usize,
+                start.hits as usize..end.hits as usize,
+            );
         }
         self.observer
             .observe(|log| log.end(end.bytes == start.bytes && end.hits == start.hits));
@@ -320,6 +326,9 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     }
 
     fn observe(&mut self, event: AssemblyEvent) {
+        if self.ink_bounds_audit.enabled {
+            self.audit_scope_event(event);
+        }
         if !O::ENABLED {
             return;
         }

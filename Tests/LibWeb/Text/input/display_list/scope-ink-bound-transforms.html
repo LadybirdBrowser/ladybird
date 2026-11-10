@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .transformed { transform: rotate(20deg) scale(1.2); transform-origin: 10px 10px; width: 120px; height: 60px; margin: 90px; background: lightblue; }
+    .child { width: 300px; height: 40px; margin-left: -70px; margin-top: 50px; background: green; box-shadow: 0 0 15px black; }
+    .absolute { position: absolute; left: 150px; top: -60px; width: 50px; height: 50px; background: orange; }
+    .fixed { position: fixed; left: -40px; top: 90px; width: 50px; height: 50px; background: yellow; }
+</style>
+<div class="transformed"><div class="child">child</div><div class="absolute">absolute</div><div class="fixed">fixed</div></div>
+<div class="transformed" style="overflow: hidden"><div class="child">child</div><div class="absolute">absolute</div><div class="fixed">fixed</div></div>
+<div class="transformed" style="transform: translate(30px, 10px)"><div class="transformed" style="margin: 0"><div class="child">nested</div></div></div>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

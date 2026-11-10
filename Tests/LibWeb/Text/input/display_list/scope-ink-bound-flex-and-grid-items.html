@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .flex { display: flex; width: 200px; margin: 80px; background: lightblue; }
+    .grid { display: grid; grid-template-columns: 80px 80px; width: 200px; margin: 80px; background: lightblue; }
+    .item { width: 80px; height: 40px; background: orange; }
+    .overflowing { margin-left: -120px; margin-top: -50px; width: 260px; height: 130px; background: green; outline: 6px solid black; }
+    .stacked { z-index: 1; }
+    .absolute { position: absolute; left: 400px; top: 10px; width: 40px; height: 40px; background: yellow; }
+</style>
+<div class="flex"><div class="item"><div class="overflowing">flex item content</div></div><div class="item stacked"><div class="overflowing">stacked</div><div class="absolute">absolute</div></div></div>
+<div class="grid"><div class="item"><div class="overflowing">grid item content</div></div><div class="item stacked"><div class="overflowing">stacked</div><div class="absolute">absolute</div></div></div>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

@@ -11,6 +11,7 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::corner_shape::CornerShapes;
 use crate::painting::fragment_ownership;
+use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::published_frame::PublishedPaintState;
 use crate::painting::record::paint::{
@@ -367,6 +368,34 @@ fn has_resampled_ink(style: crate::layout::ComputedValuesView<'_>) -> bool {
                     | property_id::FILTER
             )
         })
+}
+
+/// What bounds everything a paint scope paints.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum ScopeInkBound {
+    /// In absolute layout CSS pixels, in the space the owner's own box is painted in.
+    Rect(CssPixelRect),
+    /// The owner covers the scope, and where the scope paints cannot be told from a rect in the owner's space.
+    Unbounded,
+    /// The scope paints boxes the owner's ink overflow does not gather: whoever walks it has to descend.
+    NotCovering,
+}
+
+pub(crate) fn scope_ink_bound(source: &impl PaintRead, scope: PaintScope) -> ScopeInkBound {
+    if !source.paintable_row_is_populated(scope.owner) || !scope.paints_only_what_its_owner_contains(source) {
+        return ScopeInkBound::NotCovering;
+    }
+    let ink = source.stored_ink_overflow(scope.owner);
+    // What makes a box's contribution to its containing block unbounded also moves or spreads what the box's own
+    // scope paints away from the rect: a sticky or animated offset, a filter, later fragments. The viewport's
+    // content is cut to it by the window rather than by a clip of the tree.
+    if ink.unbounded || ink.contribution_unbounded || source.node_kind_if_live(scope.owner) == Some(NodeKind::Viewport)
+    {
+        return ScopeInkBound::Unbounded;
+    }
+    source
+        .absolute_ink_overflow_rect(scope.owner)
+        .map_or(ScopeInkBound::Unbounded, ScopeInkBound::Rect)
 }
 
 pub(crate) fn maintenance_enabled() -> bool {

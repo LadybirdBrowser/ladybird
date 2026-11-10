@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    svg { margin: 60px; background: lightblue; }
+</style>
+<svg width="100" height="60" viewBox="0 0 50 30">
+    <rect x="-20" y="-20" width="120" height="90" fill="orange" stroke="black" stroke-width="6" />
+    <text x="40" y="20">overflowing text</text>
+</svg>
+<svg width="100" height="60" style="overflow: visible">
+    <circle cx="130" cy="80" r="50" fill="green" />
+    <foreignObject x="-30" y="-30" width="200" height="40"><div style="width: 300px; height: 80px; background: yellow">foreign</div></foreignObject>
+</svg>
+<svg width="100" height="60" style="opacity: 0.8">
+    <g transform="rotate(30)"><rect x="60" y="-40" width="90" height="90" fill="pink" /></g>
+    <foreignObject x="10" y="10" width="60" height="30"><div style="position: absolute; left: 90px; top: 50px; width: 40px; height: 40px; background: gray">absolute</div></foreignObject>
+</svg>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

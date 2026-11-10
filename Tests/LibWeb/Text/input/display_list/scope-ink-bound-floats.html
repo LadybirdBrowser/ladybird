@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { width: 200px; margin: 40px; background: lightblue; }
+    .inner { width: 100px; height: 20px; background: orange; }
+    .float { float: left; width: 320px; height: 150px; margin-left: -60px; background: green; outline: 10px solid black; }
+    .formatting-context { overflow: hidden; height: 60px; background: yellow; }
+    .flow-root { display: flow-root; background: pink; }
+</style>
+<div class="container">
+    <div class="inner"><div class="float">float</div></div>
+    <div class="formatting-context">beside the float</div>
+</div>
+<div class="container flow-root">
+    <span>inline <span><span class="float" style="float: right; margin-right: -90px">float in inlines</span></span></span>
+</div>
+<script>
+    test(() => {
+        for (const ratio of [1, 1.5]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>
