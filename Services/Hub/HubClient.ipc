@@ -147,6 +147,7 @@ struct Hub::InitialState {
     bool scripting_enabled;
     bool blocks_pop_ups;
     bool devtools_enabled;
+    bool sandbox_is_disabled;
     Vector<Hub::DownloadState> downloads;
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;

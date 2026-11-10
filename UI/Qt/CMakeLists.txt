@@ -56,6 +56,7 @@ add_library(ladybird_impl STATIC
     RemoteView.cpp
     ReportReview.cpp
     RestoreSessionCard.cpp
+    SandboxOffBar.cpp
     ScreenshotSelectionOverlay.cpp
     ScreenshotViewer.cpp
     SessionHistorySnapshotStorage.cpp

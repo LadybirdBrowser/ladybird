@@ -2013,7 +2013,7 @@ void WindowToolbar::show_feedback_popover()
                 m_tab->view().report_website_issue();
         };
         m_feedback_popover->on_report_bug = [this] {
-            browser_window().new_tab_from_url(WebView::new_bug_report_url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
+            browser_window().new_tab_from_url(WebView::new_bug_report_url(Application::browser_options().disable_sandbox), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
         };
         m_feedback_popover->on_review_crash_reports = [this] {
             browser_window().new_tab_from_url(URL::URL::about("crashes"sv), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());

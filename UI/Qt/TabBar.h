@@ -54,6 +54,7 @@ namespace Ladybird {
 
 class AllTabsPopover;
 class LadybirdButton;
+class SandboxOffBar;
 
 class TabMicrophoneIndicator;
 class TabPreviewPopup;
@@ -454,6 +455,7 @@ private:
     WindowControlsReveal* m_window_controls_reveal { nullptr };
     WindowToolbar* m_toolbar { nullptr };
     BookmarksBarContainer* m_bookmarks_bar { nullptr };
+    SandboxOffBar* m_sandbox_off_bar { nullptr };
     QWidget* m_page_column { nullptr };
     QWidget* m_toolbar_placeholder { nullptr };
     bool m_toolbar_follows_page_column { false };
