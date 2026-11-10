@@ -12,7 +12,7 @@
 namespace Requests {
 
 struct NetworkUsage {
-    i32 process_id { 0 };
+    int client_id { 0 };
     u64 page_id { 0 };
     u64 download_bytes { 0 };
     u64 upload_bytes { 0 };

@@ -307,7 +307,7 @@ bool ConnectionFromClient::is_live_request_id(u64 request_id) const
     return m_active_requests.contains(request_id) || m_request_transfer_leases.contains({ client_id(), request_id });
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -360,7 +360,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
     auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_fetch_curl.handle, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, same_site_context, transfer_lease, address_selection_hint, notify_on_cache_miss);
-    request->set_performance_origin(originating_process_id, originating_page_id);
+    request->set_performance_origin(client_id(), originating_page_id);
     m_active_requests.set(request_id, move(request));
 
     if (transfer_lease.has_value())

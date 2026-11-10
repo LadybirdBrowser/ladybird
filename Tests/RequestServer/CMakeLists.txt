@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestCookieResponses.cpp
     TestDiskCacheWaiters.cpp
     TestExportImport.cpp
+    TestNetworkUsage.cpp
     TestRequestTimingInfo.cpp
     TestSiteBinding.cpp
     ${LADYBIRD_SOURCE_DIR}/Services/RequestServer/AIA.cpp
