@@ -38,6 +38,7 @@ void LocalServer::setup_notifier()
 {
     m_notifier = Notifier::construct(m_fd, Notifier::Type::Read);
     m_notifier->on_activation = [this] {
+        auto protector = NonnullRefPtr { *this };
         if (on_accept) {
             auto maybe_client_socket = accept();
             if (maybe_client_socket.is_error()) {
