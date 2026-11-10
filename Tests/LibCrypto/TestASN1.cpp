@@ -300,3 +300,23 @@ TEST_CASE(test_decode_object_identifier_rejects_invalid_encodings)
     u8 const too_large[] { 0x06, 0x06, 0x2a, 0x81, 0x80, 0x80, 0x80, 0x00 };
     expect_decode_failure({ too_large, sizeof(too_large) });
 }
+
+TEST_CASE(test_decoder_lengths_in_the_fewest_bytes_possible)
+{
+    auto read_octet_string_of_length = [](Vector<u8> length_bytes, size_t length) {
+        Vector<u8> der { 0x04 };
+        der.extend(length_bytes);
+        for (size_t i = 0; i < length; ++i)
+            der.append(0xaa);
+        Crypto::ASN1::Decoder decoder { der };
+        return decoder.read<StringView>();
+    };
+
+    EXPECT_EQ(TRY_OR_FAIL(read_octet_string_of_length({ 0x05 }, 5)).length(), 5u);
+    EXPECT_EQ(TRY_OR_FAIL(read_octet_string_of_length({ 0x81, 0x80 }, 128)).length(), 128u);
+    EXPECT_EQ(TRY_OR_FAIL(read_octet_string_of_length({ 0x82, 0x01, 0x00 }, 256)).length(), 256u);
+
+    EXPECT(read_octet_string_of_length({ 0x81, 0x05 }, 5).is_error());
+    EXPECT(read_octet_string_of_length({ 0x82, 0x00, 0x80 }, 128).is_error());
+    EXPECT(read_octet_string_of_length({ 0x83, 0x00, 0x01, 0x00 }, 256).is_error());
+}

@@ -50,6 +50,10 @@ ErrorOr<size_t> Decoder::read_length()
 
         for (auto&& byte : data)
             length = (length << 8) | (size_t)byte;
+
+        // DER encodes a length in the short form when it fits, and otherwise in as few bytes as possible.
+        if (data[0] == 0 || length < 0x80)
+            return Error::from_string_literal("ASN1::Decoder: Length is not encoded in the fewest bytes possible");
     }
 
     return length;
