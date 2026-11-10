@@ -260,6 +260,10 @@ void ConnectionFromWebContent::set_parent_context(Web::CompositorContextId conte
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
+    if (parent_context_id.has_value() && !m_compositor_state->context_can_be_nested_in(context_id, *parent_context_id)) {
+        did_misbehave("WebContent nested a compositor context that cannot be nested");
+        return;
+    }
     m_compositor_state->set_parent_context(context_id, parent_context_id);
 }
 

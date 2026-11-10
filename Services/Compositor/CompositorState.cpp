@@ -318,6 +318,14 @@ void CompositorState::destroy_context(Web::CompositorContextId context_id)
     update_unpainted_video_update_scheduling();
 }
 
+// What a client shows is rooted at the context presented to it, and no context is nested in itself.
+bool CompositorState::context_can_be_nested_in(Web::CompositorContextId context_id, Web::CompositorContextId parent_context_id) const
+{
+    auto const* context = presented_context_if_present(context_id);
+    VERIFY(context);
+    return !context->presenter.presents_to_client() && parent_context_id != context_id;
+}
+
 void CompositorState::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)
 {
     auto* context = presented_context_if_present(context_id);
