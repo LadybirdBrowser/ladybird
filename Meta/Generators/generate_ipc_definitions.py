@@ -258,11 +258,26 @@ class Declaration:
         # The existing C++ type is read through accessor functions and built with a constructor taking every field.
         return "Accessors" in self.attributes
 
+    def rust_derives(self) -> List[str]:
+        derives = ["Clone", "Copy", "Debug", "PartialEq", "Eq"]
+        if self.kind != "enum":
+            carries_a_file = any("IPC::File" in member.type for member in self.members)
+            derives = [] if carries_a_file else ["Clone", "Debug", "PartialEq"]
+        for attribute in self.attributes:
+            name, _, argument = attribute.partition("=")
+            if name == "RustDerive":
+                derives += [derive for derive in argument.split("+") if derive not in derives]
+        return derives
+
     def validate(self) -> None:
         if not re.fullmatch(rf"{IDENTIFIER}(::{IDENTIFIER})+", self.name):
             raise RuntimeError(f"Expected a type name with a namespace, got '{self.name}'")
         for attribute in self.attributes:
-            if attribute not in ("ExistingCpp", "Accessors"):
+            name, _, argument = attribute.partition("=")
+            if name == "RustDerive":
+                if not re.fullmatch(rf"{IDENTIFIER}(\+{IDENTIFIER})*", argument):
+                    raise RuntimeError(f"RustDerive on {self.name} needs traits joined by '+', got '{argument}'")
+            elif attribute not in ("ExistingCpp", "Accessors"):
                 raise RuntimeError(f"Unknown attribute '{attribute}' on {self.name}")
         if self.has_accessors() and (self.kind != "struct" or not self.is_existing_cpp()):
             raise RuntimeError(f"Only an existing C++ struct can have accessors: {self.name}")
@@ -1872,7 +1887,7 @@ def write_rust_enum(out: TextIO, declaration: Declaration, name: str) -> None:
     underlying_type = declaration.underlying_type
     out.write(f"""
 #[allow(dead_code, non_camel_case_types)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive({", ".join(declaration.rust_derives())})]
 #[repr({underlying_type})]
 pub enum {name} {{
 """)
@@ -1902,6 +1917,8 @@ impl ::libipc_rust::wire::Decode for {name} {{
 def write_rust_struct(out: TextIO, declaration: Declaration, name: str) -> None:
     fields = [(rust_field_name(member.name), rust_type(member.type)) for member in declaration.members]
     out.write("\n#[allow(dead_code, non_camel_case_types)]\n")
+    if declaration.rust_derives():
+        out.write(f"#[derive({', '.join(declaration.rust_derives())})]\n")
     if not fields:
         out.write(f"""pub struct {name};
 
@@ -1986,9 +2003,10 @@ impl ::libipc_rust::wire::Decode for {name} {{
 
 def write_rust_variant(out: TextIO, declaration: Declaration, name: str) -> None:
     alternatives = [(rust_field_name(member.name), rust_type(member.type)) for member in declaration.members]
+    derives = f"#[derive({', '.join(declaration.rust_derives())})]\n" if declaration.rust_derives() else ""
     out.write(f"""
 #[allow(dead_code, non_camel_case_types)]
-pub enum {name} {{
+{derives}pub enum {name} {{
 """)
     for alternative, alternative_type in alternatives:
         out.write(f"    {alternative}({alternative_type}),\n")
