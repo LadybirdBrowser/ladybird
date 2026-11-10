@@ -76,6 +76,8 @@ class Parameter:
     type: str = ""
     type_for_encoding: str = ""
     name: str = ""
+    # The value an enum's declaration gives the member.
+    value: Optional[int] = None
 
 
 @dataclass
@@ -241,7 +243,8 @@ class Declaration:
     attributes: List[str] = field(default_factory=list)
     # The integer type an enum goes as.
     underlying_type: str = ""
-    # A struct's fields, an enum's values (with names only), or a variant's alternatives (with a name for Rust).
+    # A struct's fields, an enum's values (by name, or all of them with the numbers C++ gives them), or a variant's
+    # alternatives (with a name for Rust).
     members: List[Parameter] = field(default_factory=list)
 
     def is_existing_cpp(self) -> bool:
@@ -257,6 +260,14 @@ class Declaration:
     def has_accessors(self) -> bool:
         # The existing C++ type is read through accessor functions and built with a constructor taking every field.
         return "Accessors" in self.attributes
+
+    def gives_values(self) -> bool:
+        # The enum goes as the number of its value rather than as the value's position in the declaration.
+        return self.kind == "enum" and self.members[0].value is not None
+
+    def is_flags(self) -> bool:
+        # The enum's values are bits, and any combination of them goes, as the number it is.
+        return "Flags" in self.attributes
 
     def rust_derives(self) -> List[str]:
         derives = ["Clone", "Copy", "Debug", "PartialEq", "Eq"]
@@ -277,10 +288,12 @@ class Declaration:
             if name == "RustDerive":
                 if not re.fullmatch(rf"{IDENTIFIER}(\+{IDENTIFIER})*", argument):
                     raise RuntimeError(f"RustDerive on {self.name} needs traits joined by '+', got '{argument}'")
-            elif attribute not in ("ExistingCpp", "Accessors"):
+            elif attribute not in ("ExistingCpp", "Accessors", "Flags"):
                 raise RuntimeError(f"Unknown attribute '{attribute}' on {self.name}")
         if self.has_accessors() and (self.kind != "struct" or not self.is_existing_cpp()):
             raise RuntimeError(f"Only an existing C++ struct can have accessors: {self.name}")
+        if self.is_flags() and self.kind != "enum":
+            raise RuntimeError(f"Only an enum can be flags: {self.name}")
 
         names = [member.name for member in self.members]
         for name in names:
@@ -298,9 +311,20 @@ class Declaration:
         if self.kind == "enum":
             if self.underlying_type not in INTEGER_TYPES:
                 raise RuntimeError(f"Enum {self.name} needs a sized integer type, got '{self.underlying_type}'")
-            value_bits = int(self.underlying_type[1:]) - (1 if self.underlying_type.startswith("i") else 0)
+            is_signed = self.underlying_type.startswith("i")
+            value_bits = int(self.underlying_type[1:]) - (1 if is_signed else 0)
             if len(names) > 2**value_bits:
                 raise RuntimeError(f"Enum {self.name} has more values than {self.underlying_type} holds")
+            values = [member.value for member in self.members if member.value is not None]
+            if values and len(values) != len(names):
+                raise RuntimeError(f"Enum {self.name} needs a value for each of its members or for none")
+            if self.is_flags() and not values:
+                raise RuntimeError(f"Flags {self.name} need a value for each of their members")
+            for value in values:
+                if not (-(2**value_bits) if is_signed else 0) <= value < 2**value_bits:
+                    raise RuntimeError(f"Enum {self.name} has a value that {self.underlying_type} does not hold")
+            if not self.is_flags() and len(set(values)) != len(values):
+                raise RuntimeError(f"Duplicate value in {self.name}")
         elif self.kind == "variant":
             # NB: An AK::Variant of fewer than 255 types goes with a u8 index.
             if len(names) >= 255:
@@ -582,10 +606,20 @@ def parse(contents: str) -> Document:
                 consume_whitespace()
                 assert_specific(";")
             else:
-                member.name = lexer.consume_until(lambda c: c.isspace() or c in ",}")
+                member.name = lexer.consume_until(lambda c: c.isspace() or c in ",}=")
                 consume_whitespace()
                 if kind == "variant":
                     member.type = parse_parameter_type(",}")
+                    consume_whitespace()
+                elif lexer.consume_specific("="):
+                    consume_whitespace()
+                    number = lexer.consume_until(lambda c: c.isspace() or c in ",}")
+                    try:
+                        member.value = int(number, 0)
+                    except ValueError:
+                        raise RuntimeError(
+                            f"Expected a number for {declaration.name}::{member.name}, got '{number}'"
+                        ) from None
                     consume_whitespace()
                 if not lexer.consume_specific(",") and lexer.peek() != "}":
                     raise RuntimeError(f"Expected ',' or '}}' at position {lexer.position}, got '{lexer.peek()}'")
@@ -1337,8 +1371,11 @@ def write_cpp_definition(out: TextIO, declaration: Declaration) -> None:
     if declaration.kind == "enum":
         out.write(f"enum class {name} : {declaration.underlying_type} {{\n")
         for member in declaration.members:
-            out.write(f"    {member.name},\n")
+            value = f" = {member.value}" if declaration.gives_values() else ""
+            out.write(f"    {member.name}{value},\n")
         out.write("};\n")
+        if declaration.is_flags():
+            out.write(f"\nAK_ENUM_BITWISE_OPERATORS({name});\n")
     elif declaration.kind == "struct" and not declaration.members:
         out.write(f"struct {name} {{ }};\n")
     elif declaration.kind == "struct":
@@ -1354,6 +1391,57 @@ def write_cpp_definition(out: TextIO, declaration: Declaration) -> None:
 def write_cpp_enum_codec(out: TextIO, declaration: Declaration) -> None:
     name = declaration.name
     underlying_type = declaration.underlying_type
+
+    if declaration.gives_values():
+        # NB: Rust takes the numbers from the declaration, so they must be the ones C++ has.
+        number_format = "#x" if declaration.is_flags() else "d"
+        checks = "".join(
+            f"    static_assert(static_cast<{underlying_type}>({name}::{member.name}) == {member.value:{number_format}});\n"
+            for member in declaration.members
+        )
+        if declaration.is_flags():
+            out.write(f"""
+template<>
+ErrorOr<void> encode(Encoder& encoder, {name} const& value)
+{{
+    static_assert(sizeof(UnderlyingType<{name}>) == sizeof({underlying_type}));
+{checks}    return encoder.encode(static_cast<{underlying_type}>(value));
+}}
+
+template<>
+ErrorOr<{name}> decode(Decoder& decoder)
+{{
+    return static_cast<{name}>(TRY(decoder.decode<{underlying_type}>()));
+}}
+""")
+            return
+
+        out.write(f"""
+template<>
+ErrorOr<void> encode(Encoder& encoder, {name} const& value)
+{{
+{checks}    switch (value) {{
+""")
+        for member in declaration.members:
+            out.write(f"    case {name}::{member.name}:\n")
+        out.write(f"""        return encoder.encode(static_cast<{underlying_type}>(value));
+    }}
+    return Error::from_string_literal("IPC encode: Invalid {name}");
+}}
+
+template<>
+ErrorOr<{name}> decode(Decoder& decoder)
+{{
+    switch (TRY(decoder.decode<{underlying_type}>())) {{
+""")
+        for member in declaration.members:
+            out.write(f"    case {member.value}:\n        return {name}::{member.name};\n")
+        out.write(f"""    default:
+        return Error::from_string_literal("IPC decode: Invalid {name}");
+    }}
+}}
+""")
+        return
 
     # NB: An enum goes as the position of its value in the declaration, which C++ need not number the same way.
     out.write(f"""
@@ -1524,6 +1612,8 @@ def build(
                     names.append(name)
     if any(declaration.kind == "variant" for declaration in defined_declarations) and "Variant" not in names:
         names.append("Variant")
+    if any(declaration.is_flags() for declaration in defined_declarations):
+        names.append("EnumBits")
     for name in sorted(names):
         out.write(f"#include <AK/{name}.h>\n")
 
@@ -1883,7 +1973,72 @@ def rust_field_refusals(member: Parameter, value: str) -> List[FieldRefusal]:
     return field_refusals(member, "", f"{value}.{rust_field_name(member.name)}")
 
 
+def write_rust_flags(out: TextIO, declaration: Declaration, name: str) -> None:
+    underlying_type = declaration.underlying_type
+    out.write(f"""
+#[allow(dead_code, non_camel_case_types)]
+#[derive({", ".join(declaration.rust_derives())})]
+#[repr(transparent)]
+pub struct {name}(pub {underlying_type});
+
+#[allow(dead_code, non_upper_case_globals)]
+impl {name} {{
+""")
+    for member in declaration.members:
+        out.write(f"    pub const {rust_field_name(member.name)}: Self = Self({member.value:#x});\n")
+    out.write(f"""
+    pub const fn contains(self, other: Self) -> bool {{
+        self.0 & other.0 == other.0
+    }}
+
+    pub const fn is_empty(self) -> bool {{
+        self.0 == 0
+    }}
+}}
+
+impl ::std::ops::BitOr for {name} {{
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {{
+        Self(self.0 | other.0)
+    }}
+}}
+
+impl ::std::ops::BitAnd for {name} {{
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self {{
+        Self(self.0 & other.0)
+    }}
+}}
+
+impl ::std::ops::Not for {name} {{
+    type Output = Self;
+
+    fn not(self) -> Self {{
+        Self(!self.0)
+    }}
+}}
+
+impl ::libipc_rust::wire::Encode for {name} {{
+    fn encode(&self, encoder: &mut ::libipc_rust::wire::Encoder) -> ::std::result::Result<(), ::libipc_rust::wire::EncodeError> {{
+        encoder.encode(&self.0)
+    }}
+}}
+
+impl ::libipc_rust::wire::Decode for {name} {{
+    fn decode(decoder: &mut ::libipc_rust::wire::Decoder<'_>) -> ::std::result::Result<Self, ::libipc_rust::wire::DecodeError> {{
+        ::std::result::Result::Ok(Self(decoder.decode()?))
+    }}
+}}
+""")
+
+
 def write_rust_enum(out: TextIO, declaration: Declaration, name: str) -> None:
+    if declaration.is_flags():
+        write_rust_flags(out, declaration, name)
+        return
+
     underlying_type = declaration.underlying_type
     out.write(f"""
 #[allow(dead_code, non_camel_case_types)]
@@ -1892,7 +2047,8 @@ def write_rust_enum(out: TextIO, declaration: Declaration, name: str) -> None:
 pub enum {name} {{
 """)
     for member in declaration.members:
-        out.write(f"    {rust_field_name(member.name)},\n")
+        value = f" = {member.value}" if declaration.gives_values() else ""
+        out.write(f"    {rust_field_name(member.name)}{value},\n")
     out.write(f"""}}
 
 impl ::libipc_rust::wire::Encode for {name} {{
@@ -1906,7 +2062,8 @@ impl ::libipc_rust::wire::Decode for {name} {{
         match decoder.decode::<{underlying_type}>()? {{
 """)
     for index, member in enumerate(declaration.members):
-        out.write(f"            {index} => ::std::result::Result::Ok(Self::{rust_field_name(member.name)}),\n")
+        number = member.value if declaration.gives_values() else index
+        out.write(f"            {number} => ::std::result::Result::Ok(Self::{rust_field_name(member.name)}),\n")
     out.write(f"""            _ => ::std::result::Result::Err(::libipc_rust::wire::DecodeError::InvalidValue("{declaration.name}")),
         }}
     }}
