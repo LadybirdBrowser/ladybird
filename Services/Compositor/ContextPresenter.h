@@ -16,6 +16,7 @@
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositedContext.h>
+#include <Compositor/CompositorCoreHost.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
 #include <Compositor/PaintingSurface.h>
@@ -41,14 +42,6 @@ class SkiaBackendContext;
 }
 
 namespace Compositor {
-
-struct PendingFrame {
-    Gfx::IntRect viewport_rect;
-    Gfx::IntRect forced_damage_rect;
-
-    static PendingFrame repainting_everything(Gfx::IntRect viewport_rect) { return { viewport_rect, { {}, viewport_rect.size() } }; }
-    static PendingFrame repainting_changes(Gfx::IntRect viewport_rect) { return { viewport_rect, {} }; }
-};
 
 struct PreparedFrame {
     Gfx::PaintingSurface* rendered_surface { nullptr };

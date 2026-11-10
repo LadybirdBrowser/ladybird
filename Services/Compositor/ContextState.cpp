@@ -1974,6 +1974,7 @@ bool ContextState::pull_elastic_overscroll_by(Compositing::AsyncScrollNode const
 
 void ContextState::set_scroll_capabilities(ScrollCapabilities const& capabilities)
 {
+    m_presentation_synthesizes_scroll_momentum = capabilities.synthesizes_scroll_momentum;
     m_elastic_overscroll_controller.set_enabled(capabilities.scrolls_elastically);
     m_scrollbar_track_press_jumps = capabilities.scrollbar_track_press_jumps;
     m_wheel_gesture_routing.set_touchpad_gesture_end(capabilities.touchpad_gesture_end);

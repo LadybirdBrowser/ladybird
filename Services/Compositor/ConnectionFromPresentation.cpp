@@ -72,7 +72,7 @@ ConnectionFromPresentation::ConnectionFromPresentation(NonnullOwnPtr<IPC::Transp
     : IPC::ConnectionFromClient<CompositorPresentationClientEndpoint, CompositorPresentationServerEndpoint>(*this, move(transport), 1)
     , m_compositor_state(move(compositor_state))
 {
-    m_compositor_state->register_presentation(*this, capabilities);
+    m_presentation_id = m_compositor_state->register_presentation(*this, capabilities);
 }
 
 ConnectionFromPresentation::~ConnectionFromPresentation()
@@ -113,19 +113,9 @@ void ConnectionFromPresentation::did_present_frame(Web::CompositorContextId cont
     async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id, device_pixel_ratio);
 }
 
-void ConnectionFromPresentation::did_consume_input_event(Web::CompositorContextId context_id, u64 event_id)
+void ConnectionFromPresentation::post_message_to_presentation(IPC::MessageBuffer& buffer)
 {
-    async_did_consume_input_event(context_id, event_id);
-}
-
-void ConnectionFromPresentation::did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id)
-{
-    async_did_not_dispatch_input_event(context_id, event_id);
-}
-
-void ConnectionFromPresentation::did_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id, bool performed_default_action)
-{
-    async_did_dispatch_input_event(context_id, event_id, performed_default_action);
+    (void)post_message(buffer);
 }
 
 void ConnectionFromPresentation::handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll)
@@ -135,7 +125,7 @@ void ConnectionFromPresentation::handle_and_dispatch_key_event(Web::CompositorCo
         return;
     }
     if (!is_bound_to(context_id)) {
-        did_not_dispatch_input_event(context_id, event.id);
+        async_did_not_dispatch_input_event(context_id, event.id);
         return;
     }
     m_compositor_state->handle_and_dispatch_key_event(context_id, move(event), allow_keyboard_scroll);
@@ -148,7 +138,7 @@ void ConnectionFromPresentation::handle_and_dispatch_pinch_event(Web::Compositor
         return;
     }
     if (!is_bound_to(context_id)) {
-        did_not_dispatch_input_event(context_id, event.id);
+        async_did_not_dispatch_input_event(context_id, event.id);
         return;
     }
     m_compositor_state->handle_and_dispatch_pinch_event(context_id, event);
@@ -161,7 +151,7 @@ void ConnectionFromPresentation::handle_and_dispatch_mouse_event(Web::Compositor
         return;
     }
     if (!is_bound_to(context_id)) {
-        did_not_dispatch_input_event(context_id, event.id);
+        async_did_not_dispatch_input_event(context_id, event.id);
         return;
     }
     m_compositor_state->handle_and_dispatch_mouse_event(context_id, move(event));
