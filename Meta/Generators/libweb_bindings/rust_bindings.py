@@ -1384,13 +1384,21 @@ def write_rust_interface(
         is_secure_context_only = "SecureContext" in attribute.attribute.extended_attributes
         if attribute.is_cached:
             definition = f'define_cached_attribute(vm, realm, prototype, "{name}", {getter});'
-            out.write(member_exposure_definition(definition, secure_context_only=is_secure_context_only))
+            out.write(
+                member_exposure_definition(
+                    definition, secure_context_only=is_secure_context_only, window_only=attribute.is_window_only
+                )
+            )
             defined_property_names.append(name)
             continue
         has_setter = not attribute.attribute.readonly or attribute.put_forwards is not None
         setter = f"raw_native!({attribute.setter_function})" if has_setter else "None"
         definition = f'define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});'
-        out.write(member_exposure_definition(definition, secure_context_only=is_secure_context_only))
+        out.write(
+            member_exposure_definition(
+                definition, secure_context_only=is_secure_context_only, window_only=attribute.is_window_only
+            )
+        )
         defined_property_names.append(name)
     if interface.name == "CSSStyleProperties":
         out.write(
