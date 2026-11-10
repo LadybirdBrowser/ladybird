@@ -9316,7 +9316,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     CompositorAnimationKeyframesByEffect keyframes_by_effect;
     GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
     GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
-    GC::RootHashMap<Element const*, GC::RootVector<GC::Ptr<Animations::KeyframeEffect>>> in_effect_transform_effects_by_target;
+    HashMap<Layout::Node const*, GC::RootVector<GC::Ptr<Animations::KeyframeEffect>>> in_effect_transform_effects_by_layout_node;
     GC::RootHashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
     GC::RootHashTable<GC::Ref<Element>> elements_with_intersection_observation_descendants;
     GC::RootHashTable<GC::Ref<Element>> elements_with_visibility_observation_descendants;
@@ -9383,12 +9383,10 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         for (auto const* ancestor = layout_node->parent(); ancestor; ancestor = ancestor->parent()) {
             if (ancestor->has_css_transform() && !transform_preserves_horizontal_axis(*ancestor))
                 return true;
-            if (auto* ancestor_element = as_if<Element>(ancestor->dom_node())) {
-                if (auto effects = in_effect_transform_effects_by_target.find(ancestor_element); effects != in_effect_transform_effects_by_target.end()) {
-                    for (auto effect : effects->value) {
-                        if (!animated_transform_preserves_axes(*effect, *ancestor))
-                            return true;
-                    }
+            if (auto effects = in_effect_transform_effects_by_layout_node.find(ancestor); effects != in_effect_transform_effects_by_layout_node.end()) {
+                for (auto effect : effects->value) {
+                    if (!animated_transform_preserves_axes(*effect, *ancestor))
+                        return true;
                 }
             }
             if (ancestor->dom_node() == &observation_root)
@@ -9518,9 +9516,9 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         auto visible_bounds = viewport_bounds;
         for (auto const* ancestor = layout_node; ancestor; ancestor = ancestor->parent()) {
             bool can_move_or_expand_paint = ancestor->has_css_transform() || ancestor->perspective().has_value()
-                || ancestor->is_sticky_position() || ancestor->filter().has_filters();
+                || ancestor->is_sticky_position() || ancestor->filter().has_filters()
+                || in_effect_transform_effects_by_layout_node.contains(ancestor);
             if (auto const* element = as_if<Element>(ancestor->dom_node())) {
-                can_move_or_expand_paint |= in_effect_transform_effects_by_target.contains(element);
                 if (auto effects = competing_effects.get(*element); effects.has_value() && effects->filter.winner)
                     can_move_or_expand_paint = true;
             }
@@ -9653,7 +9651,8 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             add_competing_effect(effects.filter);
         if (any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); })) {
             add_competing_effect(effects.transform);
-            in_effect_transform_effects_by_target.ensure(&target->element()).append(effect);
+            if (auto const* layout_node = target->unsafe_layout_node(read))
+                in_effect_transform_effects_by_layout_node.ensure(layout_node).append(effect);
         }
     }
 
