@@ -609,7 +609,7 @@ never shows "about:blank".
   with version, build and platform plus a Copy button. Nothing else.
 - Welcome (`about:welcome`): the logomark at 56 px (0.85 line, so it doesn't get heavy), the title, then one centered column, in this order: search engine (optional,
   nothing preselected, engines in a new random order each time, so none is favored by its
-  place), tab layout, content blocking switch, "Start browsing" (enabled as soon as the
+  place), Layout (all three layouts), content blocking switch, "Start browsing" (enabled as soon as the
   current settings are loaded; it never waits for a choice).
 - Error pages: icon, title, one line of detail, buttons, centered like every other
   single-message page ("Report sent"). Security errors may use two lines, because the
@@ -630,7 +630,8 @@ never shows "about:blank".
   it really is (in the toolbar row, or at the top of the sidebar). With Tabs on the side, a
   "Sidebar on: Left / Right" control appears below the cards. Everything in the sidebar
   is always on the left, where the traffic lights are. The welcome page
-  uses the same heading and labels.
+  offers the same three cards, with the same heading, labels and pictures; in its
+  three-column grid they line up with the search engine buttons above.
 - Settings that change how websites look (Website appearance, Force dark mode, zoom) live
   in Appearance, next to the browser's own look, not in a separate section.
 - Permissions: one row per permission (camera, microphone, location, notifications, …),

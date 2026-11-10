@@ -58,19 +58,19 @@ SPDX-License-Identifier: BSD-2-Clause
                         />
                     </div>
                 </section>
-                <section id="tab-mode-section" aria-labelledby="tab-mode-title">
-                    <h2 id="tab-mode-title">Layout</h2>
-                    <div class="tab-options" role="radiogroup" aria-labelledby="tab-mode-title">
+                <section id="tab-layout-section" aria-labelledby="tab-layout-title">
+                    <h2 id="tab-layout-title">Layout</h2>
+                    <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
                         <label class="tab-option">
-                            <input type="radio" name="tab-mode" value="horizontal" checked />
+                            <input type="radio" name="tab-layout" value="horizontal" checked />
                             <span class="tab-preview horizontal-preview" aria-hidden="true">
                                 <span class="preview-strip"><i class="active"></i><i></i><i></i></span>
                                 <span class="preview-toolbar"><i></i></span>
                             </span>
                             <span class="tab-option-label">Tabs on top</span>
                         </label>
-                        <label id="vertical-tab-option" class="tab-option">
-                            <input type="radio" name="tab-mode" value="vertical" />
+                        <label class="tab-option">
+                            <input type="radio" name="tab-layout" value="vertical" />
                             <span class="tab-preview vertical-preview" aria-hidden="true">
                                 <span class="preview-sidebar"><i></i><i class="active"></i><i></i></span>
                                 <span class="preview-main"
@@ -78,6 +78,14 @@ SPDX-License-Identifier: BSD-2-Clause
                                 ></span>
                             </span>
                             <span class="tab-option-label">Tabs on the side</span>
+                        </label>
+                        <label class="tab-option">
+                            <input type="radio" name="tab-layout" value="sidebar" />
+                            <span class="tab-preview vertical-preview" aria-hidden="true">
+                                <span class="preview-sidebar"><b></b><i></i><i class="active"></i><i></i></span>
+                                <span class="preview-main"></span>
+                            </span>
+                            <span class="tab-option-label">Everything in the sidebar</span>
                         </label>
                     </div>
                 </section>
