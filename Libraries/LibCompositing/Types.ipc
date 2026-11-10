@@ -84,20 +84,20 @@ struct Compositing::AsyncScrollOffset {
     u64 context_user_input_scroll_count;
 }
 
-[ExistingCpp]
+[ExistingCpp, RustDerive=Copy+Eq+Hash+Default]
 struct Compositing::SnapAreaIdentity {
     Web::UniqueNodeID node_id;
     u8 pseudo_element_type;
 }
 
-[ExistingCpp]
+[ExistingCpp, RustDerive=Eq+Default]
 struct Compositing::SnappedAreas {
     Vector<Compositing::SnapAreaIdentity> x;
     Vector<Compositing::SnapAreaIdentity> y;
 }
 
 // NB: CSS pixel points travel as their raw fixed-point values, so that a destination is exactly the one selected.
-[ExistingCpp]
+[ExistingCpp, RustDerive=Eq+Default]
 struct Compositing::SnapDestination {
     Web::CSSPixelPoint position;
     bool snapped_x;
