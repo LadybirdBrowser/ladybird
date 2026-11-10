@@ -69,6 +69,14 @@ pub(crate) struct CaretRect {
     pub(crate) node: NodeSlotId,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LineEdge {
+    Start,
+    End,
+    Left,
+    Right,
+}
+
 /// A line of a text node: the DOM offsets it renders, with the whitespace hanging at its soft wrap between `end_offset`
 /// and `end_offset_with_trailing_whitespace`. A line that a preserved newline ends with nothing on it has no fragments.
 pub(crate) struct TextLine {
@@ -335,6 +343,179 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
             owner: node,
             node,
         })
+    }
+
+    /// The next line after `line` in its line root, or the previous one, that holds a caret position.
+    pub(crate) fn adjacent_line(&self, line: InlineLine, forward: bool) -> Option<InlineLine> {
+        let side = self.arena.committed_side_data(line.root);
+        let mut index = line.index as usize;
+        loop {
+            index = if forward { index + 1 } else { index.checked_sub(1)? };
+            let record = side.lines().get(index)?;
+            if (record.fragment_count > 0 && !record.has_block_level_box) || record.forced_break.is_some() {
+                return Some(InlineLine {
+                    root: line.root,
+                    index: index as u32,
+                });
+            }
+        }
+    }
+
+    fn line_is_horizontal(&self, line: InlineLine) -> bool {
+        let side = self.arena.committed_side_data(line.root);
+        side.lines()
+            .get(line.index as usize)
+            .is_none_or(|record| record.writing_mode == writing_mode::HORIZONTAL_TB)
+    }
+
+    /// The middle of `line` along the block axis.
+    pub(crate) fn line_block_coordinate(&self, line: InlineLine) -> CssPixels {
+        let side = self.arena.committed_side_data(line.root);
+        let Some(record) = side.lines().get(line.index as usize) else {
+            return CssPixels::default();
+        };
+        let rect = self.line_rect(line, record);
+        let center = rect.center();
+        if record.writing_mode == writing_mode::HORIZONTAL_TB {
+            center.y
+        } else {
+            center.x
+        }
+    }
+
+    /// The inline coordinate of the caret at `position` on `line`, which a move to another line keeps.
+    pub(crate) fn caret_inline_coordinate(&self, line: InlineLine, position: CaretPosition) -> Option<CssPixels> {
+        let caret = self.caret_rect(position)?;
+        let root = paintable_geometry::absolute_line_root_position(self.arena, line.root, line.index as usize);
+        let (coordinate, root_coordinate) = if self.line_is_horizontal(line) {
+            (caret.rect.x, root.x)
+        } else {
+            (caret.rect.y, root.y)
+        };
+        // INTEROP: Vertical navigation takes the pixel-rounded leading edge of a one-pixel caret centered on the text
+        //          boundary, which floors the coordinate in the line root.
+        Some((coordinate - root_coordinate).floor() + root_coordinate)
+    }
+
+    /// The fragments of `line` that `accepts` takes, in line order.
+    fn fragments_on_line<'b>(
+        &self,
+        side: &'b crate::painting::paintable_data::CommittedSideData,
+        line: InlineLine,
+        accepts: impl Fn(&FragmentRecord) -> bool,
+    ) -> impl Iterator<Item = &'b FragmentRecord> {
+        let range = side.lines().get(line.index as usize).map_or(0..0, |record| {
+            record.first_fragment as usize..(record.first_fragment + record.fragment_count) as usize
+        });
+        side.fragments()[range].iter().filter(move |fragment| accepts(fragment))
+    }
+
+    /// The position in front of the <br> or preserved newline that ends `line`.
+    fn position_before_forced_break(&self, line: InlineLine) -> Option<CaretPosition> {
+        let side = self.arena.committed_side_data(line.root);
+        let position = side.lines().get(line.index as usize)?.forced_break?;
+        if self.arena.node_kind_if_live(position.node) == Some(NodeKind::BreakNode) {
+            return Some(CaretPosition::BeforeForcedBreak { node: position.node });
+        }
+        Some(CaretPosition::Text {
+            text: position.node,
+            offset: self.arena.dom_offset_for_rendered_text_offset(
+                position.node,
+                position.rendered_offset as usize,
+                RenderedTextBoundary::Start,
+            ),
+            downstream: true,
+        })
+    }
+
+    /// The text position at `offset` in `fragment`, leaning to the line of the fragment.
+    fn text_position_in_fragment(&self, fragment: &FragmentRecord, offset: usize) -> CaretPosition {
+        let downstream = self
+            .line_of(fragment.layout_node, offset, true)
+            .is_none_or(|position| position.line.index == fragment.line_index);
+        CaretPosition::Text {
+            text: fragment.layout_node,
+            offset,
+            downstream,
+        }
+    }
+
+    /// The caret position on `line` nearest the inline coordinate `x`, in the fragment `accepts` takes that is the last
+    /// to start before `x`, or else the first, or in front of the line's forced break where it takes none.
+    pub(crate) fn position_at_inline_coordinate(
+        &self,
+        line: InlineLine,
+        x: CssPixels,
+        accepts: impl Fn(&FragmentRecord) -> bool,
+    ) -> Option<CaretPosition> {
+        let arena = self.arena;
+        let side = arena.committed_side_data(line.root);
+        let horizontal = self.line_is_horizontal(line);
+        let inline_start = |rect: CssPixelRect| if horizontal { rect.x } else { rect.y };
+        let mut chosen = None;
+        for fragment in self.fragments_on_line(&side, line, accepts) {
+            let rect = text_fragment::absolute_rect(arena, fragment);
+            if chosen.is_none() || inline_start(rect) <= x {
+                chosen = Some((fragment, rect));
+            }
+        }
+        let Some((fragment, rect)) = chosen else {
+            return self.position_before_forced_break(line);
+        };
+        let mut point = rect.center();
+        if horizontal {
+            point.x = rect.x.max(x);
+        } else {
+            point.y = rect.y.max(x);
+        }
+        let offset = text_fragment::index_in_node_for_point(arena, fragment, point);
+        Some(self.text_position_in_fragment(fragment, offset))
+    }
+
+    /// The caret position at `edge` of `line`, among the fragments `accepts` takes, or in front of the line's forced
+    /// break where it takes none.
+    pub(crate) fn line_edge(
+        &self,
+        line: InlineLine,
+        edge: LineEdge,
+        accepts: impl Fn(&FragmentRecord) -> bool,
+    ) -> Option<CaretPosition> {
+        let arena = self.arena;
+        let side = arena.committed_side_data(line.root);
+        let fragments = self.fragments_on_line(&side, line, accepts);
+        let rect = |fragment: &&FragmentRecord| text_fragment::absolute_rect(arena, fragment);
+        let fragment = match edge {
+            LineEdge::Start => fragments.min_by_key(|fragment| fragment.dom_start_offset_in_node),
+            LineEdge::End => fragments.max_by_key(|fragment| fragment.dom_end_offset_with_trailing_whitespace),
+            LineEdge::Left => fragments.min_by_key(|fragment| {
+                let rect = rect(fragment);
+                if self.line_is_horizontal(line) { rect.x } else { rect.y }
+            }),
+            LineEdge::Right => fragments.max_by_key(|fragment| {
+                let rect = rect(fragment);
+                if self.line_is_horizontal(line) {
+                    rect.right()
+                } else {
+                    rect.bottom()
+                }
+            }),
+        };
+        let Some(fragment) = fragment else {
+            return self.position_before_forced_break(line);
+        };
+        let physical_edge = text_fragment::physical_edge_offset(arena, fragment, edge == LineEdge::Left);
+        let offset = match (edge, physical_edge) {
+            (LineEdge::Left | LineEdge::Right, Some((offset, at_cluster_end))) => {
+                return Some(CaretPosition::Text {
+                    text: fragment.layout_node,
+                    offset,
+                    downstream: !at_cluster_end,
+                });
+            }
+            (LineEdge::End, _) => fragment.dom_end_offset_with_trailing_whitespace,
+            _ => fragment.dom_start_offset_in_node,
+        };
+        Some(self.text_position_in_fragment(fragment, offset))
     }
 
     /// The lines of the DOM text whose layout node is `text`, in DOM order.

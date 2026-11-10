@@ -44,38 +44,6 @@ static Vector<VisualLine> visual_lines_with_up_to_date_layout(DOM::Text const& d
     return collect_visual_lines(read, dom_node);
 }
 
-static Optional<size_t> visual_line_index_for_offset(Vector<VisualLine> const& lines, size_t offset, TextAffinity affinity)
-{
-    // An offset exactly at a soft wrap boundary belongs to the earlier line with Upstream affinity and to the later
-    // line with Downstream affinity. This matches how the caret is painted (see
-    // the painted-line fragment lookup).
-    Optional<size_t> boundary_match;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (offset < lines[i].start_offset || offset > lines[i].end_offset_with_trailing_whitespace)
-            continue;
-        if (affinity == TextAffinity::Downstream && offset == lines[i].end_offset_with_trailing_whitespace) {
-            // A later line starting exactly at this offset takes precedence.
-            if (!boundary_match.has_value())
-                boundary_match = i;
-            continue;
-        }
-        return i;
-    }
-    if (boundary_match.has_value())
-        return boundary_match;
-
-    if (lines.is_empty())
-        return {};
-
-    // Offsets that no line covers belong to the closest line that starts before them.
-    Optional<size_t> result;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (lines[i].start_offset <= offset)
-            result = i;
-    }
-    return result.value_or(0);
-}
-
 // The affinity a cursor landing on `offset` within `lines[line_index]` needs in order to render on that line.
 static TextAffinity affinity_for_offset_on_line(Vector<VisualLine> const& lines, size_t line_index, size_t offset)
 {
@@ -109,106 +77,6 @@ static TextAffinity affinity_for_moving_right(Vector<VisualLine> const& lines, s
     return TextAffinity::Downstream;
 }
 
-// Returns the absolute inline-axis coordinate of the caret at the given offset, which must be on the given line.
-// Returns nothing for lines without rendered text, whose caret sits at the line's inline start.
-static Optional<CSSPixels> caret_inline_coordinate(Layout::BegunRead const& read, DOM::Text const& dom_node, VisualLine const& line, size_t offset)
-{
-    if (!line.has_fragments)
-        return {};
-    auto const* layout_node = dom_node.layout_node(read);
-    if (!layout_node)
-        return {};
-    Layout::RustFFI::FfiOptionalCssPixels result;
-    Layout::RustFFI::render_state_visual_line_caret_inline_coordinate(
-        layout_node->document_host(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node), offset, &result);
-    if (!result.has_value)
-        return {};
-    return result.value;
-}
-
-static size_t offset_in_visual_line_closest_to_inline_coordinate(Layout::BegunRead const& read, DOM::Text const& dom_node, VisualLine const& line, Optional<CSSPixels> inline_coordinate)
-{
-    if (!line.has_fragments || !inline_coordinate.has_value())
-        return line.start_offset;
-    auto const* layout_node = dom_node.layout_node(read);
-    if (!layout_node)
-        return line.start_offset;
-    return Layout::RustFFI::render_state_visual_line_offset_closest_to_inline_coordinate(
-        layout_node->document_host(), line.owner_paintable, line.line_index, Layout::Node::slot_id(layout_node),
-        *inline_coordinate, line.start_offset);
-}
-
-Optional<CursorLinePosition> compute_cursor_position_by_page(DOM::Text& text, size_t offset, TextAffinity affinity, bool forward, CSSPixels page_distance)
-{
-    Layout::ForcedReadScope read { text.document() };
-    auto lines = visual_lines_with_up_to_date_layout(text);
-    auto origin_index = visual_line_index_for_offset(lines, offset, affinity);
-    if (!origin_index.has_value())
-        return {};
-    auto inline_coordinate = caret_inline_coordinate(read, text, lines[*origin_index], offset);
-    auto origin_coordinate = text.document().caret_line_block_coordinate(read, text, offset, affinity);
-    if (!origin_coordinate.has_value())
-        return {};
-    CursorLinePosition result { offset, affinity };
-    auto index = *origin_index;
-    for (;;) {
-        if ((forward && index + 1 == lines.size()) || (!forward && index == 0)) {
-            result = { forward ? text.length() : 0, TextAffinity::Downstream };
-            break;
-        }
-        auto next_index = forward ? index + 1 : index - 1;
-        auto next_offset = offset_in_visual_line_closest_to_inline_coordinate(read, text, lines[next_index], inline_coordinate);
-        auto next_affinity = affinity_for_offset_on_line(lines, next_index, next_offset);
-        auto coordinate = text.document().caret_line_block_coordinate(read, text, next_offset, next_affinity);
-        if (!coordinate.has_value())
-            break;
-        auto distance = *coordinate > *origin_coordinate ? *coordinate - *origin_coordinate : *origin_coordinate - *coordinate;
-        if (distance > page_distance)
-            break;
-        result = { next_offset, next_affinity };
-        index = next_index;
-    }
-    return result;
-}
-
-Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
-{
-    Layout::ForcedReadScope read { dom_node.document() };
-    // NB: The layout update is best-effort; a detached document may still have no layout node.
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (!as_if<Layout::TextNode>(dom_node.layout_node(read)))
-        return {};
-
-    auto line_index = visual_line_index_for_offset(lines, current_offset, affinity);
-
-    // On the last line (or with no line information at all), move to the end of the text.
-    if (!line_index.has_value() || *line_index + 1 >= lines.size())
-        return CursorLinePosition { dom_node.data().length_in_code_units(), TextAffinity::Downstream };
-
-    auto inline_coordinate = caret_inline_coordinate(read, dom_node, lines[*line_index], current_offset);
-    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(read, dom_node, lines[*line_index + 1], inline_coordinate);
-    return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index + 1, new_offset) };
-}
-
-Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
-{
-    Layout::ForcedReadScope read { dom_node.document() };
-    // NB: The layout update is best-effort; a detached document may still have no layout node.
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (!as_if<Layout::TextNode>(dom_node.layout_node(read)))
-        return {};
-
-    auto line_index = visual_line_index_for_offset(lines, current_offset, affinity);
-
-    // On the first line (or with no line information at all), move to the start of the text.
-    if (!line_index.has_value() || *line_index == 0)
-        return CursorLinePosition { 0, TextAffinity::Downstream };
-
-    auto inline_coordinate = caret_inline_coordinate(read, dom_node, lines[*line_index], current_offset);
-    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(read, dom_node, lines[*line_index - 1], inline_coordinate);
-    return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index - 1, new_offset) };
-}
-
 Optional<CursorLinePosition> compute_cursor_position_on_next_character(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
@@ -239,11 +107,15 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
 
 Optional<CSSPixels> cursor_inline_coordinate(Layout::BegunRead const& read, DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
 {
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
-    if (!line_index.has_value())
+    const_cast<DOM::Document&>(dom_node.document()).update_layout_if_needed_for_node(dom_node, DOM::UpdateLayoutReason::CursorLineNavigation);
+    auto const* layout_node = dom_node.layout_node(read);
+    if (!layout_node)
         return {};
-    return caret_inline_coordinate(read, dom_node, lines[*line_index], offset);
+    Layout::RustFFI::FfiOptionalCssPixels result;
+    Layout::RustFFI::render_state_text_caret_inline_coordinate(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset, affinity == TextAffinity::Downstream, &result);
+    if (!result.has_value)
+        return {};
+    return result.value;
 }
 
 Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const& dom_node)
@@ -277,27 +149,6 @@ size_t find_line_end(Utf16View const& view, size_t offset)
     while (offset < length && view.code_unit_at(offset) != '\n')
         ++offset;
     return offset;
-}
-
-size_t find_visual_line_start(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (auto line_index = visual_line_index_for_offset(lines, offset, affinity); line_index.has_value())
-        return lines[*line_index].start_offset;
-
-    return find_line_start(dom_node.data().utf16_view(), offset);
-}
-
-CursorLinePosition find_visual_line_end(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (auto line_index = visual_line_index_for_offset(lines, offset, affinity); line_index.has_value()) {
-        // The end of a visual line includes whitespace hanging at a soft wrap point.
-        auto end_offset = lines[*line_index].end_offset_with_trailing_whitespace;
-        return CursorLinePosition { end_offset, affinity_for_offset_on_line(lines, *line_index, end_offset) };
-    }
-
-    return CursorLinePosition { find_line_end(dom_node.data().utf16_view(), offset), TextAffinity::Downstream };
 }
 
 }

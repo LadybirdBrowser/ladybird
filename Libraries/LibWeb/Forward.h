@@ -921,6 +921,7 @@ class IntersectionObserverEntry;
 namespace Web::Layout::RustFFI {
 
 struct BegunRead;
+enum class FfiTextCaretMovement : u8;
 
 }
 

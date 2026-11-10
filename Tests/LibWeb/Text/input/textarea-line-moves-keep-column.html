@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+textarea { font: 16px/20px "Liberation Mono", monospace; width: 300px; height: 100px; }
+</style>
+<textarea id="textarea">a long first line
+ab
+a long third line</textarea>
+<script>
+test(() => {
+    // Consecutive moves to other lines keep the column they started from, across the short middle line. Moving the
+    // caret another way starts from its new column, but a move that leaves the caret where it is does not.
+    textarea.focus();
+    for (const [start, keys] of [[10, ["Down", "Down", "Up", "Up"]], [10, ["Down", "Left", "Down", "Up"]], [4, ["Down", "End", "Down"]]]) {
+        textarea.setSelectionRange(start, start);
+        const offsets = [start];
+        for (const key of keys) {
+            textarea.getBoundingClientRect();
+            internals.sendKey(textarea, key);
+            offsets.push(textarea.selectionStart);
+        }
+        println(`${keys.join(", ")}: ${offsets.join(" -> ")}`);
+    }
+});
+</script>
