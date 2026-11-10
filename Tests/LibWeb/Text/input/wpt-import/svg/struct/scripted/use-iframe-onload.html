@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>An iframe cloned by an SVG use element doesn't run its inline onload handler</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/struct.html#UseElement">
+<link rel="help" href="https://github.com/w3c/svgwg/issues/876">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  window.loads = [];
+</script>
+<svg>
+  <g id="g">
+    <foreignObject width="100" height="100">
+      <iframe onload="loads.push(this.getRootNode() instanceof ShadowRoot)"></iframe>
+    </foreignObject>
+  </g>
+  <use href="#g"/>
+</svg>
+<script>
+  promise_test(async function() {
+    await new Promise(resolve => window.addEventListener("load", resolve));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise(resolve => step_timeout(resolve, 0));
+    assert_array_equals(loads, [false], "Only the original iframe's onload handler should run");
+  }, "Inline onload handler of an iframe in a use element shadow tree doesn't run");
+</script>

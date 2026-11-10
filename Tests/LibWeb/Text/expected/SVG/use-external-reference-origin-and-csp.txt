@@ -1,4 +1,4 @@
-same-origin: handler ran
+same-origin: handler did not run
 cross-origin: handler did not run
 csp: handler did not run
 data-url: handler did not run
