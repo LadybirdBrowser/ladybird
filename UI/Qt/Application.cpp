@@ -933,10 +933,14 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         });
     }
 
-    QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, [this] {
+    // NB: The UI info holds the interface color scheme, which changes with the interface theme as well as with the
+    //     system's appearance. The views take it from the Hub only after this, as they update their palettes later.
+    auto send_ui_info = [this] {
         if (auto* hub = HubConnection::the_if_connected())
             hub->async_ui_info_changed(current_ui_info());
-    });
+    };
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::changed, send_ui_info);
+    QObject::connect(&SystemAppearance::the(), &SystemAppearance::interface_appearance_changed, send_ui_info);
     return {};
 }
 
