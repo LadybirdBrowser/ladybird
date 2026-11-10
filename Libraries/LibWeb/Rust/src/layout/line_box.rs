@@ -155,8 +155,7 @@ impl LineBoxData {
             last.length_in_code_units += length;
             last.append_glyph_run(&glyphs.unwrap(), content_inline_size, start - last.start);
             if trailing_whitespace.length_in_code_units == length {
-                last.trailing_whitespace.length_in_code_units += trailing_whitespace.length_in_code_units;
-                last.trailing_whitespace.inline_size += trailing_whitespace.inline_size;
+                last.trailing_whitespace += trailing_whitespace;
             } else {
                 last.trailing_whitespace = trailing_whitespace;
             }
@@ -239,7 +238,8 @@ impl LineBoxData {
 
     fn calculate_or_trim_trailing_whitespace(&mut self, should_remove: bool) -> CssPixels {
         let mut whitespace_inline_size = CssPixels::default();
-        let mut trailing_whitespace_inline_size = CssPixels::default();
+        // The whitespace fragments removed so far that follow on from the same node.
+        let mut removed_whitespace: Option<(Node, line_box_fragment::TrailingWhitespace)> = None;
         let mut fragment_index = self.fragments.len();
 
         let last_fragment_index = loop {
@@ -259,8 +259,18 @@ impl LineBoxData {
             }
 
             whitespace_inline_size += fragment.inline_length;
-            trailing_whitespace_inline_size += fragment.inline_length;
             if should_remove {
+                let removed = line_box_fragment::TrailingWhitespace {
+                    length_in_code_units: fragment.length_in_code_units,
+                    inline_size: fragment.inline_length,
+                };
+                removed_whitespace = match removed_whitespace {
+                    Some((node, mut sum)) if node == fragment.layout_node => {
+                        sum += removed;
+                        Some((node, sum))
+                    }
+                    _ => Some((fragment.layout_node, removed)),
+                };
                 self.record.inline_length -= fragment.inline_length;
                 self.fragments.remove(fragment_index);
                 self.clamp_static_position_markers_to_inline_length();
@@ -269,31 +279,25 @@ impl LineBoxData {
 
         let last_fragment = &self.fragments[last_fragment_index];
         if last_fragment.text().is_empty() {
-            if should_remove && trailing_whitespace_inline_size > CssPixels::default() {
-                self.fragments[last_fragment_index].has_trailing_whitespace = true;
-            }
             return whitespace_inline_size;
         }
 
         // Trim the last fragment's trailing whitespace by the advance recorded when it was shaped.
         let fragment_trailing_whitespace = last_fragment.trailing_whitespace;
         whitespace_inline_size += fragment_trailing_whitespace.inline_size;
-        trailing_whitespace_inline_size += fragment_trailing_whitespace.inline_size;
         if should_remove {
             let fragment = &mut self.fragments[last_fragment_index];
             fragment.length_in_code_units -= fragment_trailing_whitespace.length_in_code_units;
             fragment.inline_length -= fragment_trailing_whitespace.inline_size;
             fragment.trailing_whitespace = line_box_fragment::TrailingWhitespace::default();
+            fragment.record.trimmed_trailing_whitespace += fragment_trailing_whitespace;
+            if let Some((node, removed)) = removed_whitespace
+                && node == fragment.layout_node
+            {
+                fragment.record.trimmed_trailing_whitespace += removed;
+            }
             self.record.inline_length -= fragment_trailing_whitespace.inline_size;
             self.clamp_static_position_markers_to_inline_length();
-        }
-
-        if should_remove
-            && (trailing_whitespace_inline_size > CssPixels::default()
-                || !self.fragments[last_fragment_index].has_trailing_whitespace)
-        {
-            self.fragments[last_fragment_index].has_trailing_whitespace =
-                trailing_whitespace_inline_size > CssPixels::default();
         }
         whitespace_inline_size
     }
@@ -319,7 +323,7 @@ impl LineBoxData {
             }
             fragment.length_in_code_units -= whitespace.length_in_code_units;
             fragment.inline_length -= whitespace.inline_size;
-            fragment.has_trailing_whitespace = true;
+            fragment.record.trimmed_trailing_whitespace += whitespace;
             break;
         }
         self.clamp_static_position_markers_to_inline_length();

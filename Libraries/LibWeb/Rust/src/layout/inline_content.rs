@@ -184,6 +184,9 @@ pub struct GlyphRunRecord {
     pub is_upright: bool,
     // Conservative painted bounds in CSS pixels, relative to the run's baseline origin.
     pub bounding_box: libgfx_rust::FloatRect,
+    /// The font's ascent and descent in whole pixels, as layout counts them.
+    pub ascent: CssPixels,
+    pub descent: CssPixels,
     /// Built the first time a caret, selection or hit-testing query asks.
     pub cluster_geometry: std::sync::OnceLock<ClusterGeometry>,
 }
@@ -313,26 +316,14 @@ impl ClusterGeometry {
         self.x_for_offset(length, false).unwrap_or_default()
     }
 
-    /// How far `x` lies past the end of the first `length` code units, in the direction their last cluster runs.
-    pub fn distance_past_end(&self, x: f32, length: usize) -> f32 {
-        let end_x = self.end_x(length);
-        let ends_right_to_left = self
-            .clusters
-            .iter()
-            .rfind(|cluster| cluster.start < length)
-            .is_some_and(|cluster| cluster.is_rtl);
-        if ends_right_to_left { end_x - x } else { x - end_x }
-    }
-
     /// The offset for the inline coordinate `x` within the first `length` code units: the nearer edge of the grapheme
-    /// under `x`, the right one at its middle, or else the nearest grapheme edge. Also returns how far `x` is from the
-    /// text, zero within it.
+    /// under `x`, the right one at its middle, or else the nearest grapheme edge.
     pub fn offset_for_x(
         &self,
         x: f32,
         length: usize,
         next_grapheme_boundary: impl Fn(usize) -> Option<usize>,
-    ) -> (usize, f32) {
+    ) -> usize {
         let mut nearest = (0, f32::INFINITY);
         for cluster in self.clusters.iter().filter(|cluster| cluster.start < length) {
             let end = cluster.end.min(length);
@@ -347,7 +338,7 @@ impl ClusterGeometry {
                     std::mem::swap(&mut left, &mut right);
                 }
                 if x >= left.1 && x <= right.1 {
-                    return (if x - left.1 < right.1 - x { left.0 } else { right.0 }, 0.0);
+                    return if x - left.1 < right.1 - x { left.0 } else { right.0 };
                 }
                 let edge = if x < left.1 {
                     (left.0, left.1 - x)
@@ -360,7 +351,7 @@ impl ClusterGeometry {
                 grapheme_start = grapheme_end;
             }
         }
-        nearest
+        nearest.0
     }
 
     /// The boundary at the physical left or right edge of the clusters that advance, and whether it ends its cluster.
@@ -405,7 +396,8 @@ pub struct FragmentRecord {
     pub dom_start_offset_in_node: usize,
     pub dom_end_offset_in_node: usize,
     pub dom_end_offset_with_trailing_whitespace: usize,
-    pub trailing_whitespace_length_in_code_units: usize,
+    /// The whitespace the line trimmed off the end of the fragment, which carets and selections still reach.
+    pub(crate) trimmed_trailing_whitespace: super::line_box_fragment::TrailingWhitespace,
     pub glyph_run: Option<std::sync::Arc<GlyphRunRecord>>,
 }
 
@@ -466,6 +458,8 @@ impl InlineContent {
                         libgfx_rust::text_layout::glyph_run_bounding_box(&glyph_data.font, &glyph_data.glyphs, 1.0),
                     );
                     std::sync::Arc::new(GlyphRunRecord {
+                        ascent: super::line_builder::font_metric_in_whole_pixels(glyph_data.font.facts().ascent),
+                        descent: super::line_builder::font_metric_in_whole_pixels(glyph_data.font.facts().descent),
                         glyphs: glyph_data.glyphs,
                         font: glyph_data.font,
                         is_upright: glyph_data.is_upright,
@@ -474,9 +468,7 @@ impl InlineContent {
                     })
                 });
                 fragment.record.line_index = line_index as u32;
-                fragment
-                    .record
-                    .finish_text_offsets(arena, fragment.has_trailing_whitespace);
+                fragment.record.finish_text_offsets(arena);
                 fragments.push(fragment.record);
             }
         }
@@ -728,6 +720,8 @@ impl InlineContent {
                     font: run.font.clone(),
                     is_upright: true,
                     bounding_box,
+                    ascent: run.ascent,
+                    descent: run.descent,
                     cluster_geometry: Default::default(),
                 }));
                 fragment.baseline = CssPixels::nearest_value_for_f32(ascent);
@@ -783,20 +777,8 @@ impl InlineContent {
 }
 
 impl FragmentRecord {
-    fn finish_text_offsets(&mut self, arena: &LayoutNodeArena, has_trailing_whitespace: bool) {
+    fn finish_text_offsets(&mut self, arena: &LayoutNodeArena) {
         let end = self.start + self.length_in_code_units;
-        self.trailing_whitespace_length_in_code_units = if has_trailing_whitespace {
-            arena.text_content(self.layout_node).map_or(0, |content| {
-                content
-                    .text
-                    .iter()
-                    .skip(end)
-                    .take_while(|&&unit| unit == u16::from(b' ') || unit == u16::from(b'\t'))
-                    .count()
-            })
-        } else {
-            0
-        };
         let dom_offset =
             |offset, boundary| arena.dom_offset_for_rendered_text_offset(self.layout_node, offset, boundary);
         self.dom_start_offset_in_node = dom_offset(self.start, super::RenderedTextBoundary::Start);
@@ -805,13 +787,11 @@ impl FragmentRecord {
         } else {
             dom_offset(end, super::RenderedTextBoundary::End)
         };
-        self.dom_end_offset_with_trailing_whitespace = if self.trailing_whitespace_length_in_code_units == 0 {
+        let trailing_whitespace_length = self.trimmed_trailing_whitespace.length_in_code_units;
+        self.dom_end_offset_with_trailing_whitespace = if trailing_whitespace_length == 0 {
             self.dom_end_offset_in_node
         } else {
-            dom_offset(
-                end + self.trailing_whitespace_length_in_code_units,
-                super::RenderedTextBoundary::End,
-            )
+            dom_offset(end + trailing_whitespace_length, super::RenderedTextBoundary::End)
         };
     }
 

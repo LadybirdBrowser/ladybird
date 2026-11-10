@@ -695,12 +695,11 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             return;
         };
         let layout_arena = self.source;
-        let first_available_font = || text_fragment::first_available_font(layout_arena, &fragment);
         let block_container = self.block_container_of_fragment(&fragment);
         let item = HitTestItem {
             text_fragment_index: Some(fragment_index),
             rect: text_fragment::absolute_rect(layout_arena, &fragment),
-            caret_rect: text_fragment::whole_range_rect(layout_arena, &fragment, first_available_font),
+            caret_rect: text_fragment::whole_range_rect(layout_arena, &fragment),
             caret_line_index: Some(fragment.line_index as usize),
             block_container,
             containing_block: layout_arena

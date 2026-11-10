@@ -61,13 +61,19 @@ pub(crate) struct TrailingWhitespace {
     pub(crate) inline_size: CssPixels,
 }
 
+impl std::ops::AddAssign for TrailingWhitespace {
+    fn add_assign(&mut self, other: Self) {
+        self.length_in_code_units += other.length_in_code_units;
+        self.inline_size += other.inline_size;
+    }
+}
+
 #[derive(Clone, PartialEq)]
 pub(crate) struct LineBoxFragmentData {
     pub(crate) record: inline_content::FragmentRecord,
     pub(crate) glyphs: Option<GlyphData>,
     pub(crate) insert_position: f32,
     pub(crate) current_insert_direction: u8,
-    pub(crate) has_trailing_whitespace: bool,
     pub(crate) has_text_overflow_ellipsis: bool,
     pub(crate) has_soft_wrap_opportunity_after: bool,
     pub(crate) is_fully_truncated: bool,
@@ -139,7 +145,7 @@ impl LineBoxFragmentData {
             dom_start_offset_in_node: 0,
             dom_end_offset_in_node: 0,
             dom_end_offset_with_trailing_whitespace: 0,
-            trailing_whitespace_length_in_code_units: 0,
+            trimmed_trailing_whitespace: TrailingWhitespace::default(),
             glyph_run: None,
         };
         let mut fragment = Self::with_record(record, glyphs);
@@ -154,7 +160,6 @@ impl LineBoxFragmentData {
             glyphs,
             insert_position: 0.0,
             current_insert_direction: direction::LTR,
-            has_trailing_whitespace: false,
             has_text_overflow_ellipsis: false,
             has_soft_wrap_opportunity_after: false,
             is_fully_truncated: false,

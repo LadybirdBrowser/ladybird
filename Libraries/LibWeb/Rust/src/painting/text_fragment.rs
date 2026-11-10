@@ -112,9 +112,7 @@ pub(crate) fn range_rect(
         start_offset_in_code_units,
         end_offset_in_code_units,
     ) {
-        Some(offsets) => rect_for_selection_offsets(layout_arena, fragment, offsets, || {
-            first_available_font(layout_arena, fragment)
-        }),
+        Some(offsets) => rect_for_selection_offsets(layout_arena, fragment, offsets),
         None => CssPixelRect::default(),
     }
 }
@@ -127,7 +125,7 @@ pub(crate) fn compute_selection_offsets(
     end_offset_in_code_units: usize,
 ) -> Option<SelectionOffsets> {
     let length_with_trailing_whitespace =
-        fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+        fragment.length_in_code_units + fragment.trimmed_trailing_whitespace.length_in_code_units;
     let dom_start = fragment.dom_start_offset_in_node;
     let dom_end = fragment.dom_end_offset_with_trailing_whitespace;
     let rendered_offset_for_dom_offset = |dom_offset, boundary| {
@@ -228,7 +226,7 @@ pub(crate) fn selection_offsets_for_dom_range(
     end_offset_in_code_units: usize,
 ) -> Option<SelectionOffsets> {
     let length_with_trailing_whitespace =
-        fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+        fragment.length_in_code_units + fragment.trimmed_trailing_whitespace.length_in_code_units;
     let dom_start = fragment.dom_start_offset_in_node;
     let dom_end = fragment.dom_end_offset_with_trailing_whitespace;
     if dom_start > end_offset_in_code_units || dom_end < start_offset_in_code_units {
@@ -288,16 +286,10 @@ pub(crate) fn rect_for_selection_offsets(
     layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
-    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
 ) -> CssPixelRect {
     let horizontal = is_horizontal(fragment);
     let mut rect = absolute_rect(layout_arena, fragment);
     let length = fragment.length_in_code_units;
-
-    let font = match &fragment.glyph_run {
-        Some(run) => Some(run.font.clone()),
-        None => first_available_font(),
-    };
 
     let start_in_text = offsets.start.min(length);
     let end_in_text = offsets.end.min(length);
@@ -315,15 +307,17 @@ pub(crate) fn rect_for_selection_offsets(
         pixel_width = CssPixels::nearest_value_for_f32(right - left);
     }
 
-    if offsets.start > length || offsets.end > length {
-        let space_width = match &font {
-            Some(font) => CssPixels::nearest_value_for_f32(font.glyph_width(' ' as u32)),
-            None => CssPixels::from_raw(0),
+    let trimmed = fragment.trimmed_trailing_whitespace;
+    if trimmed.length_in_code_units > 0 {
+        let trimmed_advance_of = |offset: usize| {
+            let units = offset.saturating_sub(length).min(trimmed.length_in_code_units);
+            CssPixels::from_raw(
+                (i64::from(trimmed.inline_size.raw_value()) * units as i64 / trimmed.length_in_code_units as i64)
+                    as i32,
+            )
         };
-        let trailing_units_before_start = offsets.start.saturating_sub(length);
-        let trailing_units_before_end = offsets.end.saturating_sub(length);
-        pixel_offset += space_width * trailing_units_before_start;
-        pixel_width += space_width * (trailing_units_before_end - trailing_units_before_start);
+        pixel_offset += trimmed_advance_of(offsets.start);
+        pixel_width += trimmed_advance_of(offsets.end) - trimmed_advance_of(offsets.start);
     }
 
     if offsets.start == offsets.end {
@@ -338,21 +332,14 @@ pub(crate) fn rect_for_selection_offsets(
         rect.height = pixel_width;
     }
 
-    if let Some(font) = &font {
-        let ascent_f = font.facts().ascent;
-        let descent_f = font.facts().descent;
-        if ascent_f > 0.0 || descent_f > 0.0 {
-            // NB: Layout counts the font's ascent and descent in whole pixels, so its text baselines are too.
-            let ascent = CssPixels::nearest_value_for_f32(ascent_f.round_ties_even());
-            let descent = CssPixels::nearest_value_for_f32(descent_f.round_ties_even());
-            let zero = CssPixels::from_raw(0);
-            let overflow_top = (ascent - fragment.baseline).max(zero);
-            let overflow_bottom = (descent - secondary_size(rect, horizontal) + fragment.baseline).max(zero);
-            if horizontal {
-                rect.inflate(overflow_top, zero, overflow_bottom, zero);
-            } else {
-                rect.inflate(zero, overflow_bottom, zero, overflow_top);
-            }
+    if let Some(run) = &fragment.glyph_run {
+        let zero = CssPixels::from_raw(0);
+        let overflow_top = (run.ascent - fragment.baseline).max(zero);
+        let overflow_bottom = (run.descent - secondary_size(rect, horizontal) + fragment.baseline).max(zero);
+        if horizontal {
+            rect.inflate(overflow_top, zero, overflow_bottom, zero);
+        } else {
+            rect.inflate(zero, overflow_bottom, zero, overflow_top);
         }
     }
     rect
@@ -364,9 +351,8 @@ pub(crate) fn rects_for_selection_offsets(
     layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
-    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
 ) -> Vec<CssPixelRect> {
-    let rect = rect_for_selection_offsets(layout_arena, fragment, offsets, first_available_font);
+    let rect = rect_for_selection_offsets(layout_arena, fragment, offsets);
     let length = fragment.length_in_code_units;
     let extents = fragment.glyph_run.as_ref().map_or_else(Vec::new, |run| {
         run.cluster_geometry()
@@ -395,16 +381,12 @@ pub(crate) fn rects_for_selection_offsets(
         .collect()
 }
 
-pub(crate) fn whole_range_rect(
-    layout_arena: &impl PaintRead,
-    fragment: &FragmentRecord,
-    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
-) -> CssPixelRect {
+pub(crate) fn whole_range_rect(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> CssPixelRect {
     let offsets = SelectionOffsets {
         start: 0,
         end: fragment.length_in_code_units,
     };
-    rect_for_selection_offsets(layout_arena, fragment, offsets, first_available_font)
+    rect_for_selection_offsets(layout_arena, fragment, offsets)
 }
 
 pub(crate) fn is_block_level_box(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> bool {
@@ -415,16 +397,6 @@ pub(crate) fn is_block_level_box(layout_arena: &impl PaintRead, fragment: &Fragm
 
 pub(crate) fn style_source(_layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> NodeSlotId {
     fragment.style_source
-}
-
-pub(crate) fn first_available_font(
-    layout_arena: &impl PaintRead,
-    fragment: &FragmentRecord,
-) -> Option<libgfx_rust::font::FontHandle> {
-    let source = style_source(layout_arena, fragment);
-    layout_arena
-        .node_style_if_live(source)
-        .map(|style| style.first_available_font())
 }
 
 pub(crate) fn physical_edge_offset(
@@ -460,28 +432,19 @@ pub(crate) fn index_in_node_for_point(
     } else {
         (position.y - rect.y).to_float()
     };
-    let mut offset = 0;
-    if let Some(run) = &fragment.glyph_run {
-        let geometry = run.cluster_geometry();
-        let length = fragment.length_in_code_units;
-        let (nearest, distance) = layout_arena
+    // NB: A point past the end of the text takes the offset in front of the whitespace the line trimmed.
+    let offset = fragment.glyph_run.as_ref().map_or(0, |run| {
+        layout_arena
             .with_grapheme_segmenter(fragment.layout_node, |segmenter| {
-                geometry.offset_for_x(x, length, |offset| {
-                    segmenter
-                        .next_boundary(fragment.start + offset, false)
-                        .map(|boundary| boundary - fragment.start)
-                })
+                run.cluster_geometry()
+                    .offset_for_x(x, fragment.length_in_code_units, |offset| {
+                        segmenter
+                            .next_boundary(fragment.start + offset, false)
+                            .map(|boundary| boundary - fragment.start)
+                    })
             })
-            .unwrap_or_default();
-        offset = nearest;
-        let space_width = run.font.glyph_width(' ' as u32);
-        let past_end = geometry.distance_past_end(x, length);
-        let trailing_spaces =
-            ((past_end / space_width).round().max(0.0) as usize).min(fragment.trailing_whitespace_length_in_code_units);
-        if trailing_spaces > 0 && (past_end - space_width * trailing_spaces as f32).abs() <= distance {
-            offset = length + trailing_spaces;
-        }
-    }
+            .unwrap_or_default()
+    });
     layout_arena.dom_offset_for_rendered_text_offset(
         fragment.layout_node,
         fragment.start + offset,
