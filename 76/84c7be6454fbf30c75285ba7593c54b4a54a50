@@ -1,0 +1,7 @@
+Ladybird locks a frame’s IOSurface read-only while it copies the frame’s
+pixels on the CPU for a tab preview or a screenshot. The other engines
+all lock around CPU reads of an IOSurface the same way: Chromium’s
+IOSurfaceImageBacking reads under a ScopedIOSurfaceLock, Gecko’s
+MacIOSurface::GetAsSurface() calls MacIOSurface::Lock() first, and
+WebKit’s ImageBufferIOSurfaceBackend::getPixelBuffer() reads the pixels
+only while the IOSurface is locked read-only.
