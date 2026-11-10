@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/SiteSettingsPopover.h>
 
@@ -30,13 +31,16 @@ static void remove_settings()
         MUST(FileSystem::remove(settings_path(), FileSystem::RecursionMode::Disallowed));
 }
 
-static Ladybird::SiteSettingsPopover::Site site_for(String force_dark_host = "example.com"_string, bool is_private = false)
+static Ladybird::SiteSettingsPopover::Site site_for(String host = "example.com"_string, bool is_private = false)
 {
-    Ladybird::SiteSettingsPopover::Site site {};
-    site.host = "example.com"_string;
-    site.force_dark_host = move(force_dark_host);
-    site.is_private = is_private;
-    return site;
+    return {
+        .origin = URL::Origin { "https"_string, URL::Host { host }, {} },
+        .host_for_settings = move(host),
+        .is_private = is_private,
+        .favicon = {},
+        .content_blocking = {},
+        .permissions = {},
+    };
 }
 
 static QCheckBox& force_dark_switch(Ladybird::SiteSettingsPopover& popover)
@@ -87,7 +91,7 @@ TEST_CASE(private_site_controls_apply_saved_choices_without_changing_them)
     ScopeGuard cleanup { remove_settings };
     auto settings = WebView::Settings::create(settings_path());
     settings.set_force_dark_for_host("example.com"_string, true);
-    settings.add_autoplay_site_filter("example.com"_string, Web::HTML::AutoplayPolicy::AllowAudioAndVideo);
+    settings.add_autoplay_site_filter("https://example.com"_string, Web::HTML::AutoplayPolicy::AllowAudioAndVideo);
     Ladybird::SiteSettingsPopover popover(nullptr, settings);
     popover.set_site(site_for("example.com"_string, true));
     auto& toggle = force_dark_switch(popover);
@@ -98,7 +102,7 @@ TEST_CASE(private_site_controls_apply_saved_choices_without_changing_them)
     EXPECT_EQ(settings.content_settings().force_dark_per_host.get("example.com"sv), true);
 }
 
-TEST_CASE(hostless_site_uses_only_the_default)
+TEST_CASE(blob_site_uses_the_default_without_changing_its_origin_host_override)
 {
     remove_settings();
     ScopeGuard cleanup { remove_settings };
@@ -107,10 +111,24 @@ TEST_CASE(hostless_site_uses_only_the_default)
     Ladybird::SiteSettingsPopover popover(nullptr, settings);
     popover.set_site(site_for());
     EXPECT(force_dark_switch(popover).isChecked());
-    popover.set_site(site_for({}));
+    auto url = URL::Parser::basic_parse("blob:https://example.com/1234"sv).release_value();
+    auto site = site_for();
+    site.origin = url.origin();
+    site.host_for_settings = {};
+    popover.set_site(move(site));
     auto& toggle = force_dark_switch(popover);
     EXPECT(!toggle.isEnabled());
     EXPECT(!toggle.isChecked());
+    EXPECT(!reset_button(popover).isEnabled());
+    toggle.click();
+    EXPECT_EQ(settings.content_settings().force_dark_per_host.get("example.com"sv), true);
+
+    settings.add_autoplay_site_filter("https://example.com"_string, Web::HTML::AutoplayPolicy::AllowAudioAndVideo);
+    EXPECT(reset_button(popover).isEnabled());
+    reset_button(popover).click();
+    EXPECT(settings.autoplay_settings().site_filters.is_empty());
+    EXPECT_EQ(settings.content_settings().force_dark_per_host.get("example.com"sv), true);
+
     auto content = settings.content_settings();
     content.enable_force_dark = true;
     settings.set_content_settings(move(content));

@@ -156,19 +156,17 @@ function addSiteSettingFilter() {
         return;
     }
 
-    if (CURRENT_SETTING !== "autoplay") {
-        try {
-            const url = new URL(filter);
-            if (url.origin === "null") {
-                throw new Error("Opaque origin");
-            }
-            filter = url.origin;
-        } catch {
-            siteSettingsInput.setCustomValidity("Enter a full site URL, such as https://example.com.");
-            siteSettingsInput.reportValidity();
-            return;
-        }
+    let url = URL.parse(filter);
+    // A host followed by a port can parse as a scheme with an opaque path.
+    if (!url || (url.origin === "null" && /^[^:/?#]+:\d+(?:[/?#]|$)/.test(filter))) {
+        url = URL.parse(`https://${filter}`);
     }
+    if (!url || url.origin === "null") {
+        siteSettingsInput.setCustomValidity("Enter a site URL, such as https://example.com.");
+        siteSettingsInput.reportValidity();
+        return;
+    }
+    filter = url.origin;
 
     ladybird.sendMessage("addSiteSettingFilter", {
         setting: CURRENT_SETTING,
