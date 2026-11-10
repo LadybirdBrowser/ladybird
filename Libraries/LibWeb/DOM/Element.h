@@ -721,7 +721,6 @@ public:
         Yes,
     };
     bool is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowHidden) const;
-    bool is_scroll_container() const;
     bool is_viewport_propagation_source() const;
 
     double scroll_top() const;

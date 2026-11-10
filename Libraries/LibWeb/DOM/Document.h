@@ -222,6 +222,7 @@ enum class InvalidateLayoutTreeReason {
     X(ResolvedCSSStyleDeclarationProperty, false)   \
     X(SVGDecodedImageDataRender, false)             \
     X(ScrollCursorIntoView, false)                  \
+    X(ScrollTimelineSource, false)                  \
     X(ProcessScreenshot, false)                     \
     X(SVGGraphicsElementGetBBox, true)              \
     X(SVGGraphicsElementGetCTM, false)              \
@@ -229,6 +230,7 @@ enum class InvalidateLayoutTreeReason {
     X(SVGLengthValue, false)                        \
     X(SVGPathLength, false)                         \
     X(SVGTextContentElementTextQuery, true)         \
+    X(ViewTimelineSource, false)                    \
     X(ViewTransitionCapture, false)                 \
     X(ViewTransitionPseudoElementStyles, false)     \
     X(WindowScroll, false)

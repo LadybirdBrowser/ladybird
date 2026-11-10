@@ -116,7 +116,7 @@ GC::Ptr<DOM::Element const> ViewTimeline::source_for_bindings() const
 {
     // The values of subject, source, and currentTime are all computed when any of them is requested or updated.
     auto subject = subject_internal();
-    subject.document().update_style_for_element(subject, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
+    subject.document().update_layout(DOM::UpdateLayoutReason::ViewTimelineSource);
 
     // If the source or subject of a ViewTimeline is an element whose principal box does not exist, [...] then the
     // ViewTimeline is inactive.

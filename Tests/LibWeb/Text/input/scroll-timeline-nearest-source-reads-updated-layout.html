@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @keyframes grow {
+        from { width: 10px; }
+        to { width: 20px; }
+    }
+    #outer {
+        height: 100px;
+    }
+    #target {
+        height: 200px;
+        animation: grow 1s linear;
+        animation-timeline: scroll(nearest);
+    }
+</style>
+<div id="outer"><div id="target"></div></div>
+<script>
+    test(() => {
+        const timeline = document.getElementById("target").getAnimations()[0].timeline;
+        println(`before: ${timeline.source.tagName}`);
+        // The ancestor becomes the nearest scroll container; reading the source next must see that.
+        document.getElementById("outer").style.overflow = "scroll";
+        println(`after: ${timeline.source.id || timeline.source.tagName}`);
+    });
+</script>

@@ -55,10 +55,15 @@ GC::Ptr<DOM::Element const> ScrollTimeline::source() const
             case CSS::Scroller::Nearest: {
                 GC::Ptr<DOM::Element const> ancestor = anonymous_source.target.parent_element();
 
-                // NB: Elements inside a display:none subtree have no computed style. They have no box, so they
-                //     cannot be the nearest ancestor scroll container.
-                while (ancestor && !(ancestor->has_style() && ancestor->is_scroll_container()))
+                // Whether a box is a scroll container depends on its used overflow, which is visible for a body whose
+                // overflow is propagated to the viewport. The document element stands for the viewport.
+                Layout::ForcedReadScope read { anonymous_source.target.document() };
+                while (ancestor && !ancestor->is_document_element()) {
+                    auto const* layout_node = ancestor->unsafe_layout_node(read);
+                    if (layout_node && layout_node->is_scroll_container())
+                        break;
                     ancestor = ancestor->parent_element();
+                }
 
                 return ancestor;
             }
@@ -67,6 +72,14 @@ GC::Ptr<DOM::Element const> ScrollTimeline::source() const
             }
             VERIFY_NOT_REACHED();
         });
+}
+
+GC::Ptr<DOM::Element const> ScrollTimeline::source_for_bindings() const
+{
+    // The nearest scroll container is the nearest one by used overflow, which layout decides.
+    if (auto const* anonymous_source = m_source.get_pointer<AnonymousSource>(); anonymous_source && anonymous_source->scroller == CSS::Scroller::Nearest)
+        anonymous_source->target.document().update_layout(DOM::UpdateLayoutReason::ScrollTimelineSource);
+    return source();
 }
 
 struct ComputedScrollAxis {

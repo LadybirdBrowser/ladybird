@@ -43,7 +43,7 @@ public:
     virtual Optional<TimeValue> duration() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
 
     GC::Ptr<DOM::Element const> source() const;
-    virtual GC::Ptr<DOM::Element const> source_for_bindings() const { return source(); }
+    virtual GC::Ptr<DOM::Element const> source_for_bindings() const;
     ScrollAxis axis() const { return m_axis; }
     void set_axis(ScrollAxis);
 

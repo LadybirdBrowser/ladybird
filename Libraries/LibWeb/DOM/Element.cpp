@@ -3602,19 +3602,6 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
     return true;
 }
 
-bool Element::is_scroll_container() const
-{
-    // NB: We should only call this if we know that computed_properties has already been computed
-    auto reset_bits = style_reset_bits();
-    VERIFY(reset_bits.has_value());
-
-    if (is_document_element())
-        return true;
-
-    return Layout::overflow_value_makes_box_a_scroll_container(CSS::overflow_x_from_reset_bits(*reset_bits))
-        || Layout::overflow_value_makes_box_a_scroll_container(CSS::overflow_y_from_reset_bits(*reset_bits));
-}
-
 // https://drafts.csswg.org/cssom-view/#dom-element-scrolltop
 double Element::scroll_top() const
 {
