@@ -115,6 +115,9 @@ void SettingsUI::register_interfaces()
     register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& data) {
         set_filter_list_updates_enabled(data);
     });
+    register_interface("setAppearance"sv, [this](auto const& data) {
+        set_appearance(data);
+    });
 
     if (host() == "welcome"sv) {
         register_interface("completeFirstRun"sv, [this](auto const& data) {
@@ -143,9 +146,6 @@ void SettingsUI::register_interfaces()
     });
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
-    });
-    register_interface("setAppearance"sv, [this](auto const& data) {
-        set_appearance(data);
     });
     register_interface("resetForceDarkForHost"sv, [this](auto const& data) {
         reset_force_dark_for_host(data);
