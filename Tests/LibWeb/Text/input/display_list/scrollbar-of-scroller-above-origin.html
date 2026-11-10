@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .scroller { position: absolute; width: 100px; height: 80px; overflow: scroll; }
+    .scroller > div { width: 300px; height: 300px; }
+</style>
+<div class="scroller" style="left: -400px; top: -300px"><div></div></div>
+<div class="scroller" style="left: 50px; top: -75px"><div></div></div>
+<div class="scroller" style="left: 200px; top: 100px; width: 4px; height: 3px"><div></div></div>
+<script>
+    test(() => {
+        for (const line of internals.dumpDisplayList().split("\n")) {
+            if (line.startsWith("CompositorScrollbar"))
+                println(`${line.match(/vertical=\w+/)[0]} ${line.match(/track_rect=\[[^\]]*\]/)[0]}`);
+        }
+    });
+</script>
