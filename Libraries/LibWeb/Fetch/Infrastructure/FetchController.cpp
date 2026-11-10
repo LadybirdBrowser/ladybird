@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
@@ -56,6 +57,8 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_algorithms);
     visitor.visit(m_task_destination);
+    visitor.visit(m_page);
+    visitor.visit(m_preflighted_fetch_controller);
     visitor.visit(m_pending_preloaded_response);
     visitor.visit(m_stop_steps);
     visitor.visit(m_pending_responses);
@@ -119,6 +122,12 @@ GC::Ref<FetchAlgorithms const> FetchController::algorithms() const
 {
     VERIFY(m_algorithms);
     return *m_algorithms;
+}
+
+GC::Ref<Page> FetchController::page() const
+{
+    VERIFY(m_page);
+    return *m_page;
 }
 
 void FetchController::set_network_transport(Engine::NetworkTransportHandle& network_transport)

@@ -26,6 +26,7 @@
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
+#include <LibWeb/Fetch/Engine/NetworkActivity.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CheckUnloadingCanceledState.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -1244,6 +1245,25 @@ void Page::did_complete_window_rect_request(u64 completion_id)
 {
     if (m_window_rect_observer)
         m_window_rect_observer->function()({ window_position(), window_size() }, completion_id);
+}
+
+void Page::did_receive_network_activity(Fetch::Engine::Event::NetworkActivity const& network_activity)
+{
+    auto request_id = network_activity.request_id.value();
+    network_activity.activity.visit(
+        [&](Fetch::Engine::Event::NetworkActivity::RequestStarted const& started) {
+            auto referrer_policy = MUST(String::from_utf8(ReferrerPolicy::to_string(started.referrer_policy)));
+            client().page_did_start_network_request(request_id, started.url, started.method, started.headers, started.body.bytes(), started.initiator_type, referrer_policy, started.is_navigation_request, started.priority);
+        },
+        [&](Fetch::Engine::Event::NetworkActivity::ResponseHeaders const& headers) {
+            client().page_did_receive_network_response_headers(request_id, headers.status_code, headers.reason_phrase, headers.headers, headers.cache_state);
+        },
+        [&](Fetch::Engine::Event::NetworkActivity::ResponseBodyBytes const& body_bytes) {
+            client().page_did_receive_network_response_body(request_id, body_bytes.bytes.bytes());
+        },
+        [&](Fetch::Engine::Event::NetworkActivity::RequestFinished const& finished) {
+            client().page_did_finish_network_request(request_id, finished.total_size, finished.timing_info, finished.network_error);
+        });
 }
 
 // NB: The response is named as a member of the page, so that the function waiting for it captures only the page.

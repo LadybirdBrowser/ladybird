@@ -33,6 +33,7 @@ namespace Web::Fetch::Engine {
 
 class FetchBodyDeliveryGate;
 class FetchByteChannel;
+class FetchEngineRecord;
 class WholeBodyTransport;
 
 }
@@ -41,6 +42,7 @@ class WholeBodyTransport;
 //     that fetch gives it, which hold the cells they use in roots.
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchBodyDeliveryGate);
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchByteChannel);
+GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchEngineRecord);
 GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::Fetch::Engine::WholeBodyTransport);
 GC_UNTRACED_CAPTURE(Gfx::Typeface);
 GC_UNTRACED_CAPTURE(HTTP::HeaderList);
@@ -586,6 +588,12 @@ class FetchBodyDeliveryGate;
 class FetchByteChannel;
 class NetworkTransportHandle;
 class WholeBodyTransport;
+
+}
+
+namespace Web::Fetch::Engine::Event {
+
+struct NetworkActivity;
 
 }
 

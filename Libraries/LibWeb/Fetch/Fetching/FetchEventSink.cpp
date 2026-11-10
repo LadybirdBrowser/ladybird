@@ -13,6 +13,7 @@
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Fetching {
@@ -165,6 +166,9 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         },
         [&](Engine::Event::RequestBodySentFromSource const&) {
             drain_request_body_stream(controller);
+        },
+        [&](Engine::Event::NetworkActivity const& network_activity) {
+            controller->page()->did_receive_network_activity(network_activity);
         },
         [](Engine::Event::ResponseDelivery const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Event::EndOfBody const&) { VERIFY_NOT_REACHED(); },

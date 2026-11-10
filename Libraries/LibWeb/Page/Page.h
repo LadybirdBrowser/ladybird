@@ -289,6 +289,8 @@ public:
     void did_complete_window_rect_request(u64 completion_id);
     void set_window_rect_observer(GC::Ptr<GC::Function<void(DevicePixelRect, u64)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
 
+    void did_receive_network_activity(Fetch::Engine::Event::NetworkActivity const&);
+
     void did_request_alert(Utf16String const& message);
     void alert_closed();
 

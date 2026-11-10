@@ -49,7 +49,8 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(bind_image_decoder_service));
 
     Web::Bindings::initialize_agent(Web::HTML::AgentType::SimilarOriginWindow);
-    Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
+    auto& agent = Web::HTML::surrounding_agent();
+    agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
 
     auto request_server_client = TRY(bind_request_server_service());
     Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap());

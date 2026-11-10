@@ -486,7 +486,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
     request.start_timer();
 
     if (should_block_request(request)) {
-        on_complete->function()(false, {}, "Request was blocked"sv);
+        on_complete->function()(false, {}, "Request was blocked"sv, {});
         return nullptr;
     }
 
@@ -496,13 +496,13 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
                 log_success(request);
                 on_headers_received->function()(nullptr, response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(Requests::ResponseData::from_bytes(data));
-                on_complete->function()(true, timing_info, {});
+                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(data));
+                on_complete->function()(true, timing_info, {}, {});
             },
             GC::create_function(m_heap, GC::captures(on_complete, request), [](auto& on_complete, auto& request, ByteString const& message) {
                 log_failure(request, message);
                 Requests::RequestTimingInfo fixme_implement_timing_info {};
-                on_complete->function()(false, fixme_implement_timing_info, StringView(message));
+                on_complete->function()(false, fixme_implement_timing_info, StringView(message), {});
             }));
         return nullptr;
     }
@@ -512,12 +512,12 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
             request,
             [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
-                on_complete->function()(true, load_result.timing_info, {});
+                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(load_result.data));
+                on_complete->function()(true, load_result.timing_info, {}, {});
             },
             [on_complete](ByteString const& message) {
                 Requests::RequestTimingInfo fixme_implement_timing_info {};
-                on_complete->function()(false, fixme_implement_timing_info, StringView(message));
+                on_complete->function()(false, fixme_implement_timing_info, StringView(message), {});
             });
         return nullptr;
     }
@@ -528,12 +528,12 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
             [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
                 on_headers_received->function()(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
-                on_data_received->function()(Requests::ResponseData::from_bytes(load_result.data));
-                on_complete->function()(true, load_result.timing_info, {});
+                on_data_received->function()(nullptr, Requests::ResponseData::from_bytes(load_result.data));
+                on_complete->function()(true, load_result.timing_info, {}, {});
             },
             [on_complete, request](ByteString const& message) {
                 log_failure(request, message);
-                on_complete->function()(false, {}, StringView(message));
+                on_complete->function()(false, {}, StringView(message), {});
             });
 
         return nullptr;
@@ -542,7 +542,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
     if (!url.scheme().is_one_of("http"sv, "https"sv)) {
         auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
         log_failure(request, not_implemented_error);
-        on_complete->function()(false, {}, not_implemented_error);
+        on_complete->function()(false, {}, not_implemented_error, {});
         return nullptr;
     }
 
@@ -551,46 +551,43 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
         dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the request", url);
         auto error = "PAC proxy configurations are not supported"sv;
         log_failure(request, error);
-        on_complete->function()(false, {}, error);
+        on_complete->function()(false, {}, error, {});
         return nullptr;
     }
 
     auto protocol_request = start_network_request(request, transfer_lease);
     if (!protocol_request) {
-        on_complete->function()(false, {}, "Failed to start network request"sv);
+        on_complete->function()(false, {}, "Failed to start network request"sv, {});
         return nullptr;
     }
 
     auto network_transport = Fetch::Engine::NetworkTransportHandle::create(*protocol_request);
 
-    auto protocol_headers_received = [on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request, network_transport](auto const& response_headers, auto status_code, auto const& reason_phrase, auto cache_state) {
-        if (auto page = request.page())
-            page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers(), cache_state);
-
+    auto protocol_headers_received = [on_headers_received = move(on_headers_received), network_transport](auto const& response_headers, auto status_code, auto const& reason_phrase, auto cache_state) {
         on_headers_received->function()(network_transport.ptr(), response_headers, move(status_code), reason_phrase, cache_state);
     };
 
-    auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {
-        if (auto page = request.page())
-            page->client().page_did_receive_network_response_body(request_id, data.bytes());
-        on_data_received->function()(move(data));
+    auto protocol_data_received = [on_data_received = move(on_data_received), network_transport](auto data) {
+        on_data_received->function()(network_transport.ptr(), move(data));
     };
 
-    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64 total_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
+    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request, network_transport](u64 total_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
         finish_network_request(protocol_request);
 
-        if (auto page = request.page())
-            page->client().page_did_finish_network_request(protocol_request.id(), total_size, timing_info, network_error);
-
+        NetworkRequestEnd network_request_end {
+            .request_id = network_transport->request_id(),
+            .total_size = total_size,
+            .network_error = network_error,
+        };
         if (!network_error.has_value()) {
             log_success(request);
-            on_complete->function()(true, timing_info, {});
+            on_complete->function()(true, timing_info, {}, network_request_end);
         } else {
             auto error_description = MUST(String::formatted(
                 "Request finished with error: {}",
                 network_error_to_string(*network_error)));
             log_failure(request, error_description);
-            on_complete->function()(false, timing_info, error_description);
+            on_complete->function()(false, timing_info, error_description, network_request_end);
         }
     };
 
@@ -636,14 +633,6 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
-    }
-
-    if (auto page = request.page()) {
-        Optional<String> initiator_type_string;
-        if (request.initiator_type().has_value())
-            initiator_type_string = MUST(Fetch::Infrastructure::initiator_type_to_string(request.initiator_type().value()).view().to_utf8());
-        auto referrer_policy = MUST(String::from_utf8(ReferrerPolicy::to_string(request.referrer_policy())));
-        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body(), move(initiator_type_string), referrer_policy, request.is_navigation_request(), request.priority());
     }
 
     m_active_requests.set(*protocol_request);

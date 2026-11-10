@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/DOM/AccessibilityChangeTracker.h>
+#include <LibWeb/Fetch/Engine/NetworkActivityObservers.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ConsoleInputCompletion.h>
@@ -183,6 +184,7 @@ private:
     PageClient(PageHost&, Web::PageId id, Optional<Web::HTML::CrossProcessId>);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void finalize() override;
 
     enum class FrameTimerPurpose {
         Inactive,
@@ -507,6 +509,7 @@ private:
     Optional<i64> m_pending_accessibility_focus;
 
     bool m_has_devtools_client { false };
+    NonnullRefPtr<Web::Fetch::Engine::NetworkActivityObservers> m_network_activity_observers;
     bool m_devtools_takes_console_messages { false };
     bool m_devtools_takes_console_errors { false };
 

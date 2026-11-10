@@ -12,11 +12,16 @@
 
 namespace Web::Fetch::Fetching {
 
+FetchEngine::FetchEngine(NonnullRefPtr<Engine::NetworkActivityObservers const> network_activity_observers)
+    : m_network_activity_observers(move(network_activity_observers))
+{
+}
+
 void FetchEngine::handle_command(Engine::EngineCommand command)
 {
     command.visit(
-        [](Engine::Command::StartFetch& start_fetch) {
-            auto record = Engine::FetchEngineRecord::create(move(start_fetch.input.event_sink));
+        [this](Engine::Command::StartFetch& start_fetch) {
+            auto record = Engine::FetchEngineRecord::create(move(start_fetch.input.event_sink), m_network_activity_observers);
             run_deferred_main_fetch_steps(start_fetch.input.fetch_id, move(record));
         },
         [](Engine::Command::Abort const&) { VERIFY_NOT_REACHED(); },
@@ -28,10 +33,10 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
         [](Engine::Command::AdoptNetworkTransport const&) { VERIFY_NOT_REACHED(); });
 }
 
-NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor()
+NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const> network_activity_observers)
 {
     Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
-    return Engine::InlineFetchExecutor::create(move(services), make<FetchEngine>());
+    return Engine::InlineFetchExecutor::create(move(services), make<FetchEngine>(move(network_activity_observers)));
 }
 
 }

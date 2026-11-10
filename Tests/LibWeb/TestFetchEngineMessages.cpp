@@ -7,6 +7,7 @@
 #include <AK/StdLibExtras.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
 
@@ -140,9 +141,44 @@ TEST_CASE(events_round_trip_their_payloads)
     events.append(Event::RequestBodyEndOfBody { .body_is_null = true });
     events.append(Event::ReadRequestBodyStream {});
     events.append(Event::RequestBodySentFromSource {});
+    events.append(Event::NetworkActivity {
+        .request_id = RequestId(8),
+        .activity = Event::NetworkActivity::RequestStarted {
+            .url = URL::Parser::basic_parse("https://example.com/upload"sv).release_value(),
+            .method = "POST",
+            .headers = { { "Accept"sv, "*/*"sv } },
+            .body = Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("request"sv.bytes()))),
+            .initiator_type = "fetch"_string,
+            .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+            .is_navigation_request = true,
+            .priority = Web::Fetch::Infrastructure::RequestPriority::High,
+        },
+    });
+    events.append(Event::NetworkActivity {
+        .request_id = RequestId(9),
+        .activity = Event::NetworkActivity::ResponseHeaders {
+            .status_code = 203,
+            .reason_phrase = "Non-Authoritative"_string,
+            .headers = { { "Content-Type"sv, "text/plain"sv } },
+            .cache_state = Requests::CacheState::Validated,
+        },
+    });
+    events.append(Event::NetworkActivity {
+        .request_id = RequestId(10),
+        .activity = Event::NetworkActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("response"sv.bytes()))) },
+    });
+    events.append(Event::NetworkActivity {
+        .request_id = RequestId(11),
+        .activity = Event::NetworkActivity::RequestFinished {
+            .total_size = 8,
+            .timing_info = { .request_start_microseconds = 40, .encoded_body_size = 8 },
+            .network_error = Requests::NetworkError::IncompleteContent,
+        },
+    });
 
     Vector<u64> seen_ids;
     Vector<StringView> seen_request_body_events;
+    Vector<u64> seen_network_request_ids;
     for (auto const& event : events) {
         event.visit(
             [&](Event::ResponseDelivery const& delivery) {
@@ -184,8 +220,41 @@ TEST_CASE(events_round_trip_their_payloads)
                 seen_request_body_events.append("end of body"sv);
             },
             [&](Event::ReadRequestBodyStream const&) { seen_request_body_events.append("read stream"sv); },
-            [&](Event::RequestBodySentFromSource const&) { seen_request_body_events.append("sent from source"sv); });
+            [&](Event::RequestBodySentFromSource const&) { seen_request_body_events.append("sent from source"sv); },
+            [&](Event::NetworkActivity const& network_activity) {
+                network_activity.activity.visit(
+                    [&](Event::NetworkActivity::RequestStarted const& started) {
+                        EXPECT_EQ(started.url.serialize(), "https://example.com/upload"sv);
+                        EXPECT_EQ(started.method, "POST"sv);
+                        VERIFY(started.headers.size() == 1);
+                        EXPECT_EQ(started.headers[0].name, "Accept"sv);
+                        EXPECT_EQ(started.headers[0].value, "*/*"sv);
+                        EXPECT_EQ(started.body.bytes(), "request"sv.bytes());
+                        EXPECT_EQ(started.initiator_type, "fetch"sv);
+                        EXPECT_EQ(started.referrer_policy, Web::ReferrerPolicy::ReferrerPolicy::NoReferrer);
+                        EXPECT(started.is_navigation_request);
+                        EXPECT_EQ(started.priority, Web::Fetch::Infrastructure::RequestPriority::High);
+                    },
+                    [&](Event::NetworkActivity::ResponseHeaders const& headers) {
+                        EXPECT_EQ(headers.status_code, 203u);
+                        EXPECT_EQ(headers.reason_phrase, "Non-Authoritative"sv);
+                        VERIFY(headers.headers.size() == 1);
+                        EXPECT_EQ(headers.headers[0].value, "text/plain"sv);
+                        EXPECT_EQ(headers.cache_state, Requests::CacheState::Validated);
+                    },
+                    [&](Event::NetworkActivity::ResponseBodyBytes const& body_bytes) {
+                        EXPECT_EQ(body_bytes.bytes.bytes(), "response"sv.bytes());
+                    },
+                    [&](Event::NetworkActivity::RequestFinished const& finished) {
+                        EXPECT_EQ(finished.total_size, 8u);
+                        EXPECT_EQ(finished.timing_info.request_start_microseconds, 40);
+                        EXPECT_EQ(finished.timing_info.encoded_body_size, 8);
+                        EXPECT(finished.network_error == Requests::NetworkError::IncompleteContent);
+                    });
+                seen_network_request_ids.append(network_activity.request_id.value());
+            });
     }
     EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6, 7 }));
     EXPECT_EQ(seen_request_body_events, (Vector<StringView> { "progress"sv, "end of body"sv, "read stream"sv, "sent from source"sv }));
+    EXPECT_EQ(seen_network_request_ids, (Vector<u64> { 8, 9, 10, 11 }));
 }
