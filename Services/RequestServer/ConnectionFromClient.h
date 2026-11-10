@@ -97,7 +97,7 @@ private:
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
     virtual void resolve_host(u64 lookup_id, ByteString host) override;
 
-    virtual void websocket_connect(u64 websocket_id, URL::URL, Optional<HTTP::NetworkIsolationKey>, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>, HTTP::Cookie::SameSiteContext) override;
+    virtual void websocket_connect(u64 websocket_id, URL::URL, Optional<HTTP::NetworkIsolationKey>, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>, u64 originating_page_id, HTTP::Cookie::SameSiteContext) override;
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_send_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
     virtual void websocket_close(u64 websocket_id, u16, ByteString) override;
@@ -111,9 +111,9 @@ private:
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
     size_t websocket_count() const;
     size_t total_websocket_count() const;
-    void connect_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
-    void look_up_websocket_host(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>);
-    void open_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>, RefPtr<DNS::LookupResult const>);
+    void connect_websocket(u64 websocket_id, u64 originating_page_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
+    void look_up_websocket_host(u64 websocket_id, u64 originating_page_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>);
+    void open_websocket(u64 websocket_id, u64 originating_page_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy>, RefPtr<DNS::LookupResult const>);
 
     IsPrivate m_is_private { IsPrivate::No };
 

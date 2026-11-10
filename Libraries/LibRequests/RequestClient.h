@@ -68,7 +68,7 @@ public:
     // No other client this process creates has the same epoch, so a request is known by its id and this epoch.
     u64 transport_epoch() const { return m_transport_epoch; }
 
-    RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, HTTP::Cookie::SameSiteContext);
+    RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, u64 originating_page_id, HTTP::Cookie::SameSiteContext);
 
     // Stores the data in the HTTP cache, and returns it mapped read-only from the cache's file, or nothing when it wasn't stored.
 
