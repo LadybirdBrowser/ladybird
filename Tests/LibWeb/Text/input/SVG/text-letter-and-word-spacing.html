@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<svg width="600" height="300" font-family="sans-serif" font-size="20">
+    <text id="plain" x="0" y="20">ab cd</text>
+    <text id="letter" x="0" y="50" letter-spacing="5">ab cd</text>
+    <text id="negative-letter" x="0" y="80" letter-spacing="-2">ab cd</text>
+    <text id="word" x="0" y="110" word-spacing="10">ab cd</text>
+    <text id="both" x="0" y="140" style="letter-spacing: 3px; word-spacing: 7px">ab cd</text>
+    <text id="anchored" x="300" y="170" text-anchor="end" letter-spacing="5">ab cd</text>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const plain = document.getElementById("plain");
+        const plainLength = plain.getComputedTextLength();
+        for (const text of document.querySelectorAll("text")) {
+            const extra = text.getComputedTextLength() - plainLength;
+            const firstTwo = text.getSubStringLength(0, 2) - plain.getSubStringLength(0, 2);
+            println(`${text.id}: length +${extra.toFixed(1)}, first two characters +${firstTwo.toFixed(1)}`);
+        }
+        const anchored = document.getElementById("anchored");
+        const box = anchored.getBBox();
+        println(`anchored: ends at ${(box.x + box.width).toFixed(0)}`);
+    });
+</script>

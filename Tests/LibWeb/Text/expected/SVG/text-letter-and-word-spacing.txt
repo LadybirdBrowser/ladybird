@@ -1,0 +1,7 @@
+plain: length +0.0, first two characters +0.0
+letter: length +25.0, first two characters +10.0
+negative-letter: length +-10.0, first two characters +-4.0
+word: length +10.0, first two characters +0.0
+both: length +22.0, first two characters +6.0
+anchored: length +25.0, first two characters +10.0
+anchored: ends at 300
