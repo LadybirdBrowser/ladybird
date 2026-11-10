@@ -15,7 +15,7 @@ use ak::Utf16FlyString;
 use super::javascript_test_runner::{JSFileResult, parse_module, parse_script};
 use super::test_runner::{Case, Suite, TestResult, get_time_in_ms, relative_path};
 use crate::bytecode::property_access::Strict;
-use crate::gc::class::{Extends, GcCell};
+use crate::gc::class::{Extends, ExternalMemorySize, GcCell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -44,6 +44,10 @@ use crate::utf16::Utf16View;
 pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("canParseSource", raw_native!(can_parse_source)),
     ("haveSameShape", raw_native!(have_same_shape)),
+    (
+        "getStringExternalMemorySize",
+        raw_native!(get_string_external_memory_size),
+    ),
     ("setDictionaryGeneration", raw_native!(set_dictionary_generation)),
     ("gc", raw_native!(collect_garbage)),
     (
@@ -88,6 +92,11 @@ fn have_same_shape(vm: &Vm) -> ThrowCompletionOr<Value> {
         }
     }
     Ok(Value::from_bool(lhs.as_object().shape() == rhs.as_object().shape()))
+}
+
+fn get_string_external_memory_size(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let string = vm.argument(0).to_primitive_string(vm)?;
+    Ok(Value::from_f64(string.external_memory_size() as f64))
 }
 
 fn set_dictionary_generation(vm: &Vm) -> ThrowCompletionOr<Value> {
