@@ -1,0 +1,13 @@
+Ladybird keeps a canvas’s width and height attributes when it takes a
+transferred bitmap, and stretches the bitmap to fill the canvas’s box.
+Blink does the same: ImageBitmapRenderingContext::SetImage() leaves the
+attributes alone, and HTMLCanvasPainter::PaintReplaced() stretches the
+image into the replaced-content rect. WebKit and Gecko instead resize
+the canvas to the bitmap, which rewrites its attributes: WebKit’s
+ImageBitmapRenderingContext calls setSizeForControllingContext(), and
+Gecko’s calls HTMLCanvasElement::SetSize(). All three engines throw
+InvalidStateError for a detached bitmap. Blink and WebKit then leave the
+output as it was, as Ladybird does, but Gecko has already cleared it by
+then, in its TransferFromImageBitmap(). And none of the three applies
+alpha:false to the pixels: Blink only marks its compositor layer opaque,
+and WebKit and Gecko ignore the setting.
