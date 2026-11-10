@@ -105,6 +105,7 @@ public:
 
     static void set_performance_monitor_enabled(bool);
     static Vector<Requests::NetworkUsage> take_network_usage();
+    static void add_network_usage(Requests::NetworkUsage const&);
     void set_performance_origin(int client_id, u64 page_id);
     void sample_network_usage();
 

@@ -65,7 +65,7 @@ public:
     void resolve_host(ByteString const& host, Function<void(Vector<ByteString>)> on_resolved);
     int request_server_client_id() const { return m_request_server_client_id; }
 
-    RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, HTTP::Cookie::SameSiteContext);
+    RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, u64 originating_page_id, HTTP::Cookie::SameSiteContext);
 
     // Stores the data in the HTTP cache, and returns it mapped read-only from the cache's file, or nothing when it wasn't stored.
 

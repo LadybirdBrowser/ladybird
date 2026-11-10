@@ -881,7 +881,7 @@ size_t ConnectionFromClient::total_websocket_count() const
     return count;
 }
 
-void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, HTTP::Cookie::SameSiteContext same_site_context)
+void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context)
 {
     if (m_pending_websockets.contains(websocket_id) || m_websockets.contains(websocket_id)) {
         did_misbehave("reused live WebSocket ID");
@@ -939,11 +939,11 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Opt
 
     m_websocket_cookie_requests.set(websocket_id, {
                                                       .cookie_request_id = cookie_request_id,
-                                                      .continuation = [this, websocket_id, url, origin = move(origin), protocols = move(protocols), extensions = move(extensions), request_headers = move(additional_request_headers)](String cookie) mutable {
+                                                      .continuation = [this, websocket_id, originating_page_id, url, origin = move(origin), protocols = move(protocols), extensions = move(extensions), request_headers = move(additional_request_headers)](String cookie) mutable {
                                                           // Sent as UTF-8, like the Cookie header of a fetch.
                                                           if (!cookie.is_empty())
                                                               request_headers.append({ "Cookie"sv, cookie.to_byte_string() });
-                                                          connect_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(request_headers));
+                                                          connect_websocket(websocket_id, originating_page_id, move(url), move(origin), move(protocols), move(extensions), move(request_headers));
                                                       },
                                                   });
 
@@ -967,7 +967,7 @@ bool ConnectionFromClient::websocket_retrieved_http_cookie(Badge<ControlConnecti
     return true;
 }
 
-void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
+void ConnectionFromClient::connect_websocket(u64 websocket_id, u64 originating_page_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
@@ -982,7 +982,7 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
     auto proxy = proxy_configuration().proxy_for(url).copy();
     if (proxy.has_value() && proxy->resolves_hostnames()) {
         if (m_pending_websockets.remove(websocket_id))
-            open_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), nullptr);
+            open_websocket(websocket_id, originating_page_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), nullptr);
         return;
     }
 
@@ -996,7 +996,7 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
                 return;
             self->fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
         })
-        .when_resolved([weak_self, websocket_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers), proxy = move(proxy)](auto const& dns_result) mutable {
+        .when_resolved([weak_self, websocket_id, originating_page_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers), proxy = move(proxy)](auto const& dns_result) mutable {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
@@ -1012,11 +1012,11 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
             if (!self->m_pending_websockets.remove(websocket_id))
                 return;
 
-            self->open_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), dns_result);
+            self->open_websocket(websocket_id, originating_page_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), dns_result);
         });
 }
 
-void ConnectionFromClient::open_websocket(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy> proxy, RefPtr<DNS::LookupResult const> dns_result)
+void ConnectionFromClient::open_websocket(u64 websocket_id, u64 originating_page_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy> proxy, RefPtr<DNS::LookupResult const> dns_result)
 {
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
@@ -1033,6 +1033,7 @@ void ConnectionFromClient::open_websocket(u64 websocket_id, URL::URL url, ByteSt
 
     auto impl = WebSocketImplCurl::create(m_websocket_curl.handle);
     impl->set_proxy(move(proxy));
+    impl->set_performance_origin(client_id(), originating_page_id);
     auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
 
     connection->on_open = [self = weak_self, websocket_id]() {

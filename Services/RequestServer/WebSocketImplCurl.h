@@ -9,6 +9,7 @@
 #include <AK/MemoryStream.h>
 #include <LibCore/Forward.h>
 #include <LibHTTP/Proxy.h>
+#include <LibRequests/NetworkUsage.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
 
 typedef void CURL;
@@ -24,6 +25,7 @@ public:
     static NonnullRefPtr<WebSocketImplCurl> create(CURLM*);
 
     void set_proxy(Optional<HTTP::Proxy> proxy) { m_proxy = move(proxy); }
+    void set_performance_origin(int client_id, u64 page_id) { m_performance_origin = { client_id, page_id, 0, 0 }; }
 
     virtual void connect(WebSocket::ConnectionInfo const&) override;
     virtual ErrorOr<ByteBuffer> read(int max_size) override;
@@ -38,9 +40,11 @@ private:
 
     void read_from_socket();
     bool flush_pending_write_buffer();
+    void add_network_usage(u64 download_bytes, u64 upload_bytes) const;
 
     CURLM* m_multi_handle { nullptr };
     Optional<HTTP::Proxy> m_proxy;
+    Requests::NetworkUsage m_performance_origin;
     CURL* m_easy_handle { nullptr };
     RefPtr<Core::Notifier> m_read_notifier;
     RefPtr<Core::Notifier> m_write_notifier;

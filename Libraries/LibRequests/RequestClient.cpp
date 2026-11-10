@@ -241,10 +241,10 @@ void RequestClient::request_transferred(u64 request_id)
     (*request)->did_transfer({});
 }
 
-RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, HTTP::Cookie::SameSiteContext same_site_context)
+RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers, u64 originating_page_id, HTTP::Cookie::SameSiteContext same_site_context)
 {
     auto websocket_id = m_next_websocket_id++;
-    IPCProxy::async_websocket_connect(websocket_id, url, network_isolation_key, origin, protocols, extensions, request_headers.headers(), same_site_context);
+    IPCProxy::async_websocket_connect(websocket_id, url, network_isolation_key, origin, protocols, extensions, request_headers.headers(), originating_page_id, same_site_context);
     auto connection = WebSocket::create_from_id({}, *this, websocket_id);
     m_websockets.set(websocket_id, connection);
     return connection;

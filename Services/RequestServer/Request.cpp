@@ -2533,6 +2533,17 @@ Vector<Requests::NetworkUsage> Request::take_network_usage()
     return result;
 }
 
+void Request::add_network_usage(Requests::NetworkUsage const& usage)
+{
+    if (!s_performance_monitor_enabled || usage.client_id == 0 || (usage.download_bytes == 0 && usage.upload_bytes == 0))
+        return;
+    auto& total = s_network_usage.ensure(usage.client_id).ensure(usage.page_id, [&] {
+        return Requests::NetworkUsage { usage.client_id, usage.page_id, 0, 0 };
+    });
+    total.download_bytes = saturating_add(total.download_bytes, usage.download_bytes);
+    total.upload_bytes = saturating_add(total.upload_bytes, usage.upload_bytes);
+}
+
 void Request::set_performance_origin(int client_id, u64 page_id)
 {
     m_performance_origin = { client_id, page_id, 0, 0 };
@@ -2561,11 +2572,7 @@ void Request::sample_network_usage()
         auto delta = m_performance_origin;
         delta.download_bytes = download_bytes >= m_sampled_download_bytes ? download_bytes - m_sampled_download_bytes : download_bytes;
         delta.upload_bytes = upload_bytes >= m_sampled_upload_bytes ? upload_bytes - m_sampled_upload_bytes : upload_bytes;
-        if (delta.download_bytes || delta.upload_bytes) {
-            auto& total = s_network_usage.ensure(delta.client_id).ensure(delta.page_id, [&] { return m_performance_origin; });
-            total.download_bytes = saturating_add(total.download_bytes, delta.download_bytes);
-            total.upload_bytes = saturating_add(total.upload_bytes, delta.upload_bytes);
-        }
+        add_network_usage(delta);
     }
     m_sampled_download_bytes = download_bytes;
     m_sampled_upload_bytes = upload_bytes;
