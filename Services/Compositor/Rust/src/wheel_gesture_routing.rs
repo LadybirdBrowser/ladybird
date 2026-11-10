@@ -293,9 +293,6 @@ impl WheelGestureRouting {
         }
     }
 
-    pub fn has_latch(&self) -> bool {
-        self.latch.is_some()
-    }
     pub fn has_latch_for_gesture(&self, gesture_id: Option<u64>) -> bool {
         self.latch.as_ref().is_some_and(|latch| latch.gesture_id == gesture_id)
     }
@@ -311,7 +308,7 @@ impl WheelGestureRouting {
     pub fn resolve_latch(
         &mut self,
         async_scroll_tree: &AsyncScrollTree,
-        current_visual_context_tree: &AccumulatedVisualContextTree,
+        current_visual_context_tree: Option<&AccumulatedVisualContextTree>,
         scroll_gesture_phase: ScrollGesturePhase,
         gesture_id: Option<u64>,
     ) -> ResolvedLatch {
@@ -336,7 +333,7 @@ impl WheelGestureRouting {
             return ResolvedLatch::default();
         }
         // The hit test a latched step skips would refuse a tree the wheel hit-test targets were not built for.
-        if !async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree) {
+        if !current_visual_context_tree.is_some_and(|tree| async_scroll_tree.has_wheel_hit_test_targets_for(tree)) {
             return ResolvedLatch::default();
         }
         latch.last_scroll_gesture_phase = scroll_gesture_phase;

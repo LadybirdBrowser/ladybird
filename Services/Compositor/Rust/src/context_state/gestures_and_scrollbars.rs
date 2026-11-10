@@ -14,13 +14,9 @@ impl ContextState {
         scroll_gesture_phase: ScrollGesturePhase,
         gesture_id: Option<u64>,
     ) -> ResolvedLatch {
-        // Only a hit test takes a latch, and it needs the tree of an installed display list.
-        if !self.wheel_gesture_routing.has_latch() {
-            return Default::default();
-        }
         self.wheel_gesture_routing.resolve_latch(
             &self.async_scroll_tree,
-            self.scene.current_visual_context_tree(),
+            self.scene.visual_context_tree().as_ref(),
             scroll_gesture_phase,
             gesture_id,
         )
