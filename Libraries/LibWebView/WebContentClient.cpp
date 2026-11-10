@@ -185,10 +185,10 @@ static constexpr auto detached_page_close_timeout_ms = 1000;
 static constexpr auto close_server_exit_timeout_ms = 5000;
 static constexpr auto detached_page_forced_exit_timeout_ms = detached_page_close_timeout_ms + close_server_exit_timeout_ms;
 
-WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id)
+WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, BrowsingSession& session, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint, WebContentClientPageRoutingStub>(*this, move(transport))
-    , m_is_private(is_private)
-    , m_session(Application::existing_session(is_private))
+    , m_is_private(session.is_private())
+    , m_session(session)
     , m_request_server_site_bindings([this](RequestServerClientConnection& connection, Optional<Utf16String> const& top_level_site) {
         async_connect_to_request_server(move(connection.handle), connection.client_id, top_level_site);
     })
@@ -197,7 +197,6 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
     , m_audio_tab_id(allocate_audio_tab_id())
 {
     VERIFY(initial_page_id > 0);
-    VERIFY(m_session);
     clients().set(this);
 }
 
