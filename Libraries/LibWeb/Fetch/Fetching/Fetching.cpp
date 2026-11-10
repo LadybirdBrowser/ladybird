@@ -1885,7 +1885,10 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         //       worker can have different embedder policies.
         // NB: request's policy container is a copy of its client's, or a new one when it has no client.
         auto const& client_embedder_policy = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->embedder_policy;
-        if ((request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
+        // AD-HOC: Skip the check for network errors. They have no URL for the check to compare origins with, and
+        //         blocking one would only replace it with another network error.
+        if (!internal_response->is_network_error()
+            && (request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
             && cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), client_embedder_policy, *internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked) {
             stop_discarded_response_body(*controller, *internal_response);
             returned_pending_response->resolve(Infrastructure::Response::network_error("Response was blocked by cross-origin resource policy check"_string));

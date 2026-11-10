@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = new URL(await server.createEcho("POST", "/fetch-keepalive-over-quota-with-require-corp", {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+            body: "",
+        }));
+        url.hostname = uniqueLocalhostHostname("keepalive-over-quota");
+
+        // A keepalive body over 64 KiB makes fetch return an early network error, which has no URL.
+        try {
+            await fetch(url, { method: "POST", mode: "no-cors", keepalive: true, body: "*".repeat(65537) });
+            println("sent");
+        } catch (error) {
+            println(`rejected: ${error.name}`);
+        }
+    });
+</script>
