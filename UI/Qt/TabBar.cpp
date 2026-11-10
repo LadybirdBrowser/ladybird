@@ -438,11 +438,21 @@ static QRect tab_card_shape_rect(QRect const& rect)
     return rect.adjusted(TAB_CARD_SHAPE_HORIZONTAL_INSET, TAB_CARD_SHAPE_TOP_INSET, -TAB_CARD_SHAPE_HORIZONTAL_INSET, -TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
-static QColor tab_hover_surface(QPalette const& palette, qreal hover_progress)
+static QColor tab_hover_surface(QColor color, qreal hover_progress)
 {
-    auto color = Theme::chrome(palette).hover;
     color.setAlphaF(color.alphaF() * static_cast<float>(hover_progress));
     return color;
+}
+
+static QColor horizontal_tab_hover_surface(QPalette const& palette, qreal hover_progress)
+{
+    return tab_hover_surface(Theme::chrome(palette).strip_hover, hover_progress);
+}
+
+// NB: The sidebar is lighter than the tab strip, so tabs on it take the same hover fill as the toolbar's buttons.
+static QColor vertical_tab_hover_surface(QPalette const& palette, qreal hover_progress)
+{
+    return tab_hover_surface(Theme::chrome(palette).hover, hover_progress);
 }
 
 static QColor horizontal_tab_separator(QPalette const& palette)
@@ -552,7 +562,7 @@ private:
         if (auto colors = ChromeStyle::control_frame_colors(*this); colors.has_value()) {
             // NB: Hovered but not pressed, it lights up like the tabs beside it.
             if (hovered && !isDown())
-                colors->background = tab_hover_surface(Theme::chrome_palette(*this), 1.0);
+                colors->background = is_horizontal_new_tab_button ? horizontal_tab_hover_surface(Theme::chrome_palette(*this), 1.0) : vertical_tab_hover_surface(Theme::chrome_palette(*this), 1.0);
             painter.setBrush(colors->background);
             painter.setPen(colors->border.alpha() > 0 ? QPen(colors->border, 1) : QPen(Qt::NoPen));
             painter.drawPath(tab_path);
@@ -1289,7 +1299,7 @@ void TabBar::paintEvent(QPaintEvent*)
             auto body_rect = horizontal_selected_tab_body_rect(QRectF(tab_rect), horizontal_tab_end_room(index));
             if (body_rect.width() < 2 * HORIZONTAL_SELECTED_TAB_RADIUS)
                 return;
-            painter.setBrush(tab_hover_surface(Theme::chrome_palette(*this), hover_progress));
+            painter.setBrush(horizontal_tab_hover_surface(Theme::chrome_palette(*this), hover_progress));
             painter.setPen(Qt::NoPen);
             painter.drawPath(horizontal_hovered_tab_path(body_rect));
         };
@@ -1374,13 +1384,13 @@ void TabBar::paintEvent(QPaintEvent*)
 
         // NB: The hovered horizontal tabs were filled before any tab was painted.
         if (selection < 1.0 && is_hovered && is_vertical) {
-            painter.setBrush(tab_hover_surface(Theme::chrome_palette(*this), hover_progress));
+            painter.setBrush(vertical_tab_hover_surface(Theme::chrome_palette(*this), hover_progress));
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
         } else if (selection < 1.0 && is_vertical && !is_collapsed_vertical && is_pinned_tile) {
             // The pinned tiles at the top of the sidebar are always filled, so they read as a grid of buttons. The fill
             // fades as they move into the collapsed sidebar's column, where they are not.
-            painter.setBrush(tab_hover_surface(Theme::chrome_palette(*this), 1.0 - region.collapsedness));
+            painter.setBrush(vertical_tab_hover_surface(Theme::chrome_palette(*this), 1.0 - region.collapsedness));
             painter.setPen(Qt::NoPen);
             painter.drawPath(tab_path);
         }
@@ -1436,7 +1446,8 @@ void TabBar::paintEvent(QPaintEvent*)
                 painter.setRenderHint(QPainter::Antialiasing);
                 painter.setPen(Qt::NoPen);
                 auto backing = is_vertical ? ChromeStyle::chrome_sidebar_background(Theme::chrome_palette(*this)) : ChromeStyle::chrome_tab_strip_background(Theme::chrome_palette(*this));
-                painter.setBrush(is_hovered ? tab_hover_surface(Theme::chrome_palette(*this), 1.0) : backing);
+                auto hover_surface = is_vertical ? vertical_tab_hover_surface(Theme::chrome_palette(*this), 1.0) : horizontal_tab_hover_surface(Theme::chrome_palette(*this), 1.0);
+                painter.setBrush(is_hovered ? hover_surface : backing);
                 painter.drawEllipse(dot_center, ATTENTION_DOT_RADIUS + 1.5, ATTENTION_DOT_RADIUS + 1.5);
                 painter.setBrush(Theme::accent());
                 painter.drawEllipse(dot_center, ATTENTION_DOT_RADIUS, ATTENTION_DOT_RADIUS);

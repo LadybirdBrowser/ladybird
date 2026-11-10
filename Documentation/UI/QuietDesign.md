@@ -258,16 +258,24 @@ bluer, lighter lavender, and its dark surfaces carry less tint than other themes
 
 | Token | Private |
 |---|---|
-| `strip` | `#1D1430` |
+| `strip` | `#110A20` |
 | `toolbar` | `#2F2347` |
 | `text` | `#F3F0FA` |
 | `muted`, `tab-title` | `#B3AAC4` |
 | `icon` | `#E2DCEF` |
 | `disabled` | `#5E566E` |
 | `field` | White 9% |
-| `hover` | White 7% |
+| `hover` | White 7% (toolbar and sidebar) |
+| `strip-hover` | White 6% (background tabs, the + button and the All tabs button on the strip) |
 | `separator` | `#4A3D63` |
 | `divider` | `#0F0A19` |
+
+Hover strength follows the surface a control sits on, not the kind of control. On the
+toolbar's 7%, a hovered tab on the strip would land almost on the active tab, so the strip
+is darker and its hover is 6%. That makes strip, hovered tab and active tab about
+17 / 31 / 47 in red: steps of 14 and 16, slightly wider than normal dark (20 / 34 / 46),
+because violet tones are harder to tell apart than neutral grays. The Ladybird button keeps
+its own hover and press fills everywhere.
 
 The Ladybird button shows a filled domino mask (20 px, eye holes cut out) instead of the logomark. The window is titled
 "Ladybird (Private)" in the Window menu, app switcher and taskbar. There is no "Private"
