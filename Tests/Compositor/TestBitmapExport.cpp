@@ -151,6 +151,22 @@ TEST_CASE(export_bitmap_to_byte_buffer)
             { 0x23, 0x01, 0x67, 0x45, 0xAB, 0x89, 0xEF, 0xCD },
         },
         {
+            non_alpha_bitmap_formats,
+            { Premultiplied::No, Premultiplied::Yes },
+            { 0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF },
+            Gfx::ExportFormat::RGBA5551,
+            { Premultiplied::No, Premultiplied::Yes },
+            { 0x01, 0xF8, 0xC1, 0x07, 0x3F, 0x00, 0xFF, 0xFF },
+        },
+        {
+            alpha_bitmap_formats,
+            { Premultiplied::No },
+            { 0x7FFFFFFF, 0x80FFFFFF, 0xFEFFFFFF, 0xFFFFFFFF },
+            Gfx::ExportFormat::RGBA5551,
+            { Premultiplied::No },
+            { 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
+        },
+        {
             all_bitmap_formats,
             { Premultiplied::No, Premultiplied::Yes },
             { 0x00112233, 0x44556677, 0x8899AABB, 0xCCDDEEFF },
