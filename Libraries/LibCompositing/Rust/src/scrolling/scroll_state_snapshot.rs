@@ -88,6 +88,11 @@ impl ScrollStateSnapshot {
         self.world_transforms_cache.get_or_build(tree, &self.device_offsets)
     }
 
+    pub fn has_only_finite_offsets(&self) -> bool {
+        let is_finite = |offset: &FloatPoint| offset.x.is_finite() && offset.y.is_finite();
+        self.device_offsets.iter().all(is_finite) && self.staged_offsets.iter().all(|staged| is_finite(&staged.offset))
+    }
+
     pub fn device_offset_for_index(&self, index: SpatialNodeIndex) -> FloatPoint {
         self.device_offsets.get(index.0 as usize).copied().unwrap_or_default()
     }

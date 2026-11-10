@@ -185,6 +185,9 @@ impl MessagesFromWebContent<'_> {
 
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {
+        if !message.scroll_state_snapshot.has_only_finite_offsets() {
+            return Err(Misbehavior("Invalid scroll state"));
+        }
         if self.context_is_owned_by_sender(message.context_id)? {
             self.core.update_scroll_state(
                 message.context_id,

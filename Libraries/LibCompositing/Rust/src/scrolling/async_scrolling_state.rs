@@ -181,6 +181,26 @@ impl Default for AsyncScrollingState {
     }
 }
 
+impl AsyncScrollingState {
+    // Scroll offsets and the durations of scroll animations are calculated from these, and a number that is not finite,
+    // or a scale that is not positive, leaves them with no value.
+    pub fn has_only_numbers_scrolls_can_be_calculated_with(&self) -> bool {
+        let is_finite = |point: FloatPoint| point.x.is_finite() && point.y.is_finite();
+        self.device_pixels_per_css_pixel.is_finite()
+            && self.device_pixels_per_css_pixel > 0.0
+            && self
+                .scroll_nodes
+                .iter()
+                .all(|node| is_finite(node.min_scroll_offset) && is_finite(node.max_scroll_offset))
+            && self.scrollbars.iter().all(|scrollbar| {
+                scrollbar.scroll_size.is_finite()
+                    && scrollbar.expanded_scroll_size.is_finite()
+                    && scrollbar.min_scroll_offset.is_finite()
+                    && scrollbar.max_scroll_offset.is_finite()
+            })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WheelRoutingAdmission {
     Accepted,

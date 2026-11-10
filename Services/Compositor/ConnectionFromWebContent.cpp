@@ -299,7 +299,7 @@ void ConnectionFromWebContent::update_display_list(Web::CompositorContextId cont
     if (!context_is_owned_by_this_connection(context_id))
         return;
     if (!m_compositor_state->update_display_list(context_id, display_list.release_value(), async_scrolling_metadata, move(visual_context_tree), move(resource_transaction), scroll_state_snapshot)) {
-        did_misbehave("WebContent published a display list with scrolling state that does not decode");
+        did_misbehave("WebContent published a display list with scrolling state the compositor cannot use");
         return;
     }
     if (display_list_timing_enabled())
