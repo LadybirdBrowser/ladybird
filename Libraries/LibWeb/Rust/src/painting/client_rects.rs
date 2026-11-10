@@ -236,7 +236,13 @@ pub(crate) fn for_each_client_rect(
     //          line.
     if arena.node_kind_if_live(layout_node) == Some(NodeKind::BreakNode) {
         if let Some((line_root, rect)) = line_break_rect(arena, layout_node) {
-            push_rect(viewport_mapping.rect_to_viewport(arena, line_root, rect, ViewportSpace::LayoutViewport));
+            push_rect(viewport_mapping.line_content_rect_to_viewport(
+                arena,
+                line_root,
+                layout_node,
+                rect,
+                ViewportSpace::LayoutViewport,
+            ));
         }
         return;
     }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.scroller { position: absolute; width: 200px; height: 100px; overflow: scroll; font: 20px/30px Ahem; }
+#text { left: 10px; top: 10px; }
+#breaks { left: 250px; top: 10px; }
+#sticky-container { left: 10px; top: 150px; }
+#sticky { position: sticky; top: 0; }
+</style>
+<div class="scroller" id="text">aaaa<br>bbbb<br>cccc<br>dddd<br>eeee<br>ffff<br>gggg<br>hhhh</div>
+<div class="scroller" id="breaks">xx<br id="br1">yy<br id="br2"><br id="br3">zz<br>z<br>z<br>z<br>z</div>
+<div class="scroller" id="sticky-container">one<br>two<br><span id="sticky">sticky</span><br>four<br>five<br>six<br>seven<br>eight</div>
+<script src="include.js"></script>
+<script>
+    // Text and line breaks directly inside a scroll container move with its scroll offset, and the text of a sticky
+    // positioned inline box with its sticky offset.
+    test(() => {
+        const format = rect => `${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`;
+        const rangeRects = (text, start, end) => {
+            const range = document.createRange();
+            range.setStart(text, start);
+            range.setEnd(text, end);
+            return [...range.getClientRects()].map(format).join(" ");
+        };
+        document.getElementById("text").scrollTop = 40;
+        document.getElementById("breaks").scrollTop = 30;
+        const stickyContainer = document.getElementById("sticky-container");
+        stickyContainer.scrollTop = 60;
+
+        println(`text: ${rangeRects(document.getElementById("text").childNodes[4], 0, 2)}`);
+        for (const id of ["br1", "br2", "br3"]) {
+            const rect = document.getElementById(id).getClientRects()[0];
+            println(`${id}: left ${Math.round(rect.left)}, middle ${Math.round(rect.top + rect.height / 2)}`);
+        }
+        println(`sticky text: ${rangeRects(document.getElementById("sticky").firstChild, 1, 3)}`);
+        println(`text after sticky: ${rangeRects(stickyContainer.childNodes[6], 0, 4)}`);
+    });
+</script>

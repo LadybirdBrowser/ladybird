@@ -171,7 +171,13 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
             );
 
             let rect_in_viewport_space = if arena.slot_is_live(block) {
-                viewport_mapping.rect_to_viewport(paintable_rows, block, rect, ViewportSpace::LayoutViewport)
+                viewport_mapping.line_content_rect_to_viewport(
+                    paintable_rows,
+                    block,
+                    fragment.layout_node,
+                    rect,
+                    ViewportSpace::LayoutViewport,
+                )
             } else {
                 rect
             };

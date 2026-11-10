@@ -88,6 +88,29 @@ impl<'a> ViewportMapping<'a> {
         self.rect_in_space_to_viewport(spatial, rect, space)
     }
 
+    /// Maps `rect`, of the line content of `node` that the line root `root` lays out, into the viewport through the
+    /// context that content is painted in: that of the nearest self-painting inline box around `node`, or else the one
+    /// `root` paints its descendants in, which a scroll container moves by its scroll offset.
+    pub(crate) fn line_content_rect_to_viewport(
+        &self,
+        arena: &impl PaintRead,
+        root: NodeSlotId,
+        node: NodeSlotId,
+        rect: CssPixelRect,
+        space: ViewportSpace,
+    ) -> CssPixelRect {
+        if self.transforms.is_none() {
+            return rect;
+        }
+        let painter =
+            crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, node).unwrap_or(root);
+        if !arena.paintable_row_is_populated(painter) {
+            return CssPixelRect::default();
+        }
+        let context = arena.paintable_data(painter).accumulated_visual_context_for_descendants;
+        self.rect_in_space_to_viewport(context.spatial, rect, space)
+    }
+
     /// Maps `rect`, in the local space of `spatial`, into the viewport.
     pub(crate) fn rect_in_space_to_viewport(
         &self,
