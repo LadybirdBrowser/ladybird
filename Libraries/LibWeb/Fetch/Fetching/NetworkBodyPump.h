@@ -11,7 +11,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
-#include <LibHTTP/Forward.h>
+#include <LibHTTP/Cache/MemoryCache.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
@@ -38,7 +38,7 @@ public:
     void set_cached_response_body(Core::ImmutableBytes);
 
     // Drops a pending memory-cache entry that matches the response's request, for a body that will not finish arriving.
-    void abandon_cache_entry();
+    void abandon_cache_entry(HTTP::MemoryCache::StoredResponse);
 
 private:
     NetworkBodyPump(RefPtr<Infrastructure::FetchParams const>, NonnullRefPtr<Engine::FetchByteChannel>, NonnullRefPtr<Engine::FetchBodyDeliveryGate>, RefPtr<HTTP::MemoryCache>);
@@ -62,6 +62,7 @@ private:
     ByteBuffer m_cache_buffer;
     Optional<Core::ImmutableBytes> m_cache_body;
     bool m_cache_body_replaces_network_buffer { false };
+    bool m_cache_body_too_large_for_memory { false };
 
     u64 m_encoded_body_size { 0 };
     u64 m_decoded_body_size { 0 };
