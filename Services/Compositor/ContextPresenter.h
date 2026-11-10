@@ -19,8 +19,8 @@
 #include <Compositor/CompositorCoreHost.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
+#include <Compositor/FrameInputs.h>
 #include <Compositor/PaintingSurface.h>
-#include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
@@ -48,14 +48,6 @@ struct PreparedFrame {
     i32 bitmap_id { 0 };
     Gfx::IntRect damage_rect;
     double device_pixel_ratio { 1.0 };
-};
-
-// What a frame is painted with besides the display list and its resources.
-struct FrameInputs {
-    Compositing::AccumulatedVisualContextTree visual_context_tree;
-    Compositing::ScrollStateSnapshot presented_scroll_state_snapshot;
-    Vector<ScrollbarController::ScrollbarOfFrame> scrollbars;
-    Optional<Compositing::SpatialNodeIndex> viewport_scroll_node_index;
 };
 
 // Rasterizes the scene of a context into its backing stores and keeps track of the frames it presents.

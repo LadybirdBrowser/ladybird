@@ -14,7 +14,7 @@
 #include <Compositor/CompositedContext.h>
 #include <Compositor/DisplayListPlayer.h>
 #include <Compositor/Forward.h>
-#include <Compositor/ScrollbarController.h>
+#include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Forward.h>
@@ -52,11 +52,11 @@ public:
         RefPtr<Gfx::PaintingSurface>,
         OwnedCanvasSurfaces const*,
         CompositedContextResolver const*,
-        ReadonlySpan<ScrollbarController::ScrollbarOfFrame> = {});
+        ReadonlySpan<ScrollbarOfFrame> = {});
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
-    void paint_scrollbars_painted_by_compositor(Gfx::PaintingSurface&, ReadonlySpan<ScrollbarController::ScrollbarOfFrame>);
+    void paint_scrollbars_painted_by_compositor(Gfx::PaintingSurface&, ReadonlySpan<ScrollbarOfFrame>);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \
@@ -91,7 +91,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CompositedContextResolver const* m_composited_context_resolver { nullptr };
     // Says how opaque the scrollbars that the display list paints are.
-    ReadonlySpan<ScrollbarController::ScrollbarOfFrame> m_scrollbars_of_frame;
+    ReadonlySpan<ScrollbarOfFrame> m_scrollbars_of_frame;
     DisplayListRasterCache* m_raster_cache { nullptr };
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 };

@@ -10,6 +10,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <Compositor/Forward.h>
+#include <Compositor/FrameInputs.h>
 #include <LibCompositing/OverlayFade.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibGfx/Color.h>
@@ -46,35 +47,6 @@ public:
         Compositing::SpatialNodeIndex scroll_node_index;
         Gfx::FloatPoint scroll_offset;
     };
-
-    // A scrollbar as it is painted, somewhere between its thin and its expanded geometry.
-    struct PresentedScrollbar {
-        Gfx::FloatRect gutter_rect;
-        Gfx::FloatRect thumb_rect;
-        Color thumb_color;
-        Color thumb_outline_color;
-        Color track_color;
-        float opacity { 1 };
-    };
-
-    struct ScrollbarOfFrame {
-        Compositing::SpatialNodeIndex scroll_node_index;
-        bool vertical { false };
-        bool is_painted_by_compositor { false };
-        Gfx::FloatRect gutter_rect;
-        Gfx::FloatRect thumb_rect;
-        float expansion { 0 };
-        float opacity { 1 };
-        Color thumb_color;
-        Color thumb_outline_color;
-        Color track_color;
-        Gfx::IntRect thin_and_expanded_gutter_rect;
-
-        PresentedScrollbar presented_with_colors(Color thumb_color, Color thumb_outline_color, Color track_color) const;
-    };
-
-    // A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
-    static Gfx::IntRect thumb_rect_kept_inside_track(Gfx::IntRect thumb_rect, Gfx::IntRect const& track_rect, bool vertical);
 
     // Overlay scrollbars are hidden until their scroller scrolls. A scrollbar stays shown for this long after its
     // scroller last scrolled or the pointer left it, and then fades out.
