@@ -362,14 +362,53 @@
                 heading.textContent = title;
 
                 const list = document.createElement("dl");
-                for (const [term, description] of entries) {
+                const descriptionElements = entries.map(([term, description]) => {
                     const termElement = document.createElement("dt");
                     termElement.textContent = term;
                     const descriptionElement = document.createElement("dd");
                     descriptionElement.textContent = description;
                     list.append(termElement, descriptionElement);
-                }
+                    return descriptionElement;
+                });
                 systemElement.append(heading, list);
+                return descriptionElements;
+            }
+
+            // Asked through the Media Capabilities API, so that the answers are the ones pages get. Only hardware
+            // decoders report that they decode power efficiently.
+            const videoDecodingQueries = [
+                ["H.264 High", 'video/mp4; codecs="avc1.640028"'],
+                ["HEVC Main", 'video/mp4; codecs="hvc1.1.6.L123.B0"'],
+                ["HEVC Main 10", 'video/mp4; codecs="hvc1.2.4.L123.B0"'],
+                ["VP9 Profile 0", 'video/webm; codecs="vp09.00.40.08"'],
+                ["VP9 Profile 2 (10-bit)", 'video/webm; codecs="vp09.02.40.10"'],
+                ["AV1 Main (8-bit)", 'video/mp4; codecs="av01.0.08M.08"'],
+                ["AV1 Main (10-bit)", 'video/mp4; codecs="av01.0.08M.10"'],
+            ];
+
+            async function describeVideoDecoding(contentType) {
+                try {
+                    const info = await navigator.mediaCapabilities.decodingInfo({
+                        type: "file",
+                        video: { contentType, width: 1920, height: 1080, bitrate: 8_000_000, framerate: 30 },
+                    });
+                    if (!info.supported) return "Not supported";
+                    return info.powerEfficient ? "Hardware" : "Software";
+                } catch {
+                    return "Unknown";
+                }
+            }
+
+            function appendVideoDecodingSection() {
+                const descriptions = appendSection(
+                    "Video decoding at 1080p",
+                    videoDecodingQueries.map(([name]) => [name, "Checking…"])
+                );
+                videoDecodingQueries.forEach(([, contentType], index) => {
+                    describeVideoDecoding(contentType).then(text => {
+                        descriptions[index].textContent = text;
+                    });
+                });
             }
 
             // What the GPU reported for decoding a codec through Vulkan, worded after Vulkan's flags, before any feature
@@ -434,6 +473,8 @@
                     if (facts.system_ffmpeg) appendSection("System FFmpeg", describeFFmpeg(facts.system_ffmpeg));
                     else appendSection("System FFmpeg", [["Library", "None found"]]);
                 }
+
+                appendVideoDecodingSection();
             }
 
             function render() {
