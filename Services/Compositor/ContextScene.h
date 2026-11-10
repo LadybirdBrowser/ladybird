@@ -28,9 +28,9 @@ class ContextScene {
 public:
     ContextScene() = default;
 
-    void install(NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree);
+    void install(NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, MonotonicTime now);
     // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
-    bool replace_visual_context_tree(Compositing::AccumulatedVisualContextTree);
+    bool replace_visual_context_tree(Compositing::AccumulatedVisualContextTree, MonotonicTime now);
 
     RefPtr<Compositing::DisplayList const> const& display_list() const { return m_display_list; }
     Optional<Compositing::AccumulatedVisualContextTree> const& visual_context_tree() const { return m_visual_context_tree; }
@@ -47,7 +47,7 @@ public:
     void drop_async_visual_viewport_transform();
 
     bool advance_visual_animations(MonotonicTime now);
-    bool visual_animations_need_frame(Compositing::ScrollStateSnapshot const&, Gfx::IntSize viewport_size);
+    bool visual_animations_need_frame(Compositing::ScrollStateSnapshot const&, Gfx::IntSize viewport_size, MonotonicTime now);
     void forget_whether_animated_content_may_affect_viewport() { m_animated_content_may_affect_viewport.clear(); }
 
 private:
