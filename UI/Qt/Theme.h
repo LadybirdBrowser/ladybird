@@ -98,7 +98,16 @@ QColor accent();
 // A focus ring is a fine line of the focus edge color right outside the focused control, in a wider, fainter halo.
 QColor focus_edge();
 QColor focus_ring();
-QColor selection();
+
+// Selected text in a field. A color theme tints it with its accent and keeps the text in its normal color, so it stays
+// readable on every theme and looks unlike a selected row. A window in the background shows a gray tint instead.
+// Without a color theme, it is the system's own text selection color.
+struct TextSelectionColors {
+    QColor background;
+    QColor text;
+};
+TextSelectionColors address_field_text_selection(QPalette const&, QPalette::ColorGroup);
+TextSelectionColors panel_text_selection(QPalette::ColorGroup, QColor const& text);
 
 // The fill of a primary button, a blue that white text stays clear on.
 QColor primary();
