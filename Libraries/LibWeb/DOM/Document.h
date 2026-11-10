@@ -2164,6 +2164,8 @@ private:
     GC::Ptr<Element> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };
+    size_t m_document_write_depth { 0 };
+    bool m_document_write_limit_reached { false };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#unload-counter
     u32 m_unload_counter { 0 };
