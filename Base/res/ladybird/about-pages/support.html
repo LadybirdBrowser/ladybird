@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="color-scheme" content="light dark" />
+        <title>Support</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            :root {
+                --indent: 18px;
+            }
+
+            body {
+                max-width: 880px;
+                padding: 48px 24px;
+            }
+
+            /* The features are one grid rather than a table, so that a long name can wrap instead of widening the page.
+               Each row only groups its cells, which line up in the grid's columns. */
+            #feature-grid {
+                display: grid;
+                grid-template-columns: minmax(0, max-content) max-content minmax(14em, 1fr);
+                font-size: 13px;
+            }
+
+            .feature-row {
+                display: contents;
+            }
+
+            .feature-row > * {
+                padding: 8px;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .feature-row.heading > * {
+                padding-top: 0;
+                border-top: none;
+
+                color: var(--secondary-text-color);
+                font-weight: 500;
+            }
+
+            /* What the state alone does not say goes under it. */
+            .status-detail {
+                margin-top: 2px;
+                overflow-wrap: break-word;
+                color: var(--secondary-text-color);
+            }
+
+            .status-feature {
+                font-family: monospace;
+            }
+
+            .feature-name {
+                display: flex;
+                align-items: flex-start;
+                gap: 4px;
+                min-width: 0;
+            }
+
+            /* Long names break after their dots. */
+            .feature-id {
+                min-width: 0;
+                overflow-wrap: break-word;
+                font-family: monospace;
+            }
+
+            .toggle,
+            .toggle-spacer {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: none;
+                width: 18px;
+                height: 18px;
+                padding: 0;
+            }
+
+            .toggle {
+                border: none;
+                background: none;
+                color: var(--secondary-text-color);
+                font-size: 12px;
+                cursor: pointer;
+            }
+
+            .state-enabled {
+                color: var(--success);
+            }
+
+            .state-blocklisted,
+            .state-failed-at-runtime {
+                color: var(--error);
+            }
+
+            .state-unsupported,
+            .state-disabled-by-user,
+            .state-blocked-by-dependency {
+                color: var(--muted);
+            }
+
+            dl {
+                display: grid;
+                grid-template-columns: minmax(140px, 32%) 1fr;
+                gap: 6px 16px;
+
+                margin: 0;
+                font-size: 13px;
+            }
+
+            dt {
+                color: var(--secondary-text-color);
+            }
+
+            dd {
+                margin: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .section-title {
+                margin: 16px 0 8px 0;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .section-title:first-child {
+                margin-top: 0;
+            }
+
+            pre {
+                overflow-x: auto;
+                margin: 8px 0 0 0;
+                font-size: 12px;
+            }
+
+            summary {
+                cursor: pointer;
+                font-size: 13px;
+            }
+
+            @media (max-width: 640px) {
+                :root {
+                    --indent: 10px;
+                }
+
+                body {
+                    padding: 24px 16px;
+                }
+
+                .process {
+                    display: none;
+                }
+
+                /* The status goes under the name. */
+                #feature-grid {
+                    display: block;
+                }
+
+                .feature-row {
+                    display: block;
+                    padding: 8px 0;
+                    border-top: 1px solid var(--border-color);
+                }
+
+                .feature-row > * {
+                    padding: 0;
+                    border-top: none;
+                }
+
+                .feature-row .status {
+                    padding-left: calc(var(--depth) * var(--indent) + 22px);
+                }
+
+                .feature-row.heading {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Support</h1>
+        </header>
+
+        <div class="card-title">System</div>
+        <div class="card">
+            <div class="card-body" id="system"></div>
+        </div>
+
+        <div class="card-title">Platform features</div>
+        <div class="card">
+            <div class="card-body">
+                <div id="feature-grid">
+                    <div class="feature-row heading">
+                        <div>Feature</div>
+                        <div class="process">Process</div>
+                        <div>Status</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <details>
+                    <summary>Full report</summary>
+                    <pre id="report"></pre>
+                </details>
+            </div>
+        </div>
+
+        <script>
+            const featuresElement = document.querySelector("#feature-grid");
+            const headingRow = featuresElement.querySelector(".heading");
+            const systemElement = document.querySelector("#system");
+            const reportElement = document.querySelector("#report");
+
+            const collapsedStorageKey = "support.collapsedFeatures";
+            let collapsed = new Set();
+            try {
+                collapsed = new Set(JSON.parse(localStorage.getItem(collapsedStorageKey) ?? "[]"));
+            } catch {}
+
+            let report = null;
+
+            function stateClass(state) {
+                return "state-" + state.toLowerCase().replaceAll(" ", "-");
+            }
+
+            // The state names the feature that blocked this one, and anything more it does not say goes under it.
+            function describeStatus(feature) {
+                const status = document.createElement("div");
+                status.className = "status";
+
+                const state = document.createElement("div");
+                state.className = stateClass(feature.state);
+                if (feature.blocked_by) {
+                    const blockingFeature = document.createElement("span");
+                    blockingFeature.className = "status-feature";
+                    blockingFeature.textContent = feature.blocked_by;
+                    state.append("Blocked by ", blockingFeature);
+                } else if (feature.forced) {
+                    state.textContent = "Enabled (forced)";
+                } else {
+                    state.textContent = feature.state;
+                }
+                status.append(state);
+
+                if (feature.reason) {
+                    const detail = document.createElement("div");
+                    detail.className = "status-detail";
+                    detail.textContent = feature.rule ? `${feature.reason} [${feature.rule}]` : feature.reason;
+                    status.append(detail);
+                }
+                return status;
+            }
+
+            function renderFeatures() {
+                // The rows are rebuilt, so focus moves to the new toggle of the feature whose toggle had it.
+                const focusedFeatureId = document.activeElement?.dataset.featureId;
+                let toggleToFocus = null;
+                featuresElement.replaceChildren(headingRow);
+
+                const children = new Map();
+                for (const feature of report.features) {
+                    const parent = feature.dependency ?? null;
+                    if (!children.has(parent)) children.set(parent, []);
+                    children.get(parent).push(feature);
+                }
+
+                function appendRows(feature, depth) {
+                    const row = document.createElement("div");
+                    row.className = "feature-row";
+                    row.style.setProperty("--depth", depth);
+                    const hasChildren = children.has(feature.id);
+
+                    const nameContents = document.createElement("div");
+                    nameContents.className = "feature-name";
+                    nameContents.style.paddingLeft = `calc(${depth} * var(--indent))`;
+                    if (hasChildren) {
+                        const toggle = document.createElement("button");
+                        toggle.className = "toggle";
+                        toggle.dataset.featureId = feature.id;
+                        if (feature.id === focusedFeatureId) toggleToFocus = toggle;
+                        const isCollapsed = collapsed.has(feature.id);
+                        toggle.textContent = isCollapsed ? "▸" : "▾";
+                        toggle.title = `${isCollapsed ? "Show" : "Hide"} the features that depend on this one`;
+                        toggle.addEventListener("click", () => {
+                            if (collapsed.has(feature.id)) collapsed.delete(feature.id);
+                            else collapsed.add(feature.id);
+                            try {
+                                localStorage.setItem(collapsedStorageKey, JSON.stringify([...collapsed]));
+                            } catch {}
+                            renderFeatures();
+                        });
+                        nameContents.append(toggle);
+                    } else {
+                        const spacer = document.createElement("span");
+                        spacer.className = "toggle-spacer";
+                        nameContents.append(spacer);
+                    }
+                    // A nested feature is named without the prefix its parent's row already shows.
+                    let shownId = feature.id;
+                    if (feature.dependency && feature.id.startsWith(`${feature.dependency}.`))
+                        shownId = feature.id.slice(feature.dependency.length + 1);
+                    const id = document.createElement("span");
+                    id.className = "feature-id";
+                    id.title = feature.id;
+                    shownId.split(".").forEach((part, index) => {
+                        if (index > 0) id.append(".", document.createElement("wbr"));
+                        id.append(part);
+                    });
+                    nameContents.append(id);
+
+                    const process = document.createElement("div");
+                    process.className = "process";
+                    process.textContent = feature.process;
+
+                    row.append(nameContents, process, describeStatus(feature));
+                    featuresElement.append(row);
+
+                    if (hasChildren && !collapsed.has(feature.id)) {
+                        for (const child of children.get(feature.id)) appendRows(child, depth + 1);
+                    }
+                }
+
+                for (const root of children.get(null) ?? []) appendRows(root, 0);
+                toggleToFocus?.focus();
+            }
+
+            function hex(value, digits = 4) {
+                return "0x" + value.toString(16).padStart(digits, "0");
+            }
+
+            function vulkanVersion(value) {
+                return `${(value >>> 22) & 0x7f}.${(value >>> 12) & 0x3ff}.${value & 0xfff}`;
+            }
+
+            // Each driver packs its version its own way. These are VkDriverId's values for the ones that differ.
+            function driverVersion(driverId, value) {
+                const nvidiaProprietary = 4;
+                const intelProprietaryWindows = 5;
+                if (driverId === nvidiaProprietary)
+                    return `${value >>> 22}.${(value >>> 14) & 0xff}.${(value >>> 6) & 0xff}.${value & 0x3f}`;
+                if (driverId === intelProprietaryWindows) return `${value >>> 14}.${value & 0x3fff}`;
+                return vulkanVersion(value);
+            }
+
+            function libraryVersion(value) {
+                return `${value >>> 16}.${(value >>> 8) & 0xff}.${value & 0xff}`;
+            }
+
+            function yesNo(value) {
+                return value ? "Yes" : "No";
+            }
+
+            function appendSection(title, entries) {
+                const heading = document.createElement("div");
+                heading.className = "section-title";
+                heading.textContent = title;
+
+                const list = document.createElement("dl");
+                for (const [term, description] of entries) {
+                    const termElement = document.createElement("dt");
+                    termElement.textContent = term;
+                    const descriptionElement = document.createElement("dd");
+                    descriptionElement.textContent = description;
+                    list.append(termElement, descriptionElement);
+                }
+                systemElement.append(heading, list);
+            }
+
+            // What the GPU reported for decoding a codec through Vulkan, worded after Vulkan's flags, before any feature
+            // decided whether to use it.
+            function describeVulkanVideoDecoding(codec) {
+                if (!codec.supported) return "Not supported";
+                const capabilities = ["Supported"];
+                if (codec.dpb_and_output_coincide) capabilities.push("DPB and output coincide");
+                if (codec.dpb_and_output_distinct) capabilities.push("DPB and output distinct");
+                if (codec.dpb_supports_drm_format_modifiers) capabilities.push("DPB supports DRM format modifiers");
+                return capabilities.join(", ");
+            }
+
+            function describeGpuVideoDecoding(gpu) {
+                if (gpu.cannot_decode_video_because)
+                    return [["Vulkan video decoding", gpu.cannot_decode_video_because]];
+                return [
+                    ["H.264 through Vulkan", describeVulkanVideoDecoding(gpu.h264)],
+                    ["HEVC through Vulkan", describeVulkanVideoDecoding(gpu.h265)],
+                    ["VP9 through Vulkan", describeVulkanVideoDecoding(gpu.vp9)],
+                    ["AV1 through Vulkan", describeVulkanVideoDecoding(gpu.av1)],
+                ];
+            }
+
+            function describeFFmpeg(ffmpeg) {
+                return [
+                    ["libavcodec", libraryVersion(ffmpeg.avcodec_version)],
+                    ["libavutil", libraryVersion(ffmpeg.avutil_version)],
+                    ["Matches the bundled struct layouts", yesNo(ffmpeg.shares_bundled_struct_layouts)],
+                ];
+            }
+
+            function renderSystem() {
+                systemElement.replaceChildren();
+                const facts = report.facts;
+
+                if (report.probe_failure) appendSection("Probe", [["Failure", report.probe_failure]]);
+
+                const gpu = facts.gpu;
+                if (!report.describes_gpu) {
+                    appendSection("GPU", [["Device", "Not described by this build"]]);
+                } else if (gpu) {
+                    appendSection("GPU", [
+                        ["Device", gpu.device_name],
+                        ["Vendor and device ID", `${hex(gpu.vendor_id)}:${hex(gpu.device_id)}`],
+                        ["Driver", `${gpu.driver_name} ${gpu.driver_info} (driver ID ${gpu.driver_id})`],
+                        [
+                            "Driver version",
+                            `${driverVersion(gpu.driver_id, gpu.driver_version)} (${hex(gpu.driver_version, 8)})`,
+                        ],
+                        ["Vulkan", vulkanVersion(gpu.api_version)],
+                        ["Identity", gpu.device_identity],
+                        ["YCbCr sampling", yesNo(gpu.supports_ycbcr_sampling)],
+                        ...describeGpuVideoDecoding(gpu),
+                    ]);
+                } else if (!report.probe_failure) {
+                    appendSection("GPU", [["Device", "None described"]]);
+                }
+
+                if (report.describes_ffmpeg) {
+                    if (facts.bundled_ffmpeg) appendSection("Bundled FFmpeg", describeFFmpeg(facts.bundled_ffmpeg));
+                    if (facts.system_ffmpeg) appendSection("System FFmpeg", describeFFmpeg(facts.system_ffmpeg));
+                    else appendSection("System FFmpeg", [["Library", "None found"]]);
+                }
+            }
+
+            function render() {
+                renderSystem();
+                renderFeatures();
+                reportElement.textContent = JSON.stringify(report, null, 4);
+            }
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadPlatformFeatures") {
+                    report = event.detail.data;
+                    render();
+                }
+            });
+
+            document.addEventListener("WebUILoaded", () => ladybird.sendMessage("loadPlatformFeatures"));
+        </script>
+    </body>
+</html>

@@ -43,6 +43,7 @@ set(ABOUT_PAGES
     history.html
     newtab.html
     settings.html
+    support.html
     version.html
     webui.css
     welcome.css
