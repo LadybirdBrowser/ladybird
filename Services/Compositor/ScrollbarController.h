@@ -57,6 +57,22 @@ public:
         float opacity { 1 };
     };
 
+    struct ScrollbarOfFrame {
+        Compositing::SpatialNodeIndex scroll_node_index;
+        bool vertical { false };
+        bool is_painted_by_compositor { false };
+        Gfx::FloatRect gutter_rect;
+        Gfx::FloatRect thumb_rect;
+        float expansion { 0 };
+        float opacity { 1 };
+        Color thumb_color;
+        Color thumb_outline_color;
+        Color track_color;
+        Gfx::IntRect thin_and_expanded_gutter_rect;
+
+        PresentedScrollbar presented_with_colors(Color thumb_color, Color thumb_outline_color, Color track_color) const;
+    };
+
     // A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
     static Gfx::IntRect thumb_rect_kept_inside_track(Gfx::IntRect thumb_rect, Gfx::IntRect const& track_rect, bool vertical);
 
@@ -82,9 +98,7 @@ public:
     bool fades_need_frame(MonotonicTime now) const;
     // Returns the rect in the viewport of the scrollbars whose opacity or geometry changed.
     Gfx::IntRect advance_fades(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, MonotonicTime frame_time);
-    // A scrollbar command of the display list with no scrollbar here is painted as the command gives it. The colors are
-    // the ones the display list resolved for the page, which it may have darkened.
-    Optional<PresentedScrollbar> presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color thumb_outline_color, Color track_color, Compositing::ScrollStateSnapshot const&) const;
+    Vector<ScrollbarOfFrame> scrollbars_of_frame(Compositing::ScrollStateSnapshot const&) const;
 
     bool is_empty() const { return m_scrollbars.is_empty(); }
     Vector<Compositing::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
@@ -109,7 +123,6 @@ public:
     bool set_hovered_scrollbar(Optional<size_t>);
 
     Optional<ScrollOffset> scroll_offset_for_drag(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Drag const&) const;
-    bool paint(Gfx::PaintingSurface&, DisplayListPlayerSkia&, Compositing::ScrollStateSnapshot const&) const;
 
 private:
     struct Visibility {
@@ -127,7 +140,6 @@ private:
     bool is_expanded(size_t scrollbar_index) const;
     float opacity(size_t scrollbar_index) const;
     float expansion(size_t scrollbar_index) const;
-    PresentedScrollbar presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const&, Color thumb_color, Color thumb_outline_color, Color track_color) const;
     Optional<Gfx::IntRect> rect_in_viewport(size_t scrollbar_index, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&) const;
     float primary_position_of_captured_drag(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 
