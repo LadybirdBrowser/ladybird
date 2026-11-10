@@ -209,6 +209,9 @@ void SourceBufferProcessor::run_segment_parser_loop()
 {
     VERIFY(m_parser);
 
+    // NB: Let the demuxer itself defer changes until the segment parser loop completes to avoid unnecessary work.
+    Optional<SourceBufferDemuxer::ChangeBatch> change_batch;
+
     while (true) {
         // 1. Loop Top: If the [[input buffer]] is empty, then jump to the need more data step below.
         if (m_cursor->position() >= m_cursor->blocking_size())
@@ -314,6 +317,9 @@ void SourceBufferProcessor::run_segment_parser_loop()
                     return;
                 }
 
+                // NB: The demuxer may have been created by an initialization segment earlier in this loop.
+                if (!change_batch.has_value())
+                    change_batch.emplace(m_demuxer);
                 run_coded_frame_processing(parse_result.value().coded_frames);
 
                 // FIXME: 3. If this SourceBuffer is full and cannot accept more media data, then set the [[buffer full flag]]
@@ -711,6 +717,9 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 // https://w3c.github.io/media-source/#dfn-coded-frame-removal
 void SourceBufferProcessor::run_coded_frame_removal(AK::Duration start, AK::Duration end)
 {
+    // NB: Let the demuxer itself defer changes until removal is complete to avoid unnecessary work.
+    SourceBufferDemuxer::ChangeBatch change_batch { m_demuxer };
+
     // 1. Let start be the starting presentation timestamp for the removal range.
     // 2. Let end be the end presentation timestamp for the removal range.
 
@@ -774,6 +783,9 @@ void SourceBufferProcessor::run_coded_frame_removal(AK::Duration start, AK::Dura
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
 void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time)
 {
+    // NB: Let the demuxer itself defer changes until eviction is done to avoid unnecessary work.
+    SourceBufferDemuxer::ChangeBatch change_batch { m_demuxer };
+
     // https://w3c.github.io/media-source/#dfn-coded-frame-removal
     // AD-HOC: We'll run some of the final steps from the coded frame removal algorithm below.
     //         We explicitly do not remove dependencies here (step 4), since that may evict data ahead of what the

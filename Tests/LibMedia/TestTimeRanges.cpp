@@ -319,7 +319,7 @@ TEST_CASE(remove_range_across_multiple_ranges)
     EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(900), ms(1000) } }));
 }
 
-// add_range() with a maximum gap, and remove_ranges()
+// add_range() with a maximum gap
 
 TEST_CASE(add_range_bridges_gaps_up_to_the_maximum)
 {
@@ -356,30 +356,76 @@ TEST_CASE(adding_with_a_maximum_gap_matches_coalescing_afterwards)
     EXPECT_EQ(bridged, exact.coalesced(maximum_gap));
 }
 
-TEST_CASE(remove_ranges_matches_removing_one_at_a_time)
+// add_ranges()
+
+TEST_CASE(add_ranges_to_empty_in_descending_order)
 {
     TimeRanges ranges;
-    for (i64 index = 0; index < 600; index++)
-        ranges.add_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
-
-    auto removed_one_at_a_time = ranges;
-    TimeRanges removed;
-    for (i64 index = 0; index < 600; index += 3) {
-        removed.add_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
-        removed_one_at_a_time.remove_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
-    }
-    removed.add_range(ms(5000), ms(6000));
-    removed_one_at_a_time.remove_range(ms(5000), ms(6000));
-
-    ranges.remove_ranges(removed);
-    EXPECT_EQ(ranges, removed_one_at_a_time);
+    ranges.add_ranges({ { ms(500), ms(600) }, { ms(300), ms(400) }, { ms(100), ms(200) } });
+    EXPECT_EQ(ranges, (TimeRanges { { ms(100), ms(200) }, { ms(300), ms(400) }, { ms(500), ms(600) } }));
 }
 
-TEST_CASE(remove_ranges_keeps_what_lies_between_them)
+TEST_CASE(add_ranges_merges_with_existing_ranges)
 {
-    TimeRanges ranges { { ms(0), ms(1000) } };
-    ranges.remove_ranges(TimeRanges { { ms(100), ms(200) }, { ms(500), ms(600) } });
-    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(200), ms(500) }, { ms(600), ms(1000) } }));
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_range(ms(400), ms(500));
+    ranges.add_ranges({ { ms(450), ms(700) }, { ms(100), ms(200) }, { ms(800), ms(900) }, { ms(150), ms(250) } });
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(250) }, { ms(400), ms(700) }, { ms(800), ms(900) } }));
+}
+
+TEST_CASE(add_ranges_bridges_existing_ranges)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_range(ms(200), ms(300));
+    ranges.add_ranges({ { ms(150), ms(250) }, { ms(50), ms(150) } });
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(300) } }));
+}
+
+TEST_CASE(add_ranges_ignores_invalid_ranges)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(100), ms(200));
+    ranges.add_ranges({ { ms(300), ms(300) }, { ms(500), ms(400) } });
+    EXPECT_EQ(ranges, (TimeRanges { { ms(100), ms(200) } }));
+}
+
+TEST_CASE(add_ranges_bridges_gaps_up_to_the_maximum)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_range(ms(300), ms(400));
+    ranges.add_ranges({ { ms(150), ms(250) } }, ms(50));
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(400) } }));
+}
+
+TEST_CASE(add_ranges_keeps_gaps_over_the_maximum)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_ranges({ { ms(160), ms(200) } }, ms(50));
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(160), ms(200) } }));
+}
+
+TEST_CASE(adding_ranges_with_a_maximum_gap_matches_coalescing_afterwards)
+{
+    auto maximum_gap = rounded_frame_duration + rounded_frame_duration;
+    TimeRanges exact;
+    Vector<TimeRanges::Range> frame_intervals;
+    for (i64 index = 6000; index-- > 0;) {
+        // A real gap, which nothing bridges.
+        if (index >= 3000 && index < 3010)
+            continue;
+        auto start = rounded_frame_start(index);
+        exact.add_range(start, start + rounded_frame_duration);
+        frame_intervals.append({ start, start + rounded_frame_duration });
+    }
+    TimeRanges bridged;
+    bridged.add_ranges(move(frame_intervals), maximum_gap);
+    EXPECT(exact.size() > 3000);
+    EXPECT_EQ(bridged.size(), 2u);
+    EXPECT_EQ(bridged, exact.coalesced(maximum_gap));
 }
 
 // highest_end_time()

@@ -10,7 +10,9 @@
 #include <AK/ConditionVariable.h>
 #include <AK/FixedArray.h>
 #include <AK/Mutex.h>
+#include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/Demuxer.h>
@@ -44,6 +46,19 @@ public:
         Continuous,
         Jumped,
         NeedsReanchoring,
+    };
+
+    // Defers internal bookkeeping until this goes out of scope to avoid unnecessary work.
+    class MEDIA_API ChangeBatch {
+        AK_MAKE_NONCOPYABLE(ChangeBatch);
+        AK_MAKE_NONMOVABLE(ChangeBatch);
+
+    public:
+        explicit ChangeBatch(RefPtr<SourceBufferDemuxer>);
+        ~ChangeBatch();
+
+    private:
+        RefPtr<SourceBufferDemuxer> m_demuxer;
     };
 
     explicit SourceBufferDemuxer(Vector<Media::Track> const&);
@@ -117,11 +132,9 @@ private:
         Optional<FixedArray<u8>> codec_configuration_of_dropped_frame;
 
         Media::TimeRanges track_buffer_ranges;
-        // The track buffer ranges with every gap of at most coalesced_ranges_gap bridged, as buffered ranges report
-        // them. They're kept up to date as frames are added, since coalescing every frame's range on each query
-        // takes as long as the track has ranges.
-        Media::TimeRanges coalesced_ranges;
-        AK::Duration coalesced_ranges_gap;
+        AK::Duration track_buffer_ranges_maximum_gap;
+        Vector<Media::TimeRanges::Range> frame_intervals_to_add_to_ranges;
+        bool track_buffer_ranges_need_rebuild { false };
         AK::Duration maximum_frame_duration;
         size_t frames_at_maximum_duration { 0 };
         size_t total_bytes { 0 };
@@ -135,8 +148,7 @@ private:
     static bool contributes_to_buffered_ranges(TrackData const&);
     static AK::Duration maximum_time_range_gap(TrackData const&);
     static bool is_within_start_gap_allowance(AK::Duration timestamp, AK::Duration first_data_start);
-    static Media::TimeRanges coalesced_track_buffer_ranges(TrackData const&);
-    static void recoalesce_track_buffer_ranges(TrackData&);
+    static void bring_track_buffer_ranges_up_to_date(TrackData&);
     static void count_frame_duration(TrackData&, AK::Duration);
     static void decrement_frames_with_maximum_duration(TrackData&, size_t count);
     static Optional<ReadonlyBytes> codec_configuration_at_position(TrackData const&, size_t run_index, size_t frame_index);
@@ -160,6 +172,7 @@ private:
     AK::Duration highest_end_time_while_locked() const;
     bool may_read_frame_while_locked(TrackData const&, Media::CodedFrame const&) const;
     void buffered_data_changed_while_locked();
+    void publish_buffered_data_changes_while_locked();
     void queue_scan_state_change_dispatch_while_locked();
 
     Vector<NonnullOwnPtr<TrackData>> m_tracks;
@@ -171,6 +184,9 @@ private:
     // The ranges in which every audio and video track has data, which bound what reads may deliver.
     Media::TimeRanges m_buffered_ranges;
 
+    bool m_in_change_batch { false };
+    bool m_has_unpublished_changes { false };
+
     // Owned by the thread that installed the change handler; mutated only via its event loop.
     Media::DemuxerScanState m_scan_state;
     ScanStateChangeHandler m_scan_state_change_handler;
@@ -179,6 +195,7 @@ private:
     bool m_scan_state_change_dispatch_pending { false };
     // Reported, then reset, by the next scan state change dispatch.
     Media::TimeRanges m_invalidated_ranges;
+    Vector<Media::TimeRanges::Range> m_frame_intervals_to_invalidate;
 };
 
 }
