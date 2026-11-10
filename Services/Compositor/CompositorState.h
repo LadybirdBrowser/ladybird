@@ -299,7 +299,7 @@ private:
     Optional<Web::CompositorContextId> routing_context_of_wheel_gesture(Web::CompositorContextId, u64 gesture_id);
     // The scrollbars of a context nested in the presenting context `context_id` take the pointer over that context's
     // content, and a drag of one of them takes the pointer wherever it goes until the drag ends.
-    ContextState::ContextUpdateResult handle_mouse_event_in_nested_contexts(Web::CompositorContextId, ContextState&, Web::MouseEvent const&);
+    ContextState::ContextUpdateResult handle_mouse_event_in_nested_contexts(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, MonotonicTime now);
     ContextState* context_still_nested_in(Web::CompositorContextId containing_context_id, Optional<Web::CompositorContextId>);
     // Where the position in the presenting context lands in the nested context, through each context in between and
     // without regard to where their content is or what clips it.

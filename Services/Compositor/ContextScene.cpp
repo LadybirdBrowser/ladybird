@@ -9,9 +9,8 @@
 
 namespace Compositor {
 
-static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations)
+static void update_visual_animation_sampling_state(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<i64>& sample_time_ns, bool& has_active_animations, MonotonicTime now)
 {
-    auto now = MonotonicTime::now();
     has_active_animations = visual_context_tree.has_active_visual_animation_at(now.nanoseconds());
     // A replacement tree can be presented before the next vsync. Keep the most recent sample so that presentation
     // remains continuous, but sample dormant and completed descriptors at the current boundary when necessary.
@@ -21,15 +20,15 @@ static void update_visual_animation_sampling_state(Compositing::AccumulatedVisua
         sample_time_ns = now.nanoseconds();
 }
 
-void ContextScene::install(NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree)
+void ContextScene::install(NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, MonotonicTime now)
 {
     invalidate_visual_context_tree_for_compositing();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
-    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
+    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations, now);
 }
 
-bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree)
+bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree, MonotonicTime now)
 {
     if (!m_display_list || m_display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch()) {
         dbgln("Compositor: Dropping stale visual context tree update (tree epoch {}, display list epoch {})",
@@ -39,7 +38,7 @@ bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualCon
     }
     invalidate_visual_context_tree_for_compositing();
     m_visual_context_tree = move(visual_context_tree);
-    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
+    update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations, now);
     return true;
 }
 
@@ -116,14 +115,14 @@ bool ContextScene::advance_visual_animations(MonotonicTime now)
     return m_has_active_visual_animations;
 }
 
-bool ContextScene::visual_animations_need_frame(Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::IntSize viewport_size)
+bool ContextScene::visual_animations_need_frame(Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::IntSize viewport_size, MonotonicTime now)
 {
     if (!m_has_active_visual_animations)
         return false;
     if (m_animated_content_may_affect_viewport.has_value())
         return *m_animated_content_may_affect_viewport;
 
-    auto sample_time_ns = m_visual_animation_sample_time_ns.value_or(MonotonicTime::now().nanoseconds());
+    auto sample_time_ns = m_visual_animation_sample_time_ns.value_or(now.nanoseconds());
     auto tree = m_async_visual_viewport_transform.has_value()
         ? current_visual_context_tree().with_visual_viewport_transform(*m_async_visual_viewport_transform)
         : current_visual_context_tree();
