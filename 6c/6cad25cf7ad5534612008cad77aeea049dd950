@@ -1,0 +1,9 @@
+For right-to-left text, Ladybird finds where a range is drawn, and which
+offset a point hits, from the shaped glyphs’ clusters and positions.
+Blink works from its shape results the same way: Its FragmentItem::
+LocalRect() and ShapeResult::CaretOffsetForHitTest() both build on
+ShapeResult::CaretPositionForOffset(). WebKit has FontCascade::
+adjustSelectionRectForText() and FontCascade::offsetForPosition() for
+that. And Gecko has nsTextFrame::GetCharacterOffsetAtFramePoint(), and
+it paints each selected segment of a frame in its nsTextFrame::
+PaintTextWithSelection().
