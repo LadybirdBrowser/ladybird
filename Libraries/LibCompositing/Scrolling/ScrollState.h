@@ -20,7 +20,7 @@
 namespace Compositing {
 
 // The world transforms built for one visual context tree under a snapshot's offsets. A copy starts empty, so the table
-// never outlives the offsets it was built for.
+// never outlives the offsets it was built for. A move takes the table along with the offsets.
 class COMPOSITING_API WorldTransformsCache {
 public:
     WorldTransformsCache() = default;
@@ -28,6 +28,20 @@ public:
     WorldTransformsCache& operator=(WorldTransformsCache const&)
     {
         clear();
+        return *this;
+    }
+    WorldTransformsCache(WorldTransformsCache&& other)
+        : m_retained_tree(exchange(other.m_retained_tree, nullptr))
+        , m_world_transforms(exchange(other.m_world_transforms, nullptr))
+    {
+    }
+    WorldTransformsCache& operator=(WorldTransformsCache&& other)
+    {
+        if (this != &other) {
+            clear();
+            m_retained_tree = exchange(other.m_retained_tree, nullptr);
+            m_world_transforms = exchange(other.m_world_transforms, nullptr);
+        }
         return *this;
     }
     ~WorldTransformsCache() { clear(); }
@@ -87,6 +101,14 @@ public:
         m_world_transforms_cache.clear();
         m_device_offsets.clear_with_capacity();
         m_device_offsets.append(offsets.data(), min(offsets.size(), m_node_count));
+    }
+
+    // The world transforms another snapshot built are the ones this snapshot would build while both hold the same
+    // offsets, so this one takes them over then instead of building its own.
+    void take_world_transforms_built_for_the_same_offsets_from(ScrollStateSnapshot& other)
+    {
+        if (m_device_offsets == other.m_device_offsets)
+            m_world_transforms_cache = move(other.m_world_transforms_cache);
     }
 
     // Bind the snapshot to the authoritative node count from the AccumulatedVisualContextTree that owns these nodes.

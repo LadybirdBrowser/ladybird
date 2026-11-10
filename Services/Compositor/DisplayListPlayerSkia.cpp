@@ -72,10 +72,10 @@ void DisplayListPlayerSkia::execute(
     RefPtr<Gfx::PaintingSurface> surface,
     OwnedCanvasSurfaces const* canvas_surfaces,
     CompositedContextResolver const* composited_context_resolver,
-    ScrollbarController const* scrollbar_controller)
+    ReadonlySpan<ScrollbarController::ScrollbarOfFrame> scrollbars_of_frame)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
-    TemporaryChange scrollbar_controller_change { m_scrollbar_controller, scrollbar_controller };
+    TemporaryChange scrollbars_of_frame_change { m_scrollbars_of_frame, scrollbars_of_frame };
     raster_cache.drop_clip_paths_not_used_since_last_frame();
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     DisplayListPlayer::execute(
@@ -199,9 +199,13 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Scrollba
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, ScrollbarController::PresentedScrollbar const& scrollbar)
+void DisplayListPlayerSkia::paint_scrollbars_painted_by_compositor(Gfx::PaintingSurface& surface, ReadonlySpan<ScrollbarController::ScrollbarOfFrame> scrollbars_of_frame)
 {
-    paint_scrollbar_into_surface(surface, scrollbar);
+    for (auto const& scrollbar : scrollbars_of_frame) {
+        if (!scrollbar.is_painted_by_compositor)
+            continue;
+        paint_scrollbar_into_surface(surface, scrollbar.presented_with_colors(scrollbar.thumb_color, scrollbar.thumb_outline_color, scrollbar.track_color));
+    }
 }
 
 static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)
@@ -1328,6 +1332,8 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
 {
     auto& canvas = surface().canvas();
     auto const& nested_display_list = resource_storage().display_list_resource(command.display_list_id);
+    // The scrollbars of this context do not belong to the scroll nodes of a nested display list.
+    TemporaryChange<ReadonlySpan<ScrollbarController::ScrollbarOfFrame>> scrollbars_of_frame_change { m_scrollbars_of_frame, {} };
 
     // Rasterize immutable nested lists (SVG images and masks) at list resolution and reuse their snapshots.
     // The first paint of a list rasterizes only the visible portion, so lists replaced every frame do not paint
@@ -1427,8 +1433,6 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
             canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
     }
     ScrollStateSnapshot scroll_state_snapshot;
-    // The scrollbars of this context do not belong to the scroll nodes of a nested display list.
-    TemporaryChange<ScrollbarController const*> scrollbar_controller_change { m_scrollbar_controller, nullptr };
     execute_nested_display_list(*nested_display_list.display_list, nested_display_list.visual_context_tree, scroll_state_snapshot);
     canvas.restore();
 }
@@ -1471,9 +1475,11 @@ void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion cons
 
 void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 {
-    if (m_scrollbar_controller) {
-        if (auto scrollbar = m_scrollbar_controller->presented_scrollbar_painted_by_display_list(command.scroll_node_index, command.vertical, command.thumb_color, command.thumb_outline_color, command.track_color, active_scroll_state()); scrollbar.has_value()) {
-            paint_scrollbar_into_surface(surface(), *scrollbar);
+    // A scrollbar command of the display list with no scrollbar of the frame is painted as the command gives it. The
+    // colors are the ones the display list resolved for the page, which it may have darkened.
+    for (auto const& scrollbar_of_frame : m_scrollbars_of_frame) {
+        if (!scrollbar_of_frame.is_painted_by_compositor && scrollbar_of_frame.scroll_node_index == command.scroll_node_index && scrollbar_of_frame.vertical == command.vertical) {
+            paint_scrollbar_into_surface(surface(), scrollbar_of_frame.presented_with_colors(command.thumb_color, command.thumb_outline_color, command.track_color));
             return;
         }
     }

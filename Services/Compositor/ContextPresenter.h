@@ -16,10 +16,13 @@
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositedContext.h>
+#include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
 #include <Compositor/PaintingSurface.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/OverlayFade.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
@@ -39,9 +42,6 @@ class SkiaBackendContext;
 
 namespace Compositor {
 
-class ContextScene;
-class ScrollbarController;
-
 struct PendingFrame {
     Gfx::IntRect viewport_rect;
     Gfx::IntRect forced_damage_rect;
@@ -57,22 +57,28 @@ struct PreparedFrame {
     double device_pixel_ratio { 1.0 };
 };
 
+// What a frame is painted with besides the display list and its resources.
+struct FrameInputs {
+    Compositing::AccumulatedVisualContextTree visual_context_tree;
+    Compositing::ScrollStateSnapshot presented_scroll_state_snapshot;
+    Vector<ScrollbarController::ScrollbarOfFrame> scrollbars;
+    Optional<Compositing::SpatialNodeIndex> viewport_scroll_node_index;
+};
+
 // Rasterizes the scene of a context into its backing stores and keeps track of the frames it presents.
 class ContextPresenter {
     AK_MAKE_NONCOPYABLE(ContextPresenter);
     AK_MAKE_NONMOVABLE(ContextPresenter);
 
 public:
-    // What a frame is painted with besides the scene.
-    struct FrameContent {
-        Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot;
-        ScrollbarController const& scrollbar_controller;
-        Optional<Compositing::SpatialNodeIndex> viewport_scroll_node_index;
-        CompositedContextResolver const* composited_context_resolver { nullptr };
-    };
-
-    ContextPresenter(ContextScene&, OwnedCanvasSurfaces, bool presents_to_client);
+    ContextPresenter(OwnedCanvasSurfaces, bool presents_to_client);
     ~ContextPresenter();
+
+    bool has_display_list() const { return m_display_list; }
+    void set_display_list(NonnullRefPtr<Compositing::DisplayList const>);
+    Compositing::DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
+    Compositing::DisplayListResourceStorage const& resource_storage() const { return m_resource_storage; }
+    void apply_resource_transaction(Compositing::DisplayListResourceTransaction&&);
 
     bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client() { m_presents_to_client = false; }
@@ -116,10 +122,11 @@ public:
     Optional<Gfx::IntRect> self_present_rect() const;
     bool draws_canvas(Compositing::CanvasId) const;
 
-    Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, FrameContent const&);
+    // The inputs are empty for a context that has no display list yet.
+    Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, Optional<FrameInputs>&&, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
-    bool present_synchronously(DisplayListPlayerSkia&, FrameContent const&);
-    void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, FrameContent const&);
+    bool present_synchronously(DisplayListPlayerSkia&, Optional<FrameInputs>&&, CompositedContextResolver const*);
+    void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, FrameInputs const&, CompositedContextResolver const*);
 
 private:
     struct RasterizedFrame {
@@ -139,17 +146,20 @@ private:
 
     bool is_present_blocked() const;
     bool can_render_frame() const;
-    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameContent const&, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
+    void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
     Gfx::IntSize raster_size() const;
     Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
-    Gfx::IntRect frame_damage_for(PendingFrame const&, FrameContent const&);
-    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, FrameContent const&, Gfx::IntRect forced_damage_rect);
-    void remember_rasterized_frame(Gfx::IntSize viewport_size, Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot);
+    Gfx::IntRect frame_damage_for(PendingFrame const&, FrameInputs const&);
+    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, FrameInputs const&, Gfx::IntRect forced_damage_rect);
+    void keep_world_transforms_of_last_rasterized_frame(FrameInputs&);
+    void remember_rasterized_frame(Gfx::IntSize viewport_size, FrameInputs&&);
     Optional<u64> current_video_frame_id(Compositing::VideoSinkResourceId);
     void stop_backing_store_shrink_timer();
     void stop_surplus_backing_store_retirement_timer();
 
-    ContextScene& m_scene;
+    RefPtr<Compositing::DisplayList const> m_display_list;
+    Compositing::DisplayListResourceStorage m_resource_storage;
+    DisplayListRasterCache m_raster_cache;
     OwnedCanvasSurfaces m_canvas_surfaces;
     bool m_presents_to_client { false };
 

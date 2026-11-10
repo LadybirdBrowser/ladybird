@@ -172,7 +172,7 @@ public:
     bool can_dispatch_input_to_web_content() const { return m_page_id.has_value(); }
     Optional<u64> page_id() const { return m_page_id; }
 
-    bool presents_to_client() const { return m_presenter.presents_to_client(); }
+    bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client();
 
     void set_parent_context(Optional<Web::CompositorContextId>);
@@ -181,18 +181,13 @@ public:
     ContextPresenter& presenter() { return m_presenter; }
     ContextPresenter const& presenter() const { return m_presenter; }
 
-    void apply_display_list_resource_transaction(Compositing::DisplayListResourceTransaction&&);
     void install_display_list_update(
         NonnullRefPtr<Compositing::DisplayList>,
         Compositing::AccumulatedVisualContextTree,
         Compositing::ScrollStateSnapshot&&);
-    void update_visual_context_tree(Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
+    // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
+    bool update_visual_context_tree(Compositing::AccumulatedVisualContextTree);
     void update_scroll_state(Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
-    void set_video_sink(Compositing::VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
-    HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_scene.video_sink_handles(); }
-    bool has_image_frame(Compositing::ImageFrameResourceId id) { return m_scene.resource_storage().has_image_frame(id); }
-    Gfx::DecodedImageFrame const& image_frame(Compositing::ImageFrameResourceId id) { return m_scene.resource_storage().image_frame(id); }
-    void replace_image_frame_pixels(Compositing::ImageFrameResourceId id, Gfx::DecodedImageFrame frame) { m_scene.resource_storage().replace_image_frame_pixels(id, move(frame)); }
 
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
@@ -283,7 +278,7 @@ public:
     Optional<PendingFrame> apply_scroll_requests(ReadonlySpan<Compositing::ScrollRequest>);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
-    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame() || m_scrollbar_controller.fades_need_frame(MonotonicTime::now()); }
+    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_scrollbar_controller.fades_need_frame(MonotonicTime::now()); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
     // The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
@@ -309,7 +304,7 @@ public:
     };
     void set_scroll_capabilities(ScrollCapabilities const&);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
-    Optional<PendingFrame> advance_scrollbar_fades(MonotonicTime frame_time);
+    Gfx::IntRect advance_scrollbar_fades_and_return_damage_rect(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
     String scroll_state_for_testing(Web::AsyncScrollNodeStableID scroller) const;
     Web::InputTraceRecorder& input_trace() { return m_input_trace; }
@@ -323,10 +318,11 @@ public:
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
 
-    void viewport_size_updated(Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
-    bool set_ui_overlays(Compositing::UIOverlays);
+    Gfx::IntSize viewport_size() const { return m_viewport_size; }
+    void viewport_size_updated(Gfx::IntSize);
+    void set_paused_debugger_overlay_is_shown(bool);
 
-    bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
+    void set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }
     double display_refresh_rate() const { return m_display_refresh_rate; }
     bool set_visibility(Compositing::ContextVisibility);
@@ -350,12 +346,15 @@ public:
     Vector<Web::CompositorScrollOffset> scroll_offsets() const;
     bool display_tick_requested() const { return rendering_opportunity_requested() || clock_tick_requested(); }
 
-    bool has_pending_present_frame_scheduled_on(Optional<u64> display_id) const;
-    Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
-    bool present_synchronously(DisplayListPlayerSkia&, CompositedContextResolver const*);
-    bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
-    // Returns the scrollbar fade damage that the screenshot did not present on screen.
-    Optional<PendingFrame> paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
+    // Each frame shows the scrollbars as of when it is painted, so this updates which of them are shown. Empty until a
+    // display list is installed.
+    Optional<FrameInputs> frame_inputs();
+    struct ScreenshotInputs {
+        FrameInputs frame_inputs;
+        // The scrollbar fade damage that the screenshot does not present on screen.
+        Gfx::IntRect scrollbar_fade_damage_rect;
+    };
+    ScreenshotInputs frame_inputs_for_screenshot();
 
 private:
     struct ActiveSmoothScrollAnimation {
@@ -469,7 +468,7 @@ private:
     // The smooth scroll that a press beside the thumb started, while it lasts.
     ActiveSmoothScrollAnimation* running_scrollbar_press_scroll();
     void rebuild_wheel_hit_test_targets();
-    ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
+    FrameInputs frame_inputs_as_presented_now();
     Gfx::IntRect damage_rect_of_blinking_carets();
     void update_scrollbar_visibility();
     void report_scrollbar_visibility_changes();
@@ -482,6 +481,9 @@ private:
 
     ContextScene m_scene;
     ContextPresenter m_presenter;
+    bool m_presents_to_client { false };
+    Gfx::IntSize m_viewport_size;
+    bool m_paused_debugger_overlay_is_shown { false };
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
 
     Compositing::AsyncScrollTree m_async_scroll_tree;

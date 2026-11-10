@@ -63,7 +63,8 @@ ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> pa
     : m_web_content_client(web_content_client)
     , m_context_id(context_id)
     , m_page_id(page_id)
-    , m_presenter(m_scene, canvas_surfaces, page_id.has_value())
+    , m_presenter(canvas_surfaces, page_id.has_value())
+    , m_presents_to_client(page_id.has_value())
     , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
     , m_request_animation_frames(move(request_animation_frames))
 {
@@ -132,17 +133,12 @@ void ContextState::stop_presenting_to_client()
     m_pointer_in_nested_contexts = {};
     end_keyboard_scroll_gesture();
     m_elastic_overscroll_controller.forget();
-    m_presenter.stop_presenting_to_client();
+    m_presents_to_client = false;
 }
 
 void ContextState::set_parent_context(Optional<Web::CompositorContextId> parent_context_id)
 {
     m_parent_context_id = parent_context_id;
-}
-
-void ContextState::apply_display_list_resource_transaction(Compositing::DisplayListResourceTransaction&& resource_transaction)
-{
-    m_scene.apply_resource_transaction(move(resource_transaction));
 }
 
 void ContextState::install_display_list_update(
@@ -202,27 +198,28 @@ Gfx::IntRect ContextState::damage_rect_of_blinking_carets()
             return;
         auto rect = visual_context_tree.transform_rect_to_viewport(context.spatial, bounding_rect.template to_type<float>(), presented_scroll_state_snapshot);
         if (!isfinite(rect.x()) || !isfinite(rect.y()) || !isfinite(rect.width()) || !isfinite(rect.height())) {
-            damage_rect = { {}, m_presenter.viewport_size() };
+            damage_rect = { {}, m_viewport_size };
             return;
         }
-        rect.intersect(Gfx::IntRect { {}, m_presenter.viewport_size() }.to_type<float>());
+        rect.intersect(Gfx::IntRect { {}, m_viewport_size }.to_type<float>());
         if (!rect.is_empty())
             damage_rect.unite(Gfx::enclosing_int_rect(rect).inflated(1, 1, 1, 1));
     });
-    damage_rect.intersect({ {}, m_presenter.viewport_size() });
+    damage_rect.intersect({ {}, m_viewport_size });
     return damage_rect;
 }
 
-void ContextState::update_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
+bool ContextState::update_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree)
 {
-    if (!m_scene.replace_visual_context_tree(move(visual_context_tree), move(resource_transaction)))
-        return;
+    if (!m_scene.replace_visual_context_tree(move(visual_context_tree)))
+        return false;
     // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
     // pairs with this tree arrives in a separate message.
     Compositing::resolve_sticky_offsets(*m_scene.visual_context_tree(), m_scroll_state_snapshot);
 
     if (m_has_async_scrolling_state)
         rebuild_wheel_hit_test_targets();
+    return true;
 }
 
 void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
@@ -239,11 +236,6 @@ void ContextState::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll
     if (kept_viewport_scroll_offset.has_value())
         m_async_scrolling_viewport_rect.set_location(kept_viewport_scroll_offset->to_type<int>());
     adopt_keyboard_scroll_state(move(keyboard_scroll_state));
-}
-
-void ContextState::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::DisplayingVideoSink> sink)
-{
-    m_scene.set_video_sink(frame_id, move(sink));
 }
 
 void ContextState::invalidate_wheel_event_listener_state(u64 generation)
@@ -272,7 +264,7 @@ void ContextState::end_keyboard_scroll_gesture()
 
 Optional<ContextState::KeyScroll> ContextState::key_scroll_for(Web::KeyEvent const& event) const
 {
-    if (!presents_to_client() || m_presenter.ui_overlays().paused_debugger.has_value()
+    if (!presents_to_client() || m_paused_debugger_overlay_is_shown
         || m_visibility != Compositing::ContextVisibility::Visible
         || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
         || !m_keyboard_scroll_controller.has_target()
@@ -2010,31 +2002,25 @@ bool ContextState::has_pending_async_scroll_updates() const
     return m_async_scroll_update_outbox.has_updates(user_scroll_gesture_state());
 }
 
-void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
+void ContextState::viewport_size_updated(Gfx::IntSize viewport_size)
 {
     m_scene.forget_whether_animated_content_may_affect_viewport();
-    if (m_presenter.viewport_size() != viewport_size)
+    if (m_viewport_size != viewport_size)
         m_keyboard_scroll_controller.forget_target();
-    auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
-    m_presenter.set_viewport_size(viewport_size, device_pixel_ratio, is_page_presentation_context ? window_resize_in_progress : Compositing::WindowResizingInProgress::No);
+    m_viewport_size = viewport_size;
 }
 
-bool ContextState::set_ui_overlays(Compositing::UIOverlays overlays)
+void ContextState::set_paused_debugger_overlay_is_shown(bool is_shown)
 {
-    if (m_presenter.ui_overlays() == overlays)
-        return false;
-
-    if (overlays.paused_debugger.has_value())
+    if (is_shown)
         end_keyboard_scroll_gesture();
-    m_presenter.set_ui_overlays(move(overlays));
-    return true;
+    m_paused_debugger_overlay_is_shown = is_shown;
 }
 
-bool ContextState::set_display_metadata(Optional<u64> display_id, double refresh_rate)
+void ContextState::set_display_metadata(Optional<u64> display_id, double refresh_rate)
 {
     m_display_id = display_id;
     m_display_refresh_rate = refresh_rate;
-    return m_presenter.pending_present_frame_scheduled();
 }
 
 bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
@@ -2059,18 +2045,16 @@ Vector<Web::CompositorScrollOffset> ContextState::scroll_offsets() const
     return scroll_offsets;
 }
 
-bool ContextState::has_pending_present_frame_scheduled_on(Optional<u64> display_id) const
+FrameInputs ContextState::frame_inputs_as_presented_now()
 {
-    return m_presenter.pending_present_frame_scheduled() && m_display_id == display_id;
-}
-
-ContextPresenter::FrameContent ContextState::frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const* composited_context_resolver) const
-{
+    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
+    auto presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? stretched_scroll_state_snapshot.release_value() : m_scroll_state_snapshot;
+    auto scrollbars = m_scrollbar_controller.scrollbars_of_frame(presented_scroll_state_snapshot);
     return {
-        .presented_scroll_state_snapshot = presented_scroll_state_snapshot,
-        .scrollbar_controller = m_scrollbar_controller,
+        .visual_context_tree = m_scene.visual_context_tree_for_compositing(),
+        .presented_scroll_state_snapshot = move(presented_scroll_state_snapshot),
+        .scrollbars = move(scrollbars),
         .viewport_scroll_node_index = m_async_scroll_tree.viewport_scroll_node_index(),
-        .composited_context_resolver = composited_context_resolver,
     };
 }
 
@@ -2114,7 +2098,7 @@ void ContextState::report_scrollbar_visibility_changes()
         m_web_content_client.overlay_scrollbar_visibilities_changed(changes);
 }
 
-Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame_time)
+Gfx::IntRect ContextState::advance_scrollbar_fades_and_return_damage_rect(MonotonicTime frame_time)
 {
     if (!m_scene.visual_context_tree().has_value())
         return {};
@@ -2122,48 +2106,29 @@ Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     auto damage_rect = m_scrollbar_controller.advance_fades(m_scene.visual_context_tree_for_compositing(), presented_scroll_state_snapshot, frame_time);
     report_scrollbar_visibility_changes();
-    auto viewport_rect = m_presenter.viewport_rect_for_ui_overlay();
-    if (damage_rect.is_empty() || !viewport_rect.has_value())
+    return damage_rect;
+}
+
+Optional<FrameInputs> ContextState::frame_inputs()
+{
+    update_scrollbar_visibility();
+    if (!m_scene.display_list())
         return {};
-    return PendingFrame { *viewport_rect, damage_rect };
+    return frame_inputs_as_presented_now();
 }
 
-Optional<PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
+ContextState::ScreenshotInputs ContextState::frame_inputs_for_screenshot()
 {
-    update_scrollbar_visibility();
-    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
-    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-    return m_presenter.prepare_frame(display_list_player, pending_frame, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
-}
-
-bool ContextState::present_synchronously(DisplayListPlayerSkia& display_list_player, CompositedContextResolver const* composited_context_resolver)
-{
-    update_scrollbar_visibility();
-    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
-    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-    return m_presenter.present_synchronously(display_list_player, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
-}
-
-Optional<PendingFrame> ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
-{
-    VERIFY(can_paint_screenshot(target_bitmap));
+    VERIFY(m_scene.display_list());
 
     // Screenshot requests can arrive between display ticks, so sample animations and scrollbar visibility at capture
     // time.
     auto capture_time = MonotonicTime::now();
     advance_visual_animations(capture_time);
     update_scrollbar_visibility();
-    auto scrollbar_fade_frame = advance_scrollbar_fades(capture_time);
+    auto scrollbar_fade_damage_rect = advance_scrollbar_fades_and_return_damage_rect(capture_time);
 
-    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
-    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-    m_presenter.paint_screenshot(display_list_player, target_bitmap, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
-    return scrollbar_fade_frame;
-}
-
-bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) const
-{
-    return m_scene.display_list() && target_bitmap.is_valid() && target_bitmap.bitmap();
+    return { .frame_inputs = frame_inputs_as_presented_now(), .scrollbar_fade_damage_rect = scrollbar_fade_damage_rect };
 }
 
 Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_viewport_scroll_delta(Gfx::FloatPoint delta)
@@ -2585,7 +2550,7 @@ void ContextState::rebuild_wheel_hit_test_targets()
 
 bool ContextState::visual_animations_need_frame()
 {
-    return m_scene.visual_animations_need_frame(m_scroll_state_snapshot, m_presenter.viewport_size());
+    return m_scene.visual_animations_need_frame(m_scroll_state_snapshot, m_viewport_size);
 }
 
 bool ContextState::advance_visual_animations(MonotonicTime now)

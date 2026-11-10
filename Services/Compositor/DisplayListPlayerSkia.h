@@ -52,11 +52,11 @@ public:
         RefPtr<Gfx::PaintingSurface>,
         OwnedCanvasSurfaces const*,
         CompositedContextResolver const*,
-        ScrollbarController const* = nullptr);
+        ReadonlySpan<ScrollbarController::ScrollbarOfFrame> = {});
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
-    void paint_scrollbar(Gfx::PaintingSurface&, ScrollbarController::PresentedScrollbar const&);
+    void paint_scrollbars_painted_by_compositor(Gfx::PaintingSurface&, ReadonlySpan<ScrollbarController::ScrollbarOfFrame>);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \
@@ -91,7 +91,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CompositedContextResolver const* m_composited_context_resolver { nullptr };
     // Says how opaque the scrollbars that the display list paints are.
-    ScrollbarController const* m_scrollbar_controller { nullptr };
+    ReadonlySpan<ScrollbarController::ScrollbarOfFrame> m_scrollbars_of_frame;
     DisplayListRasterCache* m_raster_cache { nullptr };
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 };

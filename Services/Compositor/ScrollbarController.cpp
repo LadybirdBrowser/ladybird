@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
@@ -446,54 +445,51 @@ static Gfx::FloatRect interpolated_rect(Gfx::IntRect const& from, Gfx::IntRect c
     };
 }
 
-ScrollbarController::PresentedScrollbar ScrollbarController::presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Color thumb_color, Color thumb_outline_color, Color track_color) const
+Vector<ScrollbarController::ScrollbarOfFrame> ScrollbarController::scrollbars_of_frame(Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
-    auto const& scrollbar = m_scrollbars[scrollbar_index];
-    auto progress = expansion(scrollbar_index);
+    Vector<ScrollbarOfFrame> scrollbars_of_frame;
+    scrollbars_of_frame.ensure_capacity(m_scrollbars.size());
+    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
+        auto const& scrollbar = m_scrollbars[i];
+        auto progress = expansion(i);
 
-    auto thin_thumb_rect = thumb_rect_kept_inside_track(translated_thumb_rect(scrollbar, scroll_state_snapshot, false), scrollbar.track_rect, scrollbar.vertical);
-    auto expanded_thumb_rect = thumb_rect_kept_inside_track(translated_thumb_rect(scrollbar, scroll_state_snapshot, true), scrollbar.expanded_gutter_rect, scrollbar.vertical);
-    // An empty thumb has nothing to grow from or to.
-    if (thin_thumb_rect.is_empty())
-        thin_thumb_rect = expanded_thumb_rect;
-    if (expanded_thumb_rect.is_empty())
-        expanded_thumb_rect = thin_thumb_rect;
+        auto thin_thumb_rect = thumb_rect_kept_inside_track(translated_thumb_rect(scrollbar, scroll_state_snapshot, false), scrollbar.track_rect, scrollbar.vertical);
+        auto expanded_thumb_rect = thumb_rect_kept_inside_track(translated_thumb_rect(scrollbar, scroll_state_snapshot, true), scrollbar.expanded_gutter_rect, scrollbar.vertical);
+        // An empty thumb has nothing to grow from or to.
+        if (thin_thumb_rect.is_empty())
+            thin_thumb_rect = expanded_thumb_rect;
+        if (expanded_thumb_rect.is_empty())
+            expanded_thumb_rect = thin_thumb_rect;
 
+        scrollbars_of_frame.unchecked_append({
+            .scroll_node_index = scrollbar.scroll_node_index,
+            .vertical = scrollbar.vertical,
+            .is_painted_by_compositor = scrollbar.is_painted_by_compositor,
+            .gutter_rect = interpolated_rect(scrollbar.track_rect, scrollbar.expanded_gutter_rect, progress),
+            .thumb_rect = interpolated_rect(thin_thumb_rect, expanded_thumb_rect, progress),
+            .expansion = progress,
+            .opacity = opacity(i),
+            .thumb_color = scrollbar.thumb_color,
+            .thumb_outline_color = scrollbar.thumb_outline_color,
+            .track_color = scrollbar.track_color,
+            .thin_and_expanded_gutter_rect = scrollbar.gutter_rect.united(scrollbar.expanded_gutter_rect),
+        });
+    }
+    return scrollbars_of_frame;
+}
+
+ScrollbarController::PresentedScrollbar ScrollbarController::ScrollbarOfFrame::presented_with_colors(Color thumb_color, Color thumb_outline_color, Color track_color) const
+{
     // The gutter of a thin scrollbar is not painted, so the gutter grows out of the thin track as it fades in.
-    auto track_alpha = roundf(static_cast<float>(track_color.alpha()) * progress);
+    auto track_alpha = roundf(static_cast<float>(track_color.alpha()) * expansion);
     return PresentedScrollbar {
-        .gutter_rect = interpolated_rect(scrollbar.track_rect, scrollbar.expanded_gutter_rect, progress),
-        .thumb_rect = interpolated_rect(thin_thumb_rect, expanded_thumb_rect, progress),
+        .gutter_rect = gutter_rect,
+        .thumb_rect = thumb_rect,
         .thumb_color = thumb_color,
         .thumb_outline_color = thumb_outline_color,
         .track_color = track_color.with_alpha(static_cast<u8>(track_alpha)),
-        .opacity = opacity(scrollbar_index),
+        .opacity = opacity,
     };
-}
-
-Optional<ScrollbarController::PresentedScrollbar> ScrollbarController::presented_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical, Color thumb_color, Color thumb_outline_color, Color track_color, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
-{
-    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
-        auto const& scrollbar = m_scrollbars[i];
-        if (!scrollbar.is_painted_by_compositor && scrollbar.scroll_node_index == scroll_node_index && scrollbar.vertical == vertical)
-            return presented_scrollbar(i, scroll_state_snapshot, thumb_color, thumb_outline_color, track_color);
-    }
-    return {};
-}
-
-bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayerSkia& display_list_player, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
-{
-    bool painted_a_scrollbar = false;
-    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
-        auto const& scrollbar = m_scrollbars[i];
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        if (opacity(i) <= 0)
-            continue;
-        display_list_player.paint_scrollbar(surface, presented_scrollbar(i, scroll_state_snapshot, scrollbar.thumb_color, scrollbar.thumb_outline_color, scrollbar.track_color));
-        painted_a_scrollbar = true;
-    }
-    return painted_a_scrollbar;
 }
 
 bool ScrollbarController::is_expanded(size_t scrollbar_index) const

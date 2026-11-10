@@ -29,7 +29,7 @@ void ContextScene::install(NonnullRefPtr<Compositing::DisplayList> display_list,
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
 }
 
-bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
+bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree)
 {
     if (!m_display_list || m_display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch()) {
         dbgln("Compositor: Dropping stale visual context tree update (tree epoch {}, display list epoch {})",
@@ -38,20 +38,9 @@ bool ContextScene::replace_visual_context_tree(Compositing::AccumulatedVisualCon
         return false;
     }
     invalidate_visual_context_tree_for_compositing();
-    apply_resource_transaction(move(resource_transaction));
     m_visual_context_tree = move(visual_context_tree);
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
     return true;
-}
-
-void ContextScene::apply_resource_transaction(Compositing::DisplayListResourceTransaction&& resource_transaction)
-{
-    m_raster_cache.evict(m_resource_storage.apply_transaction(move(resource_transaction)));
-}
-
-void ContextScene::set_video_sink(Compositing::VideoSinkResourceId frame_id, RefPtr<Media::DisplayingVideoSink> sink)
-{
-    m_resource_storage.set_video_sink(frame_id, move(sink));
 }
 
 Compositing::AccumulatedVisualContextTree const& ContextScene::current_visual_context_tree() const
