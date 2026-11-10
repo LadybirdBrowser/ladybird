@@ -1027,6 +1027,11 @@ impl<'pass> NodeFacts<'pass> {
         self.data().kind.get() == NodeKind::RangeInputBox
     }
 
+    /// A checkbox or radio button box, which only exists while the control keeps its native appearance.
+    pub(crate) fn is_non_devolvable_widget(&self) -> bool {
+        kind_is_non_devolvable_widget(self.data().kind.get())
+    }
+
     pub(crate) fn is_native_form_control_box(&self) -> bool {
         matches!(
             self.data().kind.get(),

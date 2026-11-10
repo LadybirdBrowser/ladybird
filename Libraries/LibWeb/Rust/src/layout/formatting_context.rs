@@ -742,6 +742,14 @@ pub(crate) fn box_baseline_with_content_baselines(
         return metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed);
     }
 
+    // AD-HOC: A checkbox or radio button with its native appearance takes its bottom border edge as its baseline,
+    //         rather than the bottom margin edge of a replaced box, so the control sits on the line next to its label
+    //         text instead of above it. With "appearance: none" it's an ordinary box, and its baseline is synthesized
+    //         as usual.
+    if facts.is_non_devolvable_widget() {
+        return metrics.margin_box_top(collapsed) + metrics.content_block_size() + metrics.border_box_bottom(collapsed);
+    }
+
     let display = facts.display();
     let is_flex_or_grid_container = display.is_flex_inside() || display.is_grid_inside();
 
