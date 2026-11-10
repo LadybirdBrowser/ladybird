@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        for (const method of ["write", "writeln", "alternating"]) {
+            const other = document.createElement("iframe");
+            document.body.appendChild(other);
+            window.otherDocument = other.contentDocument;
+            window.otherDocument.open();
+            const iframe = document.createElement("iframe");
+            const loaded = new Promise(resolve => (iframe.onload = resolve));
+            iframe.srcdoc = `<!DOCTYPE html><body>
+                <script>
+                    window.calls = 0;
+                <\/script>
+                <script id="recursive">
+                    ++window.calls;
+                    // Bound the test even if recursive writes aren't limited.
+                    if (window.calls < 64) {
+                        const call = window.calls;
+                        const method = ${JSON.stringify(method)};
+                        const writer = method === "alternating" ? (window.calls % 2 ? "write" : "writeln") : method;
+                        document[writer](document.currentScript.outerHTML);
+                        document[writer]("<i></i>");
+                        if (call === 22)
+                            parent.otherDocument.write("<u></u>");
+                    }
+                <\/script>
+                <script>
+                    window.firstCalls = window.calls;
+                    window.firstMarkers = document.querySelectorAll("i").length;
+                    window.calls = 0;
+                    document.write(document.querySelector("#recursive").outerHTML);
+                    window.secondCalls = window.calls;
+                    for (let i = 0; i < 50; ++i)
+                        document.write("<b></b>");
+                <\/script>`;
+            document.body.appendChild(iframe);
+            await loaded;
+            const child = iframe.contentWindow;
+            println(`${method}: first chain ran ${child.firstCalls} scripts`);
+            println(`${method}: unwinding markers: ${child.firstMarkers}`);
+            println(`${method}: second chain ran ${child.secondCalls} scripts`);
+            println(`${method}: ${child.document.querySelectorAll("b").length} subsequent writes`);
+            println(`${method}: other document accepted writes: ${otherDocument.querySelector("u") !== null}`);
+            otherDocument.close();
+            delete window.otherDocument;
+            other.remove();
+            iframe.remove();
+        }
+        done();
+    });
+</script>
