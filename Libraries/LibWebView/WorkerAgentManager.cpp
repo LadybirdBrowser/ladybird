@@ -61,7 +61,7 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(We
 
     // 11.1. Let workerGlobalScope be null.
     SharedWorkerKey key {
-        .is_private = is_private,
+        .session_id = owner_client.session().id(),
         .storage_key = outside_storage_key,
         .url = request.url,
         .name = Utf16String::from_utf8(request.name),
