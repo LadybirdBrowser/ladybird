@@ -137,12 +137,12 @@ WorkerAgentManager::StartedWorkerAgent WorkerAgentManager::start_worker_agent(We
             return IPC::Transport::create_paired();
         }());
         if (host_has_only_this_worker) {
-            host = TRY(Application::the().launch_web_content_process_without_page(is_private));
+            host = TRY(Application::the().launch_web_content_process_without_page(owner_client.session()));
             host->async_start_worker_thread(move(transport.remote_handle), request.agent_type);
         } else {
             thread_transport = move(transport.remote_handle);
         }
-        return create_worker_client(move(transport.local), is_private, agent_id, *host, owner_client.request_server_site_bindings());
+        return create_worker_client(move(transport.local), agent_id, *host, owner_client.request_server_site_bindings());
     }();
     // A worker the system cannot give a thread fails to load, as one whose script cannot be fetched does.
     if (client_or_error.is_error()) {
@@ -231,7 +231,7 @@ void WorkerAgentManager::register_dedicated_worker(DedicatedWorkerOwner const& o
             IPC::ScopedSharedIOThread shared_io_thread;
             return worker_transport.create_transport();
         }());
-        return create_worker_client(move(transport), owner.is_private, 0, owner.process, owner.request_server_site_bindings);
+        return create_worker_client(move(transport), 0, owner.process, owner.request_server_site_bindings);
     }();
     if (client_or_error.is_error()) {
         dbgln("Unable to start a dedicated worker: {}", client_or_error.error());
@@ -265,22 +265,20 @@ bool WorkerAgentManager::has_reached_worker_limit(IsPrivate is_private, Canonica
     return worker_count_of_top_level_site >= Web::HTML::maximum_worker_count;
 }
 
-ErrorOr<NonnullRefPtr<WebWorkerClient>> WorkerAgentManager::create_worker_client(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id, WebContentClient& host, RequestServerSiteBindings const& owner_request_server_site_bindings)
+ErrorOr<NonnullRefPtr<WebWorkerClient>> WorkerAgentManager::create_worker_client(NonnullOwnPtr<IPC::Transport> transport, Web::HTML::WorkerAgentId agent_id, WebContentClient& host, RequestServerSiteBindings const& owner_request_server_site_bindings)
 {
-    auto client = TRY(try_make_ref_counted<WebWorkerClient>(move(transport), is_private, agent_id));
+    // A worker belongs to the browsing session of the process its thread runs in.
+    auto& session = host.session();
+    auto client = TRY(try_make_ref_counted<WebWorkerClient>(move(transport), session, agent_id));
     client->set_host(host);
 
-    // The worker's RequestServer client uses the cookies of the session the worker itself belongs to.
-    auto session = client->session();
-    if (!session)
-        session = Application::session_for_new_view(is_private);
     // The worker makes its requests for the sites its owner makes them for.
     client->request_server_site_bindings().bind_sites_of(owner_request_server_site_bindings);
 
     // The worker's requests go through the RequestServers of its owner's sites.
-    TRY(client->request_server_site_bindings().connect(*session));
+    TRY(client->request_server_site_bindings().connect(session));
     client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
-    client->async_set_permission_snapshot(session->permission_manager->snapshot_for({}));
+    client->async_set_permission_snapshot(session.permission_manager->snapshot_for({}));
     // The User-Agent string, the navigator compatibility mode, and the preferred languages live in this process.
     // Pages get them through their view; a worker gets the same values here, so its navigator never contradicts
     // the page's.

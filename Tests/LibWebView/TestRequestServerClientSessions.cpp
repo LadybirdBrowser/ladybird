@@ -12,12 +12,15 @@
 #include <LibRequests/RequestClient.h>
 #include <LibRequests/RequestControlClient.h>
 #include <LibTest/TestCase.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace {
 
@@ -133,5 +136,46 @@ TEST_CASE(request_server_client_sessions)
     VERIFY(app->session_for_request_server_client(disconnecting_client));
     s_clients.clear();
     Core::EventLoop::current().spin_until([&] { return !app->session_for_request_server_client(disconnecting_client); });
+
+    // A worker uses the cookies of the browsing session of the process it runs in, also one that a page's worker
+    // starts after the page's private session was restarted, whether or not the next private session has begun.
+    auto worker_owner_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
+    worker_owner_view->load(URL::Parser::basic_parse("data:text/html,<title>workers</title>"sv).release_value());
+    Core::EventLoop::current().spin_until([&] { return worker_owner_view->title() == "workers"sv; });
+    auto& worker_owner_session = worker_owner_view->page().client().session();
+    worker_owner_view->run_javascript(R"js(
+        const script = `
+            const nestedWorkers = [];
+            onmessage = () => {
+                const nestedWorker = new Worker("data:text/javascript,postMessage(0)");
+                nestedWorker.onmessage = () => postMessage(nestedWorkers.length);
+                nestedWorkers.push(nestedWorker);
+            };
+            postMessage(0);
+        `;
+        window.worker = new Worker(`data:text/javascript,${encodeURIComponent(script)}`);
+        worker.onmessage = event => document.title = `nested workers: ${event.data}`;
+    )js"_string);
+    auto wait_for_nested_workers = [&](size_t count) {
+        auto title = ByteString::formatted("nested workers: {}", count);
+        Core::EventLoop::current().spin_until([&] { return worker_owner_view->title() == title.view(); });
+    };
+    wait_for_nested_workers(0);
+
+    app->reset_private_browsing_session();
+    worker_owner_view->run_javascript("worker.postMessage(null);"_string);
+    wait_for_nested_workers(1);
+    auto next_private_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
+    VERIFY(&next_private_view->page().client().session() != &worker_owner_session);
+    worker_owner_view->run_javascript("worker.postMessage(null);"_string);
+    wait_for_nested_workers(2);
+
+    size_t worker_count = 0;
+    WebView::WorkerAgentManager::the().for_each_request_server_site_bindings([&](WebView::RequestServerSiteBindings& bindings) {
+        VERIFY(app->session_for_request_server_client(*bindings.client_id()).ptr() == &worker_owner_session);
+        ++worker_count;
+        return IterationDecision::Continue;
+    });
+    VERIFY(worker_count == 3);
     outln("PASS: RequestServer clients use the cookies of the browsing session they were created for");
 }
