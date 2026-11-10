@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-highlight-rtl-partial-ref.html">
+<style>
+@font-face { font-family: TestHebrew; src: url(wpt-import/fonts/mplus-1p-regular.woff); }
+body { margin: 0; font: 40px TestHebrew; }
+p { margin: 10px; }
+::selection { background-color: red; color: black; }
+</style>
+<p dir="rtl"><span id="text">אבגדה</span></p>
+<script>
+    // The second and third characters of right-to-left text are drawn second and third from the right, and the
+    // selection of them highlights them there.
+    const text = document.getElementById("text").firstChild;
+    getSelection().setBaseAndExtent(text, 1, text, 3);
+</script>
