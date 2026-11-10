@@ -41,6 +41,7 @@ pub mod record;
 pub(crate) mod recording_slot;
 pub(crate) mod replaced_paint_facts;
 pub(crate) mod scroll_chain;
+pub(crate) mod scroll_resnap;
 pub(crate) mod scroll_snap;
 pub mod scrollable_overflow;
 pub mod selection;

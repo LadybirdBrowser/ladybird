@@ -10,7 +10,7 @@
 #include <AK/RefPtr.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibCompositing/Types.h>
-#include <LibGfx/Matrix.h>
+#include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Rect.h>
 
 namespace Compositor {

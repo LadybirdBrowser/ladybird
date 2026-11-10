@@ -7,8 +7,7 @@
 //! The plain FFI types the visual context tree hands across the C++ boundary on both sides of the
 //! compositor process boundary.
 
-use crate::display_list::commands::OptionalF32;
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, FloatSize};
+use libgfx_rust::{FloatMatrix4x4, FloatPoint};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -100,21 +99,4 @@ pub struct FfiVisualAnimationSummary {
 pub struct FfiAnimatedContentViewportEffect {
     pub may_affect_viewport: bool,
     pub stable_until_scene_changes: bool,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiTestStickyConstraints {
-    pub scroller: u32,
-    pub has_parent_sticky: bool,
-    pub parent_sticky: u32,
-    pub position_relative_to_scroller: FloatPoint,
-    pub border_box_size: FloatSize,
-    pub scrollport_size: FloatSize,
-    pub containing_block_region: FloatRect,
-    pub needs_parent_offset_adjustment: bool,
-    pub inset_top: OptionalF32,
-    pub inset_right: OptionalF32,
-    pub inset_bottom: OptionalF32,
-    pub inset_left: OptionalF32,
 }

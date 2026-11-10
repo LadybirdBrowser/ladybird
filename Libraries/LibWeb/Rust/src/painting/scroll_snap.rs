@@ -6,7 +6,7 @@
 
 //! The geometry scroll snap position selection runs over, collected from the layout of a snap
 //! container and of the snap areas it captures. The selection itself lives in
-//! `LibWeb/Compositor/ScrollSnapSelection.cpp`, so that the main thread and the compositor process
+//! `libcompositing_rust::scrolling::scroll_snap_selection`, so that the main thread and the compositor process
 //! select from the same geometry.
 
 use crate::css::computed_value_types::ComputedLengthBox;
@@ -18,12 +18,103 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::chrome_geometry::{maximum_scroll_offset, minimum_scroll_offset};
-use crate::painting::host::{FfiSnapAreaGeometry, FfiSnapAxes, FfiSnapContainerGeometry};
+use crate::painting::host::{
+    FfiSnapAreaGeometry, FfiSnapAreaIdentity, FfiSnapAxes, FfiSnapContainerGeometry, FfiSnapSelectionStrategy,
+};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
 use crate::painting::style_queries;
 use crate::painting::visual_context::node_values::compute_transform;
+use libcompositing_rust::display_list::commands::UniqueNodeId;
+use libcompositing_rust::scrolling::SnapAreaIdentity;
+use libcompositing_rust::scrolling::scroll_snap_selection::{
+    SnapAlign, SnapAreaGeometry, SnapAxes, SnapContainerGeometry, SnapSelectionStrategy, SnapStrictness,
+};
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect};
+
+const _: () = {
+    assert!(scroll_snap_align::NONE == SnapAlign::None as u8);
+    assert!(scroll_snap_align::START == SnapAlign::Start as u8);
+    assert!(scroll_snap_align::END == SnapAlign::End as u8);
+    assert!(scroll_snap_align::CENTER == SnapAlign::Center as u8);
+    assert!(scroll_snap_strictness::NONE == SnapStrictness::None as u8);
+    assert!(scroll_snap_strictness::PROXIMITY == SnapStrictness::Proximity as u8);
+    assert!(scroll_snap_strictness::MANDATORY == SnapStrictness::Mandatory as u8);
+};
+
+impl From<FfiSnapAreaIdentity> for SnapAreaIdentity {
+    fn from(area: FfiSnapAreaIdentity) -> Self {
+        Self {
+            node_id: UniqueNodeId(area.node_id),
+            pseudo_element_type: area.pseudo_element_type,
+        }
+    }
+}
+
+impl From<SnapAreaIdentity> for FfiSnapAreaIdentity {
+    fn from(area: SnapAreaIdentity) -> Self {
+        Self {
+            node_id: area.node_id.0,
+            pseudo_element_type: area.pseudo_element_type,
+        }
+    }
+}
+
+impl From<FfiSnapContainerGeometry> for SnapContainerGeometry {
+    fn from(geometry: FfiSnapContainerGeometry) -> Self {
+        Self {
+            snapport: geometry.snapport.into(),
+            min_scroll_offset: geometry.min_scroll_offset.into(),
+            max_scroll_offset: geometry.max_scroll_offset.into(),
+            strictness: match geometry.strictness {
+                scroll_snap_strictness::NONE => SnapStrictness::None,
+                scroll_snap_strictness::PROXIMITY => SnapStrictness::Proximity,
+                scroll_snap_strictness::MANDATORY => SnapStrictness::Mandatory,
+                _ => unreachable!("invalid snap strictness"),
+            },
+            axes: SnapAxes {
+                x: geometry.axes.x,
+                y: geometry.axes.y,
+            },
+            horizontal_writing_mode: geometry.horizontal_writing_mode,
+        }
+    }
+}
+
+impl From<FfiSnapAreaGeometry> for SnapAreaGeometry {
+    fn from(area: FfiSnapAreaGeometry) -> Self {
+        let align = |value| match value {
+            scroll_snap_align::NONE => SnapAlign::None,
+            scroll_snap_align::START => SnapAlign::Start,
+            scroll_snap_align::END => SnapAlign::End,
+            scroll_snap_align::CENTER => SnapAlign::Center,
+            _ => unreachable!("invalid snap alignment"),
+        };
+        Self {
+            identity: SnapAreaIdentity {
+                node_id: UniqueNodeId(area.node_id),
+                pseudo_element_type: area.pseudo_element_type,
+            },
+            rect: area.rect.into(),
+            align_x: align(area.align_x),
+            align_y: align(area.align_y),
+            always_stop: area.always_stop,
+        }
+    }
+}
+
+impl From<&FfiSnapSelectionStrategy> for SnapSelectionStrategy {
+    fn from(strategy: &FfiSnapSelectionStrategy) -> Self {
+        Self {
+            r#type: strategy.r#type,
+            start_offset: strategy.has_start_offset.then(|| strategy.start_offset.into()),
+            displacement: strategy.displacement.into(),
+            starting_positions_boundary: strategy
+                .has_starting_positions_boundary
+                .then(|| strategy.starting_positions_boundary.into()),
+        }
+    }
+}
 
 /// The box whose style the snap properties of a scroll container come from. The properties
 /// specified on the root element apply to the viewport rather than to its own box.

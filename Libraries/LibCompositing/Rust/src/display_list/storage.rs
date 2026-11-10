@@ -9,12 +9,9 @@
 //! it back to the entry points of this crate.
 
 use super::builder::RecordedDisplayList;
-use super::commands::{ContextRef, DisplayListCommandRun, DisplayListCommandType};
+use super::commands::{ContextRef, DisplayListCommandRun};
 use super::effect_clip_plan::EffectClipPlan;
-use super::summary::{
-    DisplayListSummary, for_each_compositor_metadata, for_each_indexed_record,
-    requires_direct_replay_without_nested_lists, summarize,
-};
+use super::summary::{DisplayListSummary, requires_direct_replay_without_nested_lists, summarize};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
 use std::ffi::c_void;
@@ -401,58 +398,6 @@ pub unsafe extern "C" fn display_list_storage_requires_direct_replay_without_nes
     let storage = unsafe { storage_from_handle(storage) };
     let tree = unsafe { crate::ffi::tree_from_handle(tree) };
     requires_direct_replay_without_nested_lists(storage.bytes(), storage.command_runs(), tree)
-}
-
-/// Calls `visit` with each compositor metadata command, its run's context and its payload.
-///
-/// # Safety
-/// `storage` must be a live storage handle. `visit` runs synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_for_each_compositor_metadata(
-    storage: *const c_void,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, ContextRef, DisplayListCommandType, *const u8, usize),
-) {
-    let storage = unsafe { storage_from_handle(storage) };
-    for_each_compositor_metadata(
-        storage.bytes(),
-        storage.command_runs(),
-        |run_context, command_type, payload| {
-            // SAFETY: The caller reads the payload synchronously.
-            unsafe { visit(context, run_context, command_type, payload.as_ptr(), payload.len()) };
-        },
-    );
-}
-
-/// Calls `visit` with each top-level PaintCaret record of the list: its run's context, its bounding
-/// rect, and its payload.
-///
-/// # Safety
-/// `storage` must be a live storage handle. `visit` runs synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_for_each_caret(
-    storage: *const c_void,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, ContextRef, libgfx_rust::IntRect, *const u8, usize),
-) {
-    let storage = unsafe { storage_from_handle(storage) };
-    for_each_indexed_record(
-        storage.bytes(),
-        storage.command_runs(),
-        &storage.summary().carets,
-        |run_context, header, payload| {
-            // SAFETY: The caller reads the payload synchronously.
-            unsafe {
-                visit(
-                    context,
-                    run_context,
-                    header.bounding_rect,
-                    payload.as_ptr(),
-                    payload.len(),
-                );
-            }
-        },
-    );
 }
 
 // A tape and run table that C++ writes into before they are checked.

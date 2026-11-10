@@ -9,10 +9,10 @@
 
 [ExistingCpp, RustDerive=Hash+PartialOrd+Ord]
 enum Web::AsyncScrollNodeKind : u8 {
-    Viewport,
-    Element,
-    PseudoElement,
-    VisualViewport,
+    Viewport = 0,
+    Element = 1,
+    PseudoElement = 2,
+    VisualViewport = 3,
 }
 
 [ExistingCpp, RustDerive=Copy+Eq+Hash+PartialOrd+Ord]

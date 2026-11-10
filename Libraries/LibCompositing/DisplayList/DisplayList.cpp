@@ -95,21 +95,6 @@ bool DisplayList::requires_direct_replay_without_nested_lists(AccumulatedVisualC
     return RustFFI::display_list_storage_requires_direct_replay_without_nested_lists(m_storage, visual_context_tree.rust_handle());
 }
 
-void DisplayList::for_each_compositor_metadata(Function<void(ContextRef, DisplayListCommandType, ReadonlyBytes)> const& callback) const
-{
-    RustFFI::display_list_storage_for_each_compositor_metadata(m_storage, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, DisplayListCommandType command_type, u8 const* payload, size_t payload_size) {
-        (*static_cast<Function<void(ContextRef, DisplayListCommandType, ReadonlyBytes)> const*>(context))(run_context, command_type, { payload, payload_size });
-    });
-}
-
-void DisplayList::for_each_caret(Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const& callback) const
-{
-    RustFFI::display_list_storage_for_each_caret(m_storage, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, ContextRef run_context, Gfx::IntRect bounding_rect, u8 const* payload, size_t payload_size) {
-        auto command = read_display_list_object<PaintCaret>({ payload, payload_size });
-        (*static_cast<Function<void(ContextRef, Gfx::IntRect, PaintCaret const&)> const*>(context))(run_context, bounding_rect, command);
-    });
-}
-
 void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
 {
     VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());

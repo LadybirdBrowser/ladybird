@@ -93,7 +93,7 @@ impl TapeEnum for CompositingAndBlendingOperator {
     }
 }
 
-// The values of SnapStrictness and SnapAlign in LibCompositing/Scrolling/ScrollSnapSelection.h.
+// The values of SnapStrictness and SnapAlign in scrolling::scroll_snap_selection.
 const SNAP_STRICTNESS_COUNT: u8 = 3;
 const SNAP_ALIGN_COUNT: u8 = 4;
 

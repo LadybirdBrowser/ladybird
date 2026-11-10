@@ -11,14 +11,9 @@ set(SOURCES
     DisplayList/RustFFIAssertions.cpp
     DisplayList/VisualContextTreeTestBuilder.cpp
     FontServiceClient.cpp
-    Scrolling/AsyncScrollTree.cpp
-    Scrolling/AsyncScrollingState.cpp
-    Scrolling/ElasticOverscroll.cpp
-    Scrolling/ScrollFling.cpp
-    Scrolling/ScrollSnapSelection.cpp
+    Scrolling/RecordedDisplayListScrolling.cpp
     Scrolling/ScrollState.cpp
     Scrolling/SmoothScrollAnimation.cpp
-    Scrolling/WheelGestureIdentity.cpp
     UIOverlays.cpp
     Video/VideoFrameHold.cpp
     Video/VideoFramePresentationPage.cpp
@@ -111,7 +106,7 @@ if(NOT BUILD_SHARED_LIBS)
 
     # POST_BUILD steps don't track inputs, so the bridge files depend on the Rust archive: when it
     # changes, LibCompositing re-archives and the merge picks up the fresh objects.
-    foreach(bridge IN ITEMS DisplayList/AccumulatedVisualContext.cpp DisplayList/DisplayList.cpp DisplayList/DisplayListDamage.cpp DisplayList/DisplayListResourceStorage.cpp DisplayList/VisualContextTreeTestBuilder.cpp)
+    foreach(bridge IN ITEMS DisplayList/AccumulatedVisualContext.cpp DisplayList/DisplayList.cpp DisplayList/DisplayListDamage.cpp DisplayList/DisplayListResourceStorage.cpp DisplayList/VisualContextTreeTestBuilder.cpp Scrolling/RecordedDisplayListScrolling.cpp Scrolling/SmoothScrollAnimation.cpp)
         set_property(SOURCE ${bridge} APPEND PROPERTY OBJECT_DEPENDS ${_libcompositing_rust_lib})
     endforeach()
 endif()

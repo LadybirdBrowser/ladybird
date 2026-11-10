@@ -103,7 +103,6 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "ReplayClip",
             "ReplayLayer",
             "ReplayMask",
-            "FfiVisualViewportTransform",
             "CanvasId",
             "VideoSinkResourceId",
             "Canvas2DPaintKind",
@@ -154,7 +153,6 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("ReplayClip", "Compositing::ReplayClip"),
         ("ReplayLayer", "Compositing::ReplayLayer"),
         ("ReplayMask", "Compositing::ReplayMask"),
-        ("FfiVisualViewportTransform", "Compositing::TransformWithOrigin"),
         ("CanvasId", "Compositing::CanvasId"),
         ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
         ("Canvas2DPaintKind", "Compositing::Canvas2DPaintKind"),
@@ -353,6 +351,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     ffi_config.namespaces = Some(vec!["Compositing".to_string(), "RustFFI".to_string()]);
     expose_css_pixel_types_as_web_types(&mut ffi_config);
     expose_shared_abi_types_as_cpp_types(&mut ffi_config);
+    ffi_config.export.exclude.extend([
+        "MOMENTUM_DISTANCE_SHARE_PER_FRAME".to_string(),
+        "MOMENTUM_FRAME_DURATION_IN_SECONDS".to_string(),
+        "MAXIMUM_MOMENTUM_DURATION_IN_SECONDS".to_string(),
+    ]);
     // An ak::Span is laid out as an AK ReadonlySpan, which C++ passes it as.
     ffi_config
         .export
@@ -362,6 +365,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .rename
         .insert("EncodedValue".to_string(), "AK::ReadonlyBytes".to_string());
+    // The IPC compiler checks that these enums have the numbers in C++ that they have in Rust.
+    for (rust_name, cpp_name) in [
+        ("ScrollAnimationKind", "Compositing::ScrollAnimationKind"),
+        ("InputRoutingDecision", "Web::InputRoutingDecision"),
+        ("AsyncScrollNodeKind", "Web::AsyncScrollNodeKind"),
+    ] {
+        ffi_config
+            .export
+            .rename
+            .insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    ffi_config.after_includes = Some(
+        "\nnamespace Compositing { enum class ScrollAnimationKind : uint8_t; }\nnamespace Web { enum class \
+         InputRoutingDecision : uint8_t; enum class AsyncScrollNodeKind : uint8_t; }"
+            .to_string(),
+    );
     ffi_config.includes.push("AK/Span.h".to_string());
     // The values the entry points of WebContent and of the compositor's scroll logic take and return, which their
     // headers refer to here.
@@ -376,13 +395,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiVisualAnimationTransformOperationKind",
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",
-        "FfiAnimatedContentViewportEffect",
-        "FfiTestStickyConstraints",
         "FfiDisplayListReplayCallbacks",
         "FfiDisplayList",
         "FfiEasingDescriptor",
         "FfiEasingKind",
         "FfiLinearEasingPoint",
+        "SnapSelectionStrategyType",
     ]
     .map(String::from)
     .to_vec();
@@ -406,6 +424,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/display_list/storage.rs"),
             manifest_dir.join("src/display_list/canvas_2d.rs"),
             manifest_dir.join("src/display_list/canvas_2d_recorder.rs"),
+            manifest_dir.join("src/scrolling/smooth_scroll_animation.rs"),
+            manifest_dir.join("src/scrolling/scroll_snap_selection.rs"),
             manifest_dir.join("src/ffi.rs"),
         ],
         &out_dir,

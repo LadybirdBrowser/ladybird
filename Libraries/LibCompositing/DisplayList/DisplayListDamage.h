@@ -39,19 +39,4 @@ COMPOSITING_API Optional<Gfx::IntRect> compute_display_list_damage(
     Gfx::IntRect viewport_rect,
     LiveContentChanges);
 
-struct AnimatedContentViewportEffect {
-    bool may_affect_viewport { true };
-    // The answer holds until the scene changes: no finite animation is still running, so none can stop
-    // contributing on its own.
-    bool stable_until_scene_changes { false };
-};
-
-// Whether the content the tree's animations move at the sample time can reach the viewport.
-COMPOSITING_API AnimatedContentViewportEffect animated_content_may_affect_viewport(
-    DisplayList const&,
-    AccumulatedVisualContextTree const&,
-    ScrollStateSnapshot const&,
-    Gfx::IntRect viewport_rect,
-    i64 sample_time_ns);
-
 }

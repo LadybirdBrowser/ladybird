@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/Internals.h>
 #include <LibWeb/DOM/Document.h>
