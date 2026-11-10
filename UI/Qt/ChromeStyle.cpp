@@ -2195,6 +2195,13 @@ static void paint_circular_control_frame(QPainter& painter, QRect const& rect, q
     }
 }
 
+bool is_in_tab_strip_button_group(QWidget const& button)
+{
+    auto const* group = button.parentWidget();
+    auto const* row = group ? group->parentWidget() : nullptr;
+    return row && row->objectName() == QLatin1StringView("LadybirdTabStrip");
+}
+
 Optional<ControlFrameColors> control_frame_colors(QAbstractButton const& button, ControlFrameStyle frame_style)
 {
     if (!button.isEnabled())
@@ -2212,7 +2219,7 @@ Optional<ControlFrameColors> control_frame_colors(QAbstractButton const& button,
         if (pressed)
             return ControlFrameColors { Theme::panel().pressed, Qt::transparent };
         if (hovered)
-            return ControlFrameColors { Theme::chrome(button.palette()).hover, Qt::transparent };
+            return ControlFrameColors { is_in_tab_strip_button_group(button) ? Theme::chrome(button.palette()).strip_hover : Theme::chrome(button.palette()).hover, Qt::transparent };
         return {};
     }
 

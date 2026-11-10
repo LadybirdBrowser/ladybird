@@ -68,6 +68,7 @@ static ChromeColors const light_chrome {
     .icon = rgb(0x3a3a40),
     .disabled = rgb(0xb3b3b9),
     .hover = rgba(0, 0, 0, 0.06),
+    .strip_hover = rgba(0, 0, 0, 0.06),
     .row_title = rgb(0x3f3f45),
     .separator = rgb(0xbcbcc2),
     .divider = rgb(0xd2d2d6),
@@ -91,6 +92,7 @@ static ChromeColors const dark_chrome {
     .icon = rgb(0xdcdce1),
     .disabled = rgb(0x5b5b61),
     .hover = rgba(255, 255, 255, 0.06),
+    .strip_hover = rgba(255, 255, 255, 0.06),
     .row_title = rgb(0xcfcfd6),
     .separator = rgb(0x3d3d42),
     .divider = rgb(0x0a0a0c),
@@ -103,7 +105,7 @@ static ChromeColors const dark_chrome {
 };
 
 static ChromeColors const private_chrome {
-    .strip = rgb(0x1d1430),
+    .strip = rgb(0x110a20),
     .toolbar = rgb(0x2f2347),
     .sidebar = rgb(0x2f2347),
     .field = rgba(255, 255, 255, 0.09),
@@ -114,6 +116,8 @@ static ChromeColors const private_chrome {
     .icon = rgb(0xe2dcef),
     .disabled = rgb(0x5e566e),
     .hover = rgba(255, 255, 255, 0.07),
+    // NB: The strip and the active tab are close in lightness here, so the normal hover would look like the active tab.
+    .strip_hover = rgba(255, 255, 255, 0.06),
     .row_title = rgb(0xd5cee2),
     .separator = rgb(0x4a3d63),
     .divider = rgb(0x0f0a19),
@@ -137,6 +141,7 @@ static ChromeColors const light_increased_contrast_chrome {
     .icon = rgb(0x1d1d1f),
     .disabled = rgb(0x8e8e93),
     .hover = rgba(0, 0, 0, 0.10),
+    .strip_hover = rgba(0, 0, 0, 0.10),
     .row_title = rgb(0x1d1d1f),
     .separator = rgb(0x8e8e93),
     .divider = rgb(0x6e6e73),
@@ -160,6 +165,7 @@ static ChromeColors const dark_increased_contrast_chrome {
     .icon = rgb(0xf2f2f5),
     .disabled = rgb(0x8a8a90),
     .hover = rgba(255, 255, 255, 0.14),
+    .strip_hover = rgba(255, 255, 255, 0.14),
     .row_title = rgb(0xf2f2f5),
     .separator = rgb(0x8a8a90),
     .divider = rgb(0x8a8a90),
