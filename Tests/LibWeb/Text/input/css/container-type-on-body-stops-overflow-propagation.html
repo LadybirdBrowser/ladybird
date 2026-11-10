@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        container-type: inline-size;
+    }
+    .tall {
+        height: 3000px;
+    }
+</style>
+<div class="tall"></div>
+<script src="../include.js"></script>
+<script>
+    async function report(label) {
+        window.scrollTo(0, 0);
+        await animationFrame();
+        await animationFrame();
+        await internals.wheel(10, 10, 0, 100);
+        println(`${label}: viewport overflow ${internals.viewportOverflowX()}, scrolled by wheel: ${window.scrollY > 0}`);
+    }
+
+    promiseTest(async () => {
+        await report("body container-type: inline-size");
+
+        document.body.style.containerType = "normal";
+        await report("body container-type: normal");
+
+        document.body.style.cssText = "container-type: size; height: 3000px";
+        await report("body container-type: size");
+
+        document.body.style.cssText = "container-type: normal";
+        document.documentElement.style.containerType = "inline-size";
+        await report("html container-type: inline-size");
+    });
+</script>
