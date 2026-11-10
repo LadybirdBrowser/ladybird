@@ -1555,7 +1555,7 @@ void Tab::show_site_settings_popover()
     m_site_settings_popover->update_chrome_style(palette());
     m_site_settings_popover->set_site({
         .origin = AK::move(origin),
-        .host_for_settings = view().force_dark_host(),
+        .host_for_settings = view().current_host_for_settings(),
         .is_private = view().is_private() == WebView::IsPrivate::Yes,
         .favicon = m_favicon,
         .content_blocking = view().content_blocking_snapshot(),

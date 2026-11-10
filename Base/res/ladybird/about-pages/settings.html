@@ -297,8 +297,7 @@
                 flex-grow: 1;
             }
 
-            dialog .dialog-list-item,
-            #force-dark-sites .dialog-list-item {
+            dialog .dialog-list-item {
                 padding: 10px;
 
                 display: flex;
@@ -306,8 +305,7 @@
                 align-items: center;
             }
 
-            dialog .dialog-list-item:hover,
-            #force-dark-sites .dialog-list-item:hover {
+            dialog .dialog-list-item:hover {
                 background-color: var(--control);
             }
 
@@ -316,8 +314,7 @@
                 opacity: 0.6;
             }
 
-            dialog .dialog-list-item-label,
-            #force-dark-sites .dialog-list-item-label {
+            dialog .dialog-list-item-label {
                 flex-grow: 1;
             }
 
@@ -331,17 +328,22 @@
                 height: 16px;
             }
 
-            #force-dark-sites .dialog-list-item {
+            #host-settings .dialog-list-item {
                 gap: 16px;
             }
 
-            #force-dark-sites .dialog-list-item-label {
+            #host-settings .dialog-list-item-label {
                 min-width: 0;
                 overflow-wrap: anywhere;
             }
 
-            #force-dark-sites button {
+            #host-settings .dialog-list-item-value,
+            #host-settings button {
                 flex-shrink: 0;
+            }
+
+            #host-settings .dialog-list-item-value {
+                font-variant-numeric: tabular-nums;
             }
 
             dialog .dialog-controls {
@@ -595,8 +597,8 @@
                     0 0 0 3px var(--focus-ring);
             }
 
-            /* A permission's default and its exceptions sit side by side. */
-            .permission-controls {
+            /* A setting's default and its overrides sit side by side. */
+            .setting-controls {
                 display: flex;
                 align-items: center;
                 gap: 12px;
@@ -967,9 +969,11 @@
                                     Darken web pages that don’t provide a dark theme of their own.
                                 </p>
                             </label>
-                            <input id="enable-force-dark" type="checkbox" switch />
+                            <div class="setting-controls">
+                                <input id="enable-force-dark" type="checkbox" switch />
+                                <button id="force-dark-settings" class="secondary-button" hidden>Overrides…</button>
+                            </div>
                         </div>
-                        <div id="force-dark-sites" class="card-group" aria-label="Sites with a force-dark choice"></div>
                         <div id="tab-layout-group" class="card-group">
                             <span id="tab-layout-title">Layout</span>
                             <div class="tab-options" role="radiogroup" aria-labelledby="tab-layout-title">
@@ -1028,7 +1032,10 @@
                         </div>
                         <div class="card-group inline-container">
                             <label for="default-zoom-level">Default page zoom</label>
-                            <select id="default-zoom-level"></select>
+                            <div class="setting-controls">
+                                <select id="default-zoom-level"></select>
+                                <button id="zoom-settings" class="secondary-button" hidden>Overrides…</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1179,7 +1186,7 @@
                             <span id="autoplay-forcibly-enabled" class="forcibly-enabled hidden">
                                 This setting is controlled via the command line
                             </span>
-                            <div id="autoplay-controls" class="permission-controls">
+                            <div id="autoplay-controls" class="setting-controls">
                                 <select id="autoplay-policy">
                                     <option value="allow-audio-and-video">Allow audio and video</option>
                                     <option value="block-audio">Block audio</option>
@@ -1193,7 +1200,7 @@
                                 Location
                                 <p class="description">Sites can ask to know your location.</p>
                             </label>
-                            <div class="permission-controls">
+                            <div class="setting-controls">
                                 <input id="geolocation-policy" type="checkbox" switch />
                                 <button id="geolocation-settings" class="secondary-button">Exceptions…</button>
                             </div>
@@ -1203,7 +1210,7 @@
                                 Microphone
                                 <p class="description">Sites can ask to use your microphone.</p>
                             </label>
-                            <div class="permission-controls">
+                            <div class="setting-controls">
                                 <input id="microphone-policy" type="checkbox" switch />
                                 <button id="microphone-settings" class="secondary-button">Exceptions…</button>
                             </div>
@@ -1213,7 +1220,7 @@
                                 Notifications
                                 <p class="description">Sites can ask to send you notifications.</p>
                             </label>
-                            <div class="permission-controls">
+                            <div class="setting-controls">
                                 <input id="notifications-policy" type="checkbox" switch />
                                 <button id="notifications-settings" class="secondary-button">Exceptions…</button>
                             </div>
@@ -1526,6 +1533,20 @@
             </div>
             <div class="dialog-footer">
                 <button id="site-settings-remove-all" class="secondary-button">Remove all sites</button>
+            </div>
+        </dialog>
+
+        <dialog id="host-settings" closedby="any" aria-labelledby="host-settings-title">
+            <div class="dialog-header">
+                <h3 id="host-settings-title" class="dialog-title"></h3>
+                <button id="host-settings-close" class="close-button dialog-button" aria-label="Close">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p>Sites without an override use the default setting.</p>
+                <div id="host-settings-list" class="dialog-list"></div>
+            </div>
+            <div class="dialog-footer">
+                <button id="host-settings-reset-all" class="secondary-button">Reset all</button>
             </div>
         </dialog>
 

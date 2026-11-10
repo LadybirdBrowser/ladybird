@@ -1169,11 +1169,31 @@ void Settings::set_force_dark_for_host(String const& host, bool enabled)
         observer.content_settings_changed();
 }
 
-void Settings::reset_force_dark_for_host(StringView host)
+void Settings::reset_host_setting(HostSetting setting, Optional<StringView> host)
 {
-    if (!m_content_settings.force_dark_per_host.remove(host))
+    auto reset = [&](auto& overrides) {
+        if (host.has_value())
+            return overrides.remove(*host);
+        if (overrides.is_empty())
+            return false;
+        overrides.clear();
+        return true;
+    };
+
+    auto changed = [&]() {
+        switch (setting) {
+        case HostSetting::Zoom:
+            return reset(m_content_settings.zoom_per_host);
+        case HostSetting::ForceDark:
+            return reset(m_content_settings.force_dark_per_host);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    if (!changed)
         return;
+
     persist_settings();
+
     for (auto& observer : m_observers)
         observer.content_settings_changed();
 }
