@@ -11,7 +11,7 @@
 
 namespace Media {
 
-void TimeRanges::add_range(AK::Duration start, AK::Duration end, AK::Duration maximum_gap)
+void TimeRanges::add_range(AK::Duration start, AK::Duration end, AK::Duration maximum_gap_to_bridge)
 {
     if (start >= end)
         return;
@@ -26,7 +26,7 @@ void TimeRanges::add_range(AK::Duration start, AK::Duration end, AK::Duration ma
     binary_search(m_ranges, start, &insert_index, [](AK::Duration needle, Range const& range) -> int {
         return needle <=> range.start;
     });
-    if (m_ranges[insert_index].end + maximum_gap < start)
+    if (m_ranges[insert_index].end + maximum_gap_to_bridge < start)
         insert_index++;
 
     // Determine the range of ranges that will be made contiguous by this new range.
@@ -37,7 +37,7 @@ void TimeRanges::add_range(AK::Duration start, AK::Duration end, AK::Duration ma
     if (merge_end_index < m_ranges.size()) {
         merged_start = min(merged_start, m_ranges[merge_end_index].start);
 
-        while (merge_end_index < m_ranges.size() && m_ranges[merge_end_index].start <= merged_end + maximum_gap) {
+        while (merge_end_index < m_ranges.size() && m_ranges[merge_end_index].start <= merged_end + maximum_gap_to_bridge) {
             merged_end = max(merged_end, m_ranges[merge_end_index].end);
             merge_end_index++;
         }
@@ -52,38 +52,75 @@ void TimeRanges::add_range(AK::Duration start, AK::Duration end, AK::Duration ma
     }
 }
 
+static void append_merging_with_last(Vector<TimeRanges::Range>& ranges, TimeRanges::Range const& range, AK::Duration maximum_gap_to_bridge)
+{
+    if (!ranges.is_empty() && range.start <= ranges.last().end + maximum_gap_to_bridge) {
+        ranges.last().end = max(ranges.last().end, range.end);
+        return;
+    }
+    ranges.append(range);
+}
+
+static Vector<TimeRanges::Range> merge_sorted_ranges(Vector<TimeRanges::Range> const& a, Vector<TimeRanges::Range> const& b, AK::Duration maximum_gap_to_bridge)
+{
+    Vector<TimeRanges::Range> result;
+    result.ensure_capacity(a.size() + b.size());
+    size_t a_index = 0;
+    size_t b_index = 0;
+    while (a_index < a.size() || b_index < b.size()) {
+        if (b_index == b.size() || (a_index < a.size() && a[a_index].start <= b[b_index].start))
+            append_merging_with_last(result, a[a_index++], maximum_gap_to_bridge);
+        else
+            append_merging_with_last(result, b[b_index++], maximum_gap_to_bridge);
+    }
+    return result;
+}
+
+void TimeRanges::add_ranges(Vector<Range> const& ranges, AK::Duration maximum_gap_to_bridge)
+{
+    // Split the ranges into ascending stretches, then merge neighboring stretches until one remains.
+    Vector<Vector<Range>> stretches;
+    for (auto const& range : ranges) {
+        if (range.start >= range.end)
+            continue;
+        if (stretches.is_empty() || range.start < stretches.last().last().start)
+            stretches.append({});
+        append_merging_with_last(stretches.last(), range, maximum_gap_to_bridge);
+    }
+    if (stretches.is_empty())
+        return;
+    stretches.append(move(m_ranges));
+
+    while (stretches.size() > 1) {
+        Vector<Vector<Range>> merged_stretches;
+        merged_stretches.ensure_capacity((stretches.size() + 1) / 2);
+        for (size_t index = 0; index + 1 < stretches.size(); index += 2)
+            merged_stretches.unchecked_append(merge_sorted_ranges(stretches[index], stretches[index + 1], maximum_gap_to_bridge));
+        if (stretches.size() % 2 == 1)
+            merged_stretches.unchecked_append(move(stretches.last()));
+        stretches = move(merged_stretches);
+    }
+    m_ranges = move(stretches.first());
+}
+
 void TimeRanges::remove_range(AK::Duration start, AK::Duration end)
 {
     if (start >= end)
         return;
 
-    TimeRanges removed;
-    removed.m_ranges.append({ start, end });
-    remove_ranges(removed);
-}
-
-void TimeRanges::remove_ranges(TimeRanges const& removed)
-{
-    if (removed.is_empty() || is_empty())
-        return;
-
-    Vector<Range> remaining;
-    size_t first_removed_index = 0;
+    Vector<Range> new_ranges;
     for (auto const& range : m_ranges) {
-        while (first_removed_index < removed.m_ranges.size() && removed.m_ranges[first_removed_index].end <= range.start)
-            first_removed_index++;
-
-        auto start = range.start;
-        for (size_t index = first_removed_index; index < removed.m_ranges.size() && removed.m_ranges[index].start < range.end; index++) {
-            auto const& cut = removed.m_ranges[index];
-            if (cut.start > start)
-                remaining.append({ start, cut.start });
-            start = max(start, cut.end);
+        if (range.end <= start || range.start >= end) {
+            new_ranges.append(range);
+            continue;
         }
-        if (start < range.end)
-            remaining.append({ start, range.end });
+
+        if (range.start < start)
+            new_ranges.append({ range.start, start });
+        if (range.end > end)
+            new_ranges.append({ end, range.end });
     }
-    m_ranges = move(remaining);
+    m_ranges = move(new_ranges);
 }
 
 AK::Duration TimeRanges::highest_end_time() const

@@ -20,6 +20,27 @@ SourceBufferDemuxer::SourceBufferDemuxer(Vector<Media::Track> const& tracks)
 
 SourceBufferDemuxer::~SourceBufferDemuxer() = default;
 
+SourceBufferDemuxer::ChangeBatch::ChangeBatch(RefPtr<SourceBufferDemuxer> demuxer)
+    : m_demuxer(move(demuxer))
+{
+    if (!m_demuxer)
+        return;
+    MutexLocker locker { m_demuxer->m_mutex };
+    VERIFY(!m_demuxer->m_in_change_batch);
+    m_demuxer->m_in_change_batch = true;
+}
+
+SourceBufferDemuxer::ChangeBatch::~ChangeBatch()
+{
+    if (!m_demuxer)
+        return;
+    MutexLocker locker { m_demuxer->m_mutex };
+    VERIFY(m_demuxer->m_in_change_batch);
+    m_demuxer->m_in_change_batch = false;
+    if (m_demuxer->m_has_unpublished_changes)
+        m_demuxer->publish_buffered_data_changes_while_locked();
+}
+
 // The tracks are fixed at construction, so looking one up needs no lock.
 SourceBufferDemuxer::TrackData& SourceBufferDemuxer::track_data(Media::Track const& track)
 {
@@ -56,26 +77,43 @@ bool SourceBufferDemuxer::is_within_start_gap_allowance(AK::Duration timestamp, 
     return timestamp >= AK::Duration::zero() && timestamp < first_data_start && first_data_start <= start_gap_allowance;
 }
 
-Media::TimeRanges SourceBufferDemuxer::coalesced_track_buffer_ranges(TrackData const& data)
-{
-    VERIFY(data.coalesced_ranges_gap == maximum_time_range_gap(data));
-    return data.coalesced_ranges;
-}
-
-void SourceBufferDemuxer::recoalesce_track_buffer_ranges(TrackData& data)
+void SourceBufferDemuxer::bring_track_buffer_ranges_up_to_date(TrackData& data)
 {
     // https://w3c.github.io/media-source/#track-buffer-ranges
     // NOTE: Implementations MAY coalesce adjacent ranges separated by a gap smaller than 2 times the
     //       maximum frame duration buffered so far in this track buffer.
-    auto max_gap = maximum_time_range_gap(data);
-    data.coalesced_ranges = max_gap.is_zero() ? data.track_buffer_ranges : data.track_buffer_ranges.coalesced(max_gap);
-    data.coalesced_ranges_gap = max_gap;
+    auto maximum_gap = maximum_time_range_gap(data);
+
+    if (data.track_buffer_ranges_need_rebuild) {
+        data.track_buffer_ranges_need_rebuild = false;
+        data.frame_intervals_to_add_to_ranges.clear_with_capacity();
+        Vector<Media::TimeRanges::Range> frame_intervals;
+        for (auto const& run : data.runs) {
+            for (auto const& frame : run.frames)
+                frame_intervals.append({ frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration() });
+        }
+        data.track_buffer_ranges = {};
+        data.track_buffer_ranges.add_ranges(frame_intervals, maximum_gap);
+        data.track_buffer_ranges_maximum_gap = maximum_gap;
+        return;
+    }
+
+    // Only erasing frames can narrow the gap, and that rebuilds the ranges.
+    VERIFY(maximum_gap >= data.track_buffer_ranges_maximum_gap);
+    if (maximum_gap > data.track_buffer_ranges_maximum_gap) {
+        data.track_buffer_ranges = data.track_buffer_ranges.coalesced(maximum_gap);
+        data.track_buffer_ranges_maximum_gap = maximum_gap;
+    }
+    if (!data.frame_intervals_to_add_to_ranges.is_empty()) {
+        data.track_buffer_ranges.add_ranges(data.frame_intervals_to_add_to_ranges, maximum_gap);
+        data.frame_intervals_to_add_to_ranges.clear();
+    }
 }
 
 Media::TimeRanges SourceBufferDemuxer::track_buffer_ranges(Media::Track const& track) const
 {
     MutexLocker locker { m_mutex };
-    return coalesced_track_buffer_ranges(track_data(track));
+    return track_data(track).track_buffer_ranges;
 }
 
 Media::TimeRanges SourceBufferDemuxer::buffered_ranges() const
@@ -97,7 +135,7 @@ Vector<Media::TrackBufferedRanges> SourceBufferDemuxer::track_buffered_ranges_wh
     Vector<Media::TrackBufferedRanges> track_buffered_ranges;
     for (auto const& data : m_tracks) {
         if (contributes_to_buffered_ranges(*data))
-            track_buffered_ranges.append({ data->track.identifier(), coalesced_track_buffer_ranges(*data), m_reached_end_of_stream });
+            track_buffered_ranges.append({ data->track.identifier(), data->track_buffer_ranges, m_reached_end_of_stream });
     }
     return track_buffered_ranges;
 }
@@ -120,6 +158,21 @@ Media::DemuxerScanState SourceBufferDemuxer::scan_state_while_locked() const
 
 void SourceBufferDemuxer::buffered_data_changed_while_locked()
 {
+    m_has_unpublished_changes = true;
+    if (!m_in_change_batch)
+        publish_buffered_data_changes_while_locked();
+}
+
+void SourceBufferDemuxer::publish_buffered_data_changes_while_locked()
+{
+    m_has_unpublished_changes = false;
+    for (auto& data : m_tracks)
+        bring_track_buffer_ranges_up_to_date(*data);
+    if (!m_frame_intervals_to_invalidate.is_empty()) {
+        m_invalidated_ranges.add_ranges(m_frame_intervals_to_invalidate);
+        m_frame_intervals_to_invalidate.clear();
+    }
+
     m_buffered_ranges = scan_state_while_locked().buffered_ranges();
     m_data_changed.broadcast();
     queue_scan_state_change_dispatch_while_locked();
@@ -230,12 +283,7 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
     }
 
     count_frame_duration(data, frame.duration());
-    auto frame_end = frame.presentation_timestamp() + frame.duration();
-    data.track_buffer_ranges.add_range(frame.presentation_timestamp(), frame_end);
-    if (data.coalesced_ranges_gap == maximum_time_range_gap(data))
-        data.coalesced_ranges.add_range(frame.presentation_timestamp(), frame_end, data.coalesced_ranges_gap);
-    else
-        recoalesce_track_buffer_ranges(data);
+    data.frame_intervals_to_add_to_ranges.append({ frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration() });
     data.last_appended_decode_timestamp = frame.decode_timestamp();
 
     if (run_to_continue.has_value()) {
@@ -345,14 +393,12 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     size_t bytes = 0;
     size_t frame_count = 0;
     size_t removed_frames_with_the_maximum_duration = 0;
-    Media::TimeRanges removed_ranges;
     for (size_t index = first_frame; index < run.frames.size(); index++) {
         auto const& frame = run.frames[index];
         if (frame_count >= minimum_frame_count && frame.is_keyframe())
             break;
-        removed_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
         if (data.highest_delivered_presentation_end.has_value() && frame.presentation_timestamp() < data.highest_delivered_presentation_end.value())
-            m_invalidated_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
+            m_frame_intervals_to_invalidate.append({ frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration() });
         bytes += buffered_byte_count(frame);
         if (frame.duration() == data.maximum_frame_duration)
             removed_frames_with_the_maximum_duration++;
@@ -372,9 +418,8 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
 
     data.total_bytes -= bytes;
     run.frames.remove(first_frame, frame_count);
-    data.track_buffer_ranges.remove_ranges(removed_ranges);
+    data.track_buffer_ranges_need_rebuild = true;
     decrement_frames_with_maximum_duration(data, removed_frames_with_the_maximum_duration);
-    recoalesce_track_buffer_ranges(data);
 
     if (data.current_run == run_index) {
         if (data.current_frame >= first_frame + frame_count) {
