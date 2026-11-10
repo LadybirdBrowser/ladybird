@@ -832,7 +832,7 @@ impl ContextState {
         }
         let latch = self.wheel_gesture_routing.resolve_latch(
             &self.async_scroll_tree,
-            self.scene.current_visual_context_tree(),
+            self.scene.visual_context_tree().as_ref(),
             step.scroll_gesture_phase,
             step.gesture_id,
         );
