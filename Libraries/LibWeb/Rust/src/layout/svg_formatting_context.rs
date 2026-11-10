@@ -1500,6 +1500,8 @@ impl<'pass> SvgFormattingContext<'pass> {
             glyph_cells: SvgCssPixelRect::default(),
             character_cells: Vec::with_capacity(text.len()),
         };
+        let letter_spacing = style.letter_spacing().to_double() as f32;
+        let word_spacing = style.word_spacing().to_double() as f32;
         Self::for_each_svg_font_run(style, text, |font, run_text| {
             let run_start_x = baseline_start.x + shaped_text.advance;
             let shaped = libgfx_rust::text_layout::shape_text(
@@ -1507,8 +1509,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                 run_text,
                 libgfx_rust::text_layout::TextType::Common,
                 run_start_x,
-                0.0,
-                0.0,
+                letter_spacing,
+                word_spacing,
             );
             // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
             // The full glyph cell must have width equal to the horizontal advance and height equal to the EM box for
@@ -1550,14 +1552,17 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// The advance of the text run rendered by the given box; that is, of its direct child text.
     fn svg_text_run_advance(&self, text_box: Node, text: &[u16]) -> f32 {
         let mut advance = 0.0f32;
-        Self::for_each_svg_font_run(self.style(text_box), text, |font, run_text| {
+        let style = self.style(text_box);
+        let letter_spacing = style.letter_spacing().to_double() as f32;
+        let word_spacing = style.word_spacing().to_double() as f32;
+        Self::for_each_svg_font_run(style, text, |font, run_text| {
             advance += libgfx_rust::text_layout::shape_text(
                 font,
                 run_text,
                 libgfx_rust::text_layout::TextType::Common,
                 0.0,
-                0.0,
-                0.0,
+                letter_spacing,
+                word_spacing,
             )
             .width();
         });

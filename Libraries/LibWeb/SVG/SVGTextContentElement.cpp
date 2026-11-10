@@ -79,8 +79,8 @@ static float sub_string_length(ReadonlySpan<Layout::RustFFI::FfiSvgTextCharacter
         //    1. Add the advance of the typographic character to length, adjusted for any font kerning in effect.
         //    2. If the letter-spacing or word-spacing properties contributed space just after the typographic
         //       character, then add that space to length.
-        // NB: A cell's width is its typographic character's advance.
-        // FIXME: Layout applies neither letter-spacing nor word-spacing to SVG text, so there's no such space to add.
+        // NB: A cell's width is its typographic character's advance, plus any letter-spacing and word-spacing layout
+        //     put just after it.
         length += cells[index].width;
     }
 
