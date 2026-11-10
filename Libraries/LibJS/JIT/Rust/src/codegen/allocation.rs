@@ -471,10 +471,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let scratch = self.pinned.scratch;
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
-        // Only the array cell counts towards the next collection.
-        self.emit_check_heap_threshold(info.cell_size, array, temp, entry);
         // NB: Both allocators must have a free cell before either gives one.
         let storage_size_class = storage_size_class.filter(|_| count != 0);
+        let storage_cell_size = storage_size_class.map_or(0, |size_class| size_class.cell_size);
+        self.emit_check_heap_threshold(info.cell_size + storage_cell_size, array, temp, entry);
         if let Some(size_class) = storage_size_class {
             self.masm.move_imm64(scratch, size_class.allocator);
             self.emit_branch_if_no_local_free_cell(scratch, temp, entry);
@@ -483,8 +483,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         if let Some(size_class) = storage_size_class {
             self.emit_pop_free_list(size_class.allocator, storage, temp, entry);
         }
-        let storage_cell_size = storage_size_class.map_or(0, |size_class| size_class.cell_size);
-        self.emit_count_allocation(info.cell_size, info.cell_size + storage_cell_size, temp, false);
+        self.emit_count_allocation(
+            info.cell_size + storage_cell_size,
+            info.cell_size + storage_cell_size,
+            temp,
+            false,
+        );
 
         // The array, with its packed elements if it has any.
         let mut image = info

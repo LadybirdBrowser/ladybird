@@ -215,16 +215,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // The cell, off the size class's local free list.
         self.emit_pop_free_list_of(scratch, cell, storage, fail);
-        // NB: Storage cells only count towards the heap's total.
+        // NB: Storage cells count towards the next collection without checking for it, since storage never collects.
         self.masm.move32(object, capacity);
         self.masm.shl64_imm(object, object, 3);
         self.masm
             .add64_imm(object, object, i64::from(info.storage_values_offset));
         self.masm.move_imm64(scratch, objects.heap);
-        let total = at(scratch, objects.heap_total_allocated_bytes_offset);
-        self.masm.load64(storage, &total);
-        self.masm.add64(storage, storage, object);
-        self.masm.store64(&total, storage);
+        for offset in [
+            objects.heap_allocated_bytes_offset,
+            objects.heap_total_allocated_bytes_offset,
+        ] {
+            let counter = at(scratch, offset);
+            self.masm.load64(storage, &counter);
+            self.masm.add64(storage, storage, object);
+            self.masm.store64(&counter, storage);
+        }
 
         // The header, then the values: undefined beyond the old ones.
         for (index, word) in info.storage_template.iter().enumerate() {
