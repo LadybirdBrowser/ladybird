@@ -159,3 +159,21 @@ test("temporal dead zone still applies with a cached shape", () => {
         expect(early).toThrow(ReferenceError);
     }
 });
+
+test("a parameter initializer reads an outer binding that a body var shadows", () => {
+    let read;
+    function outer(abort) {
+        {
+            read = function (a = binding) {
+                var binding;
+                return a;
+            };
+            if (abort) throw new Error();
+            let binding = 1;
+            expect(read()).toBe(1);
+        }
+    }
+    outer(false);
+    expect(() => outer(true)).toThrow(Error);
+    expect(read).toThrow(ReferenceError);
+});
