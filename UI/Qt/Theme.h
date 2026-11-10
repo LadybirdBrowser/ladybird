@@ -35,6 +35,7 @@ struct ChromeColors {
     QColor icon;          // Toolbar icons
     QColor disabled;      // Disabled controls
     QColor hover;         // Hover fills
+    QColor strip_hover;   // Hover fill of controls on the tab strip
     QColor row_title;     // Unselected tab titles in the sidebar
     QColor separator;     // Between inactive tabs
     QColor divider;       // Chrome / page edge
