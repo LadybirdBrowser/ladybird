@@ -144,9 +144,9 @@ GC_API void gc_allocator_destroy(GCAllocator*);
 // are allocated while an incremental sweep is in progress have to start out marked.
 GC_API GCCell* gc_heap_allocate_cell(GCHeap*, GCAllocator*, bool* must_mark);
 // Like gc_heap_allocate_cell(), for cells that other cells keep their storage in instead of malloc memory: it never
-// collects garbage and does not count towards the next collection, so storage can grow while its owner is between
-// states nothing may observe, and callers can hold on to anything across the growth. Live storage counts once a
-// collection finds it, through the live cell bytes that set the next threshold.
+// collects garbage, so storage can grow while its owner is between states nothing may observe, and callers can hold on
+// to anything across the growth. It still counts towards the next collection, which the next allocation that may
+// collect starts.
 GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_mark);
 // Each allocator takes the free cells of one block at a time into the heap, as a local free list of the cells that were
 // freed and a range of cells that were never allocated, so that allocating is usually popping that list or bumping
@@ -164,7 +164,7 @@ GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*, bool* must_m
 // - Before taking a cell of N bytes (the cell size of the allocator), such code checks that the heap's
 //   allocated_bytes_since_last_gc + N stays within its gc_bytes_threshold, and allocates through the heap otherwise
 //   (which may collect garbage). After taking it, it adds N to allocated_bytes_since_last_gc and total_allocated_bytes;
-//   storage cells (see gc_heap_allocate_storage_cell()) skip the check and add N to total_allocated_bytes only. These
+//   storage cells (see gc_heap_allocate_storage_cell()) skip the check but add N to both as well. These
 //   are size_t fields of the heap, at the offsets gc_get_layout() reports.
 // - It then writes every byte of the cell, as after gc_heap_allocate_cell(), with a clear mark.
 // Returns where the head of the allocator's list in the heap is, which stays valid as long as the heap. The list and
