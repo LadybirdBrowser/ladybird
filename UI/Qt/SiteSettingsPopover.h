@@ -72,7 +72,7 @@ private:
 
     WebView::Settings& m_settings;
     String m_origin;
-    String m_force_dark_host;
+    String m_host;
     bool m_is_private { false };
     QLabel* m_force_dark_icon { nullptr };
     PopoverSwitch* m_force_dark_switch { nullptr };

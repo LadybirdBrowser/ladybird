@@ -225,8 +225,8 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent, WebView::Settings& set
     m_force_dark_switch = new PopoverSwitch(m_site_page);
     m_force_dark_switch->setAccessibleName("Force dark mode on this site");
     QObject::connect(m_force_dark_switch, &QCheckBox::toggled, this, [this](bool enabled) {
-        if (!m_is_private && !m_force_dark_host.is_empty())
-            m_settings.set_force_dark_for_host(m_force_dark_host, enabled);
+        if (!m_is_private && !m_host.is_empty())
+            m_settings.set_force_dark_for_host(m_host, enabled);
     });
     force_dark_row->addWidget(m_force_dark_switch);
     layout->addLayout(force_dark_row);
@@ -282,7 +282,7 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent, WebView::Settings& set
     QObject::connect(m_reset_permissions_link, &QPushButton::clicked, this, [this] {
         m_settings.remove_autoplay_site_filter(m_origin);
         if (!m_is_private)
-            m_settings.reset_force_dark_for_host(m_force_dark_host);
+            m_settings.reset_host_setting(WebView::HostSetting::ForceDark, m_host);
         update_autoplay();
         if (on_reset_permissions)
             on_reset_permissions();
@@ -361,7 +361,7 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent, WebView::Settings& set
 void SiteSettingsPopover::set_site(Site site)
 {
     m_origin = site.origin.serialize();
-    m_force_dark_host = AK::move(site.host_for_settings);
+    m_host = AK::move(site.host_for_settings);
     m_is_private = site.is_private;
     content_settings_changed();
     m_host_label->setText(qstring_from_ak_string(site.origin.host().serialize()));
@@ -507,8 +507,8 @@ void SiteSettingsPopover::fit_to_page()
 void SiteSettingsPopover::content_settings_changed()
 {
     QSignalBlocker blocker(m_force_dark_switch);
-    m_force_dark_switch->setChecked(m_settings.force_dark_for_host(m_force_dark_host));
-    m_force_dark_switch->setEnabled(!m_is_private && !m_force_dark_host.is_empty());
+    m_force_dark_switch->setChecked(m_settings.force_dark_for_host(m_host));
+    m_force_dark_switch->setEnabled(!m_is_private && !m_host.is_empty());
     update_reset_link();
 }
 
@@ -527,7 +527,7 @@ void SiteSettingsPopover::update_reset_link()
     if (!m_reset_permissions_link)
         return;
     auto const& autoplay = m_settings.autoplay_settings();
-    auto has_force_dark_choice = !m_is_private && m_settings.content_settings().force_dark_per_host.contains(m_force_dark_host);
+    auto has_force_dark_choice = !m_is_private && m_settings.content_settings().force_dark_per_host.contains(m_host);
     m_reset_permissions_link->setEnabled(m_has_decided_permissions || autoplay.site_filters.contains(m_origin) || has_force_dark_choice);
 }
 

@@ -153,7 +153,7 @@ public:
     }
     void enable_picture_in_picture_controls() { HubConnection::the().async_view_enable_picture_in_picture_controls(view_id()); }
     void enqueue_input_event(Web::InputEvent);
-    String force_dark_host() const { return m_state.force_dark_host; }
+    String current_host_for_settings() const { return m_state.host_for_settings; }
     void update_interface_color_scheme() { HubConnection::the().async_view_update_interface_color_scheme(view_id()); }
     void update_system_theme(Core::AnonymousBuffer const& theme) { HubConnection::the().async_view_set_system_theme(view_id(), theme); }
     NonnullRefPtr<Core::Promise<ByteString>> selected_text();

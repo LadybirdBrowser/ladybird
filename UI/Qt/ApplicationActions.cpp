@@ -161,10 +161,10 @@ ApplicationActions::ApplicationActions(PageOptions const& options)
     m_zoom_menu->add_action(*m_reset_zoom_action);
 
     m_force_dark_action = Action::create_checkable("Force Dark Mode"sv, ActionID::ForceDark, on_active_view([](RemoteView& view) {
-        if (view.is_private() == WebView::IsPrivate::Yes || view.force_dark_host().is_empty())
+        if (view.is_private() == WebView::IsPrivate::Yes || view.current_host_for_settings().is_empty())
             return;
         auto& settings = Application::settings();
-        settings.set_force_dark_for_host(view.force_dark_host(), !settings.force_dark_for_host(view.force_dark_host()));
+        settings.set_force_dark_for_host(view.current_host_for_settings(), !settings.force_dark_for_host(view.current_host_for_settings()));
     }));
 
     auto set_website_color_scheme = [](WebView::ThemePreference color_scheme) {
@@ -363,8 +363,8 @@ void ApplicationActions::update_force_dark_action()
 {
     auto& settings = Application::settings();
     auto* view = active_view();
-    m_force_dark_action->set_enabled(view && view->is_private() == WebView::IsPrivate::No && !view->force_dark_host().is_empty());
-    m_force_dark_action->set_checked(view ? settings.force_dark_for_host(view->force_dark_host()) : settings.content_settings().enable_force_dark);
+    m_force_dark_action->set_enabled(view && view->is_private() == WebView::IsPrivate::No && !view->current_host_for_settings().is_empty());
+    m_force_dark_action->set_checked(view ? settings.force_dark_for_host(view->current_host_for_settings()) : settings.content_settings().enable_force_dark);
 }
 
 void ApplicationActions::devtools_enabled_changed(bool enabled)

@@ -13,6 +13,7 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibURL/URL.h>
 #include <LibWebCommon/WebView/Utilities.h>
 
 #define TOKENCAT(x, y) x##y
@@ -119,6 +120,15 @@ ErrorOr<void> handle_attached_debugger()
     }
 #endif
 
+    return {};
+}
+
+String host_for_settings(URL::URL const& url)
+{
+    if (url.host().has_value())
+        return MUST(String::from_utf8(url.serialized_host()));
+    if (url.scheme() == "about"sv)
+        return MUST(String::from_utf8(url.serialize_path()));
     return {};
 }
 

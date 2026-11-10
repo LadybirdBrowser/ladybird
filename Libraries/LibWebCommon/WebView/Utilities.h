@@ -10,8 +10,10 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <LibURL/Forward.h>
 #include <LibWebCommon/Export.h>
 
 namespace WebView {
@@ -30,5 +32,7 @@ WEBCOMMON_API void set_mach_server_name(ByteString name);
 WEBCOMMON_API ByteString mach_server_name_for_process(StringView process_name, pid_t pid);
 
 WEBCOMMON_API ErrorOr<void> handle_attached_debugger();
+
+WEBCOMMON_API String host_for_settings(URL::URL const&);
 
 }
