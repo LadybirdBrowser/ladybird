@@ -864,7 +864,7 @@ pub(crate) fn abort_a_transaction(vm: &Vm, transaction: Ref<IDBTransaction>, err
     }
 
     // 4. Set transaction’s state to finished.
-    transaction.set_state(TransactionState::Finished);
+    IDBTransaction::set_finished(vm, transaction);
 
     // AD-HOC: Clear the cleanup event loop so that the microtask checkpoint doesn't set the state to inactive on a
     //         finished transaction.
@@ -1173,7 +1173,7 @@ pub(crate) fn commit_a_transaction(vm: &Vm, transaction: Ref<IDBTransaction>) {
                     transaction.discard_mutation_logs(vm);
 
                     // 2. Set transaction’s state to finished.
-                    transaction.set_state(TransactionState::Finished);
+                    IDBTransaction::set_finished(vm, transaction);
 
                     // 3. Fire an event named complete at transaction.
                     transaction.event_target().dispatch_event(&CppEvent::create(
