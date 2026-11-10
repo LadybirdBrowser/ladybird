@@ -7,6 +7,7 @@
  */
 
 #include <LibHTTP/Cache/MemoryCache.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -151,7 +152,8 @@ void NetworkBodyPump::finalize_cache_entry()
         auto response_body = m_cache_body.has_value()
             ? m_cache_body.release_value()
             : Core::ImmutableBytes::adopt(move(m_cache_buffer));
-        m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(response_body));
+        if (m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), response_body))
+            did_store_response_in_http_memory_cache(response_body);
     }
 
     m_http_cache.clear();

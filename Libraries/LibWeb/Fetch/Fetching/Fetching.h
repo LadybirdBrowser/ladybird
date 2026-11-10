@@ -73,6 +73,7 @@ void append_user_agent_client_hints_for_request(Infrastructure::Request&);
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();
+void did_store_response_in_http_memory_cache(Core::ImmutableBytes const&);
 WEB_API Optional<Utf16String> http_cache_partition(Infrastructure::Request const&);
 WEB_API void set_disk_cache_enabled_for_navigations_for_testing(bool enabled);
 WEB_API bool disk_cache_enabled_for_navigations_for_testing();
