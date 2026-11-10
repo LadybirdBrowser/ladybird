@@ -179,20 +179,20 @@ Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
 
 bool Utf8View::validate(size_t& valid_bytes, AllowLonelySurrogates allow_lonely_surrogates) const
 {
-    auto result = simdutf::validate_utf8_with_errors(m_string.characters_without_null_termination(), m_string.length());
-    valid_bytes = result.count;
+    valid_bytes = 0;
 
-    if (result.error == simdutf::SURROGATE && allow_lonely_surrogates == AllowLonelySurrogates::Yes) {
-        valid_bytes += 3; // All surrogates have a UTF-8 byte length of 3.
+    while (true) {
+        auto remaining = m_string.substring_view(valid_bytes);
+        auto result = simdutf::validate_utf8_with_errors(remaining.characters_without_null_termination(), remaining.length());
+        valid_bytes += result.count;
 
-        size_t substring_valid_bytes = 0;
-        auto is_valid = substring_view(valid_bytes).validate(substring_valid_bytes, allow_lonely_surrogates);
+        if (result.error == simdutf::SURROGATE && allow_lonely_surrogates == AllowLonelySurrogates::Yes) {
+            valid_bytes += 3; // All surrogates have a UTF-8 byte length of 3.
+            continue;
+        }
 
-        valid_bytes += substring_valid_bytes;
-        return is_valid;
+        return result.error == simdutf::SUCCESS;
     }
-
-    return result.error == simdutf::SUCCESS;
 }
 
 Optional<u32> Utf8CodePointIterator::peek(size_t offset) const

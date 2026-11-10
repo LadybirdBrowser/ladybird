@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/ByteBuffer.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 
 TEST_CASE(decode_ascii)
@@ -97,6 +98,22 @@ TEST_CASE(validate_invalid_ut8)
     Utf8View utf8_7 { StringView { invalid_utf8_7, 3 } };
     EXPECT(!utf8_7.validate(valid_bytes, AllowLonelySurrogates::No));
     EXPECT(valid_bytes == 0);
+}
+
+TEST_CASE(validate_many_lonely_surrogates)
+{
+    StringBuilder builder;
+    for (size_t i = 0; i < 100'000; ++i)
+        builder.append("\xed\xa0\x80"sv); // U+d800
+    builder.append("a\xff"sv);
+
+    size_t valid_bytes = 0;
+    Utf8View view { builder.string_view() };
+    EXPECT(!view.validate(valid_bytes, AllowLonelySurrogates::Yes));
+    EXPECT_EQ(valid_bytes, 300'001uz);
+
+    EXPECT(view.substring_view(0, 300'001).validate(valid_bytes, AllowLonelySurrogates::Yes));
+    EXPECT_EQ(valid_bytes, 300'001uz);
 }
 
 TEST_CASE(validate_overlong_utf8)
