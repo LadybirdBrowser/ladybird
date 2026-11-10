@@ -239,3 +239,16 @@ test("default parameter can't call a later parameter", () => {
 
     expect(() => func(undefined, () => {})).toThrow(ReferenceError);
 });
+
+test("default parameter can't read a later parameter that the body declares as a var", () => {
+    function func(a = b, b) {
+        var b;
+    }
+    function captured(a = b, b) {
+        var b;
+        return () => b;
+    }
+
+    expect(() => func()).toThrow(ReferenceError);
+    expect(() => captured()).toThrow(ReferenceError);
+});
