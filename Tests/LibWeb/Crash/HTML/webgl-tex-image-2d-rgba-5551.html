@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<canvas id="source" width="1" height="1"></canvas>
+<canvas id="destination" width="1" height="1"></canvas>
+<script>
+    document.getElementById("source").getContext("2d").fillRect(0, 0, 1, 1);
+    const gl = document.getElementById("destination").getContext("webgl");
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, document.getElementById("source"));
+    gl.finish();
+</script>
