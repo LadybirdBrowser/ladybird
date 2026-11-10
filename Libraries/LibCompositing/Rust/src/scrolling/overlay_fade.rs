@@ -8,7 +8,7 @@
 
 use crate::time::{Duration, MonotonicTime};
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct OverlayFade {
     opacity: f32,
     initial_opacity: f32,

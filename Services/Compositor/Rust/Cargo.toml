@@ -1,0 +1,23 @@
+[package]
+name = "compositor_core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+allocator = ["dep:ladybird_allocator"]
+
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+ladybird_allocator = { path = "../../../Libraries/RustAllocator", optional = true }
+libcompositing_rust = { path = "../../../Libraries/LibCompositing/Rust" }
+libgfx_rust = { path = "../../../Libraries/LibGfx/Rust", default-features = false }
+libipc_rust = { path = "../../../Libraries/LibIPC/Rust" }
+rustc-demangle = "0.1"
+
+[lints]
+workspace = true
