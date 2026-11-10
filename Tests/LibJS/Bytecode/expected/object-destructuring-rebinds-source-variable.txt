@@ -43,4 +43,4 @@ block0:
   [  a8] Return value:reg5
 
 
-[ 1, 2, 3 ]
+Array [1, 2, 3]

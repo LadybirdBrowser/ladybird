@@ -76,6 +76,7 @@ pub struct PrintContext<'a> {
     pub stream: &'a mut dyn Write,
     pub strip_ansi: bool,
     pub raw_strings: bool,
+    pub compact: bool,
 }
 
 fn escape_for_string_literal(string: Utf16View<'_>) -> Vec<u16> {
@@ -1223,6 +1224,10 @@ fn print_value(
 }
 
 pub fn print(value: Value, print_context: &mut PrintContext<'_>) -> io::Result<()> {
+    if print_context.compact {
+        let preview = super::console_preview::format(print_context.vm, value, print_context.raw_strings);
+        return print_context.stream.write_all(preview.as_bytes());
+    }
     let mut seen_objects = SeenObjects::new(print_context.vm);
     print_value(print_context, value, &mut seen_objects)
 }
