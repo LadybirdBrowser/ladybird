@@ -443,11 +443,23 @@ static AccentColor const& system_accent_color()
     return *closest;
 }
 
+static Optional<QColor> s_desktop_accent;
+
+void set_desktop_accent(Optional<QColor> color)
+{
+    s_desktop_accent = move(color);
+}
+
+Optional<QColor> const& desktop_accent()
+{
+    return s_desktop_accent;
+}
+
 // The theme's accent clears 3:1 on the toolbar, darker on the light appearance and lighter on the dark one.
 static QColor accent(bool dark, QColor const& toolbar)
 {
-    if (s_color_theme.accent.has_value())
-        return with_contrast(*s_color_theme.accent, toolbar, 3, dark ? Adjustment::Lighten : Adjustment::Darken);
+    if (auto const& base_color = s_color_theme.accent.has_value() ? s_color_theme.accent : s_desktop_accent; base_color.has_value())
+        return with_contrast(*base_color, toolbar, 3, dark ? Adjustment::Lighten : Adjustment::Darken);
     auto const& accent = system_accent_color();
     return dark ? accent.dark : accent.light;
 }
@@ -484,8 +496,9 @@ QColor focus_ring()
 
 static TextSelectionColors text_selection(QPalette::ColorGroup group, bool dark, QColor const& toolbar, QColor const& text)
 {
-    // NB: The system's colors suit only chrome of the system's own appearance, which a private window may not have.
-    if (!s_color_theme.accent.has_value()) {
+    // NB: The system's colors suit only chrome of the system's own appearance, which a private window may not have. A
+    //     desktop accent is tinted like a theme's, as the desktop's own text fields show it.
+    if (!s_color_theme.accent.has_value() && !s_desktop_accent.has_value()) {
         auto system_palette = QGuiApplication::palette();
         auto system_is_dark = system_palette.color(QPalette::Window).lightness() < 128;
         if (system_is_dark == dark)
