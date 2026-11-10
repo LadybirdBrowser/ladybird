@@ -39,6 +39,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "AttributeCallbackName",
     "CachedAccessor",
     "CEReactions",
+    "Exposed",
     "FIXME",
     "ImplementedAs",
     "LegacyNullToEmptyString",
@@ -102,6 +103,11 @@ class RustAttribute:
     @property
     def returns_js_value(self) -> bool:
         return "ReturnsJSValue" in self.attribute.extended_attributes
+
+    @property
+    def is_window_only(self) -> bool:
+        """Whether only a Window has the attribute: [Exposed=Window] on an interface exposed elsewhere as well."""
+        return self.attribute.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
 
     @property
     def function_stem(self) -> str:
@@ -539,6 +545,7 @@ def rust_members(interface: Interface) -> RustMembers:
         check_extended_attributes(
             attribute.name, attribute.extended_attributes, SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES
         )
+        check_exposure(attribute.name, attribute.extended_attributes)
         if "FIXME" in attribute.extended_attributes:
             members.attributes_in_order.append(attribute.name)
             continue
