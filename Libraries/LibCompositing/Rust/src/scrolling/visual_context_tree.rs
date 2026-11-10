@@ -39,6 +39,11 @@ impl AccumulatedVisualContextTree {
         self.0.context_is_valid(context)
     }
 
+    pub fn has_every_node_the_runs_of_display_list_name(&self, display_list: &DisplayList) -> bool {
+        self.0
+            .display_list_references_only_live_nodes(display_list.storage.command_runs())
+    }
+
     pub fn visual_viewport_transform(&self) -> TransformWithOrigin {
         let crate::visual_context::SpatialData::Transform(transform) =
             &self.0.spatial_nodes[crate::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data

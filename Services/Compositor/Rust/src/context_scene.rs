@@ -80,6 +80,17 @@ impl ContextScene {
             );
             return false;
         }
+        if self
+            .display_list
+            .as_ref()
+            .is_some_and(|list| !visual_context_tree.has_every_node_the_runs_of_display_list_name(list))
+        {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping visual context tree update without a node the display list names"
+            );
+            return false;
+        }
         self.invalidate_visual_context_tree_for_compositing();
         self.visual_context_tree = Some(visual_context_tree);
         update_visual_animation_sampling_state(
