@@ -94,6 +94,14 @@ case "@VCPKG_CMAKE_SYSTEM_NAME@" in
         ;;
 esac
 
+# Take jobs from Meta/Utils/vcpkg_deps.py's jobserver, which an explicit -j would opt out of. GNU Make takes a FIFO from 4.4.
+MAKE_JOBS="-j${JOBS}"
+if [[ "$MAKEFLAGS" == *--jobserver-auth=fifo:* && "$($MAKE_BINARY --version 2>/dev/null | head -n 1)" =~ ^GNU\ Make\ ([0-9]+)\.([0-9]+) ]]; then
+    if (( BASH_REMATCH[1] > 4 || (BASH_REMATCH[1] == 4 && BASH_REMATCH[2] >= 4) )); then
+        MAKE_JOBS=""
+    fi
+fi
+
 build_ffmpeg() {
     # extract build architecture
     BUILD_ARCH=$1
@@ -111,11 +119,12 @@ build_ffmpeg() {
 
     echo "=== BUILDING ==="
 
-    $MAKE_BINARY -j${JOBS} V=1
+    $MAKE_BINARY ${MAKE_JOBS} V=1
 
     echo "=== INSTALLING ==="
 
-    $MAKE_BINARY install
+    # A jobserver would make the install parallel, so keep it serial as it was.
+    MAKEFLAGS= $MAKE_BINARY install
 }
 
 cd "$PATH_TO_BUILD_DIR"
