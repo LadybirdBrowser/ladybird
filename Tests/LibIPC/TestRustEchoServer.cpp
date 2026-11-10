@@ -280,8 +280,12 @@ static void expect_refused_by_cpp_and_rust(ReadonlyBytes message)
     bytes.append(message.data(), message.size());
     MUST(transport->post_message(move(bytes), outgoing_attachments));
     // NB: A valid message follows, so the Rust end either closes the connection or answers it, and never leaves this
-    //     waiting.
-    send(*transport, Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { 1u }));
+    //     waiting. Having refused the first message, it may have closed the connection before this one is sent, and
+    //     then the send itself fails.
+    auto valid_message = MUST(Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { 1u }));
+    auto valid_message_attachments = valid_message.take_attachments();
+    if (transport->post_message(valid_message.take_data(), valid_message_attachments).is_error())
+        return;
     auto answered = false;
     auto should_shutdown = IPC::Transport::ShouldShutdown::No;
     while (!answered && should_shutdown == IPC::Transport::ShouldShutdown::No) {
