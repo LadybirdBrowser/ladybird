@@ -609,7 +609,9 @@ never shows "about:blank".
   with version, build and platform plus a Copy button. Nothing else.
 - Welcome (`about:welcome`): the logomark at 56 px (0.85 line, so it doesn't get heavy), the title, then one centered column, in this order: search engine (optional,
   nothing preselected, engines in a new random order each time, so none is favored by its
-  place), Layout (all three layouts), content blocking switch, "Start browsing" (enabled as soon as the
+  place; shown by name only in a five-column grid, never with logos or letter tiles, which
+  would mean shipping other companies' trademarks or contacting their servers before anyone
+  has chosen), Layout (all three layouts), Color, content blocking switch, "Start browsing" (enabled as soon as the
   current settings are loaded; it never waits for a choice).
 - Error pages: icon, title, one line of detail, buttons, centered like every other
   single-message page ("Report sent"). Security errors may use two lines, because the
@@ -624,6 +626,12 @@ never shows "about:blank".
   named "General" or "Other" collects settings nobody could find.
 - Appearance, top to bottom: Theme, Color theme, Website appearance, Force dark mode,
   Layout, Show bookmarks bar, Default page zoom.
+- Color theme is a row of round swatches. The first is System (a multicolor wheel, as in
+  macOS), selected by default: the browser follows the OS accent until someone picks a
+  color. Names live in tooltips and accessible names, never under the swatches. The
+  welcome page shows the same row under "Color", right after Layout, and picking a swatch
+  there recolors the real window around the page at once; that live change is the point of
+  having it on the welcome page.
 - Layout is three picture cards: Tabs on top, Tabs on the side, Everything in the sidebar.
   It is called Layout, not Tabs, because the third choice moves the toolbar too. Each
   label names what is different about it, and each picture draws the address field where
