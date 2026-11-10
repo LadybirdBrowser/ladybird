@@ -1,0 +1,42 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 114 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 98 0+0+8] children: not-inline
+      BlockContainer <p> at [8,8] [0+0+0 784 0+0+0] [0+0+0 24 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,12 40.140625x16] baseline: 13
+            "text "
+        frag 1 from CheckBox start: 0, length: 0, rect: [52.140625,12 13x13] baseline: 16
+        frag 2 from TextNode start: 0, length: 5, rect: [68.140625,12 40.140625x16] baseline: 13
+            " text"
+        TextNode <#text> (not painted)
+        CheckBox <input> at [52.140625,12] inline-block [4+0+0 13 0+0+3] [3+0+0 13 0+0+3] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,32] [0+0+0 784 0+0+0] [0+0+0 24 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,36 40.140625x16] baseline: 13
+            "text "
+        frag 1 from RadioButton start: 0, length: 0, rect: [53.140625,37 12x12] baseline: 15
+        frag 2 from TextNode start: 0, length: 5, rect: [68.140625,36 40.140625x16] baseline: 13
+            " text"
+        TextNode <#text> (not painted)
+        RadioButton <input> at [53.140625,37] inline-block [5+0+0 12 0+0+3] [3+0+0 12 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,56] [0+0+0 784 0+0+0] [0+0+0 26 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,62 40.140625x16] baseline: 13
+            "text "
+        frag 1 from BlockContainer start: 0, length: 0, rect: [53.140625,60 11x11] baseline: 19
+        frag 2 from TextNode start: 0, length: 5, rect: [68.140625,62 40.140625x16] baseline: 13
+            " text"
+        TextNode <#text> (not painted)
+        BlockContainer <input.none> at [53.140625,60] inline-block [4+1+0 11 0+1+3] [3+1+0 11 0+1+3] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,82] [0+0+0 784 0+0+0] [0+0+0 24 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,86 40.140625x16] baseline: 13
+            "text "
+        frag 1 from BlockContainer start: 0, length: 0, rect: [54.140625,87 11x11] baseline: 16
+        frag 2 from TextNode start: 0, length: 5, rect: [69.140625,86 40.140625x16] baseline: 13
+            " text"
+        TextNode <#text> (not painted)
+        BlockContainer <input.none> at [54.140625,87] inline-block [5+1+0 11 0+1+3] [3+1+0 11 0+1+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x114] (z-index: auto)
