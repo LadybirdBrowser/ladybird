@@ -31,6 +31,23 @@ static Media::CodedFrame coded_frame_at(u64 seconds, Optional<ReadonlyBytes> new
     };
 }
 
+// Frames at 60 fps whose timestamps are rounded to whole milliseconds while their duration isn't, as in a WebM stream,
+// with a keyframe every 120 frames.
+static AK::Duration rounded_frame_start(i64 index)
+{
+    return AK::Duration::from_milliseconds((index * 1000 + 30) / 60);
+}
+
+static constexpr auto rounded_frame_duration = AK::Duration::from_nanoseconds(16'666'667);
+
+static Media::CodedFrame frame_with_rounded_timestamp(i64 index)
+{
+    auto data = MUST(FixedArray<u8>::create(1));
+    auto timestamp = rounded_frame_start(index);
+    auto flags = index % 120 == 0 ? Media::FrameFlags::Keyframe : Media::FrameFlags::None;
+    return { Media::CodecID::VP9, timestamp, timestamp, rounded_frame_duration, flags, move(data) };
+}
+
 TEST_CASE(seek_provides_the_active_codec_configuration)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
@@ -559,4 +576,29 @@ TEST_CASE(retracting_a_delivered_end_of_stream_reports_what_follows_as_invalidat
         demuxer->clear_reached_end_of_stream();
     });
     EXPECT_EQ(reported_after_delivering_the_end, Media::TimeRanges({ { AK::Duration::from_seconds(1), AK::Duration::max() } }));
+}
+
+TEST_CASE(buffered_ranges_bridge_the_rounding_gaps_between_frames)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (i64 index = 0; index < 600; index++)
+        demuxer->add_coded_frame(track, frame_with_rounded_timestamp(index));
+
+    auto end = rounded_frame_start(599) + rounded_frame_duration;
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), (Media::TimeRanges { { AK::Duration::zero(), end } }));
+}
+
+TEST_CASE(evicting_a_group_of_frames_starts_the_buffered_ranges_at_the_next_group)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (i64 index = 0; index < 600; index++)
+        demuxer->add_coded_frame(track, frame_with_rounded_timestamp(index));
+    demuxer->take_earliest_frame_and_dependants(track);
+
+    auto end = rounded_frame_start(599) + rounded_frame_duration;
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), (Media::TimeRanges { { rounded_frame_start(120), end } }));
 }

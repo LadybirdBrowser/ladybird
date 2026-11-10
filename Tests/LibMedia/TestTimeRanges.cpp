@@ -16,6 +16,15 @@ static AK::Duration ms(i64 milliseconds)
     return AK::Duration::from_milliseconds(milliseconds);
 }
 
+// Frames at 60 fps whose timestamps are rounded to whole milliseconds while their duration isn't, as in a WebM stream,
+// so that most of them don't quite reach the next frame.
+static AK::Duration rounded_frame_start(i64 index)
+{
+    return ms((index * 1000 + 30) / 60);
+}
+
+static constexpr auto rounded_frame_duration = AK::Duration::from_nanoseconds(16'666'667);
+
 TEST_CASE(buffered_sources_without_sources_are_not_complete)
 {
     auto report = Media::DemuxerScanState::buffered_ranges_of_sources({});
@@ -308,6 +317,69 @@ TEST_CASE(remove_range_across_multiple_ranges)
     ranges.add_range(ms(800), ms(1000));
     ranges.remove_range(ms(100), ms(900));
     EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(900), ms(1000) } }));
+}
+
+// add_range() with a maximum gap, and remove_ranges()
+
+TEST_CASE(add_range_bridges_gaps_up_to_the_maximum)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_range(ms(300), ms(400));
+    ranges.add_range(ms(150), ms(250), ms(50));
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(400) } }));
+}
+
+TEST_CASE(add_range_keeps_gaps_over_the_maximum)
+{
+    TimeRanges ranges;
+    ranges.add_range(ms(0), ms(100));
+    ranges.add_range(ms(160), ms(200), ms(50));
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(160), ms(200) } }));
+}
+
+TEST_CASE(adding_with_a_maximum_gap_matches_coalescing_afterwards)
+{
+    auto maximum_gap = rounded_frame_duration + rounded_frame_duration;
+    TimeRanges exact;
+    TimeRanges bridged;
+    for (i64 index = 0; index < 6000; index++) {
+        // A real gap, which nothing bridges.
+        if (index >= 3000 && index < 3010)
+            continue;
+        auto start = rounded_frame_start(index);
+        exact.add_range(start, start + rounded_frame_duration);
+        bridged.add_range(start, start + rounded_frame_duration, maximum_gap);
+    }
+    EXPECT(exact.size() > 3000);
+    EXPECT_EQ(bridged.size(), 2u);
+    EXPECT_EQ(bridged, exact.coalesced(maximum_gap));
+}
+
+TEST_CASE(remove_ranges_matches_removing_one_at_a_time)
+{
+    TimeRanges ranges;
+    for (i64 index = 0; index < 600; index++)
+        ranges.add_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
+
+    auto removed_one_at_a_time = ranges;
+    TimeRanges removed;
+    for (i64 index = 0; index < 600; index += 3) {
+        removed.add_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
+        removed_one_at_a_time.remove_range(rounded_frame_start(index), rounded_frame_start(index) + rounded_frame_duration);
+    }
+    removed.add_range(ms(5000), ms(6000));
+    removed_one_at_a_time.remove_range(ms(5000), ms(6000));
+
+    ranges.remove_ranges(removed);
+    EXPECT_EQ(ranges, removed_one_at_a_time);
+}
+
+TEST_CASE(remove_ranges_keeps_what_lies_between_them)
+{
+    TimeRanges ranges { { ms(0), ms(1000) } };
+    ranges.remove_ranges(TimeRanges { { ms(100), ms(200) }, { ms(500), ms(600) } });
+    EXPECT_EQ(ranges, (TimeRanges { { ms(0), ms(100) }, { ms(200), ms(500) }, { ms(600), ms(1000) } }));
 }
 
 // highest_end_time()
