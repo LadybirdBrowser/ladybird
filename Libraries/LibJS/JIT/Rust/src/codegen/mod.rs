@@ -284,6 +284,9 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     resume: Label,
     /// Where the prologues resume in the interpreter.
     entry_resume: Label,
+    /// Where the prologues resume in the interpreter if the frame does not fit on the native stack, before they set it
+    /// up.
+    entry_overflow: Label,
     exit_interpreter: Label,
     /// The nodes of the code's sites, by site index, with what they are.
     sites: Vec<(NodeId, SiteKind)>,
@@ -416,6 +419,7 @@ pub fn generate<M: PortableMacroAssembler>(
     let exit_stub = masm.new_label();
     let resume = masm.new_label();
     let entry_resume = masm.new_label();
+    let entry_overflow = masm.new_label();
     let exit_interpreter = masm.new_label();
     let leave_tail = masm.new_label();
 
@@ -436,6 +440,7 @@ pub fn generate<M: PortableMacroAssembler>(
         exit_stub,
         resume,
         entry_resume,
+        entry_overflow,
         exit_interpreter,
         sites: Vec::new(),
         exit_site_stubs: Vec::new(),
@@ -792,6 +797,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
         }
         self.frame = M::frame(saved, saved_fprs, size);
+        // NB: The prologue addresses the lowest byte of the frame relative to the stack pointer.
+        checked_i32(u64::from(self.frame.caller_stack_offset))?;
         Ok(())
     }
 
@@ -931,25 +938,31 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn emit_prologue(&mut self) {
         self.annotate(CodeAnnotation::Prologue);
         let frame = self.frame;
-        self.masm.emit_prologue_unprobed(&frame);
-        // NB: The VM is in its pinned register already.
-        self.masm.move64(self.pinned.frame, M::ARGUMENT_GPRS[1]);
 
         // Exit to the interpreter (which runs the function on its own stack,
-        // and reports overflows of that) if the native stack is nearly
-        // exhausted. No value lives in a register yet. The locals are only
-        // touched once the frame is known to fit: on Windows, touching a
-        // frame that goes past the end of the stack would crash.
+        // and reports overflows of that) if the frame would go below the
+        // native stack limit. This is checked before the prologue moves the
+        // stack pointer or stores anything: a large frame could otherwise
+        // skip past the guard page at the end of the stack.
+        // NB: JIT code does not keep the pinned scratch register.
+        let lowest = self.pinned.scratch;
+        let frame_bottom = Address::new(M::STACK_POINTER, -(frame.caller_stack_offset as i32));
+        self.masm.load_effective_address(lowest, &frame_bottom);
         let limit = Address::new(self.pinned.vm, self.runtime.offsets.vm_jit_native_stack_limit as i32);
-        let resume = self.entry_resume;
-        self.masm.branch_if_stack_pointer_below(&limit, resume);
-        self.masm.probe_frame(&frame);
+        let entry_overflow = self.entry_overflow;
+        self.masm
+            .branch64_memory(Condition::Above, &limit, lowest, entry_overflow);
+
+        self.masm.emit_prologue(&frame);
+        // NB: The VM is in its pinned register already.
+        self.masm.move64(self.pinned.frame, M::ARGUMENT_GPRS[1]);
         let root_frame = self.local_address(self.locals.root_frame);
         self.masm.store64(&root_frame, self.pinned.frame);
 
         // Materializing the frames of inlined calls must not run out of
         // interpreter stack, so exit if they would not all fit.
         if self.graph.materialized_frame_bytes != 0 {
+            let resume = self.entry_resume;
             let offsets = self.runtime.offsets;
             let top = M::RETURN_GPRS[1];
             self.masm.load64(
@@ -984,6 +997,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(resume);
         self.masm.move_imm32(M::RETURN_GPRS[0], 0);
         self.emit_return(JitStatus::Resume);
+
+        // NB: No frame is set up here, so the frame is still in its argument
+        //     register.
+        self.annotate(CodeAnnotation::Tail("return Resume before the prologue"));
+        let entry_overflow = self.entry_overflow;
+        self.masm.bind(entry_overflow);
+        self.emit_publish_frame_from(M::ARGUMENT_GPRS[1]);
+        self.masm.move_imm32(M::RETURN_GPRS[0], 0);
+        self.masm.move_imm32(M::RETURN_GPRS[1], JitStatus::Resume as u32);
+        self.masm.ret();
 
         self.annotate(CodeAnnotation::Tail("return ExitInterpreter"));
         let exit_interpreter = self.exit_interpreter;
@@ -2231,8 +2254,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `PublishFrame`: makes the frame the running execution context, which
     /// it may be already.
     fn emit_publish_frame(&mut self) {
+        self.emit_publish_frame_from(self.pinned.frame);
+    }
+
+    /// Makes the frame in `frame` the running one.
+    fn emit_publish_frame_from(&mut self, frame: Gpr) {
         let running = Address::new(self.pinned.vm, self.runtime.offsets.vm_running_execution_context as i32);
-        self.masm.store64(&running, self.pinned.frame);
+        self.masm.store64(&running, frame);
     }
 
     /// Publishes the frame and initializes it like `Enter`, with `value` for
