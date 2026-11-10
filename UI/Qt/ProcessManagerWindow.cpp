@@ -534,14 +534,13 @@ QLineEdit#LadybirdTaskManagerFilter {{
     border: none;
     border-radius: 7px;
     padding: 0 8px;
-    selection-background-color: {5};
 }}
 QWidget#LadybirdTaskManagerFooter {{
     background: {0};
     border-top: 1px solid {2};
 }}
 QLabel#LadybirdTaskManagerSummary {{
-    color: {6};
+    color: {5};
 }}
 QPushButton#LadybirdTaskManagerEndButton {{
     color: {3};
@@ -551,10 +550,10 @@ QPushButton#LadybirdTaskManagerEndButton {{
     padding: 0 14px;
 }}
 QPushButton#LadybirdTaskManagerEndButton:pressed {{
-    background: {7};
+    background: {6};
 }}
 QPushButton#LadybirdTaskManagerEndButton:disabled {{
-    color: {6};
+    color: {5};
 }}
 QTreeWidget {{
     background: {0};
@@ -566,8 +565,9 @@ QTreeWidget::item {{
     padding: 0px 4px;
 }}
 )",
-        color(panel.page), color(Theme::chrome().toolbar), color(panel.separator), color(panel.text), color(panel.control),
-        color(Theme::selection()), color(panel.muted), color(panel.pressed)));
+                               color(panel.page), color(Theme::chrome().toolbar), color(panel.separator), color(panel.text), color(panel.control),
+                               color(panel.muted), color(panel.pressed))
+        + ChromeStyle::panel_text_selection_style_sheet({ "QLineEdit#LadybirdTaskManagerFilter" }, panel.text));
 
     // NB: The tree draws the selected row's fill itself, so the style's highlight under the branch area is left clear.
     auto tree_palette = m_processes->palette();
