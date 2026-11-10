@@ -1,5 +1,5 @@
 // https://xhr.spec.whatwg.org/#xmlhttprequesteventtarget
-[Exposed=(Window,DedicatedWorker,SharedWorker)]
+[Exposed=(Window,DedicatedWorker,SharedWorker), ImplementedIn=Rust]
 interface XMLHttpRequestEventTarget : EventTarget {
 
     // event handlers

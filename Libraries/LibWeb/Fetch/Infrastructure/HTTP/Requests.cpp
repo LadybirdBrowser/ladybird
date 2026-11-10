@@ -19,6 +19,13 @@
 
 namespace Web::Fetch::Infrastructure {
 
+extern "C" {
+
+// Called by Bindings/Rust/src/fetch/infrastructure/http/requests.rs.
+bool web_fetch_request_done(Request*);
+void web_fetch_request_unref(Request*);
+}
+
 NonnullRefPtr<Request> Request::create()
 {
     return adopt_ref(*new Request(HTTP::HeaderList::create()));
@@ -642,6 +649,16 @@ Optional<Request::Priority> request_priority_from_string(Utf16View string)
 Optional<Request::Priority> request_priority_from_string(Utf16String const& string)
 {
     return request_priority_from_string(string.utf16_view());
+}
+
+bool web_fetch_request_done(Request* request)
+{
+    return request->done();
+}
+
+void web_fetch_request_unref(Request* request)
+{
+    request->unref();
 }
 
 }

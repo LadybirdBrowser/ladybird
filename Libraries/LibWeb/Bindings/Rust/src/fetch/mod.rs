@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+//! The Fetch Standard, https://fetch.spec.whatwg.org/
+
+pub(crate) mod body_init;
+pub(crate) mod infrastructure;
+
 use core::ffi::c_void;
 
 use crate::bindings::interface::{cell_from_abi, cell_into_abi, realm_arguments};

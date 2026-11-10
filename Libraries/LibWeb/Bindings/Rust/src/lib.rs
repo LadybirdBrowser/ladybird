@@ -130,6 +130,8 @@ pub(crate) mod indexed_db;
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
 pub(crate) mod notifications_api;
+#[cfg(not(test))]
+pub(crate) mod platform;
 #[cfg_attr(
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")

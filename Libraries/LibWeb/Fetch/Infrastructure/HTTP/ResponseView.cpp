@@ -5,9 +5,27 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibHTTP/HeaderList.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 
 namespace Web::Fetch::Infrastructure {
+
+extern "C" {
+
+// Called by Bindings/Rust/src/fetch/infrastructure/http/response_view.rs.
+bool web_fetch_response_is_network_error(ResponseView*);
+bool web_fetch_response_aborted(ResponseView*);
+u16 web_fetch_response_status(ResponseView*);
+void web_fetch_response_status_message(ResponseView*, void* bytes, void (*on_bytes)(void*, ReadonlyBytes));
+bool web_fetch_response_get_header(ResponseView*, ReadonlyBytes name, void* bytes, void (*on_bytes)(void*, ReadonlyBytes));
+void web_fetch_response_sort_and_combine(ResponseView*, void* headers, void (*on_header)(void*, ReadonlyBytes name, ReadonlyBytes value));
+bool web_fetch_response_extract_length(ResponseView*, u64* out_length);
+FlatPtr web_fetch_response_extract_mime_type(ResponseView*);
+FlatPtr web_fetch_response_url(ResponseView*, bool exclude_fragment);
+bool web_fetch_response_has_body(ResponseView*);
+FlatPtr web_fetch_response_network_error_message(ResponseView*);
+}
 
 GC_DEFINE_ALLOCATOR(ResponseView);
 
@@ -78,6 +96,79 @@ GC::Ref<ResponseView> ResponseView::clone(JS::Realm& realm) const
 {
     auto body_view = m_body_view ? m_body_view->clone(realm) : GC::Ptr<Body> {};
     return create(m_record->clone(), body_view);
+}
+
+bool web_fetch_response_is_network_error(ResponseView* response)
+{
+    return response->is_network_error();
+}
+
+bool web_fetch_response_aborted(ResponseView* response)
+{
+    return response->aborted();
+}
+
+u16 web_fetch_response_status(ResponseView* response)
+{
+    return response->status();
+}
+
+void web_fetch_response_status_message(ResponseView* response, void* bytes, void (*on_bytes)(void*, ReadonlyBytes))
+{
+    on_bytes(bytes, response->status_message().bytes());
+}
+
+bool web_fetch_response_get_header(ResponseView* response, ReadonlyBytes name, void* bytes, void (*on_bytes)(void*, ReadonlyBytes))
+{
+    auto value = response->header_list()->get(StringView { name });
+    if (!value.has_value())
+        return false;
+    on_bytes(bytes, value->bytes());
+    return true;
+}
+
+void web_fetch_response_sort_and_combine(ResponseView* response, void* headers, void (*on_header)(void*, ReadonlyBytes name, ReadonlyBytes value))
+{
+    for (auto const& header : response->header_list()->sort_and_combine())
+        on_header(headers, header.name.bytes(), header.value.bytes());
+}
+
+bool web_fetch_response_extract_length(ResponseView* response, u64* out_length)
+{
+    auto length = response->header_list()->extract_length();
+    if (!length.has<u64>())
+        return false;
+    *out_length = length.get<u64>();
+    return true;
+}
+
+FlatPtr web_fetch_response_extract_mime_type(ResponseView* response)
+{
+    auto mime_type = extract_mime_type(response->header_list());
+    if (!mime_type.has_value())
+        return 0;
+    return Utf16String::from_utf8(mime_type->serialized()).into_raw();
+}
+
+FlatPtr web_fetch_response_url(ResponseView* response, bool exclude_fragment)
+{
+    auto url = response->url();
+    if (!url.has_value())
+        return 0;
+    return Utf16String::from_utf8(url->serialize(exclude_fragment ? URL::ExcludeFragment::Yes : URL::ExcludeFragment::No)).into_raw();
+}
+
+bool web_fetch_response_has_body(ResponseView* response)
+{
+    return response->body() != nullptr;
+}
+
+FlatPtr web_fetch_response_network_error_message(ResponseView* response)
+{
+    auto const& message = response->network_error_message();
+    if (!message.has_value())
+        return 0;
+    return Utf16String::from_utf8(*message).into_raw();
 }
 
 }

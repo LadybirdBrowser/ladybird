@@ -35,6 +35,7 @@ unsafe extern "C" {
         steps: unsafe extern "C" fn(*mut c_void),
     );
     fn web_bindings_has_event_listener(event_target: *mut c_void, r#type: ak::Span<'_, u8>) -> bool;
+    fn web_bindings_has_event_listeners(event_target: *mut c_void) -> bool;
     fn web_bindings_event_handler_attribute(event_target: *mut c_void, name: ak::Span<'_, u8>) -> u64;
     fn web_bindings_set_event_handler_attribute(event_target: *mut c_void, name: ak::Span<'_, u8>, value: u64);
     fn web_bindings_add_event_listener(
@@ -77,6 +78,7 @@ unsafe extern "C" {
         source: *mut c_void,
     ) -> *mut c_void;
     fn web_bindings_message_event_data(event: u64) -> u64;
+    fn web_bindings_set_has_pending_activity(realm: *mut c_void, event_target: *mut c_void, has_pending_activity: bool);
     fn web_bindings_set_event_owner(event: *mut c_void, interface_name: u16, owner: *mut c_void);
     fn web_bindings_event_set_is_trusted(event: *mut c_void, is_trusted: bool);
     fn web_bindings_dispatch_event(target: *mut c_void, event: *mut c_void) -> bool;
@@ -160,6 +162,11 @@ impl CppEventTarget {
         unsafe { web_bindings_has_event_listener(self.as_ptr(), ak::Span::new(event_type.as_bytes())) }
     }
 
+    pub(crate) fn has_event_listeners(&self) -> bool {
+        // SAFETY: The EventTarget is live.
+        unsafe { web_bindings_has_event_listeners(self.as_ptr()) }
+    }
+
     /// Adds an event listener for the event type whose callback is the function, with no options,
     /// https://dom.spec.whatwg.org/#add-an-event-listener
     pub(crate) fn add_event_listener(&self, cx: &CallContext, event_type: &str, callback: Gc<FunctionObject>) {
@@ -204,6 +211,11 @@ impl CppEventTarget {
     pub(crate) fn dispatch_event(&self, event: &CppEvent) -> bool {
         // SAFETY: The EventTarget and the event are live.
         unsafe { web_bindings_dispatch_event(self.as_ptr(), event.as_ptr()) }
+    }
+
+    pub(crate) fn set_has_pending_activity(&self, realm: Gc<Realm>, has_pending_activity: bool) {
+        // SAFETY: The realm and the EventTarget are live.
+        unsafe { web_bindings_set_has_pending_activity(realm.as_ptr().cast(), self.as_ptr(), has_pending_activity) };
     }
 
     /// Returns the legacyOutputDidListenersThrowFlag.

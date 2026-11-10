@@ -52,10 +52,11 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Fetch": (
         22,
-        62,
+        64,
         "Fetch bodies, headers, requests, responses, response views, and controllers still materialize JS values/streams; "
         "BodyStreamPullSource creates body streams and materializes their pulls and errors on the consumer side, each in "
-        "its stream's realm; Body.textStream() creates its empty stream or streaming decoder in the receiver's realm",
+        "its stream's realm; Body.textStream() creates its empty stream or streaming decoder in the receiver's realm; "
+        "the Rust XMLHttpRequest extracts bodies and aborts fetch controllers in its relevant realm",
     ),
     "FileAPI": (2, 9, "Blob glue still creates streams and buffers in selected realms"),
     "HTML": (
@@ -102,7 +103,12 @@ ALLOWED_REALM_MENTIONS = {
         "peer connections, data channels and senders resolve promises and fire events in their relevant realm, encoded "
         "frames are constructed and deserialized in the worker's realm, and the stats report's maplike glue",
     ),
-    "XHR": (3, 3, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
+    "XHR": (
+        3,
+        7,
+        "XHR/FormData/FileReader-style paths still materialize JS values and events; the Rust XMLHttpRequest creates "
+        "its request, its body and its fetch in its relevant realm",
+    ),
 }
 
 

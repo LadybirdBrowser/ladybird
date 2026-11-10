@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
@@ -12,6 +13,8 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
@@ -19,6 +22,16 @@
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Infrastructure {
+
+extern "C" {
+
+// Called by Bindings/Rust/src/fetch/infrastructure/fetch_controller.rs.
+FetchController* web_fetch_controller_create(JSObject* global_object);
+void web_fetch_controller_terminate(FetchController*);
+void web_fetch_controller_abort(FetchController*, void* realm);
+bool web_fetch_controller_has_report_timing_steps(FetchController*);
+void web_fetch_controller_report_timing(FetchController*, JSObject* global_object);
+}
 
 GC_DEFINE_ALLOCATOR(FetchController);
 
@@ -295,6 +308,32 @@ void FetchControllerHolder::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_controller);
+}
+
+FetchController* web_fetch_controller_create(JSObject* global_object)
+{
+    auto& relevant_agent = HTML::relevant_agent(*JS::HostABI::object_from_abi(global_object));
+    return FetchController::create(relevant_agent.fetch_controller_registry).ptr();
+}
+
+void web_fetch_controller_terminate(FetchController* controller)
+{
+    controller->terminate();
+}
+
+void web_fetch_controller_abort(FetchController* controller, void* realm)
+{
+    controller->abort(*static_cast<JS::Realm*>(realm), {});
+}
+
+bool web_fetch_controller_has_report_timing_steps(FetchController* controller)
+{
+    return controller->has_report_timing_steps();
+}
+
+void web_fetch_controller_report_timing(FetchController* controller, JSObject* global_object)
+{
+    controller->report_timing(*JS::HostABI::object_from_abi(global_object));
 }
 
 }

@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
@@ -101,12 +102,15 @@ u64 web_bindings_window_page_id(HTML::Window*);
 DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
 bool web_bindings_document_has_navigable(DOM::Document*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
+bool web_bindings_document_has_been_destroyed(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
 JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject*);
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
+void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
+void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject*, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
@@ -208,6 +212,11 @@ bool web_bindings_document_is_fully_active(DOM::Document* document)
     return document->is_fully_active();
 }
 
+bool web_bindings_document_has_been_destroyed(DOM::Document* document)
+{
+    return document->has_been_destroyed();
+}
+
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document* document)
 {
     return document->url().to_rust();
@@ -236,6 +245,20 @@ HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSO
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope* worker_global_scope)
 {
     return worker_global_scope->is_closing();
+}
+
+void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject* settings_object, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*))
+{
+    auto result = settings_object->encoding_parse_url(Utf16String::from_raw(url));
+    if (!result.has_value())
+        return;
+    auto rust_url = result->to_rust();
+    on_url(parsed_url, &rust_url);
+}
+
+void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget* event_target, bool has_pending_activity)
+{
+    HTML::relevant_window_or_worker_global_scope(static_cast<JS::Realm*>(realm)->global_object()).set_has_pending_activity(*event_target, has_pending_activity);
 }
 
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*))

@@ -7,9 +7,18 @@
 #include <LibCore/Timer.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::Platform {
+
+extern "C" {
+
+// Called by Bindings/Rust/src/platform/timer.rs.
+Timer* web_platform_timer_create_single_shot(u64 milliseconds, void* cell, void (*steps)(JSVM*, void*));
+void web_platform_timer_stop(Timer*);
+}
 
 GC_DEFINE_ALLOCATOR(Timer);
 
@@ -113,6 +122,23 @@ bool Timer::is_single_shot() const
 void Timer::set_single_shot(bool single_shot)
 {
     m_timer->set_single_shot(single_shot);
+}
+
+Timer* web_platform_timer_create_single_shot(u64 milliseconds, void* cell, void (*steps)(JSVM*, void*))
+{
+    // NB: The timer's captures, which the collector traces, keep the cell alive until the steps run or the timer stops.
+    auto timeout_handler = GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& cell, auto& steps) {
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr());
+    });
+    auto timer = Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)), timeout_handler);
+    timer->start();
+    return timer.ptr();
+}
+
+void web_platform_timer_stop(Timer* timer)
+{
+    timer->stop();
+    timer->on_timeout = nullptr;
 }
 
 }

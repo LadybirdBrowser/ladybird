@@ -548,7 +548,7 @@ bool Internals::message_ports_are_directly_entangled(HTML::MessagePort& first, H
 GC::Ref<XHR::XMLHttpRequest> Internals::create_xml_http_request_for_document(DOM::Document& document)
 {
     VERIFY(document.window());
-    return XHR::XMLHttpRequest::create(*document.window());
+    return XHR::XMLHttpRequest::create(document.window()->principal_realm());
 }
 
 Optional<Painting::HitTestResult> Internals::hit_test(double x, double y)

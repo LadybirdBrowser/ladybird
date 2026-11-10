@@ -111,6 +111,7 @@ RustEventTarget* web_bindings_create_event_target();
 void web_bindings_set_event_target_owner(RustEventTarget*, u16 interface_name, RustInterfaceCell* owner, RustEventTarget::GetTheParent);
 void web_bindings_set_event_listener_list_changed_steps(RustEventTarget*, RustEventTarget::EventListenerListChanged);
 bool web_bindings_has_event_listener(DOM::EventTarget*, ReadonlyBytes type);
+bool web_bindings_has_event_listeners(DOM::EventTarget*);
 JSValue web_bindings_event_handler_attribute(RustEventTarget*, ReadonlyBytes name);
 void web_bindings_set_event_handler_attribute(RustEventTarget*, ReadonlyBytes name, JSValue);
 void web_bindings_add_event_listener(void* realm, DOM::EventTarget*, ReadonlyBytes type, JSObject* callback);
@@ -147,6 +148,11 @@ void web_bindings_set_event_listener_list_changed_steps(RustEventTarget* event_t
 bool web_bindings_has_event_listener(DOM::EventTarget* event_target, ReadonlyBytes type)
 {
     return event_target->has_event_listener(Utf16FlyString::from_utf8_without_validation(type));
+}
+
+bool web_bindings_has_event_listeners(DOM::EventTarget* event_target)
+{
+    return event_target->has_event_listeners();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes

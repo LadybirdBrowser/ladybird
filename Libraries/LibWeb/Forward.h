@@ -1301,8 +1301,6 @@ namespace Web::XHR {
 
 class FormData;
 class XMLHttpRequest;
-class XMLHttpRequestEventTarget;
-class XMLHttpRequestUpload;
 
 struct FormDataEntry;
 

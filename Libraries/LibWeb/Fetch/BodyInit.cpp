@@ -23,6 +23,27 @@
 
 namespace Web::Fetch {
 
+struct BodyInitABI {
+    enum class Kind : u8 {
+        Blob,
+        Bytes,
+        FormData,
+        URLSearchParams,
+        String,
+    };
+
+    Kind kind;
+    void* cell;
+    ReadonlyBytes bytes;
+    FlatPtr string;
+};
+
+extern "C" {
+
+// Called by Bindings/Rust/src/fetch/body_init.rs.
+Infrastructure::Body* web_fetch_safely_extract_body(void* realm, BodyInitABI const*, FlatPtr* out_type);
+}
+
 // https://fetch.spec.whatwg.org/#bodyinit-safely-extract
 Infrastructure::BodyWithType safely_extract_body(JS::Realm& realm, BodyInitOrReadableBytes const& object)
 {
@@ -174,6 +195,28 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 
     // 14. Return (body, type).
     return Infrastructure::BodyWithType { .body = body, .type = move(type) };
+}
+
+Infrastructure::Body* web_fetch_safely_extract_body(void* realm, BodyInitABI const* object, FlatPtr* out_type)
+{
+    auto body_init = [&]() -> BodyInitOrReadableBytes {
+        switch (object->kind) {
+        case BodyInitABI::Kind::Blob:
+            return GC::Ref { *static_cast<FileAPI::Blob*>(object->cell) };
+        case BodyInitABI::Kind::Bytes:
+            return object->bytes;
+        case BodyInitABI::Kind::FormData:
+            return GC::Ref { *static_cast<XHR::FormData*>(object->cell) };
+        case BodyInitABI::Kind::URLSearchParams:
+            return GC::Ref { *static_cast<DOMURL::URLSearchParams*>(object->cell) };
+        case BodyInitABI::Kind::String:
+            return Utf16String::from_raw(object->string);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    auto body_with_type = safely_extract_body(*static_cast<JS::Realm*>(realm), body_init);
+    *out_type = body_with_type.type.has_value() ? move(*body_with_type.type).into_raw() : 0;
+    return body_with_type.body.ptr();
 }
 
 }

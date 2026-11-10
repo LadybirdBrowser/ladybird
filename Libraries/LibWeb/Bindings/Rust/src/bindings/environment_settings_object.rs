@@ -10,7 +10,9 @@ use core::ffi::c_void;
 
 use core::ptr::NonNull;
 
+use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, Trace};
+use liburl_rust::{RustUrl, Url};
 
 use crate::bindings::cpp_cell::CppCell;
 
@@ -22,6 +24,17 @@ unsafe extern "C" {
         id: *mut c_void,
         on_id: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>),
     );
+    fn web_bindings_environment_settings_object_encoding_parse_url(
+        settings_object: *mut c_void,
+        url: usize,
+        parsed_url: *mut c_void,
+        on_url: unsafe extern "C" fn(*mut c_void, *const RustUrl),
+    );
+}
+
+unsafe extern "C" fn on_url(parsed_url: *mut c_void, url: *const RustUrl) {
+    // SAFETY: parsed_url is the URL of the caller, and LibWeb lends the URL for the call.
+    unsafe { *parsed_url.cast::<Option<Url>>() = Some((*url).to_url()) };
 }
 
 unsafe extern "C" fn on_id(id: *mut c_void, bytes: ak::Span<'_, u8>) {
@@ -61,5 +74,20 @@ impl CppEnvironmentSettingsObject {
         let global_object = unsafe { web_bindings_environment_settings_object_global_object(self.as_ptr()) };
         // SAFETY: The global object is live.
         unsafe { Gc::from_non_null(NonNull::new(global_object.cast()).expect("a settings object has a global object")) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
+    pub(crate) fn encoding_parse_url(&self, url: &Utf16String) -> Option<Url> {
+        let mut parsed_url = None;
+        // SAFETY: The settings object is live, the URL is lent for the call, and the parsed URL outlives it.
+        unsafe {
+            web_bindings_environment_settings_object_encoding_parse_url(
+                self.as_ptr(),
+                url.raw_identity(),
+                (&raw mut parsed_url).cast(),
+                on_url,
+            );
+        }
+        parsed_url
     }
 }
