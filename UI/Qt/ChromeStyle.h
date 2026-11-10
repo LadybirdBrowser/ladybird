@@ -10,6 +10,7 @@
 #include <AK/Types.h>
 #include <QColor>
 #include <QString>
+#include <QStringList>
 
 class QAbstractButton;
 class QFont;
@@ -74,6 +75,9 @@ QColor crash_reports_dot_color(QPalette const&);
 QFont chrome_title_font(QFont);
 
 QString style_sheet_color(QColor const&);
+
+// The colors of selected text in the fields the selectors match, for a field on a panel.
+QString panel_text_selection_style_sheet(QStringList const& selectors, QColor const& text);
 
 // The panel outline painted over the panel, for a panel that cannot be partly clear.
 QColor opaque_panel_edge();
