@@ -8,99 +8,14 @@
 //! https://html.spec.whatwg.org/multipage/structured-data.html#transferable-objects
 
 use core::cell::RefCell;
-use core::ffi::{c_int, c_void};
+use core::ffi::c_void;
+pub(crate) use libipc_rust::cpp_connection::RawAttachment;
 use libipc_rust::{Attachment, Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 use std::collections::VecDeque;
 
 use crate::html::message_port::TransportHandle;
 use crate::html::port_channel::{PortChannelEnd, claim_parked_end, park_end};
 use crate::html::structured_serialize::transfer_record::PortMessage;
-
-#[repr(C)]
-pub(crate) struct RawAttachment {
-    value: c_int,
-    disposition: u32,
-}
-
-impl RawAttachment {
-    /// # Safety
-    ///
-    /// The raw attachment must hand over one owned descriptor or Mach right.
-    unsafe fn into_attachment(self) -> Attachment {
-        #[cfg(target_vendor = "apple")]
-        {
-            use libipc_rust::mach::{
-                MACH_MSG_TYPE_MAKE_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE, MACH_MSG_TYPE_MOVE_RECEIVE,
-                MACH_MSG_TYPE_MOVE_SEND_ONCE, MachPort, PortRight,
-            };
-            let right = match self.disposition {
-                MACH_MSG_TYPE_MOVE_RECEIVE | MACH_MSG_TYPE_MAKE_SEND | MACH_MSG_TYPE_MAKE_SEND_ONCE => {
-                    PortRight::Receive
-                }
-                MACH_MSG_TYPE_MOVE_SEND_ONCE => PortRight::SendOnce,
-                _ => PortRight::Send,
-            };
-            Attachment::from_mach_port(MachPort::adopt(self.value as u32, right), self.disposition)
-        }
-        #[cfg(all(unix, not(target_vendor = "apple")))]
-        {
-            use std::os::fd::FromRawFd;
-            Attachment::from(unsafe { std::os::fd::OwnedFd::from_raw_fd(self.value) })
-        }
-        #[cfg(windows)]
-        {
-            Attachment::from_descriptor(unsafe {
-                libipc_rust::transport_windows::OwnedDescriptor::from_raw(self.value)
-            })
-        }
-    }
-
-    /// # Safety
-    ///
-    /// `raw` must point to `count` raw attachments, each of which hands over its descriptor or Mach right.
-    pub(crate) unsafe fn take_all(raw: *const Self, count: usize) -> Vec<Attachment> {
-        // SAFETY: The caller lends the raw attachments and hands over what each one names.
-        unsafe { ak::slice_from_raw_parts(raw, count) }
-            .iter()
-            .map(|attachment| {
-                let owned = Self {
-                    value: attachment.value,
-                    disposition: attachment.disposition,
-                };
-                unsafe { owned.into_attachment() }
-            })
-            .collect()
-    }
-
-    pub(crate) fn from_attachment(attachment: Attachment) -> Self {
-        #[cfg(target_vendor = "apple")]
-        {
-            let (port, disposition) = attachment.into_mach_port();
-            Self {
-                value: core::mem::ManuallyDrop::new(port).name() as c_int,
-                disposition,
-            }
-        }
-        #[cfg(all(unix, not(target_vendor = "apple")))]
-        {
-            use std::os::fd::IntoRawFd;
-            Self {
-                value: attachment
-                    .into_fd()
-                    .expect("a Unix attachment is a descriptor")
-                    .into_raw_fd(),
-                disposition: 0,
-            }
-        }
-        #[cfg(windows)]
-        {
-            Self {
-                value: attachment.into_descriptor().into_raw(),
-                disposition: 0,
-            }
-        }
-    }
-}
 
 pub(crate) type ReceivePayload = unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>, *const RawAttachment, usize);
 
@@ -245,7 +160,7 @@ impl TransferPayload {
         count: usize,
     ) {
         // SAFETY: The caller lends this result slot and bytes, and transfers every raw attachment.
-        let attachments = unsafe { RawAttachment::take_all(attachments, count) };
+        let attachments = unsafe { RawAttachment::take_all(ak::slice_from_raw_parts(attachments, count)) };
         unsafe {
             *context.cast::<Option<Self>>() = Some(Self::new(bytes.as_slice().to_vec(), attachments));
         };

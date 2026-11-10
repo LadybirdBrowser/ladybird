@@ -1041,7 +1041,7 @@ impl SocketTransport {
         ) -> bool {
             // SAFETY: The read lends its VM, rooted result list and bytes, and hands over every attachment.
             let (vm, records) = unsafe { &*context.cast::<(&Vm, &MarkedVec<'_, TransferRecordRef>)>() };
-            let attachments = unsafe { RawAttachment::take_all(attachments, count) };
+            let attachments = unsafe { RawAttachment::take_all(ak::slice_from_raw_parts(attachments, count)) };
             let mut decoder = Decoder::new(bytes.as_slice(), attachments);
             match TransferRecord::decode(vm, &mut decoder) {
                 Ok(record) => {

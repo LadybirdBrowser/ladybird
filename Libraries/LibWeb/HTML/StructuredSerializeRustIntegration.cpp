@@ -36,43 +36,6 @@ using namespace Web::HTML;
 
 using ReceiveTransferPayload = void (*)(void*, ReadonlyBytes, TransferAttachment const*, size_t);
 
-namespace Web::HTML {
-
-Vector<IPC::Attachment> adopt_transfer_attachments(TransferAttachment const* raw, size_t count)
-{
-    Vector<IPC::Attachment> attachments;
-    for (size_t i = 0; i < count; ++i) {
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
-        auto disposition = static_cast<Core::MachPort::MessageRight>(raw[i].disposition);
-        auto right = Core::MachPort::PortRight::Send;
-        if (disposition == Core::MachPort::MessageRight::MoveReceive || disposition == Core::MachPort::MessageRight::MakeSend || disposition == Core::MachPort::MessageRight::MakeSendOnce)
-            right = Core::MachPort::PortRight::Receive;
-        else if (disposition == Core::MachPort::MessageRight::MoveSendOnce)
-            right = Core::MachPort::PortRight::SendOnce;
-        attachments.append(IPC::Attachment::from_mach_port(Core::MachPort::adopt_right(static_cast<mach_port_t>(raw[i].value), right), disposition));
-#else
-        attachments.append(IPC::Attachment::from_fd(raw[i].value));
-#endif
-    }
-    return attachments;
-}
-
-Vector<TransferAttachment> release_transfer_attachments(Vector<IPC::Attachment> attachments)
-{
-    Vector<TransferAttachment> raw;
-    for (auto& attachment : attachments) {
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
-        auto disposition = to_underlying(attachment.message_right());
-        raw.append({ static_cast<int>(attachment.release_mach_port().release()), disposition });
-#else
-        raw.append({ attachment.to_fd(), 0 });
-#endif
-    }
-    return raw;
-}
-
-}
-
 extern "C" {
 
 void web_structured_serialize_set_ipc_record(IPCSerializationRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count);
@@ -218,14 +181,14 @@ TransferDataEncoder* web_structured_serialize_transfer_data_holder_create(Readon
 {
     IPC::MessageDataType data;
     MUST(data.try_append(bytes.data(), bytes.size()));
-    return new TransferDataEncoder(IPC::MessageBuffer { move(data), adopt_transfer_attachments(attachments, count) });
+    return new TransferDataEncoder(IPC::MessageBuffer { move(data), IPC::adopt_raw_attachments({ attachments, count }) });
 }
 
 void web_structured_serialize_transfer_data_holder_take(TransferDataEncoder* holder, void* context, ReceiveTransferPayload receive)
 {
     auto owner = adopt_own(*holder);
     auto buffer = owner->take_buffer();
-    auto attachments = release_transfer_attachments(buffer.take_attachments());
+    auto attachments = IPC::release_raw_attachments(buffer.take_attachments());
     receive(context, buffer.data().span(), attachments.data(), attachments.size());
 }
 
