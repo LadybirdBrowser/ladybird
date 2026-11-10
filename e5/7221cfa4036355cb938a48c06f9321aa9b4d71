@@ -1,0 +1,14 @@
+Ladybird keeps a track buffer’s exact frame ranges and, alongside them,
+the coalesced ranges it reports as buffered, updating both as frames
+arrive and removing an evicted group’s ranges in one pass. The other
+engines also keep their coalesced view current, rather than rebuilding
+it from every frame’s range on each query. Chromium’s SourceBufferStream
+merges a buffer into a SourceBufferRange that it falls within the fudge
+room of (SourceBufferRange::CanAppendBuffersToEnd(), GetFudgeRoom()),
+and evicts a whole group at a time with DeleteGOPFromFront(). Gecko’s
+TrackBuffersManager keeps its exact mBufferedRanges beside the separate
+mSanitizedBufferedRanges, which bridges gaps up to the longest frame
+duration, and RemoveFrames() subtracts the removed intervals together.
+And WebKit’s TrackBuffer::addSample() adds coverage with the option
+EliminateSmallGaps, while TrackBuffer::removeSamples() collects all the
+erased ranges and then subtracts them together.
