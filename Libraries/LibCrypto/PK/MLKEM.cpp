@@ -10,6 +10,7 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/OpenSSL.h>
+#include <LibCrypto/PK/ModuleLatticePrivateKey.h>
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
@@ -37,50 +38,18 @@ static char const* mlkem_size_to_openssl_name(MLKEMSize size)
     }
 }
 
-static ErrorOr<ByteBuffer> read_mlkem_seed(ASN1::Decoder& decoder, Vector<StringView>& current_scope)
+static size_t mlkem_expanded_key_size(MLKEMSize size)
 {
-    // seed ::= OCTET STRING (SIZE (64))
-    READ_OBJECT(OctetString, StringView, seed_bits);
-
-    auto const seed = seed_bits.bytes();
-    if (seed.size() != 64) {
-        ERROR_WITH_SCOPE("Invalid seed length");
-    }
-    POP_SCOPE();
-
-    return ByteBuffer::copy(seed);
-}
-
-static ErrorOr<ByteBuffer> read_mlkem_private_key(MLKEMSize size, ASN1::Decoder& decoder, Vector<StringView>& current_scope)
-{
-    // expandedKey ::= OCTET STRING (SIZE (1632 | 2400 | 3168))
-
-    ENTER_TYPED_SCOPE(OctetString, "expandedKey");
-    READ_OBJECT(OctetString, StringView, expanded_key_bits);
-
-    auto const expanded_key = expanded_key_bits.bytes();
     switch (size) {
     case MLKEMSize::MLKEM512:
-        if (expanded_key.size() != 1632) {
-            ERROR_WITH_SCOPE("Invalid expandedKey size");
-        }
-        break;
+        return 1632;
     case MLKEMSize::MLKEM768:
-        if (expanded_key.size() != 2400) {
-            ERROR_WITH_SCOPE("Invalid expandedKey size");
-        }
-        break;
+        return 2400;
     case MLKEMSize::MLKEM1024:
-        if (expanded_key.size() != 3168) {
-            ERROR_WITH_SCOPE("Invalid expandedKey size");
-        }
-        break;
+        return 3168;
     default:
         VERIFY_NOT_REACHED();
     }
-    POP_SCOPE();
-
-    return ByteBuffer::copy(expanded_key);
 }
 
 ErrorOr<ByteBuffer> MLKEMPrivateKey::export_as_der() const
@@ -92,53 +61,18 @@ ErrorOr<ByteBuffer> MLKEMPrivateKey::export_as_der() const
     return encoder.finish();
 }
 
-// https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-11#autoid-7
-ErrorOr<MLKEM::KeyPairType> MLKEM::parse_mlkem_key(MLKEMSize size, ReadonlyBytes der, Vector<StringView> current_scope)
+ErrorOr<MLKEM::KeyPairType> MLKEM::parse_mlkem_key(MLKEMSize size, ReadonlyBytes der)
 {
-    ASN1::Decoder decoder(der);
+    auto encoded_key = TRY(parse_module_lattice_private_key(der, 64, mlkem_expanded_key_size(size)));
 
-    // ML-KEM-PrivateKey ::= CHOICE {
-    //      seed [0] IMPLICIT OCTET STRING (SIZE (64)),
-    //      expandedKey OCTET STRING (SIZE (1632 | 2400 | 3168)),
-    //      both SEQUENCE {
-    //           seed OCTET STRING (SIZE (64)),
-    //           expandedKey OCTET STRING (SIZE (1632 | 2400 | 3168))
-    //      }
-    // }
+    // NB: Web Crypto rejects a key in the expandedKey form before it validates the key, so that form is kept as it is.
+    if (encoded_key.seed.is_empty())
+        return KeyPairType { {}, { {}, {}, TRY(ByteBuffer::copy(encoded_key.expanded_key)) } };
 
-    if (decoder.eof()) {
-        return Error::from_string_literal("Input key is empty");
-    }
-
-    auto const tag = TRY(decoder.peek());
-    if (static_cast<u8>(tag.kind) == 0) {
-        REWRITE_TAG(OctetString);
-        return generate_key_pair(size, TRY(read_mlkem_seed(decoder, current_scope)));
-    }
-    if (tag.kind == ASN1::Kind::OctetString) {
-        return KeyPairType {
-            {},
-            { {}, {}, TRY(read_mlkem_private_key(size, decoder, current_scope)) }
-        };
-    }
-    if (tag.kind == ASN1::Kind::Sequence) {
-        ENTER_TYPED_SCOPE(Sequence, "both");
-        ENTER_TYPED_SCOPE(OctetString, "seed");
-        auto key_pair = TRY(generate_key_pair(size, TRY(read_mlkem_seed(decoder, current_scope))));
-        POP_SCOPE()
-
-        ENTER_TYPED_SCOPE(OctetString, "expandedKey");
-        if (auto const expanded_key = TRY(read_mlkem_private_key(size, decoder, current_scope));
-            key_pair.private_key.private_key() != expanded_key) {
-            ERROR_WITH_SCOPE("Invalid expanded_key");
-        }
-        POP_SCOPE();
-
-        POP_SCOPE();
-        return key_pair;
-    }
-
-    return Error::from_string_literal("Invalid key format");
+    auto key_pair = TRY(generate_key_pair(size, TRY(ByteBuffer::copy(encoded_key.seed))));
+    if (!encoded_key.expanded_key.is_empty() && key_pair.private_key.private_key() != encoded_key.expanded_key)
+        return Error::from_string_literal("The expanded key does not match the seed");
+    return key_pair;
 }
 
 ErrorOr<MLKEMEncapsulation> MLKEM::encapsulate(MLKEMSize size, MLKEMPublicKey const& key)

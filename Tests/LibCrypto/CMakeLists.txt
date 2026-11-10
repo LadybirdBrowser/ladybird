@@ -12,6 +12,7 @@ set(TEST_SOURCES
     TestHKDF.cpp
     TestHMAC.cpp
     TestMLDSA.cpp
+    TestMLKEM.cpp
     TestOAEP.cpp
     TestPBKDF2.cpp
     TestPSS.cpp
