@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<div style="columns: 2; height: 100px; width: 400px">
+    <div style="height: 100px"></div>
+    <div style="width: 0; box-shadow: 0 0 0 26px black"><div style="height: 150px; width: 10px"></div></div>
+</div>
+<div style="columns: 2">
+    <div style="height: 501px; outline: 4px solid blue"><div style="height: 1384px"></div></div>
+</div>
+<div style="width: 200px">
+    Some text <span style="backdrop-filter: blur(4px)">inline with a backdrop filter that wraps over several lines</span> after
+</div>
+<script>
+    internals.recordDisplayListForTesting();
+</script>

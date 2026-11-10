@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { font: 32px sans-serif; text-shadow: -71px 55px 25px red; text-decoration: underline wavy blue 8px; text-underline-offset: 85px; }
+    ::highlight(ink) { text-shadow: 91px -65px 31px green; text-decoration: underline wavy 11px; text-underline-offset: 110px; }
+</style>
+<div id="text">Large shadows and a distant underline</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById("text"));
+        CSS.highlights.set("ink", new Highlight(range));
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

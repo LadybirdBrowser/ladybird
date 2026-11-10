@@ -12,6 +12,7 @@ pub mod async_scroll_metadata;
 pub(crate) mod damage;
 pub(crate) mod frame_inputs;
 pub mod hit_test_items;
+pub(crate) mod ink_bounds;
 pub(crate) mod inputs;
 pub(crate) mod order_tree;
 pub mod paint;
@@ -122,6 +123,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) converter: DevicePixelConverter,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
     pub(crate) viewport: NodeSlotId,
+    ink_bounds_audit: ink_bounds::InkBoundsAudit,
     // The published recording whose clean output this recording copies, when its inputs match.
     pub(crate) source_recording: Option<Arc<RecordingOutput>>,
     pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,

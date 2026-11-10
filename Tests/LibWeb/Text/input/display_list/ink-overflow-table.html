@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    table { border-collapse: collapse; }
+    td { border: 28px dashed blue; width: 40px; height: 25px; }
+    colgroup { background: pink; }
+    col { background: cyan; }
+    tr { background: yellow; }
+</style>
+<table><colgroup><col><col></colgroup><tr><td rowspan="2" colspan="2">span</td><td>cell</td></tr><tr><td>cell</td></tr><tr><td>one</td><td colspan="2">two</td></tr></table>
+<script>
+    test(() => {
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

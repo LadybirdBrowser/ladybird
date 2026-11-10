@@ -106,6 +106,7 @@ RENDER_STATE_ALLOWED = {
             "layout/run_repeatability.rs:VERIFICATION",
             "layout/tree_builder/list_unit.rs:ENABLED",
             "painting/paint_passes.rs:PAINTING_TIMING_ENABLED",
+            "painting/record/ink_bounds.rs:VERIFICATION",
             "render_state/clock/hover.rs:LOGS",
         ],
     ),

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #border { width: 30px; height: 20px; border: 9px solid; border-image: linear-gradient(red, blue) 20 / 2 / 40px 60px 80px 100px; }
+</style>
+<div id="border"></div>
+<script>
+    test(() => {
+        for (const ratio of [0.5, 1, 1.5, 2]) {
+            internals.setDevicePixelRatio(ratio);
+            internals.recordDisplayListForTesting(false, true);
+        }
+        internals.setDevicePixelRatio(1);
+        println("PASS");
+    });
+</script>

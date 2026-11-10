@@ -99,8 +99,8 @@ fn resolve_text_decoration_thickness(
 }
 
 // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
-fn anchor_for_decorating_box<O: Observer>(
-    recorder: &PaintRecorder<'_, O>,
+fn anchor_for_decorating_box(
+    arena: &impl PaintRead,
     block: NodeSlotId,
     fragment: &crate::painting::paintable_data::FragmentRecord,
     decorating_node: crate::layout::node_data::NodeSlotId,
@@ -111,7 +111,7 @@ fn anchor_for_decorating_box<O: Observer>(
     if decorating_node == text_parent {
         return (fragment.baseline, true);
     }
-    let side = recorder.source.committed_side_data(block);
+    let side = arena.committed_side_data(block);
     for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
@@ -128,8 +128,8 @@ fn anchor_for_decorating_box<O: Observer>(
     )
 }
 
-pub(crate) fn decoration_sets_for_span<O: Observer>(
-    recorder: &PaintRecorder<'_, O>,
+pub(crate) fn decoration_sets_for_span(
+    arena: &impl PaintRead,
     block: NodeSlotId,
     span: &crate::painting::record::paint::text::RenderSpan,
 ) -> Vec<TextDecorationSet> {
@@ -137,66 +137,64 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
     if span.start_code_unit == span.end_code_unit {
         return sets;
     }
-    let arena = recorder.source;
-    let side = recorder.source.committed_side_data(block);
+    let side = arena.committed_side_data(block);
     let fragment = &side.fragments()[span.fragment_index as usize];
     let text_parent = fragment.style_source;
 
-    let mut push_set = |decorating_node: crate::layout::node_data::NodeSlotId,
-                        lines: &[u8],
-                        style_code: u8,
-                        color: u32,
-                        thickness: CssPixels,
-                        highlight_metrics: Option<
-        &crate::painting::record::paint::text::HighlightDecorationMetrics,
-    >| {
-        let Some(decorating_style) = arena.node_style_if_live(decorating_node) else {
-            return;
-        };
-        let mut set = TextDecorationSet {
-            style: style_code,
-            color,
-            thickness,
-            ..TextDecorationSet::default()
-        };
-        set.line_count = lines.len().min(set.lines.len()) as u32;
-        set.lines[..set.line_count as usize].copy_from_slice(&lines[..set.line_count as usize]);
-        let (baseline, anchored) = anchor_for_decorating_box(recorder, block, fragment, decorating_node, text_parent);
-        set.baseline = baseline;
-        set.anchored_at_fragment_baseline = anchored;
-        // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
-        // However, for underlines and overlines the UA must use a single thickness and position on each line for the
-        // decorations deriving from a single decorating box.
-        let Some(decorating_font) = first_available_font(arena, decorating_node) else {
-            return;
-        };
-        let text_font = if decorating_node == text_parent {
-            decorating_font.clone()
-        } else {
-            let source = crate::painting::text_fragment::style_source(arena, fragment);
-            first_available_font(arena, source).unwrap_or_else(|| decorating_font.clone())
-        };
-        set.decorating_font_pixel_size = decorating_font.facts().pixel_size;
-        set.decorating_font_descent = decorating_font.facts().descent;
-        set.decorating_font_point_size = decorating_font.facts().point_size as i32;
-        set.text_font_pixel_size = text_font.facts().pixel_size;
-        match highlight_metrics {
-            Some(metrics) => {
-                set.text_underline_offset = metrics.underline_offset;
-                set.text_underline_position_horizontal = metrics.underline_position_horizontal;
-                set.skip_ink = metrics.skip_ink;
+    let mut push_set =
+        |decorating_node: crate::layout::node_data::NodeSlotId,
+         lines: &[u8],
+         style_code: u8,
+         color: u32,
+         thickness: CssPixels,
+         highlight_metrics: Option<&crate::painting::record::paint::text::HighlightDecorationMetrics>| {
+            let Some(decorating_style) = arena.node_style_if_live(decorating_node) else {
+                return;
+            };
+            let mut set = TextDecorationSet {
+                style: style_code,
+                color,
+                thickness,
+                ..TextDecorationSet::default()
+            };
+            set.line_count = lines.len().min(set.lines.len()) as u32;
+            set.lines[..set.line_count as usize].copy_from_slice(&lines[..set.line_count as usize]);
+            let (baseline, anchored) = anchor_for_decorating_box(arena, block, fragment, decorating_node, text_parent);
+            set.baseline = baseline;
+            set.anchored_at_fragment_baseline = anchored;
+            // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
+            // However, for underlines and overlines the UA must use a single thickness and position on each line for the
+            // decorations deriving from a single decorating box.
+            let Some(decorating_font) = first_available_font(arena, decorating_node) else {
+                return;
+            };
+            let text_font = if decorating_node == text_parent {
+                decorating_font.clone()
+            } else {
+                let source = crate::painting::text_fragment::style_source(arena, fragment);
+                first_available_font(arena, source).unwrap_or_else(|| decorating_font.clone())
+            };
+            set.decorating_font_pixel_size = decorating_font.facts().pixel_size;
+            set.decorating_font_descent = decorating_font.facts().descent;
+            set.decorating_font_point_size = decorating_font.facts().point_size as i32;
+            set.text_font_pixel_size = text_font.facts().pixel_size;
+            match highlight_metrics {
+                Some(metrics) => {
+                    set.text_underline_offset = metrics.underline_offset;
+                    set.text_underline_position_horizontal = metrics.underline_position_horizontal;
+                    set.skip_ink = metrics.skip_ink;
+                }
+                None => {
+                    let inherited_text = decorating_style.inherited_text();
+                    set.text_underline_offset = inherited_text.text_underline_offset.used_value;
+                    set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
+                    set.skip_ink = arena
+                        .node_style_if_live(text_parent)
+                        .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
+                }
             }
-            None => {
-                let inherited_text = decorating_style.inherited_text();
-                set.text_underline_offset = inherited_text.text_underline_offset.used_value;
-                set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
-                set.skip_ink = arena
-                    .node_style_if_live(text_parent)
-                    .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
-            }
-        }
-        sets.push(set);
-    };
+            sets.push(set);
+        };
 
     let block_node = block;
     // https://drafts.csswg.org/css-text-decor-4/#decorating-box
@@ -474,12 +472,15 @@ pub(crate) struct DecorationLineGeometry {
     pub stroke: DecorationStrokeGeometry,
 }
 
-pub(crate) fn decoration_line_geometry(
-    fragment_box: CssPixelRect,
-    set: &TextDecorationSet,
-    device_pixel_ratio: f64,
-) -> Vec<DecorationLineGeometry> {
-    let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(device_pixel_ratio);
+struct CssDecorationLine {
+    line: u8,
+    thickness: CssPixels,
+    style: u8,
+    color: Color,
+    center_y: CssPixels,
+}
+
+fn css_decoration_lines(set: &TextDecorationSet) -> Vec<CssDecorationLine> {
     let mut lines = Vec::new();
     let glyph_height = CssPixels::nearest_value_for_f32(set.decorating_font_pixel_size);
     let baseline = set.baseline;
@@ -518,8 +519,6 @@ pub(crate) fn decoration_line_geometry(
             text_underline_offset = CssPixels::from_integer(2);
         }
 
-        let device_line_thickness = converter.rounded_device_pixels(line_thickness);
-
         // Compute the center Y of the decoration stroke. For underline and overline, offset by half the thickness
         // so the near edge of the stroke aligns with the intended position.
         let line_center_y = match line {
@@ -557,6 +556,48 @@ pub(crate) fn decoration_line_geometry(
             _ => break,
         };
 
+        lines.push(CssDecorationLine {
+            line,
+            thickness: line_thickness,
+            style: line_style,
+            color: line_color,
+            center_y: line_center_y,
+        });
+    }
+    lines
+}
+
+pub(crate) fn decoration_ink_bounds(fragment_box: CssPixelRect, set: &TextDecorationSet) -> CssPixelRect {
+    let mut bounds = CssPixelRect::default();
+    for line in css_decoration_lines(set) {
+        let reach = line.thickness * 3;
+        let rect = CssPixelRect::new(
+            fragment_box.x,
+            fragment_box.y + line.center_y,
+            fragment_box.width,
+            CssPixels::default(),
+        );
+        bounds.unite(rect.inflated(reach, reach, reach, reach));
+    }
+    bounds
+}
+
+pub(crate) fn decoration_line_geometry(
+    fragment_box: CssPixelRect,
+    set: &TextDecorationSet,
+    device_pixel_ratio: f64,
+) -> Vec<DecorationLineGeometry> {
+    let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(device_pixel_ratio);
+    let mut lines = Vec::new();
+    for css_line in css_decoration_lines(set) {
+        let CssDecorationLine {
+            line,
+            thickness: line_thickness,
+            style: line_style,
+            color: line_color,
+            center_y: line_center_y,
+        } = css_line;
+        let device_line_thickness = converter.rounded_device_pixels(line_thickness);
         let line_start_point = converter.rounded_device_point(
             fragment_box
                 .location()
