@@ -63,7 +63,7 @@ jobs:
     if: github.repository == 'LadybirdBrowser/ladybird'
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
     needs: Source
-    runs-on: ${{ fromJSON(!inputs.version && matrix.snapshot_runner_labels || matrix.runner_labels) }}
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
     container: ${{ fromJSON(matrix.container) }}
 
     strategy:
@@ -72,8 +72,7 @@ jobs:
         include:
           - os_name: 'macOS'
             arch: 'arm64'
-            runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-27", "arm64"]}'
-            snapshot_runner_labels: '["blacksmith-12vcpu-macos-26"]'
+            runner_labels: '["blacksmith-12vcpu-macos-26"]'
             container: 'null'
           - os_name: 'Linux'
             arch: 'x86_64'
