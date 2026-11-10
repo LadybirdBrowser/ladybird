@@ -260,7 +260,7 @@ fn display_list_payload_alignment(path: &Path) -> Result<String, Box<dyn Error>>
     Ok(value.to_string())
 }
 
-fn generate_ipc_endpoints(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
     let source_dir = manifest_dir.join("../../..");
     let generator = source_dir.join("Meta/Generators/generate_ipc_definitions.py");
     println!("cargo:rerun-if-changed={}", generator.display());
@@ -273,19 +273,48 @@ fn generate_ipc_endpoints(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box
 
     println!("cargo:rerun-if-env-changed=PYTHON");
     let python = env::var_os("PYTHON").unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
-    for endpoint in ["RenderClockClient", "RenderClockServer"] {
-        let definition = source_dir.join(format!("Services/Compositor/{endpoint}.ipc"));
+    for (definition, generated_file) in [
+        (
+            "Libraries/LibCompositing/DisplayList/DisplayListProperties.ipc",
+            "DisplayListProperties.rs",
+        ),
+        ("Libraries/LibCompositing/Types.ipc", "Types.rs"),
+        ("Libraries/LibWebCommon/UIEvents/KeyCode.ipc", "KeyCode.rs"),
+        ("Libraries/LibWebCommon/UIEvents/MouseButton.ipc", "MouseButton.rs"),
+        (
+            "Libraries/LibWebCommon/Page/AsyncScrollNodeStableID.ipc",
+            "AsyncScrollNodeStableID.rs",
+        ),
+        ("Libraries/LibWebCommon/Page/InputEvent.ipc", "InputEvent.rs"),
+        (
+            "Libraries/LibWebCommon/Page/InputRoutingDecision.ipc",
+            "InputRoutingDecision.rs",
+        ),
+        ("Libraries/LibWebCommon/Page/InputTrace.ipc", "InputTrace.rs"),
+        (
+            "Libraries/LibWebCommon/Page/TextEditingCommand.ipc",
+            "TextEditingCommand.rs",
+        ),
+        (
+            "Services/Compositor/RenderClockClient.ipc",
+            "RenderClockClientEndpoint.rs",
+        ),
+        (
+            "Services/Compositor/RenderClockServer.ipc",
+            "RenderClockServerEndpoint.rs",
+        ),
+    ] {
+        let definition = source_dir.join(definition);
         println!("cargo:rerun-if-changed={}", definition.display());
-        let output = out_dir.join(format!("{endpoint}Endpoint.rs"));
         let status = Command::new(&python)
             .arg(&generator)
             .arg("--input")
             .arg(&definition)
             .arg("--rust-output")
-            .arg(&output)
+            .arg(out_dir.join(generated_file))
             .status()?;
         if !status.success() {
-            return Err(format!("IPC endpoint generation failed for {endpoint}").into());
+            return Err(format!("IPC compiler failed for {}", definition.display()).into());
         }
     }
     Ok(())
@@ -295,7 +324,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
-    generate_ipc_endpoints(&manifest_dir, &out_dir)?;
+    generate_ipc_definitions(&manifest_dir, &out_dir)?;
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");

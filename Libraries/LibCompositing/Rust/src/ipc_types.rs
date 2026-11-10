@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The types the Compositor's endpoints carry, under the names the IPC compiler gives them, and the endpoints it
-//! generates from Services/Compositor/*.ipc for the messages that name Rust.
+//! The types the Compositor's endpoints carry, under the names the IPC compiler gives them: the ones it generates from
+//! their .ipc declarations, the ones with a wire form of their own, and the endpoints it generates from
+//! Services/Compositor/*.ipc for the messages that name Rust.
 
 #![allow(non_camel_case_types)]
 
@@ -16,6 +17,12 @@ use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encod
 pub type Web_CompositorContextId = CompositorContextId;
 pub type Web_UniqueNodeID = UniqueNodeId;
 pub type Web_CSSPixelPoint = CssPixelPoint;
+pub type Gfx_IntPoint = libgfx_rust::IntPoint;
+pub type Gfx_FloatPoint = libgfx_rust::FloatPoint;
+pub type Gfx_IntSize = libgfx_rust::IntSize;
+pub type Gfx_IntRect = libgfx_rust::IntRect;
+pub type Gfx_FloatRect = libgfx_rust::FloatRect;
+pub type Gfx_Color = libgfx_rust::Color;
 
 impl Encode for CompositorContextId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -63,87 +70,6 @@ impl Decode for CssPixelPoint {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum Web_AsyncScrollNodeKind {
-    Viewport,
-    Element,
-    PseudoElement,
-    VisualViewport,
-}
-
-impl Encode for Web_AsyncScrollNodeKind {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&(*self as u8))
-    }
-}
-
-impl Decode for Web_AsyncScrollNodeKind {
-    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        match decoder.decode::<u8>()? {
-            0 => Ok(Self::Viewport),
-            1 => Ok(Self::Element),
-            2 => Ok(Self::PseudoElement),
-            3 => Ok(Self::VisualViewport),
-            _ => Err(DecodeError::InvalidValue("Web::AsyncScrollNodeKind")),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Web_AsyncScrollNodeStableID {
-    pub node_id: UniqueNodeId,
-    pub kind: Web_AsyncScrollNodeKind,
-    pub pseudo_element_type: u8,
-}
-
-impl Encode for Web_AsyncScrollNodeStableID {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.node_id)?;
-        encoder.encode(&self.kind)?;
-        encoder.encode(&self.pseudo_element_type)
-    }
-}
-
-impl Decode for Web_AsyncScrollNodeStableID {
-    const MIN_ENCODED_SIZE: usize =
-        UniqueNodeId::MIN_ENCODED_SIZE + Web_AsyncScrollNodeKind::MIN_ENCODED_SIZE + size_of::<u8>();
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            node_id: decoder.decode()?,
-            kind: decoder.decode()?,
-            pseudo_element_type: decoder.decode()?,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Web_CompositorScrollOffset {
-    pub scroll_node: Web_AsyncScrollNodeStableID,
-    pub offset: CssPixelPoint,
-}
-
-impl Encode for Web_CompositorScrollOffset {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.scroll_node)?;
-        encoder.encode(&self.offset)
-    }
-}
-
-impl Decode for Web_CompositorScrollOffset {
-    const MIN_ENCODED_SIZE: usize = Web_AsyncScrollNodeStableID::MIN_ENCODED_SIZE + CssPixelPoint::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        Ok(Self {
-            scroll_node: decoder.decode()?,
-            offset: decoder.decode()?,
-        })
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Web_DevicePixelPoint {
     pub x: i32,
@@ -167,6 +93,39 @@ impl Decode for Web_DevicePixelPoint {
         })
     }
 }
+
+#[allow(non_upper_case_globals)]
+impl Web_UIEvents_KeyModifier {
+    pub const Mod_PlatformCtrl: Self = if cfg!(target_os = "macos") {
+        Self::Mod_Super
+    } else {
+        Self::Mod_Ctrl
+    };
+}
+
+impl Web_InputRoutingDecision {
+    // The name tests read a decision by. ENUMERATE_INPUT_ROUTING_DECISIONS gives each decision its name in kebab case.
+    pub fn name(self) -> String {
+        let mut name = String::new();
+        for character in format!("{self:?}").chars() {
+            if character.is_ascii_uppercase() && !name.is_empty() {
+                name.push('-');
+            }
+            name.push(character.to_ascii_lowercase());
+        }
+        name
+    }
+}
+
+include!(concat!(env!("OUT_DIR"), "/AsyncScrollNodeStableID.rs"));
+include!(concat!(env!("OUT_DIR"), "/DisplayListProperties.rs"));
+include!(concat!(env!("OUT_DIR"), "/InputEvent.rs"));
+include!(concat!(env!("OUT_DIR"), "/InputRoutingDecision.rs"));
+include!(concat!(env!("OUT_DIR"), "/InputTrace.rs"));
+include!(concat!(env!("OUT_DIR"), "/KeyCode.rs"));
+include!(concat!(env!("OUT_DIR"), "/MouseButton.rs"));
+include!(concat!(env!("OUT_DIR"), "/TextEditingCommand.rs"));
+include!(concat!(env!("OUT_DIR"), "/Types.rs"));
 
 include!(concat!(env!("OUT_DIR"), "/RenderClockClientEndpoint.rs"));
 include!(concat!(env!("OUT_DIR"), "/RenderClockServerEndpoint.rs"));
