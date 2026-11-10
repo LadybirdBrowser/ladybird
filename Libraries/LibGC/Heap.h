@@ -221,8 +221,8 @@ private:
     }
 
     // Shared by allocate<T>() and any allocation whose cell type is only known through its allocator descriptor.
-    // Cells that other cells keep their storage in neither collect garbage nor count towards the next collection
-    // (see gc_heap_allocate_storage_cell()).
+    // Cells that other cells keep their storage in never collect garbage, but count towards the next collection (see
+    // gc_heap_allocate_storage_cell()).
     enum class TriggersCollection {
         No,
         Yes,
