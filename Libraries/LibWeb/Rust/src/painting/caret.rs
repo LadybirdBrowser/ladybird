@@ -28,7 +28,10 @@ fn caret_rect_in_fragment(
     let mut rect = text_fragment::range_rect(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset);
     if let Some(offsets) =
         text_fragment::compute_selection_offsets(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset)
-        && let Some(coordinate) = text_fragment::caret_inline_offset(fragment, offsets.start, affinity_is_downstream)
+        && let Some(run) = &fragment.glyph_run
+        && let Some(coordinate) = run
+            .cluster_geometry()
+            .x_for_offset(offsets.start, affinity_is_downstream)
     {
         let origin = text_fragment::absolute_rect(layout_arena, fragment);
         let coordinate = CssPixels::nearest_value_for_f32(coordinate);
