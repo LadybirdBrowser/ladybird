@@ -1449,6 +1449,8 @@ pub(crate) struct TreeBuildAnswer {
     pub(crate) reports: Vec<crate::layout::commit::FfiCommitMessage>,
     /// The scroll containers the build gave a style.
     pub(crate) built_scroll_containers: Vec<super::formatting_context::FfiBuiltScrollContainer>,
+    /// Whether the build built the whole tree again, rather than only the subtrees it was asked to.
+    pub(crate) rebuilt_whole_tree: bool,
 }
 
 impl TreeBuildAnswer {
@@ -1513,10 +1515,13 @@ impl TreeBuildJob {
         );
 
         let document_layout_node = host.arena().layout_root();
+        // NB: A build that escaped its rebuild roots still skipped every clean subtree, so it did not build the
+        //     whole tree again.
+        let rebuilt_whole_tree = !document_layout_node.is_invalid()
+            && (context.document_needs_full_layout_tree_update || !document_had_layout_node);
         let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
-            && !(context.document_needs_full_layout_tree_update
-                || !document_had_layout_node
-                || state.layout_tree_update_escaped_rebuild_roots);
+            && !rebuilt_whole_tree
+            && !state.layout_tree_update_escaped_rebuild_roots;
         if !document_layout_node.is_invalid() {
             if rebuilt_subtrees_were_updated_individually {
                 fixup_tables_in_rebuilt_subtrees(
@@ -1620,6 +1625,7 @@ impl TreeBuildJob {
             outcome,
             reports: state.reports,
             built_scroll_containers,
+            rebuilt_whole_tree,
         }
     }
 }
