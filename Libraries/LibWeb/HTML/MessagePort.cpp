@@ -217,7 +217,7 @@ void web_bindings_transport_handle_take(IPC::TransportHandle* handle, void* cont
     IPC::MessageBuffer buffer;
     IPC::Encoder encoder(buffer);
     MUST(encoder.encode(*owner));
-    auto attachments = release_transfer_attachments(buffer.take_attachments());
+    auto attachments = IPC::release_raw_attachments(buffer.take_attachments());
     receive(context, buffer.data().span(), attachments.data(), attachments.size());
 }
 
@@ -225,7 +225,7 @@ IPC::Transport* web_bindings_transport_handle_create_transport(ReadonlyBytes byt
 {
     FixedMemoryStream stream(bytes);
     Queue<IPC::Attachment> queue;
-    for (auto& attachment : adopt_transfer_attachments(attachments, count))
+    for (auto& attachment : IPC::adopt_raw_attachments({ attachments, count }))
         queue.enqueue(move(attachment));
     IPC::Decoder decoder(stream, queue);
     auto handle = MUST(decoder.decode<IPC::TransportHandle>());
@@ -236,7 +236,7 @@ bool web_bindings_message_port_transport_send(IPC::Transport* transport, Readonl
 {
     IPC::MessageDataType data;
     MUST(data.try_append(bytes.data(), bytes.size()));
-    IPC::MessageBuffer buffer { move(data), adopt_transfer_attachments(attachments, count) };
+    IPC::MessageBuffer buffer { move(data), IPC::adopt_raw_attachments({ attachments, count }) };
     if (auto result = buffer.transfer_message(*transport); result.is_error()) {
         dbgln("Failed to post message: {}", result.error());
         return false;
@@ -254,7 +254,7 @@ bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport
         Vector<IPC::Attachment> attachments;
         while (!message.attachments.is_empty())
             attachments.append(message.attachments.dequeue());
-        auto raw_attachments = release_transfer_attachments(move(attachments));
+        auto raw_attachments = IPC::release_raw_attachments(move(attachments));
         failed_to_decode = !receive(context, message.bytes.bytes(), raw_attachments.data(), raw_attachments.size());
     });
     return failed_to_decode || should_shutdown == IPC::Transport::ShouldShutdown::Yes;

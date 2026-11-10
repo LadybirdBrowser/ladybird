@@ -11,6 +11,7 @@
 #![deny(unsafe_code)]
 
 pub mod attachment;
+pub mod cpp_connection;
 mod receive_queue;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
