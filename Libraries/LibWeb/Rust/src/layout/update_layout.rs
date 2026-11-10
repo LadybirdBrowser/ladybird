@@ -886,9 +886,9 @@ impl LayoutRoundJob {
         answer
     }
 
-    /// Runs `build`, records it, and answers how the round goes on from it. A build that shows the value of a
-    /// `list-item` counter, while some list's counters are stale, may show a stale one: the document reconciles them
-    /// with what was built before anything is laid out.
+    /// Runs `build`, records it, and answers how the round goes on from it. A build of some subtrees that shows the
+    /// value of a `list-item` counter, while some list's counters are stale, may show a stale one: the document
+    /// reconciles them with what was built before anything is laid out.
     fn build(
         state: &mut ArenaHandle,
         build: TreeBuildJob,
@@ -899,12 +899,21 @@ impl LayoutRoundJob {
         let replaced_viewport = state.arena().layout_root();
         let built = build.run(state, work);
         state.arena_mut().record_layout_tree_build(&built.outcome);
+        // A build of the whole tree resolves every counter again, so no counter it shows is stale, and the document
+        // is the root it rebuilt.
         if has_stale_list_item_counters {
-            answer.rebuilt_roots = state.arena().pending_rebuilt_dom_roots();
+            answer.rebuilt_roots = if built.rebuilt_whole_tree {
+                vec![crate::painting::host::FfiNodeIdentity {
+                    style_node: 0,
+                    is_document: true,
+                }]
+            } else {
+                state.arena().pending_rebuilt_dom_roots()
+            };
         }
         let end = if built.outcome.needs_another_build_pass {
             BuildEnd::AnotherPass
-        } else if has_stale_list_item_counters && built.shows_list_item_counter_value() {
+        } else if has_stale_list_item_counters && !built.rebuilt_whole_tree && built.shows_list_item_counter_value() {
             BuildEnd::ReconcileCounters
         } else {
             BuildEnd::LayOut
