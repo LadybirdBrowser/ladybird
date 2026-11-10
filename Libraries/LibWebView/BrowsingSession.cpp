@@ -13,8 +13,11 @@
 
 namespace WebView {
 
+static u64 s_next_id { 1 };
+
 BrowsingSession::BrowsingSession(IsPrivate is_private)
-    : m_is_private(is_private)
+    : m_id(s_next_id++)
+    , m_is_private(is_private)
 {
 }
 
