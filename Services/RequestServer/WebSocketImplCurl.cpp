@@ -7,6 +7,7 @@
 #include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
@@ -210,6 +211,7 @@ void WebSocketImplCurl::read_from_socket()
         if (0 == nread)
             break;
 
+        add_network_usage(nread, 0);
         if (auto const err = m_read_buffer.write_until_depleted({ buffer, nread }); err.is_error()) {
             on_connection_error();
             return;
@@ -233,8 +235,10 @@ bool WebSocketImplCurl::flush_pending_write_buffer()
         }
 
         m_pending_write_buffer_offset += sent;
-        if (sent > 0)
+        if (sent > 0) {
+            add_network_usage(0, sent);
             continue;
+        }
 
         if (result == CURLE_AGAIN) {
             if (m_write_notifier)
@@ -251,6 +255,14 @@ bool WebSocketImplCurl::flush_pending_write_buffer()
     if (m_write_notifier)
         m_write_notifier->set_enabled(false);
     return true;
+}
+
+void WebSocketImplCurl::add_network_usage(u64 download_bytes, u64 upload_bytes) const
+{
+    auto usage = m_performance_origin;
+    usage.download_bytes = download_bytes;
+    usage.upload_bytes = upload_bytes;
+    Request::add_network_usage(usage);
 }
 
 bool WebSocketImplCurl::did_connect()

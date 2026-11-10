@@ -40,6 +40,7 @@
 #include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -248,7 +249,11 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     if (!request_client)
         return Error::from_string_literal("RequestServer is currently unavailable");
 
-    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers, { .status = request->same_site_status(), .is_safe_method = true });
+    // NB: As for its requests, a worker's page has no top-level traversable or browser page ID.
+    auto& page = Bindings::principal_host_defined_page(client.realm());
+    auto originating_page_id = page.has_top_level_traversable() ? page.client().id().value() : 0;
+
+    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers, originating_page_id, { .status = request->same_site_status(), .is_safe_method = true });
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();
