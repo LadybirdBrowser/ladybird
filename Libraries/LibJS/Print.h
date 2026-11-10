@@ -27,6 +27,7 @@ struct PrintContext {
     AK::Utf16StringBuilder* builder { nullptr };
     bool strip_ansi { false };
     bool raw_strings { false };
+    bool compact { false };
 };
 
 JS_API ErrorOr<void> print(JS::Value value, PrintContext&);

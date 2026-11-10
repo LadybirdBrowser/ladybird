@@ -50,7 +50,7 @@ ErrorOr<void> print(Value value, PrintContext& print_context)
     PrintedBytesDestination destination { .print_context = print_context, .bytes_for_the_builder = {}, .stream_error = {} };
     JSByteSink sink { .context = &destination, .append = append_printed_bytes };
 
-    if (!js_console_print_value(vm_to_abi(print_context.vm), value_to_abi(value), &sink, print_context.strip_ansi, print_context.raw_strings))
+    if (!js_console_print_value(vm_to_abi(print_context.vm), value_to_abi(value), &sink, print_context.strip_ansi, print_context.raw_strings, print_context.compact))
         return destination.stream_error.release_value();
 
     if (print_context.builder) {
