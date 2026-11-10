@@ -5,7 +5,6 @@
  */
 
 pub mod caret;
-pub mod geometry;
 pub mod query;
 pub mod resolve;
 
@@ -14,7 +13,6 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
-use crate::painting::paint_read::PaintRead;
 use crate::painting::visual_context::VisualContextTree;
 use std::sync::Arc;
 
@@ -63,13 +61,6 @@ pub struct HitTestItem {
     pub block_axis_is_reverse: bool,
     pub containing_block: NodeSlotId,
     pub can_produce_caret_position: bool,
-}
-
-impl HitTestItem {
-    fn recorded_caret_line(&self) -> Option<(ContextRef, NodeSlotId, usize)> {
-        self.caret_line_index
-            .map(|index| (self.context, self.block_container, index))
-    }
 }
 
 /// The areas of an SVG graphics element that pointer events can target.
@@ -126,19 +117,6 @@ pub struct SpatialIndex {
     pub unbucketed_items: Vec<usize>,
 }
 
-// A visual line assembled from caret-capable display-list items. Caret lines preserve painted
-// topology independently of the spatial hit-test index so keyboard navigation can reason about lines that contain
-// empty or zero-area caret targets. The block container is the first populated one among the line's items.
-#[derive(Clone, Debug)]
-pub struct CaretLine {
-    pub rect: CssPixelRect,
-    pub block_container: NodeSlotId,
-    pub box_fragment: u32,
-    pub context: ContextRef,
-    pub first_caret_item_index: usize,
-    pub last_caret_item_index: usize,
-}
-
 const SPATIAL_INDEX_CELL_SIZE: f64 = 128.0;
 const MAX_BUCKETED_CELLS_PER_ITEM: u64 = 64;
 
@@ -150,31 +128,6 @@ pub fn spatial_index_cell_key(x: i32, y: i32) -> u64 {
     ((x as u32 as u64) << 32) | (y as u32 as u64)
 }
 
-pub fn writing_mode_is_horizontal(writing_mode: u8) -> bool {
-    writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
-}
-
-pub fn block_axis_start(rect: CssPixelRect, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        rect.top()
-    } else {
-        rect.left()
-    }
-}
-
-pub fn block_axis_end(rect: CssPixelRect, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        rect.bottom()
-    } else {
-        rect.right()
-    }
-}
-
-pub fn rects_overlap_in_block_axis(a: CssPixelRect, b: CssPixelRect, writing_mode: u8) -> bool {
-    block_axis_start(a, writing_mode) < block_axis_end(b, writing_mode)
-        && block_axis_start(b, writing_mode) < block_axis_end(a, writing_mode)
-}
-
 #[derive(Default)]
 pub struct HitTestList {
     pub generation: u64,
@@ -182,12 +135,8 @@ pub struct HitTestList {
     pub recorded_structural_epoch: u64,
     pub items: Arc<Vec<HitTestItem>>,
     pub item_capacity_hint_from_previous_list: usize,
-    /// Point queries read only the spatial indexes, and caret navigation reads only the caret lines,
-    /// which resolve line box geometry for every caret-capable item. Each is built on first use.
+    /// Point queries read only the spatial indexes, which are built on first use.
     pub spatial_indexes_built: bool,
-    pub caret_lines_built: bool,
-    pub caret_item_indices: Vec<usize>,
-    pub caret_lines: Vec<CaretLine>,
     pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
     pub spatial_index_position_by_context: FastMap<ContextRef, usize>,
 }
@@ -195,8 +144,8 @@ pub struct HitTestList {
 impl HitTestList {
     pub fn append(&mut self, item: HitTestItem) {
         assert!(
-            !self.spatial_indexes_built && !self.caret_lines_built,
-            "hit-test item appended after the derived structures were built"
+            !self.spatial_indexes_built,
+            "hit-test item appended after the spatial indexes were built"
         );
         let items = Arc::make_mut(&mut self.items);
         if items.capacity() == 0 {
@@ -207,8 +156,8 @@ impl HitTestList {
 
     pub(crate) fn append_copies_of(&mut self, source: &[HitTestItem]) {
         assert!(
-            !self.spatial_indexes_built && !self.caret_lines_built,
-            "hit-test item appended after the derived structures were built"
+            !self.spatial_indexes_built,
+            "hit-test item appended after the spatial indexes were built"
         );
         if source.is_empty() {
             return;
@@ -220,37 +169,6 @@ impl HitTestList {
         items.extend_from_slice(source);
     }
 
-    fn box_fragment_of_caret_item(rows: &impl PaintRead, item: &HitTestItem) -> u32 {
-        let Some(line_index) = item.caret_line_index else {
-            return 0;
-        };
-        let line_root = match item.kind {
-            HitTestItemKind::TextFragment | HitTestItemKind::EmptyLine => item.paintable,
-            HitTestItemKind::Box => rows.paintable_data(item.paintable).containing_block,
-            HitTestItemKind::SvgPath | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => return 0,
-        };
-        if line_root.is_invalid() || !rows.paintable_row_is_populated(line_root) {
-            return 0;
-        }
-        rows.committed_side_data(line_root)
-            .lines()
-            .get(line_index)
-            .map_or(0, |line| line.box_fragment)
-    }
-
-    pub(crate) fn caret_line_rect_for_item(rows: &impl PaintRead, item: &HitTestItem) -> CssPixelRect {
-        let Some(line_rect) = geometry::containing_line_box_rect(rows, item) else {
-            return item.caret_rect;
-        };
-        let mut rect = item.caret_rect;
-        if writing_mode_is_horizontal(item.writing_mode) {
-            rect.unite_vertically(line_rect);
-        } else {
-            rect.unite_horizontally(line_rect);
-        }
-        rect
-    }
-
     pub(crate) fn build_spatial_indexes_if_needed(&mut self) {
         if self.spatial_indexes_built {
             return;
@@ -260,38 +178,6 @@ impl HitTestList {
             let item_is_caret_target_only = self.items[item_index].kind == HitTestItemKind::EmptyLine;
             if !item_is_caret_target_only {
                 self.add_item_to_spatial_index(item_index);
-            }
-        }
-    }
-
-    pub(crate) fn build_caret_lines_if_needed(&mut self, arena: &impl PaintRead) {
-        if self.caret_lines_built {
-            return;
-        }
-        self.caret_lines_built = true;
-        let rows = arena;
-        // Inline boxes and text from one layout line can be separated in paint order.
-        // Gather that line's caret targets together while preserving the order in
-        // which lines first appeared, and the paint order of targets within each line.
-        let mut group_by_line = FastMap::default();
-        let mut groups: Vec<smallvec::SmallVec<[usize; 4]>> = Vec::new();
-        for (item_index, item) in self.items.iter().enumerate() {
-            if item.caret_rect.is_empty() || !item.can_produce_caret_position {
-                continue;
-            }
-            let mut new_group = || {
-                groups.push(smallvec::SmallVec::new());
-                groups.len() - 1
-            };
-            let group = match item.recorded_caret_line() {
-                Some(line) => *group_by_line.entry(line).or_insert_with(new_group),
-                None => new_group(),
-            };
-            groups[group].push(item_index);
-        }
-        for group in groups {
-            for item_index in group {
-                self.add_item_to_caret_items(rows, item_index);
             }
         }
     }
@@ -349,76 +235,6 @@ impl HitTestList {
                     .push(item_index);
             }
         }
-    }
-
-    fn add_item_to_caret_items(&mut self, rows: &impl PaintRead, item_index: usize) {
-        let item = &self.items[item_index];
-        let caret_item_index = self.caret_item_indices.len();
-        self.caret_item_indices.push(item_index);
-
-        let writing_mode = item.writing_mode;
-        let item_line_rect = Self::caret_line_rect_for_item(rows, item);
-        let item_block_container = geometry::populated_block_container(rows, item.block_container);
-        if let Some(line) = self.caret_lines.last_mut() {
-            let first_line_item = &self.items[self.caret_item_indices[line.first_caret_item_index]];
-            // Recorded lines belong to a line-producing block. Its layout containing
-            // block can be shared by several paragraphs, including their empty lines.
-            let same_recorded_line = item.recorded_caret_line().is_some()
-                && first_line_item.recorded_caret_line() == item.recorded_caret_line();
-            let same_inferred_line = first_line_item.caret_line_index.is_none()
-                && item.caret_line_index.is_none()
-                && first_line_item.containing_block == item.containing_block
-                && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
-            if line.context == item.context && (same_recorded_line || same_inferred_line) {
-                line.rect.unite(item_line_rect);
-                if line.block_container.is_invalid() {
-                    line.block_container = item_block_container;
-                }
-                line.last_caret_item_index = caret_item_index;
-                return;
-            }
-        }
-
-        self.caret_lines.push(CaretLine {
-            rect: item_line_rect,
-            block_container: item_block_container,
-            box_fragment: Self::box_fragment_of_caret_item(rows, item),
-            context: item.context,
-            first_caret_item_index: caret_item_index,
-            last_caret_item_index: caret_item_index,
-        });
-    }
-}
-
-pub fn block_axis_coordinate(point: CssPixelPoint, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        point.y
-    } else {
-        point.x
-    }
-}
-
-pub fn inline_axis_start(rect: CssPixelRect, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        rect.left()
-    } else {
-        rect.top()
-    }
-}
-
-pub fn inline_axis_end(rect: CssPixelRect, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        rect.right()
-    } else {
-        rect.bottom()
-    }
-}
-
-pub fn inline_axis_coordinate(point: CssPixelPoint, writing_mode: u8) -> CssPixels {
-    if writing_mode_is_horizontal(writing_mode) {
-        point.x
-    } else {
-        point.y
     }
 }
 

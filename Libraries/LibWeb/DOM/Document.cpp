@@ -12357,28 +12357,12 @@ Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& re
     return {};
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint position)
+Optional<Painting::CaretPosition> Document::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
 {
     auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::Normal);
-}
-
-Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(Layout::BegunRead const& read, CSSPixelPoint position)
-{
-    auto query = prepare_hit_test_query(read);
-    if (!query.has_value())
-        return {};
-    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::SelectionStart);
-}
-
-Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(Layout::BegunRead const& read, CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
-{
-    auto query = prepare_hit_test_query(read);
-    if (!query.has_value())
-        return {};
-    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::Selection, constraint_scope);
+    return query->list().caret_position_from_point(read, position, *query, constraint_scope);
 }
 
 TraversalDecision Document::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)

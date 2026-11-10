@@ -9,7 +9,6 @@
 //! a token nor call an entry that does.
 
 use super::*;
-use crate::painting::hit_test::caret::HostNodeScopes;
 use crate::painting::host::FfiCaretAt;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_passes::{PassEffect, pending_preparation, run as run_paint_pass};
@@ -824,7 +823,6 @@ fn with_hit_test_list_items_only<R>(
 fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    needs_caret_lines: bool,
     default: R,
     query: impl FnOnce(
         &crate::painting::hit_test::HitTestList,
@@ -836,12 +834,7 @@ fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
         host,
         read,
         None,
-        |list, source| {
-            list.build_spatial_indexes_if_needed();
-            if needs_caret_lines {
-                list.build_caret_lines_if_needed(source);
-            }
-        },
+        |list, _| list.build_spatial_indexes_if_needed(),
         |list, rows, source| {
             let tree = rows.visual_context_tree.as_deref()?;
             Some(query(list, tree, source))
@@ -971,7 +964,6 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
     *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(
         host,
         read,
-        false,
         Default::default(),
         |list, tree, arena| {
             let mut sampled = None;
@@ -994,55 +986,40 @@ pub unsafe extern "C" fn layout_hit_test_all(
     push_context: *mut c_void,
     push: unsafe extern "C" fn(*mut c_void, usize, FfiCssPixelPoint),
 ) {
-    let hits = with_hit_test_list_spatial_indexes_and_visual_context_tree(
-        host,
-        read,
-        false,
-        Vec::new(),
-        |list, tree, arena| {
+    let hits =
+        with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, Vec::new(), |list, tree, arena| {
             let mut sampled = None;
             let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
             let world = callbacks.build_world_transforms(tree);
             list.hit_test_all(arena, tree, &callbacks.with_world_transforms(&world), point.into())
-        },
-    );
+        });
     for hit in hits {
         // SAFETY: The C++ sink consumes the hit synchronously.
         unsafe { push(push_context, hit.index, hit.local_point.into()) };
     }
 }
 
-/// The caret position at `point`, constrained to `constraint_scope` when it names a node.
+/// The caret position at `point`, or where `constraint_scope` is a box, the one that box gives it.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread; the callbacks must stay valid for this synchronous
-/// call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
-    mode: u8,
-    constraint_scope: crate::painting::host::FfiNodeIdentity,
+    constraint_scope: NodeSlotId,
     out: &mut FfiCaretAt,
 ) {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    let mode = crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode);
-    *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, true, None, |list, tree, arena| {
+    *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, None, |list, tree, arena| {
         let world = callbacks.build_world_transforms(tree);
         list.caret_position_from_point(
-            &HostNodeScopes {
-                main_thread: &main_thread,
-                callbacks: &callbacks,
-            },
             arena,
             tree,
             &callbacks.with_world_transforms(&world),
             point.into(),
-            mode,
             constraint_scope,
         )
     })

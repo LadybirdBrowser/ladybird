@@ -5,804 +5,341 @@
  */
 
 use super::*;
-use crate::painting::host::{
-    FfiCaretAt, FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiNodeIdentity, FfiResolvedCaret,
-};
-use crate::painting::paint_read::PaintRead;
-use crate::painting::viewport_mapping::ViewportSpace;
-use crate::painting::visual_context::{ClipBehavior, SpatialNodeIndex};
-
-/// What a caret query reads of the DOM: which nodes a scope holds.
-pub(crate) trait NodeScopes {
-    /// Whether `node` is `ancestor` or one of its descendants in the DOM.
-    fn contains(&self, ancestor: FfiNodeIdentity, node: FfiNodeIdentity) -> bool;
-}
-
-/// The host's answers, which only its thread reaches.
-pub(crate) struct HostNodeScopes<'a> {
-    pub(crate) main_thread: &'a crate::stage::MainThread<'a>,
-    pub(crate) callbacks: &'a FfiHitTestQueryCallbacks,
-}
-
-impl NodeScopes for HostNodeScopes<'_> {
-    fn contains(&self, ancestor: FfiNodeIdentity, node: FfiNodeIdentity) -> bool {
-        self.callbacks.contains(self.main_thread, ancestor, node)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CaretPositionType {
-    Closest,
-    Before,
-    After,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum CaretPositionMode {
-    Normal = 0,
-    SelectionStart = 1,
-    Selection = 2,
-}
-
-impl CaretPositionMode {
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            value if value == Self::SelectionStart as u8 => Self::SelectionStart,
-            value if value == Self::Selection as u8 => Self::Selection,
-            _ => Self::Normal,
-        }
-    }
-}
-
-// Treat small block-axis gaps between caret line fragments as the same visual row.
-const CARET_LINE_BLOCK_AXIS_RANGE_SLOP: i64 = 4;
-// Prefer a nearby line in the same visual column over a slightly closer line in another column.
-const CARET_LINE_BLOCK_AXIS_COMPARE_SLOP: i64 = 12;
-// Within the chosen line, tolerate larger block-axis differences before snapping across inline gaps.
-const CARET_ITEM_BLOCK_AXIS_COMPARE_SLOP: i64 = 32;
-
-fn px(value: i64) -> CssPixels {
-    CssPixels::from_integer(value)
-}
-fn distance_to_range(coordinate: CssPixels, start: CssPixels, end: CssPixels) -> CssPixels {
-    if coordinate < start {
-        return start - coordinate;
-    }
-    if coordinate > end {
-        return coordinate - end;
-    }
-    CssPixels::from_raw(0)
-}
-
-fn block_axis_distance_to_line_rect(rect: CssPixelRect, point: CssPixelPoint, writing_mode: u8) -> CssPixels {
-    distance_to_range(
-        block_axis_coordinate(point, writing_mode),
-        block_axis_start(rect, writing_mode) - px(CARET_LINE_BLOCK_AXIS_RANGE_SLOP),
-        block_axis_end(rect, writing_mode) + px(CARET_LINE_BLOCK_AXIS_RANGE_SLOP),
-    )
-}
-
-fn inline_axis_distance_to_rect(rect: CssPixelRect, point: CssPixelPoint, writing_mode: u8) -> CssPixels {
-    distance_to_range(
-        inline_axis_coordinate(point, writing_mode),
-        inline_axis_start(rect, writing_mode),
-        inline_axis_end(rect, writing_mode),
-    )
-}
-
-fn absolute_difference(a: CssPixels, b: CssPixels) -> CssPixels {
-    if a > b { a - b } else { b - a }
-}
-
-fn caret_line_is_better_candidate(
-    block_distance: CssPixels,
-    inline_distance: CssPixels,
-    closest_block_distance: CssPixels,
-    closest_inline_distance: CssPixels,
-    block_axis_compare_slop: CssPixels,
-) -> bool {
-    if absolute_difference(block_distance, closest_block_distance) <= block_axis_compare_slop {
-        if inline_distance != closest_inline_distance {
-            return inline_distance < closest_inline_distance;
-        }
-        return block_distance < closest_block_distance;
-    }
-    block_distance < closest_block_distance
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct ClosestLine {
-    pub index: Option<usize>,
-    pub local_point: CssPixelPoint,
-    pub block_distance: CssPixels,
-    pub block_start_distance: CssPixels,
-    pub inline_distance: CssPixels,
-    pub block_container: NodeSlotId,
-    pub box_fragment: u32,
-    pub fragment_inline_distance: CssPixels,
-    pub is_before_point: bool,
-    pub contains_point_in_block_axis: bool,
-}
-
-impl Default for ClosestLine {
-    fn default() -> Self {
-        Self {
-            index: None,
-            local_point: CssPixelPoint::default(),
-            block_distance: CssPixels::from_raw(i32::MAX),
-            block_start_distance: CssPixels::from_raw(i32::MAX),
-            inline_distance: CssPixels::from_raw(i32::MAX),
-            block_container: NodeSlotId::INVALID,
-            box_fragment: 0,
-            fragment_inline_distance: CssPixels::default(),
-            is_before_point: false,
-            contains_point_in_block_axis: false,
-        }
-    }
-}
+use crate::layout::node_data::{DomPaintFact, NodeFlag, NodeKind};
+use crate::layout::query::inline_cursor::{CaretPosition, InlineCursor};
+use crate::painting::host::{FfiCaretAt, FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiResolvedCaret};
+use crate::painting::paint_read::{PaintRead, PaintRow};
+use crate::painting::paintable_data::FragmentRecord;
+use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
+use crate::painting::visual_context::ClipBehavior;
+use crate::painting::{node_painting, paintable_geometry, style_queries};
 
 impl HitTestList {
-    pub fn box_point_is_before(&self, item_index: usize, local_point: CssPixelPoint) -> bool {
-        let item = &self.items[item_index];
-        debug_assert_eq!(item.kind, HitTestItemKind::Box);
-
-        let block_coordinate = block_axis_coordinate(local_point, item.writing_mode);
-        if block_coordinate < block_axis_start(item.rect, item.writing_mode) {
-            return !item.block_axis_is_reverse;
-        }
-        if block_coordinate >= block_axis_end(item.rect, item.writing_mode) {
-            return item.block_axis_is_reverse;
-        }
-
-        let inline_start = inline_axis_start(item.rect, item.writing_mode);
-        let inline_end = inline_axis_end(item.rect, item.writing_mode);
-        let inline_middle = inline_start + (inline_end - inline_start).scaled(0.5);
-        let inline_coordinate = inline_axis_coordinate(local_point, item.writing_mode);
-        if item.inline_axis_is_reverse {
-            inline_coordinate > inline_middle
-        } else {
-            inline_coordinate <= inline_middle
-        }
-    }
-
-    fn first_item_of_line(&self, line: &CaretLine) -> &HitTestItem {
-        &self.items[self.caret_item_indices[line.first_caret_item_index]]
-    }
-
-    pub fn item_at_line_edge(&self, line_index: usize, position_type: CaretPositionType) -> usize {
-        // Choose the furthest caret-capable painted item along the logical inline axis. Display-list order and DOM
-        // order don't necessarily describe that edge.
-        debug_assert!(self.caret_lines_built);
-        let line = self.caret_lines[line_index].clone();
-        let first_item = self.first_item_of_line(&line);
-        let writing_mode = first_item.writing_mode;
-        let inline_axis_is_reverse = first_item.inline_axis_is_reverse;
-        let coordinate_for_item = |item: &HitTestItem| -> CssPixels {
-            if position_type == CaretPositionType::Before {
-                return if inline_axis_is_reverse {
-                    inline_axis_end(item.caret_rect, writing_mode)
-                } else {
-                    inline_axis_start(item.caret_rect, writing_mode)
-                };
-            }
-            if inline_axis_is_reverse {
-                inline_axis_start(item.caret_rect, writing_mode)
-            } else {
-                inline_axis_end(item.caret_rect, writing_mode)
-            }
-        };
-        let coordinate_is_closer_to_line_edge = |coordinate: CssPixels, best_coordinate: CssPixels| -> bool {
-            if position_type == CaretPositionType::Before {
-                return if inline_axis_is_reverse {
-                    coordinate > best_coordinate
-                } else {
-                    coordinate < best_coordinate
-                };
-            }
-            if inline_axis_is_reverse {
-                coordinate < best_coordinate
-            } else {
-                coordinate > best_coordinate
-            }
-        };
-        let first_index = self.caret_item_indices[line.first_caret_item_index];
-        let mut best_item_index = first_index;
-        let mut best_coordinate = coordinate_for_item(&self.items[first_index]);
-        let item_is_on_line = |item: &HitTestItem| -> bool {
-            if let Some(recorded_line) = first_item.recorded_caret_line() {
-                return item.recorded_caret_line() == Some(recorded_line);
-            }
-            if line.context != item.context || first_item.containing_block != item.containing_block {
-                return false;
-            }
-            if item.caret_line_index.is_none() {
-                return rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
-            }
-            false
-        };
-        // Items without a recorded line identity can still belong to the same
-        // inferred visual line even when other caret runs separate them.
-        for item_index in &self.caret_item_indices {
-            let item = &self.items[*item_index];
-            if !item_is_on_line(item) {
-                continue;
-            }
-            let coordinate = coordinate_for_item(item);
-            if coordinate_is_closer_to_line_edge(coordinate, best_coordinate) {
-                best_item_index = *item_index;
-                best_coordinate = coordinate;
-            }
-        }
-        best_item_index
-    }
-
-    pub(crate) fn caret_item_for_line(
-        &self,
-        arena: &impl PaintRead,
-        line_index: usize,
-        local_point: CssPixelPoint,
-        mode: CaretPositionMode,
-    ) -> Option<(usize, CaretPositionType)> {
-        debug_assert!(self.caret_lines_built);
-        let rows = arena;
-        let line = self.caret_lines[line_index].clone();
-        let first_item = self.first_item_of_line(&line);
-        let writing_mode = first_item.writing_mode;
-        let inline_axis_is_reverse = first_item.inline_axis_is_reverse;
-
-        let block_coordinate = block_axis_coordinate(local_point, writing_mode);
-        // Once a line has been selected, points before or after its block-axis range resolve to
-        // the logical line edges. Points inside the line range resolve to the closest caret-capable
-        // item on that line.
-        if block_coordinate < block_axis_start(line.rect, writing_mode) {
-            return Some((
-                self.item_at_line_edge(line_index, CaretPositionType::Before),
-                CaretPositionType::Before,
-            ));
-        }
-        let inline_coordinate = inline_axis_coordinate(local_point, writing_mode);
-        if mode == CaretPositionMode::Selection && block_coordinate >= block_axis_end(line.rect, writing_mode) {
-            return Some((
-                self.item_at_line_edge(line_index, CaretPositionType::After),
-                CaretPositionType::After,
-            ));
-        }
-        if block_coordinate >= block_axis_end(line.rect, writing_mode) + px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP) {
-            return Some((
-                self.item_at_line_edge(line_index, CaretPositionType::After),
-                CaretPositionType::After,
-            ));
-        }
-        if block_coordinate >= block_axis_end(line.rect, writing_mode)
-            && (inline_coordinate < inline_axis_start(line.rect, writing_mode)
-                || inline_coordinate >= inline_axis_end(line.rect, writing_mode))
-        {
-            return Some((
-                self.item_at_line_edge(line_index, CaretPositionType::After),
-                CaretPositionType::After,
-            ));
-        }
-        // Points past either inline edge resolve to the corresponding logical line edge.
-        if inline_coordinate < inline_axis_start(line.rect, writing_mode) {
-            let position_type = if inline_axis_is_reverse {
-                CaretPositionType::After
-            } else {
-                CaretPositionType::Before
-            };
-            return Some((self.item_at_line_edge(line_index, position_type), position_type));
-        }
-        if inline_coordinate >= inline_axis_end(line.rect, writing_mode) {
-            let position_type = if inline_axis_is_reverse {
-                CaretPositionType::Before
-            } else {
-                CaretPositionType::After
-            };
-            return Some((self.item_at_line_edge(line_index, position_type), position_type));
-        }
-
-        let mut closest_item_index: Option<usize> = None;
-        let mut closest_block_distance = CssPixels::from_raw(i32::MAX);
-        let mut closest_inline_distance = CssPixels::from_raw(i32::MAX);
-        for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
-            let item_index = self.caret_item_indices[caret_item_index];
-            let item = &self.items[item_index];
-            let item_writing_mode = item.writing_mode;
-            let block_distance = block_axis_distance_to_line_rect(
-                Self::caret_line_rect_for_item(rows, item),
-                local_point,
-                item_writing_mode,
-            );
-            let inline_distance = inline_axis_distance_to_rect(item.caret_rect, local_point, item_writing_mode);
-            if closest_item_index.is_none()
-                || caret_line_is_better_candidate(
-                    block_distance,
-                    inline_distance,
-                    closest_block_distance,
-                    closest_inline_distance,
-                    px(CARET_ITEM_BLOCK_AXIS_COMPARE_SLOP),
-                )
-            {
-                closest_item_index = Some(item_index);
-                closest_block_distance = block_distance;
-                closest_inline_distance = inline_distance;
-            }
-        }
-        closest_item_index.map(|index| (index, CaretPositionType::Closest))
-    }
-
-    pub fn item_is_inline_adjacent_to_line(&self, item_index: usize, line_index: usize) -> bool {
-        debug_assert!(self.caret_lines_built);
-        let item = &self.items[item_index];
-        let line = &self.caret_lines[line_index];
-        if item.context != line.context || item.rect.is_empty() {
-            return false;
-        }
-        let writing_mode = self.first_item_of_line(line).writing_mode;
-        if !rects_overlap_in_block_axis(item.rect, line.rect, writing_mode) {
-            return false;
-        }
-        inline_axis_end(item.rect, writing_mode) <= inline_axis_start(line.rect, writing_mode)
-            || inline_axis_end(line.rect, writing_mode) <= inline_axis_start(item.rect, writing_mode)
-    }
-
-    fn line_in_scope(
-        &self,
-        scopes: &impl NodeScopes,
-        arena: &impl PaintRead,
-        line_index: usize,
-        scope: FfiNodeIdentity,
-    ) -> bool {
-        let line = &self.caret_lines[line_index];
-        for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
-            let node = self.item_target(arena, self.caret_item_indices[caret_item_index]);
-            if !node.is_none() && scopes.contains(scope, node) {
-                return true;
-            }
-        }
-        false
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn find_closest_line(
-        &self,
-        scopes: &impl NodeScopes,
-        arena: &impl PaintRead,
-        visual_context_tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-        mode: CaretPositionMode,
-        scope: FfiNodeIdentity,
-        respect_clip: bool,
-        block_container: NodeSlotId,
-    ) -> ClosestLine {
-        debug_assert!(self.caret_lines_built);
-        let rows = arena;
-        let mut closest_line = ClosestLine::default();
-        let mut closest_line_after_point = ClosestLine::default();
-        let mut closest_line_before_point = ClosestLine::default();
-
-        let line_after_point_is_better_candidate = |block_start_distance: CssPixels,
-                                                    inline_distance: CssPixels,
-                                                    closest_block_start_distance: CssPixels,
-                                                    closest_inline_distance: CssPixels|
-         -> bool {
-            if absolute_difference(block_start_distance, closest_block_start_distance)
-                <= px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP)
-            {
-                if inline_distance != closest_inline_distance {
-                    return inline_distance < closest_inline_distance;
-                }
-                return block_start_distance < closest_block_start_distance;
-            }
-            block_start_distance < closest_block_start_distance
-        };
-
-        for line_index in 0..self.caret_lines.len() {
-            if !scope.is_none() && !self.line_in_scope(scopes, arena, line_index, scope) {
-                continue;
-            }
-            if !block_container.is_invalid() && self.caret_lines[line_index].block_container != block_container {
-                continue;
-            }
-            let line = self.caret_lines[line_index].clone();
-            let Some(local) = callbacks.viewport_mapping(visual_context_tree).point_to_local(
-                line.context,
-                point,
-                ViewportSpace::VisualViewport,
-                ClipBehavior::from_respect_clip(respect_clip),
-            ) else {
-                continue;
-            };
-            let local_point = to_css_point(local);
-            let writing_mode = self.first_item_of_line(&line).writing_mode;
-            let block_distance = block_axis_distance_to_line_rect(line.rect, local_point, writing_mode);
-            let block_coordinate = block_axis_coordinate(local_point, writing_mode);
-            let inline_distance = inline_axis_distance_to_rect(line.rect, local_point, writing_mode);
-            let contains_point_in_block_axis = block_coordinate >= block_axis_start(line.rect, writing_mode)
-                && block_coordinate < block_axis_end(line.rect, writing_mode);
-            let fragment_inline_distance = if line.block_container.is_invalid()
-                || !rows.paintable_row_is_populated(line.block_container)
-                || crate::painting::paintable_geometry::fragment_count(rows, line.block_container) == 1
-            {
-                CssPixels::default()
-            } else {
-                inline_axis_distance_to_rect(
-                    crate::painting::paintable_geometry::absolute_fragment_rect(
-                        rows,
-                        line.block_container,
-                        line.box_fragment as usize,
-                    ),
-                    local_point,
-                    writing_mode,
-                )
-            };
-            let in_other_fragment_of_same_block_container = |closest: &ClosestLine| {
-                !line.block_container.is_invalid()
-                    && line.block_container == closest.block_container
-                    && line.box_fragment != closest.box_fragment
-                    && fragment_inline_distance != closest.fragment_inline_distance
-            };
-            let is_better_candidate = {
-                if closest_line.index.is_none() {
-                    true
-                } else if in_other_fragment_of_same_block_container(&closest_line) {
-                    fragment_inline_distance < closest_line.fragment_inline_distance
-                } else {
-                    // Between lines of the same block container, a line whose block-axis range
-                    // contains the point always beats lines that do not.
-                    let same_block_container =
-                        !line.block_container.is_invalid() && line.block_container == closest_line.block_container;
-                    if same_block_container && contains_point_in_block_axis != closest_line.contains_point_in_block_axis
-                    {
-                        contains_point_in_block_axis
-                    } else {
-                        caret_line_is_better_candidate(
-                            block_distance,
-                            inline_distance,
-                            closest_line.block_distance,
-                            closest_line.inline_distance,
-                            px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP),
-                        )
-                    }
-                }
-            };
-            if is_better_candidate {
-                closest_line.index = Some(line_index);
-                closest_line.local_point = local_point;
-                closest_line.block_distance = block_distance;
-                closest_line.inline_distance = inline_distance;
-                closest_line.block_container = line.block_container;
-                closest_line.box_fragment = line.box_fragment;
-                closest_line.fragment_inline_distance = fragment_inline_distance;
-                closest_line.is_before_point = block_axis_end(line.rect, writing_mode) < block_coordinate;
-                closest_line.contains_point_in_block_axis = contains_point_in_block_axis;
-            }
-
-            if block_axis_end(line.rect, writing_mode) < block_coordinate
-                && (closest_line_before_point.index.is_none()
-                    || if in_other_fragment_of_same_block_container(&closest_line_before_point) {
-                        fragment_inline_distance < closest_line_before_point.fragment_inline_distance
-                    } else {
-                        caret_line_is_better_candidate(
-                            block_distance,
-                            inline_distance,
-                            closest_line_before_point.block_distance,
-                            closest_line_before_point.inline_distance,
-                            px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP),
-                        )
-                    })
-            {
-                closest_line_before_point.index = Some(line_index);
-                closest_line_before_point.local_point = local_point;
-                closest_line_before_point.block_distance = block_distance;
-                closest_line_before_point.inline_distance = inline_distance;
-                closest_line_before_point.block_container = line.block_container;
-                closest_line_before_point.box_fragment = line.box_fragment;
-                closest_line_before_point.fragment_inline_distance = fragment_inline_distance;
-                closest_line_before_point.is_before_point = true;
-            }
-
-            let block_start = block_axis_start(line.rect, writing_mode);
-            if block_start <= block_coordinate {
-                continue;
-            }
-            // Keep track of the nearest following line separately.
-            let block_start_distance = block_start - block_coordinate;
-            if closest_line_after_point.index.is_none()
-                || line_after_point_is_better_candidate(
-                    block_start_distance,
-                    inline_distance,
-                    closest_line_after_point.block_start_distance,
-                    closest_line_after_point.inline_distance,
-                )
-            {
-                closest_line_after_point.index = Some(line_index);
-                closest_line_after_point.local_point = local_point;
-                closest_line_after_point.block_distance = block_distance;
-                closest_line_after_point.block_start_distance = block_start_distance;
-                closest_line_after_point.inline_distance = inline_distance;
-                closest_line_after_point.block_container = line.block_container;
-            }
-        }
-
-        if mode == CaretPositionMode::SelectionStart
-            && !closest_line.contains_point_in_block_axis
-            && closest_line_before_point.index.is_some()
-            && closest_line.index != closest_line_before_point.index
-            && closest_line_before_point.block_distance <= px(CARET_ITEM_BLOCK_AXIS_COMPARE_SLOP)
-        {
-            return closest_line_before_point;
-        }
-
-        if let Some(closest_index) = closest_line.index
-            && closest_line.is_before_point
-            && closest_line_after_point.index.is_some()
-            && closest_line_after_point.block_distance <= px(CARET_LINE_BLOCK_AXIS_COMPARE_SLOP)
-            && closest_line_after_point.inline_distance <= closest_line.inline_distance
-        {
-            let line = &self.caret_lines[closest_index];
-            let writing_mode = self.first_item_of_line(line).writing_mode;
-            let block_coordinate = block_axis_coordinate(closest_line.local_point, writing_mode);
-            let point_is_in_closest_line_block_container_margin = super::geometry::block_container_margin_rect(
-                rows,
-                closest_line.block_container,
-                closest_line.box_fragment,
-            )
-            .is_some_and(|rect| block_coordinate < block_axis_end(rect, writing_mode));
-            let lines_share_block_container = !closest_line.block_container.is_invalid()
-                && closest_line.block_container == closest_line_after_point.block_container;
-            // A point still inside the previous block container's margin box should not jump to
-            // text in a different block container, even if that following line is close.
-            if point_is_in_closest_line_block_container_margin && !lines_share_block_container {
-                return closest_line;
-            }
-            return closest_line_after_point;
-        }
-        closest_line
-    }
-}
-
-impl FfiCaretAt {
-    // Moves the debug rect from the local space of `spatial` into the viewport.
-    fn with_debug_rect_in_viewport(
-        mut self,
-        tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        spatial: SpatialNodeIndex,
-    ) -> Self {
-        if self.caret.has_debug_rect {
-            self.caret.debug_rect = callbacks
-                .viewport_mapping(tree)
-                .rect_in_space_to_viewport(spatial, self.caret.debug_rect.into(), ViewportSpace::VisualViewport)
-                .into();
-        }
-        self
-    }
-}
-
-impl HitTestList {
-    fn item_is_direct_caret_target(&self, arena: &impl PaintRead, item_index: usize) -> bool {
-        let target = self.item_target(arena, item_index);
-        !target.is_none() && target == self.item_dispatch_target(arena, item_index)
-    }
-
-    fn caret_at_item(
-        &self,
-        arena: &impl PaintRead,
-        item_index: usize,
-        local_point: CssPixelPoint,
-        position_type: CaretPositionType,
-    ) -> Option<FfiCaretAt> {
-        let caret = self.resolve_caret(arena, item_index, local_point, position_type);
-        caret.has_position.then_some(FfiCaretAt {
-            paintable: self.items[item_index].paintable,
-            caret,
-        })
-    }
-
-    fn caret_at_line(
-        &self,
-        arena: &impl PaintRead,
-        line_index: usize,
-        local_point: CssPixelPoint,
-        mode: CaretPositionMode,
-    ) -> Option<FfiCaretAt> {
-        let (item_index, position_type) = self.caret_item_for_line(arena, line_index, local_point, mode)?;
-        self.caret_at_item(arena, item_index, local_point, position_type)
-    }
-
-    // The start of the node the item stands for, for a hit on an item that produces no caret position itself.
-    fn caret_at_hit_container(&self, arena: &impl PaintRead, item_index: usize) -> Option<FfiCaretAt> {
-        let node = self.item_target(arena, item_index);
-        if node.is_none() {
-            return None;
-        }
-        let item = &self.items[item_index];
-        Some(FfiCaretAt {
-            paintable: item.paintable,
-            caret: FfiResolvedCaret {
-                has_position: true,
-                node,
-                has_debug_rect: true,
-                debug_rect: item.caret_rect.into(),
-                ..Default::default()
-            },
-        })
-    }
-
-    // Whether the node of the caret's boundary is `ancestor` or one of its descendants. A boundary beside a node is
-    // inside that node's parent.
-    fn caret_boundary_is_inside(scopes: &impl NodeScopes, ancestor: FfiNodeIdentity, caret: &FfiResolvedCaret) -> bool {
-        let boundary_is_beside_node = caret.boundary != FfiCaretBoundaryKind::Offset;
-        (!boundary_is_beside_node || ancestor != caret.node) && scopes.contains(ancestor, caret.node)
-    }
-
-    /// The caret position at `point`. When `constraint_scope` names a node, the position is constrained to lines inside
-    /// it, and points outside it resolve to the closest position within it.
-    #[allow(clippy::too_many_arguments)]
+    /// The caret position at `point`: the one the box the point hits gives it, as editing resolves a point, or with a
+    /// `constraint_scope` box, the one that box gives it wherever the point is.
     pub(crate) fn caret_position_from_point(
         &self,
-        scopes: &impl NodeScopes,
         arena: &impl PaintRead,
         tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
-        mode: CaretPositionMode,
-        constraint_scope: FfiNodeIdentity,
+        constraint_scope: NodeSlotId,
     ) -> Option<FfiCaretAt> {
-        let constrained = !constraint_scope.is_none();
-        // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
-        // Non-caret items are still needed to keep later line fallback scoped to the hit content.
-        // FIXME: Caret placement compares items by record order alone, ignoring the depth-sorted paint order of
-        //        planes inside 3D rendering contexts.
-        let (mut topmost_item, topmost_hit_item) = self.find_topmost_items_for_caret(arena, tree, callbacks, point);
-
-        // A constrained search only accepts direct hits inside the constraint scope.
-        if constrained && let Some(item) = topmost_item {
-            let node = self.item_target(arena, item.index);
-            if node.is_none() || !scopes.contains(constraint_scope, node) {
-                topmost_item = None;
-            }
-        }
-
-        // Direct caret hits win unless another non-caret item is visibly on top of them.
-        if let Some(item) = topmost_item {
-            let matches_hit_item = topmost_hit_item
-                .is_some_and(|hit| hit.index == item.index && self.item_is_direct_caret_target(arena, item.index));
-            if constrained || topmost_hit_item.is_none() || matches_hit_item {
-                // NB: A point inside an inline-block resolves to a position in the box's own lines, if it has any, as
-                //     a point over any other block container's content does, rather than to a boundary beside the
-                //     whole box.
-                if self.items[item.index].kind == HitTestItemKind::Box {
-                    let inner_line = self.find_closest_line(
-                        scopes,
-                        arena,
-                        tree,
-                        callbacks,
-                        point,
-                        mode,
-                        FfiNodeIdentity::default(),
-                        !constrained,
-                        self.items[item.index].paintable,
-                    );
-                    if let Some(line_index) = inner_line.index
-                        && let Some(caret) = self.caret_at_line(arena, line_index, inner_line.local_point, mode)
-                    {
-                        return Some(caret.with_debug_rect_in_viewport(
-                            tree,
-                            callbacks,
-                            self.caret_lines[line_index].context.spatial,
-                        ));
-                    }
-                }
-                if let Some(caret) = self.caret_at_item(arena, item.index, item.local_point, CaretPositionType::Closest)
-                {
-                    return Some(caret.with_debug_rect_in_viewport(
-                        tree,
-                        callbacks,
-                        self.items[item.index].context.spatial,
-                    ));
-                }
-            }
-        }
-
-        // If the point is over a non-caret item, only consider caret lines inside that item's event-dispatch node first.
-        // This prevents overlays or side content from snapping the caret to unrelated nearby text.
-        let line_scope = match topmost_hit_item {
-            _ if constrained => constraint_scope,
-            Some(hit)
-                if !self.items[hit.index].can_produce_caret_position
-                    || !self.item_is_direct_caret_target(arena, hit.index) =>
-            {
-                self.item_dispatch_target(arena, hit.index)
-            }
-            _ => FfiNodeIdentity::default(),
+        let resolver = PointResolver {
+            arena,
+            mapping: callbacks.viewport_mapping(tree),
+            point,
         };
-
-        // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
-        // a selection outside a textarea), so it transforms points without rejecting them against clips.
-        let respect_clip = !constrained;
-        let find_closest_line = |scope| {
-            self.find_closest_line(
-                scopes,
-                arena,
-                tree,
-                callbacks,
-                point,
-                mode,
-                scope,
-                respect_clip,
-                NodeSlotId::INVALID,
-            )
-        };
-        let mut closest_line = find_closest_line(line_scope);
-        let closest_line_in_scope = closest_line;
-        let point_is_in_column_of_closest_line = closest_line.index.is_some()
-            && closest_line.fragment_inline_distance == CssPixels::default()
-            && arena.paintable_row_is_populated(closest_line.block_container)
-            && crate::painting::paintable_geometry::fragment_count(arena, closest_line.block_container) > 1;
-        if !line_scope.is_none() && !constrained && !point_is_in_column_of_closest_line {
-            // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
-            // outside the scope, use it instead.
-            let unscoped_closest_line = find_closest_line(FfiNodeIdentity::default());
-            if closest_line.index.is_none()
-                || (unscoped_closest_line.index.is_some()
-                    && unscoped_closest_line.block_distance < closest_line.block_distance)
-            {
-                closest_line = unscoped_closest_line;
+        if !constraint_scope.is_invalid() {
+            let mut scope = constraint_scope;
+            while !arena.paintable_row_is_populated(scope) {
+                scope = arena.node_parent_if_live(scope)?;
             }
+            return resolver.in_box(scope);
         }
+        // A point that hits nothing, such as one past the edge of the viewport during a drag, goes to the viewport.
+        let Some(hit) = self.find_topmost_item(arena, tree, callbacks, point) else {
+            let mut viewport = self.items.first()?.paintable;
+            while let Some(parent) = arena.node_parent_if_live(viewport) {
+                viewport = parent;
+            }
+            return resolver.in_box(viewport);
+        };
+        let item = &self.items[hit.index];
+        let caret = match item.kind {
+            HitTestItemKind::TextFragment => resolver.in_lines_of(item.paintable),
+            HitTestItemKind::Box | HitTestItemKind::EmptyEditable | HitTestItemKind::ChromeWidget => {
+                resolver.in_box(item.paintable)
+            }
+            HitTestItemKind::SvgPath | HitTestItemKind::EmptyLine => Some(resolver.at_start_of(item.paintable)),
+        };
+        if let Some(caret) = caret.filter(|caret| caret.caret.has_position) {
+            return Some(caret);
+        }
+        // Generated content, such as a list marker, gives no position, and the nearest box around it that stands for a
+        // node takes the point.
+        let mut node = arena.node_parent_if_live(item.paintable)?;
+        while !arena.node_is_dom_backed(node) {
+            node = arena.node_parent_if_live(node)?;
+        }
+        resolver.in_box(node)
+    }
+}
 
-        let Some(line_index) = closest_line.index else {
-            let hit = topmost_hit_item.filter(|_| !constrained)?;
-            return self.caret_at_hit_container(arena, hit.index).map(|caret| {
-                caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
+/// Resolves a point, in the viewport, to a caret position the way a box gives one for a point over it.
+struct PointResolver<'a, A: PaintRead> {
+    arena: &'a A,
+    mapping: ViewportMapping<'a>,
+    point: CssPixelPoint,
+}
+
+impl<A: PaintRead> PointResolver<'_, A> {
+    /// The point in the space `node` lays out its descendants in.
+    fn point_in_descendants_space_of(&self, node: NodeSlotId) -> Option<CssPixelPoint> {
+        let context = self
+            .arena
+            .paintable_data(node)
+            .accumulated_visual_context_for_descendants;
+        self.mapping
+            .point_to_local(context, self.point, ViewportSpace::VisualViewport, ClipBehavior::Ignore)
+            .map(to_css_point)
+    }
+
+    fn in_lines_of(&self, root: NodeSlotId) -> Option<FfiCaretAt> {
+        let arena = self.arena;
+        let point = self.point_in_descendants_space_of(root)?;
+        let produces_caret = |fragment: &FragmentRecord| arena.node_is_dom_backed(fragment.layout_node);
+        let position = InlineCursor::new(arena).position_for_point(root, point, &produces_caret)?;
+        Some(self.caret_at(root, position))
+    }
+
+    /// The caret position the box `node` gives the point: in its lines, beside it where it is replaced, in the block
+    /// child the point is over or next to, or at its start.
+    fn in_box(&self, node: NodeSlotId) -> Option<FfiCaretAt> {
+        let arena = self.arena;
+        if style_queries::is_replaced_box(arena, node) {
+            return self.beside_replaced_box(node);
+        }
+        if node_painting::is_fragmented_inline(arena, node) {
+            return self.in_box(arena.node_containing_block_if_live(node)?);
+        }
+        if arena.node_flags_if_live(node) & NodeFlag::ChildrenAreInline as u32 != 0 {
+            return self.in_lines_of(node).or_else(|| Some(self.at_start_of(node)));
+        }
+        if let Some(caret) = self.in_block_child_of(node) {
+            return Some(caret);
+        }
+        Some(self.at_start_of(node))
+    }
+
+    // A point before the line of a replaced box in the block direction, or over its first half, is before it.
+    fn beside_replaced_box(&self, node: NodeSlotId) -> Option<FfiCaretAt> {
+        let arena = self.arena;
+        let context = arena.paintable_data(node).accumulated_visual_context;
+        let point = self
+            .mapping
+            .point_to_local(context, self.point, ViewportSpace::VisualViewport, ClipBehavior::Ignore)
+            .map(to_css_point)?;
+        let rect = paintable_geometry::absolute_rect(arena, node);
+        let style = arena.node_style_if_live(node)?;
+        let horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+        let (inline, inline_start, inline_size, block, block_start, block_end) = if horizontal {
+            (point.x, rect.x, rect.width, point.y, rect.y, rect.bottom())
+        } else {
+            (point.y, rect.y, rect.height, point.x, rect.x, rect.right())
+        };
+        let after = if block < block_start {
+            style.block_axis_is_reverse()
+        } else if block >= block_end {
+            !style.block_axis_is_reverse()
+        } else {
+            (inline - inline_start > inline_size.scaled(0.5)) != style.inline_axis_is_reverse()
+        };
+        Some(self.caret_at(node, CaretPosition::BesideAtomicInline { node, after }))
+    }
+
+    /// The caret position the block child of `node` that the point is over, or the last one it is past, gives it. A
+    /// child whose editability differs from that of `node` takes it beside itself instead.
+    fn in_block_child_of(&self, node: NodeSlotId) -> Option<FfiCaretAt> {
+        let arena = self.arena;
+        let point = self.point_in_descendants_space_of(node)?;
+        let style = arena.node_style_if_live(node)?;
+        let horizontal = style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB;
+        let block_axis_is_reverse = style.block_axis_is_reverse();
+        // Block coordinates that grow in the block direction.
+        let block_extent = |rect: CssPixelRect| match (horizontal, block_axis_is_reverse) {
+            (true, _) => (rect.y, rect.bottom()),
+            (false, false) => (rect.x, rect.right()),
+            (false, true) => (-rect.right(), -rect.x),
+        };
+        let inline_extent = |rect: &CssPixelRect| {
+            if horizontal {
+                (rect.x, rect.right())
+            } else {
+                (rect.y, rect.bottom())
+            }
+        };
+        let fragments_of = |child: NodeSlotId| {
+            (0..paintable_geometry::fragment_count(arena, child))
+                .map(move |index| (child, paintable_geometry::absolute_fragment_rect(arena, child, index)))
+        };
+        let children = || {
+            arena
+                .children(node)
+                .filter(|&child| arena.paintable_row_is_populated(child))
+        };
+        let mut candidates: Vec<(NodeSlotId, CssPixelRect)> = children()
+            .filter(|&child| {
+                arena
+                    .node(child)
+                    .is_some_and(|row| !row.is_out_of_flow() && !row.is_floating())
+            })
+            .flat_map(fragments_of)
+            .filter(|(_, rect)| !rect.is_empty())
+            .collect();
+        // A block flow takes the first child that ends past the point in the block direction, or the last one where the
+        // point is past its start; other boxes take the child nearest the point.
+        let is_block_flow = !matches!(style.display(), display if display.is_flex_inside() || display.is_grid_inside() || display.is_table_inside());
+        // Children laid out in columns take the point in the column it is in, or else the one nearest to it.
+        let inline = if horizontal { point.x } else { point.y };
+        // Children are in columns where two of them side by side overlap in the block direction.
+        let mut extents: Vec<_> = candidates
+            .iter()
+            .map(|(_, rect)| (block_extent(*rect), inline_extent(rect)))
+            .collect();
+        extents.sort_by_key(|((block_start, _), _)| *block_start);
+        let in_columns = is_block_flow
+            && extents.windows(2).any(|pair| {
+                let (
+                    ((_, first_block_end), (first_start, first_end)),
+                    ((second_block_start, _), (second_start, second_end)),
+                ) = (pair[0], pair[1]);
+                second_block_start < first_block_end && (second_start >= first_end || first_start >= second_end)
             });
-        };
-        let caret = self
-            .caret_at_line(arena, line_index, closest_line.local_point, mode)?
-            .with_debug_rect_in_viewport(tree, callbacks, self.caret_lines[line_index].context.spatial);
-
-        if !constrained && let Some(hit) = topmost_hit_item {
-            let hit_target = self.item_dispatch_target(arena, hit.index);
-            if !hit_target.is_none()
-                && !caret.caret.node.is_none()
-                && !Self::caret_boundary_is_inside(scopes, hit_target, &caret.caret)
-            {
-                if self.items[hit.index].can_produce_caret_position
-                    && self.item_is_direct_caret_target(arena, hit.index)
-                {
-                    return self
-                        .caret_at_item(arena, hit.index, hit.local_point, CaretPositionType::Closest)
-                        .map(|caret| {
-                            caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
-                        });
-                }
-                if self.item_is_inline_adjacent_to_line(hit.index, line_index) {
-                    return Some(caret);
-                }
-                // A selection doesn't follow the point into an overlay or side content: It stays in the hit element's
-                // own content, on its line closest to the point, as a closer line outside it took the place of. But a
-                // plain caret query over an element whose content has no line near the point (an empty line, e.g.)
-                // puts the caret at the start of that element, rather than on a line outside it.
-                if mode != CaretPositionMode::Normal {
-                    let line_index_in_scope = closest_line_in_scope.index.filter(|&index| index != line_index)?;
-                    return self
-                        .caret_at_line(arena, line_index_in_scope, closest_line_in_scope.local_point, mode)
-                        .map(|caret| {
-                            caret.with_debug_rect_in_viewport(
-                                tree,
-                                callbacks,
-                                self.caret_lines[line_index_in_scope].context.spatial,
-                            )
-                        });
-                }
-                return self.caret_at_hit_container(arena, hit.index).map(|caret| {
-                    caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
-                });
-            }
+        if in_columns {
+            let distance = |rect: &CssPixelRect| {
+                let (start, end) = inline_extent(rect);
+                (start - inline)
+                    .max(inline - end + CssPixels::from_integer(1))
+                    .max(CssPixels::default())
+            };
+            let nearest = candidates
+                .iter()
+                .map(|(_, rect)| distance(rect))
+                .min()
+                .unwrap_or_default();
+            candidates.retain(|(_, rect)| distance(rect) == nearest);
         }
-        Some(caret)
+        // The point covers the pixel after it.
+        let one = CssPixels::from_integer(1);
+        let point_rect = CssPixelRect::new(point.x, point.y, one, one);
+        let block = block_extent(point_rect).0;
+        let distance = |rect: &CssPixelRect| {
+            let gap = |start: CssPixels, end: CssPixels, point_start: CssPixels, point_end: CssPixels| {
+                (start - point_start)
+                    .max(point_end - end)
+                    .max(CssPixels::default())
+                    .to_double()
+            };
+            let horizontal_gap = gap(rect.x, rect.right(), point_rect.x, point_rect.right());
+            let vertical_gap = gap(rect.y, rect.bottom(), point_rect.y, point_rect.bottom());
+            horizontal_gap * horizontal_gap + vertical_gap * vertical_gap
+        };
+        if candidates.is_empty() {
+            return self.in_nearest_positioned_child_of(node, point, &distance);
+        }
+        let &(child, rect) = if is_block_flow {
+            candidates
+                .last()
+                .filter(|(_, rect)| block >= block_extent(*rect).0)
+                .or_else(|| candidates.iter().find(|(_, rect)| block < block_extent(*rect).1))?
+        } else {
+            candidates
+                .iter()
+                .min_by(|(_, a), (_, b)| distance(a).total_cmp(&distance(b)))?
+        };
+        let is_editable = |node| arena.node_has_dom_paint_fact(node, DomPaintFact::EditableOrEditingHost);
+        let is_root_element = arena
+            .node_parent_if_live(node)
+            .is_some_and(|parent| arena.node_kind_if_live(parent) == Some(NodeKind::Viewport));
+        // A column stands for no node, and so the boxes in it keep the point whatever their editability.
+        if arena.node_is_dom_backed(child)
+            && arena.node_is_dom_backed(node)
+            && !is_root_element
+            && !in_columns
+            && is_editable(child) != is_editable(node)
+        {
+            let (inline, inline_start, inline_size) = if horizontal {
+                (point.x, rect.x, rect.width)
+            } else {
+                (point.y, rect.y, rect.height)
+            };
+            let after = inline - inline_start >= inline_size.scaled(0.5);
+            return Some(self.caret_at(node, CaretPosition::BesideAtomicInline { node: child, after }));
+        }
+        self.in_box(child)
+    }
+
+    // INTEROP: A box with no in-flow child that has a size takes the point in the child nearest to it, of any kind, by
+    //          its geometry before its transform.
+    fn in_nearest_positioned_child_of(
+        &self,
+        node: NodeSlotId,
+        point: CssPixelPoint,
+        distance: &dyn Fn(&CssPixelRect) -> f64,
+    ) -> Option<FfiCaretAt> {
+        let arena = self.arena;
+        let child = arena
+            .children(node)
+            .filter(|&child| arena.paintable_row_is_populated(child) && arena.node_is_dom_backed(child))
+            .min_by(|&a, &b| {
+                distance(&paintable_geometry::absolute_rect(arena, a))
+                    .total_cmp(&distance(&paintable_geometry::absolute_rect(arena, b)))
+            })?;
+        let produces_caret = |fragment: &FragmentRecord| arena.node_is_dom_backed(fragment.layout_node);
+        let position = node_painting::has_lines(arena, child)
+            .then(|| InlineCursor::new(arena).position_for_point(child, point, &produces_caret))
+            .flatten()
+            .unwrap_or(CaretPosition::StartOfBox { node: child });
+        Some(self.caret_at(child, position))
+    }
+
+    fn at_start_of(&self, node: NodeSlotId) -> FfiCaretAt {
+        self.caret_at(node, CaretPosition::StartOfBox { node })
+    }
+
+    fn caret_at(&self, paintable: NodeSlotId, position: CaretPosition) -> FfiCaretAt {
+        let arena = self.arena;
+        let identity = |node| resolve::row_node_identity(arena, node, false);
+        let mut caret = match position {
+            CaretPosition::Text {
+                text,
+                offset,
+                downstream,
+            } => FfiResolvedCaret {
+                node: identity(text),
+                boundary: FfiCaretBoundaryKind::Offset,
+                offset,
+                affinity_is_upstream: !downstream,
+                ..Default::default()
+            },
+            CaretPosition::BesideAtomicInline { node, after } => FfiResolvedCaret {
+                node: identity(node),
+                boundary: if after {
+                    FfiCaretBoundaryKind::AfterNode
+                } else {
+                    FfiCaretBoundaryKind::BeforeNode
+                },
+                ..Default::default()
+            },
+            CaretPosition::BeforeForcedBreak { node } => FfiResolvedCaret {
+                node: identity(node),
+                boundary: FfiCaretBoundaryKind::IndexOfNodeInParent,
+                ..Default::default()
+            },
+            CaretPosition::StartOfBox { node } => FfiResolvedCaret {
+                node: identity(node),
+                boundary: FfiCaretBoundaryKind::Offset,
+                ..Default::default()
+            },
+        };
+        caret.has_position = !caret.node.is_none();
+        if let Some(rect) = InlineCursor::new(arena).caret_rect(position) {
+            caret.has_debug_rect = true;
+            caret.debug_rect = if rect.owner == rect.node {
+                self.mapping
+                    .rect_to_viewport(arena, rect.owner, rect.rect, ViewportSpace::VisualViewport)
+            } else {
+                self.mapping.line_content_rect_to_viewport(
+                    arena,
+                    rect.owner,
+                    rect.node,
+                    rect.rect,
+                    ViewportSpace::VisualViewport,
+                )
+            }
+            .into();
+        }
+        FfiCaretAt { paintable, caret }
     }
 }

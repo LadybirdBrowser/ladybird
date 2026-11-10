@@ -1,1 +1,1 @@
-selected chat text: true
+selected chat text: false

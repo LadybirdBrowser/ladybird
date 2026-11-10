@@ -88,11 +88,6 @@ pub struct TopmostItem {
     pub local_point: CssPixelPoint,
 }
 
-struct TopmostSearch<'a> {
-    index: &'a mut Option<usize>,
-    caret_capable_only: bool,
-}
-
 impl HitTestList {
     fn item_contains(
         &self,
@@ -169,21 +164,16 @@ impl HitTestList {
         callbacks: &FfiHitTestQueryCallbacks,
         item_indices: &[usize],
         local: FloatPoint,
-        search: TopmostSearch<'_>,
+        topmost: &mut Option<usize>,
     ) {
         for item_index in item_indices.iter().rev() {
-            if search.index.is_some_and(|topmost| *item_index <= topmost) {
+            if topmost.is_some_and(|topmost| *item_index <= topmost) {
                 return;
             }
-            let item = &self.items[*item_index];
-            if search.caret_capable_only && !item.can_produce_caret_position {
-                continue;
+            if self.item_contains(layout_arena, callbacks, &self.items[*item_index], local) {
+                *topmost = Some(*item_index);
+                return;
             }
-            if !self.item_contains(layout_arena, callbacks, item, local) {
-                continue;
-            }
-            *search.index = Some(*item_index);
-            return;
         }
     }
 
@@ -203,13 +193,10 @@ impl HitTestList {
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
-        with_caret_item: bool,
-    ) -> (Option<TopmostItem>, Option<TopmostItem>) {
+    ) -> Option<TopmostItem> {
         debug_assert!(self.spatial_indexes_built);
-        let mut topmost_hit: Option<TopmostItem> = None;
-        let mut topmost_caret: Option<TopmostItem> = None;
-        let mut topmost_hit_index: Option<usize> = None;
-        let mut topmost_caret_index: Option<usize> = None;
+        let mut topmost: Option<TopmostItem> = None;
+        let mut topmost_index: Option<usize> = None;
         let viewport_mapping = callbacks.viewport_mapping(visual_context_tree);
         for (context, spatial_index) in &self.spatial_indexes_by_context {
             let Some(local) =
@@ -218,44 +205,18 @@ impl HitTestList {
                 continue;
             };
             let local_point = to_css_point(local);
-
-            let previous_hit = topmost_hit_index;
-            let previous_caret = topmost_caret_index;
+            let previous = topmost_index;
             for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
                 .into_iter()
                 .flatten()
             {
-                self.find_topmost_item_in_list(
-                    layout_arena,
-                    callbacks,
-                    candidate_list,
-                    local,
-                    TopmostSearch {
-                        index: &mut topmost_hit_index,
-                        caret_capable_only: false,
-                    },
-                );
-                if with_caret_item {
-                    self.find_topmost_item_in_list(
-                        layout_arena,
-                        callbacks,
-                        candidate_list,
-                        local,
-                        TopmostSearch {
-                            index: &mut topmost_caret_index,
-                            caret_capable_only: true,
-                        },
-                    );
-                }
+                self.find_topmost_item_in_list(layout_arena, callbacks, candidate_list, local, &mut topmost_index);
             }
-            if topmost_hit_index != previous_hit {
-                topmost_hit = topmost_hit_index.map(|index| TopmostItem { index, local_point });
-            }
-            if topmost_caret_index != previous_caret {
-                topmost_caret = topmost_caret_index.map(|index| TopmostItem { index, local_point });
+            if topmost_index != previous {
+                topmost = topmost_index.map(|index| TopmostItem { index, local_point });
             }
         }
-        (topmost_hit, topmost_caret)
+        topmost
     }
 
     // Planes of a 3D rendering context paint depth sorted, so the front-most plane at the point wins over a
@@ -322,24 +283,11 @@ impl HitTestList {
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Option<TopmostItem> {
-        let topmost = self
-            .find_topmost(layout_arena, visual_context_tree, callbacks, point, false)
-            .0?;
+        let topmost = self.find_topmost(layout_arena, visual_context_tree, callbacks, point)?;
         // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
         // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
         // context keeps record order, which stays correct because a context's items are recorded contiguously.
         Some(self.topmost_item_by_plane_depth(layout_arena, visual_context_tree, callbacks, point, topmost))
-    }
-
-    pub(crate) fn find_topmost_items_for_caret(
-        &self,
-        layout_arena: &impl PaintRead,
-        visual_context_tree: &VisualContextTree,
-        callbacks: &FfiHitTestQueryCallbacks,
-        point: CssPixelPoint,
-    ) -> (Option<TopmostItem>, Option<TopmostItem>) {
-        let (hit, caret) = self.find_topmost(layout_arena, visual_context_tree, callbacks, point, true);
-        (caret, hit)
     }
 
     pub(crate) fn hit_test_all(

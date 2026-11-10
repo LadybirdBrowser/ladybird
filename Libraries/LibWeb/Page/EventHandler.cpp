@@ -3728,11 +3728,11 @@ Optional<Painting::CaretPosition> EventHandler::caret_position_for_mouse_selecti
         auto& text_control_element = text_control->text_control_to_html_element();
         if (text_control_element.is_shadow_including_inclusive_ancestor_of(*editable_hit_node_before_focus)) {
             if (auto selection_scope = text_control->mouse_selection_scope())
-                caret_position = document.caret_position_from_point_for_selection(read, visual_viewport_position, selection_scope);
+                caret_position = document.caret_position_from_point(read, visual_viewport_position, selection_scope);
         }
     }
     if (!caret_position.has_value())
-        caret_position = document.caret_position_from_point_for_selection_start(read, visual_viewport_position);
+        caret_position = document.caret_position_from_point(read, visual_viewport_position);
     if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && editing_host_before_focus && should_use_caret_position_from_editable_hit_node(caret_position, *editable_hit_node_before_focus, *editing_host_before_focus)) {
         if (auto caret_position_from_hit_node = caret_position_from_editable_hit_node(read, *editable_hit_node_before_focus); caret_position_from_hit_node.has_value())
             caret_position = caret_position_from_hit_node;
@@ -3743,6 +3743,18 @@ Optional<Painting::CaretPosition> EventHandler::caret_position_for_mouse_selecti
     if (editable_hit_node_before_focus && editable_hit_node_before_focus->is_connected() && !editing_host_before_focus) {
         if (auto beside = caret_position_beside_block_editing_host(read, *caret_position, *editable_hit_node_before_focus); beside.has_value())
             caret_position = beside;
+    }
+
+    // INTEROP: A click outside an editing host that resolves to a position beside it, in content that is not editable,
+    //          places no selection.
+    if (caret_position->secondary_boundary.has_value()) {
+        auto boundary = caret_position->boundary_point();
+        auto secondary_boundary = caret_position->secondary_boundary->resolve(document);
+        if (boundary.has_value() && secondary_boundary.has_value() && !boundary->node->is_editable_or_editing_host()) {
+            auto* beside = boundary->node->child_at_index(min(boundary->offset, secondary_boundary->offset));
+            if (beside && beside->is_editing_host())
+                return {};
+        }
     }
 
     return caret_position;
@@ -3894,7 +3906,7 @@ void EventHandler::finish_selection_from_preserved_mousedown(DOM::Document& docu
     if (!has_committed_root_box())
         return;
 
-    auto caret_position = document.caret_position_from_point_for_selection_start(read, visual_viewport_position);
+    auto caret_position = document.caret_position_from_point(read, visual_viewport_position);
     if (!caret_position.has_value())
         return;
 
@@ -4400,7 +4412,7 @@ Optional<Editing::ContextMenuMisspelling> EventHandler::select_context_menu_miss
 {
     if (!document.has_spelling_markers())
         return {};
-    auto caret_position = document.caret_position_from_point_for_selection_start(read, coordinates.visual_viewport_position);
+    auto caret_position = document.caret_position_from_point(read, coordinates.visual_viewport_position);
     if (!caret_position.has_value())
         return {};
     auto* text = as_if<DOM::Text>(caret_position->boundary_node().ptr());
@@ -4531,7 +4543,7 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
 
 bool EventHandler::select_context_menu_text(Layout::BegunRead const& read, DOM::Document& document, MouseEventCoordinates const& coordinates)
 {
-    auto caret_position = document.caret_position_from_point_for_selection_start(read, coordinates.visual_viewport_position);
+    auto caret_position = document.caret_position_from_point(read, coordinates.visual_viewport_position);
     if (!caret_position.has_value() || selection_contains_position(document, *caret_position))
         return false;
 
@@ -4675,7 +4687,7 @@ void EventHandler::apply_mouse_selection(Layout::BegunRead const& read, CSSPixel
     if (m_mouse_selection_target)
         constraint_scope = m_mouse_selection_target->mouse_selection_scope();
 
-    auto caret_position = document.caret_position_from_point_for_selection(read, visual_viewport_position, constraint_scope);
+    auto caret_position = document.caret_position_from_point(read, visual_viewport_position, constraint_scope);
     if (!caret_position.has_value())
         return;
 

@@ -21,13 +21,6 @@
 
 namespace Web::Painting {
 
-enum class CaretPositionMode : u8 {
-    Normal,
-    // Starting or extending selection should feel more eager than the public caret-position API in inter-line gaps.
-    SelectionStart,
-    Selection,
-};
-
 class HitTestDisplayList;
 
 // A query of a document's hit test list, with what it reads besides the list: the visual context tree and the scroll
@@ -72,9 +65,9 @@ public:
     u64 visual_context_tree_structural_epoch() const { return m_visual_context_tree_structural_epoch; }
     [[nodiscard]] bool is_current() const;
     [[nodiscard]] Optional<HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
-    // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
-    // outside it resolve to the closest position within it.
-    [[nodiscard]] Optional<CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, CaretPositionMode = CaretPositionMode::Normal, GC::Ptr<DOM::Node const> constraint_scope = nullptr) const;
+    // The caret position the box hit at the point gives it, or when constraint_scope is given, the one that node's box
+    // gives it wherever the point is.
+    [[nodiscard]] Optional<CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, GC::Ptr<DOM::Node const> constraint_scope = nullptr) const;
     TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
