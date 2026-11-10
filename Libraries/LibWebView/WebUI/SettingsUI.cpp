@@ -428,6 +428,10 @@ void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
     parsed_tab_settings.vertical_tabs_expanded = current_tab_settings.vertical_tabs_expanded;
     parsed_tab_settings.vertical_tabs_expanded_width = current_tab_settings.vertical_tabs_expanded_width;
 
+    // NB: A sidebar layout picked on the welcome page opens expanded, so the choice shows in the window at once.
+    if (host() == "welcome"sv && parsed_tab_settings.vertical_tabs_enabled)
+        parsed_tab_settings.vertical_tabs_expanded = true;
+
     settings.set_tab_settings(parsed_tab_settings);
 }
 

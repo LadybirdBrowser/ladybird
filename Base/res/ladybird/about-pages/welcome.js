@@ -11,6 +11,7 @@ const searchEngines = document.querySelector("#search-engines");
 const searchSuggestions = document.querySelector("#search-suggestions");
 const searchSuggestionsEnabled = document.querySelector("#search-suggestions-enabled");
 const searchSuggestionsDescription = document.querySelector("#search-suggestions-description");
+const tabLayoutInputs = document.querySelectorAll('input[name="tab-layout"]');
 const enableContentBlocking = document.querySelector("#enable-content-blocking");
 const saveStatus = document.querySelector("#save-status");
 
@@ -93,13 +94,22 @@ function renderSearchEngines() {
     }
 }
 
+function tabLayout() {
+    if (!settings.tabs.verticalTabsEnabled) return "horizontal";
+    return settings.tabs.everythingInSidebar ? "sidebar" : "vertical";
+}
+
+function updateTabLayout() {
+    const layout = tabLayout();
+    for (const input of tabLayoutInputs) input.checked = input.value === layout;
+}
+
 function initialize() {
     if (initialized || !settings || !engines || !features) return;
     initialized = true;
 
-    document.querySelector("#tab-mode-section").classList.toggle("hidden", !features.verticalTabs);
-    const tabMode = settings.tabs.verticalTabsEnabled ? "vertical" : "horizontal";
-    document.querySelector(`input[name="tab-mode"][value="${tabMode}"]`).checked = true;
+    document.querySelector("#tab-layout-section").classList.toggle("hidden", !features.verticalTabs);
+    updateTabLayout();
 
     renderSearchEngines();
     updateSearchSuggestions();
@@ -109,13 +119,16 @@ function initialize() {
     startBrowsing.disabled = false;
 }
 
-for (const input of document.querySelectorAll('input[name="tab-mode"]')) {
+for (const input of tabLayoutInputs) {
     input.addEventListener("change", () => {
         if (!initialized || !input.checked || !features.verticalTabs) return;
-        ladybird.sendMessage("setTabSettings", {
+        // NB: Keep our copy current, as the settings update for this change can arrive after the next one is made.
+        settings.tabs = {
             ...settings.tabs,
-            verticalTabsEnabled: input.value === "vertical",
-        });
+            verticalTabsEnabled: input.value !== "horizontal",
+            everythingInSidebar: input.value === "sidebar",
+        };
+        ladybird.sendMessage("setTabSettings", settings.tabs);
     });
 }
 
@@ -160,10 +173,7 @@ document.addEventListener("WebUIMessage", event => {
         settings = { ...settings, ...data };
 
         if (initialized) {
-            if (Object.hasOwn(data, "tabs")) {
-                const mode = settings.tabs.verticalTabsEnabled ? "vertical" : "horizontal";
-                document.querySelector(`input[name="tab-mode"][value="${mode}"]`).checked = true;
-            }
+            if (Object.hasOwn(data, "tabs")) updateTabLayout();
             if (Object.hasOwn(data, "searchEngine")) {
                 for (const radio of searchEngines.querySelectorAll("input"))
                     radio.checked = radio.value === settings.searchEngine.engine;
