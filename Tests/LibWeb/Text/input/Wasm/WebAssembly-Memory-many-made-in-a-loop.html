@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Each memory reserves gigabytes of address space, which more memories than this would run out of if the dead ones
+    // kept theirs.
+    function makeMany(name, make) {
+        let made = 0;
+        try {
+            for (let i = 0; i < 20000; ++i) {
+                make();
+                ++made;
+            }
+        } catch (e) {
+            println(`${name}: ${e.name}: ${e.message}`);
+        }
+        println(`${name}: made ${made}`);
+    }
+
+    test(() => {
+        makeMany("new WebAssembly.Memory()", () => new WebAssembly.Memory({ initial: 1 }));
+
+        // A module with a memory of one page, and nothing else.
+        const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 0, 1]));
+        makeMany("new WebAssembly.Instance()", () => new WebAssembly.Instance(module));
+    });
+</script>
