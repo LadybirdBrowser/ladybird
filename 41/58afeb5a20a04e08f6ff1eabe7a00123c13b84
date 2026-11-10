@@ -1,0 +1,8 @@
+Ladybird sends a request’s body with any method but HEAD. Blink does
+the same: HttpStreamParser gets the request’s method and its
+UploadDataStream, and sends the stream whenever there is one. Gecko’s
+HttpBaseChannel::SetUploadStream() passes the request’s method on to
+ExplicitSetUploadStream(), and the channel sends the upload stream with
+that method. And WebKit’s curl backend, CurlRequest::setupTransfer(),
+sends any method but GET, POST, PUT, and HEAD as a custom request whose
+body it uploads through setupPUT().
