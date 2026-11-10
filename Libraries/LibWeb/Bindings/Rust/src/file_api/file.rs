@@ -35,7 +35,14 @@ pub(crate) struct File {
     last_modified: i64,
 }
 
-impl Wrappable for File {}
+impl Wrappable for File {
+    const OWNS_EXTERNAL_MEMORY: bool = true;
+    const COUNTS_EXTERNAL_MEMORY_WHEN_ALLOCATED: bool = true;
+
+    fn external_memory_size(&self) -> usize {
+        self.blob.external_memory_size()
+    }
+}
 
 impl Inherits<Blob> for File {
     fn parent(&self) -> &Blob {
