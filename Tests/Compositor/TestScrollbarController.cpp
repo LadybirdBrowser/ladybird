@@ -141,11 +141,11 @@ static Compositing::AsyncScrollbar scrollbar_painted_by_display_list()
     };
 }
 
-static Compositor::ScrollbarController::PresentedScrollbar presented_scrollbar(Compositor::ScrollbarController const& controller, Compositing::ScrollStateSnapshot const& scroll_state_snapshot = {})
+static Compositor::PresentedScrollbar presented_scrollbar(Compositor::ScrollbarController const& controller, Compositing::ScrollStateSnapshot const& scroll_state_snapshot = {})
 {
     for (auto const& scrollbar : controller.scrollbars_of_frame(scroll_state_snapshot)) {
         if (!scrollbar.is_painted_by_compositor && scrollbar.scroll_node_index == Compositing::SpatialNodeIndex { 1 } && scrollbar.vertical)
-            return scrollbar.presented_with_colors(Gfx::Color(0, 0, 0, 100), Gfx::Color(255, 255, 255, 64), Gfx::Color(0, 0, 0, 20));
+            return Compositor::presented_scrollbar_with_colors(scrollbar, Gfx::Color(0, 0, 0, 100), Gfx::Color(255, 255, 255, 64), Gfx::Color(0, 0, 0, 20));
     }
     VERIFY_NOT_REACHED();
 }

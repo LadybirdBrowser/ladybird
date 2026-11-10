@@ -416,22 +416,6 @@ Optional<Gfx::IntRect> ScrollbarController::rect_in_viewport(size_t scrollbar_in
     return Gfx::enclosing_int_rect(rect_in_viewport).inflated(2, 2);
 }
 
-Gfx::IntRect ScrollbarController::thumb_rect_kept_inside_track(Gfx::IntRect thumb_rect, Gfx::IntRect const& track_rect, bool vertical)
-{
-    if (vertical) {
-        auto top = max(thumb_rect.top(), track_rect.top());
-        auto bottom = min(thumb_rect.bottom(), track_rect.bottom());
-        thumb_rect.set_y(top);
-        thumb_rect.set_height(max(0, bottom - top));
-    } else {
-        auto left = max(thumb_rect.left(), track_rect.left());
-        auto right = min(thumb_rect.right(), track_rect.right());
-        thumb_rect.set_x(left);
-        thumb_rect.set_width(max(0, right - left));
-    }
-    return thumb_rect;
-}
-
 static Gfx::FloatRect interpolated_rect(Gfx::IntRect const& from, Gfx::IntRect const& to, float progress)
 {
     auto interpolate = [progress](int from, int to) {
@@ -445,7 +429,7 @@ static Gfx::FloatRect interpolated_rect(Gfx::IntRect const& from, Gfx::IntRect c
     };
 }
 
-Vector<ScrollbarController::ScrollbarOfFrame> ScrollbarController::scrollbars_of_frame(Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+Vector<ScrollbarOfFrame> ScrollbarController::scrollbars_of_frame(Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     Vector<ScrollbarOfFrame> scrollbars_of_frame;
     scrollbars_of_frame.ensure_capacity(m_scrollbars.size());
@@ -476,20 +460,6 @@ Vector<ScrollbarController::ScrollbarOfFrame> ScrollbarController::scrollbars_of
         });
     }
     return scrollbars_of_frame;
-}
-
-ScrollbarController::PresentedScrollbar ScrollbarController::ScrollbarOfFrame::presented_with_colors(Color thumb_color, Color thumb_outline_color, Color track_color) const
-{
-    // The gutter of a thin scrollbar is not painted, so the gutter grows out of the thin track as it fades in.
-    auto track_alpha = roundf(static_cast<float>(track_color.alpha()) * expansion);
-    return PresentedScrollbar {
-        .gutter_rect = gutter_rect,
-        .thumb_rect = thumb_rect,
-        .thumb_color = thumb_color,
-        .thumb_outline_color = thumb_outline_color,
-        .track_color = track_color.with_alpha(static_cast<u8>(track_alpha)),
-        .opacity = opacity,
-    };
 }
 
 bool ScrollbarController::is_expanded(size_t scrollbar_index) const

@@ -10,7 +10,6 @@
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <Compositor/PictureInPictureControls.h>
-#include <Compositor/ScrollbarController.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCore/Timer.h>
