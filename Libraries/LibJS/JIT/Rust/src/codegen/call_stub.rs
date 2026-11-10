@@ -96,6 +96,7 @@ pub fn generate_call_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo) -> R
         exit_stub,
         resume,
         entry_resume: resume,
+        entry_overflow: resume,
         exit_interpreter,
         sites: Vec::new(),
         exit_site_stubs: Vec::new(),

@@ -2178,9 +2178,16 @@ mod execution {
         let program = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
         let (result, machine) = run_with(&program, test_layout(), &[value::int32(1)], &[], |machine| {
             machine.vm[1] = u64::MAX - 1;
+            // NB: The code has to make the frame the running one before it resumes in the interpreter.
+            machine.vm[0] = 0;
         });
         assert_eq!(result.status, RESUME);
         assert_eq!(machine.frame[3], 0, "the frame was not initialized");
+        assert_eq!(
+            machine.vm[0],
+            machine.frame.as_ptr() as u64,
+            "the frame is the running one"
+        );
     }
 }
 
@@ -2231,6 +2238,62 @@ fn jumps_skip_blocks_that_only_jump_on() {
 }
 
 #[test]
+fn prologues_check_the_stack_limit_before_they_move_the_stack_pointer() {
+    // NB: A frame larger than the headroom below the native stack limit could otherwise skip past the guard page at
+    //     the end of the stack, and the prologue would write past it.
+    let program = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
+    snapshot.runtime = runtime();
+    let x86_64 = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let aarch64 = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    for (architecture, compiled, is_branch, writes_stack) in [
+        (
+            crate::asm::Architecture::X86_64,
+            &x86_64,
+            (|text: &str| text.starts_with('j') && !text.starts_with("jmp ")) as fn(&str) -> bool,
+            (|text: &str| {
+                let (mnemonic, operands) = text.split_once(' ').unwrap_or((text, ""));
+                let destination = operands.split(',').next().unwrap_or("");
+                matches!(mnemonic, "push" | "call")
+                    || destination == "rsp"
+                    || (mnemonic.starts_with("mov") && destination.contains('['))
+            }) as fn(&str) -> bool,
+        ),
+        (
+            crate::asm::Architecture::AArch64,
+            &aarch64,
+            |text: &str| text.starts_with("b.") || text.starts_with("cb") || text.starts_with("tb"),
+            |text: &str| {
+                let (mnemonic, operands) = text.split_once(' ').unwrap_or((text, ""));
+                mnemonic.starts_with("st") || mnemonic == "bl" || operands.starts_with("sp,")
+            },
+        ),
+    ] {
+        let listing =
+            crate::asm::disassembler::listing_with_data(architecture, &compiled.code, compiled.data_offset as usize);
+        let check = listing
+            .iter()
+            .position(|instruction| is_branch(&instruction.text))
+            .unwrap_or_else(|| panic!("{architecture:?}: the prologue does not branch"));
+        assert!(check > 0);
+        for instruction in &listing[..check] {
+            assert!(
+                !writes_stack(&instruction.text),
+                "{architecture:?}: {} at {:#x} comes before the stack limit check",
+                instruction.text,
+                instruction.offset
+            );
+        }
+        assert!(
+            listing[check..]
+                .iter()
+                .any(|instruction| writes_stack(&instruction.text)),
+            "{architecture:?}: the test does not recognize the prologue"
+        );
+    }
+}
+
+#[test]
 fn aarch64_code_disassembles() {
     let program = assemble(|label| {
         vec![
@@ -2263,8 +2326,13 @@ fn aarch64_code_disassembles() {
     let compiled = compile_for::<crate::asm::aarch64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
     let lines = crate::asm::disassembler::aarch64(&compiled.code[..compiled.data_offset as usize]);
     let text = lines.join("\n");
-    // The prologue links the frame, slow paths and helpers are called through registers.
-    assert!(lines[0].starts_with("stp x29, x30, [sp"), "{text}");
+    // The prologue links the frame right after the stack limit check, slow paths and helpers are called through
+    // registers.
+    let check = lines
+        .iter()
+        .position(|line| line.starts_with("b."))
+        .expect("a stack limit check");
+    assert!(lines[check + 1].starts_with("stp x29, x30, [sp"), "{text}");
     assert!(text.contains("blr"), "{text}");
     assert!(text.contains("ret"), "{text}");
     // NB: The slow paths of JumpLessThan and NewArray leave through sites.
@@ -2276,7 +2344,11 @@ fn aarch64_code_disassembles() {
 
     let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|pc| pc != never_ran).unwrap();
     let lines = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]);
-    assert_eq!(lines[0], "push rbp");
+    let check = lines
+        .iter()
+        .position(|line| line.starts_with('j'))
+        .expect("a stack limit check");
+    assert_eq!(lines[check + 1], "push rbp");
 
     // The dump names exits, slow paths and the shared tails on both architectures.
     snapshot.options.dump_asm = true;
