@@ -3,5 +3,5 @@
 endpoint RenderClockServer
 {
     // One-shot, like a rendering opportunity: the context gets the next display tick its maximum rate lets through.
-    request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
+    [RustSender] request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
 }

@@ -1698,36 +1698,6 @@ fn cursor_for_hit(state: &mut RenderState, hit: CursorHit) -> Option<u8> {
     })
 }
 
-/// Hands the clock lane `ticks` belong to where the pointer went: to `x`, `y` in device pixels where `has_position`,
-/// or out of the context, beside the mouse event with the input event id `input_event_id`, and answers what the lane
-/// wants next, as a `PointerAnswer`.
-///
-#[unsafe(no_mangle)]
-pub extern "C" fn clock_ticks_pointer_moved(
-    ticks: &super::ClockTicks,
-    has_position: bool,
-    x: f32,
-    y: f32,
-    buttons: u32,
-    scrolled_since_frame: bool,
-    input_event_id: u64,
-) -> u8 {
-    ticks.pointer_moved(PendingPointer {
-        position: has_position.then_some(FloatPoint { x, y }),
-        buttons,
-        scrolled_since_frame,
-        input_event_id,
-    }) as u8
-}
-
-/// Hands the clock lane `ticks` belong to that the pointer rests where the compositor's animations move what is under
-/// it, which the next tick hovers again in the frame as the screen shows it, and answers what the lane wants next, as a
-/// `PointerAnswer`.
-#[unsafe(no_mangle)]
-pub extern "C" fn clock_ticks_pointer_rests_on_moving_content(ticks: &super::ClockTicks) -> u8 {
-    ticks.pointer_rests_on_moving_content() as u8
-}
-
 /// Hands the clock lanes of `host`'s document that the pointer rests where the compositor's animations move what is
 /// under it, ticks them at `frame_time_nanoseconds`, and waits as [`document_host_inject_pointer`] does. For a test.
 #[unsafe(no_mangle)]

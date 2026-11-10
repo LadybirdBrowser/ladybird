@@ -14,7 +14,7 @@
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/RenderClock.h>
-#include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Compositor/RenderClockRustFFI.h>
 
 namespace Web::Compositor {
 
@@ -38,28 +38,18 @@ private:
             m_clock.did_lose_channel();
     }
 
-    virtual void clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double, Vector<Web::CompositorScrollOffset> scroll_offsets) override
+    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage& message) override
     {
-        if (!m_detached)
-            m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds, scroll_offsets);
-    }
-
-    virtual void pointer_moved(Web::CompositorContextId context_id, Web::DevicePixelPoint position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) override
-    {
-        if (!m_detached)
-            m_clock.did_receive_pointer_move(context_id, Gfx::FloatPoint { position.x().value(), position.y().value() }, buttons, scrolled_since_frame, input_event_id);
-    }
-
-    virtual void pointer_left(Web::CompositorContextId context_id, u64 input_event_id) override
-    {
-        if (!m_detached)
-            m_clock.did_receive_pointer_move(context_id, {}, 0, false, input_event_id);
-    }
-
-    virtual void pointer_rests_on_moving_content(Web::CompositorContextId context_id) override
-    {
-        if (!m_detached)
-            m_clock.did_receive_pointer_rest(context_id);
+        if (m_detached)
+            return nullptr;
+        auto outcome = message.hand_to_rust([&](IPC::FfiRawMessage raw_message) {
+            RustFFI::render_clock_lanes_handle_message(&m_clock.m_lanes, raw_message, m_clock.is_manual_for_testing());
+        });
+        if (outcome.misbehavior.has_value()) {
+            dbgln("RenderClock: Disconnecting the Compositor after {}: {}", message.message_name(), *outcome.misbehavior);
+            shutdown();
+        }
+        return nullptr;
     }
 
     RenderClock& m_clock;
@@ -70,29 +60,6 @@ ClockTicksHandle::~ClockTicksHandle()
 {
     if (m_ticks)
         Layout::RustFFI::clock_ticks_release(m_ticks);
-}
-
-bool ClockTicksHandle::tick(i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets) const
-{
-    // A scroll timeline follows the scroll node of an element or a document's viewport, which its unique id names.
-    Vector<Layout::RustFFI::FfiScrollOffset, 8> scrollers;
-    for (auto const& scroll_offset : scroll_offsets) {
-        if (scroll_offset.scroll_node.kind == Web::AsyncScrollNodeKind::PseudoElement)
-            continue;
-        scrollers.append({ scroll_offset.scroll_node.node_id.value(), scroll_offset.offset.x().to_double(), scroll_offset.offset.y().to_double() });
-    }
-    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds, scrollers.span());
-}
-
-PointerAnswer ClockTicksHandle::pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const
-{
-    auto position = device_position.value_or({});
-    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_moved(m_ticks, device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame, input_event_id));
-}
-
-PointerAnswer ClockTicksHandle::pointer_rests_on_moving_content() const
-{
-    return static_cast<PointerAnswer>(Layout::RustFFI::clock_ticks_pointer_rests_on_moving_content(m_ticks));
 }
 
 RenderClock& RenderClock::the()
@@ -106,6 +73,7 @@ RenderClock::RenderClock()
     : m_thread(Threading::Thread::construct("RenderClock"sv, [this] {
         return thread_main();
     }))
+    , m_lanes(*RustFFI::render_clock_lanes_create())
 {
     m_thread->start();
     MutexLocker locker(m_mutex);
@@ -181,13 +149,16 @@ ErrorOr<void> RenderClock::replace_channel(IPC::TransportHandle handle)
     drop_channel();
     auto transport = TRY(handle.create_transport());
     m_channel = adopt_ref(*new RenderClockChannel(move(transport), *this));
+    m_poster_of_channel = IPC::ThreadSafeMessagePoster::create(m_channel->transport());
+    RustFFI::render_clock_lanes_replace_channel(&m_lanes, m_poster_of_channel->to_ffi_with_one_reference());
     return {};
 }
 
 void RenderClock::drop_channel()
 {
-    m_armed_contexts.clear();
-    m_pointer_lanes.clear();
+    RustFFI::render_clock_lanes_drop_channel(&m_lanes);
+    if (auto poster = move(m_poster_of_channel))
+        poster->detach_from_transport();
     if (auto channel = move(m_channel)) {
         channel->detach();
         channel->shutdown();
@@ -198,17 +169,7 @@ void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_f
 {
     VERIFY(isfinite(maximum_frames_per_second) && maximum_frames_per_second > 0);
     auto arm = [this, context_id, maximum_frames_per_second, ticks = move(ticks), tick_now_at]() mutable {
-        // Another document of the context hears of the pointer no more, and a tick armed for it would hand its ticks to
-        // this one's.
-        if (auto it = m_pointer_lanes.find(context_id); it != m_pointer_lanes.end() && !it->value.ticks->hands_on_to(*ticks))
-            m_armed_contexts.remove(context_id);
-        // The display ticks of an armed context drive its ticks at their rate, however many tasks begin meanwhile.
-        if (tick_now_at.has_value() && !m_armed_contexts.contains(context_id)) {
-            (void)ticks->tick(*tick_now_at, {});
-            m_armed_contexts.set(context_id, ArmedContext { maximum_frames_per_second, ticks });
-            request_clock_tick(context_id, maximum_frames_per_second);
-        }
-        m_pointer_lanes.set(context_id, PointerLane { maximum_frames_per_second, move(ticks) });
+        RustFFI::render_clock_lanes_arm_lane(&m_lanes, context_id.value(), maximum_frames_per_second, ticks->ticks(), tick_now_at.has_value(), tick_now_at.value_or(0));
     };
     // A test hands the lanes pointer moves by hand, which find the context armed once the rendering update is over.
     if (m_manual_for_testing)
@@ -220,8 +181,7 @@ void RenderClock::arm_lane(Web::CompositorContextId context_id, double maximum_f
 void RenderClock::forget_context(Web::CompositorContextId context_id)
 {
     (void)invoke_on_clock_thread([this, context_id] {
-        m_armed_contexts.remove(context_id);
-        m_pointer_lanes.remove(context_id);
+        RustFFI::render_clock_lanes_forget_context(&m_lanes, context_id.value());
     });
 }
 
@@ -246,13 +206,14 @@ void RenderClock::run_on_clock_thread_and_wait(Function<void()> job)
 
 void RenderClock::disarm_all_for_testing()
 {
-    run_on_clock_thread_and_wait([this] { m_armed_contexts.clear(); });
+    run_on_clock_thread_and_wait([this] { RustFFI::render_clock_lanes_disarm_all(&m_lanes); });
 }
 
 void RenderClock::hand_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id)
 {
     auto pointer_move = [this, context_id, device_position, buttons, scrolled_since_frame, input_event_id] {
-        did_receive_pointer_move(context_id, device_position, buttons, scrolled_since_frame, input_event_id);
+        auto position = device_position.value_or({});
+        RustFFI::render_clock_lanes_pointer_moved(&m_lanes, context_id.value(), device_position.has_value(), position.x(), position.y(), buttons, scrolled_since_frame, input_event_id, m_manual_for_testing);
     };
     if (m_manual_for_testing)
         run_on_clock_thread_and_wait(move(pointer_move));
@@ -260,66 +221,11 @@ void RenderClock::hand_pointer_move(Web::CompositorContextId context_id, Optiona
         (void)invoke_on_clock_thread(move(pointer_move));
 }
 
-void RenderClock::did_receive_pointer_move(Web::CompositorContextId context_id, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id)
-{
-    auto it = m_pointer_lanes.find(context_id);
-    if (it == m_pointer_lanes.end())
-        return;
-    arm_lane_for_pointer_answer(context_id, it->value, it->value.ticks->pointer_moved(device_position, buttons, scrolled_since_frame, input_event_id));
-}
-
-void RenderClock::did_receive_pointer_rest(Web::CompositorContextId context_id)
-{
-    auto it = m_pointer_lanes.find(context_id);
-    if (it == m_pointer_lanes.end())
-        return;
-    arm_lane_for_pointer_answer(context_id, it->value, it->value.ticks->pointer_rests_on_moving_content());
-}
-
-void RenderClock::arm_lane_for_pointer_answer(Web::CompositorContextId context_id, PointerLane const& lane, PointerAnswer answer)
-{
-    switch (answer) {
-    case PointerAnswer::Moves:
-        return;
-    case PointerAnswer::Ticks:
-        break;
-    }
-    // A test ticks the lanes by hand.
-    if (m_manual_for_testing)
-        return;
-    // A context armed for ticks already asked for the next one.
-    if (m_armed_contexts.contains(context_id))
-        return;
-    m_armed_contexts.set(context_id, ArmedContext { lane.maximum_frames_per_second, lane.ticks });
-    request_clock_tick(context_id, lane.maximum_frames_per_second);
-}
-
-void RenderClock::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
-{
-    if (m_channel)
-        m_channel->async_request_clock_tick(context_id, maximum_frames_per_second);
-}
-
-void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset> scroll_offsets)
-{
-    // A tick for a context disarmed after its request went out, or armed on an earlier channel.
-    auto it = m_armed_contexts.find(context_id);
-    if (it == m_armed_contexts.end())
-        return;
-
-    // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes, the next
-    // one is already on its way, and the Compositor's pacing is the only limit on the rate.
-    if (!it->value.ticks->tick(frame_time_nanoseconds, scroll_offsets)) {
-        m_armed_contexts.remove(it);
-        return;
-    }
-    request_clock_tick(context_id, it->value.maximum_frames_per_second);
-}
-
 void RenderClock::did_lose_channel()
 {
-    m_armed_contexts.clear();
-    m_pointer_lanes.clear();
+    RustFFI::render_clock_lanes_drop_channel(&m_lanes);
+    if (auto poster = move(m_poster_of_channel))
+        poster->detach_from_transport();
     // The channel is dying from inside its own handler, which keeps it alive until it returns.
     m_channel = nullptr;
 }

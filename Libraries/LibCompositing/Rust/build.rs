@@ -7,6 +7,7 @@
 use std::env;
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 // AK::Optional is not trivial for calls under every C++ ABI: Apple clang returns it through memory, where Rust
 // returns the matching #[repr(C)] struct in registers. Keep it out of extern "C" signatures; pass a plain
@@ -259,9 +260,42 @@ fn display_list_payload_alignment(path: &Path) -> Result<String, Box<dyn Error>>
     Ok(value.to_string())
 }
 
+fn generate_ipc_endpoints(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let source_dir = manifest_dir.join("../../..");
+    let generator = source_dir.join("Meta/Generators/generate_ipc_definitions.py");
+    println!("cargo:rerun-if-changed={}", generator.display());
+    for module in ["lexer.py", "utils.py"] {
+        println!(
+            "cargo:rerun-if-changed={}",
+            source_dir.join("Meta/Utils").join(module).display()
+        );
+    }
+
+    println!("cargo:rerun-if-env-changed=PYTHON");
+    let python = env::var_os("PYTHON").unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
+    for endpoint in ["RenderClockClient", "RenderClockServer"] {
+        let definition = source_dir.join(format!("Services/Compositor/{endpoint}.ipc"));
+        println!("cargo:rerun-if-changed={}", definition.display());
+        let output = out_dir.join(format!("{endpoint}Endpoint.rs"));
+        let status = Command::new(&python)
+            .arg(&generator)
+            .arg("--input")
+            .arg(&definition)
+            .arg("--rust-output")
+            .arg(&output)
+            .status()?;
+        if !status.success() {
+            return Err(format!("IPC endpoint generation failed for {endpoint}").into());
+        }
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+
+    generate_ipc_endpoints(&manifest_dir, &out_dir)?;
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
