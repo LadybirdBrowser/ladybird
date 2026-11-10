@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
+#include <Compositor/CompositorCoreRustFFI.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
@@ -26,12 +27,7 @@ struct PendingFrame {
     static PendingFrame repainting_changes(Gfx::IntRect viewport_rect) { return { viewport_rect, {} }; }
 };
 
-enum class PresentScheduling : u8 {
-    // The frame is presented on the next tick of the context's display, which the request asks for.
-    OnNextDisplayTick,
-    // The frame joins what the display tick in progress presents.
-    WithDisplayTickInProgress,
-};
+using PresentScheduling = RustFFI::PresentScheduling;
 
 // A frame that the scroll and input logic of a context wants presented. The compositor schedules it once the call that
 // asked for it has returned.
@@ -52,18 +48,9 @@ struct DisplayTickInputs {
     Optional<double> clock_tick_interval_in_milliseconds;
 };
 
-struct DisplayTickResult {
-    bool presents_on_display { false };
-    // As of the end of the tick, and without the fades of the UI overlays.
-    bool needs_animation_frames { false };
-};
+using DisplayTickResult = RustFFI::DisplayTickResult;
 
-enum class ContextTimer : u8 {
-    ScrollStepGestureInput,
-    ScrollbarPaging,
-    ScrollbarFadeOut,
-    CaretBlink,
-};
+using ContextTimer = RustFFI::ContextTimer;
 
 // What the scroll and input logic of the contexts asks of the process around it. None of these calls comes back into
 // that logic before it returns.

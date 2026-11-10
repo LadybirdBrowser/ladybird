@@ -37,7 +37,6 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
-#include <Compositor/ScrollbarController.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>

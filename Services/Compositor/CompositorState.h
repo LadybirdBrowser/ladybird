@@ -75,7 +75,7 @@ class CompositorState final
     : public RefCounted<CompositorState>
     , public CompositorCoreHost {
 public:
-    static NonnullRefPtr<CompositorState> create(RefPtr<Gfx::SkiaBackendContext>);
+    static NonnullRefPtr<CompositorState> create(RefPtr<Gfx::SkiaBackendContext>, bool scrollbars_always_shown = false);
     ~CompositorState();
 
     enum class ContextOwnerCheckResult {
@@ -113,10 +113,10 @@ public:
 
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
-    void update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, Compositing::ScrollStateSnapshot&&);
+    // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
+    bool update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, IPC::Encoded<Compositing::ScrollStateSnapshot> const&);
     void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&&);
     void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
-    void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);
@@ -132,19 +132,9 @@ public:
     // The client's images lost the decoder their sessions were on. Each keeps the frame it shows.
     void animated_image_decoder_lost(CompositorStateWebContentClient&);
     AnimatedImage const* animated_image(CompositorStateWebContentClient&, Compositing::ImageFrameResourceId) const;
-    void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
-    void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
-    void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll);
-    void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent);
-    void handle_and_dispatch_pinch_event(Web::CompositorContextId, Web::PinchEvent);
-    // Routes a wheel event the UI did not send here, such as one a test makes, as the UI's wheel events are routed.
-    Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);
-    // Scrolls by a step that the page of the context dispatched and did not cancel. The context that routes the
-    // gesture is the nearest one, from that context out to the presenting one, that noted the gesture, and the steps the
-    // compositor still has to route of the gesture no longer wait for the page.
-    Compositing::WheelEventAnswer scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId, Compositing::WheelStepLetThrough const&, Compositing::AsyncScrollOperationTracking, WebContentClientId page_client);
-    void forget_wheel_gesture_the_page_canceled(Web::CompositorContextId, u64 gesture_id);
-    void apply_scroll_requests(Web::CompositorContextId, ReadonlySpan<Compositing::ScrollRequest>);
+    // The messages of WebContent and of a presentation that the scroll and input logic takes undecoded.
+    IPC::RawMessage::OutcomeInRust handle_message_from_web_content(WebContentClientId, IPC::RawMessage&);
+    IPC::RawMessage::OutcomeInRust handle_message_from_presentation(PresentationId, IPC::RawMessage&);
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays);
@@ -161,11 +151,6 @@ public:
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
     void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);
-    String scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID stretched_scroller) const;
-    Optional<Compositing::FirstWheelStepRouteForTesting> route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
-    void begin_input_trace_for_testing(Web::CompositorContextId);
-    void clear_per_test_input_state_for_testing(Web::CompositorContextId);
-    Vector<Web::InputTraceRecord> take_input_trace_for_testing(Web::CompositorContextId);
 
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
@@ -181,7 +166,7 @@ public:
     PlaceholderCanvasPixels read_placeholder_canvas_pixels(CompositorStateWebContentClient&, Compositing::CanvasId, Gfx::IntRect);
 
 private:
-    CompositorState(RefPtr<Gfx::SkiaBackendContext>);
+    CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool scrollbars_always_shown);
 
     CompositorStateWebContentClient* web_content_client_if_present(WebContentClientId) const;
     virtual void post_message_to_web_content(WebContentClientId, IPC::MessageBuffer&) override;
@@ -239,9 +224,6 @@ private:
 public:
     void present_pending_frames_for_testing() { present_pending_frames_on_vsync({}, MonotonicTime::now()); }
     size_t pending_async_present_count_for_testing() const { return m_pending_async_presents.size(); }
-
-    // What was not published yet, for a caller that needs the compositor's state as of now.
-    Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::CompositorContextId);
 
 private:
     PresentedContext* presented_context_if_present(Web::CompositorContextId);
@@ -347,7 +329,7 @@ private:
     };
     HashMap<Compositing::CanvasId, PlaceholderCanvas> m_placeholder_canvases;
 
-    CompositorCore m_core { *this };
+    CompositorCore m_core;
 };
 
 }

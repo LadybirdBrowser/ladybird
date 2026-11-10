@@ -5,16 +5,16 @@
 
 endpoint CompositorWebContentClient
 {
-    mouse_event(u64 page_id, Web::MouseEvent event) =|
-    key_event(u64 page_id, Web::KeyEvent event) =|
-    pinch_event(u64 page_id, Web::PinchEvent event) =|
-    request_rendering_update() =|
+    [RustSender] mouse_event(u64 page_id, Web::MouseEvent event) =|
+    [RustSender] key_event(u64 page_id, Web::KeyEvent event) =|
+    [RustSender] pinch_event(u64 page_id, Web::PinchEvent event) =|
+    [RustSender] request_rendering_update() =|
     rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
-    async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates) =|
+    [RustSender] async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates) =|
     // A frame of a transform animation the compositor runs moved content under the pointer at rest, or away from it,
     // as of the frame's time.
-    animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds) =|
-    overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
+    [RustSender] animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds) =|
+    [RustSender] overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_lose_compositor() =|

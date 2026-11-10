@@ -300,8 +300,16 @@ fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), B
             "CompositorWebContentClientEndpoint.rs",
         ),
         (
+            "Services/Compositor/CompositorWebContentServer.ipc",
+            "CompositorWebContentServerEndpoint.rs",
+        ),
+        (
             "Services/Compositor/CompositorPresentationClient.ipc",
             "CompositorPresentationClientEndpoint.rs",
+        ),
+        (
+            "Services/Compositor/CompositorPresentationServer.ipc",
+            "CompositorPresentationServerEndpoint.rs",
         ),
         (
             "Services/Compositor/RenderClockClient.ipc",
@@ -350,8 +358,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .rename
         .insert("Span".to_string(), "AK::ReadonlySpan".to_string());
+    ffi_config
+        .export
+        .rename
+        .insert("EncodedValue".to_string(), "AK::ReadonlyBytes".to_string());
     ffi_config.includes.push("AK/Span.h".to_string());
-    // The values WebContent's own entry points take and return, which its headers refer to here.
+    // The values the entry points of WebContent and of the compositor's scroll logic take and return, which their
+    // headers refer to here.
     ffi_config.export.include = [
         "NodeSlotId",
         "FfiFilterFunction",
@@ -366,6 +379,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiAnimatedContentViewportEffect",
         "FfiTestStickyConstraints",
         "FfiDisplayListReplayCallbacks",
+        "FfiDisplayList",
         "FfiEasingDescriptor",
         "FfiEasingKind",
         "FfiLinearEasingPoint",

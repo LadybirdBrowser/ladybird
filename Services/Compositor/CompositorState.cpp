@@ -18,15 +18,30 @@ namespace Compositor {
 
 static constexpr int gpu_completion_check_interval_ms = 1;
 
-NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool scrollbars_always_shown)
 {
-    return adopt_ref(*new CompositorState(move(skia_backend_context)));
+    return adopt_ref(*new CompositorState(move(skia_backend_context), scrollbars_always_shown));
 }
 
-CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool scrollbars_always_shown)
     : m_skia_backend_context(move(skia_backend_context))
     , m_display_list_player(make<DisplayListPlayerSkia>(m_skia_backend_context))
+    , m_core(*this, scrollbars_always_shown)
 {
+}
+
+IPC::RawMessage::OutcomeInRust CompositorState::handle_message_from_web_content(WebContentClientId client_id, IPC::RawMessage& message)
+{
+    auto outcome = m_core.handle_message_from_web_content(client_id, message, MonotonicTime::now());
+    schedule_requested_presents();
+    return outcome;
+}
+
+IPC::RawMessage::OutcomeInRust CompositorState::handle_message_from_presentation(PresentationId presentation_id, IPC::RawMessage& message)
+{
+    auto outcome = m_core.handle_message_from_presentation(presentation_id, message, MonotonicTime::now());
+    schedule_requested_presents();
+    return outcome;
 }
 
 CompositorState::PresentedContext::PresentedContext(Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, OwnedCanvasSurfaces canvas_surfaces)
@@ -350,7 +365,7 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
     context->presenter.stop_presenting_to_client();
 }
 
-void CompositorState::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, Compositing::ScrollStateSnapshot&& scroll_state_snapshot)
+bool CompositorState::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, IPC::Encoded<Compositing::ScrollStateSnapshot> const& scroll_state_snapshot)
 {
     auto now = MonotonicTime::now();
     auto* context = presented_context_if_present(context_id);
@@ -360,20 +375,22 @@ void CompositorState::update_display_list(Web::CompositorContextId context_id, N
         dbgln("Compositor: Dropping inconsistent display list update (display list epoch {}, tree epoch {})",
             display_list->compatible_visual_context_tree_structural_epoch(),
             visual_context_tree.structural_epoch());
-        return;
+        return true;
     }
     if (auto validation = Compositing::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree); validation.is_error()) {
         dbgln("Compositor: Dropping display list update: {}", validation.error());
-        return;
+        return true;
     }
 
+    if (!m_core.install_display_list_update(context_id, *display_list, async_scrolling_metadata, visual_context_tree, scroll_state_snapshot, now))
+        return false;
     context->presenter.apply_resource_transaction(move(resource_transaction));
     context->presenter.set_display_list(display_list);
-    m_core.install_display_list_update(context_id, move(display_list), move(visual_context_tree), move(scroll_state_snapshot), now);
     resolve_video_sinks(*context);
     show_animated_image_frames_in(*context);
 
     update_unpainted_video_update_scheduling();
+    return true;
 }
 
 void CompositorState::update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction&& resource_transaction)
@@ -390,15 +407,9 @@ void CompositorState::update_visual_context_tree(Web::CompositorContextId contex
     auto* context = presented_context_if_present(context_id);
     VERIFY(context);
 
-    if (m_core.update_visual_context_tree(context_id, move(visual_context_tree), now))
+    if (m_core.update_visual_context_tree(context_id, visual_context_tree, now))
         context->presenter.apply_resource_transaction(move(resource_transaction));
     show_animated_image_frames_in(*context);
-}
-
-void CompositorState::update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
-{
-    m_core.update_scroll_state(context_id, move(scroll_state_snapshot), move(keyboard_scroll_state));
-    schedule_requested_presents();
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -832,74 +843,6 @@ double CompositorState::display_refresh_rate_for_context(PresentedContext const&
         current_context = presented_context_if_present(*parent_context_id);
     }
     return context.display_refresh_rate;
-}
-
-void CompositorState::invalidate_wheel_event_listener_state(Web::CompositorContextId context_id, u64 generation)
-{
-    m_core.invalidate_wheel_event_listener_state(context_id, generation);
-    schedule_requested_presents();
-}
-
-void CompositorState::invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation)
-{
-    m_core.invalidate_keyboard_scroll_state(context_id, generation);
-    schedule_requested_presents();
-}
-
-void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll)
-{
-    auto now = MonotonicTime::now();
-    m_core.handle_and_dispatch_key_event(context_id, move(event), allow_keyboard_scroll, now);
-    schedule_requested_presents();
-}
-
-void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)
-{
-    auto now = MonotonicTime::now();
-    m_core.handle_and_dispatch_mouse_event(context_id, move(event), now);
-    schedule_requested_presents();
-}
-
-void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
-{
-    m_core.handle_and_dispatch_pinch_event(context_id, move(event));
-    schedule_requested_presents();
-}
-
-Compositing::WheelEventAnswer CompositorState::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing)
-{
-    auto now = MonotonicTime::now();
-    auto answer = m_core.take_wheel_event_from_main_thread(context_id, event, operation_tracking, routing, now);
-    schedule_requested_presents();
-    return answer;
-}
-
-Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId listener_context_id, Compositing::WheelStepLetThrough const& let_through, Compositing::AsyncScrollOperationTracking operation_tracking, WebContentClientId page_client)
-{
-    auto now = MonotonicTime::now();
-    auto answer = m_core.scroll_for_wheel_event_the_page_let_through(listener_context_id, let_through, operation_tracking, page_client, now);
-    schedule_requested_presents();
-    return answer;
-}
-
-void CompositorState::forget_wheel_gesture_the_page_canceled(Web::CompositorContextId listener_context_id, u64 gesture_id)
-{
-    m_core.forget_wheel_gesture_the_page_canceled(listener_context_id, gesture_id);
-    schedule_requested_presents();
-}
-
-void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id, ReadonlySpan<Compositing::ScrollRequest> scroll_requests)
-{
-    auto now = MonotonicTime::now();
-    m_core.apply_scroll_requests(context_id, scroll_requests, now);
-    schedule_requested_presents();
-}
-
-Compositing::PendingAsyncScrollUpdates CompositorState::take_pending_async_scroll_updates(Web::CompositorContextId context_id)
-{
-    auto answer = m_core.take_pending_async_scroll_updates(context_id);
-    schedule_requested_presents();
-    return answer;
 }
 
 void CompositorState::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress window_resize_in_progress)
@@ -1506,14 +1449,13 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context(Web::Co
 void CompositorState::update_scroll_capabilities()
 {
     for (auto& [context_id, context] : m_presented_contexts) {
-        ContextState::ScrollCapabilities capabilities;
+        CompositorCore::ScrollCapabilities capabilities {};
         if (auto* presentation = presentation_for_context(root_context_id_of(context_id))) {
             auto const& presentation_capabilities = *m_presentations.get(presentation);
             capabilities.synthesizes_scroll_momentum = presentation_capabilities.synthesizes_scroll_momentum;
             capabilities.scrolls_elastically = presentation_capabilities.scrolls_elastically;
             capabilities.scrollbar_track_press_jumps = presentation_capabilities.scrollbar_track_press_jumps;
-            if (!presentation_capabilities.synthesizes_scroll_momentum)
-                capabilities.touchpad_gesture_end = Compositing::TouchpadGestureEnd::WhenFingersLift;
+            capabilities.touchpad_gestures_end_when_fingers_lift = !presentation_capabilities.synthesizes_scroll_momentum;
         }
         m_core.set_scroll_capabilities(context_id, capabilities);
     }
@@ -1523,37 +1465,6 @@ void CompositorState::set_scrollbar_track_press_jumps(CompositorStateClient& pre
 {
     m_presentations.get(&presentation)->scrollbar_track_press_jumps = jumps;
     update_scroll_capabilities();
-}
-
-String CompositorState::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) const
-{
-    return m_core.scroll_state_for_testing(context_id, stretched_scroller);
-}
-
-Optional<Compositing::FirstWheelStepRouteForTesting> CompositorState::route_first_wheel_step_for_testing(Web::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
-{
-    auto answer = m_core.route_first_wheel_step_for_testing(context_id, position, delta_in_css_pixels);
-    schedule_requested_presents();
-    return answer;
-}
-
-void CompositorState::begin_input_trace_for_testing(Web::CompositorContextId context_id)
-{
-    m_core.begin_input_trace_for_testing(context_id);
-    schedule_requested_presents();
-}
-
-void CompositorState::clear_per_test_input_state_for_testing(Web::CompositorContextId context_id)
-{
-    m_core.clear_per_test_input_state_for_testing(context_id);
-    schedule_requested_presents();
-}
-
-Vector<Web::InputTraceRecord> CompositorState::take_input_trace_for_testing(Web::CompositorContextId context_id)
-{
-    auto answer = m_core.take_input_trace_for_testing(context_id);
-    schedule_requested_presents();
-    return answer;
 }
 
 void CompositorState::set_client_gpu_presentation_capability(CompositorStateClient& presentation, bool supported, u64 adapter_luid)

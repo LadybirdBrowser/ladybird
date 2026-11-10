@@ -19,5 +19,8 @@ libgfx_rust = { path = "../../../Libraries/LibGfx/Rust", default-features = fals
 libipc_rust = { path = "../../../Libraries/LibIPC/Rust" }
 rustc-demangle = "0.1"
 
+[build-dependencies]
+cbindgen = "0.29"
+
 [lints]
 workspace = true

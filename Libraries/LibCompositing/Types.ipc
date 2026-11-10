@@ -127,7 +127,7 @@ struct Compositing::AppliedScrollRequest {
     bool moved_the_box;
 }
 
-[ExistingCpp]
+[ExistingCpp, RustDerive=Default]
 struct Compositing::PendingAsyncScrollUpdates {
     Optional<Web::UniqueNodeID> document_id;
     u64 sequence;
@@ -174,7 +174,7 @@ struct Compositing::ScrollRequest {
     bool takes_over_from_momentum;
 }
 
-[ExistingCpp]
+[ExistingCpp, RustDerive=Default]
 struct Compositing::WheelEventAnswer {
     bool performed_default_action;
     Optional<Web::WheelGestureMark> wheel_gesture_mark;

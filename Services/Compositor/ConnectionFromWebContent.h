@@ -57,9 +57,8 @@ private:
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
     virtual void destroy_context(Web::CompositorContextId) override;
-    virtual void update_display_list(Web::CompositorContextId, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction, Compositing::ScrollStateSnapshot) override;
+    virtual void update_display_list(Web::CompositorContextId, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction, IPC::Encoded<Compositing::ScrollStateSnapshot>) override;
     virtual void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction) override;
-    virtual void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot, Compositing::KeyboardScrollState) override;
     virtual void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction) override;
     virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;
     virtual void create_canvas_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha, bool will_read_frequently, Gfx::ColorSpace) override;
@@ -82,20 +81,9 @@ private:
     virtual Messages::CompositorWebContentServer::WebglSyncCallResponse webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) override;
     virtual Messages::CompositorWebContentServer::WebglReadPixelsResponse webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) override;
     virtual Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) override;
-    virtual void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation) override;
-    virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) override;
-    virtual Messages::CompositorWebContentServer::TakeWheelEventFromMainThreadResponse take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting) override;
-    virtual Messages::CompositorWebContentServer::WheelEventLetThroughResponse wheel_event_let_through(Web::CompositorContextId, Compositing::WheelStepLetThrough, Compositing::AsyncScrollOperationTracking) override;
-    virtual void wheel_event_canceled(Web::CompositorContextId, u64 wheel_gesture_id) override;
-    virtual void apply_scroll_requests(Web::CompositorContextId, Vector<Compositing::ScrollRequest>) override;
-    virtual Messages::CompositorWebContentServer::ScrollStateForTestingResponse scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
     virtual void synchronize_for_testing() override { }
-    virtual Messages::CompositorWebContentServer::RouteFirstWheelStepForTestingResponse route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels) override;
-    virtual void begin_input_trace_for_testing(Web::CompositorContextId) override;
-    virtual void clear_per_test_input_state_for_testing(Web::CompositorContextId) override;
-    virtual Messages::CompositorWebContentServer::TakeInputTraceForTestingResponse take_input_trace_for_testing(Web::CompositorContextId) override;
-    virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::CompositorContextId) override;
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
+    virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second) override;
     virtual void hurry_rendering_opportunity(Web::CompositorContextId) override;
     virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;

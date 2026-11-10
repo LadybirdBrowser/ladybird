@@ -7,6 +7,7 @@
 //! Context lifecycle, frame scheduling, and input routing for the compositor.
 
 mod input;
+pub mod messages;
 mod testing;
 mod wheel;
 

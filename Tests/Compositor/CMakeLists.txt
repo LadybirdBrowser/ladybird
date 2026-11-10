@@ -4,7 +4,6 @@ set(TEST_SOURCES
     TestAsyncScrollTree.cpp
     TestBitmapExport.cpp
     TestCanvasSurfaceRegistry.cpp
-    TestScrollbarController.cpp
     TestVideoFrameHolds.cpp
     TestVSyncScheduler.cpp
 )
