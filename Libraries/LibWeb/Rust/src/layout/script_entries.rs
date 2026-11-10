@@ -523,10 +523,9 @@ pub extern "C" fn layout_script_empty_line_ended_by_forced_break_position(
             return None;
         }
         let side = arena.committed_side_data(block);
-        let line = side
-            .lines()
-            .iter()
-            .find(|line| line.forced_break_node == forced_break && line.fragment_count == 0)?;
+        let line = side.lines().iter().find(|line| {
+            line.forced_break.is_some_and(|position| position.node == forced_break) && line.fragment_count == 0
+        })?;
         let root_position =
             crate::painting::paintable_geometry::LineRootPositions::new(arena, block).of_fragment(line.box_fragment);
         Some(CssPixelRect::from(line.rect).translated_by(root_position).location())

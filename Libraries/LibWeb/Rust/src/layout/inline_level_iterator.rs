@@ -1094,7 +1094,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             self.text_node_context = Some(text_context);
-            return Some(PreparedItem::new(ItemType::ForcedBreak, text_node, 0));
+            return Some(PreparedItem::newline(text_node, chunk.start));
         }
 
         let full_text = text_context.text;
@@ -1963,6 +1963,17 @@ impl InlineLevelIterator {
     /// The content the items were resolved from, which their glyph runs are read against.
     pub(crate) fn prepared_content(&self) -> &PreparedInlineContent {
         &self.prepared
+    }
+
+    /// The <br> or the preserved newline that the forced break `item` stands for.
+    pub(crate) fn forced_break_position(&self, item: &Item) -> inline_content::ForcedBreakPosition {
+        // NB: The item of a preserved newline has no node, so its prepared item cannot be checked against it.
+        let prepared = &self.prepared.items[item.prepared_item_index as usize];
+        debug_assert_eq!(prepared.type_(), ItemType::ForcedBreak);
+        inline_content::ForcedBreakPosition {
+            node: prepared.node(),
+            rendered_offset: prepared.offset_in_node() as u32,
+        }
     }
 
     pub(crate) fn shares_items(&self) -> bool {

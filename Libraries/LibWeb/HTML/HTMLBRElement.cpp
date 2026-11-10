@@ -10,10 +10,9 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/VisualLines.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 
 namespace Web::HTML {
 
@@ -55,51 +54,14 @@ void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
     });
 }
 
-// Rendered inline content that would appear before a <br> on its line.
-static bool is_rendered_inline_content(Layout::BegunRead const& read, DOM::Node const& node)
-{
-    if (auto const* text = as_if<DOM::Text>(node)) {
-        for (auto const& line : collect_visual_lines(read, *text)) {
-            if (line.has_fragments)
-                return true;
-        }
-        return false;
-    }
-    if (auto const* element = as_if<DOM::Element>(node)) {
-        auto const* layout_node = element->layout_node(read);
-        if (!layout_node)
-            return false;
-        if (layout_node->is_replaced_box())
-            return true;
-        if (layout_node->display().is_inline_outside() && !layout_node->display().is_flow_inside())
-            return true;
-    }
-    return false;
-}
-
-// NB: Layout produces no fragments for <br>, so this walks the DOM back to the start of the containing block or a
-//     previous <br>, whichever comes first.
 bool HTMLBRElement::represents_empty_line(Layout::BegunRead const& read) const
 {
-    if (!layout_node(read))
+    auto const* layout_node = this->layout_node(read);
+    if (!layout_node || !layout_node->containing_block())
         return false;
-
-    auto const* containing_block = layout_node(read)->containing_block();
-    if (!containing_block)
-        return false;
-    auto const* containing_block_dom_node = containing_block->dom_node();
-    if (!containing_block_dom_node)
-        return false;
-
-    for (auto const* previous = previous_in_pre_order(); previous && previous != containing_block_dom_node; previous = previous->previous_in_pre_order()) {
-        if (!containing_block_dom_node->is_inclusive_ancestor_of(*previous))
-            break;
-        if (is<HTMLBRElement>(*previous))
-            return true;
-        if (is_rendered_inline_content(read, *previous))
-            return false;
-    }
-    return true;
+    CSSPixelPoint line_position;
+    return Layout::RustFFI::layout_script_empty_line_ended_by_forced_break_position(layout_node->document_host(),
+        Layout::Node::slot_id(layout_node->containing_block()), Layout::Node::slot_id(layout_node), &line_position);
 }
 
 }

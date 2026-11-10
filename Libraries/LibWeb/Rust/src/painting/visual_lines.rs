@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::css::css_pixels::CssPixels;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::{paintable_geometry, text_fragment};
+use crate::painting::text_fragment;
 
 pub(crate) struct RecordVisualLine {
     pub start_offset: usize,
@@ -16,74 +16,6 @@ pub(crate) struct RecordVisualLine {
     pub has_fragments: bool,
     pub owner: NodeSlotId,
     pub line_index: u32,
-}
-
-pub(crate) fn text_preserves_newlines(layout_arena: &impl PaintRead, text_node: NodeSlotId) -> bool {
-    let Some(parent) = layout_arena.node_parent_if_live(text_node) else {
-        return false;
-    };
-    let Some(parent_style) = layout_arena.node_style_if_live(parent) else {
-        return false;
-    };
-    matches!(
-        parent_style.white_space_collapse(),
-        crate::css::css_enums::white_space_collapse::PRESERVE
-            | crate::css::css_enums::white_space_collapse::PRESERVE_BREAKS
-    )
-}
-
-fn for_each_empty_visual_line_position(
-    layout_arena: &impl PaintRead,
-    node_slots: &[NodeSlotId],
-    mut callback: impl FnMut(usize) -> bool,
-) {
-    let mut segments: Vec<(NodeSlotId, &[u16])> = Vec::new();
-    for &node in node_slots {
-        if let Some(content) = layout_arena.rendered_text(node) {
-            segments.push((node, &content.text));
-        }
-    }
-    // A text that starts with a newline starts with an empty line.
-    if let Some(&(node, text)) = segments.first()
-        && text.first() == Some(&u16::from(b'\n'))
-    {
-        let dom_offset =
-            layout_arena.dom_offset_for_rendered_text_offset(node, 0, crate::layout::RenderedTextBoundary::Start);
-        if !callback(dom_offset) {
-            return;
-        }
-    }
-    for (segment_index, &(node, text)) in segments.iter().enumerate() {
-        for (rendered_offset, code_unit) in text.iter().enumerate() {
-            if *code_unit != u16::from(b'\n') {
-                continue;
-            }
-            let next_code_unit = text.get(rendered_offset + 1).copied().or_else(|| {
-                segments[segment_index + 1..]
-                    .iter()
-                    .find_map(|(_, following_text)| following_text.first().copied())
-            });
-            if next_code_unit.is_none() || next_code_unit == Some(u16::from(b'\n')) {
-                let dom_offset = layout_arena.dom_offset_for_rendered_text_offset(
-                    node,
-                    rendered_offset + 1,
-                    crate::layout::RenderedTextBoundary::End,
-                );
-                if !callback(dom_offset) {
-                    return;
-                }
-            }
-        }
-    }
-}
-
-fn has_empty_visual_line_positions(layout_arena: &impl PaintRead, node_slots: &[NodeSlotId]) -> bool {
-    let mut found = false;
-    for_each_empty_visual_line_position(layout_arena, node_slots, |_| {
-        found = true;
-        false
-    });
-    found
 }
 
 pub(crate) fn collect_visual_lines(layout_arena: &impl PaintRead, node_slots: &[NodeSlotId]) -> Vec<RecordVisualLine> {
@@ -114,119 +46,36 @@ pub(crate) fn collect_visual_lines(layout_arena: &impl PaintRead, node_slots: &[
         }
         true
     });
-    if let Some(&primary) = node_slots.last()
-        && text_preserves_newlines(layout_arena, primary)
-    {
-        // The empty line after a text control's trailing newline holds a zero-length fragment, so its line is already
-        // in the list.
-        let empty_lines_with_fragments: Vec<usize> = lines
-            .iter()
-            .filter(|line| line.start_offset == line.end_offset)
-            .map(|line| line.start_offset)
-            .collect();
-        for_each_empty_visual_line_position(layout_arena, node_slots, |position| {
-            if empty_lines_with_fragments.contains(&position) {
-                return true;
+    // A preserved newline that ends a line with nothing on it gives the line no fragment.
+    let mut blocks: Vec<NodeSlotId> = node_slots
+        .iter()
+        .filter_map(|&node| text_fragment::containing_block_paintable_of_node(layout_arena, node))
+        .collect();
+    blocks.dedup();
+    for block in blocks {
+        for (line_index, line) in layout_arena.committed_side_data(block).lines().iter().enumerate() {
+            if let Some(position) = line.forced_break
+                && line.fragment_count == 0
+                && node_slots.contains(&position.node)
+            {
+                let offset = layout_arena.dom_offset_for_rendered_text_offset(
+                    position.node,
+                    position.rendered_offset as usize,
+                    crate::layout::RenderedTextBoundary::Start,
+                );
+                lines.push(RecordVisualLine {
+                    start_offset: offset,
+                    end_offset: offset,
+                    end_offset_with_trailing_whitespace: offset,
+                    has_fragments: false,
+                    owner: block,
+                    line_index: line_index as u32,
+                });
             }
-            lines.push(RecordVisualLine {
-                start_offset: position,
-                end_offset: position,
-                end_offset_with_trailing_whitespace: position,
-                has_fragments: false,
-                owner: NodeSlotId::INVALID,
-                line_index: 0,
-            });
-            true
-        });
+        }
     }
     lines.sort_by_key(|line| line.start_offset);
     lines
-}
-
-pub(crate) struct EmptyLineCaretTarget {
-    pub offset: usize,
-    pub line_index: usize,
-    pub rect: CssPixelRect,
-}
-
-pub(crate) fn empty_line_caret_targets(layout_arena: &impl PaintRead, block: NodeSlotId) -> Vec<EmptyLineCaretTarget> {
-    let side = layout_arena.committed_side_data(block);
-    if side.fragments().is_empty() || side.lines().is_empty() {
-        return Vec::new();
-    }
-    let text_layout_node = side.fragments()[0].layout_node;
-    if layout_arena.node_kind_if_live(text_layout_node) != Some(NodeKind::TextNode) {
-        return Vec::new();
-    }
-    if !text_preserves_newlines(layout_arena, text_layout_node) {
-        return Vec::new();
-    }
-    let block_node = block;
-    let Some(block_style) = layout_arena.node_style_if_live(block_node) else {
-        return Vec::new();
-    };
-    if block_style.writing_mode() != crate::css::css_enums::writing_mode::HORIZONTAL_TB {
-        return Vec::new();
-    }
-    let node_slots = [text_layout_node];
-    if !has_empty_visual_line_positions(layout_arena, &node_slots) {
-        return Vec::new();
-    }
-    if side
-        .fragments()
-        .iter()
-        .any(|fragment| fragment.layout_node != text_layout_node)
-    {
-        return Vec::new();
-    }
-
-    let lines = collect_visual_lines(layout_arena, &node_slots);
-
-    if lines.len() < side.lines().len() {
-        return Vec::new();
-    }
-    for (i, line) in lines.iter().enumerate() {
-        if i >= side.lines().len() {
-            if line.has_fragments {
-                return Vec::new();
-            }
-            continue;
-        }
-        if line.has_fragments != (side.lines()[i].fragment_count != 0) {
-            return Vec::new();
-        }
-        if line.has_fragments && line.line_index as usize != i {
-            return Vec::new();
-        }
-    }
-
-    let content_width = paintable_geometry::committed_content_size(layout_arena, block).width;
-    let root_positions = paintable_geometry::LineRootPositions::new(layout_arena, block);
-    let mut targets = Vec::new();
-    for (i, line) in lines.iter().enumerate() {
-        if line.has_fragments {
-            continue;
-        }
-        let content_position = root_positions.of_line(side.lines(), i.min(side.lines().len() - 1));
-        let rect = if i < side.lines().len() {
-            CssPixelRect::from(side.lines()[i].rect).translated_by(content_position)
-        } else {
-            let last = CssPixelRect::from(side.lines().last().unwrap().rect).translated_by(content_position);
-            let steps = (i - (side.lines().len() - 1)) as i32;
-            CssPixelRect {
-                x: content_position.x,
-                y: last.y + last.height + CssPixels::from_raw(last.height.raw_value() * (steps - 1)),
-                width: content_width,
-                height: last.height,
-            }
-        };
-        targets.push(EmptyLineCaretTarget {
-            offset: line.start_offset,
-            line_index: i,
-            rect,
-        });
-    }
-    targets
 }
 
 fn fragments_of_line(
@@ -235,14 +84,21 @@ fn fragments_of_line(
     line_index: u32,
     node_slots: &[NodeSlotId],
 ) -> Vec<(NodeSlotId, u32)> {
-    let mut fragments = Vec::new();
-    text_fragment::for_each_fragment_of_nodes(layout_arena, node_slots, |block, index, fragment| {
-        if block.index == owner_paintable && fragment.line_index == line_index {
-            fragments.push((block, index));
-        }
-        true
-    });
-    fragments
+    let Some(block) = node_slots
+        .iter()
+        .filter_map(|&node| text_fragment::containing_block_paintable_of_node(layout_arena, node))
+        .find(|block| block.index == owner_paintable)
+    else {
+        return Vec::new();
+    };
+    let side = layout_arena.committed_side_data(block);
+    let Some(line) = side.lines().get(line_index as usize) else {
+        return Vec::new();
+    };
+    (line.first_fragment..line.first_fragment + line.fragment_count)
+        .filter(|&index| node_slots.contains(&side.fragments()[index as usize].layout_node))
+        .map(|index| (block, index))
+        .collect()
 }
 
 pub(crate) fn caret_inline_coordinate(

@@ -294,7 +294,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     pub(crate) fn break_line(
         &mut self,
         forced: ForcedBreak,
-        forced_break_node: NodeSlotId,
+        forced_break: Option<inline_content::ForcedBreakPosition>,
         next_size: Option<CssPixels>,
     ) {
         // FIXME: Respect inline direction.
@@ -305,7 +305,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let mut line = self.line_mut(line_index);
             line.has_break = true;
             line.has_forced_break = forced == ForcedBreak::Yes;
-            line.forced_break_node = forced_break_node;
+            line.forced_break = forced_break;
         }
         self.last_line_needs_update = true;
         self.update_last_line(forced == ForcedBreak::No || next_size.is_some());
@@ -387,7 +387,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if !self.should_break(next_item_inline_size) {
             return false;
         }
-        self.break_line(ForcedBreak::No, NodeSlotId::INVALID, Some(next_item_inline_size));
+        self.break_line(ForcedBreak::No, None, Some(next_item_inline_size));
         true
     }
 
@@ -398,7 +398,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if !self.should_break(next_item_inline_size) {
             return false;
         }
-        self.break_line(ForcedBreak::No, NodeSlotId::INVALID, None);
+        self.break_line(ForcedBreak::No, None, None);
         true
     }
 

@@ -65,6 +65,4 @@ Optional<CSSPixels> cursor_inline_coordinate(Layout::BegunRead const&, DOM::Text
 Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const&);
 Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const&);
 
-// Whether any position in the text renders as an empty visual line (between two consecutive newlines, or after a
-
 }

@@ -1759,7 +1759,7 @@ impl<'context> InlineFormattingContext<'context> {
             let line_is_empty = self.line_data().line_boxes.last().is_some_and(|line| line.is_empty());
             self.set_current_line_start_offset(item_index, item.offset_in_node);
             if line_is_empty && line_builder.current_line_has_no_space_left_by_floats() {
-                line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
+                line_builder.break_line(line_builder::ForcedBreak::No, None, None);
                 continue;
             }
             let split_item = self.pass.with_grapheme_segmenter(item.node, |grapheme_segmenter| {
@@ -1777,16 +1777,12 @@ impl<'context> InlineFormattingContext<'context> {
                 if line_is_empty {
                     return false;
                 }
-                line_builder.break_line(
-                    line_builder::ForcedBreak::No,
-                    NodeSlotId::INVALID,
-                    Some(item.border_box_inline_size()),
-                );
+                line_builder.break_line(line_builder::ForcedBreak::No, None, Some(item.border_box_inline_size()));
                 continue;
             };
             line_builder.append_text_item(&mut prefix, prepared, style);
             self.set_current_line_start_offset(item_index, item.offset_in_node);
-            line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
+            line_builder.break_line(line_builder::ForcedBreak::No, None, None);
         }
     }
 
@@ -2147,7 +2143,8 @@ impl<'context> InlineFormattingContext<'context> {
                         offset_in_node: 0,
                     });
                     let continuation = iterator.next_unbreakable_run_inline_size(self);
-                    line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
+                    let position = iterator.forced_break_position(&item);
+                    line_builder.break_line(line_builder::ForcedBreak::Yes, Some(position), continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
                         self.reset_parent_margin_state();

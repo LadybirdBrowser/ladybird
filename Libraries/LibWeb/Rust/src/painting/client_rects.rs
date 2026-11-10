@@ -288,7 +288,11 @@ fn line_break_rect(arena: &impl PaintRead, break_node: NodeSlotId) -> Option<(No
     while let Some(row) = arena.node(ancestor) {
         if arena.paintable_row_is_populated(ancestor) {
             let side = arena.committed_side_data(ancestor);
-            if let Some(line) = side.lines().iter().find(|line| line.forced_break_node == break_node) {
+            if let Some(line) = side
+                .lines()
+                .iter()
+                .find(|line| line.forced_break.is_some_and(|position| position.node == break_node))
+            {
                 let style = arena.node_style_if_live(ancestor)?;
                 let root_position =
                     paintable_geometry::LineRootPositions::new(arena, ancestor).of_fragment(line.box_fragment);

@@ -8,8 +8,8 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
+use crate::painting::paintable_geometry;
 use crate::painting::text_fragment::{self, CaretMatch};
-use crate::painting::visual_lines;
 
 pub(crate) struct CaretRectResult {
     pub rect: CssPixelRect,
@@ -92,8 +92,8 @@ pub(crate) fn caret_rect_for_position(
     ))
 }
 
-/// The caret on an empty line of `block`, such as the line after a trailing newline, at `offset` in the text laid out
-/// in the fragments of `node_slots`. No fragment holds such a position.
+/// The caret on an empty line of `block` that a preserved newline at `offset` in the text laid out in the fragments of
+/// `node_slots` ends. No fragment holds such a position.
 pub(crate) fn caret_rect_on_empty_line(
     layout_arena: &impl PaintRead,
     block: NodeSlotId,
@@ -104,18 +104,23 @@ pub(crate) fn caret_rect_on_empty_line(
         return None;
     }
     let side = layout_arena.committed_side_data(block);
-    let first_fragment = side.fragments().first()?;
-    if !node_slots.contains(&first_fragment.layout_node) {
-        return None;
-    }
-    let target = visual_lines::empty_line_caret_targets(layout_arena, block)
-        .into_iter()
-        .find(|target| target.offset == offset)?;
+    let (line, node) = side.lines().iter().find_map(|line| {
+        let position = line
+            .forced_break
+            .filter(|position| line.fragment_count == 0 && node_slots.contains(&position.node))?;
+        let line_offset = layout_arena.dom_offset_for_rendered_text_offset(
+            position.node,
+            position.rendered_offset as usize,
+            crate::layout::RenderedTextBoundary::Start,
+        );
+        (line_offset == offset).then_some((line, position.node))
+    })?;
+    let root_position = paintable_geometry::LineRootPositions::new(layout_arena, block).of_fragment(line.box_fragment);
     Some(CaretRectResult {
-        rect: target.rect,
-        style_source: text_fragment::style_source(layout_arena, first_fragment),
+        rect: CssPixelRect::from(line.rect).translated_by(root_position),
+        style_source: layout_arena.node_parent_if_live(node)?,
         owner: block,
-        node: first_fragment.layout_node,
+        node,
     })
 }
 
