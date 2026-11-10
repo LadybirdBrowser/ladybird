@@ -633,7 +633,11 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 
 sk_sp<SkImage> DisplayListPlayerSkia::rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect)
 {
-    auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    // NB: A tile can be larger than any surface, e.g. a background tile far wider than a bitmap can be.
+    auto tile_surface_or_error = Gfx::PaintingSurface::try_create_with_size(tile_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    if (tile_surface_or_error.is_error())
+        return nullptr;
+    auto tile_surface = tile_surface_or_error.release_value();
     tile_surface->canvas().clear(SK_ColorTRANSPARENT);
     tile_surface->canvas().translate(-tile_rect.x(), -tile_rect.y());
     execute_command_bytes_into_surface(tile_records, *tile_surface);
@@ -1374,8 +1378,12 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
                 auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
                 if (byte_size(raster_candidate_rect) <= max_raster_bytes) {
                     cached_image = raster_cache().create_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, [&] {
-                        auto offscreen_surface = Gfx::PaintingSurface::create_with_size(
+                        // NB: When the raster can't be allocated, the nested list is replayed directly instead.
+                        auto offscreen_surface_or_error = Gfx::PaintingSurface::try_create_with_size(
                             raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+                        if (offscreen_surface_or_error.is_error())
+                            return sk_sp<SkImage> {};
+                        auto offscreen_surface = offscreen_surface_or_error.release_value();
                         offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
                         offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
                         execute_display_list_into_surface(
