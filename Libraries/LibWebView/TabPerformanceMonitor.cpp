@@ -14,10 +14,25 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
+#include <LibWebView/WorkerAgentManager.h>
 
 namespace WebView {
 
 static TabPerformanceMonitor* s_monitor;
+
+static WebContentClient* process_holding_request_server_client(int client_id)
+{
+    WebContentClient* process = nullptr;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        if (!client.request_server_site_bindings().has_client(client_id))
+            return IterationDecision::Continue;
+        process = &client;
+        return IterationDecision::Break;
+    });
+    if (process)
+        return process;
+    return WorkerAgentManager::the().host_of_request_server_client(client_id);
+}
 
 TabPerformanceMonitor& TabPerformanceMonitor::the()
 {
@@ -40,19 +55,18 @@ void TabPerformanceMonitor::configure(Requests::RequestControlClient& requests)
             return;
         auto now = MonotonicTime::now();
         for (auto const& entry : usage) {
+            // RequestServer names the client and its process names the page, so a process only charges its own pages.
+            auto* process = process_holding_request_server_client(entry.client_id);
+            if (!process)
+                continue;
             Optional<u64> owner;
-            WebContentClient::for_each_client([&](WebContentClient& client) {
-                if (client.pid() != entry.process_id)
-                    return IterationDecision::Continue;
-                // NB: What a worker on a thread of the process uses comes with no page.
-                if (auto* page = client.page(entry.page_id)) {
-                    auto const& view = page->view();
-                    owner = view.owner_view_id().value_or(view.view_id());
-                } else {
-                    owner = client.exclusive_performance_owner();
-                }
-                return IterationDecision::Break;
-            });
+            // NB: What a worker on a thread of the process uses comes with no page.
+            if (auto* page = process->page(entry.page_id)) {
+                auto const& view = page->view();
+                owner = view.owner_view_id().value_or(view.view_id());
+            } else {
+                owner = process->exclusive_performance_owner();
+            }
             if (owner.has_value())
                 s_monitor->m_tabs.ensure(*owner).add_network_bytes(now, interval_microseconds, entry.download_bytes, entry.upload_bytes);
         }

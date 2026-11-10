@@ -2527,7 +2527,7 @@ static u64 saturating_add(u64 left, u64 right)
 
 static bool s_performance_monitor_enabled;
 static u64 s_performance_generation;
-static HashMap<i32, HashMap<u64, Requests::NetworkUsage>> s_network_usage;
+static HashMap<int, HashMap<u64, Requests::NetworkUsage>> s_network_usage;
 
 void Request::set_performance_monitor_enabled(bool enabled)
 {
@@ -2541,23 +2541,23 @@ void Request::set_performance_monitor_enabled(bool enabled)
 Vector<Requests::NetworkUsage> Request::take_network_usage()
 {
     Vector<Requests::NetworkUsage> result;
-    for (auto const& process : s_network_usage) {
-        for (auto const& page : process.value)
+    for (auto const& client : s_network_usage) {
+        for (auto const& page : client.value)
             result.append(page.value);
     }
     s_network_usage.clear();
     return result;
 }
 
-void Request::set_performance_origin(i32 process_id, u64 page_id)
+void Request::set_performance_origin(int client_id, u64 page_id)
 {
-    m_performance_origin = { process_id, page_id, 0, 0 };
+    m_performance_origin = { client_id, page_id, 0, 0 };
     m_performance_generation = s_performance_generation;
 }
 
 void Request::sample_network_usage()
 {
-    if (!s_performance_monitor_enabled || m_performance_origin.process_id == 0)
+    if (!s_performance_monitor_enabled || m_performance_origin.client_id == 0)
         return;
     if (!m_curl_easy_handle) {
         m_sampled_download_bytes = 0;
@@ -2578,7 +2578,7 @@ void Request::sample_network_usage()
         delta.download_bytes = download_bytes >= m_sampled_download_bytes ? download_bytes - m_sampled_download_bytes : download_bytes;
         delta.upload_bytes = upload_bytes >= m_sampled_upload_bytes ? upload_bytes - m_sampled_upload_bytes : upload_bytes;
         if (delta.download_bytes || delta.upload_bytes) {
-            auto& total = s_network_usage.ensure(delta.process_id).ensure(delta.page_id, [&] { return m_performance_origin; });
+            auto& total = s_network_usage.ensure(delta.client_id).ensure(delta.page_id, [&] { return m_performance_origin; });
             total.download_bytes = saturating_add(total.download_bytes, delta.download_bytes);
             total.upload_bytes = saturating_add(total.upload_bytes, delta.upload_bytes);
         }
