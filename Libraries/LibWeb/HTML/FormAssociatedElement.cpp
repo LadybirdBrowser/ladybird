@@ -46,8 +46,8 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/UIEvents/InputTypes.h>
-#include <LibWeb/VisualLines.h>
 #include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
@@ -1716,7 +1716,7 @@ void FormAssociatedTextControlElement::increment_cursor_position_offset(Collapse
         collapse_selection_to_offset(max(m_selection_start, m_selection_end));
     }
     // Otherwise, move forward if possible
-    else if (auto new_position = compute_cursor_position_on_next_character(*text_node, m_selection_end, m_selection_end_affinity); new_position.has_value()) {
+    else if (auto new_position = Selection::location_after_character_step(*text_node, m_selection_end, m_selection_end_affinity, Selection::SelectionDirection::Forward); new_position.has_value()) {
         move_selection_end_to(new_position->offset, new_position->affinity, collapse);
     }
     selection_was_changed(SelectionSource::UI);
@@ -1732,7 +1732,7 @@ void FormAssociatedTextControlElement::decrement_cursor_position_offset(Collapse
         collapse_selection_to_offset(min(m_selection_start, m_selection_end));
     }
     // Otherwise, move backward if possible
-    else if (auto new_position = compute_cursor_position_on_previous_character(*text_node, m_selection_end, m_selection_end_affinity); new_position.has_value()) {
+    else if (auto new_position = Selection::location_after_character_step(*text_node, m_selection_end, m_selection_end_affinity, Selection::SelectionDirection::Backward); new_position.has_value()) {
         move_selection_end_to(new_position->offset, new_position->affinity, collapse);
     }
     selection_was_changed(SelectionSource::UI);

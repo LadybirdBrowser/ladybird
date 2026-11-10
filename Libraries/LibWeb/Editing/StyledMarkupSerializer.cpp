@@ -34,7 +34,6 @@
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/VisualLines.h>
 
 #include <LibWeb/Editing/StyledMarkupSerializer.h>
 
@@ -332,7 +331,7 @@ static void classify_cloned_text_for_interchange(Layout::BegunRead const& read, 
         auto white_space_collapse = resolved_keyword(*text.source, CSS::PropertyID::WhiteSpaceCollapse);
         if (white_space_collapse.has_value() && white_space_collapse != CSS::Keyword::Collapse) {
             text_with_preserved_breaks.append(*text.serialized);
-        } else if (collect_visual_lines(read, *text.source).is_empty()) {
+        } else if (auto const* layout_node = text.source->unsafe_layout_node(read); !layout_node || !Layout::RustFFI::render_state_text_has_lines(layout_node->document_host(), Layout::Node::slot_id(layout_node))) {
             unrendered_text.append(*text.serialized);
         }
     }

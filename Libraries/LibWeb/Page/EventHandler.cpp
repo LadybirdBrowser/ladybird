@@ -87,7 +87,6 @@
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/UIEvents/TouchEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
-#include <LibWeb/VisualLines.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
@@ -4505,6 +4504,21 @@ bool EventHandler::initiate_word_selection(Layout::BegunRead const& read, DOM::D
 
     m_selection_mode = SelectionMode::Word;
     return true;
+}
+
+static size_t find_line_start(Utf16View const& view, size_t offset)
+{
+    while (offset != 0 && view.code_unit_at(offset - 1) != '\n')
+        --offset;
+    return offset;
+}
+
+static size_t find_line_end(Utf16View const& view, size_t offset)
+{
+    auto length = view.length_in_code_units();
+    while (offset < length && view.code_unit_at(offset) != '\n')
+        ++offset;
+    return offset;
 }
 
 bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Painting::CaretPosition const& caret_position, CSS::UserSelect user_select)

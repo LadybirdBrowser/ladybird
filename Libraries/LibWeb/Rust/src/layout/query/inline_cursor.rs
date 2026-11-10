@@ -918,6 +918,70 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         })
     }
 
+    /// The caret position at the start of the first line of the DOM text whose layout node is `text`, or at the end of
+    /// its last line.
+    pub(crate) fn text_edge(&self, text: NodeSlotId, end: bool) -> Option<CaretPosition> {
+        let lines = self.lines_of_text(text);
+        let (offset, downstream) = if end {
+            (lines.last()?.end_offset, true)
+        } else {
+            let first = lines.first()?;
+            let second_line_starts_later = lines
+                .get(1)
+                .is_none_or(|second| second.start_offset > first.start_offset);
+            (first.start_offset, second_line_starts_later)
+        };
+        Some(CaretPosition::Text {
+            text,
+            offset,
+            downstream,
+        })
+    }
+
+    /// The first line of the DOM text whose layout node is `text`, or its last, where it holds rendered text of it.
+    pub(crate) fn rendered_text_edge_line(&self, text: NodeSlotId, end: bool) -> Option<InlineLine> {
+        let lines = self.lines_of_text(text);
+        let line = if end { lines.last() } else { lines.first() }?;
+        line.has_fragments.then_some(line.line)
+    }
+
+    /// The caret position one grapheme right of (`forward`) or left of `offset` in the DOM text whose layout node is
+    /// `text`, where the grapheme boundary that way is `grapheme_boundary`. Where one line ends and the next starts at
+    /// a soft wrap, the offset has a caret position on each line, and a step visits both.
+    pub(crate) fn position_after_character_step(
+        &self,
+        text: NodeSlotId,
+        offset: usize,
+        downstream: bool,
+        forward: bool,
+        grapheme_boundary: Option<usize>,
+    ) -> Option<CaretPosition> {
+        let lines = self.lines_of_text(text);
+        let ends_one_line_and_starts_the_next = |offset: usize| {
+            lines
+                .windows(2)
+                .any(|pair| pair[0].end_offset_with_trailing_whitespace == offset && pair[1].start_offset == offset)
+        };
+        if downstream != forward && ends_one_line_and_starts_the_next(offset) {
+            return Some(CaretPosition::Text {
+                text,
+                offset,
+                downstream: forward,
+            });
+        }
+        let offset = grapheme_boundary?;
+        let is_in_whitespace_hanging_at_line_end = lines
+            .iter()
+            .any(|line| line.end_offset < offset && offset <= line.end_offset_with_trailing_whitespace);
+        let stays_on_earlier_line =
+            forward && (is_in_whitespace_hanging_at_line_end || ends_one_line_and_starts_the_next(offset));
+        Some(CaretPosition::Text {
+            text,
+            offset,
+            downstream: !stays_on_earlier_line,
+        })
+    }
+
     /// The lines of the DOM text whose layout node is `text`, in DOM order.
     pub(crate) fn lines_of_text(&self, text: NodeSlotId) -> Vec<TextLine> {
         let arena = self.arena;

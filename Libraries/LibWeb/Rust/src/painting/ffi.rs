@@ -827,16 +827,15 @@ pub extern "C" fn render_state_inline_paintable_first_piece_position(
     };
 }
 
+/// The DOM offsets a line renders of a DOM text.
 #[repr(C)]
 pub struct FfiVisualLine {
     pub start_offset: usize,
     pub end_offset: usize,
-    pub end_offset_with_trailing_whitespace: usize,
-    pub has_fragments: bool,
-    pub owner_paintable: u32,
-    pub line_index: u32,
 }
 
+/// Pushes the lines that hold rendered text of the DOM text whose layout node is `primary`, in DOM order.
+///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
@@ -849,10 +848,10 @@ pub unsafe extern "C" fn render_state_text_visual_lines(
 ) {
     let lines = {
         read_arena(host, node_read(), primary, |arena, primary| {
-            crate::layout::query::inline_cursor::InlineCursor::new(&arena.paintable_rows()).lines_of_text(primary)
+            InlineCursor::new(&arena.paintable_rows()).lines_of_text(primary)
         })
     };
-    for line in lines {
+    for line in lines.into_iter().filter(|line| line.has_fragments) {
         // SAFETY: The consumer copies the POD line synchronously.
         unsafe {
             push(
@@ -860,14 +859,90 @@ pub unsafe extern "C" fn render_state_text_visual_lines(
                 FfiVisualLine {
                     start_offset: line.start_offset,
                     end_offset: line.end_offset,
-                    end_offset_with_trailing_whitespace: line.end_offset_with_trailing_whitespace,
-                    has_fragments: line.has_fragments,
-                    owner_paintable: line.line.root.index,
-                    line_index: line.line.index,
                 },
             );
         }
     }
+}
+
+/// Whether a line holds rendered text of the DOM text whose layout node is `primary`.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_has_rendered_text(host: &DocumentHost, primary: NodeSlotId) -> bool {
+    read_arena(host, node_read(), primary, |arena, primary| {
+        InlineCursor::new(&arena.paintable_rows())
+            .lines_of_text(primary)
+            .iter()
+            .any(|line| line.has_fragments)
+    })
+}
+
+/// Whether the DOM text whose layout node is `primary` is on a line: one that holds rendered text of it, or one that a
+/// preserved newline in it ends with nothing on it.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_has_lines(host: &DocumentHost, primary: NodeSlotId) -> bool {
+    read_arena(host, node_read(), primary, |arena, primary| {
+        !InlineCursor::new(&arena.paintable_rows())
+            .lines_of_text(primary)
+            .is_empty()
+    })
+}
+
+/// The caret position at the start of the first line of the DOM text whose layout node is `primary`, or at the end of
+/// its last line.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_edge(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    end: bool,
+) -> FfiInlineCaretPosition {
+    read_arena(host, node_read(), (primary, end), |arena, (primary, end)| {
+        FfiInlineCaretPosition::of(InlineCursor::new(&arena.paintable_rows()).text_edge(primary, end))
+    })
+}
+
+/// The first line of the DOM text whose layout node is `primary`, or its last, where it holds rendered text of it.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_rendered_edge_line(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    end: bool,
+) -> FfiInlineLine {
+    read_arena(host, node_read(), (primary, end), |arena, (primary, end)| {
+        FfiInlineLine::of(InlineCursor::new(&arena.paintable_rows()).rendered_text_edge_line(primary, end))
+    })
+}
+
+/// The caret position one grapheme right of (`forward`) or left of `offset` in the DOM text whose layout node is
+/// `primary`, where the grapheme boundary of the DOM text that way is `grapheme_boundary`, if `has_grapheme_boundary`.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_text_character_step(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    offset: usize,
+    downstream: bool,
+    forward: bool,
+    has_grapheme_boundary: bool,
+    grapheme_boundary: usize,
+) -> FfiInlineCaretPosition {
+    let args = (
+        primary,
+        offset,
+        downstream,
+        forward,
+        has_grapheme_boundary.then_some(grapheme_boundary),
+    );
+    read_arena(host, node_read(), args, |arena, args| {
+        let (text, offset, downstream, forward, grapheme_boundary) = args;
+        FfiInlineCaretPosition::of(
+            InlineCursor::new(&arena.paintable_rows()).position_after_character_step(
+                text,
+                offset,
+                downstream,
+                forward,
+                grapheme_boundary,
+            ),
+        )
+    })
 }
 
 fn has_rendered_text_matching(

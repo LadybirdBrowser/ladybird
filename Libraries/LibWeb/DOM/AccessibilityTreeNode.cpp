@@ -47,7 +47,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Selection/Selection.h>
-#include <LibWeb/VisualLines.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
@@ -261,14 +260,19 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
         return caret.rect;
     };
 
+    Vector<Layout::RustFFI::FfiVisualLine> lines;
+    if (layout) {
+        Layout::RustFFI::render_state_text_visual_lines(layout->document_host(), Layout::Node::slot_id(layout), &lines,
+            [](void* context, Layout::RustFFI::FfiVisualLine line) {
+                static_cast<Vector<Layout::RustFFI::FfiVisualLine>*>(context)->append(line);
+            });
+    }
     struct RenderedLine {
-        VisualLine line;
+        Layout::RustFFI::FfiVisualLine line;
         CSSPixelRect rect;
     };
     Vector<RenderedLine> rendered_lines;
-    for (auto const& line : collect_visual_lines(read, text_node)) {
-        if (!line.has_fragments)
-            continue;
+    for (auto const& line : lines) {
         if (auto rect = line_rect_at_offset(line.start_offset); rect.has_value())
             rendered_lines.append({ line, *rect });
     }

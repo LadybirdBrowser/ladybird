@@ -109,7 +109,6 @@
 #include <LibWeb/Translation/DocumentTranslator.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
-#include <LibWeb/VisualLines.h>
 #include <LibWeb/XLink/AttributeNames.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -4404,8 +4403,8 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         // render, the space between two inline siblings, stays: Gecko and Blink expose it, and it's what keeps the
         // siblings' text apart in an AT's text view.
         if (static_cast<Text const&>(*this).data().is_ascii_whitespace()) {
-            auto lines = collect_visual_lines(read, static_cast<Text const&>(*this));
-            if (!any_of(lines, [](auto const& line) { return line.has_fragments; }))
+            auto const* layout_node = unsafe_layout_node(read);
+            if (!layout_node || !Layout::RustFFI::render_state_text_has_rendered_text(layout_node->document_host(), Layout::Node::slot_id(layout_node)))
                 return;
         }
         parent.append_child(AccessibilityTreeNode::create(this).ptr());
