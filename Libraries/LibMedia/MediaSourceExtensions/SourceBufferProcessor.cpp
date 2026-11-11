@@ -231,7 +231,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
                 m_append_error_callback();
                 return;
             }
-            drop_consumed_bytes_from_input_buffer();
+            // AD-HOC: Removal costs a copy every time, so it is deferred until the loop exits.
         }
 
         // 4. If the [[append state]] equals WAITING_FOR_SEGMENT, then run the following steps:
@@ -289,7 +289,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
                 return;
 
             // 3. Remove the initialization segment bytes from the beginning of the [[input buffer]].
-            drop_consumed_bytes_from_input_buffer();
+            // AD-HOC: Removal costs a copy every time, so it is deferred until the loop exits.
 
             // 4. Set [[append state]] to WAITING_FOR_SEGMENT.
             m_append_state = AppendState::WaitingForSegment;
@@ -332,7 +332,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
             }
 
             // 5. Remove the media segment bytes from the beginning of the [[input buffer]].
-            drop_consumed_bytes_from_input_buffer();
+            // AD-HOC: Removal costs a copy every time, so it is deferred until the loop exits.
 
             // 6. Set [[append state]] to WAITING_FOR_SEGMENT.
             m_append_state = AppendState::WaitingForSegment;
