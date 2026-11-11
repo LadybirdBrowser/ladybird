@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body { margin: 0; }
+#out { position: absolute; }
+#anchor { position: relative; left: 100px; top: 80px; width: 100px; height: 40px; anchor-name: --anchor; }
+#target { position: absolute; inset: auto; margin: 0; width: 60px; height: 20px; position-anchor: --anchor; position-area: top left; }
+</style>
+<div id="anchor"></div>
+<div id="target"></div>
+<script>
+test(() => {
+    const anchor = document.getElementById("anchor");
+    const target = document.getElementById("target");
+    function reportArea(label) {
+        const a = anchor.getBoundingClientRect();
+        const t = target.getBoundingClientRect();
+        println(`${label}: ${t.right === a.left}, ${t.bottom === a.top}`);
+    }
+    reportArea("relative block anchor");
+    anchor.style.display = "inline-block";
+    reportArea("relative inline-block anchor");
+    anchor.style.left = "160px";
+    anchor.style.top = "120px";
+    reportArea("relative anchor moved");
+    const wrapper = document.createElement("span");
+    wrapper.style.cssText = "position: relative; left: 35px; top: 25px;";
+    anchor.before(wrapper);
+    wrapper.append(anchor);
+    reportArea("relative inline ancestor");
+    target.style.positionArea = "none";
+    target.style.left = "anchor(left)";
+    target.style.top = "anchor(bottom)";
+    target.style.width = "anchor-size(width)";
+    const a = anchor.getBoundingClientRect();
+    const t = target.getBoundingClientRect();
+    println(`relative anchor functions: ${t.left === a.left}, ${t.top === a.bottom}, ${t.width === a.width}`);
+});
+</script>
