@@ -1,0 +1,7 @@
+Ladybird applies an SVG text run’s computed letter-spacing and
+word-spacing when shaping it, as Blink, WebKit, and Gecko all do.
+Blink sets them on the scaled font LayoutSVGInlineText builds
+(SetLetterSpacing() and SetWordSpacing()). WebKit adds them per
+character in SVGTextLayoutEngineSpacing::calculateCSSSpacing(). And
+Gecko’s ResolveLetterSpacing() and ResolveWordSpacing() in
+nsTextFrame.cpp scale them for SVG text by its font-size scale factor.
