@@ -14,6 +14,7 @@
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
@@ -52,6 +53,15 @@ Canvas2DCommandPlayer::Canvas2DCommandPlayer(NonnullRefPtr<Gfx::PaintingSurface>
 }
 
 Canvas2DCommandPlayer::~Canvas2DCommandPlayer() = default;
+
+sk_sp<SkImage> Canvas2DCommandPlayer::image_of_frame(Gfx::DecodedImageFrame const& frame) const
+{
+    if (auto skia_backend_context = m_surface->skia_backend_context()) {
+        if (auto image = Gfx::sk_texture_image_sharing_pixels_of_decoded_image_frame(frame, *skia_backend_context))
+            return image;
+    }
+    return Gfx::sk_image_from_decoded_image_frame(frame);
+}
 
 NonnullRefPtr<Gfx::PaintingSurface> Canvas2DCommandPlayer::surface() const
 {
@@ -178,7 +188,7 @@ Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, 
         auto const* frame = m_resolvers.image_frame(style.pattern_image_id.value());
         if (!frame)
             return {};
-        auto image = Gfx::sk_image_from_decoded_image_frame(*frame);
+        auto image = image_of_frame(*frame);
         if (!image)
             break;
 
@@ -461,7 +471,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawImageFrame const& command)
     auto const* frame = m_resolvers.image_frame(command.frame_id.value());
     if (!frame)
         return;
-    auto image = Gfx::sk_image_from_decoded_image_frame(*frame);
+    auto image = image_of_frame(*frame);
     if (!image)
         return;
     draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);

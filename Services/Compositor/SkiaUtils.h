@@ -11,6 +11,7 @@
 #include <AK/Assertions.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <Compositor/Forward.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
@@ -158,6 +159,10 @@ sk_sp<SkColorSpace> to_skia_color_space(ColorSpace const&);
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space);
 sk_sp<SkImage> sk_image_from_decoded_image_frame(DecodedImageFrame const&);
+
+// Samples the IOSurface of the frame where it is, so it is null for a frame without one, or when the GPU of the context
+// can't sample it.
+sk_sp<SkImage> sk_texture_image_sharing_pixels_of_decoded_image_frame(DecodedImageFrame const&, SkiaBackendContext&);
 
 // Hands the source bitmap's pixel storage to the returned SkImage without copying: the image
 // holds a reference to the bitmap and drops it on destruction.
