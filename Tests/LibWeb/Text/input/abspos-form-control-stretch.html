@@ -1,0 +1,84 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .container {
+        position: relative;
+        width: 300px;
+        height: 200px;
+    }
+    .control {
+        font: 32px monospace;
+        margin: 0;
+        padding: 7px;
+        border: 3px solid;
+        box-sizing: border-box;
+    }
+    .absolute {
+        position: absolute;
+        inset: 5px 20px 15px 10px;
+        width: auto;
+        height: auto;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        function add(tag, style = "", containerStyle = "") {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.style.cssText = containerStyle;
+            const control = document.createElement(tag);
+            control.className = "control absolute";
+            control.style.cssText = style;
+            container.append(control);
+            document.body.append(container);
+            return [container, control];
+        }
+        function report(name, container, control) {
+            const outer = container.getBoundingClientRect();
+            const rect = control.getBoundingClientRect();
+            println(`${name}: ${rect.x - outer.x},${rect.y - outer.y} ${rect.width}x${rect.height}`);
+        }
+        for (const tag of ["input", "textarea"]) {
+            for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+                for (const direction of ["ltr", "rtl"]) {
+                    report(
+                        `${tag} ${mode} ${direction}`,
+                        ...add(tag, "", `writing-mode: ${mode}; direction: ${direction}`)
+                    );
+                }
+            }
+            report(`${tag} orthogonal`, ...add(tag, "writing-mode: vertical-rl"));
+            report(`${tag} margins`, ...add(tag, "margin: 10px"));
+            report(`${tag} percentage margins`, ...add(tag, "margin: 10%"));
+            report(`${tag} limits`, ...add(tag, "max-width: 220px; min-height: 210px"));
+            report(`${tag} specified size`, ...add(tag, "width: 100px; height: 80px"));
+            report(`${tag} content box`, ...add(tag, "box-sizing: content-box"));
+            const [, natural] = add(tag);
+            natural.classList.remove("absolute");
+            const [, aligned] = add(tag, "justify-self: start; align-self: start");
+            const [, oneInset] = add(tag, "right: auto; bottom: auto");
+            println(
+                `${tag} self-start keeps intrinsic size: ${aligned.offsetWidth === natural.offsetWidth && aligned.offsetHeight === natural.offsetHeight}`
+            );
+            println(
+                `${tag} one inset keeps intrinsic size: ${oneInset.offsetWidth === natural.offsetWidth && oneInset.offsetHeight === natural.offsetHeight}`
+            );
+            const [container, control] = add(tag);
+            container.style.width = "200px";
+            report(`${tag} resized`, container, control);
+        }
+        const source = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"></svg>';
+        for (const tag of ["img", "input"]) {
+            const [container, control] = add(tag, "border: 0; padding: 0");
+            if (tag === "input") control.type = "image";
+            await new Promise(resolve => {
+                control.onload = resolve;
+                control.src = source;
+            });
+            report(`${tag} image keeps natural size`, container, control);
+        }
+    });
+</script>

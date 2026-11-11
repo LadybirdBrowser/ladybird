@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+.cb {
+  position: relative;
+  border: 3px solid black;
+  height: 100px;
+  width: 150px;
+  display: inline-block;
+  vertical-align: top;
+  margin: 5px;
+}
+.wide {
+  width: 350px;
+}
+.abs {
+  margin: 0;
+  position: absolute;
+  box-sizing: border-box;
+  top: 3px;
+  left: 3px;
+  outline: 2px solid lime;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+}
+</style>
+<div class="cb"><select class="abs"><option>select</option></select></div>
+<div class="cb"><output class="abs">output</output></div>
+<div class="cb"><label class="abs">label</output></div>
+<div class="cb"><fieldset class="abs">fieldset</fieldset></div>
+<div class="cb wide"><textarea class="abs">textarea</textarea></div>
+<div class="cb wide"><progress value="0.4" class="abs"></div>
+<div class="cb wide"><meter value="0.4" class="abs"></div>

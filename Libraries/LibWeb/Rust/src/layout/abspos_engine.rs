@@ -1912,6 +1912,15 @@ impl AbsposEngine<'_> {
         !equation.has_both_insets() || self.own_self_alignment_keyword(sized, inline_axis).is_some()
     }
 
+    // https://drafts.csswg.org/css-position-3/#abspos-auto-size
+    // Resizable form controls use non-replaced sizing here, so their intrinsic dimensions don't prevent stretching.
+    fn form_control_stretches(&self, sized: OutOfFlowBox<'_>, equation: AxisEquation, axis: SizingAxis) -> bool {
+        let style = self.style_of(sized);
+        self.facts(sized.node).is_native_form_control_box()
+            && axis.select(style.width(), style.height()).is_auto()
+            && !self.sizes_to_fit_content(sized, equation, matches!(axis, SizingAxis::Inline))
+    }
+
     fn shrink_to_fit_available_size(
         inputs: &abspos_inputs::AbsposLayoutInputs,
         axis: SizingAxis,
@@ -2049,7 +2058,10 @@ impl AbsposEngine<'_> {
             auto_margin_overflow,
         );
         let sizing = self.sizing();
-        let inline_size = if sizing.box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints) {
+        let uses_replaced_size =
+            sizing.box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints)
+                && !self.form_control_stretches(sized, equation, SizingAxis::Inline);
+        let inline_size = if uses_replaced_size {
             // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does
             //     not know about.
             let width = self.style_of(sized).width();
@@ -2266,7 +2278,7 @@ impl AbsposEngine<'_> {
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
         // NB: The margins of a non-replaced box resolve against the inline size of its containing block, and those of a
         //     replaced box against its block size.
-        let margin_basis = if is_replaced {
+        let margin_basis = if is_replaced && !self.facts(sized.node).is_native_form_control_box() {
             containing_block_block_size
         } else {
             available_space.inline_size.to_px_or_zero()
@@ -2279,6 +2291,7 @@ impl AbsposEngine<'_> {
             margin_basis,
             auto_margin_overflow,
         );
+        let is_replaced = is_replaced && !self.form_control_stretches(sized, equation, SizingAxis::Block);
         let resolved_block_size = if is_replaced {
             Ok(self.replaced_block_size(sized, inputs, available_space, constraints, pass))
         } else {
