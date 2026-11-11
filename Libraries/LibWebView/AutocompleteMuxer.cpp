@@ -147,6 +147,9 @@ static bool are_equivalent_origin_presentations(AutocompleteSuggestion const& le
 {
     if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search)
         return false;
+    // NB: The row for the text as typed goes to the host the user typed, so it is not folded into a row for another.
+    if (left.is_verbatim || right.is_verbatim)
+        return false;
     if (!is_origin_navigation(left) || !is_origin_navigation(right))
         return false;
 
@@ -191,11 +194,19 @@ static void coalesce_equivalent_origin_presentations(Vector<AutocompleteSuggesti
         // NB: A remote address has no title or favicon, so a local presentation of the same origin is kept over it.
         auto& existing = representatives[*existing_index];
         if (is_remote_address_meeting_local_row(existing, candidate)) {
+            auto relevance = relevance_of_local_row_for_remote_address(existing, candidate);
             if (existing.source == AutocompleteSuggestionSource::RemoteURL)
-                existing = move(candidate);
+                swap(existing, candidate);
+            existing.relevance = relevance;
         } else if (suggestion_is_better(candidate, existing)) {
-            existing = move(candidate);
+            swap(existing, candidate);
         }
+
+        // NB: A learned row has no favicon or title, so the row kept takes those of the folded row.
+        if (!existing.favicon_png.has_value() && candidate.favicon_png.has_value())
+            existing.favicon_png = move(candidate.favicon_png);
+        if (!existing.title.has_value() && candidate.title.has_value())
+            existing.title = move(candidate.title);
     }
 
     candidates = move(representatives);

@@ -448,6 +448,26 @@ TEST_CASE(untitled_origin_group_adopts_a_later_title)
     }));
 }
 
+TEST_CASE(origin_presentation_keeps_the_favicon_and_title_of_the_folded_row)
+{
+    auto learned = suggestion(WebView::AutocompleteSuggestionSource::Adaptive, "https://example.com/"sv, 1200, true);
+    auto visited = history("https://www.example.com/"sv, 1000);
+    visited.title = "Example"_string;
+    visited.favicon_png = MUST(ByteBuffer::copy("favicon"sv.bytes()));
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "exam"sv,
+        {},
+        { move(learned), move(visited) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].text, "https://example.com/"sv);
+    EXPECT_EQ(results[0].title, "Example"sv);
+    EXPECT(results[0].favicon_png.has_value());
+}
+
 TEST_CASE(a_scheme_does_not_disable_origin_diversity)
 {
     auto results = WebView::mux_autocomplete_suggestions(
@@ -609,9 +629,11 @@ TEST_CASE(remote_web_address_yields_to_a_local_presentation_of_its_origin)
         WebView::make_remote_autocomplete_suggestions({ "https://google.com/"_string }),
         8);
 
+    // The local row cannot be the default, so it takes the rank of the remote address.
     EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].text, "https://www.google.com/"sv);
     EXPECT(results[0].favicon_png.has_value());
+    EXPECT_EQ(results[0].relevance, 700);
 }
 
 TEST_CASE(a_short_query_keeps_a_local_row_over_a_remote_address_of_the_same_site)
@@ -659,4 +681,40 @@ TEST_CASE(remote_suggestions_do_not_link_into_the_users_network)
 
     for (auto const& suggestion : suggestions)
         EXPECT_EQ(suggestion.source, WebView::AutocompleteSuggestionSource::Search);
+}
+
+TEST_CASE(the_row_for_a_typed_address_is_not_folded_into_another_host)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example.com"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "example.com"sv, 900, true, true),
+        { history("https://example.com/"sv, 1000), history("https://www.example.com/"sv, 1300) },
+        {},
+        8);
+
+    // The typed address merges with the row for its page. That row goes to the host the user typed, so it is not folded
+    // into the stronger row for www.example.com.
+    EXPECT_EQ(results.size(), 2u);
+    auto typed_row = results.first_matching([](auto const& result) { return result.is_verbatim; });
+    EXPECT(typed_row.has_value() && typed_row->text == "https://example.com/"sv);
+}
+
+TEST_CASE(a_remote_address_does_not_choose_the_default_row)
+{
+    // The remote addresses rank above both local rows, but the default stays the stronger local row.
+    auto results = WebView::mux_autocomplete_suggestions(
+        "https://foo"sv,
+        {},
+        { history("https://foo.org/"sv, 600), history("https://www.foo.com/"sv, 200), history("https://foo.com/page"sv, 300) },
+        WebView::make_remote_autocomplete_suggestions({ "https://foo.com/"_string, "https://foo.com/page"_string }),
+        8);
+
+    EXPECT(results.size() >= 3u);
+    EXPECT_EQ(results[0].text, "https://foo.org/"sv);
+    for (auto const& result : results) {
+        if (result.text == "https://www.foo.com/"sv)
+            EXPECT_EQ(result.relevance, 200);
+        if (result.text == "https://foo.com/page"sv)
+            EXPECT_EQ(result.relevance, 300);
+    }
 }
