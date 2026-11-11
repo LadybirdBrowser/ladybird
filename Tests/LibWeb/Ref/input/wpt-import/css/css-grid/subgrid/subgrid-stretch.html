@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: The subgrid is always stretched in its subgridded dimension(s)</title>
+  <link rel="author" title="Matt Woodrow" href="mailto:mattwoodrow@apple.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/subgrid-stretch-ref.html">
+  <style>
+  body {
+    margin: 0;
+  }
+  .grid {
+    display: inline-grid;
+    grid-template-columns: 100px;
+    grid-template-rows: 100px;
+  }
+  .subgrid {
+    display: grid;
+    background-color: blue;
+  }
+  .rows {
+    grid-template-rows: subgrid;
+    align-self: baseline;
+  }
+  .columns {
+    grid-template-columns: subgrid;
+    justify-self: baseline;
+  }
+  .vrl {
+    writing-mode: vertical-rl;
+  }
+  .vrl.rows {
+    align-self: initial;
+    justify-self: baseline;
+  }
+  .vrl.columns {
+    justify-self: initial;
+    align-self: baseline;
+  }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div class="subgrid rows" style="height: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid rows" style="height: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid rows" style="max-height: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid rows" style="min-height: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid columns" style="width: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid columns" style="width: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid columns" style="max-width: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid columns" style="min-width: 150px;"></div>
+  </div>
+
+  <br>
+
+  <div class="grid">
+    <div class="subgrid vrl rows" style="width: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl rows" style="width: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl rows" style="max-width: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl rows" style="min-width: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl columns" style="height: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl columns" style="height: 150px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl columns" style="max-height: 50px;"></div>
+  </div>
+  <div class="grid">
+    <div class="subgrid vrl columns" style="min-height: 150px;"></div>
+  </div>
+
+</body>
+</html>

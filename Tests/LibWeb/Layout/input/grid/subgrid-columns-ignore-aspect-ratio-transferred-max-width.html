@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    .grid {
+        display: grid;
+        grid-template-columns: 100px;
+    }
+    .subgrid {
+        display: grid;
+        aspect-ratio: 1;
+        max-height: 10px;
+        background: green;
+    }
+</style>
+<div class="grid">
+    <div class="subgrid" style="grid-template-columns: subgrid"><div>x</div></div>
+</div>
+<div class="grid">
+    <div class="subgrid" style="grid-template-rows: subgrid"><div>x</div></div>
+</div>

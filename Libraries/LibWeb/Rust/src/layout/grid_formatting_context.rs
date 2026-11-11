@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::computed_value_views::{auto_computed_size, none_computed_size};
 use crate::css::style_value::GridTrackSizeListPayload;
 use crate::css::style_value::StyleValueBox;
 use crate::css::style_value::StyleValueData;
@@ -1530,10 +1531,20 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             style
         };
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored, as are any specified width/height constraints.
+        let preferred_size = |axis: Axis, size: &'pass ComputedSize| {
+            if self.node_is_subgridded(node, axis) {
+                auto_computed_size()
+            } else {
+                size
+            }
+        };
         GridItemInputs {
             style,
-            item_preferred_width: style_of_preferred_size.width(),
-            item_preferred_height: style_of_preferred_size.height(),
+            item_preferred_width: preferred_size(Axis::Column, style_of_preferred_size.width()),
+            item_preferred_height: preferred_size(Axis::Row, style_of_preferred_size.height()),
             column_alignment: self.item_alignment_of(node, Axis::Column),
             row_alignment: self.item_alignment_of(node, Axis::Row),
             is_replaced_box: facts.is_replaced_box(),
@@ -2760,8 +2771,8 @@ impl<'pass> GridFormattingContext<'pass> {
         let facts = self.item_facts(item);
         facts.has_preferred_aspect_ratio()
             && !facts.is_replaced_box()
-            && style.width().is_auto()
-            && style.height().is_auto()
+            && self.item_preferred_size(item, Axis::Column).is_auto()
+            && self.item_preferred_size(item, Axis::Row).is_auto()
             && matches!(
                 self.item_alignment(item, Axis::Row).position,
                 SelfPosition::Normal | SelfPosition::Stretch
@@ -2784,11 +2795,21 @@ impl<'pass> GridFormattingContext<'pass> {
         let area_block_size =
             CssPixels::default().max(self.containing_block_size(item, Axis::Row) - self.outer_edges(item, Axis::Row));
         let cells = self.cells_of(item);
-        let limits = self.sizing().transferred_inline_size_limits(
-            sizing_context::SizedBox::new(item.box_, &cells),
-            self.item_available_space(item),
-            self.intrinsic_contribution_constraints(item, axis),
-        );
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored, as are any specified width/height constraints.
+        //
+        // NB: So the block-axis constraints of a subgrid with subgridded rows don't limit its inline size through its
+        //     preferred aspect ratio either.
+        let limits = if self.grid_item_is_subgridded(item, Axis::Row) {
+            None
+        } else {
+            self.sizing().transferred_inline_size_limits(
+                sizing_context::SizedBox::new(item.box_, &cells),
+                self.item_available_space(item),
+                self.intrinsic_contribution_constraints(item, axis),
+            )
+        };
         let transferred = |block_size| {
             let size = self
                 .sizing()
@@ -2948,11 +2969,21 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn minimum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // [...] as are any specified width/height constraints.
+        if self.grid_item_is_subgridded(item, axis) {
+            return auto_computed_size();
+        }
         let style = self.item_style(item);
         axis.select(style.min_width(), style.min_height())
     }
 
     fn maximum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // [...] as are any specified width/height constraints.
+        if self.grid_item_is_subgridded(item, axis) {
+            return none_computed_size();
+        }
         let style = self.item_style(item);
         axis.select(style.max_width(), style.max_height())
     }
@@ -3155,6 +3186,13 @@ impl<'pass> GridFormattingContext<'pass> {
         // https://www.w3.org/TR/css-grid-1/#specified-size-suggestion
         // If the item’s preferred size in the relevant axis is definite, then the specified size suggestion is that size.
         // It is otherwise undefined.
+        //
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored, as are any specified width/height constraints.
+        if self.grid_item_is_subgridded(item, axis) {
+            return None;
+        }
         let preferred_size = self.preferred_size(item, axis);
         if !self.item_facts(item).is_replaced_box() && preferred_size.contains_percentage() {
             return None;
@@ -3177,7 +3215,12 @@ impl<'pass> GridFormattingContext<'pass> {
         // size suggestion is that size (clamped by the opposite-axis minimum and maximum sizes if they are definite), converted
         // through the aspect ratio. It is otherwise undefined.
         let aspect_ratio = self.item_facts(item).preferred_aspect_ratio()?;
-        if !self.preferred_size(item, axis.opposite()).is_length() {
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored, as are any specified width/height constraints.
+        if self.grid_item_is_subgridded(item, axis.opposite())
+            || !self.preferred_size(item, axis.opposite()).is_length()
+        {
             return None;
         }
         let opposite = axis.opposite();
@@ -3573,12 +3616,20 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn grid_item_is_subgridded(&self, item: GridItem, axis: Axis) -> bool {
-        if !self.item_facts(item).display().is_grid_inside() || self.is_grid_lanes_stacking_axis(axis) {
+        self.item_facts(item).display().is_grid_inside() && self.node_is_subgridded(item.box_, axis)
+    }
+
+    fn node_is_subgridded(&self, node: Node, axis: Axis) -> bool {
+        let facts = self.facts(node);
+        if !facts.display().is_grid_inside()
+            || facts.is_absolutely_positioned()
+            || self.is_grid_lanes_stacking_axis(axis)
+        {
             return false;
         }
-        let grid_style = self.grid_style(item.box_);
+        let grid_style = self.grid_style(node);
         self.select_item_grid_axis(
-            item.box_,
+            node,
             axis,
             grid_style.template_columns.is_subgrid,
             grid_style.template_rows.is_subgrid,
@@ -4080,6 +4131,15 @@ impl<'pass> GridFormattingContext<'pass> {
                 ..AxisDirections::of(container_start_is_low, Some(self.line_left_is_left_or_top(axis)))
             },
         );
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored [...]
+        if self.node_is_subgridded(node, axis) {
+            return SelfAlignment {
+                position: SelfPosition::Stretch,
+                ..alignment
+            };
+        }
         // NB: Along a reversed axis, a baseline-aligned item aligns to the start of its grid area.
         if alignment.position == SelfPosition::Baseline && !container_start_is_low {
             return SelfAlignment {
@@ -4191,7 +4251,8 @@ impl<'pass> GridFormattingContext<'pass> {
         if !axis.is_column() {
             return false;
         }
-        let height = self.item_style(item).height();
+        // NB: A subgrid ignores its height in its subgridded rows, so it has no definite block size to transfer.
+        let height = self.item_preferred_size(item, Axis::Row);
         let block_size_is_definite = !height.is_auto()
             && !height.is_intrinsic_sizing_constraint()
             && (!height.contains_percentage()
@@ -4674,7 +4735,13 @@ impl<'pass> GridFormattingContext<'pass> {
             resolved = resolve_alignment(size, false);
         }
 
-        let maximum_is_none = if axis.is_column() {
+        // https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment
+        // The subgrid is always stretched in its subgridded dimension(s): the align-self/justify-self properties on it
+        // are ignored, as are any specified width/height constraints.
+        let is_subgridded = self.grid_item_is_subgridded(item, axis);
+        let maximum_is_none = if is_subgridded {
+            true
+        } else if axis.is_column() {
             self.sizing()
                 .should_treat_max_inline_size_as_none(item.box_, available.inline_size, constraints)
         } else {
@@ -4693,7 +4760,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 resolved = resolve_alignment(maximum, false);
             }
         }
+        // NB: Nor do the constraints it ignores in the other axis limit it through its preferred aspect ratio.
         if axis.is_column()
+            && !is_subgridded
+            && !self.grid_item_is_subgridded(item, Axis::Row)
             && let Some(limits) = self.sizing().transferred_inline_size_limits(
                 sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 available,
@@ -4706,7 +4776,7 @@ impl<'pass> GridFormattingContext<'pass> {
             }
         }
         let minimum = axis.select(style.min_width(), style.min_height());
-        if !minimum.is_auto() {
+        if !minimum.is_auto() && !is_subgridded {
             let minimum = self.sizing().calculate_inner_size_for_property(
                 sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),

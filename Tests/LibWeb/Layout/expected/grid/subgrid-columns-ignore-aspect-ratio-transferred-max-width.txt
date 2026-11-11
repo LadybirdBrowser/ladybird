@@ -1,0 +1,18 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 26 0+0+8] children: not-inline
+      Box <div.grid> at [8,8] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [8,8] [0+0+0 100 0+0+0] [0+0+0 10 0+0+0] [GFC] children: not-inline
+          BlockContainer <div> at [8,8] [0+0+0 100 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.703125x16] baseline: 13
+                "x"
+            TextNode <#text> (not painted)
+      Box <div.grid> at [8,18] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [8,18] [0+0+0 100 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+          BlockContainer <div> at [8,18] [0+0+0 100 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [8,18 9.703125x16] baseline: 13
+                "x"
+            TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x42] (z-index: auto)
