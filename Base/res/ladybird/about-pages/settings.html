@@ -897,7 +897,6 @@
                 <button id="tab-button-blocking" class="tab-button" data-tab="blocking" role="tab">
                     Content blocking
                 </button>
-                <button id="tab-button-languages" class="tab-button" data-tab="languages" role="tab">Languages</button>
                 <button id="tab-button-feedback" class="tab-button" data-tab="feedback" role="tab">Feedback</button>
                 <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
             </div>
@@ -1113,6 +1112,15 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
+                            <label for="languages-settings">
+                                Website languages
+                                <p class="description">
+                                    Languages that websites are asked to use, in order of preference.
+                                </p>
+                            </label>
+                            <button id="languages-settings" class="secondary-button">Edit…</button>
+                        </div>
+                        <div class="card-group inline-container">
                             <label for="enable-autoscroll">
                                 Use autoscrolling
                                 <p class="description">
@@ -1327,22 +1335,6 @@
                             <button id="save-custom-content-blocker-filters" class="secondary-button">
                                 Save changes
                             </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-panel" id="tab-languages" data-title="Languages">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group inline-container">
-                            <label for="languages-settings">
-                                Website languages
-                                <p class="description">
-                                    Languages that websites are asked to use, in order of preference.
-                                </p>
-                            </label>
-                            <button id="languages-settings" class="secondary-button">Edit…</button>
                         </div>
                     </div>
                 </div>
@@ -1743,7 +1735,12 @@
             });
 
             // Links to sections that were merged into others still open where their settings went.
-            const MOVED_SECTIONS = { general: "appearance", services: "privacy", network: "advanced" };
+            const MOVED_SECTIONS = {
+                general: "appearance",
+                services: "privacy",
+                network: "advanced",
+                languages: "browsing",
+            };
             const hash = location.hash.slice(1);
             const section = hash ? tabForDeepLink(hash) : "appearance";
             switchTab(MOVED_SECTIONS[section] ?? section);

@@ -145,7 +145,7 @@ languagesSelect.addEventListener("change", () => {
 
 registerDialogDeepLink({
     hash: "editLanguages",
-    tab: "languages",
+    tab: "browsing",
     dialog: languagesDialog,
     onOpen: showLanguages,
 });
