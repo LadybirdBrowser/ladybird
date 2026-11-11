@@ -54,7 +54,7 @@ struct LineAlignment {
     earliest: CssPixels,
     latest: CssPixels,
     line_box_baseline: CssPixels,
-    should_align_strut_to_line_box_baseline: bool,
+    should_advance_to_line_box_block_end: bool,
     has_line_relative_aligned_subtree: bool,
     aligned_subtrees: Vec<LineRelativeAlignedSubtree>,
     first_unshifted_text_baseline: Option<CssPixels>,
@@ -1020,6 +1020,31 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 }
                 line_box_baseline = adjusted_baseline;
             }
+            // https://drafts.csswg.org/css2/#line-height
+            // The inline-level boxes are aligned vertically according to their 'vertical-align' property.
+            // NB: An inline box around the fragment that sits on the baseline holds its own layout bounds above it, which
+            //     a box whose content is only other inline boxes has no text fragment of its own to bring in.
+            let containing_block = self.context().containing_block;
+            let mut ancestor = if style_source == containing_block {
+                NodeSlotId::INVALID
+            } else {
+                self.context().parent_node(style_source)
+            };
+            while !ancestor.is_invalid() && ancestor != containing_block && self.facts(ancestor).is_fragmented_inline()
+            {
+                let ancestor_style = self.style(ancestor);
+                if !ancestor_style.vertical_align_is_keyword()
+                    || ancestor_style.vertical_align_keyword() != vertical_align::BASELINE
+                {
+                    break;
+                }
+                let ascent = TextLayoutBounds::new(ancestor_style, None).ascent;
+                if ascent > line_box_baseline {
+                    should_align_strut_to_line_box_baseline = true;
+                    line_box_baseline = ascent;
+                }
+                ancestor = self.context().parent_node(ancestor);
+            }
         }
         if let Some(marker_line) = self.outside_marker_line(line_index)
             && marker_line.ascent > line_box_baseline
@@ -1123,7 +1148,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             earliest,
             latest,
             line_box_baseline,
-            should_align_strut_to_line_box_baseline,
+            should_advance_to_line_box_block_end,
             has_line_relative_aligned_subtree,
             mut aligned_subtrees,
             first_unshifted_text_baseline,
@@ -1202,7 +1227,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.block_end = current_block_offset + line.block_length;
             // The painted extent can differ from the advance used by begin_new_line.
             // Retain that exact advance so a reused prefix resumes at the same position.
-            line.next_line_block_offset = if should_align_strut_to_line_box_baseline {
+            line.next_line_block_offset = if should_advance_to_line_box_block_end {
                 line.block_end
             } else {
                 current_block_offset + self.max_block_size_on_current_line.max(containing_style.line_height())
@@ -1212,7 +1237,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             line.baseline =
                 first_unshifted_text_baseline.unwrap_or(line_box_baseline + block_offset) + normal_subtree_shift;
         }
-        self.should_advance_to_last_line_box_block_end = should_align_strut_to_line_box_baseline;
+        self.should_advance_to_last_line_box_block_end = should_advance_to_line_box_block_end;
     }
 
     /// Aligns the fragments of the line at `line_index` within its line box, and finds the extent of that line box.
@@ -1231,6 +1256,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             .any(|fragment| self.line_relative_aligned_subtree_root(fragment.style_source).is_some());
         let (line_box_baseline, should_align_strut_to_line_box_baseline) =
             self.line_box_baseline(line_index, has_line_relative_aligned_subtree);
+        let mut should_advance_to_line_box_block_end = should_align_strut_to_line_box_baseline;
 
         let strut_start = self.current_block_offset;
         let strut_end = if should_align_strut_to_line_box_baseline {
@@ -1312,6 +1338,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     line_box_baseline,
                 )
             };
+            let own_vertical_shift = new_block_offset - baseline_aligned_block_offset;
             if snapshot.style_source != containing_block && self.facts(snapshot.style_source).is_fragmented_inline() {
                 inline_box_alignments.push(InlineBoxAlignment {
                     box_: snapshot.style_source,
@@ -1330,6 +1357,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             {
                 let ancestor_style = self.style(ancestor);
                 if line_relative_alignment(ancestor_style).is_some() {
+                    inline_box_alignments.push(InlineBoxAlignment {
+                        box_: ancestor,
+                        vertical_shift: CssPixels::default(),
+                    });
                     break;
                 }
                 if ancestor_style.vertical_align_is_keyword()
@@ -1430,24 +1461,58 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 if first_unshifted_text_baseline.is_none() && fragment_is_unshifted {
                     first_unshifted_text_baseline = Some(fragment_baseline - current_block_offset);
                 }
+            }
 
+            let inline_box_layout_baseline = text_fragment_baseline.or_else(|| {
+                snapshot.is_atomic_inline.then_some(
+                    current_block_offset + line_box_baseline + accumulated_vertical_shift - own_vertical_shift,
+                )
+            });
+            if let Some(mut inline_box_baseline) = inline_box_layout_baseline {
                 // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
                 // UAs must adjust line positions to match the shifted metrics of decorating boxes shifted with
                 // vertical-align values other than baseline [CSS2] or subscripted/superscripted via
                 // font-variant-position [CSS-FONTS-3], but must not adjust the line position or thickness in
                 // response to descendants of a decorating box that are so styled.
-                let mut inline_box_baseline = fragment_baseline;
                 let mut remaining_vertical_shift = accumulated_vertical_shift;
                 for alignment in &inline_box_alignments {
-                    let inserted = self.line_mut(line_index).set_inline_box_baseline(
-                        alignment.box_,
-                        inline_box_baseline,
-                        remaining_vertical_shift,
+                    if is_text_node {
+                        let inserted = self.line_mut(line_index).set_inline_box_baseline(
+                            alignment.box_,
+                            inline_box_baseline,
+                            remaining_vertical_shift,
+                        );
+                        // An already recorded box implies its ancestors are recorded as well, since the
+                        // walk that recorded it continued through them.
+                        if !inserted {
+                            break;
+                        }
+                    }
+                    // https://drafts.csswg.org/css2/#line-height
+                    // The height of each inline-level box in the line box is calculated. For replaced elements,
+                    // inline-block elements, and inline-table elements, this is the height of their margin box; for
+                    // inline boxes, this is their 'line-height'.
+                    // NB: An inline box without direct text contributes its layout bounds around its own baseline,
+                    //     independently of the size and vertical alignment of its descendants.
+                    let bounds = TextLayoutBounds::new(self.style(alignment.box_), None);
+                    let (box_start, box_end) = (
+                        inline_box_baseline - bounds.ascent,
+                        inline_box_baseline + bounds.descent,
                     );
-                    // An already recorded box implies its ancestors are recorded as well, since the
-                    // walk that recorded it continued through them.
-                    if !inserted {
-                        break;
+                    if let Some((root, _)) = aligned_subtree {
+                        if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
+                            should_advance_to_line_box_block_end |=
+                                box_start < subtree.block_start || box_end > subtree.block_end;
+                            subtree.block_start = subtree.block_start.min(box_start);
+                            subtree.block_end = subtree.block_end.max(box_end);
+                        }
+                    } else {
+                        should_advance_to_line_box_block_end |= box_start < current_block_offset
+                            || box_end
+                                > current_block_offset
+                                    + self.max_block_size_on_current_line.max(containing_style.line_height());
+                        earliest = earliest.min(box_start);
+                        latest = latest.max(box_end);
                     }
                     inline_box_baseline -= alignment.vertical_shift;
                     remaining_vertical_shift -= alignment.vertical_shift;
@@ -1471,7 +1536,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             earliest,
             latest,
             line_box_baseline,
-            should_align_strut_to_line_box_baseline,
+            should_advance_to_line_box_block_end,
             has_line_relative_aligned_subtree,
             aligned_subtrees,
             first_unshifted_text_baseline,

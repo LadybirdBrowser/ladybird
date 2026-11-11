@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    .line { font: 100px/100px Ahem; }
+    .outer { font-size: 200px; line-height: 100px; }
+    .inner { font-size: 10px; line-height: 10px; }
+</style>
+<div class="line" id="single"><span class="outer"><span class="inner">A</span></span></div>
+<div class="line" id="multiple"><span class="outer"><span class="inner">A</span></span><br>B</div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        println(`single line: ${document.getElementById("single").getBoundingClientRect().height}`);
+        println(`two lines: ${document.getElementById("multiple").getBoundingClientRect().height}`);
+    });
+</script>
