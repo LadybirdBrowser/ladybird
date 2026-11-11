@@ -3754,6 +3754,39 @@ impl<'pass> GridFormattingContext<'pass> {
             context.items = items;
 
             let mut contributions = context.item_contributions_to_track_sizing(axis);
+            // https://drafts.csswg.org/css-grid-2/#subgrid-edge-placeholders
+            // For each edge of a non-empty subgrid, to account for the subgrid's margin/border/padding (and any
+            // scrollbar gutter) at that edge, a hypothetical item is contributed to the track sizing algorithm for each
+            // span size in the set of items spanning into the occupied track closest to that edge of the subgrid.
+            // INTEROP: Like other engines, we contribute one hypothetical item to each edge track of every subgrid,
+            //          empty or not, sized to the subgrid's margin/border/padding at that edge, so that the edge tracks
+            //          fit them even when no item is placed in them.
+            if let Some((start_margin, end_margin)) = context.subgrid_edge_extra_margins(axis) {
+                let track_count = subgrid.span(axis);
+                let hypothetical_item = |track: usize, size: CssPixels| ItemContribution {
+                    spanned_tracks: Self::interleaved_index_of_track(track)
+                        ..Self::interleaved_index_of_track(track) + 1,
+                    span: 1,
+                    minimum: size,
+                    min_content: size,
+                    limited_min_content: size,
+                    max_content: size,
+                    limited_max_content: size,
+                };
+                if track_count == 1 {
+                    let size = start_margin + end_margin;
+                    if size > CssPixels::default() {
+                        contributions.push(hypothetical_item(0, size));
+                    }
+                } else if track_count > 1 {
+                    if start_margin > CssPixels::default() {
+                        contributions.push(hypothetical_item(0, start_margin));
+                    }
+                    if end_margin > CssPixels::default() {
+                        contributions.push(hypothetical_item(track_count - 1, end_margin));
+                    }
+                }
+            }
             let interleaved_index_offset_in_parent =
                 Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
             // NB: A subgrid that runs against its parent grid numbers the tracks it shares with it from the other end.

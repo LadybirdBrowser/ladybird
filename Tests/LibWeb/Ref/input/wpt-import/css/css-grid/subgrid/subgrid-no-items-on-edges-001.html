@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid with no grid items accommodates border and padding</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-edge-placeholders">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.grid {
+  display: inline-grid;
+  grid: repeat(3, auto) / repeat(5, auto);
+  background: red;
+}
+.subgrid {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+  grid-template: subgrid / subgrid;
+  background: green;
+  padding: 11px 7px 20px 13px;
+  border-width: 14px 18px 5px 12px;
+  border-style: solid;
+  border-color: green;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="grid">
+    <div class="subgrid">
+      <div class="subgrid"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
