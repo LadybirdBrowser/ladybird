@@ -11,6 +11,8 @@
 #include <UI/Qt/WebContentView.h>
 
 #include <QChildEvent>
+#include <QPointer>
+#include <QScreen>
 #include <QWindow>
 
 #import <AppKit/AppKit.h>
@@ -21,6 +23,18 @@
 // It is not public API, so the class is looked up and checked before use.
 @protocol LadybirdCoreAnimationLayerHost <NSObject>
 @property uint32_t contextId;
+@end
+
+// CoreAnimation calls these handlers while it commits a transaction: before the new layer tree goes to the window
+// server, and after it has gone but before the window shows it. Neither is public API.
+typedef NS_ENUM(unsigned int, LadybirdTransactionPhase) {
+    LadybirdTransactionPhasePreLayout,
+    LadybirdTransactionPhasePreCommit,
+    LadybirdTransactionPhasePostCommit,
+};
+
+@interface CATransaction (LadybirdCommitHandlers)
++ (void)addCommitHandler:(void (^)(void))block forPhase:(LadybirdTransactionPhase)phase;
 @end
 
 namespace Ladybird {
@@ -46,6 +60,95 @@ static Class core_animation_layer_host_class()
 bool WebContentView::can_host_remote_layers()
 {
     return core_animation_layer_host_class() != nil;
+}
+
+// A resize commits the window's new size before the page has a frame of that size, unless the commit waits for it. The
+// Compositor holds its layers' changes from the first resize of a transaction, the commit waits for a frame that the
+// page laid out at the new size before it sends the window's layer tree, and the Compositor lets its changes go after
+// that, when the window server shows the two together.
+//
+// The commit waits no longer than a frame of the display, as the window could not resize any faster than the page lays
+// out otherwise. A page that misses that frame is not waited for again until the resizing pauses, and lags behind it
+// until then, as without the wait.
+static constexpr auto HELD_FRAME_RELEASE_WAIT_LIMIT = AK::Duration::from_milliseconds(50);
+static constexpr int FRAMES_WITHOUT_RESIZE_THAT_END_A_RESIZE = 4;
+
+static AK::Duration display_frame_interval(QWidget const& widget)
+{
+    auto refresh_rate = widget.screen() ? widget.screen()->refreshRate() : 60.0;
+    if (!(refresh_rate > 0))
+        refresh_rate = 60.0;
+    return AK::Duration::from_nanoseconds(static_cast<i64>(1'000'000'000.0 / refresh_rate));
+}
+
+void WebContentView::synchronize_resize_with_remote_layer()
+{
+    if (m_remote_layer_context_id == 0 || m_synchronized_resize_token.has_value() || !isVisible())
+        return;
+
+    auto now = MonotonicTime::now();
+    auto frame_interval = display_frame_interval(*this);
+    auto resizing_paused = now - m_last_resize_time >= AK::Duration::from_nanoseconds(frame_interval.to_nanoseconds() * FRAMES_WITHOUT_RESIZE_THAT_END_A_RESIZE);
+    m_last_resize_time = now;
+    if (resizing_paused)
+        m_page_lags_behind_resize = false;
+    if (m_page_lags_behind_resize)
+        return;
+
+    if (![CATransaction respondsToSelector:@selector(addCommitHandler:forPhase:)])
+        return;
+
+    static u64 s_next_token = 1;
+    auto token = s_next_token++;
+    m_synchronized_resize_token = token;
+    begin_synchronized_resize(token);
+
+    QPointer<WebContentView> view { this };
+    [CATransaction
+        addCommitHandler:^{
+            if (view)
+                view->await_resized_frame_before_commit(token);
+        }
+                forPhase:LadybirdTransactionPhasePreCommit];
+    [CATransaction
+        addCommitHandler:^{
+            if (view)
+                view->release_resized_frame_with_commit(token);
+        }
+                forPhase:LadybirdTransactionPhasePostCommit];
+}
+
+void WebContentView::await_resized_frame_before_commit(u64 token)
+{
+    if (m_viewport_push_pending) {
+        m_viewport_push_pending = false;
+        update_viewport_size();
+    }
+    await_synchronized_resize_frame(token, m_viewport_size);
+
+    auto deadline = MonotonicTime::now() + display_frame_interval(*this);
+    for (;;) {
+        auto message = HubConnection::the().wait_for_specific_endpoint_message_until<Messages::HubClient::ViewDidHoldSynchronizedResizeFrame>(deadline);
+        if (!message) {
+            m_page_lags_behind_resize = true;
+            return;
+        }
+        if (message->view_id() == view_id() && message->token() == token)
+            return;
+    }
+}
+
+void WebContentView::release_resized_frame_with_commit(u64 token)
+{
+    m_synchronized_resize_token = {};
+    commit_synchronized_resize(token);
+
+    auto deadline = MonotonicTime::now() + HELD_FRAME_RELEASE_WAIT_LIMIT;
+    for (;;) {
+        auto message = HubConnection::the().wait_for_specific_endpoint_message_until<Messages::HubClient::ViewDidCommitSynchronizedResize>(deadline);
+        if (!message || (message->view_id() == view_id() && message->token() == token))
+            return;
+    }
 }
 
 void WebContentView::remote_layer_changed(u32 core_animation_context_id)

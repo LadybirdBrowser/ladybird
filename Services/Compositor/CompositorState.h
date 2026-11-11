@@ -53,6 +53,8 @@ public:
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) = 0;
     // The frame is on screen already, in the remote layer that shows the context.
     virtual void did_present_frame_in_remote_layer(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) = 0;
+    virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) = 0;
+    virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -166,6 +168,13 @@ public:
     // A view that scales the frames to fit it gives its size, in device pixels.
     void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within);
 
+    // A window resize is shown together with the page's frame of the new size: the remote layers hold their changes
+    // off screen from when the resize begins until the window commits it, and the presentation hears once the layer
+    // holds a frame that the page laid out at the size it awaits.
+    void begin_synchronized_resize(u64 remote_layer_id, u64 token);
+    void await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize);
+    void commit_synchronized_resize(u64 remote_layer_id, u64 token);
+
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
         u64 secret { 0 };
@@ -211,6 +220,8 @@ private:
         // Whether the presentation shows this context's frames from CPU memory for now, as when the UI paints it itself.
         bool presents_from_cpu_memory { false };
         Optional<u64> remote_layer_id;
+        // The viewport size of the frame that the page presented last, which it laid out at.
+        Gfx::IntSize size_laid_out_by_page;
         PacedTickRequest rendering_opportunity_request;
         PacedTickRequest clock_tick_request;
     };
@@ -321,7 +332,21 @@ private:
         OwnPtr<RemoteLayer> layer;
         Optional<Web::CompositorContextId> shown_context_id;
         Optional<Gfx::IntSize> fit_within;
+        // The size the page laid out the frame on display at, if it is the size of the frame.
+        Optional<Gfx::IntSize> size_of_shown_frame_laid_out_by_page;
     };
+
+    struct SynchronizedResize {
+        u64 remote_layer_id { 0 };
+        u64 token { 0 };
+        Optional<Gfx::IntSize> awaited_size;
+        bool frame_is_held { false };
+    };
+    void report_held_synchronized_resize_frames(u64 remote_layer_id);
+    void release_synchronized_resize_hold();
+    Vector<SynchronizedResize> m_synchronized_resizes;
+    bool m_remote_layer_changes_are_held { false };
+    RefPtr<Core::Timer> m_synchronized_resize_hold_timeout;
     HashMap<u64, RemoteLayerState> m_remote_layers;
 
     struct VideoSinkState {

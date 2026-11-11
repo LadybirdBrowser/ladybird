@@ -935,6 +935,29 @@ void ConnectionFromUI::view_take_frame_snapshot(u64 view_id, u64 request_id, Opt
     });
 }
 
+void ConnectionFromUI::view_begin_synchronized_resize(u64 view_id, u64 token)
+{
+    if (auto* view = find_view(view_id))
+        view->begin_synchronized_resize(token);
+}
+
+// The UI waits for the answer on its main thread, so a view that is gone answers as well.
+void ConnectionFromUI::view_await_synchronized_resize_frame(u64 view_id, u64 token, Gfx::IntSize size)
+{
+    if (auto* view = find_view(view_id))
+        view->await_synchronized_resize_frame(token, size);
+    else
+        async_view_did_hold_synchronized_resize_frame(view_id, token);
+}
+
+void ConnectionFromUI::view_commit_synchronized_resize(u64 view_id, u64 token)
+{
+    if (auto* view = find_view(view_id))
+        view->commit_synchronized_resize(token);
+    else
+        async_view_did_commit_synchronized_resize(view_id, token);
+}
+
 void ConnectionFromUI::view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory)
 {
     if (auto* view = find_view(view_id)) {

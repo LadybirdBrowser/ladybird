@@ -48,6 +48,8 @@ private:
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
     virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool performed_default_action) override;
     virtual void did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap>) override;
+    virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) override;
+    virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) override;
 
     HashMap<u64, FrameSnapshotCallback> m_pending_frame_snapshots;
     u64 m_next_frame_snapshot_request_id { 1 };

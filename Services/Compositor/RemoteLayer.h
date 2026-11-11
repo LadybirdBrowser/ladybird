@@ -38,6 +38,11 @@ public:
     // Places the frame on display again, as when the view that it is scaled into changes size.
     void place_frame(Optional<Gfx::IntSize> fit_within);
 
+    // While held, what every remote layer of this process shows changes nowhere on screen, and changes all at once
+    // when released.
+    static void hold_changes_on_screen();
+    static void release_changes_held_off_screen();
+
 private:
     RemoteLayer() = default;
 
@@ -66,6 +71,14 @@ inline void RemoteLayer::show_frame(Gfx::SharedImageBuffer const&, Gfx::IntSize,
 }
 
 inline void RemoteLayer::place_frame(Optional<Gfx::IntSize>)
+{
+}
+
+inline void RemoteLayer::hold_changes_on_screen()
+{
+}
+
+inline void RemoteLayer::release_changes_held_off_screen()
 {
 }
 #endif

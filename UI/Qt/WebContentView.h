@@ -404,6 +404,12 @@ private:
     static bool can_host_remote_layers();
     virtual void remote_layer_changed(u32 core_animation_context_id) override;
     void update_remote_layer_host();
+    void synchronize_resize_with_remote_layer();
+    void await_resized_frame_before_commit(u64 token);
+    void release_resized_frame_with_commit(u64 token);
+    Optional<u64> m_synchronized_resize_token;
+    MonotonicTime m_last_resize_time { MonotonicTime::now_coarse() };
+    bool m_page_lags_behind_resize { false };
     void* m_remote_layer_host { nullptr };
     u32 m_remote_layer_context_id { 0 };
     bool m_asked_for_remote_layer { false };

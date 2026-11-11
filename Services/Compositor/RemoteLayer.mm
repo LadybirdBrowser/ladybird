@@ -64,6 +64,19 @@ static void commit_layer_changes(Callback callback)
     }
 }
 
+// The transactions of each change nest in this one until it is committed, so none of them reaches the window server
+// before then.
+void RemoteLayer::hold_changes_on_screen()
+{
+    [CATransaction begin];
+}
+
+void RemoteLayer::release_changes_held_off_screen()
+{
+    [CATransaction commit];
+    [CATransaction flush];
+}
+
 static CALayer* as_layer(void* layer)
 {
     return static_cast<CALayer*>(layer);

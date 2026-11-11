@@ -96,6 +96,9 @@ public:
     void set_wants_frame_notifications(bool wants_frame_notifications) { HubConnection::the().async_view_set_wants_frame_notifications(view_id(), wants_frame_notifications); }
     // What the view shows, from the Compositor, scaled down to fit within the size given.
     void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void begin_synchronized_resize(u64 token) { HubConnection::the().async_view_begin_synchronized_resize(view_id(), token); }
+    void await_synchronized_resize_frame(u64 token, Gfx::IntSize size) { HubConnection::the().async_view_await_synchronized_resize_frame(view_id(), token, size); }
+    void commit_synchronized_resize(u64 token) { HubConnection::the().async_view_commit_synchronized_resize(view_id(), token); }
     void did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap>);
     void set_has_system_focus(bool has_system_focus) { HubConnection::the().async_view_set_has_system_focus(view_id(), has_system_focus); }
     void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { HubConnection::the().async_view_load(view_id(), url, navigation_history_behavior); }

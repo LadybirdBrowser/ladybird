@@ -485,6 +485,39 @@ void ViewImplementation::take_frame_snapshot(Optional<Gfx::IntSize> maximum_size
     Application::the().take_frame_snapshot(page().compositor_context_id(), maximum_size, move(callback));
 }
 
+ViewImplementation* ViewImplementation::find_view_showing_remote_layer(u64 remote_layer_id)
+{
+    for (auto& [_, view] : all_views()) {
+        if (view->m_remote_layer_id == remote_layer_id)
+            return view;
+    }
+    return nullptr;
+}
+
+void ViewImplementation::begin_synchronized_resize(u64 token)
+{
+    if (m_remote_layer_id.has_value())
+        Application::the().begin_synchronized_resize(*m_remote_layer_id, token);
+}
+
+void ViewImplementation::await_synchronized_resize_frame(u64 token, Gfx::IntSize size)
+{
+    if (!m_remote_layer_id.has_value()) {
+        did_hold_synchronized_resize_frame(token);
+        return;
+    }
+    Application::the().await_synchronized_resize_frame(*m_remote_layer_id, token, size);
+}
+
+void ViewImplementation::commit_synchronized_resize(u64 token)
+{
+    if (!m_remote_layer_id.has_value()) {
+        did_commit_synchronized_resize(token);
+        return;
+    }
+    Application::the().commit_synchronized_resize(*m_remote_layer_id, token);
+}
+
 void ViewImplementation::set_scales_frames_to_fit(bool scales_frames_to_fit)
 {
     m_scales_frames_to_fit = scales_frames_to_fit;

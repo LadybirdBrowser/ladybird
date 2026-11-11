@@ -20,6 +20,9 @@ endpoint CompositorControlServer
     destroy_remote_layer(u64 remote_layer_id) =|
     show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id) =|
     set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within) =|
+    begin_synchronized_resize(u64 remote_layer_id, u64 token) =|
+    await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize size) =|
+    commit_synchronized_resize(u64 remote_layer_id, u64 token) =|
 
     create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 

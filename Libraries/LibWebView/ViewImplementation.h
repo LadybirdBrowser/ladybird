@@ -241,6 +241,15 @@ public:
     void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
     // The Compositor's remote layers went with its process, so the view asks the new one for another.
     void recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>);
+    static ViewImplementation* find_view_showing_remote_layer(u64 remote_layer_id);
+
+    // The UI shows a resize of the view along with the page's frame of the new size. A view without a remote layer
+    // has nothing to wait for, so it answers at once.
+    void begin_synchronized_resize(u64 token);
+    void await_synchronized_resize_frame(u64 token, Gfx::IntSize);
+    void commit_synchronized_resize(u64 token);
+    void synchronized_resize_frame_held(Badge<CompositorPresentationClient>, u64 token) { did_hold_synchronized_resize_frame(token); }
+    void synchronized_resize_committed(Badge<CompositorPresentationClient>, u64 token) { did_commit_synchronized_resize(token); }
     void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
@@ -770,6 +779,8 @@ protected:
     // stores instead.
     virtual void did_create_remote_layer(u32 core_animation_context_id) { (void)core_animation_context_id; }
     virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) { (void)device_pixel_ratio; }
+    virtual void did_hold_synchronized_resize_frame(u64 token) { (void)token; }
+    virtual void did_commit_synchronized_resize(u64 token) { (void)token; }
     // Lets the Compositor paint into a backing store again. A view whose frames something else still reads may wait
     // for that to finish first.
     virtual void release_backing_store(i32 bitmap_id);
