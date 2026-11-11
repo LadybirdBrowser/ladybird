@@ -44,3 +44,7 @@ Mismatching mixed-case SHA-384: PASS
 Invalid uppercase stronger digest: PASS
 Valid mixed-case strongest digest: PASS
 Matching mixed-case digest at same strength: PASS
+Tab-separated mismatching digests: PASS
+Mismatching digest followed by a newline: PASS
+Mismatching digest surrounded by ASCII whitespace: PASS
+Newline-separated valid stronger digest: PASS
