@@ -61,27 +61,66 @@ jobs:
 
   Build:
     if: github.repository == 'LadybirdBrowser/ladybird'
-    name: ${{ matrix.os_name }}, ${{ matrix.arch }}, Distribution, Clang
+    name: ${{ matrix.system }}, ${{ matrix.arch }}, Distribution, Clang
     needs: Source
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     container: ${{ fromJSON(matrix.container) }}
 
+    # Ladybird links Qt's private API on Linux, so each distribution version builds its packages against its own Qt.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os_name: 'macOS'
+          - system: 'macOS'
+            os_name: 'macOS'
             arch: 'arm64'
             runner_labels: '["blacksmith-12vcpu-macos-26"]'
             container: 'null'
-          - os_name: 'Linux'
+            archives: true
+
+          - system: 'Ubuntu 26.04'
+            os_name: 'Linux'
             arch: 'x86_64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
             container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29","options":"--ulimit core=1"}'
-          - os_name: 'Linux'
+            archives: true
+            packages: 'DEB'
+
+          - system: 'Ubuntu 26.04'
+            os_name: 'Linux'
             arch: 'arm64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
             container: *ci_container
+            archives: true
+            packages: 'DEB'
+
+          - system: 'Ubuntu 26.10'
+            os_name: 'Linux'
+            arch: 'x86_64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container: '{"image":"docker.io/library/ubuntu:26.10","options":"--ulimit core=1"}'
+            packages: 'DEB'
+
+          - system: 'Ubuntu 26.10'
+            os_name: 'Linux'
+            arch: 'arm64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+            container: '{"image":"docker.io/library/ubuntu:26.10","options":"--ulimit core=1"}'
+            packages: 'DEB'
+
+          - system: 'Fedora 44'
+            os_name: 'Linux'
+            arch: 'x86_64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container: '{"image":"docker.io/library/fedora:44","options":"--ulimit core=1"}'
+            packages: 'RPM'
+
+          - system: 'Fedora 44'
+            os_name: 'Linux'
+            arch: 'arm64'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+            container: '{"image":"docker.io/library/fedora:44","options":"--ulimit core=1"}'
+            packages: 'RPM'
 
     permissions:
       contents: read
@@ -95,10 +134,20 @@ jobs:
         with:
           artifact-ids: ${{ needs.Source.outputs.artifact-id }}
 
+      - name: Install xz to unpack the source
+        if: ${{ startsWith(matrix.system, 'Ubuntu') && !contains(matrix.container, 'ladybird-ci') }}
+        run: |
+          apt-get update -o APT::Update::Error-Mode=any
+          apt-get install -y --no-install-recommends xz-utils
+
       - name: Unpack the source
         run: |
           tar -xf ./*-source.tar.xz --strip-components=1
           rm ./*-source.tar.xz
+
+      - name: Install the build dependencies
+        if: ${{ matrix.os_name == 'Linux' && !contains(matrix.container, 'ladybird-ci') }}
+        run: ./Meta/Docker/ci/install-build-dependencies.sh
 
       - name: Build
         uses: ./.github/actions/build
@@ -109,7 +158,7 @@ jobs:
           build_preset: 'Distribution'
           version: ${{ inputs.version }}
           vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
-          use_caches: ${{ inputs.version == '' }}
+          use_caches: false
 
       - name: Start PulseAudio
         if: ${{ matrix.os_name == 'Linux' }}
@@ -127,28 +176,23 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7
         with:
-          name: libweb-test-artifacts-${{ matrix.os_name }}-${{ matrix.arch }}-Distribution
+          name: libweb-test-artifacts-${{ matrix.system }}-${{ matrix.arch }}-Distribution
           path: Build/Tests/LibWeb/test-web/test-dumps/
           retention-days: 0
           if-no-files-found: ignore
 
       - name: Package
+        if: ${{ matrix.archives }}
         working-directory: ${{ github.workspace }}/Build
         run: |
           cpack -G TXZ -B packages -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_Symbols" \
             -D CPACK_ARCHIVE_COMPRESSION_LEVEL=9 -D CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY=ON
 
-      - name: Install rpmbuild
-        if: ${{ matrix.os_name == 'Linux' }}
-        run: |
-          apt-get update -o APT::Update::Error-Mode=any
-          apt-get install -y --no-install-recommends rpm
-
-      - name: Package for Linux distributions
-        if: ${{ matrix.os_name == 'Linux' }}
+      - name: Package for ${{ matrix.system }}
+        if: ${{ matrix.packages }}
         working-directory: ${{ github.workspace }}/Build
         run: |
-          cpack -G "DEB;RPM" -B packages \
+          cpack -G "${{ matrix.packages }}" -B packages \
             -D CPACK_COMPONENTS_ALL="ladybird_Runtime;ladybird_SystemIntegration;ladybird_SystemSymbols"
 
       - name: Attest
@@ -161,6 +205,7 @@ jobs:
             Build/packages/*.rpm
 
       - name: Upload
+        if: ${{ matrix.archives }}
         uses: actions/upload-artifact@v7
         with:
           path: |
@@ -170,6 +215,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload debug symbols
+        if: ${{ matrix.archives }}
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird-symbols-*.tar.xz
@@ -177,7 +223,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload the Debian package
-        if: ${{ matrix.os_name == 'Linux' }}
+        if: ${{ matrix.packages == 'DEB' }}
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird_*.deb
@@ -185,7 +231,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload the Debian debug symbols
-        if: ${{ matrix.os_name == 'Linux' }}
+        if: ${{ matrix.packages == 'DEB' }}
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird-dbgsym_*.deb
@@ -193,7 +239,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload the RPM package
-        if: ${{ matrix.os_name == 'Linux' }}
+        if: ${{ matrix.packages == 'RPM' }}
         uses: actions/upload-artifact@v7
         with:
           path: |
@@ -203,7 +249,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload the RPM debug symbols
-        if: ${{ matrix.os_name == 'Linux' }}
+        if: ${{ matrix.packages == 'RPM' }}
         uses: actions/upload-artifact@v7
         with:
           path: Build/packages/ladybird-debuginfo-*.rpm
