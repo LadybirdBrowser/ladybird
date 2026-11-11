@@ -34,9 +34,12 @@
 #include <QEvent>
 #include <QFontMetricsF>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QLayout>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPointer>
 #include <QStyle>
 #include <QStyleOptionToolButton>
@@ -60,6 +63,10 @@ static constexpr int BOOKMARK_BUTTON_ICON_TEXT_SPACING = 6;
 static constexpr char const* BOOKMARK_ITEM_PROPERTY = "bookmark_item";
 static constexpr char const* BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY = "bookmark_context_menu_open";
 static constexpr char const* BOOKMARK_FOLDER_MENU_OPEN_PROPERTY = "bookmark_folder_menu_open";
+static constexpr char const* BOOKMARK_DROP_TARGET_PROPERTY = "bookmark_drop_target";
+
+static constexpr int BOOKMARK_DROP_INDICATOR_WIDTH = 2;
+static constexpr qreal BOOKMARK_DRAG_IMAGE_OPACITY = 0.7;
 
 static QFont bookmark_title_font(QToolButton const& button)
 {
@@ -104,7 +111,10 @@ static QStyleOptionToolButton bookmark_button_style_option(QToolButton const& bu
     // NB: A folder's button stays pressed while its menu is open, also when the menu was opened by moving to it.
     if (button.isDown() || button.property(BOOKMARK_FOLDER_MENU_OPEN_PROPERTY).toBool())
         option.state |= QStyle::State_Sunken;
-    if (button.property(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY).toBool())
+    // While a bookmark is dragged, only a folder it can go into looks hovered.
+    if (auto const* bar = as_if<BookmarksBar>(button.parentWidget()); bar && bar->is_dragging_bookmark())
+        option.state &= ~QStyle::State_MouseOver;
+    if (button.property(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY).toBool() || button.property(BOOKMARK_DROP_TARGET_PROPERTY).toBool())
         option.state |= QStyle::State_MouseOver;
 
     return option;
@@ -201,6 +211,11 @@ static void install_menu_event_filter(QObject* filter, QMenu* menu)
     }
 }
 
+static void show_menu_later(QToolButton& button)
+{
+    QTimer::singleShot(0, &button, &QToolButton::showMenu);
+}
+
 static void close_menu_chain(QMenu& menu)
 {
     for (auto* open_menu = &menu; open_menu; open_menu = as_if<QMenu>(open_menu->parentWidget()))
@@ -224,6 +239,11 @@ BookmarksBar::BookmarksBar(QWidget* parent)
     update_chrome_style();
 
     rebuild();
+}
+
+BookmarksBar::~BookmarksBar()
+{
+    stop_drag();
 }
 
 void BookmarksBar::update_chrome_style()
@@ -285,6 +305,8 @@ void BookmarksBar::slide_out(int index, QPixmap const& image)
 
 void BookmarksBar::rebuild()
 {
+    stop_drag();
+
     for (auto* action : actions()) {
         if (auto* menu = action->menu())
             menu->close();
@@ -430,9 +452,31 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<BookmarkItem cons
 
 bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
 {
+    if (is_dragging_bookmark() && handle_drag_event(*object, *event))
+        return true;
+
     if (event->type() == QEvent::Paint) {
         if (auto* button = as_if<QToolButton>(object); button && button->property(BOOKMARK_ITEM_PROPERTY).toBool()) {
             paint_bookmark_button(*button);
+            return true;
+        }
+    }
+
+    if (object == m_pressed_button && event->type() == QEvent::MouseMove) {
+        auto const& mouse_event = as<QMouseEvent>(*event);
+        auto offset = mouse_event.globalPosition().toPoint() - m_press_position;
+
+        // Qt also sends moves of its own making, which name no button.
+        if (!QGuiApplication::mouseButtons().testFlag(Qt::LeftButton)) {
+            cancel_press();
+        } else if (is_past_drag_distance(mouse_event)) {
+            // A folder that is dragged downward opens instead.
+            if (auto button = m_pressed_button; button->defaultAction()->menu() && offset.y() > abs(offset.x())) {
+                cancel_press();
+                show_menu_later(*button);
+            } else {
+                start_drag();
+            }
             return true;
         }
     }
@@ -446,10 +490,7 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
             auto* folder_menu = button && button->defaultAction() ? button->defaultAction()->menu() : nullptr;
             if (folder_menu && !folder_menu->isVisible()) {
                 close_menu_chain(*menu);
-                QTimer::singleShot(0, button, [button = QPointer { button }] {
-                    if (button)
-                        button->showMenu();
-                });
+                show_menu_later(*button);
                 return true;
             }
         }
@@ -458,6 +499,9 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
     if (event->type() == QEvent::MouseButtonPress) {
         auto& mouse_event = as<QMouseEvent>(*event);
         m_opened_new_tab_on_menu_press = false;
+
+        // The release of an earlier press may have gone to a menu or dialog that opened during it.
+        cancel_press();
 
         if (mouse_event.button() == Qt::LeftButton)
             return handle_left_mouse_click(&mouse_event, object);
@@ -475,6 +519,21 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
         return true;
     }
 
+    if (object == m_pressed_button && event->type() == QEvent::MouseButtonRelease) {
+        auto& mouse_event = as<QMouseEvent>(*event);
+
+        if (mouse_event.button() == Qt::LeftButton) {
+            auto button = m_pressed_button;
+            cancel_press();
+
+            if (button->defaultAction()->menu()) {
+                if (button->rect().contains(mouse_event.position().toPoint()))
+                    show_menu_later(*button);
+                return true;
+            }
+        }
+    }
+
     return QToolBar::eventFilter(object, event);
 }
 
@@ -482,7 +541,281 @@ bool BookmarksBar::handle_left_mouse_click(QMouseEvent* event, QObject* item)
 {
     if (event->modifiers().testFlag(Qt::ControlModifier))
         return handle_middle_mouse_click(event, item);
+
+    auto* button = as_if<QToolButton>(item);
+    if (!button || !button->property(BOOKMARK_ITEM_PROPERTY).toBool())
+        return false;
+
+    m_pressed_button = button;
+    m_press_position = event->globalPosition().toPoint();
+
+    // A folder opens when its button is released, as a press may be the start of a drag.
+    if (button->defaultAction()->menu()) {
+        button->setDown(true);
+        return true;
+    }
     return false;
+}
+
+// The translucent picture of a dragged bookmark.
+class BookmarkDragCard final : public QWidget {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    BookmarkDragCard(QWidget& parent, QPixmap pixmap)
+        : QWidget(&parent)
+        , m_pixmap(AK::move(pixmap))
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        resize(m_pixmap.deviceIndependentSize().toSize());
+    }
+
+private:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.setOpacity(BOOKMARK_DRAG_IMAGE_OPACITY);
+        painter.drawPixmap(0, 0, m_pixmap);
+    }
+
+    QPixmap m_pixmap;
+};
+
+void BookmarksBar::cancel_press()
+{
+    if (m_pressed_button && m_pressed_button->defaultAction()->menu())
+        m_pressed_button->setDown(false);
+    m_pressed_button = nullptr;
+}
+
+bool BookmarksBar::is_past_drag_distance(QMouseEvent const& event) const
+{
+    auto offset = event.globalPosition().toPoint() - m_press_position;
+    return offset.manhattanLength() >= QApplication::startDragDistance();
+}
+
+void BookmarksBar::start_drag()
+{
+    auto dragged_button = m_pressed_button;
+    auto* dragged_action = dragged_button ? dragged_button->defaultAction() : nullptr;
+    if (!dragged_action)
+        return;
+
+    cancel_press();
+
+    m_dragged_button = dragged_button;
+    if (dragged_button) {
+        dragged_button->setDown(false);
+        m_drag_card = new BookmarkDragCard(*this, dragged_button->grab());
+        m_drag_card_pointer_offset = dragged_button->mapFromGlobal(m_press_position).x();
+        m_drag_card->move(dragged_button->pos());
+        m_drag_card->show();
+        m_drag_card->raise();
+    }
+
+    m_dragged_item_id = dragged_action->property("id").toString();
+    QApplication::setOverrideCursor(Qt::DragMoveCursor);
+
+    // Qt passes moves to different widgets while a button is held, and to none once a menu has opened and closed.
+    qApp->installEventFilter(this);
+}
+
+bool BookmarksBar::handle_drag_event(QObject const& object, QEvent& event)
+{
+    switch (event.type()) {
+    case QEvent::MouseMove:
+    case QEvent::MouseButtonRelease: {
+        // Mouse events are followed as their window gets them, and kept from the widgets.
+        if (!object.isWindowType())
+            return true;
+
+        auto const& mouse_event = as<QMouseEvent>(event);
+        auto global_position = mouse_event.globalPosition().toPoint();
+
+        if (event.type() == QEvent::MouseButtonRelease && mouse_event.button() == Qt::LeftButton)
+            drop_dragged_item(global_position);
+        else if (QGuiApplication::mouseButtons().testFlag(Qt::LeftButton))
+            update_drag(global_position);
+        else
+            stop_drag();
+        return false;
+    }
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonDblClick:
+        stop_drag();
+        return true;
+    case QEvent::ShortcutOverride:
+        event.accept();
+        return true;
+    case QEvent::KeyPress:
+        if (as<QKeyEvent>(event).key() == Qt::Key_Escape)
+            stop_drag();
+        return true;
+    case QEvent::KeyRelease:
+        return true;
+    case QEvent::ToolTip:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void BookmarksBar::update_drag(QPoint global_position)
+{
+    auto position = mapFromGlobal(global_position);
+    auto is_over_bar = rect().contains(position);
+
+    if (m_drag_card) {
+        m_drag_card->move(position.x() - m_drag_card_pointer_offset, m_drag_card->y());
+        m_drag_card->setVisible(is_over_bar);
+        m_drag_card->raise();
+    }
+
+    if (!is_over_bar) {
+        hide_drop_target();
+        return;
+    }
+    show_drop_target(drop_target_on_bar(position));
+}
+
+void BookmarksBar::drop_dragged_item(QPoint global_position)
+{
+    update_drag(global_position);
+    auto id = ak_string_from_qstring(m_dragged_item_id);
+    auto target = m_drop_target;
+    stop_drag();
+
+    auto& store = Application::bookmark_store();
+
+    auto* folder_menu = target.folder_action ? target.folder_action->menu() : nullptr;
+    auto folder_id = folder_menu ? ak_string_from_qstring(folder_menu->property("id").toString()) : Optional<String> {};
+
+    auto parent_folder = folder_id.has_value() ? store.find_item_by_id(*folder_id) : Optional<BookmarkItem const&> {};
+    auto const& siblings = parent_folder.has_value() ? parent_folder->folder().children : store.root_items();
+    auto current_index = siblings.find_first_index_if([&](auto const& item) { return item.id == id; });
+
+    if (target.folder_action) {
+        if (!current_index.has_value())
+            store.move_item(id, folder_id, NumericLimits<size_t>::max());
+        return;
+    }
+    if (target == DropTarget {})
+        return;
+    if (current_index.has_value() && first_is_one_of(target.index, *current_index, *current_index + 1))
+        return;
+
+    store.move_item(id, folder_id, target.index);
+}
+
+void BookmarksBar::stop_drag()
+{
+    if (!is_dragging_bookmark())
+        return;
+
+    m_dragged_item_id = {};
+    qApp->removeEventFilter(this);
+    QApplication::restoreOverrideCursor();
+
+    delete m_drag_card;
+    m_drag_card = nullptr;
+    hide_drop_target();
+    update();
+
+    // Qt does not tell the dragged button that the pointer has left it.
+    if (m_dragged_button && !m_dragged_button->rect().contains(m_dragged_button->mapFromGlobal(QCursor::pos()))) {
+        QEvent leave { QEvent::Leave };
+        QApplication::sendEvent(m_dragged_button, &leave);
+    }
+    // A cancelled drag leaves the dragged button pressed.
+    if (m_dragged_button && QGuiApplication::mouseButtons().testFlag(Qt::LeftButton)) {
+        QMouseEvent release { QEvent::MouseButtonRelease, QPointF { -1, -1 }, QCursor::pos(), Qt::LeftButton, Qt::NoButton, QGuiApplication::keyboardModifiers() };
+        QApplication::sendEvent(m_dragged_button, &release);
+    }
+    m_dragged_button = nullptr;
+}
+
+BookmarksBar::DropTarget BookmarksBar::drop_target_on_bar(QPoint position) const
+{
+    auto spacing_around_indicator = (layout()->spacing() - BOOKMARK_DROP_INDICATOR_WIDTH) / 2;
+    auto indicator_rect_beside = [&](QRect const& geometry, bool is_at_start) {
+        auto is_at_left = is_at_start != isRightToLeft();
+        auto x = is_at_left ? geometry.left() - spacing_around_indicator - BOOKMARK_DROP_INDICATOR_WIDTH : geometry.right() + 1 + spacing_around_indicator;
+        return QRect { x, geometry.top(), BOOKMARK_DROP_INDICATOR_WIDTH, geometry.height() };
+    };
+
+    DropTarget target;
+    QToolButton* previous_button = nullptr;
+
+    for (auto* action : actions()) {
+        auto id = action->property("id").toString();
+        auto* button = as_if<QToolButton>(widgetForAction(action));
+        if (id.isEmpty() || !button)
+            continue;
+        // The items that do not fit on the bar are hidden.
+        if (!button->isVisible())
+            break;
+
+        auto geometry = button->geometry();
+
+        if (action->menu() && id != m_dragged_item_id) {
+            auto edge_width = geometry.width() / 4;
+            if (position.x() >= geometry.left() + edge_width && position.x() <= geometry.right() - edge_width) {
+                target.folder_action = action;
+                return target;
+            }
+        }
+
+        auto is_before_center = isRightToLeft() ? position.x() > geometry.center().x() : position.x() < geometry.center().x();
+        if (is_before_center) {
+            target.indicator_rect = indicator_rect_beside(geometry, true);
+            return target;
+        }
+
+        ++target.index;
+        previous_button = button;
+    }
+
+    if (previous_button)
+        target.indicator_rect = indicator_rect_beside(previous_button->geometry(), false);
+    return target;
+}
+
+void BookmarksBar::show_drop_target(DropTarget const& target)
+{
+    if (target == m_drop_target)
+        return;
+
+    hide_drop_target();
+    m_drop_target = target;
+
+    if (auto* folder_button = widgetForAction(m_drop_target.folder_action)) {
+        folder_button->setProperty(BOOKMARK_DROP_TARGET_PROPERTY, true);
+        folder_button->update();
+    }
+    update();
+}
+
+void BookmarksBar::hide_drop_target()
+{
+    if (m_drop_target == DropTarget {})
+        return;
+
+    if (auto* folder_button = widgetForAction(m_drop_target.folder_action)) {
+        folder_button->setProperty(BOOKMARK_DROP_TARGET_PROPERTY, false);
+        folder_button->update();
+    }
+    m_drop_target = {};
+    update();
+}
+
+void BookmarksBar::paintEvent(QPaintEvent* event)
+{
+    QToolBar::paintEvent(event);
+
+    if (!m_drop_target.indicator_rect.isEmpty()) {
+        QPainter painter(this);
+        painter.fillRect(m_drop_target.indicator_rect, Theme::accent());
+    }
 }
 
 bool BookmarksBar::handle_middle_mouse_click(QMouseEvent* event, QObject* item)
@@ -687,6 +1020,9 @@ bool BookmarksBarContainer::can_expand_on_hover() const
 
 bool BookmarksBarContainer::cursor_is_over_hover_region() const
 {
+    if (m_bar->is_dragging_bookmark())
+        return true;
+
     // Menus are separate windows, so QWidget::isAncestorOf() does not follow them back to the toolbar.
     for (auto* popup = QApplication::activePopupWidget(); popup; popup = popup->parentWidget()) {
         if (popup == m_bar)
