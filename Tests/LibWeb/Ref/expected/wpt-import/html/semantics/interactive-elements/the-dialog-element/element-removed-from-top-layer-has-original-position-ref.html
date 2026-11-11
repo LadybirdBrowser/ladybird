@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.green {
+    color: green;
+}
+</style>
+</head>
+<body>
+<p>Bug <a href="http://webkit.org/b/106538">106538</a>: Top layer fails for inline elements</p>
+<p>This tests that position 'static' no longer computes to 'absolute' for an
+element that has been removed from the top layer. The test passes if you see
+a single line of text.</p>
+<span class="green">This is the span.</span>
+<span class="green">This is the dialog following it.</span>
+</body>
+</html>

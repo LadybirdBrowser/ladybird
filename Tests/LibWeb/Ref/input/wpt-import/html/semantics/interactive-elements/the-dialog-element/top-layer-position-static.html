@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=author href="mailto:falken@chromium.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element">
+<link rel=help href="https://bugs.webkit.org/show_bug.cgi?id=106538">
+<link rel=match href="../../../../../../expected/wpt-import/html/semantics/interactive-elements/the-dialog-element/top-layer-position-ref.html">
+<meta name=assert content="Position static computes to absolute in the top layer for dialog elements.">
+
+<style>
+dialog {
+  background-color: green;
+  height: 50px;
+  width: 50px;
+  border: none;
+  padding: 0;
+  margin: 0;
+
+  position: static;
+  top: 100px;
+  left: 100px;
+}
+</style>
+
+<dialog></dialog>
+
+<script>
+document.querySelector('dialog').showModal();
+</script>

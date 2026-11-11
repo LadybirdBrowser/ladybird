@@ -329,6 +329,8 @@ impl RetainedState {
                 StyleAdjustmentTarget::Element,
                 self.projection.inheritance_parent(node),
             )
+        } else if pseudo_kind == pseudo_kind::BACKDROP {
+            self.box_type_transformation_input(facts, StyleAdjustmentTarget::Backdrop, Some(node))
         } else {
             self.box_type_transformation_input(facts, StyleAdjustmentTarget::PseudoElement, Some(node))
         }

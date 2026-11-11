@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Verifies that position:static and position:relative computed to position:absolute in the top layer.

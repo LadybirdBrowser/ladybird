@@ -6071,6 +6071,7 @@ unsafe fn create_document_style_record(
             force_position_static: false,
             force_symbol_display_inline: false,
             webkit_box_layout_transformation_applies: false,
+            in_top_layer: false,
         },
         color_scheme_input: input.color_scheme_input,
         is_th_element: false,
@@ -7454,6 +7455,13 @@ fn post_compute_adjusted_values(
         StyleValueData::Keyword { keyword: keyword::NONE },
     );
     adjust(
+        transformation.set_position_absolute,
+        prop::POSITION,
+        StyleValueData::Keyword {
+            keyword: keyword::ABSOLUTE,
+        },
+    );
+    adjust(
         adjusted_display != adjustment.display_before,
         prop::DISPLAY,
         StyleValueData::Display {
@@ -7484,6 +7492,7 @@ fn post_compute_adjusted_values(
     );
     for (changed, property_id) in [
         (transformation.set_float_none, prop::FLOAT),
+        (transformation.set_position_absolute, prop::POSITION),
         (
             transformation.changed_display || element_adjustment.changed_display,
             prop::DISPLAY,

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+test(() => {
+  const dialog = document.createElement('dialog');
+  document.body.appendChild(dialog);
+
+  dialog.style = 'position:static';
+  assert_equals(getComputedStyle(dialog).position, 'static');
+  dialog.showModal();
+  assert_true(dialog.open);
+  assert_equals(getComputedStyle(dialog).position, 'absolute',
+    `dialog should be position:absolute when element.style has position:static.`);
+  dialog.close();
+  assert_false(dialog.open);
+
+  dialog.style = 'position:relative';
+  assert_equals(getComputedStyle(dialog).position, 'relative');
+  dialog.showModal();
+  assert_true(dialog.open);
+  assert_equals(getComputedStyle(dialog).position, 'absolute',
+    `dialog should be position:absolute when element.style has position:relative.`);
+  dialog.close();
+  assert_false(dialog.open);
+}, `Verifies that position:static and position:relative computed to position:absolute in the top layer.`);
+</script>
