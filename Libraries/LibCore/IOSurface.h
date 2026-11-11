@@ -18,6 +18,8 @@ class CORE_API IOSurfaceHandle {
     AK_MAKE_NONCOPYABLE(IOSurfaceHandle);
 
 public:
+    static void initialize();
+
     IOSurfaceHandle(IOSurfaceHandle&& other);
     IOSurfaceHandle& operator=(IOSurfaceHandle&& other);
 

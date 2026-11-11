@@ -45,6 +45,12 @@ struct IOSurfaceHandle::IOSurfaceRefWrapper {
     IOSurfaceRef ref;
 };
 
+void IOSurfaceHandle::initialize()
+{
+    // Querying the row alignment initializes the IOSurface connection without allocating a surface.
+    (void)IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, 0);
+}
+
 IOSurfaceHandle::IOSurfaceHandle(OwnPtr<IOSurfaceRefWrapper>&& ref_wrapper)
     : m_ref_wrapper(move(ref_wrapper))
 {
