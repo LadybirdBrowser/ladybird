@@ -53,8 +53,6 @@ public:
     size_t live_node_count() const;
     // A copy whose nodes carry the values the animations take at the time.
     AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
-    // The sampled background color of a recorded fill's animation effect.
-    Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
     // Whether the node's scroll translations and the origins drawn in its space round to whole device pixels: no
     // transform but identities lies above it.
     bool translations_snap_to_device_pixels(SpatialNodeIndex) const;

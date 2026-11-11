@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/ContextRef.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibCompositing/Export.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>

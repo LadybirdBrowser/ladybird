@@ -14,7 +14,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -110,8 +110,8 @@ public:
     bool requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const&) const;
 
     // Replays the list through a player's callbacks, against the visual context tree it was made for, with nothing
-    // scrolled.
-    void replay(AccumulatedVisualContextTree const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    // scrolled, as the frame showing the monotonic time draws it.
+    void replay(AccumulatedVisualContextTree const&, i64 monotonic_time_ns, RustFFI::FfiDisplayListReplayCallbacks const&) const;
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.

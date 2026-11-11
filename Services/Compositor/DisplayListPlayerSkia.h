@@ -17,7 +17,7 @@
 #include <Compositor/Forward.h>
 #include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 

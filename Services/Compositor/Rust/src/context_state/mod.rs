@@ -23,6 +23,7 @@ use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
 use crate::scrollbar_controller::{Drag, ScrollbarController};
 use crate::wheel_gesture_routing::{ResolvedLatch, WheelGestureIdAllocator, WheelGestureRouting};
+use libcompositing_rust::display_list::replay::CARET_BLINK_INTERVAL_NS;
 use libcompositing_rust::ipc_types::{
     Compositing_AsyncScrollOperationTracking as AsyncScrollOperationTracking,
     Compositing_ContextVisibility as ContextVisibility, Compositing_RequestedRelativeScroll as RequestedRelativeScroll,
@@ -813,7 +814,7 @@ impl ContextState {
         };
         let now_ns = now.nanoseconds();
         let elapsed_ns = if now_ns > start { now_ns - start } else { 0 };
-        let delay_ns = 500_000_000 - elapsed_ns % 500_000_000;
+        let delay_ns = CARET_BLINK_INTERVAL_NS - elapsed_ns % CARET_BLINK_INTERVAL_NS;
         self.host.set_timer(
             self.context_id,
             ContextTimer::CaretBlink,

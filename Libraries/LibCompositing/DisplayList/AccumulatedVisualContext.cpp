@@ -118,14 +118,6 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
     return adopt_rust_handle(Compositing::RustFFI::visual_context_tree_with_visual_animation_samples(m_rust_tree, monotonic_time_ns));
 }
 
-Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(EffectNodeIndex effect) const
-{
-    Gfx::Color color;
-    if (!Compositing::RustFFI::visual_context_tree_sampled_background_color(m_rust_tree, effect, &color))
-        return {};
-    return color;
-}
-
 bool AccumulatedVisualContextTree::translations_snap_to_device_pixels(SpatialNodeIndex spatial_node_index) const
 {
     return Compositing::RustFFI::visual_context_tree_translations_snap_to_device_pixels(m_rust_tree, spatial_node_index);

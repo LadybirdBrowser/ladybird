@@ -329,7 +329,8 @@ pub extern "C" fn compositor_frame_inputs_scrollbars(
     frame_inputs.scrollbars.as_ptr()
 }
 
-/// Replays the list `display_list_storage` holds as the frame shows it, scrolled where the frame presents it.
+/// Replays the list `display_list_storage` holds as the frame shows it, scrolled where the frame presents it, at the
+/// monotonic time `now_ns`.
 ///
 /// # Safety
 ///
@@ -340,6 +341,7 @@ pub unsafe extern "C" fn compositor_frame_inputs_replay(
     frame_inputs: &FrameInputs,
     display_list_storage: *const c_void,
     root_group_color: Color,
+    now_ns: i64,
     callbacks: *const FfiDisplayListReplayCallbacks,
 ) {
     // SAFETY: The caller lends a live storage handle and live callbacks.
@@ -349,6 +351,7 @@ pub unsafe extern "C" fn compositor_frame_inputs_replay(
             display_list_storage,
             root_group_color,
             frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+            now_ns,
             callbacks,
         );
     }

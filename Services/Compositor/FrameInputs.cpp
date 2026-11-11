@@ -51,10 +51,10 @@ ReadonlySpan<ScrollbarOfFrame> FrameInputs::scrollbars() const
     return { scrollbars, count };
 }
 
-void FrameInputs::replay(Compositing::DisplayList const& display_list, Compositing::RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
+void FrameInputs::replay(Compositing::DisplayList const& display_list, i64 monotonic_time_ns, Compositing::RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == m_visual_context_tree.structural_epoch());
-    RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), &callbacks);
+    RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), monotonic_time_ns, &callbacks);
 }
 
 Optional<Gfx::IntRect> FrameInputs::damage_since(Compositing::DisplayList const& display_list, FrameInputs const& last_frame_inputs, Compositing::DisplayList const& last_display_list, Gfx::IntRect viewport_rect, LiveContentChanges live_content_changes) const

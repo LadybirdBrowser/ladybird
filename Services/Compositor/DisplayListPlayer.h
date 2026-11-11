@@ -14,7 +14,7 @@
 #include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibGfx/Forward.h>
@@ -78,6 +78,8 @@ private:
     Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
+    // The time the frame shows, which every list it replays is drawn at.
+    i64 m_monotonic_time_ns { 0 };
     Vector<NonnullRefPtr<Gfx::PaintingSurface>> m_surfaces_drawn_into_before;
 };
 

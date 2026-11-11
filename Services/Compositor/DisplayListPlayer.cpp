@@ -5,6 +5,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <AK/Time.h>
 #include <Compositor/DisplayListPlayer.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibCompositing/RustFFI.h>
@@ -23,6 +24,7 @@ void DisplayListPlayer::execute(
     OwnedCanvasSurfaces const* canvas_surfaces)
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
+    m_monotonic_time_ns = MonotonicTime::now().nanoseconds();
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
@@ -126,9 +128,9 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, FrameInput
     auto callbacks = ReplayCallbacks::for_player(*this);
     if (frame_inputs) {
         VERIFY(frame_inputs->visual_context_tree().rust_handle() == visual_context_tree.rust_handle());
-        frame_inputs->replay(display_list, callbacks);
+        frame_inputs->replay(display_list, m_monotonic_time_ns, callbacks);
     } else {
-        display_list.replay(visual_context_tree, callbacks);
+        display_list.replay(visual_context_tree, m_monotonic_time_ns, callbacks);
     }
 }
 

@@ -7,7 +7,6 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/TemporaryChange.h>
-#include <AK/Time.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -263,19 +262,13 @@ void DisplayListPlayerSkia::play_command(FillRect const& command, PlayedPayload 
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
-        ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
-    paint.setColor(to_skia_color(color));
+    paint.setColor(to_skia_color(command.color));
     apply_compositing_and_blending_operator(paint, command.compositing_and_blending_operator);
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
 void DisplayListPlayerSkia::play_command(PaintCaret const& command, PlayedPayload const&)
 {
-    if (!caret_is_visible_at_time(command, MonotonicTime::now().nanoseconds()))
-        return;
-
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -289,14 +282,6 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command, P
         return;
 
     auto destination_rect = command.dst_rect;
-
-    // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
-    // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
-    if (command.snap_origin_if_untransformed && active_visual_context_tree().translations_snap_to_device_pixels(command.spatial_node_index)) {
-        destination_rect.set_x(roundf(destination_rect.x()));
-        destination_rect.set_y(roundf(destination_rect.y()));
-    }
-
     auto composited_context = (*m_composited_context_resolver)(command.child_context_id, destination_rect, canvas_matrix());
     if (!composited_context.surface || composited_context.content_rect.is_empty())
         return;
@@ -932,10 +917,7 @@ void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& comma
 
     auto& canvas = surface().canvas();
     SkPaint paint;
-    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
-        ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
-    paint.setColor(to_skia_color(color));
+    paint.setColor(to_skia_color(command.color));
     paint.setAntiAlias(true);
 
     auto rounded_rect = to_skia_rrect(rect, command.corner_radii);

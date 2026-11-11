@@ -7,7 +7,7 @@
 //! The entry points the compositor process shares with WebContent: retaining and querying visual
 //! context trees, replaying display lists, computing their damage, and the tree builder tests use.
 
-use crate::display_list::commands::{EffectNodeIndex, SpatialNodeIndex};
+use crate::display_list::commands::SpatialNodeIndex;
 use crate::display_list::storage::storage_from_handle;
 use crate::scrolling::smooth_scroll_animation::SmoothScrollAnimation;
 use crate::scrolling::{
@@ -48,7 +48,8 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
     crate::force_dark::should_filter(&features)
 }
 
-/// Replays the list `storage` holds against `tree`, with the scroll containers at `scroll_offsets`.
+/// Replays the list `storage` holds against `tree`, with the scroll containers at `scroll_offsets`, as the frame
+/// showing the monotonic time `now_ns` draws it.
 ///
 /// # Safety
 ///
@@ -59,6 +60,7 @@ pub unsafe fn replay_display_list_storage(
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
     scroll_offsets: &[FloatPoint],
+    now_ns: i64,
     callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
 ) {
     // SAFETY: The caller guarantees a live handle for the duration of the call.
@@ -72,11 +74,13 @@ pub unsafe fn replay_display_list_storage(
         storage.effect_clip_plan(tree),
         root_group_color,
         scroll_offsets,
+        now_ns,
         &mut painter,
     );
 }
 
-/// Replays a list with nothing scrolled, as a list nested in another is.
+/// Replays a list with nothing scrolled, as a list nested in another is, as the frame showing the monotonic time
+/// `now_ns` draws it.
 ///
 /// # Safety
 ///
@@ -88,10 +92,20 @@ pub unsafe extern "C" fn display_list_replay(
     tree: *const c_void,
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
+    now_ns: i64,
     callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
 ) {
     // SAFETY: The caller guarantees live handles and callbacks for the duration of the call.
-    unsafe { replay_display_list_storage(tree_from_handle(tree), storage, root_group_color, &[], callbacks) };
+    unsafe {
+        replay_display_list_storage(
+            tree_from_handle(tree),
+            storage,
+            root_group_color,
+            &[],
+            now_ns,
+            callbacks,
+        );
+    };
 }
 
 /// # Safety
@@ -226,24 +240,6 @@ pub unsafe extern "C" fn visual_context_tree_visual_animation_summary(
     tree: *const c_void,
 ) -> crate::host::FfiVisualAnimationSummary {
     unsafe { tree_from_handle(tree) }.visual_animation_summary()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle and `color` must point to writable storage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_sampled_background_color(
-    tree: *const c_void,
-    effect: EffectNodeIndex,
-    color: *mut libgfx_rust::Color,
-) -> bool {
-    let tree = unsafe { tree_from_handle(tree) };
-    let Some(sampled_color) = tree.sampled_background_color(effect) else {
-        return false;
-    };
-    // SAFETY: The caller guarantees that `color` points to writable storage.
-    unsafe { *color = sampled_color };
-    true
 }
 
 /// # Safety

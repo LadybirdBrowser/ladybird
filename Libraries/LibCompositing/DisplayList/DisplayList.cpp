@@ -95,10 +95,10 @@ bool DisplayList::requires_direct_replay_without_nested_lists(AccumulatedVisualC
     return RustFFI::display_list_storage_requires_direct_replay_without_nested_lists(m_storage, visual_context_tree.rust_handle());
 }
 
-void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
+void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, i64 monotonic_time_ns, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
 {
     VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
-    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, &callbacks);
+    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, monotonic_time_ns, &callbacks);
 }
 
 u64 DisplayList::tape_size() const

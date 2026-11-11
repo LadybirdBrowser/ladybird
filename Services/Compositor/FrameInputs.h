@@ -86,8 +86,8 @@ public:
     Compositing::AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
     ReadonlySpan<ScrollbarOfFrame> scrollbars() const;
 
-    // Replays the list through a player's callbacks as the frame shows it.
-    void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    // Replays the list through a player's callbacks as the frame showing the monotonic time shows it.
+    void replay(Compositing::DisplayList const&, i64 monotonic_time_ns, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
 
     // What painting the list with these inputs repaints of the last frame, which painted its list with its inputs.
     // Empty where the damage has no bounds.

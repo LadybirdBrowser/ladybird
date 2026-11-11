@@ -17,7 +17,7 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/Canvas2DTape.h>
-#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
