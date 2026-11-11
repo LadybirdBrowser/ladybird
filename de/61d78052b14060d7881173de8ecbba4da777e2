@@ -1,0 +1,8 @@
+Ladybird picks a web font’s decoder from the signature of its data,
+and never from the response’s Content-Type. Gecko does the same: Its
+gfxUserFontEntry::SanitizeOpenTypeData() takes the type from
+gfxFontUtils::DetermineFontDataType(), which reads the data. Blink’s
+DecodeFontWithIft() hands the data to OTS, whose OTSContext::Process()
+tells WOFF, WOFF2, collections and sfnt data apart by their signature.
+And WebKit’s CachedFont calls convertWOFFToSfntIfNecessary(), which
+converts the data only if isWOFF() finds the WOFF signature in it.
