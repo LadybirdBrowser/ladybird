@@ -1746,7 +1746,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // First, any definite minimum size is converted and transferred from the origin to destination axis. This
         // transferred minimum is capped by any definite preferred or maximum size in the destination axis.
         let mut minimum = to_inline_size(definite_block_size(style.min_height()).unwrap_or_default());
-        if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
+        // NB: Under an intrinsic sizing constraint, an intrinsic maximum resolves through the very measurement these limits
+        //     apply to. The measurement's caller applies that maximum after them.
+        let maximum_resolves_through_this_measurement = style.max_width().is_intrinsic_sizing_constraint()
+            && available_space.inline_size.is_intrinsic_sizing_constraint();
+        if !maximum_resolves_through_this_measurement
+            && !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
+        {
             minimum = minimum.min(self.calculate_inner_inline_size(
                 sized,
                 available_space.inline_size,
