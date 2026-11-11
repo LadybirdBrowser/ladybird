@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A frame navigating away from its initial about:blank reuses its window, which takes the new document as its
+    // associated document before that document becomes active. Reloading the frame through that window in between must
+    // not crash.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const s = "scr" + "ipt";
+        // The page loads itself into two frames: frame a reloads frame b as soon as frame b's window shows its new
+        // document. The padding keeps every copy loading meanwhile.
+        const page = `<!DOCTYPE html><${s}>
+            const role = location.search;
+            if (role === "") {
+                document.write('<iframe name="a" src="?a"></iframe><iframe name="b" src="?b"></iframe>');
+            } else if (role === "?a") {
+                const interval = setInterval(() => {
+                    const document = parent.b.document;
+                    if (!document.URL.endsWith("?b"))
+                        return;
+                    clearInterval(interval);
+                    const frameElement = parent.document.querySelector("iframe[name=b]");
+                    const beforeActivation = frameElement.contentDocument !== document;
+                    parent.b.location.reload();
+                    const loaded = setInterval(() => {
+                        const current = parent.b.document;
+                        if (!current.URL.endsWith("?b") || current.readyState !== "complete")
+                            return;
+                        clearInterval(loaded);
+                        top.postMessage({ beforeActivation }, "*");
+                    }, 0);
+                }, 0);
+            }
+        </${s}><!-- ${"x".repeat(2000000)} -->`;
+
+        // Whether a reload lands before activation depends on timing, so the output doesn't say. A run that lands there
+        // is what crashed, so the scenario repeats until one does.
+        let reloadedBeforeActivation = false;
+        for (let attempt = 0; attempt < 5 && !reloadedBeforeActivation; ++attempt) {
+            const url = await server.createEcho("GET", `/location-reload-while-new-document-loads-${crypto.randomUUID()}.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                body: page,
+            });
+            const message = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+            const frame = document.createElement("iframe");
+            frame.src = url;
+            document.body.append(frame);
+            reloadedBeforeActivation = (await message).beforeActivation;
+            frame.remove();
+        }
+        println("frame b finished loading its document after the reload");
+    });
+</script>

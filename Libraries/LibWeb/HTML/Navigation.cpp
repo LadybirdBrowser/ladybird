@@ -1497,7 +1497,11 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     auto& document = window().associated_document();
 
     // 2. Inform the navigation API about aborting navigation in document's node navigable.
-    document.navigable()->inform_the_navigation_api_about_aborting_navigation();
+    // AD-HOC: A window reused from the initial about:blank takes a new document as its associated document before that
+    //         document becomes active, and until then the document has no node navigable, nor any navigation to abort.
+    //         Step 4 then returns false.
+    if (auto navigable = document.navigable())
+        navigable->inform_the_navigation_api_about_aborting_navigation();
 
     // 3. If navigation has entries and events disabled, and apiMethodTracker is not null:
     // NOTE: If navigation has entries and events disabled, then navigate() and reload() calls return promises that
