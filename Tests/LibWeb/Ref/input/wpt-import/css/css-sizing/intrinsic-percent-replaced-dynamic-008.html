@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="This test checks that a dynamic change in the height of an element calculates the intrinsic min/max size correctly when a replaced element is present."/>
+<p>Test passes if there is a filled green square.</p>
+<div style="position: relative; width: 200px; height: 200px;">
+  <div id="target" style="writing-mode: vertical-lr; position: absolute; left: 0; right: 0; background: green;">
+    <canvas width="1" height="1" style="width: 100%;"></canvas>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  document.getElementById('target').style.right = '100px';
+</script>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<meta name="assert" content="Checks that a replaced element, with an aspect ratio, converts a percent height into an intrinsic width." />
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<style>
+#container { position: relative; height: 200px; }
+#abs { position: absolute; top: 0; bottom: 100px; background: green; }
+canvas { height: 100%; }
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id=container>
+  <div id=abs>
+    <canvas width=10 height=10></canvas>
+  </div>
+</div>
