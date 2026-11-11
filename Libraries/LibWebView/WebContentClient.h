@@ -166,6 +166,8 @@ public:
     // the same reason.
     virtual bool may_act_for_storage_area(Web::StorageAPI::StorageAreaId) const override;
 
+    // The tabs with an open page in this process, each listed once.
+    Vector<u64> performance_owners() const;
     Optional<u64> exclusive_performance_owner() const;
 
     void did_lose_process();
