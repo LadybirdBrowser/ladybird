@@ -1154,6 +1154,10 @@ pub(crate) struct GridFormattingContext<'pass> {
     automatic_content_block_size: CssPixels,
     row_alignment_container_size: CssPixels,
     use_row_alignment_container_size: bool,
+    /// The gaps resolve_track_spacing() resolved against the final size of the grid container, before content
+    /// distribution, once it has run for each axis.
+    resolved_column_gutter_size: Option<CssPixels>,
+    resolved_row_gutter_size: Option<CssPixels>,
     // Set once the rows are sized, so that the columns can be resolved again with percentage heights resolved against
     // them.
     use_row_sizes_for_column_percentages: bool,
@@ -1290,6 +1294,12 @@ struct ParentGridData<'pass> {
     row_gaps: Vec<Track<'pass>>,
     column_tracks_are_reversed: bool,
     row_tracks_are_reversed: bool,
+    /// The size of the parent grid's own gutters, which a subgrid with a normal gap has too.
+    column_gutter_size: CssPixels,
+    row_gutter_size: CssPixels,
+    /// The size of the gutters that the grid owning the parent grid's tracks specifies between them.
+    column_track_gutter_size: CssPixels,
+    row_track_gutter_size: CssPixels,
 }
 
 impl<'pass> ParentGridData<'pass> {
@@ -1308,6 +1318,10 @@ impl<'pass> ParentGridData<'pass> {
             row_gaps: parent.row_gaps.clone(),
             column_tracks_are_reversed: parent.tracks_are_reversed(Axis::Column),
             row_tracks_are_reversed: parent.tracks_are_reversed(Axis::Row),
+            column_gutter_size: parent.gutter_size(Axis::Column),
+            row_gutter_size: parent.gutter_size(Axis::Row),
+            column_track_gutter_size: parent.track_gutter_size(Axis::Column),
+            row_track_gutter_size: parent.track_gutter_size(Axis::Row),
         }
     }
 }
@@ -1401,6 +1415,8 @@ impl<'pass> GridFormattingContext<'pass> {
             automatic_content_block_size: CssPixels::default(),
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
+            resolved_column_gutter_size: None,
+            resolved_row_gutter_size: None,
             use_row_sizes_for_column_percentages: false,
             transfer_stretched_block_sizes: false,
             grid_axes_are_transposed: geometry::Frame::of(container_style.writing_mode())
@@ -1455,6 +1471,8 @@ impl<'pass> GridFormattingContext<'pass> {
         self.automatic_content_block_size = CssPixels::default();
         self.row_alignment_container_size = CssPixels::default();
         self.use_row_alignment_container_size = false;
+        self.resolved_column_gutter_size = None;
+        self.resolved_row_gutter_size = None;
         self.use_row_sizes_for_column_percentages = false;
         self.lanes = self.grid_lanes_for_container();
     }
@@ -1661,22 +1679,56 @@ impl<'pass> GridFormattingContext<'pass> {
         self.axis_gap_value(axis).to_px(available.to_px_or_zero())
     }
 
-    fn subgrid_gap_extra_margin(&self, axis: Axis, available: AvailableSize) -> CssPixels {
+    /// The size of this grid's own gutters in the given axis. In a subgridded axis, these differ from the gaps between
+    /// the tracks it shares with its parent grid.
+    fn gutter_size(&self, axis: Axis) -> CssPixels {
+        let available = self
+            .available_space
+            .map_or(AvailableSize::Indefinite, |_| self.axis_available(axis));
         if !self.container_is_subgridded(axis) {
-            return CssPixels::default();
+            // NB: A percentage gap resolves against the grid container's final size, which may only be known once
+            //     its tracks are sized.
+            if let Some(size) = axis.select(self.resolved_column_gutter_size, self.resolved_row_gutter_size) {
+                return size;
+            }
+            return self.resolved_gap(axis, available);
         }
         let gap = self.axis_gap_value(axis);
         if gap.is_normal() {
             // https://drafts.csswg.org/css-grid-2/#subgrid-gaps
-            // A value of normal indicates that the subgrid has the same size gutters
-            // as its parent grid, i.e. the applied difference is zero.
+            // A value of normal indicates that the subgrid has the same size gutters as its parent grid, i.e. the
+            // applied difference is zero.
+            return self.parent_grid().map_or_else(CssPixels::default, |parent| {
+                axis.select(parent.column_gutter_size, parent.row_gutter_size)
+            });
+        }
+        gap.to_px(available.to_px_or_zero())
+    }
+
+    /// The size of the gutters that the grid owning this grid's tracks in the given axis specifies between them, before
+    /// any content distribution.
+    fn track_gutter_size(&self, axis: Axis) -> CssPixels {
+        if self.container_is_subgridded(axis)
+            && let Some(parent) = self.parent_grid()
+        {
+            return axis.select(parent.column_track_gutter_size, parent.row_track_gutter_size);
+        }
+        self.gutter_size(axis)
+    }
+
+    fn subgrid_gap_extra_margin(&self, axis: Axis) -> CssPixels {
+        if !self.container_is_subgridded(axis) {
             return CssPixels::default();
         }
         // https://drafts.csswg.org/css-grid-2/#subgrid-gaps
-        // Half the size of the difference between the subgrid's gutters
-        // (row-gap/column-gap) and its parent grid's gutters is applied as an extra
-        // layer of (potentially negative) margin to the items not at those edges.
-        (gap.to_px(available.to_px_or_zero()) - self.parent_gap_size_for_subgrid(axis)) / 2
+        // Half the size of the difference between the subgrid's gutters (row-gap/column-gap) and its parent grid's
+        // gutters is applied as an extra layer of (potentially negative) margin to the items not at those edges. This
+        // extra layer of "margin" also accumulates through multiple levels of subgrids.
+        //
+        // NB: The lines between the tracks of a subgrid are between the tracks of each of its ancestor subgrids too, so
+        //     the extra margin at them accumulates the differences of each level of subgrids down from the grid that
+        //     owns the tracks. Space from content distribution is not part of the gutters.
+        (self.gutter_size(axis) - self.track_gutter_size(axis)) / 2
     }
 
     fn project_parent_grid_areas(
@@ -3939,7 +3991,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let item = self.items[item_index];
         let style = self.item_style(item);
         let inline_basis = self.containing_block_size(item, Axis::Column);
-        let extra_margin = self.subgrid_gap_extra_margin(axis, self.axis_available(axis));
+        let extra_margin = self.subgrid_gap_extra_margin(axis);
         let item_start = item.position(axis);
         let item_end = item_start + item.span(axis) as i32;
         let track_count = self.axis_tracks(axis).len() as i32;
@@ -4701,6 +4753,10 @@ impl<'pass> GridFormattingContext<'pass> {
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
+        *axis.select(
+            &mut self.resolved_column_gutter_size,
+            &mut self.resolved_row_gutter_size,
+        ) = Some(minimum);
         let collapsed = collapsed_gutters(self.axis_tracks(axis));
         let gap_count = collapsed.iter().filter(|&&collapse| !collapse).count();
         // NB: The distributed space includes the gaps, which take their share or the gap, whichever is larger.

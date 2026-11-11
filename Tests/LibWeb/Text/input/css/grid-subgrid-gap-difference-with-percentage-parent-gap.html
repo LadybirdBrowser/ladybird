@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    .grid { display: grid; height: 200px; width: 100px; grid-template-rows: 50px 50px; row-gap: 10%; align-content: start; }
+    .subgrid { display: grid; grid-row: 1 / 3; grid-template-rows: subgrid; row-gap: 40px; }
+    .subgrid > div { background: green; }
+</style>
+<div class="grid">
+    <div class="subgrid">
+        <div id="a"></div>
+        <div id="b"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["a", "b"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: y=${rect.y} height=${rect.height}`);
+        }
+    });
+</script>
