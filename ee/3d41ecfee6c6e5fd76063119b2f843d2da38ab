@@ -1,0 +1,19 @@
+Ladybird measures fit-content space around the static-position center
+using twice the distance to the nearer containing-block edge. With a
+300px containing block and a center at 220px, that space is 160px for
+the margin box. Blink computes the same available space through its
+ComputeUnclampedIMCBInOneAxis() function.
+
+Gecko retains its hypothetical-position inset calculations through
+ReflowInput::InitAbsoluteConstraints(). WebKit retains that path in
+PositionedLayoutConstraints::computeStaticPosition(). Neither path
+applies this explicit centered-space limit, so Ladybird follows the CSS
+Position center-inset rule and Blink’s behavior for this case.
+
+Ladybird’s StaticPosition guard preserves sizing within a grid area.
+Blink derives the static position from that area in its grid layout
+function, GridLayoutAlgorithm::PlaceOutOfFlowItems(). Gecko selects
+StaticPosIsCBOrigin in AbsoluteContainingBlock::ReflowAbsoluteFrame()
+for a direct child using a grid-area containing block. WebKit’s
+PositionedLayoutConstraints::computeStaticPosition() sets both insets
+to zero for that case, preserving the whole area for sizing.
