@@ -413,32 +413,14 @@ Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_att
 
 GC_DEFINE_ALLOCATOR(Document);
 
-// https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
-// NB: The UI process performed this algorithm and selected this process. It names the group of the new top-level
-//     browsing context when it switched browsing context groups.
-static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
-{
-    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
-    auto& navigable = *navigation_params.navigable;
-    auto browsing_context = navigable.active_browsing_context();
-
-    // NB: Steps 2 to 9 decide whether to switch browsing context groups, and return browsingContext otherwise.
-    if (!navigation_params.new_browsing_context_group_id.has_value())
-        return *browsing_context;
-
-    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
-    auto new_browsing_context = HTML::BrowsingContext::create_a_new_browsing_context_and_document(navigable.page(), nullptr, nullptr).browsing_context;
-    new_browsing_context->set_browsing_context_group_id(*navigation_params.new_browsing_context_group_id);
-
-    // 15. Return newBrowsingContext.
-    return new_browsing_context;
-}
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, Utf16FlyString content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
-    auto browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
+    // AD-HOC: The navigation obtained it when its response arrived. The document is created once navigable's active
+    //         document is unloaded, which destroys that document, and the document's link to its browsing context
+    //         with it.
+    GC::Ref browsing_context = *navigation_params.browsing_context;
 
     // 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's
     //    navigable's container, navigationParams's origin, and navigationParams's response.
@@ -515,7 +497,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_creation_url.value(),
             top_level_origin,
             agent_cluster_id,
-            agent_cluster_cross_origin_isolation_mode);
+            agent_cluster_cross_origin_isolation_mode,
+            navigation_params.environment_id);
     }
 
     // NB: The UI process selects the window's agent even when an initial about:blank Window is reused.
@@ -6280,18 +6263,6 @@ void Document::decrement_number_of_pending_style_sheet_requests(Badge<DocumentLo
     page().client().request_frame_for(*this);
 }
 
-// AD-HOC: A navigation can drop the document it created before activating it. Its parser and fetch go on queueing
-//         tasks for it that can never run, and keep it alive. A document reusing an initial about:blank's window
-//         shares that window with the active document, so it is left alone.
-void Document::destroy_if_dropped_before_activation()
-{
-    if (m_has_been_destroyed || is_active())
-        return;
-    if (m_browsing_context && m_browsing_context->active_window() == window().ptr())
-        return;
-    destroy();
-}
-
 void Document::set_html_parser_end_state(GC::Ptr<HTML::HTMLParserEndState> state)
 {
     m_html_parser_end_state = state;
@@ -6834,9 +6805,9 @@ void Document::destroy()
 
     // AD-HOC: Disentangle the ports of the window's realm, which closes the transports of the channels that document
     //         took part in, so that the ports at their other ends learn that nothing arrives any more. A window that
-    //         was reused for another document keeps its ports. The specification once did this here, as steps of
-    //         destroying a document, and no longer does.
-    if (auto window = this->window(); window && &window->associated_document() == this)
+    //         was reused for another document, or that the document created once this one is unloaded takes over, keeps
+    //         its ports. The specification once did this here, as steps of destroying a document, and no longer does.
+    if (auto window = this->window(); window && &window->associated_document() == this && !m_window_is_taken_over_after_unload)
         HTML::MessagePort::disentangle_ports_of_realm(HTML::relevant_realm(*window));
 
     // 4. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
@@ -7186,7 +7157,9 @@ void Document::ensure_style_engine_tracks_tree()
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
-void Document::unload(GC::Ptr<Document> new_document)
+// AD-HOC: A navigation's document is created once the document it replaces is unloaded. unload_of_replaced_document
+//         then stands in for newDocument, and keeps the unload's times until newDocument exists.
+void Document::unload(GC::Ptr<Document> new_document, Optional<UnloadOfReplacedDocument>* unload_of_replaced_document)
 {
     // FIXME: 1. Assert: this is running as part of a task queued on oldDocument's event loop.
 
@@ -7194,8 +7167,9 @@ void Document::unload(GC::Ptr<Document> new_document)
     Optional<DocumentUnloadTimingInfo> unload_timing_info { DocumentUnloadTimingInfo {} };
 
     // 3. If newDocument is not given, then set unloadTimingInfo to null.
-    if (!new_document)
+    if (!new_document && !unload_of_replaced_document)
         unload_timing_info.clear();
+    HighResolutionTime::DOMHighResTimeStamp unload_event_start_shared_time = 0;
 
     // 4. Otherwise, if newDocument's event loop is not oldDocument's event loop, then the user agent may be unloading
     //    oldDocument in parallel. In that case, the user agent should set unloadTimingInfo to null.
@@ -7241,10 +7215,11 @@ void Document::unload(GC::Ptr<Document> new_document)
     // 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
     //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
     //     object's cross-origin isolated capability.
-    if (unload_timing_info.has_value()) {
-        VERIFY(new_document);
+    if (unload_timing_info.has_value() && new_document) {
         auto current_high_resolution_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*new_document));
         unload_timing_info->unload_event_start_time = HighResolutionTime::coarsen_time(current_high_resolution_time, HTML::relevant_settings_object(*this).cross_origin_isolated_capability());
+    } else if (unload_timing_info.has_value()) {
+        unload_event_start_shared_time = HighResolutionTime::unsafe_shared_current_time();
     }
 
     // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global
@@ -7259,10 +7234,16 @@ void Document::unload(GC::Ptr<Document> new_document)
     // 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
     //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
     //     object's cross-origin isolated capability.
-    if (unload_timing_info.has_value()) {
-        VERIFY(new_document);
+    if (unload_timing_info.has_value() && new_document) {
         auto current_high_resolution_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*new_document));
         unload_timing_info->unload_event_end_time = HighResolutionTime::coarsen_time(current_high_resolution_time, HTML::relevant_settings_object(*this).cross_origin_isolated_capability());
+    } else if (unload_timing_info.has_value()) {
+        *unload_of_replaced_document = UnloadOfReplacedDocument {
+            .origin = origin(),
+            .cross_origin_isolated_capability = HTML::relevant_settings_object(*this).cross_origin_isolated_capability(),
+            .unload_event_start_time = unload_event_start_shared_time,
+            .unload_event_end_time = HighResolutionTime::unsafe_shared_current_time(),
+        };
     }
 
     // 14. Decrease eventLoop's termination nesting level by 1.
@@ -7298,6 +7279,28 @@ void Document::unload(GC::Ptr<Document> new_document)
     }
 
     did_stop_being_active_document_in_navigable();
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
+void Document::take_unload_timing_of_replaced_document(UnloadOfReplacedDocument const& unload)
+{
+    // 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
+    //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
+    //     object's cross-origin isolated capability.
+    // 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
+    //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
+    //     object's cross-origin isolated capability.
+    auto& global = HTML::relevant_global_object(*this);
+    DocumentUnloadTimingInfo unload_timing_info {
+        .unload_event_start_time = HighResolutionTime::coarsen_time(HighResolutionTime::relative_high_resolution_time(unload.unload_event_start_time, global), unload.cross_origin_isolated_capability),
+        .unload_event_end_time = HighResolutionTime::coarsen_time(HighResolutionTime::relative_high_resolution_time(unload.unload_event_end_time, global), unload.cross_origin_isolated_capability),
+    };
+
+    // 22. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's
+    //     origin is the same as oldDocument's origin, then set newDocument's previous document unload timing to
+    //     unloadTimingInfo.
+    if (!m_was_created_via_cross_origin_redirects && origin().is_same_origin(unload.origin))
+        set_previous_document_unload_timing(unload_timing_info);
 }
 
 // https://w3c.github.io/webappsec-permissions-policy/#algo-is-feature-enabled

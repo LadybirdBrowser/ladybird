@@ -86,6 +86,13 @@ struct NavigationParams : GC::Cell {
     //         browsing context group switch gave it one.
     Optional<u64> new_browsing_context_group_id;
 
+    // AD-HOC: The browsing context obtained for the new Document when the response arrived.
+    GC::Ptr<BrowsingContext> browsing_context;
+
+    // AD-HOC: The id of the new Window's environment when there is no reserved environment. The UI process learns it
+    //         before the Document is created.
+    Optional<EnvironmentId> environment_id;
+
     // AD-HOC: The permissions policy the UI process created for the new Document.
     Optional<PermissionsPolicy::PermissionsPolicy> permissions_policy;
 

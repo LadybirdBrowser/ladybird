@@ -665,19 +665,19 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHi
 
     // Step from populate_session_history_entry_document()
     // 7. If entry's document state's document is not null, then:
-    if (document) {
-        entry->document_state()->set_document_id(document->unique_id());
-
+    // AD-HOC: The document is created once the document it replaces is unloaded, which records it in entry's document
+    //         state. What these steps read of it is read from what it is created from.
+    if (document_to_create) {
         // 1. Set entry's document state's ever populated to true.
         entry->document_state()->set_ever_populated(true);
 
         // 2. If saveExtraDocumentState is true:
         if (save_extra_document_state) {
             // 1. Set entry's document state's origin to document's origin.
-            entry->document_state()->set_origin(document->origin());
+            entry->document_state()->set_origin(document_to_create->origin());
 
             // 2. If document's URL requires storing the policy container in history, then:
-            if (url_requires_storing_the_policy_container_in_history(document->url())) {
+            if (url_requires_storing_the_policy_container_in_history(document_to_create->url())) {
                 // 1. Assert: navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params).
                 VERIFY(navigation_params.has<GC::Ref<NavigationParams>>());
 
@@ -703,7 +703,7 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHi
 void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(document);
+    visitor.visit(document_to_create);
     visitor.visit(navigation_params);
 }
 
@@ -1034,8 +1034,8 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         GC::create_function(navigable->heap(), GC::captures(navigable, history_entry, request.history_handling, request.navigation_id, request.user_involvement), [](auto& navigable, auto& history_entry, auto& history_handling, auto& navigation_id, auto& user_involvement, GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
             // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
             if (navigable->ongoing_navigation() != navigation_id) {
-                if (output && output->document)
-                    output->document->destroy_if_dropped_before_activation();
+                if (output && output->document_to_create)
+                    output->document_to_create->discard();
                 navigable->stop_delaying_load_events_for_navigation(navigation_id);
                 navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
                 return;
@@ -1051,7 +1051,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
 
             if (output)
                 output->apply_to(*history_entry);
-            auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
+            auto pending_document = output ? output->document_to_create : GC::Ptr<DocumentToCreate> {};
 
             // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
             //         No history step will be applied for this navigation, so nothing else clears it, and WebDriver
@@ -2151,7 +2151,7 @@ static void hand_off_to_external_software(URL::URL const& resource, GC::Ref<Loca
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-create-a-non-fetch-scheme-document
-static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonFetchSchemeNavigationParams const& params)
+static GC::Ptr<DocumentToCreate> attempt_to_create_a_non_fetch_scheme_document(NonFetchSchemeNavigationParams const& params)
 {
     // 1. Let url be navigationParams's URL.
     auto const& url = params.url;
@@ -3067,24 +3067,137 @@ void LocalNavigable::populate_session_history_entry_document(NavigationPopulatio
         received_navigation_params);
 }
 
+GC_DEFINE_ALLOCATOR(DocumentToCreate);
+
+DocumentToCreate::DocumentToCreate(GC::Ref<NavigationParams> navigation_params, GC::Ref<LoadSteps> load_steps, Optional<URL::Origin> origin)
+    : m_navigation_params(navigation_params)
+    , m_load_steps(load_steps)
+    , m_origin(move(origin))
+    , m_environment_id(navigation_params->reserved_environment ? navigation_params->reserved_environment->id : *navigation_params->environment_id)
+{
+}
+
+void DocumentToCreate::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_navigation_params);
+    visitor.visit(m_load_steps);
+}
+
+URL::Origin DocumentToCreate::origin() const
+{
+    return m_origin.value_or(m_navigation_params->origin);
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+URL::URL DocumentToCreate::url() const
+{
+    // 3. Let creationURL be navigationParams's response's URL.
+    // 4. If navigationParams's request is non-null, then set creationURL to navigationParams's request's
+    //    current URL.
+    return m_navigation_params->request ? m_navigation_params->request->current_url() : m_navigation_params->response->url().value();
+}
+
+CrossProcessId DocumentToCreate::id() const
+{
+    return *m_navigation_params->document_id;
+}
+
+// AD-HOC: The UI process learns the id before the document is created. A window reused from the initial about:blank
+//         keeps its environment settings object.
+EnvironmentId const& DocumentToCreate::environment_id() const
+{
+    if (auto const* document = m_navigation_params->browsing_context->active_document(); document && takes_over_window_of(*document))
+        return document->relevant_settings_object().id;
+    return m_environment_id;
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+bool DocumentToCreate::takes_over_window_of(DOM::Document const& document) const
+{
+    if (m_navigation_params->browsing_context != document.browsing_context())
+        return false;
+
+    // 6. If browsingContext's active document's is initial about:blank is true, and browsingContext's active document's
+    //    origin is same origin-domain with navigationParams's origin, then set window to browsingContext's active window.
+    return document.is_initial_about_blank() && document.origin().is_same_origin_domain(m_navigation_params->origin);
+}
+
+GC::Ref<DOM::Document> DocumentToCreate::create_document()
+{
+    auto document = m_load_steps->function()(*m_navigation_params);
+    if (m_origin.has_value())
+        document->set_origin(*m_origin);
+    m_navigation_params->response->resume_body_delivery();
+    m_navigation_params = nullptr;
+    m_load_steps = nullptr;
+    return document;
+}
+
+// A navigation whose document was never created releases the response body held for it.
+void DocumentToCreate::discard()
+{
+    if (m_navigation_params)
+        stop_response_body_delivery(*m_navigation_params);
+    m_navigation_params = nullptr;
+    m_load_steps = nullptr;
+}
+
 // NB: A document created in place of the response, or the PDF viewer, has an origin other than its navigation params'.
 //     The process reports which of the two it created, and the UI process takes up that origin for the document it
 //     holds.
 static void report_a_document_with_an_origin_of_its_own(LocalNavigable& navigable, PopulateSessionHistoryEntryDocumentOutput const& output)
 {
     auto const* navigation_params = output.navigation_params.get_pointer<GC::Ref<NavigationParams>>();
-    if (!output.document || !navigation_params || output.document->origin().is_same_origin((*navigation_params)->origin))
+    if (!output.document_to_create || !navigation_params || output.document_to_create->origin().is_same_origin((*navigation_params)->origin))
         return;
-    auto origin = output.inline_content_origin.has_value() && output.document->origin().is_same_origin(*output.inline_content_origin)
+    auto origin = output.inline_content_origin.has_value() && output.document_to_create->origin().is_same_origin(*output.inline_content_origin)
         ? PopulatedDocumentOrigin::InlineContent
         : PopulatedDocumentOrigin::PdfViewer;
-    navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), output.document->id(), origin, output.document->relevant_settings_object().id);
+    navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), output.document_to_create->id(), origin, output.document_to_create->environment_id());
 }
 
-static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& navigable, Optional<Utf16String> const& navigation_id, Bindings::NavigationTimingType navigation_timing_type, UserNavigationInvolvement user_involvement, URL::Origin const& origin, Optional<CrossProcessId> document_id, URL::URL const& url, Utf16String const& error_message)
+// https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
+// NB: The UI process performed this algorithm and selected this process. It names the group of the new top-level
+//     browsing context when it switched browsing context groups.
+static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
+{
+    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
+    auto& navigable = *navigation_params.navigable;
+    auto browsing_context = navigable.active_browsing_context();
+
+    // NB: Steps 2 to 9 decide whether to switch browsing context groups, and return browsingContext otherwise.
+    if (!navigation_params.new_browsing_context_group_id.has_value())
+        return *browsing_context;
+
+    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
+    auto new_browsing_context = HTML::BrowsingContext::create_a_new_browsing_context_and_document(navigable.page(), nullptr, nullptr).browsing_context;
+    new_browsing_context->set_browsing_context_group_id(*navigation_params.new_browsing_context_group_id);
+
+    // 15. Return newBrowsingContext.
+    return new_browsing_context;
+}
+
+GC::Ref<DocumentToCreate> DocumentToCreate::create(GC::Ref<NavigationParams> navigation_params, GC::Ref<LoadSteps> load_steps, Optional<URL::Origin> origin)
+{
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
+    // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given
+    //    navigationParams.
+    // AD-HOC: Obtained now, as navigable's active document is unloaded before the document is created.
+    navigation_params->browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(*navigation_params);
+
+    // AD-HOC: The UI process learns the id of the new Window's environment before the document is created.
+    if (!navigation_params->reserved_environment && !navigation_params->environment_id.has_value())
+        navigation_params->environment_id = EnvironmentId::generate();
+    if (!navigation_params->document_id.has_value())
+        navigation_params->document_id = navigation_params->navigable->page().client().allocate_cross_process_id();
+    return GC::Heap::the().allocate<DocumentToCreate>(navigation_params, load_steps, move(origin));
+}
+
+static GC::Ref<DOM::Document> create_navigation_error_document(NavigationParams const& navigation_params, URL::URL const& url, Utf16String const& error_message)
 {
     auto error_html = load_error_page(url, error_message.to_utf8()).release_value_but_fixme_should_propagate_errors();
-    return create_document_for_inline_content(&navigable, navigation_id, navigation_timing_type, user_involvement, origin, document_id, [error_html](auto& document) {
+    auto document = create_document_for_inline_content(navigation_params, [&error_html](auto& document) {
         auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
         auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
         document.set_url(URL::about_error());
@@ -3098,6 +3211,20 @@ static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& n
             HTMLParser::the_end(document, parser);
         }));
     });
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+    // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
+    // AD-HOC: Run once the document is created, for this step and for the HTTP error page alike.
+    document->make_unsalvageable("navigation-failure"_utf16);
+    return document;
+}
+
+static GC::Ref<DocumentToCreate> navigation_error_document(LocalNavigable& navigable, Optional<Utf16String> const& navigation_id, Bindings::NavigationTimingType navigation_timing_type, UserNavigationInvolvement user_involvement, URL::Origin const& origin, Optional<CrossProcessId> document_id, URL::URL const& url, Utf16String const& error_message)
+{
+    auto navigation_params = create_navigation_params_for_inline_content(&navigable, navigation_id, navigation_timing_type, user_involvement, origin, document_id);
+    return DocumentToCreate::create(navigation_params, GC::create_function(GC::Heap::the(), GC::captures(url, error_message), [](auto& url, auto& error_message, NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+        return create_navigation_error_document(navigation_params, url, error_message);
+    }));
 }
 
 static void load_document_or_handle_download(GC::Ref<NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, URL::URL const& url, bool source_allows_downloading, Optional<URL::Origin> source_interface_origin, PopulateSessionHistoryEntryDocumentOutput& output)
@@ -3113,7 +3240,7 @@ static void load_document_or_handle_download(GC::Ref<NavigationParams> navigatio
 
         auto error_message = Utf16String::formatted("HTTP error: {} {}", navigation_params->response->status(), navigation_params->response->status_message());
 
-        output.document = create_navigation_error_document(
+        output.document_to_create = navigation_error_document(
             *navigation_params->navigable,
             navigation_params->id,
             navigation_params->navigation_timing_type,
@@ -3123,18 +3250,14 @@ static void load_document_or_handle_download(GC::Ref<NavigationParams> navigatio
             output.redirected_url.value_or(url),
             error_message);
 
-        output.document->make_unsalvageable("navigation-failure"_utf16);
-
         return;
     }
 
-    output.document = load_document(navigation_params, sniff_bytes);
+    output.document_to_create = load_document(navigation_params, sniff_bytes);
 
-    if (!output.document) {
+    if (!output.document_to_create) {
         output.download_handled = handle_navigation_response_as_download(navigation_params, source_allows_downloading, source_interface_origin);
         output.save_extra_document_state = false;
-    } else {
-        navigation_params->response->resume_body_delivery();
     }
 }
 
@@ -3178,11 +3301,11 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             //    document given navigationParams.
             //    NOTE: This can result in setting entry's document state's document to null, e.g., when handing-off to
             //    external software.
-            output->document = attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>());
+            output->document_to_create = attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>());
 
             // INTEROP: A navigation that loads no document is reported as failed to WebDriver BiDi, which is what other
             //          implementations do, so that the navigation's waiters learn it ended.
-            if (!output->document && WebDriver::BiDi::is_active())
+            if (!output->document_to_create && WebDriver::BiDi::is_active())
                 WebDriver::BiDi::navigation_event(self, "browsingContext.navigationFailed"sv, navigation_id, url);
 
             // 2. Set saveExtraDocumentState to false.
@@ -3213,11 +3336,10 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             // AD-HOC: Name the URL that actually failed to load: The last URL the navigation was redirected to, if
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
-            output->document = create_navigation_error_document(self, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), output->document_id, error_url, error_message);
+            output->document_to_create = navigation_error_document(self, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), output->document_id, error_url, error_message);
 
             // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
-            if (output->document)
-                output->document->make_unsalvageable("navigation-failure"_utf16);
+            // AD-HOC: That happens when the document is created.
 
             // 3. Set saveExtraDocumentState to false.
             output->save_extra_document_state = false;
@@ -3271,10 +3393,8 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                     // AD-HOC: The document may have been destroyed between when the fetch started and when the
                     //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
                     //         off its partial bytes either.
-                    // AD-HOC: A navigation that a newer one superseded during the wait makes no document either:
-                    //         the document would take over the Window of an initial about:blank, whose tasks then
-                    //         wait for a document that never becomes active, among them those of the newer
-                    //         navigation.
+                    // AD-HOC: A navigation that a newer one superseded during the wait does not act on its
+                    //         response either, which would otherwise start a download the user replaced.
                     auto is_superseded = navigation_id.has_value() && nav_params->navigable->ongoing_navigation() != navigation_id && !is_reload_traversal;
                     if (!is_superseded && nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
                         load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
@@ -4082,7 +4202,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
-GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, Utf16String navigation_id)
+GC::Ptr<DocumentToCreate> LocalNavigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, UserNavigationInvolvement user_involvement, Utf16String navigation_id)
 {
     auto& vm = this->vm();
     VERIFY(active_window());
@@ -4312,7 +4432,8 @@ void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastru
     // NB: Not one of the spec's document state fields. The entry keeps its URL, so it keeps what its fetch recorded.
     document_state->set_user_agent_initiated(old_doc_state->user_agent_initiated());
     document_state->set_navigation_same_site_status(old_doc_state->navigation_same_site_status());
-    document_state->set_document_id(new_document->unique_id());
+    // AD-HOC: newDocument is created once the active document is unloaded, and sets documentState's document when it
+    //         is made active.
 
     // 12. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
@@ -4449,12 +4570,12 @@ void LocalTraversableNavigable::request_close_preflight(GC::Ref<GC::Function<voi
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 // NB: The UI process appends the steps finalizing the navigation, and runs them, once this process reports that
 //     populating historyEntry's document is over.
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Utf16String navigation_id)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DocumentToCreate> pending_document, Utf16String navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
         if (pending_document)
-            pending_document->destroy_if_dropped_before_activation();
+            pending_document->discard();
         navigable->set_delaying_load_events(false);
         navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
         return;
@@ -4473,7 +4594,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .navigation_id = navigation_id,
             .history_handling = history_handling,
             .user_involvement = user_involvement,
-            .environment_id = pending_document ? Optional<Web::HTML::EnvironmentId> { pending_document->relevant_settings_object().id } : Optional<Web::HTML::EnvironmentId> {},
+            .environment_id = pending_document ? Optional<Web::HTML::EnvironmentId> { pending_document->environment_id() } : Optional<Web::HTML::EnvironmentId> {},
             .document_id = pending_document ? Optional<CrossProcessId> { pending_document->id() } : Optional<CrossProcessId> {},
         },
         {
