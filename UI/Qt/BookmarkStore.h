@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
@@ -18,6 +19,7 @@
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Forward.h>
 
 namespace Ladybird {
 
@@ -65,7 +67,7 @@ class BookmarkStore : public Weakable<BookmarkStore> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static BookmarkStore create(ByteString bookmarks_path);
+    static BookmarkStore create(ByteString bookmarks_path, WebView::FaviconStore&);
 
     Vector<BookmarkItem> const& root_items() const { return m_items; }
 
@@ -86,6 +88,7 @@ public:
     void remove_item(StringView id);
 
     void update_favicon(URL::URL const& url, String favicon_hash);
+    Optional<ByteBuffer> favicon_png(String const& favicon_hash) const;
 
     using FaviconReader = Function<Optional<ByteBuffer>(String const& favicon_hash)>;
     JsonValue serialize_items(FaviconReader const& read_favicon = {}) const;
@@ -95,10 +98,13 @@ public:
     void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
 
 private:
-    explicit BookmarkStore(ByteString bookmarks_path);
+    BookmarkStore(ByteString bookmarks_path, WebView::FaviconStore&);
 
     Optional<BookmarkItem&> find_mutable_item_by_id(StringView id);
     Optional<Vector<BookmarkItem>&> find_containing_item_list(StringView id);
+
+    void read_missing_favicons();
+    bool cache_favicon(String const& favicon_hash);
 
     JsonValue serialize_store() const;
     void persist_bookmarks();
@@ -106,6 +112,10 @@ private:
 
     ByteString m_bookmarks_path;
     Vector<BookmarkItem> m_items;
+
+    WebView::FaviconStore& m_favicon_store;
+    HashMap<String, ByteBuffer> m_favicons;
+
     Vector<BookmarkStoreObserver&> m_observers;
 };
 
