@@ -18,12 +18,13 @@ namespace Web {
 enum class XMLScriptingSupport;
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding, XMLScriptingSupport);
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, ReadonlyBytes sniff_bytes);
+GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes);
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
-template<typename MutateDocument>
-GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, Bindings::NavigationTimingType navigation_timing_type, HTML::UserNavigationInvolvement user_involvement, URL::Origin origin, Optional<HTML::CrossProcessId> document_id, MutateDocument mutate_document)
+// AD-HOC: Steps 1 to 4 run when the navigation's response arrives. Steps 5 to 8 run in
+//         create_document_for_inline_content() once navigable's active document is unloaded.
+inline GC::Ref<HTML::NavigationParams> create_navigation_params_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, Bindings::NavigationTimingType navigation_timing_type, HTML::UserNavigationInvolvement user_involvement, URL::Origin origin, Optional<HTML::CrossProcessId> document_id)
 {
     VERIFY(navigable->active_document());
 
@@ -81,7 +82,14 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         OptionalNone {},
         user_involvement);
     navigation_params->document_id = document_id;
+    return navigation_params;
+}
 
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
+// AD-HOC: Steps 5 to 8, given the navigationParams create_navigation_params_for_inline_content() made.
+template<typename MutateDocument>
+GC::Ref<DOM::Document> create_document_for_inline_content(HTML::NavigationParams const& navigation_params, MutateDocument mutate_document)
+{
     // 5. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
     auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_utf16_fly_string, navigation_params).release_value_but_fixme_should_propagate_errors();
 

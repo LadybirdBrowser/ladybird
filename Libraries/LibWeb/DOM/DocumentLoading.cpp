@@ -486,7 +486,6 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     static NeverDestroyed<ByteBuffer> viewer_bytes { MUST(Core::Resource::load_from_uri("resource://ladybird/pdfjs/web/viewer.html"sv))->clone_data() };
 
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_utf16_fly_string, navigation_params));
-    document->set_origin(URL::Origin("resource"_string, String {}, {}));
 
     add_pdf_viewer_ready_listener(document, GC::Ref(*navigation_params.response));
 
@@ -529,20 +528,22 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#loading-a-document
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, ReadonlyBytes sniff_bytes)
+// AD-HOC: This returns the document to create in place of the Document, which is created once navigationParams's
+//         navigable's active document is unloaded.
+GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes)
 {
     // To load a document given navigation params navigationParams, source snapshot params sourceSnapshotParams,
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
 
     // 1. Let type be the computed type of navigationParams's response.
-    auto supplied_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
+    auto supplied_type = Fetch::Infrastructure::extract_mime_type(navigation_params->response->header_list());
     auto type = MimeSniff::Resource::sniff(
         sniff_bytes,
         MimeSniff::SniffingConfiguration {
             .sniffing_context = MimeSniff::SniffingContext::Browsing,
             .supplied_type = move(supplied_type) });
 
-    VERIFY(navigation_params.response->body());
+    VERIFY(navigation_params->response->body());
 
     // 2. If the user agent has been configured to process resources of the given type using some mechanism other than
     //    rendering the content in a navigable, then skip this step.
@@ -551,14 +552,18 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     // -> an HTML MIME type
     if (type.is_html()) {
         // Return the result of loading an HTML document, given navigationParams.
-        return load_html_document(navigation_params).release_value_but_fixme_should_propagate_errors();
+        return HTML::DocumentToCreate::create(navigation_params, GC::create_function(GC::Heap::the(), [](HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+            return load_html_document(navigation_params).release_value_but_fixme_should_propagate_errors();
+        }));
     }
 
     // -> an XML MIME type that is not an explicitly supported XML MIME type
     //    FIXME: that is not an explicitly supported XML MIME type
     if (type.is_xml()) {
         // Return the result of loading an XML document given navigationParams and type.
-        return load_xml_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return HTML::DocumentToCreate::create(navigation_params, GC::create_function(GC::Heap::the(), GC::captures(type), [](auto& type, HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+            return load_xml_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        }));
     }
 
     // -> a JavaScript MIME type
@@ -572,7 +577,9 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
         || type.essence() == "text/plain"_string
         || type.essence() == "text/vtt"_string) {
         // Return the result of loading a text document given navigationParams and type.
-        return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return HTML::DocumentToCreate::create(navigation_params, GC::create_function(GC::Heap::the(), GC::captures(type), [](auto& type, HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+            return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        }));
     }
 
     // -> "multipart/x-mixed-replace"
@@ -585,14 +592,21 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     if (type.is_image()
         || type.is_audio_or_video()) {
         // Return the result of loading a media document given navigationParams and type.
-        return load_media_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        return HTML::DocumentToCreate::create(navigation_params, GC::create_function(GC::Heap::the(), GC::captures(type), [](auto& type, HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+            return load_media_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+        }));
     }
 
     // -> "application/pdf"
     // -> "text/pdf"
     if (type.essence() == "application/pdf"_string
         || type.essence() == "text/pdf"_string) {
-        return load_pdf_document(navigation_params);
+        // AD-HOC: The PDF viewer runs with an origin of its own.
+        return HTML::DocumentToCreate::create(
+            navigation_params, GC::create_function(GC::Heap::the(), [](HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
+                return load_pdf_document(navigation_params);
+            }),
+            URL::Origin("resource"_string, String {}, {}));
     }
 
     // Otherwise, proceed onward.

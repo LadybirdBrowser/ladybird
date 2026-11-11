@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A beacon the initial about:blank sends as it unloads follows its redirect to the end, even though its Window goes
+    // on with the document that takes it over.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `reused-window-unload-beacon-${crypto.randomUUID()}`;
+        const destinationURL = await server.createEcho("POST", `/${token}/destination`, {
+            status: 200,
+            body: "",
+        });
+        const beaconURL = await server.createEcho("POST", `/${token}/beacon`, {
+            status: 307,
+            headers: { Location: destinationURL },
+            body: "",
+            wait_for_unblock: token,
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../../Assets/blank.html";
+        document.body.append(iframe);
+        const initialDocument = iframe.contentDocument;
+        const frameWindow = iframe.contentWindow;
+        frameWindow.marker = true;
+
+        let beaconQueued = false;
+        frameWindow.addEventListener("unload", () => {
+            beaconQueued = frameWindow.navigator.sendBeacon(beaconURL, "unload");
+        });
+
+        await new Promise(resolve => {
+            const { port1, port2 } = new MessageChannel();
+            port1.onmessage = () => {
+                if (iframe.contentDocument !== initialDocument && iframe.contentDocument.readyState === "complete")
+                    return resolve();
+                port2.postMessage(0);
+            };
+            port2.postMessage(0);
+        });
+
+        await server.waitForRequest(beaconURL);
+        await fetch(new URL(`/unblock/${token}`, server.baseURL));
+        await server.waitForRequest(destinationURL);
+
+        println(`Window reused: ${frameWindow.marker === true}`);
+        println(`Beacon queued: ${beaconQueued}`);
+        println("Beacon followed its redirect");
+        done();
+    });
+</script>
