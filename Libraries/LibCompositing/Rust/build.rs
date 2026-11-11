@@ -407,6 +407,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",
         "FfiDisplayListReplayCallbacks",
+        "RecordSpan",
+        "FfiReplaySelection",
         "FfiDisplayList",
         "FfiEasingDescriptor",
         "FfiEasingKind",

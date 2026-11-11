@@ -34,6 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             "FfiDisplayListReplayCallbacks",
             "Compositing::RustFFI::FfiDisplayListReplayCallbacks",
         ),
+        ("FfiReplaySelection", "Compositing::RustFFI::FfiReplaySelection"),
+        ("RecordSpan", "Compositing::RustFFI::RecordSpan"),
         ("CanvasId", "Compositing::CanvasId"),
         ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
         ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),

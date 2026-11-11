@@ -30,6 +30,17 @@ struct PresentedScrollbar {
 };
 
 using ScrollbarOfFrame = RustFFI::ScrollbarOfFrame;
+using ReplaySelection = Compositing::RustFFI::FfiReplaySelection;
+
+constexpr ReplaySelection replaying_everything()
+{
+    return { nullptr, 0, false, false };
+}
+
+inline ReplaySelection replaying_only(ReadonlySpan<Compositing::RustFFI::RecordSpan> record_spans, bool skip_root_isolation_layer = false)
+{
+    return { record_spans.data(), record_spans.size(), true, skip_root_isolation_layer };
+}
 
 // A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
 inline Gfx::IntRect thumb_rect_kept_inside_track(Gfx::IntRect thumb_rect, Gfx::IntRect const& track_rect, bool vertical)
@@ -87,7 +98,7 @@ public:
     ReadonlySpan<ScrollbarOfFrame> scrollbars() const;
 
     // Replays the list through a player's callbacks as the frame shows it.
-    void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&, ReplaySelection const& = replaying_everything()) const;
     // Replays a stream of records that a command of the list being replayed nests.
     void replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
 

@@ -70,11 +70,13 @@ void DisplayListPlayerSkia::execute(
     FrameInputs const* frame_inputs,
     RefPtr<Gfx::PaintingSurface> surface,
     OwnedCanvasSurfaces const* canvas_surfaces,
-    CompositedContextResolver const* composited_context_resolver)
+    CompositedContextResolver const* composited_context_resolver,
+    ReplaySelection const& selection)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
     TemporaryChange scrollbars_of_frame_change { m_scrollbars_of_frame, frame_inputs ? frame_inputs->scrollbars() : ReadonlySpan<ScrollbarOfFrame> {} };
-    raster_cache.drop_clip_paths_not_used_since_last_frame();
+    if (!selection.replays_only_record_spans)
+        raster_cache.drop_clip_paths_not_used_since_last_frame();
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     DisplayListPlayer::execute(
         display_list,
@@ -82,7 +84,8 @@ void DisplayListPlayerSkia::execute(
         resource_storage,
         frame_inputs,
         move(surface),
-        canvas_surfaces);
+        canvas_surfaces,
+        selection);
 }
 
 static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)
