@@ -67,6 +67,7 @@ case "${ID}" in
             libdrm-dev \
             libegl1-mesa-dev \
             libgl1-mesa-dev \
+            libncurses-dev \
             libpulse-dev \
             libstdc++-"${GCC_VERSION}"-dev \
             libtool \
