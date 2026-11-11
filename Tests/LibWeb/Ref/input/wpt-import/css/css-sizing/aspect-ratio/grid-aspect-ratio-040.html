@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+  .grid {
+    display: grid;
+    width: 100px;
+  }
+
+  .item {
+    all: unset;
+    aspect-ratio: 1 / 1;
+    background-color: green;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<p id="text">Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div class="grid">
+   <div id="item" class="item"></div>
+</div>
+
+<script>
+item.style.padding = "10px";
+document.body.offsetTop;
+item.style.padding = "0px";
+</script>

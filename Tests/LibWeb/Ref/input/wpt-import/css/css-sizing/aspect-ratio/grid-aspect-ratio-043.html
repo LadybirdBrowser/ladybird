@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-grid-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/grid-aspect-ratio-043-ref.html">
+<meta name="assert" content="A grid item with aspect-ratio and a percentage height in an auto row gets narrower when the grid gets narrower.">
+<p>Test passes if there is a filled green square that is 100px wide and 100px tall.</p>
+<div id="grid" style="display: grid; width: 200px;">
+  <div style="aspect-ratio: 1 / 1; height: 100%; background: green;"></div>
+</div>
+<script>
+document.body.offsetHeight;
+document.getElementById("grid").style.width = "100px";
+</script>

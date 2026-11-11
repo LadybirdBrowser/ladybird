@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: A stretch alignment in both axes (*not* normal alignment) causes the aspect-ratio to be ignored.</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#grid-item-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: grid; grid-template: 100px / 100px;">
+  <div style="aspect-ratio: 1/2; align-self: stretch; justify-self: stretch; background: green;"></div>
+</div>

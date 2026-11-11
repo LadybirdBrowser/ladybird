@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: grid track size should respect aspect-ratio when the
+  ratio-dependent axis is the inline axis and the width of the container is
+  min-content</title>
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-track-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+<div style="display: grid; width: min-content; grid-auto-flow: column; height: 100px; background: green;">
+  <div style="height: 100px; aspect-ratio: 1/2;"></div>
+  <div style="height: 100px; aspect-ratio: 1/1; max-width: 25px;"></div>
+  <div style="height: 100px; aspect-ratio: .1/1; min-width: 25px;"></div>
+</div>
