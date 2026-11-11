@@ -9294,30 +9294,35 @@ fn snap_animated_border_width(
 /// values the batch carries. Later samples can reuse that preparation from the animated overlay.
 /// Answers the final value of each custom property the effects animate, by the number it animates
 /// under, in that order.
-pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32, RetainedStyleValueData)> {
+pub(crate) fn evaluate_animations(mut batch: ComputedAnimationBatch<'_>) -> Vec<(u32, RetainedStyleValueData)> {
+    let preparation = prepare_animations(&mut batch);
+    evaluate_prepared_animations(&preparation, &mut batch)
+}
+
+/// Complete or reuse the animation plan and prepare its keyframe values for evaluation.
+pub(crate) fn prepare_animations(batch: &mut ComputedAnimationBatch<'_>) -> Arc<PreparedAnimationBatch> {
     let ComputedAnimationBatch {
         context: sample_context,
-        device_pixels_per_css_pixel,
         sampled_effects: sampled,
         custom_property_environments,
         cache_preparation,
         preparation_reads_custom_property_environments,
         preparation_inputs,
-        underlying_longhands,
         overlay,
-        custom_underlying_values,
-        custom_initial_values,
+        ..
     } = batch;
     let preparation = overlay
         .animation_preparation
         .as_ref()
-        .filter(|preparation| preparation.key.matches(sampled, custom_property_environments))
+        .filter(|preparation| preparation.key.matches(sampled, *custom_property_environments))
         .cloned()
         .unwrap_or_else(|| {
             let AnimationPreparationInputs {
                 resolved,
                 computed_keyframe_values,
-            } = preparation_inputs.expect("a sample without a matching preparation carries its inputs");
+            } = preparation_inputs
+                .take()
+                .expect("a sample without a matching preparation carries its inputs");
             assert_eq!(computed_keyframe_values.len(), resolved.properties.len());
             let keyframes_by_value = resolved
                 .value_plans
@@ -9337,7 +9342,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
                 key: AnimationPreparationKey {
                     effects: sampled.iter().map(|sampled| sampled.effect).collect(),
                     custom_property_environments: preparation_reads_custom_property_environments
-                        .then_some(custom_property_environments),
+                        .then_some(*custom_property_environments),
                 },
                 resolved: *resolved,
                 keyframes_by_value,
@@ -9353,11 +9358,28 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
                 },
             })
         });
-    if cache_preparation {
+    if *cache_preparation {
         overlay.animation_preparation = Some(preparation.clone());
     } else {
         overlay.animation_preparation = None;
     }
+    preparation
+}
+
+pub(crate) fn evaluate_prepared_animations(
+    preparation: &PreparedAnimationBatch,
+    batch: &mut ComputedAnimationBatch<'_>,
+) -> Vec<(u32, RetainedStyleValueData)> {
+    let ComputedAnimationBatch {
+        context: sample_context,
+        device_pixels_per_css_pixel,
+        sampled_effects: sampled,
+        underlying_longhands,
+        overlay,
+        custom_underlying_values,
+        custom_initial_values,
+        ..
+    } = batch;
     let resolved = &preparation.resolved;
     let context = FfiAnimationContext {
         current_color: sample_context.current_color,
@@ -9420,7 +9442,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
         }
         if let Some(value) = result.value {
             previous_values.push((input.property_id, input.custom_name_id, value.clone()));
-            let value = snap_animated_border_width(input.property_id, value, device_pixels_per_css_pixel);
+            let value = snap_animated_border_width(input.property_id, value, *device_pixels_per_css_pixel);
             overlay.set_owned(input.property_id, value, false, input.result_of_transition);
         } else {
             let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword {
