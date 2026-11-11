@@ -105,6 +105,8 @@ public:
         return m_selection.map([](auto const& selection) { return selection.index; });
     }
 
+    // Whether the selected suggestion was chosen by the user, rather than selected automatically.
+    bool selection_is_explicit() const;
     // Whether the text on display is inline completed to a suggestion.
     bool is_inline_completed() const { return m_provenance == TextProvenance::InlineCompleted; }
     // Whether the suggestions for the text as it now stands have yet to arrive.
@@ -173,7 +175,6 @@ private:
     void abandon_popup_session();
     void set_selection(Optional<Selection>);
     void commit(String text, OmniboxDestinationKind);
-    bool selection_is_explicit() const;
     bool completion_is_suppressed() const;
 
     NonnullOwnPtr<OmniboxSuggestionProvider> m_provider;

@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebView/Omnibox.h>
+#include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/WebUI.h>
 
 namespace {
@@ -93,13 +94,17 @@ public:
     void deliver(Vector<AutocompleteSuggestion> suggestions)
     {
         VERIFY(!query_ids.is_empty());
-        on_suggestions(query_ids.last(), move(suggestions));
+        deliver(query_ids.last(), move(suggestions));
     }
 
     void deliver(WebView::AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions)
     {
         on_suggestions(query_id, move(suggestions));
+        if (after_delivery)
+            after_delivery();
     }
+
+    Function<void()> after_delivery;
 
     Vector<String> queries;
     Vector<WebView::AutocompleteQueryID> query_ids;
@@ -133,6 +138,92 @@ struct Harness {
         omnibox.on_selection_change = [this] {
             visible_selection = omnibox.selected_suggestion();
         };
+        provider->after_delivery = [this] { check_invariants(); };
+    }
+
+    ~Harness()
+    {
+        check_invariants();
+    }
+
+    // What the user sees must agree with what Return does. These hold after every event, in every test.
+    void check_invariants()
+    {
+        auto fail = [&](StringView invariant) {
+            FAIL(MUST(String::formatted("Omnibox invariant broken: {} (query '{}', display '{}', popup {}, pending {}, selection {}, rows [{}])",
+                invariant, omnibox.query(), display_text, omnibox.is_popup_visible(), omnibox.has_pending_suggestions(),
+                omnibox.selected_suggestion(), describe_rows())));
+        };
+
+        // The chrome is told about every change it has to draw.
+        if (visible_popup != omnibox.is_popup_visible())
+            fail("the chrome shows the popup open or closed, unlike the model"sv);
+        if (visible_selection != omnibox.selected_suggestion())
+            fail("the chrome highlights a different row than the model"sv);
+        if (omnibox.is_popup_visible() && !rows_match(visible_rows, omnibox.suggestions()))
+            fail("the chrome shows different rows than the model"sv);
+
+        if (!omnibox.is_editing() || !omnibox.is_popup_visible() || omnibox.has_pending_suggestions())
+            return;
+
+        auto const& rows = omnibox.suggestions();
+        auto selection = omnibox.selected_suggestion();
+        auto return_target = omnibox.suggestion_for_return();
+
+        if (selection.has_value()) {
+            if (*selection >= rows.size()) {
+                fail("the highlighted row does not exist"sv);
+                return;
+            }
+
+            // The highlighted row is where Return goes: that row, or the search for the text as typed that the row is.
+            auto const& highlighted = rows[*selection];
+            auto return_goes_to_highlighted_row = return_target.has_value()
+                ? &*return_target == &highlighted
+                : highlighted.source == AutocompleteSuggestionSource::Search && is_search_for_query(highlighted);
+            if (!return_goes_to_highlighted_row)
+                fail("Return does not go where the highlighted row says"sv);
+
+            // A row the user did not choose is highlighted only at the top.
+            if (!omnibox.selection_is_explicit() && *selection != 0)
+                fail("an automatically highlighted row is not the top row"sv);
+        }
+
+        // Text completed inline goes where Return goes, and only the completion is selected.
+        if (omnibox.is_inline_completed()) {
+            if (!return_target.has_value())
+                fail("Return ignores the inline completion on display"sv);
+            if (!selection_start.has_value() || !display_text.bytes_as_string_view().starts_with(omnibox.query().bytes_as_string_view(), CaseSensitivity::CaseInsensitive))
+                fail("the inline completion does not extend the text as typed"sv);
+        }
+    }
+
+    bool is_search_for_query(AutocompleteSuggestion const& suggestion) const
+    {
+        auto kind = WebView::OmniboxDestinationKind::Search;
+        return WebView::normalize_omnibox_destination(suggestion.text, kind) == WebView::normalize_omnibox_destination(omnibox.query(), kind);
+    }
+
+    static bool rows_match(Vector<AutocompleteSuggestion> const& left, Vector<AutocompleteSuggestion> const& right)
+    {
+        if (left.size() != right.size())
+            return false;
+        for (size_t index = 0; index < left.size(); ++index) {
+            if (left[index].text != right[index].text || left[index].source != right[index].source)
+                return false;
+        }
+        return true;
+    }
+
+    String describe_rows() const
+    {
+        StringBuilder builder;
+        for (auto const& suggestion : omnibox.suggestions()) {
+            if (!builder.is_empty())
+                builder.append(", "sv);
+            builder.append(suggestion.text);
+        }
+        return MUST(builder.to_string());
     }
 
     static NonnullOwnPtr<ScriptedProvider> adopt_provider(Harness& self)
@@ -144,13 +235,16 @@ struct Harness {
 
     void begin_editing(StringView text = ""sv)
     {
+        check_invariants();
         display_text = MUST(String::from_utf8(text));
         selection_start = {};
         omnibox.begin_editing(display_text);
+        check_invariants();
     }
 
     void press_key(char code_point)
     {
+        check_invariants();
         auto text_before_selection = selected_text_range_prefix();
         StringBuilder builder;
         builder.append(text_before_selection);
@@ -158,10 +252,12 @@ struct Harness {
         display_text = MUST(builder.to_string());
         selection_start = {};
         omnibox.text_edited(display_text, true);
+        check_invariants();
     }
 
     void press_backspace()
     {
+        check_invariants();
         omnibox.will_delete_text();
         auto text_before_selection = selected_text_range_prefix();
         if (!selection_start.has_value() && !text_before_selection.is_empty()) {
@@ -172,6 +268,7 @@ struct Harness {
         display_text = MUST(String::from_utf8(text_before_selection));
         selection_start = {};
         omnibox.text_edited(display_text, true);
+        check_invariants();
     }
 
     StringView selected_text_range_prefix() const
