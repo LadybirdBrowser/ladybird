@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: repeat(5, auto);
+        width: 200px;
+    }
+
+    .outer {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid;
+        padding: 10px 0 20px 0;
+    }
+
+    .inner {
+        display: grid;
+        grid-row: 2 / -1;
+        grid-template-rows: subgrid;
+        padding: 40px 0 30px 0;
+        background: lightgray;
+    }
+</style>
+<div class="parent">
+    <div class="outer">
+        <div style="grid-row: 1">Outer first</div>
+        <div class="inner">
+            <div style="grid-row: 1">Inner first</div>
+            <div style="grid-row: 2">Inner middle</div>
+            <div style="grid-row: 4">Inner last</div>
+        </div>
+    </div>
+</div>
