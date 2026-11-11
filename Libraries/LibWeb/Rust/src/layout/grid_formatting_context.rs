@@ -2614,6 +2614,29 @@ impl<'pass> GridFormattingContext<'pass> {
         size
     }
 
+    /// The size that percentages of an item's size resolve against in the given axis.
+    ///
+    /// INTEROP: Like other engines, we resolve them against the item's grid area in a subgrid without the extra margins
+    ///          the subgrid gives it, which is the part of the area that lies between the subgrid's own lines.
+    fn percentage_basis_size(&self, item: GridItem, axis: Axis) -> CssPixels {
+        let mut extra_margins = axis.select(
+            item.extra_margin_left + item.extra_margin_right,
+            item.extra_margin_top + item.extra_margin_bottom,
+        );
+        let gap_extra_margin = self.subgrid_gap_extra_margin(axis);
+        if gap_extra_margin != CssPixels::default() {
+            let item_start = item.position(axis);
+            let item_end = item_start + item.span(axis) as i32;
+            if item_start > 0 {
+                extra_margins += gap_extra_margin;
+            }
+            if item_end < self.axis_tracks(axis).len() as i32 {
+                extra_margins += gap_extra_margin;
+            }
+        }
+        CssPixels::default().max(self.containing_block_size(item, axis) - extra_margins)
+    }
+
     fn item_available_space(&self, item: GridItem) -> AvailableSpace {
         let cells = self.cells_of(item);
         AvailableSpace {
@@ -2906,7 +2929,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn grid_area_constraints(&self, item: GridItem) -> ContainingBlockConstraints {
         let inherited = self.track_sizing_constraints();
         ContainingBlockConstraints {
-            percentage_basis_inline_size: Some(self.containing_block_size(item, Axis::Column)),
+            percentage_basis_inline_size: Some(self.percentage_basis_size(item, Axis::Column)),
             ..inherited
         }
     }
@@ -3141,7 +3164,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let has_definite_preferred_size = axis.select(cells.has_definite_inline_size, cells.has_definite_block_size);
         if has_definite_preferred_size {
             // FIXME: consider margins, padding and borders because it is outer size.
-            let containing_block_size = self.containing_block_size(item, axis);
+            let containing_block_size = self.percentage_basis_size(item, axis);
             return Some(preferred_size.to_px(containing_block_size));
         }
 
@@ -4446,7 +4469,7 @@ impl<'pass> GridFormattingContext<'pass> {
         } else if is_stacking_axis {
             constraints.percentage_basis_block_size = self.grid_lanes_stacking_containing_block_size(axis);
         } else {
-            constraints.percentage_basis_block_size = Some(containing);
+            constraints.percentage_basis_block_size = Some(self.percentage_basis_size(item, axis));
         }
         if !axis.is_column() {
             constraints.quirks_mode_percentage_basis_block_size =
@@ -4569,6 +4592,17 @@ impl<'pass> GridFormattingContext<'pass> {
                 content_measurement_constraints,
             )
         } else {
+            // NB: A definite available size is what the item's percentage size resolves against.
+            let mut available = available;
+            if !is_stacking_axis {
+                let basis =
+                    AvailableSize::definite(clamp_to_max_dimension_value(self.percentage_basis_size(item, axis)));
+                if axis.is_column() {
+                    available.inline_size = basis;
+                } else if matches!(available.block_size, AvailableSize::Definite(_)) {
+                    available.block_size = basis;
+                }
+            }
             self.sizing().calculate_inner_size_for_property(
                 sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
                 axis.sizing_axis(),
@@ -5008,7 +5042,12 @@ impl<'pass> GridFormattingContext<'pass> {
         let (available_block_size, percentage_basis_block_size) = match row_area {
             ItemRowArea::NotYetSized => (AvailableSize::Indefinite, None),
             ItemRowArea::SizedAt(area_block_size) => {
-                (AvailableSize::definite(cells.content_block_size), Some(area_block_size))
+                let extra_margins =
+                    self.containing_block_size(item, Axis::Row) - self.percentage_basis_size(item, Axis::Row);
+                (
+                    AvailableSize::definite(cells.content_block_size),
+                    Some(CssPixels::default().max(area_block_size - extra_margins)),
+                )
             }
         };
         let percentage_basis_block_size = if self.is_grid_lanes_stacking_axis(Axis::Row) {

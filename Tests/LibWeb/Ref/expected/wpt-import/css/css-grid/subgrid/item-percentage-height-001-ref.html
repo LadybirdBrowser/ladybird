@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid item percentage height</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style type="text/css">
+
+.wrapper {
+  padding: 2px;
+  padding-top: 5px;
+  border: 1px solid;
+}
+.grid {
+  display: grid;
+  grid: auto auto / auto;
+  grid-row-gap: 60px;
+  height: 300px;
+  background: lightgrey;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / auto;
+  grid-row: span 2;
+  grid-row-gap: 40px;
+  padding: 10px;
+  padding-top: 5px;
+}
+
+.item {
+  align-self: start;
+  width: 100px;
+  background: grey;
+  margin-left: 10px;
+}
+
+.hidden { visibility: hidden; }
+.a1 { grid-area: 1/1; }
+.a2 { grid-area: 2/1; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+<div class="grid">
+  <div class="item hidden a1" style="height:25px"></div><div class="item a1" style="margin-top:5px; margin-bottom:-10px; align-self:stretch"></div>
+  <div class="item hidden a2" style="height:120px"></div><div class="item a2" style="margin-top:-10px; height:100px"></div>
+</div>
+</div>
+
+</body>
+</html>
