@@ -11,6 +11,12 @@ function(get_linked_lagom_libraries_impl target output)
         return()
     endif()
 
+    get_property(visited GLOBAL PROPERTY _LADYBIRD_LINKED_LAGOM_LIBRARIES_VISITED)
+    if ("${target}" IN_LIST visited)
+        return()
+    endif()
+    set_property(GLOBAL APPEND PROPERTY _LADYBIRD_LINKED_LAGOM_LIBRARIES_VISITED "${target}")
+
     get_target_property(target_is_imported "${target}" IMPORTED)
     if (target_is_imported)
         return()
@@ -34,6 +40,9 @@ function(get_linked_lagom_libraries_impl target output)
 endfunction()
 
 function(get_linked_lagom_libraries target output)
+    # Track all visited targets, including static libraries, separately from the shared libraries collected for installation.
+    set_property(GLOBAL PROPERTY _LADYBIRD_LINKED_LAGOM_LIBRARIES_VISITED "")
+
     get_linked_lagom_libraries_impl(${target} ${output})
     set("${output}" "${${output}}" PARENT_SCOPE)
 endfunction()
