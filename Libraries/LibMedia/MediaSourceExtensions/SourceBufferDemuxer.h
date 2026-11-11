@@ -28,9 +28,15 @@ namespace Media::MediaSourceExtensions {
 // the SourceBuffer's track buffers (which write frames) and PlaybackManager (which reads them).
 class MEDIA_API SourceBufferDemuxer final : public Media::Demuxer {
 public:
-    struct RemovedFrame {
-        size_t byte_size { 0 };
+    struct EarliestEvictableGroup {
+        AK::Duration presentation_timestamp;
+        size_t bytes_freed_by_evicting_through_this_group { 0 };
+    };
+
+    struct LatestEvictableFrame {
+        AK::Duration presentation_timestamp;
         AK::Duration decode_timestamp;
+        size_t byte_count { 0 };
     };
 
     struct FrameRun {
@@ -81,11 +87,13 @@ public:
     size_t total_bytes(Media::Track const&) const;
 
     size_t evictable_bytes_when_taking_all_earliest_frames(Media::Track const&, AK::Duration current_time) const;
-    Optional<AK::Duration> earliest_evictable_frame_timestamp(Media::Track const&, AK::Duration current_time) const;
-    size_t take_earliest_frame_and_dependants(Media::Track const&);
+    // The groups are listed in the order that eviction takes them, until evicting them would free the wanted bytes.
+    Vector<EarliestEvictableGroup> earliest_evictable_groups(Media::Track const&, AK::Duration current_time, size_t wanted_bytes) const;
+    size_t take_earliest_groups(Media::Track const&, size_t group_count);
 
-    Optional<AK::Duration> latest_evictable_frame_timestamp(Media::Track const&, AK::Duration current_time) const;
-    RemovedFrame take_latest_frame(Media::Track const&);
+    // The frames are listed in the order that eviction takes them, until evicting them would free the wanted bytes.
+    Vector<LatestEvictableFrame> latest_evictable_frames(Media::Track const&, AK::Duration current_time, size_t wanted_bytes) const;
+    size_t take_latest_frames(Media::Track const&, size_t frame_count);
 
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
@@ -156,6 +164,8 @@ private:
     static void decrement_frames_with_maximum_duration(TrackData&, size_t count);
     static Optional<ReadonlyBytes> codec_configuration_at_position(TrackData const&, size_t run_index, size_t frame_index);
     static bool is_frame_evictable(TrackData const&, Media::CodedFrame const&, AK::Duration current_time);
+    template<typename Callback>
+    static void for_each_earliest_evictable_group(TrackData const&, AK::Duration current_time, Callback);
     static bool run_ends_at_last_appended_frame(TrackData const&, size_t run_index);
     static void note_delivered_frame(TrackData&, Media::CodedFrame const&);
     static void note_cursor_jumped(TrackData&);
