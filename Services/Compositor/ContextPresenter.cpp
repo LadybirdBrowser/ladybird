@@ -134,13 +134,14 @@ Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stor
             m_last_rasterized_frame.clear();
         }
     }
-    auto should_publish = presents_to_client() && publication_mode == BackingStoreManager::PublicationMode::Published;
-    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, should_publish);
+    if (!presents_to_client())
+        publication_mode = BackingStoreManager::PublicationMode::Unpublished;
+    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, publication_mode);
     if (!allocation.has_value())
         return {};
     m_latest_rendered_surface = nullptr;
     m_last_rasterized_frame.clear();
-    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, should_publish, gpu_sharing);
+    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, publication_mode, gpu_sharing);
 }
 
 void ContextPresenter::invalidate_backing_stores()
@@ -170,7 +171,7 @@ bool ContextPresenter::acknowledge_presented_bitmap(i32 bitmap_id)
 
 void ContextPresenter::did_finish_gpu_present(i32 bitmap_id)
 {
-    m_backing_store_manager.complete_rendering(bitmap_id, presents_to_client());
+    m_backing_store_manager.complete_rendering(bitmap_id);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
 }
 
@@ -360,7 +361,7 @@ bool ContextPresenter::present_synchronously(DisplayListPlayerSkia& display_list
     paint_current_display_list(display_list_player, back_store, *frame_inputs, composited_context_resolver, render_target->damage_rect);
     remember_rasterized_frame(pending_frame->viewport_rect.size(), frame_inputs.release_value());
     display_list_player.flush(back_store);
-    m_backing_store_manager.complete_rendering(render_target->bitmap_id, false);
+    m_backing_store_manager.complete_rendering(render_target->bitmap_id);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
     m_presented_frame = pending_frame->viewport_rect;
     m_pending_present_frame.clear();

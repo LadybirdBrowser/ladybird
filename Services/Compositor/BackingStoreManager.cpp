@@ -119,19 +119,17 @@ static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize siz
 // A published store is released by the UI when it presents the next one, but on macOS the UI hands the
 // surface itself to the window server, which keeps reading it until it has composited the replacement.
 // A third store lets the compositor keep rendering through that window instead of waiting for it.
-static size_t backing_store_count_for(bool should_publish)
+static size_t backing_store_count_for([[maybe_unused]] BackingStoreManager::PublicationMode publication_mode)
 {
 #ifdef AK_OS_MACOS
-    if (should_publish)
+    if (publication_mode == BackingStoreManager::PublicationMode::Published)
         return 3;
-#else
-    (void)should_publish;
 #endif
     return 2;
 }
 
 Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_stores_if_needed(
-    Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress, bool should_publish)
+    Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress, PublicationMode publication_mode)
 {
     if (viewport_size.is_empty())
         return {};
@@ -150,7 +148,7 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
 
     if (needs_allocation) {
         m_allocated_size = allocation_size;
-        auto buffer_count = backing_store_count_for(should_publish);
+        auto buffer_count = backing_store_count_for(publication_mode);
         Vector<i32> bitmap_ids;
         bitmap_ids.ensure_capacity(buffer_count);
         for (size_t i = 0; i < buffer_count; ++i)
@@ -161,11 +159,12 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
     return {};
 }
 
-Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, bool should_publish, [[maybe_unused]] GpuSharing gpu_sharing)
+Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, PublicationMode publication_mode, [[maybe_unused]] GpuSharing gpu_sharing)
 {
     m_backing_stores.clear();
     m_rendering_store_index.clear();
     m_latest_rendered_store_index.clear();
+    m_publication_mode = publication_mode;
 
     if (Gfx::Bitmap::size_would_overflow(Gfx::BitmapFormat::BGRA8888, allocation.size))
         return {};
@@ -175,7 +174,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
     m_initial_backing_store_count = buffer_count;
     m_backing_stores.ensure_capacity(buffer_count);
 
-    if (!should_publish) {
+    if (publication_mode == PublicationMode::Unpublished) {
         for (size_t i = 0; i < buffer_count; ++i) {
             m_backing_stores.append({
                 .surface = Gfx::PaintingSurface::create_with_size(allocation.size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context),
@@ -372,18 +371,19 @@ Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_
     return {};
 }
 
-void BackingStoreManager::complete_rendering(i32 bitmap_id, bool wait_for_release)
+void BackingStoreManager::complete_rendering(i32 bitmap_id)
 {
     VERIFY(m_rendering_store_index.has_value());
     auto& store = m_backing_stores[*m_rendering_store_index];
     VERIFY(store.state == BufferState::Rendering);
     VERIFY(store.bitmap_id == bitmap_id);
 
-    if (!wait_for_release && m_latest_rendered_store_index.has_value())
+    bool client_releases_presented_stores = m_publication_mode == PublicationMode::Published;
+    if (!client_releases_presented_stores && m_latest_rendered_store_index.has_value())
         m_backing_stores[*m_latest_rendered_store_index].state = BufferState::Available;
 
     store.state = BufferState::Presented;
-    if (wait_for_release)
+    if (client_releases_presented_stores)
         store.was_presented_to_client = true;
     m_latest_rendered_store_index = m_rendering_store_index;
     m_rendering_store_index.clear();
