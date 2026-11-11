@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: Test grid container's block size honoring automatic content-based minimum.</title>
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+
+<style>
+  #container {
+    display: grid;
+    width: 100px;
+    aspect-ratio: 2 / 1;
+    background: green;
+    /* height: auto */
+    /* min-height: auto */
+  }
+  #item {
+    width: 100%;
+    height: 100px;
+  }
+</style>
+<body>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div id="container">
+    <div id="item"></div>
+  </div>
+</body>

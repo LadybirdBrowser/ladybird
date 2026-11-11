@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://www.w3.org/TR/2021/WD-css-sizing-4-20210520/#aspect-ratio-automatic">
+<meta name="assert" content="Grid has a definite block size computed using the inline size/aspect ratio and item is aligned accordingly (centered vertically).">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+.grid {
+  display: grid;
+  aspect-ratio: 1/1;
+  align-items: center;
+  position: relative;
+}
+.item {
+  width: 100px;
+  height: 50px;
+  background-color: green;
+}
+.abspos {
+  position: absolute;
+  width: 100px;
+  height: 25px;
+  background-color: green;
+  align-self: start;
+  z-index: -1;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px">
+  <div class="grid">
+      <div class="abspos"></div>
+      <div class="abspos" style="top: 75px;"></div>
+
+      <div class="item"></div>
+  </div>
+</div>
+</body>
+</html>

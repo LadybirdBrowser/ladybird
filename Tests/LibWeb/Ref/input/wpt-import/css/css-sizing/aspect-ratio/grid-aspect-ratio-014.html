@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: items stretched in one axis should respect aspect ratio with stretched size</title>
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#grid-item-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+<div style="display: grid; grid-template-columns: 100px; grid-template-rows: 100px;">
+  <div style="background: green; aspect-ratio: 1/1; justify-self: stretch;"></div>
+</div>
