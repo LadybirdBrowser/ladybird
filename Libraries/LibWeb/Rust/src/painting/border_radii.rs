@@ -7,7 +7,10 @@
 use crate::css::computed_value_views::LengthPercentageRef;
 use crate::css::css_pixels::{CssPixelFraction, CssPixels};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::paint_read::PaintRead;
+use crate::painting::paintable_geometry;
 use libgfx_rust::{CornerRadii, CornerRadius};
 
 pub(crate) fn normalize_border_radii_data(
@@ -176,4 +179,61 @@ impl BorderRadii {
         }
         true
     }
+}
+
+pub(crate) fn border_radii(arena: &impl PaintRead, paintable: NodeSlotId) -> BorderRadii {
+    let Some(style) = arena.node_style_if_live(paintable) else {
+        return BorderRadii::default();
+    };
+    crate::painting::visual_context::node_values::border_radii_data(style, arena, paintable)
+}
+
+pub(crate) fn piece_border_radii(
+    arena: &impl PaintRead,
+    paintable: NodeSlotId,
+    piece: &crate::painting::paintable_data::InlineBoxPieceRecord,
+) -> BorderRadii {
+    let Some(style) = arena.node_style_if_live(paintable) else {
+        return BorderRadii::default();
+    };
+    crate::painting::visual_context::node_values::piece_border_radii_data(
+        style,
+        piece.border_box_rect.width,
+        piece.border_box_rect.height,
+        piece.present_edges,
+    )
+}
+
+pub(crate) fn fragment_border_box_and_radii(
+    arena: &impl PaintRead,
+    paintable: NodeSlotId,
+    index: usize,
+) -> (CssPixelRect, BorderRadii) {
+    let rect = paintable_geometry::absolute_fragment_border_box_rect(arena, paintable, index);
+    let Some(style) = arena.node_style_if_live(paintable) else {
+        return (rect, BorderRadii::default());
+    };
+    let radii = crate::painting::visual_context::node_values::piece_border_radii_data(
+        style,
+        rect.width,
+        rect.height,
+        paintable_geometry::committed_fragment_present_edges(arena, paintable, index),
+    );
+    (rect, radii)
+}
+
+pub(crate) fn border_boxes_and_radii_of_fragments(
+    arena: &impl PaintRead,
+    paintable: NodeSlotId,
+) -> smallvec::SmallVec<[(CssPixelRect, BorderRadii); 1]> {
+    let fragment_count = paintable_geometry::fragment_count(arena, paintable);
+    if fragment_count > 1 && !crate::painting::node_painting::is_fragmented_inline(arena, paintable) {
+        return (0..fragment_count)
+            .map(|index| fragment_border_box_and_radii(arena, paintable, index))
+            .collect();
+    }
+    smallvec::smallvec![(
+        paintable_geometry::absolute_border_box_rect(arena, paintable),
+        border_radii(arena, paintable)
+    )]
 }
