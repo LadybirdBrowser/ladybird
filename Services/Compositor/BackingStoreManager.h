@@ -57,8 +57,8 @@ public:
     static void set_presentation_drm_format_modifiers(Vector<u64>);
 
     Optional<Allocation> resize_backing_stores_if_needed(
-        Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, bool should_publish);
-    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish, GpuSharing);
+        Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, PublicationMode);
+    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, PublicationMode, GpuSharing);
 
     void invalidate() { m_allocated_size = {}; }
 
@@ -66,7 +66,7 @@ public:
     bool is_rendering() const { return m_rendering_store_index.has_value(); }
     bool has_available_buffer() const;
     Optional<RenderTarget> acquire_render_target(Gfx::IntRect frame_damage);
-    void complete_rendering(i32 bitmap_id, bool release_to_external);
+    void complete_rendering(i32 bitmap_id);
     bool release_buffer(i32 bitmap_id);
     void release_all_presented_buffers();
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
@@ -104,6 +104,7 @@ private:
     Gfx::IntSize m_allocated_size;
 
     Gfx::IntSize m_backing_store_size;
+    PublicationMode m_publication_mode { PublicationMode::Unpublished };
     size_t m_initial_backing_store_count { 0 };
     Vector<BackingStore> m_backing_stores;
     Optional<size_t> m_rendering_store_index;
