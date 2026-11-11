@@ -309,7 +309,8 @@ jobs:
 
   report:
     needs: [prepare, bench]
-    if: ${{ always() && needs.prepare.result != 'skipped' }}
+    # A run that a newer run for the same PR cancelled leaves its report to that newer run.
+    if: ${{ !cancelled() && needs.prepare.result != 'skipped' }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
 
     # Runs nothing from the PR.
