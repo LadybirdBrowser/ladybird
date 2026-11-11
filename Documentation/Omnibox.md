@@ -90,6 +90,9 @@ When history, bookmark, and adaptive candidates identify the same URL, their sco
 eligibility flags are combined. Bookmark presentation is preferred so its title and favicon remain
 visible.
 
+When rows for the root of the same origin are folded into one, such as `example.com` and
+`www.example.com`, the row that is kept takes the favicon and title of a folded row if it has none.
+
 ## Matching
 
 URL matching accepts the forms users commonly type by ignoring an `http://` or `https://` prefix,
