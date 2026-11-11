@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+        const valid = [
+            "center center, ellipse cover, #d3d9e3 0%, #526e91 100%",
+            "red, blue",
+            "center, red, blue",
+            "circle, red, blue",
+            "ellipse cover, red, blue",
+            "center, ellipse cover, red, blue",
+            "10px 20px, 30% 40%, red, blue",
+            "center, contain, red, blue",
+            "center, farthest-corner, red, blue",
+            "center, circle closest-side, red, blue",
+            "center, cover ellipse, red, blue",
+            "top left, red, blue",
+            "center, 10px 20px, red, blue",
+            "red",
+            "red 10% 20%, blue",
+            "center, ellipse cover, lab(50% 20 30), blue",
+            "center, 0% 4%, red, blue",
+        ];
+        for (const arguments of valid) {
+            element.style.backgroundImage = "";
+            element.style.backgroundImage = `-webkit-radial-gradient(${arguments})`;
+            println(getComputedStyle(element).backgroundImage);
+        }
+        element.style.backgroundImage =
+            "-webkit-repeating-radial-gradient(center, circle, red 0, red 10px, blue 10px, blue 20px)";
+        println(getComputedStyle(element).backgroundImage);
+        for (const arguments of [
+            "left 10px top 20px, red, blue",
+            "center, 10px, red, blue",
+            "center, circle 10px, red, blue",
+            "red, 30%, blue",
+            "10% red, blue",
+            "in oklab, red, blue",
+            "center, ellipse cover in oklab, red, blue",
+            "center, -1px 4px, red, blue",
+            "center, 10px 20px red, blue",
+            "center, circle red, blue",
+            "center, ellipse -1px 2px, red, blue",
+            "center, ellipse cover, red,",
+            "center,, red, blue",
+        ]) {
+            println(
+                `invalid ${arguments}: ${CSS.supports("background-image", `-webkit-radial-gradient(${arguments})`)}`
+            );
+        }
+    });
+</script>

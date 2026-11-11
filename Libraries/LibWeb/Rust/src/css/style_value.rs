@@ -2285,6 +2285,9 @@ pub struct ConicGradientPayload {
 #[derive(Clone, PartialEq)]
 pub struct RadialGradientPayload {
     pub ending_shape: u8,
+    pub webkit: bool,
+    pub has_explicit_position: bool,
+    pub webkit_size_keyword: u16,
     pub size: RetainedStyleValueData,
     pub position: RetainedStyleValueData,
     pub color_stop_list: RetainedColorStopList,
@@ -3767,6 +3770,9 @@ impl StyleValueData {
             StyleValueData::RadialGradient(radial_gradient_payload) => {
                 let RadialGradientPayload {
                     ending_shape,
+                    webkit,
+                    has_explicit_position,
+                    webkit_size_keyword,
                     size,
                     position,
                     color_stop_list,
@@ -3775,6 +3781,9 @@ impl StyleValueData {
                     color_syntax,
                 } = &**radial_gradient_payload;
                 hasher.write_u8(*ending_shape);
+                write_bool(hasher, *webkit);
+                write_bool(hasher, *has_explicit_position);
+                hasher.write_u16(*webkit_size_keyword);
                 write_value(hasher, size);
                 write_value(hasher, position);
                 write_color_stops(hasher, color_stop_list);

@@ -1704,7 +1704,10 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         }
         StyleValueData::RadialGradient(radial_gradient_payload) => {
             let RadialGradientPayload {
-                ending_shape: _,
+                ending_shape,
+                webkit,
+                has_explicit_position,
+                webkit_size_keyword,
                 size,
                 position,
                 color_stop_list,
@@ -1712,6 +1715,32 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 color_interpolation_method,
                 color_syntax,
             } = &**radial_gradient_payload;
+            if *webkit {
+                sink.push_ascii(if *repeating {
+                    "-webkit-repeating-radial-gradient("
+                } else {
+                    "-webkit-radial-gradient("
+                });
+                if *has_explicit_position {
+                    serialize_style_value(sink, position.data(), mode);
+                } else {
+                    sink.push_ascii("center");
+                }
+                if *webkit_size_keyword != 0 {
+                    sink.push_ascii(if *ending_shape == 0 { ", circle " } else { ", ellipse " });
+                    sink.push_ascii(keyword::NAMES[*webkit_size_keyword as usize]);
+                } else if let StyleValueData::RadialSize(size_payload) = size.data()
+                    && size_payload.component_count == 2
+                {
+                    sink.push_ascii(", ");
+                    serialize_style_value(sink, size.data(), mode);
+                }
+                sink.push_ascii(", ");
+                serialize_color_stop_list(sink, color_stop_list, mode);
+                sink.push_ascii(")");
+                return;
+            }
+
             if *repeating {
                 sink.push_ascii("repeating-");
             }

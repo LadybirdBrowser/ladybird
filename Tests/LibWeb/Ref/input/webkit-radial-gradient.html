@@ -1,0 +1,29 @@
+<!doctype html>
+<link rel="match" href="../expected/webkit-radial-gradient-ref.html" />
+<style>
+    body {
+        display: grid;
+        grid-template-columns: repeat(4, 160px);
+        gap: 4px;
+    }
+    div {
+        width: 160px;
+        height: 100px;
+        background-color: lime;
+    }
+</style>
+<div style="background-image: -webkit-radial-gradient(red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(center, ellipse cover, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(20% 30%, circle closest-side, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(20% 30%, ellipse contain, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(20% 30%, circle cover, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(20% 30%, ellipse closest-corner, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(20% 30%, circle farthest-side, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(10px 20px, 30% 40%, red, blue)"></div>
+<div style="background-image: -webkit-radial-gradient(center, 0% 4%, red, blue)"></div>
+<div
+    style="background-image: -webkit-repeating-radial-gradient(center, circle, red 0, red 10px, blue 10px, blue 20px)"
+></div>
+<div style="background-image: -webkit-radial-gradient(center, ellipse cover, lab(50% 20 30), blue)"></div>
+<div style="background-image: -webkit-radial-gradient(red)"></div>
+<div style="background-image: -webkit-repeating-radial-gradient(red 10px)"></div>
