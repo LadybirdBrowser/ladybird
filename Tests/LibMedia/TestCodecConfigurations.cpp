@@ -874,11 +874,14 @@ TEST_CASE(h265_profiles_cover_the_ones_that_only_constrain_others)
     expect_claimed_profile(2, { 0x90, 0, 0, 0, 0, 0 }, (1u << 1) | (1u << 2), Profile::Main);
     // Naming Main 10 without claiming Main leaves it at Main 10.
     expect_claimed_profile(2, { 0x90, 0, 0, 0, 0, 0 }, 1u << 2, Profile::Main10);
+    // Main decoders decode Main Still Picture streams, whether they name the profile or only claim it.
+    expect_claimed_profile(3, { 0x90, 0, 0, 0, 0, 0 }, 0, Profile::Main);
+    expect_claimed_profile(4, { 0x99, 0x88, 0, 0, 0, 0 }, 1u << 3, Profile::Main);
 
     // A profile space other than zero names a different set of profiles entirely.
     EXPECT(!profile_of(1, 1, { 0x90, 0, 0, 0, 0, 0 }).has_value());
     // Profiles no record was captured for are left unanswerable.
-    for (u8 profile_idc : { 0, 3, 5, 9, 11 })
+    for (u8 profile_idc : { 0, 5, 9, 11 })
         EXPECT(!profile_of(0, profile_idc, { 0x90, 0, 0, 0, 0, 0 }).has_value());
     // Monochrome and bit depths beyond 12 have no record to answer with.
     EXPECT(!profile_of(0, 4, { 0x9e, 0x40, 0, 0, 0, 0 }).has_value());
