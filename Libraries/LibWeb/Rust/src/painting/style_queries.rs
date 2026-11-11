@@ -195,6 +195,16 @@ pub(crate) fn has_layout_containment(arena: &impl PaintRead, node: NodeSlotId, s
     contained && containment_applies_to_display(arena, node, style)
 }
 
+/// Whether the box itself shows: it is visible, and not fully transparent unless an animation of its opacity or
+/// transform keeps its content for the compositor to reveal.
+pub(crate) fn is_visible(arena: &impl PaintRead, node: NodeSlotId) -> bool {
+    arena.node_style_if_live(node).is_some_and(|style| {
+        style.visibility() == crate::css::css_enums::visibility::VISIBLE
+            && (style.effects().opacity != 0.0
+                || arena.node_flags_if_live(node) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0)
+    })
+}
+
 pub(crate) fn is_scroll_container(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     arena
         .node(node)

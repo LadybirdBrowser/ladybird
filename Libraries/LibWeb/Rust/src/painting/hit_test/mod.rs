@@ -5,6 +5,7 @@
  */
 
 pub mod caret;
+pub(crate) mod items;
 pub mod query;
 pub mod resolve;
 

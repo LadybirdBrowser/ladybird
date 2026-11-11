@@ -589,22 +589,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn border_radii(&mut self, paintable: NodeSlotId) -> BorderRadii {
-        let Some(style) = self.source.node_style_if_live(paintable) else {
-            return BorderRadii::default();
-        };
-        crate::painting::visual_context::node_values::border_radii_data(style, self.source, paintable)
+        crate::painting::border_radii::border_radii(self.source, paintable)
     }
 
     pub(crate) fn piece_border_radii(&mut self, paintable: NodeSlotId, piece: &InlineBoxPieceRecord) -> BorderRadii {
-        let Some(style) = self.source.node_style_if_live(paintable) else {
-            return BorderRadii::default();
-        };
-        crate::painting::visual_context::node_values::piece_border_radii_data(
-            style,
-            piece.border_box_rect.width,
-            piece.border_box_rect.height,
-            piece.present_edges,
-        )
+        crate::painting::border_radii::piece_border_radii(self.source, paintable, piece)
     }
 
     pub(crate) fn fragment_border_box(
@@ -612,34 +601,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paintable: NodeSlotId,
         index: usize,
     ) -> (crate::css::css_pixels::CssPixelRect, BorderRadii) {
-        let rect =
-            crate::painting::paintable_geometry::absolute_fragment_border_box_rect(self.source, paintable, index);
-        let Some(style) = self.source.node_style_if_live(paintable) else {
-            return (rect, BorderRadii::default());
-        };
-        let radii = crate::painting::visual_context::node_values::piece_border_radii_data(
-            style,
-            rect.width,
-            rect.height,
-            crate::painting::paintable_geometry::committed_fragment_present_edges(self.source, paintable, index),
-        );
-        (rect, radii)
+        crate::painting::border_radii::fragment_border_box_and_radii(self.source, paintable, index)
     }
 
     pub(crate) fn border_boxes_of_fragments(
         &mut self,
         paintable: NodeSlotId,
     ) -> smallvec::SmallVec<[(CssPixelRect, BorderRadii); 1]> {
-        let fragment_count = crate::painting::paintable_geometry::fragment_count(self.source, paintable);
-        if fragment_count > 1 && !crate::painting::node_painting::is_fragmented_inline(self.source, paintable) {
-            return (0..fragment_count)
-                .map(|index| self.fragment_border_box(paintable, index))
-                .collect();
-        }
-        smallvec::smallvec![(
-            crate::painting::paintable_geometry::absolute_border_box_rect(self.source, paintable),
-            self.border_radii(paintable),
-        )]
+        crate::painting::border_radii::border_boxes_and_radii_of_fragments(self.source, paintable)
     }
 
     pub(crate) fn base_paint_facts(&mut self, paintable: NodeSlotId) -> BasePaintFacts {
@@ -652,10 +621,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return facts;
         };
         let effects = style.effects();
-        let retains_animated_content =
-            self.source.node_flags_if_live(paintable) & NodeFlag::HasAnimatedOpacityOrTransform as u32 != 0;
-        let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE
-            && (effects.opacity != 0.0 || retains_animated_content);
+        let is_visible = crate::painting::style_queries::is_visible(self.source, paintable);
         let empty_cells_property_applies = self.display(paintable).is_internal_table()
             && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
             && crate::painting::paint_order::first_paint_child(self.source, paintable).is_none();
