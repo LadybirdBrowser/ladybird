@@ -448,17 +448,36 @@ impl PublishedEffect {
         (values, true)
     }
 
-    /// Retain freshly resolved values for an interval.
-    pub(crate) fn update_retained_custom_property_interval_values(&self, interval: CustomPropertyInterval) {
+    /// Retain fresh interval values, or discard cached values for a cyclic registered interval.
+    pub(crate) fn update_retained_custom_property_interval_values(
+        &self,
+        interval: CustomPropertyInterval,
+        registry: &CustomPropertyRegistry,
+    ) {
         let declaration_indices = interval.declaration_indices();
+
+        let is_cyclic_registered_interval = interval.cyclic.contains(&true) && {
+            // SAFETY: The interval retains the name while it is borrowed for the lookup.
+            let name = unsafe { ak::Utf16FlyString::from_raw_borrowed(interval.name.raw()) };
+            registry.is_registered(&name)
+        };
+
+        let interval_cache = self
+            .custom_property_interval_values
+            .as_ref()
+            .expect("an effect interpolating custom properties keeps their interval values");
+
+        // NB: Discard cached values for a cyclic registered interval so breaking the cycle converts its current declarations.
+        if is_cyclic_registered_interval {
+            interval_cache.lock().unwrap().remove(&declaration_indices);
+            return;
+        }
 
         let Some(values) = interval.values_to_retain else {
             return;
         };
 
-        self.custom_property_interval_values
-            .as_ref()
-            .expect("an effect interpolating custom properties keeps their interval values")
+        interval_cache
             .lock()
             .unwrap()
             .entry(declaration_indices)

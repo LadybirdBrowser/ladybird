@@ -7380,6 +7380,7 @@ fn finish_animation_sample(
             engine.custom_property_registration_generation(),
             "animation sampling preserves custom property registrations"
         );
+        let registry = engine.custom_property_registry();
         let current_effects = described_effects(input, engine);
         for interval in custom_properties.intervals {
             let sampled_effect = composed[interval.effect_index].effect;
@@ -7389,7 +7390,7 @@ fn finish_animation_sample(
                     effect.identity == sampled_effect.identity && effect.generation == sampled_effect.generation
                 })
                 .expect("a sampled effect remains published with the same generation");
-            effect.update_retained_custom_property_interval_values(interval);
+            effect.update_retained_custom_property_interval_values(interval, registry);
         }
         let rows = retained
             .iter()
