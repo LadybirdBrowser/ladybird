@@ -1435,6 +1435,7 @@ pub struct LiveContentChanges<'a> {
     pub image_frames: &'a [ImageFrameResourceId],
     /// What the compositor repaints whatever the lists hold, such as a blinking caret.
     pub forced_damage_rect: IntRect,
+    pub offsets_of_records_composited_as_media_layers: &'a [u32],
 }
 
 impl LiveContentChanges<'_> {
@@ -1598,7 +1599,11 @@ pub fn compute_display_list_damage(
             if damage.covers_viewport() {
                 break;
             }
-            if !live_content_changes.includes(live_content_record.content) {
+            if !live_content_changes.includes(live_content_record.content)
+                || live_content_changes
+                    .offsets_of_records_composited_as_media_layers
+                    .contains(&live_content_record.record.record_offset)
+            {
                 continue;
             }
             let offset = live_content_record.record.record_offset as usize;
@@ -2038,6 +2043,24 @@ mod tests {
             scroll_offsets: &[],
         };
         compute_display_list_damage(frame, frame, IntRect::new(0, 0, 100, 100), live_content_changes)
+    }
+
+    #[test]
+    fn a_record_composited_as_a_media_layer_is_not_damaged_by_its_live_content() {
+        let tree = identity_tree();
+        let mut list = canvas_command_bytes(IntRect::new(10, 10, 20, 20));
+        let media_layer_record_offset = 0;
+        list.extend_from_slice(&fill_command_bytes(IntRect::new(50, 50, 10, 10), RED));
+        list.extend_from_slice(&canvas_command_bytes(IntRect::new(60, 60, 10, 10)));
+        let changed_canvas = LiveContentChanges {
+            canvases: &[CanvasId(1)],
+            offsets_of_records_composited_as_media_layers: &[media_layer_record_offset],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&list, &tree, changed_canvas),
+            Some(IntRect::new(59, 59, 12, 12))
+        );
     }
 
     #[test]
