@@ -359,6 +359,13 @@ pub(crate) trait RenderNode: Send {
     unsafe fn take_ended_notification(&self) -> bool {
         false
     }
+
+    // Whether this node may still produce output for input it has already received: the tail of a node whose tail-time
+    // is yes. Such a node keeps playing after its AudioNode is gone, until the tail has played out.
+    // https://webaudio.github.io/web-audio-api/#tail-time
+    unsafe fn has_tail_remaining(&self) -> bool {
+        false
+    }
 }
 
 pub struct NodeHandle {

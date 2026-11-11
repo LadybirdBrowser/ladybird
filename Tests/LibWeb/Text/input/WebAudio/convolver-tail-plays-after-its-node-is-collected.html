@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A ConvolverNode's tail keeps playing after its input has ended, even when nothing references the node any more and
+    // it gets collected in the meantime.
+    promiseTest(async () => {
+        const sampleRate = 48000;
+        const context = new OfflineAudioContext(1, sampleRate, sampleRate);
+
+        // An impulse response that echoes its input half a second later.
+        const impulseResponse = context.createBuffer(1, sampleRate / 2 + 1, sampleRate);
+        impulseResponse.getChannelData(0)[sampleRate / 2] = 1;
+
+        (() => {
+            const convolver = new ConvolverNode(context, { buffer: impulseResponse, disableNormalization: true });
+            const source = new ConstantSourceNode(context);
+            source.connect(convolver).connect(context.destination);
+            source.start(0);
+            source.stop(128 / sampleRate);
+        })();
+
+        // Collect the nodes once the source has ended, while the echo is still to come.
+        context.suspend(0.25).then(async () => {
+            await internals.gcAsync();
+            context.resume();
+        });
+
+        const samples = (await context.startRendering()).getChannelData(0);
+        println(`the echo arrives: ${samples[sampleRate / 2 + 64] === 1}`);
+    });
+</script>
