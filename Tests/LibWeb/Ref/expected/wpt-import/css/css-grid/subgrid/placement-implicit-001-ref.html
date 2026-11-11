@@ -1,0 +1,68 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: : Implicit line placement with a subgrid</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#placement">
+  <style>
+html,body {
+  font:10px/1 monospace;
+  padding:0;
+  margin:0;
+}
+
+.grid {
+  display: inline-grid;
+  grid-auto-columns: 15px;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 3 / span 4;
+  grid-auto-rows: 8px;
+  background: grey;
+}
+
+.subgrid > :nth-child(2n)   {  background: black; }
+.subgrid > :nth-child(2n+1) {  background: pink; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="subgrid">
+    <div style="grid-column:5"></div>
+    <div style="grid-column:x"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-row: 4; grid-column:1"></div>
+    <div style="grid-column:5"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <div style="grid-column:5"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-column:5"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <div style="grid-column:5"></div>
+    <div style="grid-row: 2; grid-column:1"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-row: 3; grid-column:1"></div>
+    <div style="grid-column:5"></div>
+    <div style="grid-row: 4; grid-column:1"></div>
+  </div>
+</div>
+
+</body>
+</html>

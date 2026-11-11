@@ -1996,10 +1996,18 @@ impl<'pass> GridFormattingContext<'pass> {
     ) -> ResolvedAxisPlacement {
         let start_is_auto = start.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
         let end_is_auto = end.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
+        // https://drafts.csswg.org/css-grid-2/#subgrid-implicit
+        // Hypothetical implicit grid lines are used to resolve placement as usual when the explicit grid does not have
+        // enough lines; however each grid item's grid area is clamped to the subgrid's explicit grid.
+        // NB: The area is clamped before auto-placement, so that the cells an item occupies are those it ends up in.
+        let subgrid_track_count = self
+            .container_is_subgridded(axis)
+            .then(|| self.axis_lines(axis).len().saturating_sub(1));
         if start_is_auto && end_is_auto {
+            let span = resolve_placement_span(start, end, automatic_subgrid_span_value);
             return ResolvedAxisPlacement {
                 start: None,
-                span: resolve_placement_span(start, end, automatic_subgrid_span_value),
+                span: subgrid_track_count.map_or(span, |count| span.min(count.max(1))),
             };
         }
         let resolved = resolve_placement_position(
@@ -2009,9 +2017,14 @@ impl<'pass> GridFormattingContext<'pass> {
             self.explicit_grid_lines(axis),
             automatic_subgrid_span_value,
         );
+        let mut position = resolved.start;
+        let mut span = resolved.span;
+        if let Some(count) = subgrid_track_count {
+            Self::clamp_area_to_subgrid(&mut position, &mut span, count);
+        }
         ResolvedAxisPlacement {
-            start: Some(resolved.start),
-            span: resolved.span,
+            start: Some(position),
+            span,
         }
     }
 
