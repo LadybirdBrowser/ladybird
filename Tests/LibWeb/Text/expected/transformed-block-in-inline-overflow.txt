@@ -1,0 +1,34 @@
+direct centered: 390x100
+direct positive: 510x100
+direct untransformed: 585x100
+direct far left: 410x100
+direct scale: 390x100
+direct vertical: 390x100
+inline centered: 390x100
+inline positive: 510x100
+inline untransformed: 585x100
+inline far left: 410x100
+inline scale: 390x100
+inline vertical: 390x100
+nested centered: 390x100
+nested positive: 510x100
+nested untransformed: 585x100
+nested far left: 410x100
+nested scale: 390x100
+nested vertical: 390x100
+decorated centered: 390x100
+decorated positive: 510x100
+decorated untransformed: 585x100
+decorated far left: 410x100
+decorated scale: 390x100
+decorated vertical: 390x100
+block-axis edges centered: 390x100
+block-axis edges positive: 510x100
+block-axis edges untransformed: 585x100
+block-axis edges far left: 410x100
+block-axis edges scale: 390x100
+block-axis edges vertical: 390x100
+before change: 390x100
+resized scroller: 390x100
+inline client rects unchanged: true
+restored scroller: 390x100

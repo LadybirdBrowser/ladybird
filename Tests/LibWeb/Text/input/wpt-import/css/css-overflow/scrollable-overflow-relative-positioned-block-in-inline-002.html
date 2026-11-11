@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta name="assert" content="This ensures that a relatively positioned block level box nested in an inline box contributes the same scrollable overflow in the inline direction as it does as a block sibling.">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#scrollable" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.container { width: 100px; height: 50px; font: 16px/18px monospace; }
+.shifted { width: 10px; height: 10px; position: relative; left: 20px; background-color: green; }
+</style>
+
+<div class="container" id="nested">text<span><div class="shifted"></div></span></div>
+<div class="container" id="sibling">text<div class="shifted"></div></div>
+
+<script>
+test(() => {
+    assert_equals(document.getElementById("nested").scrollWidth, document.getElementById("sibling").scrollWidth);
+}, "A relatively positioned block level box nested in an inline box contributes the same scrollable overflow in the inline direction as a block sibling");
+</script>
