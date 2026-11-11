@@ -1,0 +1,13 @@
+Once a ref test is otherwise done, Ladybird’s test-web waits until no
+image the document fetched is still loading or decoding, polling on
+timers. No other harness checks for loading images. WPT’s own runner
+waits two animation frames after reftest-wait is removed, in its
+wait_paints() (tools/wptrunner/wptrunner/executors/test-wait.js), and
+Gecko’s reftest harness waits for any pending paint, through
+isMozAfterPaintPending in its MakeProgress() state machine
+(layout/tools/reftest/reftest-content.js).
+
+Neither approach works for test-web: Some ref tests hold rendering back
+after removing reftest-wait, so animation frames never come, and a
+test’s fonts may never finish loading. So test-web waits on the image
+loads themselves — the one thing the capture needs.
