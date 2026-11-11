@@ -65,6 +65,7 @@ struct WebView::TabPerformanceStats {
     u64 upload_bytes_per_second;
     Optional<double> frames_per_second;
     Vector<double> cpu_history;
+    u32 other_tabs_sharing_processes;
 }
 
 [ExistingCpp]
