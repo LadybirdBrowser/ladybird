@@ -632,8 +632,8 @@ never shows "about:newtab".
 - About: the logomark, "Ladybird" in 40 px with the release badge, one tagline, and a card
   with version, build and platform plus a Copy button. Nothing else.
 - Welcome (`about:welcome`): the logomark at 56 px (0.85 line, so it doesn't get heavy), the title, then one centered column, in this order: search engine (optional,
-  nothing preselected, engines in a new random order each time, so none is favored by its
-  place; shown by name only in a five-column grid, never with logos or letter tiles, which
+  nothing preselected, engines in alphabetical order; shown by name only in a five-column
+  grid, never with logos or letter tiles, which
   would mean shipping other companies' trademarks or contacting their servers before anyone
   has chosen), Layout (all three layouts), Color, content blocking switch, "Start browsing" (enabled as soon as the
   current settings are loaded; it never waits for a choice).
