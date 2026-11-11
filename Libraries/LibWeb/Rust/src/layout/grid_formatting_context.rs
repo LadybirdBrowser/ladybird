@@ -1170,6 +1170,21 @@ pub(crate) struct GridFormattingContext<'pass> {
     item_runs_offered_to_row_measurements: Option<RowMeasurementsAhead>,
     next_item_lookup_start: Cell<usize>,
     items_to_fork: OnceCell<Vec<usize>>,
+    /// The content inline sizes of the row-only subgrids among the items, measured with this grid as their parent
+    /// grid. They are kept across the runs of this grid, keyed by what they depend on from it.
+    row_only_subgrid_content_inline_sizes:
+        std::cell::RefCell<Vec<(RowOnlySubgridContentInlineSizesKey, sizing_context::ContentSizes)>>,
+}
+
+/// What the content inline sizes of a row-only subgrid depend on, beyond its own content: the percentage bases it's
+/// measured with, where it's placed in its parent grid, and the parent grid's lines, which place its items.
+#[derive(Clone, PartialEq)]
+struct RowOnlySubgridContentInlineSizesKey {
+    subgrid: Node,
+    constraints: ContainingBlockConstraints,
+    placement: GridItemPlacement,
+    column_lines: Vec<Vec<LineName>>,
+    row_lines: Vec<Vec<LineName>>,
 }
 
 impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
@@ -1193,6 +1208,18 @@ impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
         }
         Some(self.item_run_shape(item)).filter(|shape| shape.lays_out_at(inline_size, constraints))
     }
+
+    fn child_content_inline_sizes(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<sizing_context::ContentSizes> {
+        let item = self.items[self.index_of_item(node)?];
+        if !self.grid_item_is_subgridded(item, Axis::Row) || self.grid_item_is_subgridded(item, Axis::Column) {
+            return None;
+        }
+        Some(self.row_only_subgrid_content_inline_sizes(item, constraints))
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1207,7 +1234,7 @@ enum RowMeasurementsAhead {
     ItemBlockSizesOnly,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct GridItemPlacement {
     row: i32,
     row_span: usize,
@@ -1394,6 +1421,7 @@ impl<'pass> GridFormattingContext<'pass> {
             item_runs_offered_to_row_measurements: None,
             next_item_lookup_start: Cell::new(0),
             items_to_fork: OnceCell::new(),
+            row_only_subgrid_content_inline_sizes: std::cell::RefCell::new(Vec::new()),
             collected_items: Vec::new(),
             table_inline_layout_of_item: Cell::new(None),
             in_flow_items_margin_box_block_extent: None,
@@ -3548,6 +3576,57 @@ impl<'pass> GridFormattingContext<'pass> {
             context.subgrid_tracks_act_empty = true;
             measure(&mut context, &scratch_run)
         })
+    }
+
+    /// The min-content and max-content inline sizes of an item that's a subgrid in the row axis only. Its columns are
+    /// its own, but where its items go depends on the rows it inherits from this grid: an item may be placed by a line
+    /// name that only this grid declares. So it's measured with this grid as its parent grid, rather than as a grid
+    /// on its own, where such an item would be placed on an implicit line instead.
+    ///
+    /// https://drafts.csswg.org/css-grid-2/#subgrid-line-name-inheritance
+    /// Since subgrids can be placed before their contents are placed, the subgridded lines automatically receive the
+    /// explicit line names specified on the corresponding lines of the parent grid.
+    fn row_only_subgrid_content_inline_sizes(
+        &self,
+        subgrid: GridItem,
+        constraints: ContainingBlockConstraints,
+    ) -> sizing_context::ContentSizes {
+        let key = RowOnlySubgridContentInlineSizesKey {
+            subgrid: subgrid.box_,
+            constraints,
+            placement: subgrid.placement(),
+            column_lines: self.column_lines.clone(),
+            row_lines: self.row_lines.clone(),
+        };
+        if let Some((_, sizes)) = self
+            .row_only_subgrid_content_inline_sizes
+            .borrow()
+            .iter()
+            .find(|(measured_key, _)| *measured_key == key)
+        {
+            return *sizes;
+        }
+        let content_inline_size_under = |inline_size| {
+            self.measure_subgrid(subgrid, |context, _| {
+                let input = LayoutInput::new(
+                    AvailableSpace {
+                        inline_size,
+                        block_size: AvailableSize::Indefinite,
+                    },
+                    constraints,
+                    ParticipationInParentFormattingContext::Root,
+                );
+                clamp_to_max_dimension_value(context.content_inline_size(input, None))
+            })
+        };
+        let sizes = sizing_context::ContentSizes {
+            min: content_inline_size_under(AvailableSize::MinContent),
+            max: content_inline_size_under(AvailableSize::MaxContent),
+        };
+        self.row_only_subgrid_content_inline_sizes
+            .borrow_mut()
+            .push((key, sizes));
+        sizes
     }
 
     /// The content block size of an item that's a subgrid in the column axis only. Its rows are its own,
