@@ -5291,6 +5291,10 @@ void TabWidget::update_vertical_tabs_overlay_geometry()
     m_vertical_tab_bar_column->setGeometry(vertical_tabs_chrome_rect());
     m_vertical_tab_bar_column->show();
     m_vertical_tab_bar_column->raise();
+
+#if defined(AK_OS_MACOS)
+    ensure_appkit_window_is_exposed(*m_vertical_tab_bar_column);
+#endif
 }
 
 void TabWidget::set_vertical_tabs_hover_expanded(bool expanded)

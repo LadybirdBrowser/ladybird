@@ -1479,6 +1479,10 @@ void WindowToolbar::raise_field_panel()
         QEvent z_order_change(QEvent::ZOrderChange);
         QCoreApplication::sendEvent(m_field_panel, &z_order_change);
     }
+
+#if defined(AK_OS_MACOS)
+    ensure_appkit_window_is_exposed(*m_field_panel);
+#endif
 }
 
 void WindowToolbar::update_field_panel()
