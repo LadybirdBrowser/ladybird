@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A Window reused from the initial about:blank keeps the about:blank as its document until the document that takes
+    // it over is made active, as in Chrome, Firefox and Safari. The about:blank still has the Window while it unloads,
+    // and the Window never has a document its iframe does not show.
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../../Assets/blank.html";
+        document.body.append(iframe);
+        const initialDocument = iframe.contentDocument;
+        const frameWindow = iframe.contentWindow;
+        frameWindow.marker = true;
+
+        let documentDuringUnload, targetDuringUnload;
+        frameWindow.addEventListener("unload", e => {
+            documentDuringUnload = frameWindow.document;
+            targetDuringUnload = e.target;
+        });
+
+        // Ports of the reused Window's realm stay entangled when the about:blank is destroyed.
+        const channel = new frameWindow.MessageChannel();
+        const portMessage = new Promise(resolve => {
+            channel.port2.onmessage = e => resolve(e.data);
+        });
+
+        let windowDocumentRanAhead = false;
+        await new Promise(resolve => {
+            const { port1, port2 } = new MessageChannel();
+            port1.onmessage = () => {
+                if (frameWindow.document !== initialDocument && iframe.contentDocument === initialDocument)
+                    windowDocumentRanAhead = true;
+                if (iframe.contentDocument !== initialDocument && iframe.contentDocument.readyState === "complete")
+                    return resolve();
+                port2.postMessage(0);
+            };
+            port2.postMessage(0);
+        });
+
+        channel.port1.postMessage("delivered");
+
+        println(`Window reused: ${frameWindow.marker === true}`);
+        println(`window.document during unload is the initial about:blank: ${documentDuringUnload === initialDocument}`);
+        println(`unload's target is the initial about:blank: ${targetDuringUnload === initialDocument}`);
+        println(`window.document changed before contentDocument: ${windowDocumentRanAhead}`);
+        println(`New document finished loading: ${iframe.contentDocument.readyState}`);
+        println(`Port of the reused Window's realm: ${await portMessage}`);
+        done();
+    });
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A media document that takes its Window over from the initial about:blank loads its media in its own context.
+    asyncTest(async done => {
+        for (const src of ["../../../Assets/120.png", "../../../Assets/red-with-second-in-gray-64x36.webm"]) {
+            const iframe = document.createElement("iframe");
+            iframe.src = src;
+            document.body.append(iframe);
+            const frameWindow = iframe.contentWindow;
+            frameWindow.marker = true;
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+            const media = iframe.contentDocument.querySelector("img, video");
+            const loaded = media.localName === "img"
+                ? media.naturalWidth > 0
+                : media.readyState >= HTMLMediaElement.HAVE_METADATA && media.videoWidth > 0;
+            println(`${src.split("/").pop()}: Window reused: ${frameWindow.marker === true}, ${media.localName} loaded: ${loaded}`);
+            iframe.remove();
+        }
+        done();
+    });
+</script>

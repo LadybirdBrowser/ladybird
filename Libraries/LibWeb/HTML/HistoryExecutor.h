@@ -30,6 +30,7 @@
 namespace Web::HTML {
 
 struct ChangingNavigableContinuationState;
+class DocumentToCreate;
 struct PopulateSessionHistoryEntryDocumentOutput;
 
 // The renderer's share of session history operations for the documents a Page hosts. The UI process owns the
@@ -41,7 +42,7 @@ class WEB_API HistoryExecutor final : public GC::Cell {
 
 public:
     struct HistoryOperationState {
-        GC::Ptr<DOM::Document> pending_document {};
+        GC::Ptr<DocumentToCreate> pending_document {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         GC::Ptr<GC::Function<void()>> on_complete {};
