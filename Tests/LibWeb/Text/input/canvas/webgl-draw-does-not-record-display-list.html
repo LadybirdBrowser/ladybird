@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const settle = async () => {
+            await nextFrame();
+            await nextFrame();
+            do await new Promise((resolve) => setTimeout(resolve));
+            while (internals.frameSchedulerState() !== "idle");
+        };
+        const recordingCount = () => (internals.takeDisplayListTrace().match(/^recording /gm) ?? []).length;
+
+        for (const contextType of ["webgl", "webgl2"]) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 100;
+            canvas.height = 100;
+            document.body.appendChild(canvas);
+
+            const gl = canvas.getContext(contextType);
+            gl.clearColor(1, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            await settle();
+
+            internals.beginDisplayListTrace();
+            gl.clearColor(0, 1, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            await settle();
+            println(`[${contextType}] recordings after draw: ${recordingCount()}`);
+
+            canvas.remove();
+            await settle();
+        }
+    });
+</script>

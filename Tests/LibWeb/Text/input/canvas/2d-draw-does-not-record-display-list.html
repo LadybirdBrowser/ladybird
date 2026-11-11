@@ -1,0 +1,26 @@
+<!doctype html>
+<canvas id="canvas" width="100" height="100"></canvas>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const settle = async () => {
+            await nextFrame();
+            await nextFrame();
+            do await new Promise((resolve) => setTimeout(resolve));
+            while (internals.frameSchedulerState() !== "idle");
+        };
+        const recordingCount = () => (internals.takeDisplayListTrace().match(/^recording /gm) ?? []).length;
+
+        const context = canvas.getContext("2d");
+        context.fillStyle = "red";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await settle();
+
+        internals.beginDisplayListTrace();
+        context.fillStyle = "green";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await settle();
+        println(`recordings after draw: ${recordingCount()}`);
+    });
+</script>

@@ -82,7 +82,6 @@ static void queue_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
         facts.content_width = content_size->width();
         facts.content_height = content_size->height();
         facts.canvas_id = canvas.canvas_id().value().value();
-        facts.content_generation = canvas.content_generation();
     }
     // Where the facts changed, the canvas's paint cache goes with them.
     queue_element_paint_facts(canvas, [&](auto* host, u32 element) {

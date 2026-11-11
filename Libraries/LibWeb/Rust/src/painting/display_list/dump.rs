@@ -447,7 +447,6 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         DisplayListCommandType::DrawCanvas => {
             let command = read_command::<DrawCanvas>(payload);
             write_field(output, "dst_rect", command.dst_rect);
-            write!(output, " content_generation={}", command.content_generation).unwrap();
         }
         DisplayListCommandType::DrawVideoFrame => {
             let command = read_command::<DrawVideoFrame>(payload);

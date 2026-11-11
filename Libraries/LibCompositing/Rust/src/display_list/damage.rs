@@ -1868,11 +1868,10 @@ mod tests {
         }
     }
 
-    fn canvas_command_bytes(rect: IntRect, content_generation: u64) -> TestDisplayList {
+    fn canvas_command_bytes(rect: IntRect) -> TestDisplayList {
         let command = DrawCanvas {
             dst_rect: rect,
             canvas_id: CanvasId(1),
-            content_generation,
             scaling_mode: ScalingMode::NearestNeighbor,
         };
         command_bytes(&command, Some(rect), ContextRef::default())
@@ -2045,7 +2044,7 @@ mod tests {
     fn changed_live_content_damages_where_it_is_drawn() {
         let tree = identity_tree();
         let rect = IntRect::new(10, 10, 20, 20);
-        let canvas = canvas_command_bytes(rect, 0);
+        let canvas = canvas_command_bytes(rect);
         let changed_canvas = LiveContentChanges {
             canvases: &[CanvasId(1)],
             ..LiveContentChanges::default()
@@ -2124,7 +2123,6 @@ mod tests {
             &DrawCanvas {
                 dst_rect: rect,
                 canvas_id: CanvasId(1),
-                content_generation: 0,
                 scaling_mode: ScalingMode::NearestNeighbor,
             },
             Some(rect),
@@ -2144,7 +2142,7 @@ mod tests {
     fn changed_live_content_inside_a_group_damages_the_whole_group() {
         let tree = identity_tree();
         let group_rect = IntRect::new(5, 5, 40, 40);
-        let content = canvas_command_bytes(IntRect::new(10, 10, 20, 20), 0);
+        let content = canvas_command_bytes(IntRect::new(10, 10, 20, 20));
         let no_data = DisplayListDataSpan { offset: 0, size: 0 };
         let mut group = TestDisplayList::default();
         append_record(
@@ -3357,7 +3355,6 @@ mod tests {
                     &DrawCanvas {
                         dst_rect: rect,
                         canvas_id: CanvasId(1),
-                        content_generation: 1,
                         scaling_mode: ScalingMode::NearestNeighbor,
                     },
                     Some(rect),
@@ -3533,20 +3530,9 @@ mod tests {
     }
 
     #[test]
-    fn changed_canvas_content_generation_damages_canvas_rect() {
+    fn canvas_without_new_content_is_not_damaged() {
         let tree = identity_tree();
-        let old_display_list = canvas_command_bytes(IntRect::new(10, 10, 20, 20), 1);
-        let new_display_list = canvas_command_bytes(IntRect::new(10, 10, 20, 20), 2);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
-    fn unchanged_canvas_content_generation_does_not_damage_canvas() {
-        let tree = identity_tree();
-        let canvas = canvas_command_bytes(IntRect::new(10, 10, 20, 20), 1);
+        let canvas = canvas_command_bytes(IntRect::new(10, 10, 20, 20));
         let old_fill = fill_command_bytes(IntRect::new(50, 50, 10, 10), RED);
         let new_fill = fill_command_bytes(IntRect::new(50, 50, 10, 10), BLUE);
         let mut old_display_list = canvas.clone();
