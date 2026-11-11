@@ -8615,6 +8615,19 @@ impl KeyframeConversionCache {
     }
 }
 
+/// The endpoints selected for a custom property's current animation sample.
+pub(crate) struct CustomPropertyInterval {
+    interval_span: [CustomPropertyKeyframeLookup; 2],
+    pub(crate) name: crate::css::retained_fly_string::RetainedUtf16FlyString,
+    pub(crate) declared_values: [RetainedStyleValueData; 2],
+}
+
+impl CustomPropertyInterval {
+    fn declaration_indices(&self) -> [usize; 2] {
+        self.interval_span.map(|lookup| lookup.declaration_index)
+    }
+}
+
 /// The custom properties the effects an element samples declare, each minted into the number the
 /// animation core keys it by, with what the element's environment and the document's registry say
 /// of it.
@@ -8622,6 +8635,7 @@ pub(crate) struct AnimatedCustomProperties {
     stores: KeyframeStores,
     names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     units: Vec<Vec<u16>>,
+    pub(crate) intervals: Vec<CustomPropertyInterval>,
     /// Whether any interval values are resolved afresh rather than retained across samples.
     pub(crate) has_uncached_interval_values: bool,
 }
@@ -8879,6 +8893,7 @@ pub(crate) fn resolve_published_animation_declarations(
         stores,
         names: Vec::new(),
         units: Vec::new(),
+        intervals: Vec::new(),
         has_uncached_interval_values: false,
     };
     let substitution_marks = std::cell::Cell::new(0_u8);
@@ -9057,11 +9072,21 @@ pub(crate) fn resolve_published_animation_declarations(
             }
             let name = custom_properties.units(name_id);
             let interval_span = select_custom_property_interval_span(effect, &keyframe_lookups, selection.current_key);
+            let interval = CustomPropertyInterval {
+                interval_span,
+                name: custom_properties.name(name_id).clone(),
+                declared_values: interval_span.map(|lookup| {
+                    match &effect.custom_declaration_at(lookup.declaration_index).value {
+                        PublishedValue::Declared(value) => value.clone(),
+                        _ => RetainedStyleValueData::none(),
+                    }
+                }),
+            };
             let (interval_values, values_are_retained) = effect.resolve_custom_property_interval_values(
-                interval_span.map(|lookup| lookup.declaration_index),
+                interval.declaration_indices(),
                 registry.name_has_interpolable_syntax(name),
                 || {
-                    interval_span.map(|lookup| {
+                    interval.interval_span.map(|lookup| {
                         let declaration = effect.custom_declaration_at(lookup.declaration_index);
                         match &declaration.value {
                             PublishedValue::ElementValue => custom_properties.underlying_value(registry, name_id),
@@ -9078,7 +9103,7 @@ pub(crate) fn resolve_published_animation_declarations(
             // SAFETY: The sample keeps the name alive while it is retained for the lookup.
             let interned_name = unsafe { ak::Utf16FlyString::from_raw_borrowed(custom_properties.name(name_id).raw()) };
             let custom_is_inherited = registry.name_inherits(&interned_name);
-            for (lookup, value) in interval_span.into_iter().zip(interval_values) {
+            for (lookup, value) in interval.interval_span.into_iter().zip(interval_values) {
                 let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {
                     keyframe_index: first_keyframe_index + lookup.keyframe_index,
@@ -9093,6 +9118,7 @@ pub(crate) fn resolve_published_animation_declarations(
                 });
             }
             custom_properties.has_uncached_interval_values |= !values_are_retained;
+            custom_properties.intervals.push(interval);
         }
         effects.push(FfiAnimationEffect {
             first_keyframe_index,
