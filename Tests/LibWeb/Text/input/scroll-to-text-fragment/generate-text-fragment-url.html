@@ -232,6 +232,30 @@ test(() => {
 }, "Selections containing form controls are rejected");
 
 test(() => {
+    setFixture(`<p id="target">before \u{1FAE9} after</p>`);
+    const range = rangeWithin(target, 7, 9);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,%F0%9F%AB%A9");
+}, "A unique emoji selection is not counted as ambiguous");
+
+test(() => {
+    setFixture(`
+        <p>left \u{1FAE9} right</p>
+        <p id="target">before \u{1FAE9} after</p>
+    `);
+    const range = rangeWithin(target, 7, 9);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,%F0%9F%AB%A9");
+}, "Repeated emoji are disambiguated without restarting inside a surrogate pair");
+
+test(() => {
+    setFixture(`
+        <p>left \u{1F44D}\u{1F3FD} right</p>
+        <p id="target">before \u{1F44D} after</p>
+    `);
+    const range = rangeWithin(target, 7, 9);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,%F0%9F%91%8D");
+}, "Emoji matches inside a modifier sequence are skipped");
+
+test(() => {
     setFixture(`<p id="target">these five words form unique text</p>`);
     const range = rangeWithin(target, 0, target.textContent.length);
     document.designMode = "on";
