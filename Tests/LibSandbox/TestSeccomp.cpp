@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/OwnPtr.h>
+#include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibCore/DirIterator.h>
 #include <LibSandbox/ConnectBroker.h>
@@ -226,6 +227,54 @@ TEST_CASE(filesystem_metadata_policy_answers_the_statvfs_that_mesa_uses)
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(sandbox_debugging_logs_refused_syscalls)
+{
+    for (auto debugging : { false, true }) {
+        int fds[2];
+        VERIFY(pipe(fds) == 0);
+        auto status = run_with_policy(
+            [&](auto& policy) {
+                VERIFY(dup2(fds[1], STDERR_FILENO) == STDERR_FILENO);
+                close(fds[0]);
+                close(fds[1]);
+                if (debugging)
+                    VERIFY(setenv("LADYBIRD_SANDBOX_DEBUG", "1", 1) == 0);
+                else
+                    VERIFY(unsetenv("LADYBIRD_SANDBOX_DEBUG") == 0);
+                policy.allow_gpu_device_operations();
+            },
+            [] {
+                // No group asks for packet sockets or for new processes, so the end of the policy refuses them.
+                VERIFY(socket(AF_PACKET, SOCK_RAW, 0) == -1);
+                VERIFY(errno == EAFNOSUPPORT);
+                VERIFY(syscall(__NR_clone, SIGCHLD, nullptr, nullptr, nullptr, nullptr) == -1);
+                VERIFY(errno == EPERM);
+                // A group's own refusal, not the end of the policy.
+                VERIFY(chmod("/", 0755) == -1);
+                VERIFY(errno == EPERM);
+            });
+        close(fds[1]);
+        StringBuilder output;
+        char buffer[4096];
+        ssize_t received = 0;
+        while ((received = read(fds[0], buffer, sizeof(buffer))) > 0)
+            output.append(StringView { buffer, static_cast<size_t>(received) });
+        close(fds[0]);
+
+        EXPECT(WIFEXITED(status));
+        if (WIFEXITED(status))
+            EXPECT_EQ(WEXITSTATUS(status), 0);
+        auto log = output.string_view();
+        if (!debugging) {
+            EXPECT(!log.contains("Sandbox refusal"sv));
+            continue;
+        }
+        EXPECT(log.contains("for syscall socket ("sv));
+        EXPECT(log.contains("for syscall clone ("sv));
+        EXPECT(log.contains("for syscall chmod ("sv) || log.contains("for syscall fchmodat ("sv) || log.contains("for syscall fchmodat2 ("sv));
+    }
 }
 
 TEST_CASE(gpu_policy_allows_graphics_ioctl_families)

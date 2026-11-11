@@ -116,6 +116,8 @@ Every process in the table above except **UI** and **Hub** applies a sandbox to 
 
 On Linux, sandboxes are built from seccomp and Landlock. On kernels without Landlock, seccomp traps every system call that takes a path, and a broker process forked from the helper carries out the ones that the helper's path list permits. On macOS, they use the Seatbelt sandbox. Windows has no sandbox yet.
 
+A system call that a Linux sandbox kills the process for is always logged. Most refusals only make the call fail, though, and the process may never say so. To see those too, start Ladybird with `LADYBIRD_SANDBOX_DEBUG=1`. Every helper then logs each system call that its seccomp policy refuses without killing it, and confines its files with the broker even where Landlock exists, so that it can log each path that it refuses. The broker decides by path where Landlock decides by file, and it does not scope signals or abstract sockets, so a refusal that only Landlock causes does not happen in this mode.
+
 ## Class overview
 
 ```
