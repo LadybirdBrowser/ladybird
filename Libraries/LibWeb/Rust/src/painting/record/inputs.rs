@@ -78,7 +78,6 @@ pub(crate) struct RecordingInputs {
     pub inactive_selection_background_light: Color,
     pub inactive_selection_background_dark: Color,
     pub palette_is_dark: bool,
-    pub document_has_supported_color_schemes: bool,
     // Whether the document's supported color schemes name `light` or `dark`.
     pub document_supports_light_or_dark: bool,
     // The color scheme an SVG image renders in where neither the box that draws it nor its document opts into one.

@@ -43,7 +43,6 @@ pub struct FfiRecordingInputs {
     pub inactive_selection_background_light: Color,
     pub inactive_selection_background_dark: Color,
     pub palette_is_dark: bool,
-    pub document_has_supported_color_schemes: bool,
     pub document_supports_light_or_dark: bool,
     pub image_fallback_color_scheme: u8,
     pub accessibility_focus_target: crate::layout::node_data::NodeSlotId,
@@ -151,7 +150,6 @@ impl FfiRecordingInputs {
             inactive_selection_background_light: self.inactive_selection_background_light,
             inactive_selection_background_dark: self.inactive_selection_background_dark,
             palette_is_dark: self.palette_is_dark,
-            document_has_supported_color_schemes: self.document_has_supported_color_schemes,
             document_supports_light_or_dark: self.document_supports_light_or_dark,
             image_fallback_color_scheme: self.image_fallback_color_scheme,
             accessibility_focus_target: (!self.accessibility_focus_target.is_invalid())
