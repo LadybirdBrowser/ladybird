@@ -16,6 +16,7 @@ use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
+use crate::host::RecordSpan;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
@@ -238,6 +239,12 @@ fn return_replay_scratch_storage(mut storage: ReplayScratchStorage) {
     });
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct ReplaySelection<'a> {
+    pub record_spans: Option<&'a [RecordSpan]>,
+    pub skip_root_isolation_layer: bool,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SwitchResult {
     Switched,
@@ -251,6 +258,7 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     scroll_offsets: &'a [FloatPoint],
     effect_clips: &'a EffectClipPlan,
     root_group_color: Color,
+    selection: ReplaySelection<'a>,
     painter: &'a mut Painter,
     // Spatial nodes never touch the canvas save stack: any node's space is entered absolutely with a single
     // set_matrix(), so only clips and effects do.
@@ -348,6 +356,11 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
 }
 
 impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
+    fn effect_layer_is_pushed(&self, effect: EffectNodeIndex) -> bool {
+        self.tree.effect_pushes_layer_at_replay(effect)
+            && !(self.selection.skip_root_isolation_layer && self.tree.root_isolation_effect == Some(effect))
+    }
+
     fn ensure_ctm_space(&mut self, spatial: SpatialNodeIndex) {
         let space = self.world.draw_space[spatial.0 as usize];
         if self.current_ctm_space == Some(space) {
@@ -558,7 +571,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     let node = &tree.effect_nodes[effect.0 as usize];
                     match &node.data {
                         EffectNodeData::Effects(_) => {
-                            if tree.effect_pushes_layer_at_replay(effect) {
+                            if self.effect_layer_is_pushed(effect) {
                                 self.painter.pop();
                                 self.current_ctm_space = None;
                             }
@@ -642,7 +655,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     }
                     match &node.data {
                         EffectNodeData::Effects(effects) => {
-                            if tree.effect_pushes_layer_at_replay(effect) {
+                            if self.effect_layer_is_pushed(effect) {
                                 self.ensure_ctm_space(node.spatial);
                                 let content_bounds = self.layer_content_bounds(effect, node.spatial);
                                 let mut layer = replay_layer_of(effects, effect, content_bounds);
@@ -681,6 +694,28 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
     // context spares the pushes.
     fn execute_run(&mut self, run_index: usize) {
         let run = self.command_runs[run_index];
+        self.execute_run_records(run_index, run.offset, run.offset + run.size);
+    }
+
+    fn execute_record_span(&mut self, span: RecordSpan) {
+        let first_run = self
+            .command_runs
+            .partition_point(|run| run.offset + run.size <= span.begin_offset);
+        for run_index in first_run..self.command_runs.len() {
+            let run = self.command_runs[run_index];
+            if run.offset >= span.end_offset {
+                break;
+            }
+            self.execute_run_records(
+                run_index,
+                run.offset.max(span.begin_offset),
+                (run.offset + run.size).min(span.end_offset),
+            );
+        }
+    }
+
+    fn execute_run_records(&mut self, run_index: usize, begin_offset: u32, end_offset: u32) {
+        let run = self.command_runs[run_index];
         if self.world.backface_culled[run.context.spatial.0 as usize] {
             return;
         }
@@ -697,7 +732,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         if self.painter.would_be_fully_clipped_by_painter(run.ink_bounds) {
             return;
         }
-        let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
+        let records = &self.tape[begin_offset as usize..end_offset as usize];
         let world = &self.world;
         let clip_space_matrix = |space: SpatialNodeIndex| world.draw_matrix_if_known(space);
         self.painter
@@ -706,7 +741,12 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
 
     fn execute(&mut self) {
         let tree = self.tree;
-        if !self.tree_has_sorting_contexts {
+        if let Some(record_spans) = self.selection.record_spans {
+            debug_assert!(!self.tree_has_sorting_contexts);
+            for span in record_spans {
+                self.execute_record_span(*span);
+            }
+        } else if !self.tree_has_sorting_contexts {
             for run_index in 0..self.command_runs.len() {
                 self.execute_run(run_index);
             }
@@ -776,6 +816,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn replay_display_list(
     tree: &VisualContextTree,
     tape: &[u8],
@@ -783,6 +824,7 @@ pub fn replay_display_list(
     effect_clips: &EffectClipPlan,
     root_group_color: Color,
     scroll_offsets: &[FloatPoint],
+    selection: ReplaySelection<'_>,
     painter: &mut impl ReplayPainter,
 ) {
     let replay_base_matrix = painter.canvas_matrix();
@@ -795,6 +837,7 @@ pub fn replay_display_list(
         scroll_offsets,
         effect_clips,
         root_group_color,
+        selection,
         painter,
         world: scratch.world,
         culling: scratch.culling,
@@ -946,6 +989,7 @@ mod tests {
         fully_clipped_x: i32,
         layer_content_bounds: Vec<Option<FloatRect>>,
         backdrop_base_colors: Vec<Color>,
+        run_record_sizes: Vec<usize>,
     }
 
     impl RecordingPainter {
@@ -956,6 +1000,7 @@ mod tests {
                 fully_clipped_x: i32::MIN,
                 layer_content_bounds: Vec::new(),
                 backdrop_base_colors: Vec::new(),
+                run_record_sizes: Vec::new(),
             }
         }
     }
@@ -1004,11 +1049,12 @@ mod tests {
         fn execute_run(
             &mut self,
             run_index: usize,
-            _records: &[u8],
+            records: &[u8],
             _scroll_offsets: &[FloatPoint],
             _clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
         ) {
             self.events.push(PainterEvent::Run(run_index));
+            self.run_record_sizes.push(records.len());
         }
     }
 
@@ -1106,7 +1152,142 @@ mod tests {
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
             &[],
+            ReplaySelection::default(),
             painter,
+        );
+    }
+
+    fn replay_selection(
+        tree: &VisualContextTree,
+        runs: &mut [DisplayListCommandRun],
+        run_size: u32,
+        selection: ReplaySelection<'_>,
+    ) -> RecordingPainter {
+        for (index, run) in runs.iter_mut().enumerate() {
+            run.offset = index as u32 * run_size;
+            run.size = run_size;
+        }
+        let tape = vec![0u8; runs.len() * run_size as usize];
+        let mut painter = RecordingPainter::new();
+        replay_display_list(
+            tree,
+            &tape,
+            runs,
+            &EffectClipPlan::new(tree, runs).unwrap(),
+            Color::TRANSPARENT,
+            &[],
+            selection,
+            &mut painter,
+        );
+        painter
+            .events
+            .retain(|event| !matches!(event, PainterEvent::SetMatrix(_)));
+        painter
+    }
+
+    #[test]
+    fn a_span_replay_plays_only_its_runs_and_enters_their_contexts_from_what_it_played() {
+        let mut tree = identity_tree();
+        let rect = FloatRect::new(0.0, 0.0, 100.0, 100.0);
+        let clip = root_clip(&mut tree, rect);
+        let layer = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        let clipped = ContextRef {
+            clip,
+            ..ContextRef::default()
+        };
+        let in_layer = ContextRef {
+            effect: layer,
+            ..ContextRef::default()
+        };
+        let mut runs =
+            [clipped, in_layer, clipped].map(|context| run(VISUAL_VIEWPORT_NODE_INDEX, context, visible_bounds()));
+        let spans = [
+            RecordSpan {
+                begin_offset: 0,
+                end_offset: 8,
+            },
+            RecordSpan {
+                begin_offset: 16,
+                end_offset: 24,
+            },
+        ];
+        let painter = replay_selection(
+            &tree,
+            &mut runs,
+            8,
+            ReplaySelection {
+                record_spans: Some(&spans),
+                skip_root_isolation_layer: false,
+            },
+        );
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::PushClip(rect),
+                PainterEvent::Run(0),
+                PainterEvent::Run(2),
+                PainterEvent::Pop,
+            ]
+        );
+    }
+
+    #[test]
+    fn a_span_replay_plays_the_records_of_a_run_inside_the_span() {
+        let mut runs = [ClipNodeIndex::NONE, ClipNodeIndex::NONE]
+            .map(|_| run(VISUAL_VIEWPORT_NODE_INDEX, ContextRef::default(), visible_bounds()));
+        runs[1].context.effect = EffectNodeIndex(0);
+        let mut tree = identity_tree();
+        effect_under(&mut tree, effects(1.0), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        let spans = [RecordSpan {
+            begin_offset: 8,
+            end_offset: 24,
+        }];
+        let painter = replay_selection(
+            &tree,
+            &mut runs,
+            16,
+            ReplaySelection {
+                record_spans: Some(&spans),
+                skip_root_isolation_layer: false,
+            },
+        );
+        assert_eq!(painter.events, vec![PainterEvent::Run(0), PainterEvent::Run(1)]);
+        assert_eq!(painter.run_record_sizes, vec![8, 8]);
+    }
+
+    #[test]
+    fn a_replay_that_skips_the_root_isolation_layer_pushes_only_the_layers_inside_it() {
+        let mut tree = identity_tree();
+        let root = effect_under(&mut tree, effects(1.0), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        tree.root_isolation_effect = Some(root);
+        let layer = effect_under(&mut tree, effects(0.5), root, ClipNodeIndex::NONE);
+        let mut runs = [root, layer].map(|effect| {
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                ContextRef {
+                    effect,
+                    ..ContextRef::default()
+                },
+                visible_bounds(),
+            )
+        });
+        let painter = replay_selection(
+            &tree,
+            &mut runs,
+            8,
+            ReplaySelection {
+                record_spans: None,
+                skip_root_isolation_layer: true,
+            },
+        );
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::Run(0),
+                PainterEvent::PushLayer(0.5),
+                PainterEvent::Run(1),
+                PainterEvent::Pop,
+            ]
         );
     }
 
@@ -1880,6 +2061,7 @@ mod tests {
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             white,
             &[],
+            ReplaySelection::default(),
             &mut painter,
         );
         assert_eq!(painter.backdrop_base_colors, vec![white, Color::TRANSPARENT]);
@@ -2006,6 +2188,7 @@ mod tests {
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             Color::TRANSPARENT,
             &scroll_offsets,
+            ReplaySelection::default(),
             &mut painter,
         );
         assert_eq!(

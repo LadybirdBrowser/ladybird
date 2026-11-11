@@ -20,9 +20,12 @@ void DisplayListPlayer::execute(
     DisplayListResourceStorage const& resource_storage,
     FrameInputs const* frame_inputs,
     RefPtr<Gfx::PaintingSurface> surface,
-    OwnedCanvasSurfaces const* canvas_surfaces)
+    OwnedCanvasSurfaces const* canvas_surfaces,
+    ReplaySelection const& selection)
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
+    VERIFY(frame_inputs || !selection.replays_only_record_spans);
+    TemporaryChange replay_selection_change { m_replay_selection, selection };
     m_surface = surface;
     m_active_display_list = &display_list;
     m_active_visual_context_tree = &visual_context_tree;
@@ -136,7 +139,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, FrameInput
     auto callbacks = ReplayCallbacks::for_player(*this);
     if (frame_inputs) {
         VERIFY(frame_inputs->visual_context_tree().rust_handle() == visual_context_tree.rust_handle());
-        frame_inputs->replay(display_list, callbacks);
+        frame_inputs->replay(display_list, callbacks, exchange(m_replay_selection, replaying_everything()));
     } else {
         display_list.replay(visual_context_tree, callbacks);
     }

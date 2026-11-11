@@ -26,7 +26,7 @@ public:
     virtual ~DisplayListPlayer() = default;
 
     // The frame inputs say where the frame presents what scrolls. Without them, nothing is scrolled.
-    void execute(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceStorage const&, FrameInputs const*, RefPtr<Gfx::PaintingSurface>, OwnedCanvasSurfaces const* = nullptr);
+    void execute(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceStorage const&, FrameInputs const*, RefPtr<Gfx::PaintingSurface>, OwnedCanvasSurfaces const* = nullptr, ReplaySelection const& = replaying_everything());
     virtual void flush(Gfx::PaintingSurface&) = 0;
 
 protected:
@@ -88,6 +88,7 @@ private:
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
     FrameInputs const* m_active_frame_inputs { nullptr };
+    ReplaySelection m_replay_selection { replaying_everything() };
     HashMap<u32, ReadonlyBytes> m_declared_mask_contents;
 };
 

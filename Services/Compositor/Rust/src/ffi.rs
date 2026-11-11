@@ -22,7 +22,7 @@ use libcompositing_rust::display_list::storage::storage_from_handle;
 use libcompositing_rust::ffi::{
     FfiDisplayList, replay_display_list_storage, replay_nested_records, tree_sharing_handle,
 };
-use libcompositing_rust::host::FfiDisplayListReplayCallbacks;
+use libcompositing_rust::host::{FfiDisplayListReplayCallbacks, FfiReplaySelection};
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
 };
@@ -335,22 +335,25 @@ pub extern "C" fn compositor_frame_inputs_scrollbars(
 ///
 /// # Safety
 ///
-/// `display_list_storage` must be a live storage handle of the list the context holds, and `callbacks` must be live.
-/// The painter callbacks run synchronously and may re-enter a replay.
+/// `display_list_storage` must be a live storage handle of the list the context holds, `selection` must hold live
+/// spans when it selects any, and `callbacks` must be live. The painter callbacks run synchronously and may re-enter a
+/// replay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_frame_inputs_replay(
     frame_inputs: &FrameInputs,
     display_list_storage: *const c_void,
     root_group_color: Color,
+    selection: &FfiReplaySelection,
     callbacks: *const FfiDisplayListReplayCallbacks,
 ) {
-    // SAFETY: The caller lends a live storage handle and live callbacks.
+    // SAFETY: The caller lends a live storage handle, live spans and live callbacks.
     unsafe {
         replay_display_list_storage(
             frame_inputs.visual_context_tree.as_arc(),
             display_list_storage,
             root_group_color,
             frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+            selection.as_selection(),
             callbacks,
         );
     }

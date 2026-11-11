@@ -5,11 +5,43 @@
  */
 
 use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
-use crate::display_list::replay::ReplayPainter;
+use crate::display_list::replay::{ReplayPainter, ReplaySelection};
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
 use std::ffi::c_void;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct RecordSpan {
+    pub begin_offset: u32,
+    pub end_offset: u32,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiReplaySelection {
+    pub record_spans: *const RecordSpan,
+    pub record_span_count: usize,
+    pub replays_only_record_spans: bool,
+    pub skip_root_isolation_layer: bool,
+}
+
+impl FfiReplaySelection {
+    /// # Safety
+    ///
+    /// When the selection replays only record spans, `record_spans` must point at `record_span_count` spans that stay
+    /// live for the returned lifetime.
+    pub unsafe fn as_selection<'a>(&self) -> ReplaySelection<'a> {
+        ReplaySelection {
+            // SAFETY: The caller guarantees the spans are live.
+            record_spans: self
+                .replays_only_record_spans
+                .then(|| unsafe { ak::slice_from_raw_parts(self.record_spans, self.record_span_count) }),
+            skip_root_isolation_layer: self.skip_root_isolation_layer,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 #[repr(C)]

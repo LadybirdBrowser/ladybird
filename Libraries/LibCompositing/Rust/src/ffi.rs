@@ -59,6 +59,7 @@ pub unsafe fn replay_display_list_storage(
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
     scroll_offsets: &[FloatPoint],
+    selection: crate::display_list::replay::ReplaySelection<'_>,
     callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
 ) {
     // SAFETY: The caller guarantees a live handle for the duration of the call.
@@ -72,6 +73,7 @@ pub unsafe fn replay_display_list_storage(
         storage.effect_clip_plan(tree),
         root_group_color,
         scroll_offsets,
+        selection,
         &mut painter,
     );
 }
@@ -109,7 +111,16 @@ pub unsafe extern "C" fn display_list_replay(
     callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
 ) {
     // SAFETY: The caller guarantees live handles and callbacks for the duration of the call.
-    unsafe { replay_display_list_storage(tree_from_handle(tree), storage, root_group_color, &[], callbacks) };
+    unsafe {
+        replay_display_list_storage(
+            tree_from_handle(tree),
+            storage,
+            root_group_color,
+            &[],
+            Default::default(),
+            callbacks,
+        );
+    };
 }
 
 /// Plays a stream of records that a command nests, outside of any run, with nothing scrolled.

@@ -51,7 +51,8 @@ public:
         FrameInputs const*,
         RefPtr<Gfx::PaintingSurface>,
         OwnedCanvasSurfaces const*,
-        CompositedContextResolver const*);
+        CompositedContextResolver const*,
+        ReplaySelection const& = replaying_everything());
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
