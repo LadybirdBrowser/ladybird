@@ -9,9 +9,12 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/Optional.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
+
+constexpr inline auto DEFAULT_PROFILE_NAME = BROWSER_IS_RELEASE_BUILD ? "default"sv : "developer"sv;
 
 struct ProfileSelection {
     Optional<ByteString> name {};
