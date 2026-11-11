@@ -143,6 +143,7 @@ if (NOT WIN32)
         TestRequestServerDiskCaches.cpp
         TestShadowTreeTooltipsAndLinks.cpp
         TestSharedWorkerHost.cpp
+        TestSpareWebContentProcess.cpp
         TestTitleElementChanges.cpp
         TestUserActivation.cpp
         TestViewSource.cpp

@@ -1516,6 +1516,9 @@ bool Application::same_origin_tabs_may_share_a_process() const
 
 ErrorOr<NonnullRefPtr<WebContentPage>> Application::open_page_for_new_tab(IsPrivate is_private)
 {
+    if (m_spare_web_content_process && !m_spare_web_content_process->is_open())
+        m_spare_web_content_process = nullptr;
+
     RefPtr<WebContentClient> web_content_client;
     if (is_private == IsPrivate::Yes) {
         web_content_client = TRY(create_web_content_client(IsPrivate::Yes, allocate_page_id()));
@@ -2196,6 +2199,8 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
+            if (m_spare_web_content_process == client)
+                m_spare_web_content_process = nullptr;
             client->did_lose_process();
             if (!report_name.is_empty())
                 client->did_save_crash_report(report_name);
