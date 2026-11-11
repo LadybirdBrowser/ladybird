@@ -139,6 +139,14 @@ static Optional<size_t> index_of_exact_search_suggestion(String const& query, Ve
     });
 }
 
+// The row for the text as typed: the verbatim row, or else the search for the text.
+static Optional<size_t> index_of_typed_text_suggestion(String const& query, Vector<AutocompleteSuggestion> const& suggestions)
+{
+    if (auto index = suggestions.find_first_index_if([](auto const& suggestion) { return suggestion.is_verbatim; }); index.has_value())
+        return index;
+    return index_of_exact_search_suggestion(query, suggestions);
+}
+
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)
     : m_provider(move(provider))
 {
@@ -169,6 +177,7 @@ void Omnibox::begin_editing(String text)
     close_popup();
     m_suggestions.clear();
     m_popup_query_id = {};
+    m_popup_query = {};
 }
 
 void Omnibox::end_editing()
@@ -199,6 +208,7 @@ void Omnibox::show_all_suggestions()
     adopt_display_text_as_query();
     m_completion_suppression = m_query;
     m_popup_query_id = {};
+    m_popup_query = {};
     start_query();
 }
 
@@ -220,9 +230,19 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
 
     if (m_completion_suppression.has<SuppressionArmedByDelete>()) {
         // The user deleted part of the text; leave it alone until the query changes again.
-        if (had_completion || had_preview)
-            m_user_rejected_completion = true;
         m_completion_suppression = m_query;
+        if (had_completion || had_preview) {
+            m_user_rejected_completion = true;
+            // NB: Return now goes to the text as typed, so its row leads and is highlighted.
+            if (m_popup_visible && m_popup_query_id.has_value() && m_popup_query == m_query) {
+                move_typed_text_row_to_front(m_suggestions);
+                m_selection = index_of_typed_text_suggestion(m_query, m_suggestions).map([](auto index) {
+                    return Selection { index, Selection::Origin::Automatic };
+                });
+                if (on_suggestions_change)
+                    on_suggestions_change();
+            }
+        }
     } else if (auto const* suppressed_query = m_completion_suppression.get_pointer<String>(); suppressed_query && *suppressed_query != m_query) {
         m_completion_suppression = Empty {};
     }
@@ -322,12 +342,14 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     }
 
     stabilize_automatic_default(suggestions, is_same_generation_refresh);
+    move_typed_text_row_to_front(suggestions);
 
     Optional<size_t> preserved_selection;
     if (previous_explicit_selection)
         preserved_selection = index_of_suggestion(*previous_explicit_selection, suggestions);
 
     m_popup_query_id = query_id;
+    m_popup_query = m_query;
     m_suggestions = move(suggestions);
 
     if (preserved_selection.has_value()) {
@@ -360,6 +382,22 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
         if (on_suggestions_change)
             on_suggestions_change();
     }
+}
+
+// When Return goes to the text as typed, because the user rejected a completion or because the top row may not be
+// selected automatically, the row for that text comes first. The highlighted row is then always the top row.
+void Omnibox::move_typed_text_row_to_front(Vector<AutocompleteSuggestion>& suggestions) const
+{
+    auto top_row_is_not_automatic = !suggestions.is_empty() && !suggestions.first().can_be_automatically_selected;
+    if (!return_goes_to_typed_text_regardless_of_suggestions() && !top_row_is_not_automatic)
+        return;
+    if (auto index = index_of_typed_text_suggestion(m_query, suggestions); index.has_value())
+        move_suggestion_to_front(suggestions, *index);
+}
+
+bool Omnibox::return_goes_to_typed_text_regardless_of_suggestions() const
+{
+    return m_user_rejected_completion && completion_is_suppressed();
 }
 
 void Omnibox::stabilize_automatic_default(Vector<AutocompleteSuggestion>& suggestions, bool is_same_generation_refresh) const
@@ -421,9 +459,10 @@ Optional<size_t> Omnibox::update_completion_for_suggestions(Vector<AutocompleteS
     if (suggestions.is_empty())
         return {};
 
-    if (!suggestions.first().can_be_automatically_selected) {
+    // NB: Return goes to the text as typed here, so its row is highlighted, if there is one.
+    if (return_goes_to_typed_text_regardless_of_suggestions() || !suggestions.first().can_be_automatically_selected) {
         restore_query_display();
-        return index_of_exact_search_suggestion(m_query, suggestions);
+        return index_of_typed_text_suggestion(m_query, suggestions);
     }
 
     // A literal URL always wins: no completion, restore the typed text.
@@ -496,7 +535,11 @@ Optional<size_t> Omnibox::suggestion_index_for_return() const
     // The user edited or deleted a completion, so submit the text as typed instead of the popup's
     // automatically selected row. Rows the user chose deliberately still win.
     if (m_user_rejected_completion) {
-        if (m_popup_query_id == m_active_query_id && !completion_is_suppressed() && m_suggestions[m_selection->index].text != m_query)
+        auto const& selected = m_suggestions[m_selection->index];
+        // NB: The row for the text as typed is where Return goes, such as to choose a search engine when there is none.
+        if (selected.is_verbatim && m_popup_query_id.has_value() && m_popup_query == m_query)
+            return m_selection->index;
+        if (m_popup_query_id == m_active_query_id && !completion_is_suppressed() && selected.text != m_query)
             return m_selection->index;
         return {};
     }

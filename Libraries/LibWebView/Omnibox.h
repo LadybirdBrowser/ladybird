@@ -49,7 +49,9 @@ public:
 // The invariant that makes Enter trustworthy: a selected row is activated only when it belongs to the
 // current query generation or the user selected it explicitly. When results lag behind fast typing, Enter
 // immediately commits the current input through the browser's normal URL-or-search resolution. It never
-// waits for a provider response that may arrive after the user's intent has changed.
+// waits for a provider response that may arrive after the user's intent has changed. After the user rejects
+// a completion, the row for the text as typed is activated even from older rows for the same text, as it
+// goes where that text goes.
 class WEBVIEW_API Omnibox {
     AK_MAKE_NONCOPYABLE(Omnibox);
     AK_MAKE_NONMOVABLE(Omnibox);
@@ -155,6 +157,8 @@ private:
     void highlight_suggestion(size_t suggestion_index, Selection::Origin);
     void display_suggestion(size_t suggestion_index);
     void activate_selected_suggestion();
+    void move_typed_text_row_to_front(Vector<AutocompleteSuggestion>&) const;
+    bool return_goes_to_typed_text_regardless_of_suggestions() const;
     Optional<size_t> suggestion_index_for_return() const;
     void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
     void commit_suggestion_text(String, OmniboxDestinationKind);
@@ -214,6 +218,8 @@ private:
     u64 m_next_query_id { 0 };
     Optional<AutocompleteQueryID> m_active_query_id;
     OmniboxDestinationKind m_destination_kind_for_last_commit { OmniboxDestinationKind::URL };
+    // The text the rows in the popup were made for.
+    String m_popup_query;
 };
 
 }
