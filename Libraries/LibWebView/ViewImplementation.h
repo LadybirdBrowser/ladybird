@@ -234,6 +234,11 @@ public:
     // in GPU memory that the view would have to read back for every frame.
     void set_presents_from_cpu_memory(bool);
     bool presents_from_cpu_memory() const { return m_presents_from_cpu_memory; }
+    // Whether the UI shows the view's frames in a remote layer, which the Compositor commits them into itself, rather
+    // than in backing stores the view receives.
+    void set_hosts_remote_layer(bool);
+    // The Compositor's remote layers went with its process, so the view asks the new one for another.
+    void recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>);
     void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
@@ -759,6 +764,10 @@ protected:
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
 
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
+    // The view's remote layer was made, or made again. The ID is 0 when there is none, and frames arrive in backing
+    // stores instead.
+    virtual void did_create_remote_layer(u32 core_animation_context_id) { (void)core_animation_context_id; }
+    virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) { (void)device_pixel_ratio; }
     // Lets the Compositor paint into a backing store again. A view whose frames something else still reads may wait
     // for that to finish first.
     virtual void release_backing_store(i32 bitmap_id);
@@ -888,6 +897,8 @@ protected:
     NonnullOwnPtr<PageBackingStores> m_backing_stores { make<PageBackingStores>() };
     bool m_pinch_gesture_was_canceled { false };
     bool m_presents_from_cpu_memory { false };
+    bool m_hosts_remote_layer { false };
+    Optional<u64> m_remote_layer_id;
 
     // Set once an assistive technology asked for the page tree; every display page the view shows from then on gets
     // asked for its tree too.

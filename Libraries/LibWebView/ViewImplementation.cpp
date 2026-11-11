@@ -148,6 +148,9 @@ ViewImplementation::~ViewImplementation()
 
     reset_spell_checking();
 
+    if (m_remote_layer_id.has_value())
+        Application::the().destroy_remote_layer(*m_remote_layer_id);
+
     // NB: WebDriver BiDi may activate another top-level traversable, which must not be this one that is going away.
     if (!m_window_handle.is_empty() && !m_owner_view_id.has_value()) {
         if (auto* webdriver_bidi = WebDriverBiDi::the())
@@ -448,6 +451,40 @@ void ViewImplementation::server_did_present_frame_in_remote_layer(Badge<WebConte
     if (m_crash_state.has_value() && m_crash_state->recovery_started)
         set_crash_state({});
     TabPerformanceMonitor::did_present(view_id());
+    did_present_frame_in_remote_layer(size, device_pixel_ratio);
+}
+
+void ViewImplementation::set_hosts_remote_layer(bool hosts_remote_layer)
+{
+    if (m_hosts_remote_layer == hosts_remote_layer)
+        return;
+    m_hosts_remote_layer = hosts_remote_layer;
+
+    if (!hosts_remote_layer) {
+        if (auto remote_layer_id = exchange(m_remote_layer_id, {}); remote_layer_id.has_value()) {
+            Application::the().destroy_remote_layer(*remote_layer_id);
+            did_create_remote_layer(0);
+        }
+        return;
+    }
+
+    auto remote_layer = Application::the().create_remote_layer();
+    if (!remote_layer.has_value()) {
+        did_create_remote_layer(0);
+        return;
+    }
+    m_remote_layer_id = remote_layer->id;
+    Application::the().show_context_in_remote_layer(remote_layer->id, page().compositor_context_id());
+    did_create_remote_layer(remote_layer->core_animation_context_id);
+}
+
+void ViewImplementation::recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>)
+{
+    if (!m_hosts_remote_layer)
+        return;
+    m_hosts_remote_layer = false;
+    m_remote_layer_id = {};
+    set_hosts_remote_layer(true);
 }
 
 void ViewImplementation::release_backing_store(i32 bitmap_id)
@@ -3581,6 +3618,9 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
     auto compositor_context_id = page.compositor_context_id();
+    // The remote layer goes on showing the outgoing page's last frame until the page presents its first one.
+    if (m_remote_layer_id.has_value())
+        Application::the().show_context_in_remote_layer(*m_remote_layer_id, compositor_context_id);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>(), m_device_pixel_ratio);
     Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
     Application::the().update_compositor_context_presents_from_cpu_memory(compositor_context_id, m_presents_from_cpu_memory);

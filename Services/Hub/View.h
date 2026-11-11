@@ -48,6 +48,8 @@ public:
     void set_system_theme(Core::AnonymousBuffer);
     void set_screen_rects(ScreenRects);
     bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
+    void set_wants_frame_notifications(bool wants_frame_notifications) { m_wants_frame_notifications = wants_frame_notifications; }
+    void did_install_backing_stores_in_ui();
 
     using ViewImplementation::microphone_authorizer;
     using ViewImplementation::rect_fitting_frame;
@@ -72,6 +74,8 @@ private:
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     // NB: The UI hands a backing store back, once it no longer shows what is in it.
     virtual void release_backing_store(i32) override { }
+    virtual void did_create_remote_layer(u32 core_animation_context_id) override;
+    virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) override;
 
     void forward_callbacks_to_ui(bool is_tab);
 
@@ -80,6 +84,9 @@ private:
     Web::DevicePixelSize m_viewport_size;
     bool m_websites_prefer_dark { false };
     ByteBuffer m_last_state_pushed_to_ui;
+    bool m_wants_frame_notifications { false };
+    bool m_ui_hosts_remote_layer { false };
+    bool m_ui_awaits_first_frame_in_remote_layer { false };
 
     // What the view waits to hear from the user, through the UI.
     HashMap<u64, Function<void(bool)>> m_pending_answers;

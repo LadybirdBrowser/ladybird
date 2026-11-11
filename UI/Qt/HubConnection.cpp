@@ -148,6 +148,18 @@ void HubConnection::view_clear_backing_stores(u64 view_id)
         view->did_clear_backing_stores();
 }
 
+void HubConnection::view_set_remote_layer(u64 view_id, u32 core_animation_context_id)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_set_remote_layer(core_animation_context_id);
+}
+
+void HubConnection::view_did_present_frame_in_remote_layer(u64 view_id, Gfx::IntSize size, double device_pixel_ratio)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_present_frame_in_remote_layer(size, device_pixel_ratio);
+}
+
 void HubConnection::view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event)
 {
     if (auto* view = RemoteView::find(view_id))

@@ -266,6 +266,15 @@ public:
     void update_compositor_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::CompositorContextId, Web::HTML::VisibilityState);
     void update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId, bool);
+
+    struct RemoteLayer {
+        u64 id { 0 };
+        u32 core_animation_context_id { 0 };
+    };
+    // None where the Compositor offers no remote layers, or is gone.
+    Optional<RemoteLayer> create_remote_layer();
+    void destroy_remote_layer(u64 remote_layer_id);
+    void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);
     bool handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId, Web::KeyEvent const&, bool allow_keyboard_scroll);
     bool handle_and_dispatch_pinch_event_in_compositor(Web::CompositorContextId, Web::PinchEvent const&);
     bool handle_and_dispatch_mouse_event_in_compositor(Web::CompositorContextId, Web::MouseEvent const&);
@@ -594,6 +603,8 @@ private:
     RefPtr<CompositorClient> m_compositor_client;
     RefPtr<CompositorPresentationClient> m_compositor_presentation_client;
     u64 m_compositor_presentation_id { 0 };
+    // IDs are never reused, so one from before a Compositor restart names no layer of the new process.
+    u64 m_next_remote_layer_id { 1 };
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     // The last identity a Compositor reported, which outlives that Compositor until its replacement reports.
     Optional<Optional<Gfx::GpuDeviceIdentity>> m_compositor_gpu_device_identity;
