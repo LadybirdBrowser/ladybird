@@ -9,7 +9,8 @@
 #include <AK/Error.h>
 #include <AK/RefPtr.h>
 #include <Compositor/Forward.h>
-#include <LibGfx/DecodedImageFrame.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 #include <LibMediaCodecs/Forward.h>
@@ -44,8 +45,13 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::S
 // read it, and the GPU, when there is one, reads back a surface that only it can read.
 sk_sp<SkImage> sk_image_in_memory_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 
+struct BitmapInColorSpace {
+    NonnullRefPtr<Gfx::Bitmap const> bitmap;
+    Gfx::ColorSpace color_space;
+};
+
 // Reads the frame's pixels into memory. A surface is drawn on the GPU and read back from there, since only the GPU
 // can read some surfaces.
-ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
+ErrorOr<BitmapInColorSpace> bitmap_from_video_frame(Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&);
 
 }
