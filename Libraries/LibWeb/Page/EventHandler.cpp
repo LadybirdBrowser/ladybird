@@ -3496,6 +3496,14 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
 
 GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint position)
 {
+    // NB: A hit test records the document again where its display list isn't current, and recording reads layout, so
+    //     bring layout up to date first, as the mouse handlers do.
+    if (auto document = m_navigable->active_document()) {
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerTargetNodeAtPosition);
+        if (!has_committed_root_box())
+            return {};
+    }
+
     auto target = target_for_mouse_position(position);
     if (!target.has_value())
         return {};
