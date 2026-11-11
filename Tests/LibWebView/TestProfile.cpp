@@ -87,14 +87,20 @@ TEST_CASE(named_and_default_layouts)
     EXPECT_EQ(named.paths().runtime, LexicalPath::join(profile_roots.runtime, "Ladybird/Profiles/work"sv).string());
 
     auto default_profile = MUST(WebView::Profile::create({}, profile_roots));
-    EXPECT_EQ(default_profile.identifier(), "default"sv);
-    EXPECT_EQ(default_profile.paths().config, LexicalPath::join(profile_roots.config, "Ladybird/Profiles/default"sv).string());
-    EXPECT_EQ(default_profile.paths().data, LexicalPath::join(profile_roots.data, "Ladybird/Profiles/default"sv).string());
-    EXPECT_EQ(default_profile.paths().cache, LexicalPath::join(profile_roots.cache, "Ladybird/Profiles/default"sv).string());
-    EXPECT_EQ(default_profile.paths().runtime, LexicalPath::join(profile_roots.runtime, "Ladybird/Profiles/default"sv).string());
+    auto default_profile_path = LexicalPath::join("Ladybird/Profiles"sv, WebView::DEFAULT_PROFILE_NAME).string();
+    EXPECT_EQ(default_profile.identifier(), WebView::DEFAULT_PROFILE_NAME);
+    EXPECT_EQ(default_profile.paths().config, LexicalPath::join(profile_roots.config, default_profile_path).string());
+    EXPECT_EQ(default_profile.paths().data, LexicalPath::join(profile_roots.data, default_profile_path).string());
+    EXPECT_EQ(default_profile.paths().cache, LexicalPath::join(profile_roots.cache, default_profile_path).string());
+    EXPECT_EQ(default_profile.paths().runtime, LexicalPath::join(profile_roots.runtime, default_profile_path).string());
 
     auto explicit_default_profile = MUST(WebView::Profile::create({ .name = "default" }, profile_roots));
-    EXPECT_EQ(explicit_default_profile.paths().identity, default_profile.paths().identity);
+    auto explicit_developer_profile = MUST(WebView::Profile::create({ .name = "developer" }, profile_roots));
+    EXPECT_EQ(explicit_default_profile.identifier(), "default"sv);
+    EXPECT_EQ(explicit_developer_profile.identifier(), "developer"sv);
+    EXPECT_NE(explicit_default_profile.paths().identity, explicit_developer_profile.paths().identity);
+    auto explicitly_selected_default = MUST(WebView::Profile::create({ .name = WebView::DEFAULT_PROFILE_NAME }, profile_roots));
+    EXPECT_EQ(default_profile.paths().identity, explicitly_selected_default.paths().identity);
     remove_test_root();
 }
 

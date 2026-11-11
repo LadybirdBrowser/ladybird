@@ -143,7 +143,7 @@ ErrorOr<Profile> Profile::create(ProfileSelection const& selection, ProfileRoots
         return Profile { "temporary"sv, move(paths), move(root) };
     }
 
-    auto identifier = selection.name.value_or("default"sv);
+    auto identifier = selection.name.value_or(DEFAULT_PROFILE_NAME);
 
     ProfilePaths paths {
         .config = profile_path(roots.config, identifier),
