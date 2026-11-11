@@ -619,9 +619,9 @@ toolbar (or at the top of the page area in the sidebar layouts):
 
 ### New tabs
 
-New tabs are blank (`about:blank` styled in the `page` color, so dark mode never flashes
+New tabs are blank (`about:newtab` styled in the `page` color, so dark mode never flashes
 white). The tab is titled "New Tab", the address field is focused and empty, and the field
-never shows "about:blank".
+never shows "about:newtab".
 
 ### Ladybird pages
 

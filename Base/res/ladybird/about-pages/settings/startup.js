@@ -7,6 +7,10 @@ const loadSettings = settings => {
         restorePreviousSession.checked = settings.restorePreviousSession === true;
     }
 
+    if (Object.hasOwn(settings, "defaultNewTabPageURL")) {
+        newTabPageURLReset.classList.remove("hidden");
+        newTabPageURL.placeholder = settings.defaultNewTabPageURL;
+    }
     if (Object.hasOwn(settings, "newTabPageURL")) {
         newTabPageURL.classList.remove("error");
         newTabPageURL.value = settings.newTabPageURL;
@@ -37,7 +41,7 @@ newTabPageURL.addEventListener("change", () => {
 });
 
 newTabPageURLReset.addEventListener("click", () => {
-    newTabPageURL.value = "about:blank";
+    newTabPageURL.value = newTabPageURL.placeholder;
     newTabPageURL.dispatchEvent(new Event("change"));
 });
 
