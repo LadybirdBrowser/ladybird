@@ -1,0 +1,66 @@
+<!doctype html>
+<style>
+    @property --number {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @property --ident {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: base;
+    }
+    @property --universal {
+        syntax: "*";
+        inherits: false;
+        initial-value: base;
+    }
+    @keyframes mixed {
+        from {
+            --number: var(--number-reader);
+            --ident: var(--ident-reader);
+            --universal: var(--universal-reader);
+        }
+        to {
+            --number: 10;
+            --ident: safe;
+            --universal: safe;
+        }
+    }
+    #target {
+        --number-reader: var(--number);
+        --ident-reader: var(--ident);
+        --universal-reader: var(--universal);
+        animation: mixed 1s linear paused;
+    }
+</style>
+<div id="parent">
+    <div id="target"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 900;
+        const value = name => getComputedStyle(target).getPropertyValue(name);
+        println(`a cyclic number interval uses its initial value: ${value("--number") === "0"}`);
+        println(`a cyclic custom-ident interval uses its initial value: ${value("--ident") === "base"}`);
+        println(`a cyclic universal interval uses its initial value: ${value("--universal") === "base"}`);
+        target.style.setProperty("--number", "10");
+        for (const composite of ["add", "accumulate"]) {
+            animation.effect.composite = composite;
+            println(`${composite} uses the initial value for a cyclic interval: ${value("--number") === "0"}`);
+        }
+        parent.style.setProperty("--number", "7");
+        const later = target.animate([{ offset: 1, "--number": 2 }], 1000);
+        later.pause();
+        later.currentTime = 100;
+        println(`a later neutral keyframe preserves the inherited fallback: ${value("--number") === "7"}`);
+        later.effect.setKeyframes({ "--number": [2, 2] });
+        later.effect.composite = "add";
+        target.style.setProperty("--number-reader", "0");
+        println(`breaking the cycle restores ordinary composition: ${value("--number") === "21"}`);
+    });
+</script>

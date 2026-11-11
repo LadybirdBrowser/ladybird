@@ -1,0 +1,7 @@
+a cyclic number interval uses its initial value: true
+a cyclic custom-ident interval uses its initial value: true
+a cyclic universal interval uses its initial value: true
+add uses the initial value for a cyclic interval: true
+accumulate uses the initial value for a cyclic interval: true
+a later neutral keyframe preserves the inherited fallback: true
+breaking the cycle restores ordinary composition: true
