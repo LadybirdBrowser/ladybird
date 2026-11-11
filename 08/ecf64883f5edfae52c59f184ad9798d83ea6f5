@@ -1,0 +1,16 @@
+Ladybird formats console text from bounded previews of stored values.
+It never calls accessors or proxy traps for those previews. DOM text
+summaries read element names and IDs directly, and connected DevTools
+keeps expandable object references with bounded preview contents.
+
+This follows the distinction the other engines make between previews
+and explicit inspection. Blink uses V8ConsoleMessage::wrapArguments
+and ObjectMirror previews; ValueMirror::getProperties represents script
+accessors without calling them, while allowing selected native getters.
+WebKit bounds previews in RemoteObject._generatePreview, and handles
+accessors in RemoteObject._appendPropertyPreview. Gecko uses its
+WebConsoleActor.createValueGrip method and the DOMNode previewer for
+node metadata, with separate actors handling subsequent inspection.
+
+The console text limits and representation are Ladybird-specific.
+The live object protocol and its retention policy remain intact.
