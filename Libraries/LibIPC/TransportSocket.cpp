@@ -601,11 +601,18 @@ void TransportSocket::wait_until_incoming_is_current()
         m_incoming_cv.wait();
 }
 
-void TransportSocket::wait_until_readable()
+void TransportSocket::wait_until_readable(Optional<MonotonicTime> deadline)
 {
     MutexLocker lock(m_incoming_mutex);
     while (m_incoming_messages.is_empty() && m_io_thread_state == IOThreadState::Running && !m_wait_until_readable_interrupted) {
-        m_incoming_cv.wait();
+        if (!deadline.has_value()) {
+            m_incoming_cv.wait();
+            continue;
+        }
+        auto now = MonotonicTime::now();
+        if (now >= *deadline)
+            break;
+        (void)m_incoming_cv.wait_for(*deadline - now);
     }
     m_wait_until_readable_interrupted = false;
 }

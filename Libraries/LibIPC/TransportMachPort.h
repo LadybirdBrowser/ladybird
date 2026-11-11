@@ -15,8 +15,10 @@
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
+#include <AK/Optional.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibCore/MachPort.h>
@@ -60,7 +62,8 @@ public:
     void close();
     void close_after_sending_all_pending_messages();
 
-    void wait_until_readable();
+    // Returns at the deadline as well, if one is given.
+    void wait_until_readable(Optional<MonotonicTime> deadline = {});
 
     // Makes wait_until_readable() return, even with nothing to read, now or if none is under way, the next time. Any
     // thread may call this.

@@ -680,11 +680,19 @@ void TransportMachPort::release_send_right_to_peer()
     m_send_port = {};
 }
 
-void TransportMachPort::wait_until_readable()
+void TransportMachPort::wait_until_readable(Optional<MonotonicTime> deadline)
 {
     MutexLocker lock(m_incoming_mutex);
-    while (m_incoming_messages.is_empty() && !m_peer_eof && !m_wait_until_readable_interrupted)
-        m_incoming_cv.wait();
+    while (m_incoming_messages.is_empty() && !m_peer_eof && !m_wait_until_readable_interrupted) {
+        if (!deadline.has_value()) {
+            m_incoming_cv.wait();
+            continue;
+        }
+        auto now = MonotonicTime::now();
+        if (now >= *deadline)
+            break;
+        (void)m_incoming_cv.wait_for(*deadline - now);
+    }
     m_wait_until_readable_interrupted = false;
 }
 
