@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: [first] auto [second] auto [third] auto;
+        width: 600px;
+        justify-items: start;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid;
+        background: lightgray;
+    }
+
+    .first {
+        grid-row: first;
+    }
+
+    .second {
+        grid-row: second;
+    }
+
+    .third {
+        grid-row: third;
+    }
+</style>
+<div class="parent"><div class="subgrid" style="width: min-content"><div class="first">AAAA AAAA</div><div class="second">BBBB BBBB</div><div class="third">CCCC CCCC</div></div></div>
+<div class="parent"><div class="subgrid" style="width: max-content"><div class="first">AAAA AAAA</div><div class="second">BBBB BBBB</div><div class="third">CCCC CCCC</div></div></div>
+<div class="parent"><div class="subgrid" style="width: fit-content"><div class="first">AAAA AAAA</div><div class="second">BBBB BBBB</div><div class="third">CCCC CCCC</div></div></div>
+<div class="parent"><div class="subgrid"><div class="first">AAAA AAAA</div><div class="second">BBBB BBBB</div><div class="third">CCCC CCCC</div></div></div>

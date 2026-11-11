@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: repeat(3, auto);
+        width: max-content;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid [a] [b] [c];
+    }
+
+    .a {
+        grid-row: a;
+    }
+
+    .b {
+        grid-row: b;
+    }
+
+    .c {
+        grid-row: c;
+    }
+</style>
+<div class="parent"><div class="subgrid"><div class="a">AAAAAAAAAAAA</div><div class="b">BBBBBBBBBBBB</div><div class="c">CCCCCCCCCCCC</div></div></div>

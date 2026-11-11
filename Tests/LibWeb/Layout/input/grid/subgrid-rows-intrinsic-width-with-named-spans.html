@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: [first] auto [second] auto [third] auto [last];
+        width: max-content;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid;
+    }
+
+    .top {
+        grid-row: first / third;
+    }
+
+    .bottom {
+        grid-row: third / last;
+    }
+</style>
+<div class="parent"><div class="subgrid"><div class="top">AAAAAAAAAAAA</div><div class="bottom">BBBBBBBBBBBB</div></div></div>
