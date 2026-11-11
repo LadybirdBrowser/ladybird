@@ -30,7 +30,7 @@
                     await appendAndWait(sourceBuffer, generatedOpusCluster(nextFrame, new Array(FRAMES_PER_CLUSTER).fill(FRAME_SIZE)));
                     nextFrame += FRAMES_PER_CLUSTER;
                 };
-                while ((nextFrame + FRAMES_PER_CLUSTER) * FRAME_SIZE <= AUDIO_SOURCE_BUFFER_CAPACITY)
+                while ((nextFrame + FRAMES_PER_CLUSTER) * (FRAME_SIZE + BUFFERED_BYTES_PER_FRAME) <= AUDIO_SOURCE_BUFFER_CAPACITY)
                     await appendCluster();
                 println(`filled: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
 

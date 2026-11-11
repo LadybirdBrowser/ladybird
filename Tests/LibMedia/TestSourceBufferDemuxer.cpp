@@ -10,6 +10,8 @@
 #include <LibTest/TestCase.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
 
+static constexpr auto frame_storage = Media::MediaSourceExtensions::SourceBufferDemuxer::buffered_bytes_per_frame;
+
 static Media::CodedFrame coded_frame_at(u64 seconds, Optional<ReadonlyBytes> new_codec_configuration = {}, Media::CodecID codec_id = Media::CodecID::H264)
 {
     auto data = MUST(FixedArray<u8>::create(1));
@@ -215,15 +217,15 @@ TEST_CASE(buffered_bytes_include_the_codec_configurations_that_frames_carry)
     demuxer->add_coded_frame(track, coded_frame_at(1));
     demuxer->add_coded_frame(track, coded_frame_at(2, configuration.span()));
     demuxer->add_coded_frame(track, coded_frame_at(10));
-    EXPECT_EQ(demuxer->total_bytes(track), 304u);
+    EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1) + 300);
 
-    // The next frame carries the evicted frame's configuration forward, so only its sample is freed.
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 1u);
-    EXPECT_EQ(demuxer->total_bytes(track), 303u);
+    // The next frame carries the evicted frame's configuration forward, so the configuration isn't freed.
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 1);
+    EXPECT_EQ(demuxer->total_bytes(track), 3 * (frame_storage + 1) + 300);
 
-    EXPECT_EQ(demuxer->take_latest_frame(track).byte_size, 101u);
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 101u);
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 101u);
+    EXPECT_EQ(demuxer->take_latest_frame(track).byte_size, frame_storage + 101);
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 101);
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 101);
     EXPECT_EQ(demuxer->total_bytes(track), 0u);
 }
 
@@ -243,7 +245,7 @@ TEST_CASE(evictable_bytes_leave_out_the_configuration_that_eviction_moves_forwar
     // Eviction stops at the frame at 3 seconds, which receives the changed configuration.
     auto current_time = AK::Duration::from_seconds(3);
     auto evictable_bytes = demuxer->evictable_bytes_when_taking_all_earliest_frames(track, current_time);
-    EXPECT_EQ(evictable_bytes, 103u);
+    EXPECT_EQ(evictable_bytes, 3 * (frame_storage + 1) + 100);
 
     size_t evicted_bytes = 0;
     while (demuxer->earliest_evictable_frame_timestamp(track, current_time).has_value())
@@ -419,7 +421,7 @@ TEST_CASE(frames_sharing_a_decode_timestamp_share_one_copy_of_the_codec_configur
             new_configuration = MUST(FixedArray<u8>::create(configuration.span()));
         demuxer->add_coded_frame(track, { Media::CodecID::H264, AK::Duration::zero(), AK::Duration::zero(), AK::Duration::zero(), Media::FrameFlags::Keyframe, move(data), move(new_configuration) });
     }
-    EXPECT_EQ(demuxer->total_bytes(track), 4u + configuration.size());
+    EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1) + configuration.size());
 }
 
 TEST_CASE(removing_the_last_appended_frame_drops_the_frames_that_would_follow_it)
@@ -432,7 +434,7 @@ TEST_CASE(removing_the_last_appended_frame_drops_the_frames_that_would_follow_it
     demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(1), AK::Duration::from_seconds(2));
 
     demuxer->add_coded_frame(track, one_second_frame_at(2, 2, Media::FrameFlags::None));
-    EXPECT_EQ(demuxer->total_bytes(track), 1u);
+    EXPECT_EQ(demuxer->total_bytes(track), frame_storage + 1);
 }
 
 TEST_CASE(removing_an_earlier_run_keeps_appending_to_the_last_appended_run)
@@ -445,7 +447,7 @@ TEST_CASE(removing_an_earlier_run_keeps_appending_to_the_last_appended_run)
     demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::zero(), AK::Duration::from_seconds(1));
 
     demuxer->add_coded_frame(track, one_second_frame_at(11, 11, Media::FrameFlags::None));
-    EXPECT_EQ(demuxer->total_bytes(track), 2u);
+    EXPECT_EQ(demuxer->total_bytes(track), 2 * (frame_storage + 1));
 }
 
 TEST_CASE(splitting_the_last_appended_run_keeps_appending_to_its_tail)
@@ -458,7 +460,7 @@ TEST_CASE(splitting_the_last_appended_run_keeps_appending_to_its_tail)
     demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(1), AK::Duration::from_seconds(2));
 
     demuxer->add_coded_frame(track, one_second_frame_at(4, 4, Media::FrameFlags::None));
-    EXPECT_EQ(demuxer->total_bytes(track), 4u);
+    EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1));
 }
 
 static Media::CodedFrame tenth_of_a_second_frame_at(u64 milliseconds, Media::CodecID codec_id)
