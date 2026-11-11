@@ -22,7 +22,6 @@ static constexpr auto s_pages = to_array<WebUI::Page>({
     { "crashes"sv, "Crash Reports"sv, WebUI::PageType::Dynamic },
     { "newtab"sv, "New Tab"sv, WebUI::PageType::Static },
     { "settings"sv, "Settings"sv, WebUI::PageType::Dynamic },
-    { "services"sv, "Services"sv, WebUI::PageType::Static },
     { "welcome"sv, "Welcome"sv, WebUI::PageType::Dynamic },
 });
 
