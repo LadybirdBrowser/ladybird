@@ -12315,12 +12315,8 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
             return {};
     }
 
-    auto visual_context_tree = paint_state().visual_context_tree_without_update(read, *this);
-    if (visual_animation_sample_time_nanoseconds.has_value() && visual_context_tree.has_visual_animations())
-        visual_context_tree = visual_context_tree.with_visual_animation_samples(*visual_animation_sample_time_nanoseconds);
     return Painting::HitTestQuery {
         *m_hit_test_display_list,
-        move(visual_context_tree),
         scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
