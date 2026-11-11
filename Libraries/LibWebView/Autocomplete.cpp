@@ -242,6 +242,13 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
     return make_literal_url_suggestion(query);
 }
 
+Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, Optional<SearchEngine> const& search_engine)
+{
+    if (auto url_suggestion = literal_url_suggestion(query); url_suggestion.has_value())
+        return url_suggestion;
+    return search_for_query_suggestion(search_engine, query);
+}
+
 static Vector<AutocompleteSuggestion> make_remote_suggestions(Vector<String> remote_suggestions)
 {
     static constexpr auto maximum_remote_candidates = 50uz;
@@ -437,10 +444,8 @@ void Autocomplete::deliver_current_result()
             verbatim_suggestion = make_literal_url_suggestion(m_query);
             if (auto search_suggestion = search_for_query_suggestion(m_host.autocomplete_settings().search_engine_settings().engine, m_query); search_suggestion.has_value())
                 additional_suggestions.append(search_suggestion.release_value());
-        } else if (auto url_suggestion = literal_url_suggestion(m_query); url_suggestion.has_value()) {
-            verbatim_suggestion = url_suggestion.release_value();
         } else {
-            verbatim_suggestion = search_for_query_suggestion(m_host.autocomplete_settings().search_engine_settings().engine, m_query);
+            verbatim_suggestion = make_verbatim_autocomplete_suggestion(m_query, m_host.autocomplete_settings().search_engine_settings().engine);
         }
     }
     additional_suggestions.extend(m_local_suggestions);

@@ -91,6 +91,8 @@ struct WEBVIEW_API AutocompleteBookmark {
 WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
 WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
 WEBVIEW_API Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<String> suggestions);
+// The row for the text as typed: the address it is, or else a search for it.
+WEBVIEW_API Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, Optional<SearchEngine> const&);
 WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
 WEBVIEW_API size_t autocomplete_preliminary_limit(size_t max_suggestions);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
