@@ -15,6 +15,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Queue.h>
 #include <AK/ThreadID.h>
+#include <AK/Time.h>
 #include <LibCore/EventReceiver.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
@@ -112,6 +113,16 @@ public:
         return wait_for_specific_endpoint_message<typename RequestType::ResponseType>(MayCancel::Yes);
     }
 
+    // Waits for a message from the peer and handles none of the others meanwhile, which stay queued in order. None if
+    // the deadline passes first, or the peer goes away.
+    template<typename MessageType>
+    OwnPtr<MessageType> wait_for_specific_endpoint_message_until(MonotonicTime deadline)
+    {
+        if (auto message = wait_for_specific_endpoint_message_impl(MessageType::ENDPOINT_MAGIC, MessageType::static_message_id(), MayCancel::No, deadline))
+            return message.template release_nonnull<MessageType>();
+        return {};
+    }
+
 protected:
     enum class MayCancel {
         No,
@@ -132,8 +143,8 @@ protected:
     virtual OwnPtr<Message> try_parse_message(ReceivedMessageBytes const&, Queue<Attachment>&) = 0;
 
     ErrorOr<void> post_sync_request(Message const&);
-    OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel = MayCancel::No);
-    void wait_for_transport_to_become_readable();
+    OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id, MayCancel = MayCancel::No, Optional<MonotonicTime> deadline = {});
+    void wait_for_transport_to_become_readable(Optional<MonotonicTime> deadline = {});
     enum class PeerEOF {
         No,
         Yes

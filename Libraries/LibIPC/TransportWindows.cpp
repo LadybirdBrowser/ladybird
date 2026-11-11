@@ -283,7 +283,18 @@ void TransportWindows::close_after_sending_all_pending_messages()
 }
 
 // Returns false if the event was signaled first.
-bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
+static DWORD milliseconds_until(Optional<MonotonicTime> deadline)
+{
+    if (!deadline.has_value())
+        return INFINITE;
+    auto remaining = *deadline - MonotonicTime::now();
+    if (remaining <= AK::Duration::zero())
+        return 0;
+    // NB: Rounded up, so that a wait that times out has reached the deadline.
+    return static_cast<DWORD>(min<i64>(remaining.to_milliseconds() + 1, INFINITE - 1));
+}
+
+bool TransportWindows::wait_until_readable_or_signaled(HANDLE event, Optional<MonotonicTime> deadline)
 {
     if (m_kind == Kind::Socket) {
         for (;;) {
@@ -292,11 +303,13 @@ bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
                 .events = POLLRDNORM,
                 .revents = 0,
             };
-            auto result = WSAPoll(&poll_fd, 1, SOCKET_WAIT_SLICE_MS);
+            auto result = WSAPoll(&poll_fd, 1, static_cast<INT>(min<DWORD>(SOCKET_WAIT_SLICE_MS, milliseconds_until(deadline))));
             VERIFY(result != SOCKET_ERROR);
             if (result > 0)
                 return true;
             if (WaitForSingleObject(event, 0) == WAIT_OBJECT_0)
+                return false;
+            if (deadline.has_value() && MonotonicTime::now() >= *deadline)
                 return false;
         }
     }
@@ -309,7 +322,7 @@ bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
     if (GetLastError() != ERROR_IO_PENDING)
         return true;
     HANDLE events[] = { operation.event(), event };
-    if (WaitForMultipleObjects(2, events, FALSE, INFINITE) == WAIT_OBJECT_0)
+    if (WaitForMultipleObjects(2, events, FALSE, milliseconds_until(deadline)) == WAIT_OBJECT_0)
         return true;
 
     // The read must have stopped writing to the OVERLAPPED before it goes away.
@@ -319,13 +332,13 @@ bool TransportWindows::wait_until_readable_or_signaled(HANDLE event)
     return false;
 }
 
-void TransportWindows::wait_until_readable()
+void TransportWindows::wait_until_readable(Optional<MonotonicTime> deadline)
 {
     if (m_io_thread) {
         HANDLE events[] = { m_incoming_event, m_interrupt_event };
-        WaitForMultipleObjects(2, events, FALSE, INFINITE);
+        WaitForMultipleObjects(2, events, FALSE, milliseconds_until(deadline));
     } else {
-        (void)wait_until_readable_or_signaled(m_interrupt_event);
+        (void)wait_until_readable_or_signaled(m_interrupt_event, deadline);
     }
     ResetEvent(m_interrupt_event);
 }

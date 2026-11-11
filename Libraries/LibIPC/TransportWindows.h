@@ -13,8 +13,10 @@
 #include <AK/Function.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibCore/Forward.h>
@@ -62,7 +64,8 @@ public:
     // Fails a send that the peer has no room for, rather than wait for the peer to read.
     void set_disconnects_when_peer_stops_reading(bool value) { m_disconnects_when_peer_stops_reading = value; }
 
-    void wait_until_readable();
+    // Returns at the deadline as well, if one is given.
+    void wait_until_readable(Optional<MonotonicTime> deadline = {});
 
     void interrupt_wait_until_readable();
 
@@ -107,7 +110,7 @@ private:
     ErrorOr<void> transfer(ReadonlyBytes);
     ErrorOr<size_t> write_some(ReadonlyBytes);
     ReadOutcome read_some_without_waiting(Bytes, size_t& bytes_read);
-    bool wait_until_readable_or_signaled(void* event);
+    bool wait_until_readable_or_signaled(void* event, Optional<MonotonicTime> deadline = {});
     ShouldShutdown read_and_parse_messages(Function<void(NonnullOwnPtr<Message>)>&&);
     void stop_watching();
 

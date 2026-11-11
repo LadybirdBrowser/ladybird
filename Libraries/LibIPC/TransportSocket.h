@@ -10,10 +10,12 @@
 #include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/Queue.h>
 #include <AK/SinglyLinkedList.h>
 #include <AK/SinglyLinkedListSizePolicy.h>
+#include <AK/Time.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
@@ -117,7 +119,8 @@ public:
     void close();
     void close_after_sending_all_pending_messages();
 
-    void wait_until_readable();
+    // Returns at the deadline as well, if one is given.
+    void wait_until_readable(Optional<MonotonicTime> deadline = {});
 
     // Makes wait_until_readable() return, even with nothing to read, now or if none is under way, the next time. Any
     // thread may call this.
