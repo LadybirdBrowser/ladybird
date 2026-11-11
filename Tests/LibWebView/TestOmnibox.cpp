@@ -6,8 +6,10 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebView/AutocompleteMuxer.h>
+#include <LibWebView/AutocompleteRanker.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/OmniboxEngagement.h>
+#include <LibWebView/URL.h>
 #include <LibWebView/WebUI.h>
 
 namespace {
@@ -1499,4 +1501,252 @@ TEST_CASE(random_editing_keeps_the_omnibox_consistent)
     EXPECT(coverage.pending_steps >= 100);
     EXPECT(coverage.returns_to_suggestions >= 50);
     EXPECT(coverage.returns_to_typed_text >= 50);
+}
+
+// End-to-end scenarios: a profile's history, bookmarks and learned engagements go through the real ranker and muxer,
+// as Autocomplete does, and the omnibox shows the result. Each scenario says what the user sees and where Return goes.
+namespace {
+
+constexpr i64 scenario_now_seconds = 2'000'000;
+
+UnixDateTime scenario_now() { return UnixDateTime::from_seconds_since_epoch(scenario_now_seconds); }
+
+ByteBuffer scenario_favicon()
+{
+    return MUST(ByteBuffer::copy("favicon"sv.bytes()));
+}
+
+struct ScenarioProfile {
+    Vector<WebView::HistoryEntry> history;
+    Vector<WebView::AutocompleteBookmark> bookmarks;
+    Vector<WebView::StoredOmniboxEngagement> engagements;
+    Optional<WebView::SearchEngine> search_engine { WebView::builtin_search_engines().first() };
+
+    void visit(StringView url, StringView title, i64 direct_visit_count, bool has_favicon = true)
+    {
+        history.append({
+            .url = MUST(String::from_utf8(url)),
+            .title = MUST(String::from_utf8(title)),
+            .favicon_png = has_favicon ? Optional<ByteBuffer> { scenario_favicon() } : OptionalNone {},
+            .visit_count = direct_visit_count,
+            .direct_visit_count = direct_visit_count,
+            .last_visited_time = scenario_now(),
+            .last_qualifying_visit_time = scenario_now(),
+            .last_direct_visit_time = scenario_now(),
+            .decayed_visit_score = static_cast<double>(direct_visit_count),
+            .decayed_direct_score = static_cast<double>(direct_visit_count),
+            .score_updated_at = scenario_now(),
+        });
+    }
+
+    // The user went to the destination after typing the input, a number of times.
+    void learn(StringView input, StringView url, i64 explicit_use_count, i64 default_use_count)
+    {
+        engagements.append({
+            .normalized_input = MUST(String::from_utf8(input)),
+            .destination_kind = WebView::OmniboxDestinationKind::URL,
+            .destination = MUST(String::from_utf8(url)),
+            .explicit_use_count = explicit_use_count,
+            .default_use_count = default_use_count,
+            .last_used_time = scenario_now(),
+        });
+    }
+
+    // The rows for a query, assembled the way Autocomplete and its service assemble them once every source answered.
+    // The remote suggestions are the search engine's answer for this query.
+    Vector<AutocompleteSuggestion> rows(String const& query, Vector<String> remote_suggestions = {}) const
+    {
+        auto trimmed_query = query.bytes_as_string_view().trim_whitespace();
+        if (trimmed_query.is_empty())
+            return {};
+
+        auto limit = WebView::autocomplete_preliminary_limit(WebView::default_autocomplete_suggestion_limit);
+        auto local_rows = WebView::web_ui_autocomplete_suggestions(trimmed_query);
+        Optional<AutocompleteSuggestion> verbatim_row;
+        if (local_rows.is_empty())
+            verbatim_row = WebView::make_verbatim_autocomplete_suggestion(query, search_engine);
+        local_rows.extend(WebView::rank_history_suggestions(trimmed_query, history, limit, scenario_now()));
+        local_rows.extend(WebView::rank_bookmark_suggestions(trimmed_query, bookmarks, limit));
+        local_rows.extend(WebView::rank_engagement_suggestions(trimmed_query, engagements, limit, scenario_now()));
+
+        auto remote_rows = WebView::make_remote_autocomplete_suggestions(move(remote_suggestions), local_rows);
+        auto rows = WebView::mux_autocomplete_suggestions(
+            trimmed_query,
+            move(verbatim_row),
+            move(local_rows),
+            move(remote_rows),
+            WebView::default_autocomplete_suggestion_limit);
+        for (auto& row : rows)
+            row.highlight_input = MUST(String::from_utf8(trimmed_query));
+        return rows;
+    }
+};
+
+struct Scenario {
+    explicit Scenario(ScenarioProfile profile)
+        : profile(move(profile))
+    {
+        harness.begin_editing();
+    }
+
+    // Types each character and answers each query before the next key press, as a fast local profile does.
+    // NB: The search engine answers each query with those of the remote suggestions that start with it.
+    void type(StringView text, Vector<String> const& remote_suggestions = {})
+    {
+        for (auto character : text) {
+            harness.press_key(character);
+            auto query = harness.provider->queries.last().bytes_as_string_view().trim_whitespace();
+            Vector<String> answer;
+            for (auto const& suggestion : remote_suggestions) {
+                if (WebView::remote_autocomplete_suggestion_matches_input(suggestion, query))
+                    answer.append(suggestion);
+            }
+            deliver(move(answer));
+        }
+    }
+
+    void backspace()
+    {
+        harness.press_backspace();
+        deliver();
+    }
+
+    void deliver(Vector<String> remote_suggestions = {})
+    {
+        harness.provider->deliver(profile.rows(harness.provider->queries.last(), move(remote_suggestions)));
+    }
+
+    AutocompleteSuggestion const& top_row() const { return harness.omnibox.suggestions().first(); }
+    bool top_row_is_highlighted() const { return harness.omnibox.selected_suggestion() == 0u; }
+
+    // Where Return would go, as text.
+    String return_destination() const
+    {
+        auto target = harness.omnibox.suggestion_for_return();
+        return target.has_value() ? target->text : harness.omnibox.query();
+    }
+
+    bool return_searches() const
+    {
+        auto target = harness.omnibox.suggestion_for_return();
+        if (target.has_value())
+            return target->source == AutocompleteSuggestionSource::Search;
+        return WebView::classify_user_input(harness.omnibox.query()).classification == WebView::UserInputClassification::Search;
+    }
+
+    // The rows that go to an address, given without its scheme, "www." or trailing slash.
+    size_t rows_for(StringView address) const
+    {
+        size_t count = 0;
+        for (auto const& row : harness.omnibox.suggestions()) {
+            if (row.source != AutocompleteSuggestionSource::Search && walk_page_address(row.text).trim("/"sv, TrimMode::Right) == address)
+                ++count;
+        }
+        return count;
+    }
+
+    ScenarioProfile profile;
+    Harness harness;
+};
+
+ScenarioProfile reddit_profile()
+{
+    // Typing reddit.com went to https://reddit.com/, which redirected to www.reddit.com, where the favicon is.
+    ScenarioProfile profile;
+    profile.visit("https://www.reddit.com/"sv, "Reddit - The heart of the internet"sv, 11);
+    for (auto input : { "r"sv, "re"sv, "red"sv, "redd"sv, "reddit"sv, "reddit.com"sv })
+        profile.learn(input, "https://reddit.com/"sv, 1, 3);
+    return profile;
+}
+
+}
+
+TEST_CASE(scenario_typing_a_visited_site_completes_it_with_its_favicon)
+{
+    Scenario scenario(reddit_profile());
+    scenario.type("red"sv);
+
+    EXPECT_EQ(scenario.harness.display_text, "reddit.com"sv);
+    EXPECT_EQ(scenario.harness.selection_start, 3u);
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(scenario.top_row().favicon_png.has_value());
+    EXPECT_EQ(scenario.top_row().title, "Reddit - The heart of the internet"sv);
+    EXPECT_EQ(scenario.harness.omnibox.completion_title(), "Reddit - The heart of the internet"sv);
+    EXPECT_EQ(scenario.rows_for("reddit.com"sv), 1u);
+    EXPECT(!scenario.return_searches());
+    EXPECT(walk_page_address(scenario.return_destination()) == "reddit.com/"sv);
+}
+
+TEST_CASE(scenario_backspacing_a_completion_leads_with_the_search)
+{
+    Scenario scenario(reddit_profile());
+    scenario.type("red"sv);
+    scenario.backspace();
+
+    EXPECT_EQ(scenario.harness.display_text, "red"sv);
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(scenario.top_row().text, "red"sv);
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(scenario.return_searches());
+    EXPECT_EQ(scenario.return_destination(), "red"sv);
+}
+
+TEST_CASE(scenario_a_page_matching_only_by_title_does_not_take_return)
+{
+    ScenarioProfile profile;
+    profile.visit("https://example.com/fragrance"sv, "Eau de Parfum"sv, 3);
+    Scenario scenario(move(profile));
+    scenario.type("eau de"sv);
+
+    EXPECT_EQ(scenario.harness.display_text, "eau de"sv);
+    EXPECT_EQ(scenario.top_row().text, "eau de"sv);
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(scenario.return_searches());
+    EXPECT_EQ(scenario.rows_for("example.com/fragrance"sv), 1u);
+}
+
+TEST_CASE(scenario_a_remote_address_of_an_unvisited_site_is_a_search)
+{
+    Scenario scenario({});
+    scenario.type("goog"sv, { "google.com"_string, "google maps"_string });
+
+    EXPECT_EQ(scenario.top_row().text, "goog"sv);
+    EXPECT(scenario.top_row_is_highlighted());
+    auto const& rows = scenario.harness.omnibox.suggestions();
+    EXPECT(rows.contains([](auto const& row) { return row.text == "google.com"sv && row.source == AutocompleteSuggestionSource::Search; }));
+    EXPECT_EQ(scenario.rows_for("google.com"sv), 0u);
+}
+
+TEST_CASE(scenario_a_remote_address_merges_with_the_visited_page)
+{
+    ScenarioProfile profile;
+    profile.visit("https://www.google.com/"sv, "Google"sv, 6);
+    Scenario scenario(move(profile));
+    scenario.type("goog"sv, { "google.com"_string });
+
+    EXPECT_EQ(scenario.rows_for("google.com"sv), 1u);
+    EXPECT(scenario.top_row().favicon_png.has_value());
+    EXPECT_EQ(scenario.harness.display_text, "google.com"sv);
+}
+
+TEST_CASE(scenario_a_typed_address_goes_to_that_address)
+{
+    Scenario scenario({});
+    scenario.type("ladybird.org"sv, { "ladybird.org"_string });
+
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::LiteralURL);
+    EXPECT_EQ(scenario.rows_for("ladybird.org"sv), 1u);
+    EXPECT(!scenario.return_searches());
+}
+
+TEST_CASE(scenario_without_a_search_engine_offers_to_choose_one)
+{
+    ScenarioProfile profile;
+    profile.search_engine = {};
+    Scenario scenario(move(profile));
+    scenario.type("red panda"sv);
+
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::ChooseSearchEngine);
+    EXPECT(scenario.top_row_is_highlighted());
 }
