@@ -1,0 +1,20 @@
+normal, 100%: parent 300, child 300
+normal, 50%: parent 300, child 150
+stretch, 100%: parent 300, child 300
+stretch, 50%: parent 300, child 150
+center, 100%: parent 60, child 60
+center, 50%: parent 60, child 60
+anchor-center, 100%: parent 60, child 60
+anchor-center, 50%: parent 60, child 60
+missing anchor, 100%: parent 60, child 60
+missing anchor, 50%: parent 60, child 60
+minimum height, 100%: parent 120, child 60
+minimum height, 50%: parent 120, child 60
+zero height, 100%: parent 0, child 0
+zero height, 50%: parent 0, child 0
+explicit height, 100%: parent 100, child 100
+explicit height, 50%: parent 100, child 50
+aspect ratio, 100%: parent 100, child 100
+aspect ratio, 50%: parent 100, child 50
+one auto inset, 100%: parent 60, child 60
+one auto inset, 50%: parent 60, child 60
