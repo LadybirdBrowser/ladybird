@@ -4349,6 +4349,10 @@ impl<'pass> GridFormattingContext<'pass> {
         if !axis.is_column() {
             return false;
         }
+        // NB: A stretched block size is definite too, see size_transfers_from_stretched_size().
+        if self.item_is_explicitly_stretched(item, Axis::Row) {
+            return false;
+        }
         // NB: A subgrid ignores its height in its subgridded rows, so it has no definite block size to transfer.
         let height = self.item_preferred_size(item, Axis::Row);
         let block_size_is_definite = !height.is_auto()
@@ -4521,8 +4525,8 @@ impl<'pass> GridFormattingContext<'pass> {
         if axis.is_column() {
             return;
         }
-        // NB: A replaced item stretched in the row axis has its automatic inline size transferred from the stretched
-        //     block size through its aspect ratio, which is only known once the rows are sized.
+        // NB: An item with a preferred aspect ratio stretched in the row axis has its automatic inline size transferred
+        //     from the stretched block size through that ratio, which is only known once the rows are sized.
         let transferring_items: Vec<Node> = self
             .items
             .iter()
@@ -4541,19 +4545,28 @@ impl<'pass> GridFormattingContext<'pass> {
     //          non-replaced elements in normal flow), i.e. the stretch-fit size.
     // NB: This applies to replaced items too, which are otherwise sized by their natural size.
     fn replaced_item_is_explicitly_stretched(&self, item: GridItem, axis: Axis) -> bool {
-        self.item_facts(item).is_replaced_box()
+        self.item_facts(item).is_replaced_box() && self.item_is_explicitly_stretched(item, axis)
+    }
+
+    fn item_is_explicitly_stretched(&self, item: GridItem, axis: Axis) -> bool {
+        // NB: A subgrid ignores its align-self/justify-self in its subgridded axes, so its stretch there is not explicit.
+        !self.grid_item_is_subgridded(item, axis)
             && self.item_alignment(item, axis).position == SelfPosition::Stretch
             && self.item_is_stretched(item, axis)
     }
 
-    /// Whether the automatic size of a replaced item in the given axis follows, through its aspect ratio, the size it
-    /// is stretched to in the other axis.
+    /// Whether the automatic size of an item with a preferred aspect ratio in the given axis follows, through that
+    /// ratio, the size it is stretched to in the other axis.
+    ///
+    /// https://drafts.csswg.org/css-grid-2/#layout-algorithm
+    /// Note: Since formulas calculated using only definite sizes, such as the stretch fit formula, are also definite,
+    /// the size of a grid item which is stretched is also considered definite.
     fn size_transfers_from_stretched_size(&self, item: GridItem, axis: Axis) -> bool {
         let other_axis = axis.select(Axis::Row, Axis::Column);
         self.item_facts(item).has_preferred_aspect_ratio()
             && self.item_preferred_size(item, axis).is_auto()
-            && !self.replaced_item_is_explicitly_stretched(item, axis)
-            && self.replaced_item_is_explicitly_stretched(item, other_axis)
+            && !self.item_is_explicitly_stretched(item, axis)
+            && self.item_is_explicitly_stretched(item, other_axis)
     }
 
     fn inline_size_transfers_from_stretched_block_size(&self, item: GridItem) -> bool {
