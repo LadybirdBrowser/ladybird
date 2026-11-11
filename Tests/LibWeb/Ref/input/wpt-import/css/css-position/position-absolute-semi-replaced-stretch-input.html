@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/6789">
+<link rel="match" href="../../../../expected/wpt-import/css/css-position/position-absolute-semi-replaced-stretch-input-ref.html">
+<title>Semi-replaced elements should stretch with an auto main size, and explicit insets in that direction.</title>
+<style>
+.cb {
+  position: relative;
+  border: 3px solid black;
+  height: 100px;
+  width: 150px;
+  display: inline-block;
+  vertical-align: top;
+  margin: 5px;
+}
+.wide {
+  /* Some of the form controls are wider than others
+     and need a wider CB in order to see if they're
+     stretching or shrinking. */
+  width: 350px;
+}
+.abs {
+  margin: 0;
+  position: absolute;
+  box-sizing: border-box;
+  top: 3px;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  outline: 2px solid lime;
+  width: auto;
+  height: auto;
+}
+</style>
+<div class="cb"><input type="button" class="abs" value="input-btn"></div>
+<div class="cb"><input type="submit" class="abs"></div>
+<div class="cb"><input type="reset" class="abs"></div>
+<div class="cb"><input type="color" class="abs"></div>
+<div class="cb wide"><input type="text" class="abs" value="text"></div>
+<div class="cb wide"><input type="password" class="abs" value="pass"></div>
+<div class="cb wide"><input type="date" class="abs" value="text"></div>
+<div class="cb wide"><input type="file" class="abs"></div>
+<div class="cb wide"><input type="range" class="abs"></div>

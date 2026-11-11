@@ -1,0 +1,32 @@
+input horizontal-tb ltr: 10,5 270x180
+input horizontal-tb rtl: 10,5 270x180
+input vertical-rl ltr: 10,5 270x180
+input vertical-rl rtl: 10,5 270x180
+input vertical-lr ltr: 10,5 270x180
+input vertical-lr rtl: 10,5 270x180
+input orthogonal: 10,5 270x180
+input margins: 20,15 250x160
+input percentage margins: 40,35 210x120
+input limits: 10,5 220x210
+input specified size: 10,5 100x80
+input content box: 10,5 270x180
+input self-start keeps intrinsic size: true
+input one inset keeps intrinsic size: true
+input resized: 10,5 170x180
+textarea horizontal-tb ltr: 10,5 270x180
+textarea horizontal-tb rtl: 10,5 270x180
+textarea vertical-rl ltr: 10,5 270x180
+textarea vertical-rl rtl: 10,5 270x180
+textarea vertical-lr ltr: 10,5 270x180
+textarea vertical-lr rtl: 10,5 270x180
+textarea orthogonal: 10,5 270x180
+textarea margins: 20,15 250x160
+textarea percentage margins: 40,35 210x120
+textarea limits: 10,5 220x210
+textarea specified size: 10,5 100x80
+textarea content box: 10,5 270x180
+textarea self-start keeps intrinsic size: true
+textarea one inset keeps intrinsic size: true
+textarea resized: 10,5 170x180
+img image keeps natural size: 10,5 80x40
+input image keeps natural size: 10,5 80x40

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+.cb {
+  position: relative;
+  border: 3px solid black;
+  height: 100px;
+  width: 150px;
+  display: inline-block;
+  vertical-align: top;
+  margin: 5px;
+}
+.wide {
+  width: 350px;
+}
+.abs {
+  margin: 0;
+  position: absolute;
+  box-sizing: border-box;
+  top: 3px;
+  left: 3px;
+  outline: 2px solid lime;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+}
+</style>
+<div class="cb"><input type="button" class="abs" value="input-btn"></div>
+<div class="cb"><input type="submit" class="abs"></div>
+<div class="cb"><input type="reset" class="abs"></div>
+<div class="cb"><input type="color" class="abs"></div>
+<div class="cb wide"><input type="text" class="abs" value="text"></div>
+<div class="cb wide"><input type="password" class="abs" value="pass"></div>
+<div class="cb wide"><input type="date" class="abs" value="text"></div>
+<div class="cb wide"><input type="file" class="abs"></div>
+<div class="cb wide"><input type="range" class="abs"></div>
