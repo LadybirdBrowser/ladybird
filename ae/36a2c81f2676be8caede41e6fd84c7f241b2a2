@@ -1,0 +1,21 @@
+Ladybird stretches text inputs, textareas, and range controls with an
+automatic size and definite opposing insets, when their self-alignment
+calls for stretching. Their intrinsic sizes remain the fallback for
+axes that fit content, and image inputs retain replaced-element sizing.
+
+Blink represents text fields with LayoutTextControlSingleLine and
+LayoutTextControlMultiLine, both derived from LayoutBlockFlow. They use
+the non-replaced path in ComputeOofInlineDimensions(), which resolves a
+stretch size against the inset-modified containing block.
+
+Gecko uses nsIFrame::ComputeAbsolutePosAutoSize(), whose shouldStretch
+check accepts normal alignment for frames without HasReplacedSizing().
+Its nsTextControlFrame::IntrinsicISize() supplies the intrinsic size
+when stretching doesn’t apply, while Reflow() supplies the fixed block
+size only if the computed block size remains unconstrained.
+
+WebKit’s RenderTextControl derives from RenderBlockFlow. Its abspos
+width follows RenderBox::computeOutOfFlowPositionedLogicalWidthUsing(),
+which uses the available content space when the alignment stretches.
+These paths agree on stretching resizable controls between the insets,
+rather than letting intrinsic dimensions force their natural size.
