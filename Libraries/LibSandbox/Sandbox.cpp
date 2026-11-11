@@ -799,6 +799,12 @@ static ErrorOr<size_t> count_threads()
 
 static bool s_signals_stay_within_the_process_tree = false;
 
+bool sandbox_debugging_is_enabled()
+{
+    auto const* value = getenv("LADYBIRD_SANDBOX_DEBUG");
+    return value && *value && StringView { value, strlen(value) } != "0"sv;
+}
+
 bool signals_stay_within_the_process_tree()
 {
     return s_signals_stay_within_the_process_tree;
@@ -932,7 +938,7 @@ ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> paths)
     // Any failure means we can't have Landlock here: a kernel without it says ENOSYS or EOPNOTSUPP, and a container's
     // own seccomp filter can say anything.
     auto landlock_abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
-    if (landlock_abi > 0)
+    if (landlock_abi > 0 && !sandbox_debugging_is_enabled())
         return restrict_filesystem_with_landlock(paths, landlock_abi);
 
     return start_file_broker(paths);
