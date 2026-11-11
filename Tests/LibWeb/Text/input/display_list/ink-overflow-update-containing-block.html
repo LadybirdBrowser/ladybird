@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div style="position: relative"><section id="target"><div style="position: absolute; left: -150px; top: 300px">child</div></section></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.position = "relative";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.position = "static";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

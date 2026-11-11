@@ -282,6 +282,8 @@ impl LayoutNodeArena {
         if !self.paintable_row_is_populated(slot) {
             return;
         }
+        self.request_ink_overflow_recalculation(slot);
+        self.request_inline_ink_overflow_recalculation(slot);
         let Some(style) = self.node_style_if_live(slot) else {
             return;
         };
@@ -294,6 +296,9 @@ impl LayoutNodeArena {
             });
         let overflow_style = OverflowStyle::new(style);
         self.paintable_side_data_mut(slot).overflow_style = Some(overflow_style);
+        if transform_changed {
+            self.request_containing_block_ink_overflow_recalculation(slot);
+        }
         if !transform_changed && !overflow_changed {
             return;
         }

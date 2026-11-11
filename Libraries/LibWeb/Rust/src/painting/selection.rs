@@ -659,6 +659,7 @@ fn set_custom_highlight_pseudo_styles_of_rows(
             styles.insert(row, answer.clone());
         }
     }
+    request_ink_for_highlight_style_rows(arena, rows);
 }
 
 /// Gives a row the tree build made what the published highlight pseudo-element records of
@@ -691,19 +692,44 @@ fn set_highlight_pseudo_styles_of_rows(
     rows: &[NodeSlotId],
     answers: &HighlightStyleAnswers,
 ) {
+    let mut changed = false;
     let paint_state = arena.paint_state_mut();
     for (highlight, answer) in HighlightPseudoElement::ALL.into_iter().zip(answers) {
         let styles = paint_state.highlight_pseudo_styles_mut(highlight);
         for &row in rows {
             match answer {
                 Some(answer) => {
+                    changed = true;
                     Arc::make_mut(styles).insert(row, answer.clone());
                 }
                 None if styles.contains_key(&row) => {
+                    changed = true;
                     Arc::make_mut(styles).remove(&row);
                 }
                 None => {}
             }
+        }
+    }
+    if changed {
+        request_ink_for_highlight_style_rows(arena, rows);
+    }
+}
+
+fn request_ink_for_highlight_style_rows(arena: &mut LayoutNodeArena, rows: &[NodeSlotId]) {
+    if !crate::painting::ink_overflow::maintenance_enabled() {
+        return;
+    }
+    for &row in rows {
+        arena.request_ink_overflow_recalculation(row);
+        arena.request_inline_ink_overflow_recalculation(row);
+        let source = arena.paintable_rows();
+        let line_root = text_fragment::containing_block_paintable_of_node(&source, row);
+        let inline = fragment_ownership::nearest_self_painting_inline_box(&source, row);
+        if let Some(root) = line_root {
+            arena.request_ink_overflow_recalculation(root);
+        }
+        if let Some(inline) = inline {
+            arena.request_ink_overflow_recalculation(inline);
         }
     }
 }

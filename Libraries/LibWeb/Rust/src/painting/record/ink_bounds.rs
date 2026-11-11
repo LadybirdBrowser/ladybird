@@ -18,13 +18,13 @@ use crate::painting::{node_painting, style_queries};
 use std::ops::Range;
 use std::sync::OnceLock;
 
-struct Verification {
-    enabled: bool,
-    counts: bool,
-    report: bool,
+pub(crate) struct Verification {
+    pub(crate) enabled: bool,
+    pub(crate) counts: bool,
+    pub(crate) report: bool,
 }
 
-fn verification() -> &'static Verification {
+pub(crate) fn verification() -> &'static Verification {
     static VERIFICATION: OnceLock<Verification> = OnceLock::new();
     VERIFICATION.get_or_init(|| {
         let environment_enabled = std::env::var_os("LIBWEB_VERIFY_PAINT_INK_BOUNDS").is_some();
@@ -132,6 +132,19 @@ pub(crate) fn inputs_driven_ink(
 impl<O: Observer> PaintRecorder<'_, O> {
     pub(super) fn verify_producer_ink(&mut self, owner: NodeSlotId, kind: ProducerKind, bytes: Range<usize>) {
         self.ink_bounds_audit.count(Count::Producers);
+        let estimate = *self
+            .ink_bounds_audit
+            .estimates
+            .entry(owner)
+            .or_insert_with(|| own_ink_overflow(self.source, self.paint_state, owner));
+        let stored = self.source.stored_ink_overflow(owner);
+        let absolute = self.source.absolute_ink_overflow_rect(owner);
+        assert!(
+            absolute.is_none_or(|stored_rect| !estimate.unbounded && stored_rect.contains_rect(estimate.rect)),
+            "Stored ink overflow misses own estimate: {:?} {owner:?}, stored {stored:?}, recomputed {estimate:?}, stamp {}",
+            self.source.node_kind_if_live(owner),
+            self.source.ink_overflow_stamp()
+        );
         let is_viewport = self.source.node_kind_if_live(owner) == Some(NodeKind::Viewport);
         let exempt = match kind {
             ProducerKind::Svg => Some(Count::Svg),
@@ -175,11 +188,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 return;
             }
         }
-        let estimate = *self
-            .ink_bounds_audit
-            .estimates
-            .entry(owner)
-            .or_insert_with(|| own_ink_overflow(self.source, self.paint_state, owner));
         if estimate.unbounded {
             self.ink_bounds_audit.count(Count::Unbounded);
             return;

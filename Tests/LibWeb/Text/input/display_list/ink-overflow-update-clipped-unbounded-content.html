@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .clipper { position: relative; width: 120px; height: 80px; margin: 20px; background: lightblue; }
+    .clipper > div { width: 300px; height: 60px; background: orange; }
+</style>
+<div class="clipper" style="overflow: auto">
+    <div style="position: sticky; top: 0">sticky</div>
+    <div style="height: 400px"></div>
+</div>
+<div class="clipper" style="overflow: hidden; perspective: 200px">
+    <div style="transform: rotateY(40deg)">perspective</div>
+</div>
+<div class="clipper" style="overflow: hidden">
+    <div id="blurred" style="filter: blur(8px)">blurred</div>
+</div>
+<div id="one-axis" class="clipper" style="overflow-x: clip">
+    <div style="position: sticky; top: 0; margin-top: 90px">sticky past the unclipped edge</div>
+</div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        blurred.style.filter = "blur(30px)";
+        document.getElementById("one-axis").style.overflowY = "clip";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        document.getElementById("one-axis").style.overflowY = "visible";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

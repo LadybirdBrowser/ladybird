@@ -20,6 +20,14 @@ const FILTER_KIND_HUE_ROTATE: u8 = 2;
 const FILTER_KIND_COLOR: u8 = 3;
 pub(crate) const FILTER_KIND_URL: u8 = 4;
 
+pub(crate) fn can_spread(filter: &ComputedFilter) -> bool {
+    filter
+        .operations
+        .as_slice()
+        .iter()
+        .any(|operation| !matches!(operation.kind, FILTER_KIND_HUE_ROTATE | FILTER_KIND_COLOR))
+}
+
 pub(crate) fn contains_url(filter: &ComputedFilter) -> bool {
     filter
         .operations

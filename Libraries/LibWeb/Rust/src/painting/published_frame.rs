@@ -52,6 +52,8 @@ pub(crate) struct PublishedRows {
     /// The epoch of the geometry the rows were published with, which the absolute rects a
     /// recording computes from them are stamped with.
     pub(super) geometry_epoch: u64,
+    pub(super) ink_overflow: ColumnSnapshot<crate::painting::ink_overflow::InkOverflow, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(crate) ink_overflow_stamp: u64,
     pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
     pub(super) paint_facts: PublishedPaintFacts,
     pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -197,7 +199,7 @@ impl PublishedPaintState {
         }
     }
 
-    fn new(paint_state: &PaintState, hit_test_item_capacity_hint: usize) -> Self {
+    pub(crate) fn new(paint_state: &PaintState, hit_test_item_capacity_hint: usize) -> Self {
         let visual_context = &paint_state.visual_context;
         Self {
             visual_context_tree: visual_context.tree.clone(),
@@ -257,6 +259,7 @@ impl LayoutNodeArena {
     /// What the next recording reads of the document, as it is now. The host says how many items
     /// the recording's hit-test list may hold.
     pub(crate) fn freeze_frame(&mut self, hit_test_item_capacity_hint: usize) -> PublishedFrame {
+        self.settle_ink_overflow();
         let rows = self.publish_rows();
         PublishedFrame {
             rows,

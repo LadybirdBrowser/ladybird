@@ -60,7 +60,7 @@ impl<T, const CHUNK: usize> Clone for Group<T, CHUNK> {
 }
 
 /// An edit token no column held before, and no chunk names yet.
-fn new_edit_token() -> u64 {
+pub(crate) fn new_edit_token() -> u64 {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     NEXT.fetch_add(1, Ordering::Relaxed)
 }

@@ -243,6 +243,11 @@ impl UniqueNodeIdColumn {
 #[derive(Clone, Default)]
 pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(crate) ink_overflow: CowColumn<crate::painting::ink_overflow::InkOverflow, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(crate) ink_overflow_stamp: u64,
+    pub(crate) ink_overflow_audit_sequence: u64,
+    pub(crate) ink_overflow_dirty: crate::fork_vec::ForkVec<bool>,
+    pub(crate) ink_overflow_requests: Vec<NodeSlotId>,
     /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's.
     side_data: CowVec<PaintableSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     committed_side_data: CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -659,6 +664,8 @@ impl LayoutNodeArena {
         let store = &mut self.paintable_rows;
         PublishedRows {
             geometry_epoch: store.absolute_rect_memo_epoch,
+            ink_overflow: store.ink_overflow.publish(),
+            ink_overflow_stamp: store.ink_overflow_stamp,
             nodes,
             paint_facts,
             rows: store.rows.publish(),
@@ -685,6 +692,7 @@ impl LayoutNodeArena {
             + store.committed_side_data.version()
             + store.stacking_context_entries.version()
             + store.visual_context_node_handles.version()
+            + store.ink_overflow.version()
     }
 
     pub(crate) fn paintable_rows_mut(&mut self) -> PaintableRowsMut<'_> {
@@ -756,11 +764,18 @@ impl LayoutNodeArena {
         store.visual_context_records.set(index, None);
         set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
         drop_table(&mut store.stacking_context_entries, index);
+        if crate::painting::ink_overflow::maintenance_enabled() {
+            if let Some(dirty) = self.paintable_rows.ink_overflow_dirty.get_mut(index) {
+                *dirty = false;
+            }
+            self.request_ink_overflow_recalculation(layout_node);
+        }
         self.notify_committed_box_changed(layout_node);
     }
 
     fn reset_paintable_row(&mut self, row_is_still_linked: bool, reset: PaintableRowReset) {
         let id = reset.slot;
+        self.forget_ink_overflow_of_row_being_reset(id);
         if row_is_still_linked {
             // A cleared row is still linked, so the ancestor whose plans listed it is known now.
             self.push_enclosing_paint_order_damage(id);

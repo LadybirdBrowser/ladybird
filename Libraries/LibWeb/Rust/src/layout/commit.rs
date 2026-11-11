@@ -834,6 +834,11 @@ impl<'tree> Commit<'_, 'tree> {
             ),
         ];
         let data = self.arena().live_paintable_data(slot);
+        let ink_depends_on_later_fragment_placements = crate::painting::ink_overflow::maintenance_enabled()
+            && (containing_block_fragment != 0
+                || !later_fragments.is_empty()
+                || data.has_flag(crate::painting::paintable_data::PaintableFlag::HasLaterBoxFragments)
+                || data.has_flag(crate::painting::paintable_data::PaintableFlag::InLaterContainingBlockFragment));
         if flags.iter().any(|&(flag, value)| data.has_flag(flag) != value) {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
@@ -841,6 +846,11 @@ impl<'tree> Commit<'_, 'tree> {
             for (flag, value) in flags {
                 data.set_flag(flag, value);
             }
+        }
+        if ink_depends_on_later_fragment_placements {
+            self.arena_mut().request_ink_overflow_recalculation(slot);
+            self.arena_mut()
+                .request_containing_block_ink_overflow_recalculation(slot);
         }
         if identical {
             return;
@@ -968,11 +978,13 @@ impl<'tree> Commit<'_, 'tree> {
         } else {
             NodeSlotId::INVALID
         };
-        let containing_block_changed = {
+        let old_containing_block = {
             let mut data = paintable_rows.paintable_data_mut(node);
-            std::mem::replace(&mut data.containing_block, containing_block) != containing_block
+            std::mem::replace(&mut data.containing_block, containing_block)
         };
-        if containing_block_changed {
+        if old_containing_block != containing_block {
+            paintable_rows.request_ink_overflow_recalculation(old_containing_block);
+            paintable_rows.request_ink_overflow_recalculation(containing_block);
             paintable_rows.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ContainingBlockChanged);
             paintable_rows.push_paint_damage(node, PaintDamage::MOVED);
         }

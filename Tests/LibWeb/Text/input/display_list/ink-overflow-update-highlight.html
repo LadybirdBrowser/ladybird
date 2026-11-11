@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<style id="highlightStyle">::selection { text-shadow: none; }</style><div id="target">selection styles</div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        highlightStyle.textContent = "::selection { text-shadow: 120px 90px 30px black; text-decoration: underline wavy; }";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        highlightStyle.textContent = "::selection { text-shadow: none; }";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>
