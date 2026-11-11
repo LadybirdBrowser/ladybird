@@ -875,13 +875,15 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
     m_hub_connection->did_initialize();
 
     m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(TRY(JsonValue::from_string(state.settings_json))));
-    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(state.config_directory, "Bookmarks.json"sv).string()));
     create_session_store(state.data_directory, state.persists_sessions);
     create_history_store(state.data_directory, state.uses_sql_database);
-    // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
-    //     launch recovers that the same as one of the Hub's.
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(state.config_directory, "Bookmarks.json"sv).string(), *m_favicon_store));
+
     m_browser_options.disable_sandbox = state.sandbox_is_disabled ? WebView::DisableSandbox::Yes : WebView::DisableSandbox::No;
     WebView::CrashReport::set_sandbox_is_disabled(m_browser_options.disable_sandbox);
+
+    // NB: Reports stay in files, which both of us read. This process keeps its own for when it crashes, and the next
+    //     launch recovers that the same as one of the Hub's.
     auto& crash_report_store = WebView::CrashReportStore::the();
     crash_report_store.set_directory(move(state.crash_report_directory));
     if (auto result = crash_report_store.initialize_browser_crash_handler(); result.is_error())
@@ -1091,11 +1093,13 @@ void Application::show_process_manager()
 void Application::create_platform_actions()
 {
 #ifndef LADYBIRD_HUB_IN_OWN_PROCESS
-    m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
-    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string()));
     auto& hub = WebView::Application::the();
+
+    m_settings = make<WebView::Settings>(WebView::Settings::create_from_json(WebView::Application::settings().serialize_json()));
     create_session_store(WebView::Application::profile().paths().data, hub.persists_sessions());
     create_history_store(WebView::Application::profile().paths().data, WebView::Application::browser_options().disable_sql_database == WebView::DisableSQLDatabase::No);
+    m_bookmark_store = make<BookmarkStore>(BookmarkStore::create(LexicalPath::join(WebView::Application::profile().paths().config, "Bookmarks.json"sv).string(), *m_favicon_store));
+
     m_application_actions = make<ApplicationActions>(ApplicationActions::PageOptions {
         .user_agent = hub.user_agent_string(),
         .navigator_compatibility_mode = hub.navigator_compatibility_mode(),
@@ -1103,6 +1107,7 @@ void Application::create_platform_actions()
         .blocks_pop_ups = hub.blocks_pop_ups(),
         .devtools_enabled = hub.devtools_enabled(),
     });
+
     RemoteDownloads::the().set_downloads(Hub::ConnectionFromUI::downloads());
 #endif
     if (auto* hub = HubConnection::the_if_connected())
