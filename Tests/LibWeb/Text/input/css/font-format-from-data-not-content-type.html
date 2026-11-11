@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function base64Of(url) {
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        let binary = "";
+        for (const byte of bytes)
+            binary += String.fromCharCode(byte);
+        return btoa(binary);
+    }
+
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const fonts = [
+            ["TrueType served as font/woff2", "../../../Assets/Lato-Bold.ttf", "font/woff2"],
+            ["TrueType served as font/woff", "../../../Assets/Lato-Bold.ttf", "font/woff"],
+            ["WOFF served as font/woff2", "../../../Assets/HashSans.woff", "font/woff2"],
+        ];
+        for (const [index, [label, asset, contentType]] of fonts.entries()) {
+            const url = await server.createEcho("GET", `/echo/font-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": contentType,
+                    "Access-Control-Allow-Origin": "*",
+                },
+                body: await base64Of(asset),
+                body_encoding: "base64",
+            });
+            const face = new FontFace(`Test${index}`, `url(${url})`);
+            document.fonts.add(face);
+            try {
+                await face.load();
+            } catch {}
+            println(`${label}: ${face.status}`);
+        }
+    });
+</script>
