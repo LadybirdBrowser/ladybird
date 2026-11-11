@@ -2177,10 +2177,15 @@ impl<'pass> GridFormattingContext<'pass> {
         let column_track_count = self.column_lines.len().saturating_sub(1);
         let row_track_count = self.row_lines.len().saturating_sub(1);
         for placed in &mut result.items {
+            // NB: Placement counts positions from the first line of the implicit grid, which can start before the
+            //     explicit grid. A subgridded axis has only the hypothetical implicit lines that placement resolves
+            //     against, so its positions are taken from the start of its explicit grid before they are clamped.
             if subgridded_columns {
+                placed.column -= result.explicit_column_start as i32;
                 Self::clamp_area_to_subgrid(&mut placed.column, &mut placed.column_span, column_track_count);
             }
             if subgridded_rows {
+                placed.row -= result.explicit_row_start as i32;
                 Self::clamp_area_to_subgrid(&mut placed.row, &mut placed.row_span, row_track_count);
             }
         }
