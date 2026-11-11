@@ -1,0 +1,7 @@
+Ladybird parses -webkit-clip-path and -webkit-font-feature-settings
+as legacy aliases of clip-path and font-feature-settings. Blink does
+the same, with an alias_for entry for each in css_properties.json5.
+Gecko does too, with “webkit” in the extra_prefixes of each property in
+its longhands.toml. WebKit lists -webkit-clip-path among the aliases of
+clip-path in its CSSProperties.json, but doesn’t support -webkit-font-
+feature-settings at all, so it drops that declaration as Ladybird did.
