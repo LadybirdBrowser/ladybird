@@ -164,6 +164,9 @@ function addCustomSearchEngine() {
         }
     }
 
+    searchCustomURL.value = ensureURLHasScheme(searchCustomURL.value);
+    searchCustomSuggestionsURL.value = ensureURLHasScheme(searchCustomSuggestionsURL.value);
+
     if (!containsValidURL(searchCustomURL)) {
         searchCustomURL.classList.add("error");
         return;

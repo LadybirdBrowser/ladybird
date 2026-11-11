@@ -21,6 +21,8 @@ newTabPageURL.addEventListener("change", () => {
     newTabPageURL.classList.remove("success");
     newTabPageURL.classList.remove("error");
 
+    newTabPageURL.value = ensureURLHasScheme(newTabPageURL.value);
+
     if (!containsValidURL(newTabPageURL)) {
         newTabPageURL.classList.add("error");
         return;
