@@ -106,7 +106,9 @@ case "${ID}" in
             git \
             glslang \
             libdrm-devel \
+            liberation-mono-fonts \
             liberation-sans-fonts \
+            liberation-serif-fonts \
             libglvnd-devel \
             libstdc++-devel \
             libtool \
