@@ -1,0 +1,20 @@
+Ladybird measures an automatically sized absolute box from its static-
+position edge when both insets are auto. The normalized edge accounts
+for direction and writing mode. The same rule applies to an orthogonal
+child whose inline size is computed through the block-axis sizing path.
+Its content-based block size is measured at the resolved inline size.
+
+Blink resolves the edge in ComputeUnclampedIMCBInOneAxis(), before
+ComputeInsetModifiedContainingBlock() supplies the available size.
+
+Gecko selects a hypothetical inline-start or inline-end offset in its
+ReflowInput::InitAbsoluteConstraints(), according to the writing modes.
+It includes the offset in the space excluded by ComputeSize().
+
+WebKit resolves the static-position edge for the appropriate writing
+mode in PositionedLayoutConstraints::computeStaticPosition(). Its
+computeInsets() subtracts the insets from the containing range.
+
+These paths agree on measuring from the static-position edge before
+shrink-to-fit sizing. Center-aligned static rectangles retain their
+separate sizing behavior; this change covers start and end alignment.
