@@ -536,22 +536,15 @@ bool SourceBufferDemuxer::run_ends_at_last_appended_frame(TrackData const& data,
     return data.run_ending_with_last_appended_frame == run_index;
 }
 
-size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Media::Track const& track, AK::Duration current_time) const
+template<typename Callback>
+void SourceBufferDemuxer::for_each_earliest_evictable_group(TrackData const& data, AK::Duration current_time, Callback callback)
 {
-    MutexLocker locker { m_mutex };
-    auto const& data = track_data(track);
-
     size_t bytes = 0;
     for (size_t run_index = 0; run_index < data.runs.size(); run_index++) {
         auto const& frames = data.runs[run_index].frames;
 
         // Eviction that stops within a run moves the last evicted configuration onto the first remaining frame.
         size_t last_evicted_configuration_size = 0;
-        auto bytes_when_stopping_at = [&](size_t first_remaining_frame) {
-            if (frames[first_remaining_frame].new_codec_configuration().has_value())
-                return bytes;
-            return bytes - last_evicted_configuration_size;
-        };
 
         size_t group_start = 0;
         while (group_start < frames.size()) {
@@ -563,86 +556,117 @@ size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Medi
             Optional<size_t> group_configuration_size;
             for (size_t index = group_start; index < group_end; index++) {
                 if (!is_frame_evictable(data, frames[index], current_time))
-                    return bytes_when_stopping_at(group_start);
+                    return;
                 group_bytes += buffered_byte_count(frames[index]);
                 if (auto configuration = frames[index].new_codec_configuration(); configuration.has_value())
                     group_configuration_size = configuration.value().size();
             }
             if (group_end == frames.size() && run_ends_at_last_appended_frame(data, run_index))
-                return bytes_when_stopping_at(group_start);
+                return;
 
             bytes += group_bytes;
             if (group_configuration_size.has_value())
                 last_evicted_configuration_size = group_configuration_size.value();
+
+            auto freed_bytes = bytes;
+            if (group_end < frames.size() && !frames[group_end].new_codec_configuration().has_value())
+                freed_bytes -= last_evicted_configuration_size;
+            if (callback(frames[group_start].presentation_timestamp(), freed_bytes) == IterationDecision::Break)
+                return;
             group_start = group_end;
         }
     }
+}
+
+size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Media::Track const& track, AK::Duration current_time) const
+{
+    MutexLocker locker { m_mutex };
+    size_t bytes = 0;
+    for_each_earliest_evictable_group(track_data(track), current_time, [&](AK::Duration, size_t freed_bytes) {
+        bytes = freed_bytes;
+        return IterationDecision::Continue;
+    });
     return bytes;
 }
 
-Optional<AK::Duration> SourceBufferDemuxer::earliest_evictable_frame_timestamp(Media::Track const& track, AK::Duration current_time) const
+Vector<SourceBufferDemuxer::EarliestEvictableGroup> SourceBufferDemuxer::earliest_evictable_groups(Media::Track const& track, AK::Duration current_time, size_t wanted_bytes) const
 {
     MutexLocker locker { m_mutex };
-    auto const& data = track_data(track);
-    if (data.runs.is_empty())
-        return {};
+    Vector<EarliestEvictableGroup> groups;
+    for_each_earliest_evictable_group(track_data(track), current_time, [&](AK::Duration presentation_timestamp, size_t freed_bytes) {
+        groups.append({ presentation_timestamp, freed_bytes });
+        if (freed_bytes >= wanted_bytes)
+            return IterationDecision::Break;
+        return IterationDecision::Continue;
+    });
+    return groups;
+}
 
-    auto const& frames = data.runs.first().frames;
-    size_t frame_count = 0;
-    for (auto const& frame : frames) {
-        if (frame_count > 0 && frame.is_keyframe())
-            break;
-        if (!is_frame_evictable(data, frame, current_time))
-            return {};
-        frame_count++;
+size_t SourceBufferDemuxer::take_earliest_groups(Media::Track const& track, size_t group_count)
+{
+    MutexLocker locker { m_mutex };
+    VERIFY(!m_reached_end_of_stream);
+    auto& data = track_data(track);
+
+    size_t bytes = 0;
+    while (group_count > 0) {
+        VERIFY(!data.runs.is_empty());
+        auto const& frames = data.runs.first().frames;
+        size_t frame_count = 0;
+        while (group_count > 0 && frame_count < frames.size()) {
+            frame_count++;
+            while (frame_count < frames.size() && !frames[frame_count].is_keyframe())
+                frame_count++;
+            group_count--;
+        }
+        bytes += erase_frames_and_dependants(data, 0, 0, frame_count);
     }
-
-    if (frame_count == frames.size() && run_ends_at_last_appended_frame(data, 0))
-        return {};
-    return frames.first().presentation_timestamp();
-}
-
-size_t SourceBufferDemuxer::take_earliest_frame_and_dependants(Media::Track const& track)
-{
-    MutexLocker locker { m_mutex };
-    VERIFY(!m_reached_end_of_stream);
-    auto& data = track_data(track);
-    VERIFY(!data.runs.is_empty());
-
-    auto bytes = erase_frames_and_dependants(data, 0, 0, 1);
     buffered_data_changed_while_locked();
     return bytes;
 }
 
-Optional<AK::Duration> SourceBufferDemuxer::latest_evictable_frame_timestamp(Media::Track const& track, AK::Duration current_time) const
+Vector<SourceBufferDemuxer::LatestEvictableFrame> SourceBufferDemuxer::latest_evictable_frames(Media::Track const& track, AK::Duration current_time, size_t wanted_bytes) const
 {
     MutexLocker locker { m_mutex };
     auto const& data = track_data(track);
-    if (data.runs.is_empty())
-        return {};
 
-    if (run_ends_at_last_appended_frame(data, data.runs.size() - 1))
-        return {};
-
-    auto const& frame = data.runs.last().frames.last();
-    if (!is_frame_evictable(data, frame, current_time))
-        return {};
-    return frame.presentation_timestamp();
+    Vector<LatestEvictableFrame> evictable_frames;
+    size_t bytes = 0;
+    for (size_t run_index = data.runs.size(); run_index-- > 0;) {
+        if (run_ends_at_last_appended_frame(data, run_index))
+            break;
+        auto const& frames = data.runs[run_index].frames;
+        for (size_t frame_index = frames.size(); frame_index-- > 0;) {
+            auto const& frame = frames[frame_index];
+            if (!is_frame_evictable(data, frame, current_time))
+                return evictable_frames;
+            auto byte_count = buffered_byte_count(frame);
+            evictable_frames.append({ frame.presentation_timestamp(), frame.decode_timestamp(), byte_count });
+            bytes += byte_count;
+            if (bytes >= wanted_bytes)
+                return evictable_frames;
+        }
+    }
+    return evictable_frames;
 }
 
-SourceBufferDemuxer::RemovedFrame SourceBufferDemuxer::take_latest_frame(Media::Track const& track)
+size_t SourceBufferDemuxer::take_latest_frames(Media::Track const& track, size_t frame_count)
 {
     MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
     auto& data = track_data(track);
 
-    auto& run = data.runs.last();
-    auto const& frame = run.frames.last();
-    RemovedFrame removed { .byte_size = buffered_byte_count(frame), .decode_timestamp = frame.decode_timestamp() };
-
-    erase_frames_and_dependants(data, data.runs.size() - 1, run.frames.size() - 1, 1);
+    size_t bytes = 0;
+    while (frame_count > 0) {
+        VERIFY(!data.runs.is_empty());
+        auto run_index = data.runs.size() - 1;
+        auto run_frame_count = data.runs[run_index].frames.size();
+        auto count = min(frame_count, run_frame_count);
+        bytes += erase_frames_and_dependants(data, run_index, run_frame_count - count, count);
+        frame_count -= count;
+    }
     buffered_data_changed_while_locked();
-    return removed;
+    return bytes;
 }
 
 void SourceBufferDemuxer::set_reached_end_of_stream()
