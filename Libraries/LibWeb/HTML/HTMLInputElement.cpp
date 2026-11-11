@@ -1673,8 +1673,19 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     auto style = computed_style();
     bool const is_native = !style || style->appearance() != CSS::Appearance::None;
 
-    if (m_slider_runnable_track)
+    if (m_slider_runnable_track) {
         MUST(m_slider_runnable_track->style()->set_property(CSS::PropertyID::BorderRadius, is_native ? u"2px"sv : u"0"sv));
+        // NB: A slider with `appearance: none` draws no band for its track, and its track wraps the thumb, so that a
+        //     thumb of any size sits in the middle of the slider. An author who sizes the track positions the thumb
+        //     on it themselves.
+        if (is_native) {
+            (void)MUST(m_slider_runnable_track->style()->remove_property(CSS::PropertyID::Height));
+            (void)MUST(m_slider_runnable_track->style()->remove_property(CSS::PropertyID::BackgroundColor));
+        } else {
+            MUST(m_slider_runnable_track->style()->set_property(CSS::PropertyID::Height, "auto"_utf16));
+            MUST(m_slider_runnable_track->style()->set_property(CSS::PropertyID::BackgroundColor, "transparent"_utf16));
+        }
+    }
 
     if (m_slider_progress_element) {
         auto width = Utf16String::formatted("calc({}% + {}px)", position, thumb_width / 2 - thumb_offset);
@@ -1686,11 +1697,13 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     update_slider_ticks();
 
     if (m_slider_thumb) {
-        // NB: The thumb moves back by the same fraction of its own width, whatever width an author gives it.
+        // NB: The thumb moves back by the same fraction of its own width, whatever width an author gives it. On the
+        //     band of a native slider, it's centered by its own height.
         auto margin_left = Utf16String::formatted("{}%", position);
         MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::MarginLeft, margin_left.utf16_view()));
-        auto translate = Utf16String::formatted("{}%", -position);
+        auto translate = Utf16String::formatted("{}% {}", -position, is_native ? "-50%"sv : "0"sv);
         MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::Translate, translate.utf16_view()));
+        MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::Top, is_native ? u"50%"sv : u"0"sv));
     }
 }
 

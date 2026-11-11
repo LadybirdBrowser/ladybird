@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    .custom { appearance: none; background: #ccc; width: 200px; height: 25px; margin: 0; display: block; }
+    .custom::-webkit-slider-thumb { appearance: none; background: green; width: 25px; height: 25px; }
+    .tall { height: 40px; }
+    .small-thumb::-webkit-slider-thumb { width: 10px; height: 10px; }
+    .native-large-thumb::-webkit-slider-thumb { width: 24px; height: 24px; }
+</style>
+<input type="range" class="custom" value="50">
+<input type="range" class="custom tall" value="50">
+<input type="range" class="custom small-thumb" value="50">
+<input type="range" style="appearance: none" value="50">
+<input type="range" value="50">
+<input type="range" class="native-large-thumb" value="50">

@@ -174,7 +174,6 @@ input[type=range] {
     &::slider-thumb {
         display: block;
         position: relative;
-        margin-top: -6px;
         width: 16px;
         height: 16px;
         border-radius: 50%;

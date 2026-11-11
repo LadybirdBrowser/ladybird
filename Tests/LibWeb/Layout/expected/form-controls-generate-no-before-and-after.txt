@@ -54,7 +54,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [500.96875,26] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [500.96875,32] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
             BlockContainer <div> at [500.96875,32] positioned [0+0+0 64.5 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-            BlockContainer <div> at [565.46875,26] positioned [64.5+0+0 16 0+0+48.5] [-6+0+0 16 0+0+0] children: not-inline
+            BlockContainer <div> at [565.46875,34] positioned [64.5+0+0 16 0+0+48.5] [0+0+0 16 0+0+0] children: not-inline
       TextNode <#text> (not painted)
       BlockContainer <select.g> at [648.96875,31] inline-block [0+1+8 62.609375 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
         Box <div> at [648.96875,31] positioned flex-container(row) [0+0+0 62.609375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
@@ -92,4 +92,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x92] (z-index: auto)
-  SC for BlockContainer<DIV> [565.46875,26 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [565.46875,34 16x16] (z-index: auto), has_transform

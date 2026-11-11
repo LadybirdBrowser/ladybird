@@ -7,15 +7,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [10,10] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [10,16] positioned flex-item [0+0+0 200 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
             BlockContainer <div> at [10,16] positioned [0+0+0 100 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-            BlockContainer <div> at [110,10] positioned [100+0+0 16 0+0+84] [-6+0+0 16 0+0+0] children: not-inline
+            BlockContainer <div> at [110,18] positioned [100+0+0 16 0+0+84] [0+0+0 16 0+0+0] children: not-inline
       RangeInputBox <input> at [214,10] inline-block [2+0+0 200 0+0+2] [2+0+0 16 0+0+2] [BFC] children: not-inline
         Box <div> at [214,10] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [214,16] positioned flex-item [0+0+0 200 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
             BlockContainer <div> at [214,16] positioned [0+0+0 26.390625 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-            BlockContainer <div> at [234,10] positioned [20+0+0 16 0+0+164] [-6+0+0 16 0+0+0] children: not-inline
+            BlockContainer <div> at [234,18] positioned [20+0+0 16 0+0+164] [0+0+0 16 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x38] (z-index: auto)
-  SC for BlockContainer<DIV> [110,10 16x16] (z-index: auto), has_transform
-  SC for BlockContainer<DIV> [234,10 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [110,18 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [234,18 16x16] (z-index: auto), has_transform
