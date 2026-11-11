@@ -1,0 +1,21 @@
+Ladybird measures an absolutely positioned box’s intrinsic inline sizes
+with the definite block size established by its opposing insets. The
+percentage basis includes margin, border, and padding deductions and
+its definite minimum and maximum block-size limits. Content-dependent
+block sizes remain indefinite during that intrinsic measurement.
+
+Blink’s ComputeOofInlineDimensions passes the inset-modified available
+size and block auto-size behavior to BlockNode::ComputeMinMaxSizes.
+Its intrinsic sizing consequently uses the stretched block size as
+its descendant percentage basis. Gecko’s ComputeAbsolutePosAutoSize
+resolves the stretch-fit block size before calling ShrinkISizeToFit,
+passing the result through ComputeBSizeValueAsPercentageBasis to apply
+its definite minimum and maximum limits.
+
+WebKit derives the intrinsic width from the resolved height in its
+RenderReplaced::computeAspectRatioAdjustedIntrinsicLogicalWidths.
+RenderReplaced::computeReplacedLogicalHeightUsingGeneric and RenderBox::
+availableLogicalHeightUsing obtain an auto-height positioned ancestor’s
+height from computeLogicalHeight when both block insets are specified.
+Ladybird follows the same behavior without resolving content-dependent
+heights from the width that is being measured.
