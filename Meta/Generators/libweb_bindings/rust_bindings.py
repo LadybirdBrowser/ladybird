@@ -1715,10 +1715,17 @@ def write_default_to_json(out: TextIO, context: GenerationContext, interface: In
         for attribute in rust_members(interface_in_chain).attributes:
             if not idl_type_is_json_type(attribute.attribute.type, context):
                 continue
+            # NB: Only the attributes that are exposed in the realm are collected.
+            definition = (
+                f"let value = {module}{attribute.getter_function}(vm)?; "
+                f'set_dictionary_member(&cx, result, &PropertyKey::from_utf8("{attribute.attribute.name}"), value)?;'
+            )
             values.write(
-                f"""        let value = {module}{attribute.getter_function}(vm)?;
-        set_dictionary_member(&cx, result, &PropertyKey::from_utf8("{attribute.attribute.name}"), value)?;
-"""
+                member_exposure_definition(
+                    definition,
+                    secure_context_only="SecureContext" in attribute.attribute.extended_attributes,
+                    window_only=attribute.is_window_only,
+                )
             )
     out.write(
         f"""
