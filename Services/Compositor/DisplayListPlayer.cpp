@@ -72,7 +72,14 @@ struct DisplayListPlayer::ReplayCallbacks {
             .push_clip_path = [](void* context, Gfx::FFI::PathGeometryData const* path, u64 path_identity, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path(Gfx::PathData::from_ffi(*path), path_identity, winding_rule); },
             .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<DisplayListPlayer*>(context)->push_layer(*layer); },
             .push_mask = [](void* context, ReplayMask const* mask, ReplayLayer const* backdrop) { static_cast<DisplayListPlayer*>(context)->push_mask(*mask, backdrop); },
-            .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<DisplayListPlayer*>(context)->pop_mask(*mask, effect); },
+            .begin_mask_content = [](void* context, ReplayMask const* mask) { static_cast<DisplayListPlayer*>(context)->begin_mask_content(*mask); },
+            .end_mask = [](void* context) { static_cast<DisplayListPlayer*>(context)->end_mask(); },
+            .begin_isolated_group = [](void* context, DrawIsolatedGroup const* group, u8 const* filter, size_t filter_size) { static_cast<DisplayListPlayer*>(context)->begin_isolated_group(*group, { filter, filter_size }); },
+            .begin_isolated_group_mask = [](void* context, Gfx::MaskKind kind) { static_cast<DisplayListPlayer*>(context)->begin_isolated_group_mask(kind); },
+            .end_isolated_group = [](void* context) { static_cast<DisplayListPlayer*>(context)->end_isolated_group(); },
+            .use_cached_tile_raster = [](void* context, u64 key, Gfx::IntSize size) -> bool { return static_cast<DisplayListPlayer*>(context)->use_cached_tile_raster(key, size); },
+            .begin_tile_raster = [](void* context, Gfx::IntSize size) -> bool { return static_cast<DisplayListPlayer*>(context)->begin_tile_raster(size); },
+            .end_tile_raster = [](void* context, u64 const* cache_key) { static_cast<DisplayListPlayer*>(context)->end_tile_raster(cache_key ? Optional<u64> { *cache_key } : Optional<u64> {}); },
             .pop = [](void* context) { static_cast<DisplayListPlayer*>(context)->pop(); },
             .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) { static_cast<DisplayListPlayer*>(context)->push_device_space_plane_clip({ vertices, vertex_count }); },
             .push_transform = [](void* context, Gfx::AffineTransform const* transform) { static_cast<DisplayListPlayer*>(context)->push_transform(*transform); },
@@ -100,35 +107,21 @@ void DisplayListPlayer::play_command_bytes(DisplayListCommandType command_type, 
     }
 }
 
-void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes)
+void DisplayListPlayer::begin_drawing_into_surface(NonnullRefPtr<Gfx::PaintingSurface> target_surface)
 {
-    auto callbacks = ReplayCallbacks::for_player(*this);
-    if (m_active_frame_inputs)
-        m_active_frame_inputs->replay_records(command_bytes, callbacks);
-    else
-        DisplayList::replay_records(command_bytes, callbacks);
+    m_surfaces_drawn_into_before.append(*m_surface);
+    m_surface = move(target_surface);
 }
 
-void DisplayListPlayer::execute_command_bytes_into_surface(ReadonlyBytes command_bytes, Gfx::PaintingSurface& target_surface)
+NonnullRefPtr<Gfx::PaintingSurface> DisplayListPlayer::end_drawing_into_surface()
 {
-    TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
-    DisplayList::replay_records(command_bytes, ReplayCallbacks::for_player(*this));
-}
-
-void DisplayListPlayer::declare_mask_content(EffectNodeIndex effect, ReadonlyBytes content)
-{
-    m_declared_mask_contents.set(effect.value(), content);
-}
-
-Optional<ReadonlyBytes> DisplayListPlayer::declared_mask_content(EffectNodeIndex effect) const
-{
-    return m_declared_mask_contents.get(effect.value());
+    NonnullRefPtr<Gfx::PaintingSurface> target_surface = *m_surface;
+    m_surface = m_surfaces_drawn_into_before.take_last();
+    return target_surface;
 }
 
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, FrameInputs const* frame_inputs)
 {
-    TemporaryChange active_frame_inputs_change { m_active_frame_inputs, frame_inputs };
-    TemporaryChange declared_mask_contents_change { m_declared_mask_contents, HashMap<u32, ReadonlyBytes> {} };
     auto const& visual_context_tree = active_visual_context_tree();
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);

@@ -19,9 +19,7 @@ use libcompositing_rust::display_list::commands::{
 };
 use libcompositing_rust::display_list::damage::LiveContentChanges;
 use libcompositing_rust::display_list::storage::storage_from_handle;
-use libcompositing_rust::ffi::{
-    FfiDisplayList, replay_display_list_storage, replay_nested_records, tree_sharing_handle,
-};
+use libcompositing_rust::ffi::{FfiDisplayList, replay_display_list_storage, tree_sharing_handle};
 use libcompositing_rust::host::FfiDisplayListReplayCallbacks;
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
@@ -350,29 +348,6 @@ pub unsafe extern "C" fn compositor_frame_inputs_replay(
             frame_inputs.visual_context_tree.as_arc(),
             display_list_storage,
             root_group_color,
-            frame_inputs.presented_scroll_state_snapshot.device_offsets(),
-            callbacks,
-        );
-    }
-}
-
-/// Plays a stream of records that a command of the list being replayed nests, scrolled where the frame presents it.
-///
-/// # Safety
-///
-/// `records` must address `records_size` bytes of a tape that is valid for the call, and `callbacks` must be live.
-/// The painter callbacks run synchronously and may re-enter a replay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_frame_inputs_replay_records(
-    frame_inputs: &FrameInputs,
-    records: *const u8,
-    records_size: usize,
-    callbacks: *const FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller lends the stated number of bytes and live callbacks.
-    unsafe {
-        replay_nested_records(
-            ak::slice_from_raw_parts(records, records_size),
             frame_inputs.presented_scroll_state_snapshot.device_offsets(),
             callbacks,
         );

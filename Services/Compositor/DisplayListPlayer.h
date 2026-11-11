@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
+#include <AK/Vector.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
@@ -50,13 +50,11 @@ protected:
         return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
     }
     void execute_impl(Compositing::DisplayList const&, FrameInputs const*);
-    // Plays records that a command of the list being played nests, scrolled as that list is.
-    void execute_command_bytes(ReadonlyBytes);
     void execute_display_list_into_surface(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
-    void execute_command_bytes_into_surface(ReadonlyBytes, Gfx::PaintingSurface&);
-    void declare_mask_content(Compositing::EffectNodeIndex, ReadonlyBytes content);
-    Optional<ReadonlyBytes> declared_mask_content(Compositing::EffectNodeIndex) const;
     void execute_nested_display_list(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&);
+    // Draws into another surface until the matching end_drawing_into_surface(), which returns that surface.
+    void begin_drawing_into_surface(NonnullRefPtr<Gfx::PaintingSurface>);
+    NonnullRefPtr<Gfx::PaintingSurface> end_drawing_into_surface();
 
 private:
     struct ReplayCallbacks;
@@ -77,7 +75,14 @@ private:
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(Compositing::ReplayLayer const&) = 0;
     virtual void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) = 0;
-    virtual void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) = 0;
+    virtual void begin_mask_content(Compositing::ReplayMask const&) = 0;
+    virtual void end_mask() = 0;
+    virtual void begin_isolated_group(Compositing::DrawIsolatedGroup const&, ReadonlyBytes filter) = 0;
+    virtual void begin_isolated_group_mask(Gfx::MaskKind) = 0;
+    virtual void end_isolated_group() = 0;
+    virtual bool use_cached_tile_raster(u64 key, Gfx::IntSize) = 0;
+    virtual bool begin_tile_raster(Gfx::IntSize) = 0;
+    virtual void end_tile_raster(Optional<u64> cache_key) = 0;
     virtual void pop() = 0;
     virtual void push_device_space_plane_clip(ReadonlySpan<Gfx::FloatVector3> polygon_vertices) = 0;
 
@@ -87,8 +92,7 @@ private:
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
-    FrameInputs const* m_active_frame_inputs { nullptr };
-    HashMap<u32, ReadonlyBytes> m_declared_mask_contents;
+    Vector<NonnullRefPtr<Gfx::PaintingSurface>> m_surfaces_drawn_into_before;
 };
 
 }

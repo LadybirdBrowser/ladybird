@@ -101,11 +101,6 @@ void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree
     RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, &callbacks);
 }
 
-void DisplayList::replay_records(ReadonlyBytes records, RustFFI::FfiDisplayListReplayCallbacks const& callbacks)
-{
-    RustFFI::display_list_replay_records(records.data(), records.size(), &callbacks);
-}
-
 u64 DisplayList::tape_size() const
 {
     return RustFFI::display_list_storage_tape_size(m_storage);

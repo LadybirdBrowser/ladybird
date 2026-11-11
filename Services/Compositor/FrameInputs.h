@@ -88,8 +88,6 @@ public:
 
     // Replays the list through a player's callbacks as the frame shows it.
     void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
-    // Replays a stream of records that a command of the list being replayed nests.
-    void replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
 
     // What painting the list with these inputs repaints of the last frame, which painted its list with its inputs.
     // Empty where the damage has no bounds.

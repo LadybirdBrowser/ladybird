@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
+use crate::display_list::commands::{DisplayListCommandType, DrawIsolatedGroup, ReplayClip, ReplayLayer, ReplayMask};
 use crate::display_list::replay::ReplayPainter;
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
-use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
+use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, IntSize, MaskKind, WindingRule};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy)]
@@ -24,7 +24,16 @@ pub struct FfiDisplayListReplayCallbacks {
     pub push_layer: unsafe extern "C" fn(*mut c_void, *const ReplayLayer),
     // Arguments: the mask, and the layer whose backdrop filter the mask's layer starts with, or null.
     pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, *const ReplayLayer),
-    pub pop_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, EffectNodeIndex),
+    pub begin_mask_content: unsafe extern "C" fn(*mut c_void, *const ReplayMask),
+    pub end_mask: unsafe extern "C" fn(*mut c_void),
+    // Arguments: the group, and its serialized filter graph with its size, which is zero for no filter.
+    pub begin_isolated_group: unsafe extern "C" fn(*mut c_void, *const DrawIsolatedGroup, *const u8, usize),
+    pub begin_isolated_group_mask: unsafe extern "C" fn(*mut c_void, MaskKind),
+    pub end_isolated_group: unsafe extern "C" fn(*mut c_void),
+    pub use_cached_tile_raster: unsafe extern "C" fn(*mut c_void, u64, IntSize) -> bool,
+    pub begin_tile_raster: unsafe extern "C" fn(*mut c_void, IntSize) -> bool,
+    // Takes the key to cache the raster by, or null to not cache it.
+    pub end_tile_raster: unsafe extern "C" fn(*mut c_void, *const u64),
     pub pop: unsafe extern "C" fn(*mut c_void),
     pub push_device_space_plane_clip: unsafe extern "C" fn(*mut c_void, *const FloatVector3, usize),
     pub push_transform: unsafe extern "C" fn(*mut c_void, *const AffineTransform),
@@ -72,9 +81,45 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
         unsafe { (self.push_mask)(self.context, mask, backdrop) };
     }
 
-    fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex) {
+    fn begin_mask_content(&mut self, mask: &ReplayMask) {
         // SAFETY: The C++ painter reads the mask synchronously.
-        unsafe { (self.pop_mask)(self.context, mask, effect) };
+        unsafe { (self.begin_mask_content)(self.context, mask) };
+    }
+
+    fn end_mask(&mut self) {
+        // SAFETY: The C++ painter closes the mask synchronously.
+        unsafe { (self.end_mask)(self.context) };
+    }
+
+    fn begin_isolated_group(&mut self, group: &DrawIsolatedGroup, filter: &[u8]) {
+        // SAFETY: The C++ painter reads the group and its filter synchronously.
+        unsafe { (self.begin_isolated_group)(self.context, group, filter.as_ptr(), filter.len()) };
+    }
+
+    fn begin_isolated_group_mask(&mut self, kind: MaskKind) {
+        // SAFETY: The C++ painter opens the mask synchronously.
+        unsafe { (self.begin_isolated_group_mask)(self.context, kind) };
+    }
+
+    fn end_isolated_group(&mut self) {
+        // SAFETY: The C++ painter closes the group synchronously.
+        unsafe { (self.end_isolated_group)(self.context) };
+    }
+
+    fn use_cached_tile_raster(&mut self, key: u64, size: IntSize) -> bool {
+        // SAFETY: The C++ painter answers synchronously.
+        unsafe { (self.use_cached_tile_raster)(self.context, key, size) }
+    }
+
+    fn begin_tile_raster(&mut self, size: IntSize) -> bool {
+        // SAFETY: The C++ painter answers synchronously.
+        unsafe { (self.begin_tile_raster)(self.context, size) }
+    }
+
+    fn end_tile_raster(&mut self, cache_key: Option<u64>) {
+        let cache_key = cache_key.as_ref().map_or(std::ptr::null(), |key| key as *const u64);
+        // SAFETY: The C++ painter reads the key synchronously.
+        unsafe { (self.end_tile_raster)(self.context, cache_key) };
     }
 
     fn pop(&mut self) {

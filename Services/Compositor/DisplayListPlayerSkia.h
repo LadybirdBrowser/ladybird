@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <Compositor/CompositedContext.h>
 #include <Compositor/DisplayListPlayer.h>
@@ -72,7 +73,14 @@ private:
     void push_transform(Gfx::AffineTransform const&) override;
     void push_layer(Compositing::ReplayLayer const&) override;
     void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;
-    void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) override;
+    void begin_mask_content(Compositing::ReplayMask const&) override;
+    void end_mask() override;
+    void begin_isolated_group(Compositing::DrawIsolatedGroup const&, ReadonlyBytes filter) override;
+    void begin_isolated_group_mask(Gfx::MaskKind) override;
+    void end_isolated_group() override;
+    bool use_cached_tile_raster(u64 key, Gfx::IntSize) override;
+    bool begin_tile_raster(Gfx::IntSize) override;
+    void end_tile_raster(Optional<u64> cache_key) override;
     void pop() override;
     void push_device_space_plane_clip(ReadonlySpan<Gfx::FloatVector3> polygon_vertices) override;
 
@@ -83,7 +91,8 @@ private:
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
     sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes, Optional<Gfx::FloatRect> blur_edge = {});
     SkPath path_from_data(Compositing::DisplayListDataSpan) const;
-    sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect);
+    // The raster of a tile that the command played next draws.
+    sk_sp<SkImage> take_tile_raster();
     ReadonlySpan<Color> gradient_colors(Compositing::DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(Compositing::DisplayListGradientColorStops) const;
 
@@ -92,6 +101,8 @@ private:
     // Says how opaque the scrollbars that the display list paints are.
     ReadonlySpan<ScrollbarOfFrame> m_scrollbars_of_frame;
     DisplayListRasterCache* m_raster_cache { nullptr };
+    struct TileRaster;
+    OwnPtr<TileRaster> m_tile_raster_for_next_command;
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 };
 

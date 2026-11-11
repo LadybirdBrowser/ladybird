@@ -76,24 +76,6 @@ pub unsafe fn replay_display_list_storage(
     );
 }
 
-/// Plays a stream of records that a command nests, outside of any run, with the scroll containers at `scroll_offsets`.
-///
-/// # Safety
-///
-/// `records` must be a tape that is valid, and `callbacks` must be live. The painter callbacks run synchronously and
-/// may re-enter a replay.
-pub unsafe fn replay_nested_records(
-    records: &[u8],
-    scroll_offsets: &[FloatPoint],
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller guarantees `callbacks` is live for the call.
-    let mut painter = unsafe { *callbacks };
-    // NB: Nested records share the context of the command they are nested in, and none of their inline clips has a
-    //     space of its own.
-    crate::display_list::replay::replay_records(records, scroll_offsets, &|_| None, &mut painter);
-}
-
 /// Replays a list with nothing scrolled, as a list nested in another is.
 ///
 /// # Safety
@@ -110,22 +92,6 @@ pub unsafe extern "C" fn display_list_replay(
 ) {
     // SAFETY: The caller guarantees live handles and callbacks for the duration of the call.
     unsafe { replay_display_list_storage(tree_from_handle(tree), storage, root_group_color, &[], callbacks) };
-}
-
-/// Plays a stream of records that a command nests, outside of any run, with nothing scrolled.
-///
-/// # Safety
-///
-/// `records` must address `records_size` bytes of a tape that is valid for the call; `callbacks` must be
-/// live. The painter callbacks run synchronously and may re-enter this function.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_replay_records(
-    records: *const u8,
-    records_size: usize,
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller guarantees the slice addresses the stated number of bytes, and live callbacks.
-    unsafe { replay_nested_records(ak::slice_from_raw_parts(records, records_size), &[], callbacks) };
 }
 
 /// # Safety

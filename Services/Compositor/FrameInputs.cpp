@@ -57,11 +57,6 @@ void FrameInputs::replay(Compositing::DisplayList const& display_list, Compositi
     RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), &callbacks);
 }
 
-void FrameInputs::replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
-{
-    RustFFI::compositor_frame_inputs_replay_records(m_frame_inputs, records.data(), records.size(), &callbacks);
-}
-
 Optional<Gfx::IntRect> FrameInputs::damage_since(Compositing::DisplayList const& display_list, FrameInputs const& last_frame_inputs, Compositing::DisplayList const& last_display_list, Gfx::IntRect viewport_rect, LiveContentChanges live_content_changes) const
 {
     Gfx::IntRect damage_rect;

@@ -6,7 +6,6 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <AK/StringHash.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <core/SkBitmap.h>
@@ -607,44 +606,65 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     canvas.drawRect(to_skia_rect(pattern_rect), paint);
 }
 
-static u64 repeated_tile_raster_key(ReadonlyBytes tile_records, Gfx::IntSize tile_size)
-{
-    auto const* characters = reinterpret_cast<char const*>(tile_records.data());
-    u64 high = string_hash(characters, tile_records.size(), 0x9e3779b9u);
-    u64 low = string_hash(characters, tile_records.size(), static_cast<u32>(tile_size.width() * 31 + tile_size.height()));
-    return (high << 32) | low;
-}
-
 void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 {
+    auto image = take_tile_raster();
     auto tile_size = command.tile_size;
     if (tile_size.is_empty() || command.dst_rect.is_empty() || command.tile_step.is_empty())
         return;
-
-    auto tile_records = inline_data(command.tile);
-    auto raster_key = repeated_tile_raster_key(tile_records, tile_size);
-    auto image = raster_cache().repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
-    if (!image) {
-        image = rasterize_records_into_tile(tile_records, Gfx::IntRect { {}, tile_size });
-        if (!image)
-            return;
-        raster_cache().add_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
-    }
+    if (!image)
+        return;
     paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.tile_step, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
 }
 
-sk_sp<SkImage> DisplayListPlayerSkia::rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect)
+struct DisplayListPlayerSkia::TileRaster {
+    AK_ALLOC_WITH_KMALLOC;
+    sk_sp<SkImage> image;
+};
+
+bool DisplayListPlayerSkia::use_cached_tile_raster(u64 key, Gfx::IntSize size)
 {
+    VERIFY(!m_tile_raster_for_next_command);
+    auto image = raster_cache().repeated_tile_raster(key, size, m_skia_backend_context);
+    if (!image)
+        return false;
+    m_tile_raster_for_next_command = make<TileRaster>(move(image));
+    return true;
+}
+
+bool DisplayListPlayerSkia::begin_tile_raster(Gfx::IntSize size)
+{
+    VERIFY(!m_tile_raster_for_next_command);
     // NB: A tile can be larger than any surface, e.g. a background tile far wider than a bitmap can be.
-    auto tile_surface_or_error = Gfx::PaintingSurface::try_create_with_size(tile_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    auto tile_surface_or_error = Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
     if (tile_surface_or_error.is_error())
-        return nullptr;
+        return false;
     auto tile_surface = tile_surface_or_error.release_value();
     tile_surface->canvas().clear(SK_ColorTRANSPARENT);
-    tile_surface->canvas().translate(-tile_rect.x(), -tile_rect.y());
-    execute_command_bytes_into_surface(tile_records, *tile_surface);
+    begin_drawing_into_surface(move(tile_surface));
+    return true;
+}
+
+void DisplayListPlayerSkia::end_tile_raster(Optional<u64> cache_key)
+{
+    VERIFY(!m_tile_raster_for_next_command);
+    auto tile_surface = end_drawing_into_surface();
     tile_surface->canvas().resetMatrix();
-    return tile_surface->sk_surface().makeImageSnapshot();
+    auto image = tile_surface->sk_surface().makeImageSnapshot();
+    if (!image)
+        return;
+    if (cache_key.has_value())
+        raster_cache().add_repeated_tile_raster(*cache_key, tile_surface->size(), m_skia_backend_context, image);
+    m_tile_raster_for_next_command = make<TileRaster>(move(image));
+}
+
+sk_sp<SkImage> DisplayListPlayerSkia::take_tile_raster()
+{
+    if (!m_tile_raster_for_next_command)
+        return nullptr;
+    auto image = move(m_tile_raster_for_next_command->image);
+    m_tile_raster_for_next_command = nullptr;
+    return image;
 }
 
 static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
@@ -1087,13 +1107,12 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
             return SkShaders::TwoPointConicalGradient(start_center, paint_style.radial_gradient_start_radius, end_center, paint_style.radial_gradient_end_radius, gradient, &matrix);
         });
     case DisplayListPaintStyleType::Pattern: {
+        auto image = take_tile_raster();
         auto const& tile_rect = paint_style.pattern_tile_rect;
         auto content_scale = paint_style.pattern_content_scale;
         auto tile_size = Gfx::IntSize(ceilf(tile_rect.width() * content_scale.width()), ceilf(tile_rect.height() * content_scale.height()));
         if (tile_size.is_empty())
             return {};
-
-        auto image = rasterize_records_into_tile(inline_data(paint_style.pattern_tile), Gfx::IntRect { {}, tile_size });
         if (!image)
             return {};
 
@@ -1294,7 +1313,13 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
+void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const&)
+{
+    // NB: Replay plays a group through begin_isolated_group() and end_isolated_group().
+    VERIFY_NOT_REACHED();
+}
+
+void DisplayListPlayerSkia::begin_isolated_group(DrawIsolatedGroup const& command, ReadonlyBytes filter)
 {
     auto& canvas = surface().canvas();
     canvas.save();
@@ -1304,26 +1329,31 @@ void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
         group_paint.setAlphaf(command.opacity);
     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
         group_paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-    if (command.filter.size != 0)
-        group_paint.setImageFilter(image_filter_from_bytes(inline_data(command.filter)));
+    if (!filter.is_empty())
+        group_paint.setImageFilter(image_filter_from_bytes(filter));
     canvas.saveLayer(nullptr, &group_paint);
-    execute_command_bytes(inline_data(command.content));
-    if (command.mask.size != 0) {
-        SkPaint mask_paint;
-        mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
-        if (command.mask_kind == Gfx::MaskKind::Luminance)
-            mask_paint.setColorFilter(SkLumaColorFilter::Make());
-        canvas.saveLayer(nullptr, &mask_paint);
-        execute_command_bytes(inline_data(command.mask));
-        canvas.restore();
-    }
+}
+
+void DisplayListPlayerSkia::begin_isolated_group_mask(Gfx::MaskKind kind)
+{
+    SkPaint mask_paint;
+    mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
+    if (kind == Gfx::MaskKind::Luminance)
+        mask_paint.setColorFilter(SkLumaColorFilter::Make());
+    surface().canvas().saveLayer(nullptr, &mask_paint);
+}
+
+void DisplayListPlayerSkia::end_isolated_group()
+{
+    auto& canvas = surface().canvas();
     canvas.restore();
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(DeclareMaskContent const& command)
+void DisplayListPlayerSkia::play_command(DeclareMaskContent const&)
 {
-    declare_mask_content(command.effect, inline_data(command.content));
+    // NB: Replay keeps the content a mask declares, and plays it from begin_mask_content().
+    VERIFY_NOT_REACHED();
 }
 
 void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
@@ -1647,7 +1677,7 @@ void DisplayListPlayerSkia::push_mask(ReplayMask const& mask, ReplayLayer const*
     canvas.saveLayer(nullptr, nullptr);
 }
 
-void DisplayListPlayerSkia::pop_mask(ReplayMask const& mask, EffectNodeIndex effect)
+void DisplayListPlayerSkia::begin_mask_content(ReplayMask const& mask)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -1655,12 +1685,15 @@ void DisplayListPlayerSkia::pop_mask(ReplayMask const& mask, EffectNodeIndex eff
     if (mask.kind == Gfx::MaskKind::Luminance)
         paint.setColorFilter(SkLumaColorFilter::Make());
     canvas.saveLayer(nullptr, &paint);
-    if (auto content = declared_mask_content(effect); content.has_value()) {
-        canvas.save();
-        canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()));
-        execute_command_bytes(*content);
-        canvas.restore();
-    }
+    canvas.save();
+    canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()));
+}
+
+void DisplayListPlayerSkia::end_mask()
+{
+    auto& canvas = surface().canvas();
+    // The clip of the content, the layer of the content, and the layer and the clip that push_mask() opened.
+    canvas.restore();
     canvas.restore();
     canvas.restore();
     canvas.restore();

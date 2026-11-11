@@ -35,6 +35,12 @@ pub struct IntSize {
     pub height: i32,
 }
 
+impl IntSize {
+    pub fn is_empty(self) -> bool {
+        self.width <= 0 || self.height <= 0
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FloatSize {

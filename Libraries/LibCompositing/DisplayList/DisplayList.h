@@ -112,8 +112,6 @@ public:
     // Replays the list through a player's callbacks, against the visual context tree it was made for, with nothing
     // scrolled.
     void replay(AccumulatedVisualContextTree const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
-    // Replays a stream of records that a command of a list being replayed nests, with nothing scrolled.
-    static void replay_records(ReadonlyBytes records, RustFFI::FfiDisplayListReplayCallbacks const&);
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.

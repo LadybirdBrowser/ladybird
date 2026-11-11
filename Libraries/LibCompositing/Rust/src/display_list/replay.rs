@@ -8,14 +8,17 @@ use crate::display_list::builder::{
     for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, inline_transform_of, read_command,
 };
 use crate::display_list::commands::{
-    ClipMode, ClipNodeIndex, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex,
-    InlineClipKind, OptionalFloatRect, PaintScrollBar, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
+    ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
+    DisplayListCommandType, DisplayListPaintStyle, DisplayListPaintStyleType, DrawIsolatedGroup, DrawRepeatedTile,
+    EffectNodeIndex, FillPath, InlineClipKind, OptionalFloatRect, PaintScrollBar, PathPaintKind, ReplayClip,
+    ReplayLayer, ReplayMask, SpatialNodeIndex, StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
+use crate::fast_hash::{FastMap, fast_hasher};
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
@@ -24,10 +27,11 @@ use crate::visual_context::{
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
-    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
-    enclosing_int_rect, multiply_affine,
+    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, IntSize,
+    MaskKind, WindingRule, enclosing_int_rect, multiply_affine,
 };
 use std::cell::RefCell;
+use std::hash::Hasher;
 
 pub trait ReplayPainter {
     fn canvas_matrix(&mut self) -> FloatMatrix4x4;
@@ -38,7 +42,24 @@ pub trait ReplayPainter {
     fn push_layer(&mut self, layer: &ReplayLayer);
     // `backdrop`, when given, carries the backdrop filter the mask's layer starts with.
     fn push_mask(&mut self, mask: &ReplayMask, backdrop: Option<&ReplayLayer>);
-    fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex);
+    // Starts what the mask keeps of its layer: what the mask's content draws between this and end_mask(). A mask
+    // without content keeps nothing.
+    fn begin_mask_content(&mut self, mask: &ReplayMask);
+    // Closes the mask and the layer push_mask() opened.
+    fn end_mask(&mut self);
+    // Opens the layer of an isolated group, which its filter applies to unless `filter` is empty.
+    fn begin_isolated_group(&mut self, group: &DrawIsolatedGroup, filter: &[u8]);
+    // Starts what the group's mask keeps of the group, until the next pop().
+    fn begin_isolated_group_mask(&mut self, kind: MaskKind);
+    fn end_isolated_group(&mut self);
+    // Whether the painter holds a raster of the tile with this key, which the next command then draws.
+    fn use_cached_tile_raster(&mut self, key: u64, size: IntSize) -> bool;
+    // Starts drawing into a fresh raster of a tile, with its origin at (0, 0). Returns false, drawing nothing, if the
+    // raster cannot be made.
+    fn begin_tile_raster(&mut self, size: IntSize) -> bool;
+    // Finishes the raster begin_tile_raster() started, which the next command then draws. A raster with a key is kept
+    // for use_cached_tile_raster().
+    fn end_tile_raster(&mut self, cache_key: Option<u64>);
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
     fn push_transform(&mut self, transform: &AffineTransform);
@@ -47,14 +68,158 @@ pub trait ReplayPainter {
     // `payload`; the command's spans point into `payload`.
     fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
 
-    fn execute_run(
-        &mut self,
-        _run_index: usize,
-        records: &[u8],
-        scroll_offsets: &[FloatPoint],
-        clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
-    ) {
-        replay_records(records, scroll_offsets, clip_space_matrix, self);
+    fn execute_run<'t>(&mut self, _run_index: usize, records: &'t [u8], replay: &mut RecordsReplay<'t, '_>) {
+        replay_records(records, replay, self);
+    }
+}
+
+/// The masks' content declared so far in one replay, by the effect of the mask.
+pub type DeclaredMaskContents<'t> = FastMap<EffectNodeIndex, &'t [u8]>;
+
+fn no_clip_space_of_its_own(_space: SpatialNodeIndex) -> Option<FloatMatrix4x4> {
+    None
+}
+
+/// What playing a stream of records needs beside the records: where the scroll containers are, the to-root matrix of
+/// the space an inline clip in a space of its own is applied in, and the masks' content the replay has declared.
+pub struct RecordsReplay<'t, 'r> {
+    pub scroll_offsets: &'t [FloatPoint],
+    pub clip_space_matrix: &'r dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+    pub declared_mask_contents: &'r mut DeclaredMaskContents<'t>,
+}
+
+impl<'t> RecordsReplay<'t, '_> {
+    /// The replay of records that a command nests, which share the context of the command, so none of their inline
+    /// clips has a space of its own. A tile is drawn into a raster of its own, where nothing is scrolled.
+    pub fn nested(&mut self, scrolled: bool) -> RecordsReplay<'t, '_> {
+        RecordsReplay {
+            scroll_offsets: if scrolled { self.scroll_offsets } else { &[] },
+            clip_space_matrix: &no_clip_space_of_its_own,
+            declared_mask_contents: &mut *self.declared_mask_contents,
+        }
+    }
+}
+
+fn tile_raster_key(tile_records: &[u8], size: IntSize) -> u64 {
+    let mut hasher = fast_hasher();
+    hasher.write(tile_records);
+    hasher.write_i32(size.width);
+    hasher.write_i32(size.height);
+    hasher.finish()
+}
+
+fn rasterize_tile<'t, Painter: ReplayPainter + ?Sized>(
+    tile_records: &'t [u8],
+    size: IntSize,
+    cache_key: Option<u64>,
+    replay: &mut RecordsReplay<'t, '_>,
+    painter: &mut Painter,
+) {
+    if painter.begin_tile_raster(size) {
+        replay_records(tile_records, &mut replay.nested(false), painter);
+        painter.end_tile_raster(cache_key);
+    }
+}
+
+fn pattern_tile_raster_size(paint_style: &DisplayListPaintStyle) -> IntSize {
+    let tile_rect = paint_style.pattern_tile_rect;
+    let content_scale = paint_style.pattern_content_scale;
+    IntSize {
+        width: (tile_rect.width * content_scale.width).ceil() as i32,
+        height: (tile_rect.height * content_scale.height).ceil() as i32,
+    }
+}
+
+fn rasterize_pattern_tile<'t, Painter: ReplayPainter + ?Sized>(
+    payload: &'t [u8],
+    paint_kind: PathPaintKind,
+    paint_style: &DisplayListPaintStyle,
+    replay: &mut RecordsReplay<'t, '_>,
+    painter: &mut Painter,
+) {
+    if paint_kind != PathPaintKind::PaintStyle || paint_style.paint_style_type != DisplayListPaintStyleType::Pattern {
+        return;
+    }
+    let size = pattern_tile_raster_size(paint_style);
+    if size.is_empty() {
+        return;
+    }
+    rasterize_tile(
+        span_bytes(payload, paint_style.pattern_tile),
+        size,
+        None,
+        replay,
+        painter,
+    );
+}
+
+fn play_isolated_group<'t, Painter: ReplayPainter + ?Sized>(
+    payload: &'t [u8],
+    replay: &mut RecordsReplay<'t, '_>,
+    painter: &mut Painter,
+) {
+    let group = read_command::<DrawIsolatedGroup>(payload);
+    painter.begin_isolated_group(&group, span_bytes(payload, group.filter));
+    replay_records(span_bytes(payload, group.content), &mut replay.nested(true), painter);
+    if !group.mask.is_empty() {
+        painter.begin_isolated_group_mask(group.mask_kind);
+        replay_records(span_bytes(payload, group.mask), &mut replay.nested(true), painter);
+        painter.pop();
+    }
+    painter.end_isolated_group();
+}
+
+// Plays one command and the records it nests.
+fn play_command<'t, Painter: ReplayPainter + ?Sized>(
+    header: &DisplayListCommandHeader,
+    payload: &'t [u8],
+    replay: &mut RecordsReplay<'t, '_>,
+    painter: &mut Painter,
+) {
+    match header.command_type {
+        DisplayListCommandType::PaintScrollBar => {
+            let mut command = read_command::<PaintScrollBar>(payload);
+            let device_offset = device_offset_for_index(replay.scroll_offsets, command.scroll_node_index);
+            if command.vertical {
+                let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
+                command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
+            } else {
+                let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
+                command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
+            }
+            let mut command_bytes = [0u8; std::mem::size_of::<PaintScrollBar>()];
+            command.write_ffi_bytes(&mut command_bytes);
+            painter.play_command(header.command_type, &command_bytes, payload);
+        }
+        DisplayListCommandType::DrawIsolatedGroup => play_isolated_group(payload, replay, painter),
+        DisplayListCommandType::DeclareMaskContent => {
+            let command = read_command::<DeclareMaskContent>(payload);
+            replay
+                .declared_mask_contents
+                .insert(command.effect, span_bytes(payload, command.content));
+        }
+        DisplayListCommandType::DrawRepeatedTile => {
+            let command = read_command::<DrawRepeatedTile>(payload);
+            if !command.tile_size.is_empty() && !command.dst_rect.is_empty() && !command.tile_step.is_empty() {
+                let tile_records = span_bytes(payload, command.tile);
+                let key = tile_raster_key(tile_records, command.tile_size);
+                if !painter.use_cached_tile_raster(key, command.tile_size) {
+                    rasterize_tile(tile_records, command.tile_size, Some(key), replay, painter);
+                }
+            }
+            painter.play_command(header.command_type, payload, payload);
+        }
+        DisplayListCommandType::FillPath => {
+            let command = read_command::<FillPath>(payload);
+            rasterize_pattern_tile(payload, command.paint_kind, &command.paint_style, replay, painter);
+            painter.play_command(header.command_type, payload, payload);
+        }
+        DisplayListCommandType::StrokePath => {
+            let command = read_command::<StrokePath>(payload);
+            rasterize_pattern_tile(payload, command.paint_kind, &command.paint_style, replay, painter);
+            painter.play_command(header.command_type, payload, payload);
+        }
+        _ => painter.play_command(header.command_type, payload, payload),
     }
 }
 
@@ -105,10 +270,9 @@ pub(crate) fn own_space_clip_extent(
 /// inside its inline clips and transform. A scroll bar's thumb moves by the offset of its scroll node.
 /// `clip_space_matrix` gives the to-root matrix of the space an inline clip of its own space is applied in;
 /// a clip whose space it does not know applies in the space of its command.
-pub fn replay_records<Painter: ReplayPainter + ?Sized>(
-    records: &[u8],
-    scroll_offsets: &[FloatPoint],
-    clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
+    records: &'t [u8],
+    replay: &mut RecordsReplay<'t, '_>,
     painter: &mut Painter,
 ) {
     for_each_command(records, |header, _, payload| {
@@ -129,14 +293,17 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
                 payload,
                 header.bounding_rect.to_float(),
                 command_to_root,
-                clip_space_matrix,
+                replay.clip_space_matrix,
             ) && (rect.is_empty() || painter.would_be_fully_clipped_by_painter(enclosing_int_rect(rect)))
             {
                 return;
             }
         }
         for clip in inline_clips_of(header, payload) {
-            let own_space_matrix = clip.has_own_space.then(|| clip_space_matrix(clip.space)).flatten();
+            let own_space_matrix = clip
+                .has_own_space
+                .then(|| (replay.clip_space_matrix)(clip.space))
+                .flatten();
             if let Some(matrix) = &own_space_matrix {
                 command_space_matrix.get_or_insert_with(|| painter.canvas_matrix());
                 painter.set_matrix(matrix);
@@ -161,22 +328,7 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
         if let Some(transform) = &inline_transform {
             painter.push_transform(transform);
         }
-        if header.command_type == DisplayListCommandType::PaintScrollBar {
-            let mut command = read_command::<PaintScrollBar>(payload);
-            let device_offset = device_offset_for_index(scroll_offsets, command.scroll_node_index);
-            if command.vertical {
-                let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
-                command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
-            } else {
-                let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
-                command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
-            }
-            let mut command_bytes = [0u8; std::mem::size_of::<PaintScrollBar>()];
-            command.write_ffi_bytes(&mut command_bytes);
-            painter.play_command(header.command_type, &command_bytes, payload);
-        } else {
-            painter.play_command(header.command_type, payload, payload);
-        }
+        play_command(header, payload, replay, painter);
         if inline_transform.is_some() {
             painter.pop();
         }
@@ -271,6 +423,7 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     // Filled when the first layer is entered, since only replays that enter layers need it.
     effect_geometry: Vec<EffectGeometry>,
     effect_geometry_is_known: bool,
+    declared_mask_contents: DeclaredMaskContents<'a>,
 }
 
 fn replay_clip_of(clip: &crate::visual_context::ClipData) -> ReplayClip {
@@ -565,7 +718,16 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                         }
                         EffectNodeData::Mask(mask) => {
                             self.ensure_ctm_space(node.spatial);
-                            self.painter.pop_mask(&replay_mask_of(mask), effect);
+                            self.painter.begin_mask_content(&replay_mask_of(mask));
+                            if let Some(content) = self.declared_mask_contents.get(&effect).copied() {
+                                let mut replay = RecordsReplay {
+                                    scroll_offsets: self.scroll_offsets,
+                                    clip_space_matrix: &no_clip_space_of_its_own,
+                                    declared_mask_contents: &mut self.declared_mask_contents,
+                                };
+                                replay_records(content, &mut replay, &mut *self.painter);
+                            }
+                            self.painter.end_mask();
                             self.current_ctm_space = None;
                         }
                         // A marker touches no canvas state.
@@ -700,8 +862,12 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
         let world = &self.world;
         let clip_space_matrix = |space: SpatialNodeIndex| world.draw_matrix_if_known(space);
-        self.painter
-            .execute_run(run_index, records, self.scroll_offsets, &clip_space_matrix);
+        let mut replay = RecordsReplay {
+            scroll_offsets: self.scroll_offsets,
+            clip_space_matrix: &clip_space_matrix,
+            declared_mask_contents: &mut self.declared_mask_contents,
+        };
+        self.painter.execute_run(run_index, records, &mut replay);
     }
 
     fn execute(&mut self) {
@@ -809,6 +975,7 @@ pub fn replay_display_list(
         applied_context: None,
         effect_geometry: scratch.effect_geometry,
         effect_geometry_is_known: false,
+        declared_mask_contents: DeclaredMaskContents::default(),
     };
     driver.world.fill(
         tree,
@@ -934,7 +1101,15 @@ mod tests {
         PushClip(FloatRect),
         PushLayer(f32),
         PushMask(IntRect),
-        PopMask(EffectNodeIndex),
+        BeginMaskContent(IntRect),
+        EndMask,
+        BeginIsolatedGroup(f32),
+        BeginIsolatedGroupMask(MaskKind),
+        EndIsolatedGroup,
+        UseCachedTileRaster(bool),
+        BeginTileRaster(IntSize),
+        EndTileRaster(Option<u64>),
+        Play(DisplayListCommandType),
         Pop,
         PushPlaneClip(usize),
         Run(usize),
@@ -946,6 +1121,9 @@ mod tests {
         fully_clipped_x: i32,
         layer_content_bounds: Vec<Option<FloatRect>>,
         backdrop_base_colors: Vec<Color>,
+        // Whether a run plays its records, or is only noted.
+        plays_records: bool,
+        cached_tile_rasters: Vec<u64>,
     }
 
     impl RecordingPainter {
@@ -956,6 +1134,15 @@ mod tests {
                 fully_clipped_x: i32::MIN,
                 layer_content_bounds: Vec::new(),
                 backdrop_base_colors: Vec::new(),
+                plays_records: false,
+                cached_tile_rasters: Vec::new(),
+            }
+        }
+
+        fn playing_records() -> Self {
+            Self {
+                plays_records: true,
+                ..Self::new()
             }
         }
     }
@@ -986,8 +1173,33 @@ mod tests {
         fn push_mask(&mut self, mask: &ReplayMask, _backdrop: Option<&ReplayLayer>) {
             self.events.push(PainterEvent::PushMask(mask.rect));
         }
-        fn pop_mask(&mut self, _mask: &ReplayMask, effect: EffectNodeIndex) {
-            self.events.push(PainterEvent::PopMask(effect));
+        fn begin_mask_content(&mut self, mask: &ReplayMask) {
+            self.events.push(PainterEvent::BeginMaskContent(mask.rect));
+        }
+        fn end_mask(&mut self) {
+            self.events.push(PainterEvent::EndMask);
+        }
+        fn begin_isolated_group(&mut self, group: &DrawIsolatedGroup, _filter: &[u8]) {
+            self.events.push(PainterEvent::BeginIsolatedGroup(group.opacity));
+        }
+        fn begin_isolated_group_mask(&mut self, kind: MaskKind) {
+            self.events.push(PainterEvent::BeginIsolatedGroupMask(kind));
+        }
+        fn end_isolated_group(&mut self) {
+            self.events.push(PainterEvent::EndIsolatedGroup);
+        }
+        fn use_cached_tile_raster(&mut self, key: u64, _size: IntSize) -> bool {
+            let cached = self.cached_tile_rasters.contains(&key);
+            self.events.push(PainterEvent::UseCachedTileRaster(cached));
+            cached
+        }
+        fn begin_tile_raster(&mut self, size: IntSize) -> bool {
+            self.events.push(PainterEvent::BeginTileRaster(size));
+            true
+        }
+        fn end_tile_raster(&mut self, cache_key: Option<u64>) {
+            self.cached_tile_rasters.extend(cache_key);
+            self.events.push(PainterEvent::EndTileRaster(cache_key));
         }
         fn pop(&mut self) {
             self.events.push(PainterEvent::Pop);
@@ -999,16 +1211,15 @@ mod tests {
 
         fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule) {}
 
-        fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
+        fn play_command(&mut self, command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {
+            self.events.push(PainterEvent::Play(command_type));
+        }
 
-        fn execute_run(
-            &mut self,
-            run_index: usize,
-            _records: &[u8],
-            _scroll_offsets: &[FloatPoint],
-            _clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
-        ) {
+        fn execute_run<'t>(&mut self, run_index: usize, records: &'t [u8], replay: &mut RecordsReplay<'t, '_>) {
             self.events.push(PainterEvent::Run(run_index));
+            if self.plays_records {
+                replay_records(records, replay, self);
+            }
         }
     }
 
@@ -1099,15 +1310,45 @@ mod tests {
     }
 
     fn replay(tree: &VisualContextTree, runs: &[DisplayListCommandRun], painter: &mut RecordingPainter) {
+        replay_tape(tree, &[], runs, painter);
+    }
+
+    fn replay_tape(
+        tree: &VisualContextTree,
+        tape: &[u8],
+        runs: &[DisplayListCommandRun],
+        painter: &mut RecordingPainter,
+    ) {
         replay_display_list(
             tree,
-            &[],
+            tape,
             runs,
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
             &[],
             painter,
         );
+    }
+
+    fn replay_unscrolled_records(records: &[u8], painter: &mut RecordingPainter) {
+        replay_records(
+            records,
+            &mut RecordsReplay {
+                scroll_offsets: &[],
+                clip_space_matrix: &no_clip_space_of_its_own,
+                declared_mask_contents: &mut DeclaredMaskContents::default(),
+            },
+            painter,
+        );
+    }
+
+    fn fill_rect() -> crate::display_list::commands::FillRect {
+        crate::display_list::commands::FillRect {
+            rect: IntRect::new(0, 0, 10, 10),
+            color: Color::default(),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        }
     }
 
     #[test]
@@ -1136,8 +1377,11 @@ mod tests {
         let command_space_matrix = painter.base_matrix;
         replay_records(
             builder.bytes(),
-            &[],
-            &|space| (space == clip_space).then_some(clip_space_matrix),
+            &mut RecordsReplay {
+                scroll_offsets: &[],
+                clip_space_matrix: &|space| (space == clip_space).then_some(clip_space_matrix),
+                declared_mask_contents: &mut DeclaredMaskContents::default(),
+            },
             &mut painter,
         );
         assert_eq!(
@@ -1147,6 +1391,7 @@ mod tests {
                 PainterEvent::SetMatrix(clip_space_matrix),
                 PainterEvent::PushClip(clip_rect),
                 PainterEvent::SetMatrix(command_space_matrix),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
                 PainterEvent::Pop,
                 PainterEvent::Pop,
                 PainterEvent::SetMatrix(command_space_matrix),
@@ -1178,8 +1423,11 @@ mod tests {
         let mut painter = RecordingPainter::new();
         replay_records(
             builder.bytes(),
-            &[],
-            &|space| (space == clip_space).then_some(clip_space_matrix),
+            &mut RecordsReplay {
+                scroll_offsets: &[],
+                clip_space_matrix: &|space| (space == clip_space).then_some(clip_space_matrix),
+                declared_mask_contents: &mut DeclaredMaskContents::default(),
+            },
             &mut painter,
         );
         assert_eq!(painter.events, vec![]);
@@ -1205,11 +1453,12 @@ mod tests {
             ],
         );
         let mut painter = RecordingPainter::new();
-        replay_records(builder.bytes(), &[], &|_| None, &mut painter);
+        replay_unscrolled_records(builder.bytes(), &mut painter);
         assert_eq!(
             painter.events,
             vec![
                 PainterEvent::PushClip(FloatRect::new(1.0, 2.0, 3.0, 4.0)),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
                 PainterEvent::Pop
             ]
         );
@@ -1485,7 +1734,144 @@ mod tests {
     }
 
     #[test]
-    fn mask_effects_pop_with_their_effect_index() {
+    fn a_mask_replays_the_content_declared_for_it_when_it_closes() {
+        let mut tree = identity_tree();
+        let mask_effect = effect_under(
+            &mut tree,
+            mask(IntRect::new(0, 0, 20, 20)),
+            EffectNodeIndex::NONE,
+            ClipNodeIndex::NONE,
+        );
+        let mask_context = ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect: mask_effect,
+            ..ContextRef::default()
+        };
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        let declaration = builder.begin_group::<DeclareMaskContent>(Vec::new());
+        builder.append(&fill_rect(), &[], mask_context);
+        let content = builder.group_content_span(&declaration);
+        builder.finish_group(
+            declaration,
+            &DeclareMaskContent {
+                rect: IntRect::new(0, 0, 20, 20),
+                effect: mask_effect,
+                content,
+            },
+            mask_context,
+        );
+        builder.append(&fill_rect(), &[], mask_context);
+        let recorded = builder.finish();
+        let mut painter = RecordingPainter::playing_records();
+        let base = painter.base_matrix;
+        replay_tape(&tree, &recorded.bytes, &recorded.command_runs, &mut painter);
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::SetMatrix(base),
+                PainterEvent::PushMask(IntRect::new(0, 0, 20, 20)),
+                PainterEvent::Run(0),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
+                PainterEvent::BeginMaskContent(IntRect::new(0, 0, 20, 20)),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
+                PainterEvent::EndMask,
+                PainterEvent::SetMatrix(base),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_isolated_group_plays_its_content_and_its_mask_inside_its_layer() {
+        let context = ContextRef::default();
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        let mut group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
+        builder.append(&fill_rect(), &[], context);
+        let content = builder.group_content_span(&group);
+        builder.begin_group_mask(&mut group);
+        builder.append(&fill_rect(), &[], context);
+        let mask = builder.group_mask_span(&group);
+        builder.finish_group(
+            group,
+            &DrawIsolatedGroup {
+                clip_rect: FloatRect::new(0.0, 0.0, 10.0, 10.0),
+                content,
+                mask,
+                filter: crate::display_list::commands::DisplayListDataSpan::default(),
+                opacity: 0.5,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Luminance,
+            },
+            context,
+        );
+        let mut painter = RecordingPainter::new();
+        replay_unscrolled_records(builder.bytes(), &mut painter);
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::BeginIsolatedGroup(0.5),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
+                PainterEvent::BeginIsolatedGroupMask(MaskKind::Luminance),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
+                PainterEvent::Pop,
+                PainterEvent::EndIsolatedGroup,
+            ]
+        );
+    }
+
+    #[test]
+    fn a_repeated_tile_is_rasterized_once_and_then_drawn_from_its_cached_raster() {
+        let context = ContextRef::default();
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        let tile = builder.begin_group::<DrawRepeatedTile>(Vec::new());
+        builder.append(&fill_rect(), &[], context);
+        let tile_records = builder.group_content_span(&tile);
+        let tile_size = IntSize { width: 10, height: 10 };
+        builder.finish_group(
+            tile,
+            &DrawRepeatedTile {
+                dst_rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
+                clip_rect: IntRect::new(0, 0, 100, 100),
+                tile_size,
+                tile_step: libgfx_rust::FloatSize {
+                    width: 10.0,
+                    height: 10.0,
+                },
+                tile: tile_records,
+                scaling_mode: libgfx_rust::ScalingMode::Bilinear,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                repeat: crate::display_list::commands::Repeat { x: true, y: true },
+            },
+            context,
+        );
+        let mut painter = RecordingPainter::new();
+        replay_unscrolled_records(builder.bytes(), &mut painter);
+        let [key] = painter.cached_tile_rasters[..] else {
+            panic!("the tile was not cached once");
+        };
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::UseCachedTileRaster(false),
+                PainterEvent::BeginTileRaster(tile_size),
+                PainterEvent::Play(DisplayListCommandType::FillRect),
+                PainterEvent::EndTileRaster(Some(key)),
+                PainterEvent::Play(DisplayListCommandType::DrawRepeatedTile),
+            ]
+        );
+
+        painter.events.clear();
+        replay_unscrolled_records(builder.bytes(), &mut painter);
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::UseCachedTileRaster(true),
+                PainterEvent::Play(DisplayListCommandType::DrawRepeatedTile),
+            ]
+        );
+    }
+
+    #[test]
+    fn masks_close_after_the_runs_under_them() {
         let mut tree = identity_tree();
         let mask_effect = effect_under(
             &mut tree,
@@ -1508,7 +1894,8 @@ mod tests {
                 PainterEvent::SetMatrix(base),
                 PainterEvent::PushMask(IntRect::new(0, 0, 20, 20)),
                 PainterEvent::Run(0),
-                PainterEvent::PopMask(mask_effect),
+                PainterEvent::BeginMaskContent(IntRect::new(0, 0, 20, 20)),
+                PainterEvent::EndMask,
                 PainterEvent::SetMatrix(base),
             ]
         );
@@ -1795,7 +2182,8 @@ mod tests {
                 PainterEvent::Pop,
                 PainterEvent::SetMatrix(base),
                 PainterEvent::Run(2),
-                PainterEvent::PopMask(mask_effect),
+                PainterEvent::BeginMaskContent(IntRect::new(0, 0, 20, 20)),
+                PainterEvent::EndMask,
                 PainterEvent::SetMatrix(base),
                 PainterEvent::PushClip(overflow),
                 PainterEvent::Run(3),
@@ -2093,7 +2481,7 @@ mod tests {
                     depth += 1;
                 }
                 PainterEvent::PushClip(_) | PainterEvent::PushLayer(_) | PainterEvent::PushMask(_) => depth += 1,
-                PainterEvent::Pop | PainterEvent::PopMask(_) => depth -= 1,
+                PainterEvent::Pop | PainterEvent::EndMask => depth -= 1,
                 _ => {}
             }
         }
