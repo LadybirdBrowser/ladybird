@@ -1,0 +1,13 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] children: not-inline
+      Box <div.parent> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [25,10] [0+0+25 255 20+0+0] [0+0+10 95 15+0+0] [GFC] children: not-inline
+          BlockContainer <div.item> at [95,50] [70+0+0 30 0+0+0] [40+0+0 20 0+0+0] [BFC] children: not-inline
+          BlockContainer <div.item> at [260,30] [35+0+0 30 0+0+35] [20+0+0 20 0+0+20] [BFC] children: not-inline
+          BlockContainer <div.item> at [60,90] [35+0+0 30 0+0+35] [20+0+0 20 0+0+20] [BFC] children: not-inline
+          BlockContainer <div.item> at [230,72] [5+0+0 30 0+0+65] [2+0+0 20 0+0+38] [BFC] children: not-inline
+          BlockContainer <div> at [126,71] [1+0+0 98 0+0+1] [1+0+0 58 0+0+1] [BFC] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x120] (z-index: auto)

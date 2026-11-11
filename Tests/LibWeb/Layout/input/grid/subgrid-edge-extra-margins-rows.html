@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: repeat(5, auto);
+        width: 200px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: 2 / 5;
+        grid-template-rows: subgrid;
+        margin: 5px 0 7px 0;
+        border-style: solid;
+        border-width: 3px 0 4px 0;
+        padding: 40px 0 30px 0;
+        background: lightgray;
+    }
+</style>
+<div class="parent">
+    <div style="grid-row: 1">Before</div>
+    <div class="subgrid">
+        <div style="grid-row: 1">First</div>
+        <div style="grid-row: 2">Middle</div>
+        <div style="grid-row: 3">Last</div>
+    </div>
+    <div style="grid-row: 5">After</div>
+</div>

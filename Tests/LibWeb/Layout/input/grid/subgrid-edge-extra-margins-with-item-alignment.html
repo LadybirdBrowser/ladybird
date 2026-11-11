@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: 100px 100px 100px;
+        grid-template-rows: 60px 60px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-row: 1 / -1;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+        padding: 10px 20px 15px 25px;
+        background: lightgray;
+    }
+
+    .item {
+        width: 30px;
+        height: 20px;
+        background: green;
+    }
+</style>
+<div class="parent">
+    <div class="subgrid">
+        <div class="item" style="grid-area: 1 / 1; align-self: end; justify-self: end"></div>
+        <div class="item" style="grid-area: 1 / 3; align-self: center; justify-self: center"></div>
+        <div class="item" style="grid-area: 2 / 1; margin: auto"></div>
+        <div class="item" style="grid-area: 2 / 3; margin: 2px 3px 4px 5px; align-self: start; justify-self: start"></div>
+        <div style="grid-area: 2 / 2; background: blue; margin: 1px"></div>
+    </div>
+</div>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-columns: 120px 120px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        padding-left: 70px;
+        background: lightgray;
+    }
+</style>
+<div class="parent">
+    <div class="subgrid">
+        <div>AAAA AAAA</div>
+        <div>BBBB BBBB</div>
+    </div>
+    <div>After</div>
+</div>
