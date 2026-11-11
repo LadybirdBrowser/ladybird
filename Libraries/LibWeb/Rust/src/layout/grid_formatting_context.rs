@@ -3899,6 +3899,11 @@ impl<'pass> GridFormattingContext<'pass> {
             context.place_items();
             context.initialize_tracks(grid_style, &columns, &rows);
             if !axis.is_column() {
+                let mut items = std::mem::take(&mut context.items);
+                for item in &mut items {
+                    context.apply_subgrid_edge_extra_margins(item, Axis::Column);
+                }
+                context.items = items;
                 context.resolve_item_metrics(Axis::Column);
                 context.run_track_sizing(Axis::Column);
                 context.resolve_item_metrics(Axis::Column);
