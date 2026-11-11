@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div id="target">shadow</div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.boxShadow = "-90px 70px 20px 30px black";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.boxShadow = "none";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

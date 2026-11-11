@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div style="overflow: auto; height: 80px"><div style="anchor-name: --target; margin-top: 200px">anchor</div><div id="target" style="position: absolute; position-anchor: --target; top: anchor(bottom); left: anchor(left)">anchored</div><section style="height: 1000px"></section></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.marginTop = "100px";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.positionAnchor = "auto";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

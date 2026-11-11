@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="width: 100px; height: 100px">
+    <div id="multicol" style="columns: 2; gap: 0; column-fill: auto; width: 60px; height: 100px">
+        <div style="width: 50px"><div><div><div style="height: 200px; background: green"></div></div></div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        multicol.style.width = "100px";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

@@ -875,8 +875,14 @@ fn used_overflow(
     (overflow_x, overflow_y)
 }
 
-/// The rect a box's overflow clips its content to, unbounded along an axis it does not clip.
-pub(crate) fn overflow_clip_rect(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<CssPixelRect> {
+/// The range of each axis that a box's overflow clip keeps, in absolute layout CSS pixels.
+pub(crate) struct OverflowClipRanges {
+    pub horizontal: Option<(CssPixels, CssPixels)>,
+    pub vertical: Option<(CssPixels, CssPixels)>,
+}
+
+/// `None` when the box clips neither axis.
+pub(crate) fn overflow_clip_ranges(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<OverflowClipRanges> {
     use crate::css::css_enums::overflow;
     let style = layout_arena.node_style_if_live(slot)?;
     let (overflow_x, overflow_y) = used_overflow(layout_arena, slot, style);
@@ -891,20 +897,29 @@ pub(crate) fn overflow_clip_rect(layout_arena: &impl PaintRead, slot: NodeSlotId
 
     let padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, slot);
     let overflow_clip_edge = overflow_clip_edge_rect(style, layout_arena, slot);
+    Some(OverflowClipRanges {
+        horizontal: match overflow_x {
+            overflow::VISIBLE => None,
+            overflow::CLIP => Some((overflow_clip_edge.x, overflow_clip_edge.x + overflow_clip_edge.width)),
+            _ => Some((padding_box.x, padding_box.x + padding_box.width)),
+        },
+        vertical: match overflow_y {
+            overflow::VISIBLE => None,
+            overflow::CLIP => Some((overflow_clip_edge.y, overflow_clip_edge.y + overflow_clip_edge.height)),
+            _ => Some((padding_box.y, padding_box.y + padding_box.height)),
+        },
+    })
+}
+
+/// The rect a box's overflow clips its content to, unbounded along an axis it does not clip.
+pub(crate) fn overflow_clip_rect(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<CssPixelRect> {
+    let ranges = overflow_clip_ranges(layout_arena, slot)?;
     // NB: An axis that is not clipped must extend into negative coordinates too, since content can be laid out above or
     //     to the left of the origin (e.g. inside a scroll container with flex-direction: column-reverse). Half the
     //     range on each side keeps the rect's size from saturating.
     let extent_limit = CssPixels::from_integer(crate::css::css_pixels::MAX_INTEGER_VALUE as i64 / 2);
-    let (left, right) = match overflow_x {
-        overflow::VISIBLE => (-extent_limit, extent_limit),
-        overflow::CLIP => (overflow_clip_edge.x, overflow_clip_edge.x + overflow_clip_edge.width),
-        _ => (padding_box.x, padding_box.x + padding_box.width),
-    };
-    let (top, bottom) = match overflow_y {
-        overflow::VISIBLE => (-extent_limit, extent_limit),
-        overflow::CLIP => (overflow_clip_edge.y, overflow_clip_edge.y + overflow_clip_edge.height),
-        _ => (padding_box.y, padding_box.y + padding_box.height),
-    };
+    let (left, right) = ranges.horizontal.unwrap_or((-extent_limit, extent_limit));
+    let (top, bottom) = ranges.vertical.unwrap_or((-extent_limit, extent_limit));
     Some(CssPixelRect::new(left, top, right - left, bottom - top))
 }
 

@@ -120,6 +120,18 @@ fn link(link: NodeSlotId) -> Option<NodeSlotId> {
 }
 
 pub(crate) trait GeometryRead: Sized {
+    fn ink_overflow_stamp(&self) -> u64;
+    fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow;
+
+    fn absolute_ink_overflow_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
+        let ink = self.stored_ink_overflow(id);
+        (!ink.unbounded).then(|| {
+            ink.rect.translated_by(
+                crate::painting::paintable_geometry::first_fragment_padding_box_rect(self, id).location(),
+            )
+        })
+    }
+
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData;
     fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool;
     /// Reads the fragment link a populated row committed.
@@ -415,6 +427,19 @@ impl<Live: AsRef<LayoutNodeArena> + LiveAbsoluteRects> GeometryRead for Live {
     where
         Self: 'a;
 
+    fn ink_overflow_stamp(&self) -> u64 {
+        self.as_ref().paintable_rows.ink_overflow_stamp
+    }
+
+    fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow {
+        self.as_ref()
+            .paintable_rows
+            .ink_overflow
+            .get(id.slot_index() as usize)
+            .copied()
+            .unwrap_or_default()
+    }
+
     fn node(&self, id: NodeSlotId) -> Option<Self::Row<'_>> {
         self.as_ref().live_row(id)
     }
@@ -573,6 +598,18 @@ impl GeometryRead for PaintSource<'_> {
         = &'a PaintNode
     where
         Self: 'a;
+
+    fn ink_overflow_stamp(&self) -> u64 {
+        self.rows().ink_overflow_stamp
+    }
+
+    fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow {
+        self.rows()
+            .ink_overflow
+            .get(id.slot_index() as usize)
+            .copied()
+            .unwrap_or_default()
+    }
 
     fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
         self.rows().node(id)

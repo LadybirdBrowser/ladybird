@@ -5481,6 +5481,7 @@ impl LayoutNodeArena {
             compensates_for_vertical_scroll,
         );
         if scroll_shift_inputs_changed {
+            self.request_ink_overflow_recalculation(id);
             self.note_visual_context_box_dirty(
                 id,
                 crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::DefaultScrollShiftInputsChanged,

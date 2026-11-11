@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .clipper { width: 120px; height: 80px; margin: 70px; border: 10px solid gray; overflow: clip; }
+    .clipper > div { margin-left: -60px; margin-top: -60px; width: 300px; height: 200px; background: orange; box-shadow: 0 0 30px black; }
+</style>
+<div id="padding-box" class="clipper" style="overflow-clip-margin: 40px"><div></div></div>
+<div id="border-box" class="clipper" style="overflow-clip-margin: border-box 20px"><div></div></div>
+<div id="content-box" class="clipper" style="padding: 15px; overflow-clip-margin: content-box"><div></div></div>
+<div id="table-row-group" style="display: table-row-group; overflow: hidden"><div style="display: table-cell; width: 50px; height: 20px"><div style="margin-left: -40px; width: 400px; height: 90px; background: green"></div></div></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        document.getElementById("padding-box").style.overflowClipMargin = "5px";
+        document.getElementById("border-box").style.overflowClipMargin = "border-box 60px";
+        document.getElementById("content-box").style.overflowClipMargin = "content-box 25px";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        document.getElementById("padding-box").style.overflowClipMargin = "";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

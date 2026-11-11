@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div id="target" style="position: relative; z-index: 1"><div style="position: fixed; left: 500px; top: 300px">fixed</div></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.marginLeft = "120px";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div><div id="target">filter</div></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.filter = "blur(20px)";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.filter = "drop-shadow(100px 200px 30px black)";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.filter = "brightness(2)";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

@@ -681,12 +681,12 @@ impl LayoutNodeArena {
         );
     }
 
-    fn recalculated_fragment_overflow(
+    pub(crate) fn links_in_containing_block_fragment(
         &self,
         node: NodeSlotId,
         link: &FragmentLink,
         fragment_index: u32,
-    ) -> FragmentScrollableOverflow {
+    ) -> Vec<FragmentLink> {
         let mut met = crate::fast_hash::FastSet::default();
         let mut contained = Vec::new();
         let holder_fragment = self
@@ -717,6 +717,16 @@ impl LayoutNodeArena {
                 self.committed_links_in_containing_block_fragment(candidate, fragment_index, &mut contained);
             }
         }
+        contained
+    }
+
+    fn recalculated_fragment_overflow(
+        &self,
+        node: NodeSlotId,
+        link: &FragmentLink,
+        fragment_index: u32,
+    ) -> FragmentScrollableOverflow {
+        let contained = self.links_in_containing_block_fragment(node, link, fragment_index);
         scrollable_overflow_of(self, &link.fragment, contained.iter())
     }
 

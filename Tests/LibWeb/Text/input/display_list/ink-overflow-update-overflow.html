@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div id="target"><div style="margin-left: -100px; width: 600px; box-shadow: 100px 150px 20px black">child</div></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        target.style.overflow = "hidden";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.overflow = "visible";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

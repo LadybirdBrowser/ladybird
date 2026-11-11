@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div><div id="target">animated</div></div>
+<script>
+    promiseTest(async () => {
+        internals.recordDisplayListForTesting(false, true);
+        const animation = target.animate([{ transform: "translateX(0)" }, { transform: "translateX(600px)" }], { duration: 100000, iterations: Infinity });
+        await animation.ready;
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        animation.cancel();
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

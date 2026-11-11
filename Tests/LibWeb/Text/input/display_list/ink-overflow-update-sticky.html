@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { width: 120px; min-height: 30px; background: lightblue; }
+</style>
+<div id="scroller" style="overflow: auto; height: 80px"><div id="target" style="position: sticky; top: 5px">sticky</div><section style="height: 1000px"></section></div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        scroller.scrollTop = 300;
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        target.style.position = "static";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>

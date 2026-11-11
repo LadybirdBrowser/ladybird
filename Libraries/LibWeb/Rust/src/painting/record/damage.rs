@@ -252,6 +252,15 @@ impl LayoutNodeArena {
         if damage.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
+        if crate::painting::ink_overflow::maintenance_enabled()
+            && damage.intersects(PaintDamage::ALL_DRAW | PaintDamage::MOVED | PaintDamage::ORDER)
+        {
+            self.request_ink_overflow_recalculation(row);
+            self.request_inline_ink_overflow_recalculation(row);
+            if damage.contains(PaintDamage::MOVED) {
+                self.request_containing_block_ink_overflow_recalculation(row);
+            }
+        }
         self.paintable_rows.damage.push_revision += 1;
         let stamp = self.paintable_rows.damage.stamp_for_push();
         // Whole-document damage pushed for the same recording already covers every row.

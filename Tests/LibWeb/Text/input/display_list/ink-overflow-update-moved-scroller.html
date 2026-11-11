@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="ancestor" style="position: absolute; left: 200px; top: 200px">
+    <div style="width: 100px; height: 100px; overflow: scroll">
+        <div style="width: 1000px; height: 1000px"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.recordDisplayListForTesting(false, true);
+        ancestor.style.left = "-500px";
+        ancestor.style.top = "-500px";
+        internals.recordDisplayListForTesting(false);
+        internals.recordDisplayListForTesting(false, true);
+        println("PASS");
+    });
+</script>
