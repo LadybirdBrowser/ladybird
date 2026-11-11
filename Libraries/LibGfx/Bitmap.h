@@ -15,6 +15,11 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ScalingMode.h>
 
+#ifdef AK_OS_MACOS
+#    include <AK/Optional.h>
+#    include <LibCore/IOSurface.h>
+#endif
+
 namespace Gfx {
 
 // A pixel value that does not express any information about its component order
@@ -59,11 +64,21 @@ public:
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_raw_data(BitmapFormat, AlphaType, ReadonlyBytes, IntSize);
     [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_anonymous_buffer(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
 
+    // In memory that other processes can map and the GPU can sample without a copy where the platform has such memory,
+    // which is an IOSurface on macOS. Elsewhere, or when no such memory can be had, this is create_shareable().
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_shareable_with_gpu_access(BitmapFormat, AlphaType, IntSize);
+
+#ifdef AK_OS_MACOS
+    [[nodiscard]] static ErrorOr<NonnullRefPtr<Bitmap>> create_with_iosurface(BitmapFormat, AlphaType, IntSize, Core::IOSurfaceHandle);
+    [[nodiscard]] static ErrorOr<void> validate_iosurface_holds_pixels_of(Core::IOSurfaceHandle const&, BitmapFormat, IntSize);
+#endif
+
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> clone() const;
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> cropped(Gfx::IntRect, Gfx::Color outside_color = Gfx::Color::Black) const;
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_backed_by_anonymous_buffer() const;
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> to_bitmap_shareable_with_gpu_access() const;
 
     [[nodiscard]] ShareableBitmap to_shareable_bitmap() const;
 
@@ -107,6 +122,19 @@ public:
     [[nodiscard]] Core::AnonymousBuffer& anonymous_buffer() { return m_buffer; }
     [[nodiscard]] Core::AnonymousBuffer const& anonymous_buffer() const { return m_buffer; }
 
+#ifdef AK_OS_MACOS
+    [[nodiscard]] Core::IOSurfaceHandle const* iosurface() const { return m_iosurface.has_value() ? &m_iosurface.value() : nullptr; }
+#endif
+
+    [[nodiscard]] bool is_in_shareable_memory() const
+    {
+#ifdef AK_OS_MACOS
+        if (m_iosurface.has_value())
+            return true;
+#endif
+        return m_buffer.is_valid();
+    }
+
     struct DiffResult {
         bool identical { false };
 
@@ -137,6 +165,9 @@ private:
     Bitmap(BitmapFormat, AlphaType, IntSize, BackingStore const&);
     Bitmap(BitmapFormat, AlphaType, IntSize, size_t pitch, void*, Function<void()>&& destruction_callback);
     Bitmap(BitmapFormat, AlphaType, Core::AnonymousBuffer, IntSize);
+#ifdef AK_OS_MACOS
+    Bitmap(BitmapFormat, AlphaType, IntSize, Core::IOSurfaceHandle);
+#endif
 
     enum class InitializeBackingStore {
         No,
@@ -151,6 +182,9 @@ private:
     AlphaType m_alpha_type { AlphaType::Premultiplied };
     Core::AnonymousBuffer m_buffer;
     Function<void()> m_destruction_callback;
+#ifdef AK_OS_MACOS
+    Optional<Core::IOSurfaceHandle> m_iosurface;
+#endif
 };
 
 ALWAYS_INLINE u8* Bitmap::unchecked_scanline_u8(int y)

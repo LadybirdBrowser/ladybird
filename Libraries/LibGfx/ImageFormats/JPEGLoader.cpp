@@ -95,7 +95,7 @@ ErrorOr<void> JPEGLoadingContext::decode()
     bool could_read_all_scanlines = true;
 
     if (cinfo.out_color_space == JCS_EXT_BGRX) {
-        rgb_bitmap = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRx8888, Gfx::AlphaType::Premultiplied, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
+        rgb_bitmap = TRY(Gfx::Bitmap::create_shareable_with_gpu_access(Gfx::BitmapFormat::BGRx8888, Gfx::AlphaType::Premultiplied, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)rgb_bitmap->scanline(cinfo.output_scanline);
             auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);

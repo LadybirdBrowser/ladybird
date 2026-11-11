@@ -98,6 +98,38 @@ IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 
+ErrorOr<IOSurfaceHandle> IOSurfaceHandle::try_create_with_four_bytes_per_pixel(int width, int height, u32 pixel_format)
+{
+    int bytes_per_element = 4;
+
+    RefAutoRelease<CFNumberRef> width_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &width);
+    RefAutoRelease<CFNumberRef> height_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &height);
+    RefAutoRelease<CFNumberRef> bytes_per_element_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &bytes_per_element);
+    RefAutoRelease<CFNumberRef> pixel_format_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &pixel_format);
+
+    RefAutoRelease<CFMutableDictionaryRef> props = CFDictionaryCreateMutable(kCFAllocatorDefault,
+        0,
+        &kCFTypeDictionaryKeyCallBacks,
+        &kCFTypeDictionaryValueCallBacks);
+    if (!width_number.ref() || !height_number.ref() || !bytes_per_element_number.ref() || !pixel_format_number.ref() || !props.ref())
+        return Error::from_errno(ENOMEM);
+
+    CFDictionarySetValue(props.ref(), kIOSurfaceWidth, width_number.ref());
+    CFDictionarySetValue(props.ref(), kIOSurfaceHeight, height_number.ref());
+    CFDictionarySetValue(props.ref(), kIOSurfaceBytesPerElement, bytes_per_element_number.ref());
+    CFDictionarySetValue(props.ref(), kIOSurfacePixelFormat, pixel_format_number.ref());
+
+    auto* ref = IOSurfaceCreate(props.ref());
+    if (!ref)
+        return Error::from_string_literal("Could not create an IOSurface");
+    return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
+}
+
+size_t IOSurfaceHandle::bytes_per_row_aligned_as_the_system_aligns_it(size_t minimum_bytes_per_row)
+{
+    return IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, minimum_bytes_per_row);
+}
+
 u32 IOSurfaceHandle::id() const
 {
     return IOSurfaceGetID(m_ref_wrapper->ref);

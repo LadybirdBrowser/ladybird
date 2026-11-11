@@ -91,6 +91,86 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable(BitmapFormat format, Alp
     return bitmap;
 }
 
+#ifdef AK_OS_MACOS
+static u32 iosurface_pixel_format_of(BitmapFormat format)
+{
+    switch (format) {
+    case BitmapFormat::BGRx8888:
+    case BitmapFormat::BGRA8888:
+        return 'BGRA';
+    case BitmapFormat::RGBx8888:
+    case BitmapFormat::RGBA8888:
+        return 'RGBA';
+    case BitmapFormat::Invalid:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<void> Bitmap::validate_iosurface_holds_pixels_of(Core::IOSurfaceHandle const& iosurface, BitmapFormat format, IntSize size)
+{
+    if (!is_valid_bitmap_format(to_underlying(format)))
+        return Error::from_string_literal("Gfx::Bitmap IOSurface format is invalid");
+    if (size.is_empty() || size_would_overflow(format, size))
+        return Error::from_string_literal("Gfx::Bitmap IOSurface size is invalid");
+    if (iosurface.plane_count() != 0 || iosurface.bytes_per_element() != 4 || iosurface.pixel_format() != iosurface_pixel_format_of(format))
+        return Error::from_string_literal("Gfx::Bitmap IOSurface does not hold pixels of its format");
+    if (iosurface.width() != static_cast<size_t>(size.width()) || iosurface.height() != static_cast<size_t>(size.height()))
+        return Error::from_string_literal("Gfx::Bitmap IOSurface is not of its size");
+
+    auto bytes_per_row = iosurface.bytes_per_row();
+    if (bytes_per_row < minimum_pitch(size.width(), format) || bytes_per_row % alignof(RawPixel) != 0)
+        return Error::from_string_literal("Gfx::Bitmap IOSurface rows are invalid");
+    Checked<size_t> size_of_pixels = bytes_per_row;
+    size_of_pixels *= static_cast<size_t>(size.height());
+    if (size_of_pixels.has_overflow() || size_of_pixels.value() > iosurface.alloc_size())
+        return Error::from_string_literal("Gfx::Bitmap IOSurface rows are outside of its memory");
+    if (!iosurface.data())
+        return Error::from_string_literal("Gfx::Bitmap IOSurface is not mapped");
+    return {};
+}
+
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_with_iosurface(BitmapFormat format, AlphaType alpha_type, IntSize size, Core::IOSurfaceHandle iosurface)
+{
+    TRY(validate_iosurface_holds_pixels_of(iosurface, format, size));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) Bitmap(format, alpha_type, size, move(iosurface)));
+}
+
+Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, Core::IOSurfaceHandle iosurface)
+    : m_size(size)
+    , m_data(iosurface.data())
+    , m_pitch(iosurface.bytes_per_row())
+    , m_format(format)
+    , m_alpha_type(alpha_type)
+    , m_iosurface(move(iosurface))
+{
+}
+
+static ErrorOr<NonnullRefPtr<Bitmap>> create_over_new_iosurface(BitmapFormat format, AlphaType alpha_type, IntSize size)
+{
+    if (size.is_empty() || Bitmap::size_would_overflow(format, size))
+        return Error::from_string_literal("Gfx::Bitmap IOSurface size is invalid");
+
+    // NB: The rows of a surface only a few pixels wide are mostly padding, which would take more memory than shared
+    //     memory and a copy of it on the GPU take together.
+    auto minimum_pitch = Bitmap::minimum_pitch(size.width(), format);
+    if (Core::IOSurfaceHandle::bytes_per_row_aligned_as_the_system_aligns_it(minimum_pitch) > 2 * minimum_pitch)
+        return Error::from_string_literal("Gfx::Bitmap IOSurface rows would be mostly padding");
+
+    auto iosurface = TRY(Core::IOSurfaceHandle::try_create_with_four_bytes_per_pixel(size.width(), size.height(), iosurface_pixel_format_of(format)));
+    return Bitmap::create_with_iosurface(format, alpha_type, size, move(iosurface));
+}
+#endif
+
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_shareable_with_gpu_access(BitmapFormat format, AlphaType alpha_type, IntSize size)
+{
+#ifdef AK_OS_MACOS
+    if (auto bitmap = create_over_new_iosurface(format, alpha_type, size); !bitmap.is_error())
+        return bitmap.release_value();
+#endif
+    return create_shareable(format, alpha_type, size);
+}
+
 Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingStore const& backing_store)
     : m_size(size)
     , m_data(backing_store.data)
@@ -166,8 +246,8 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::clone() const
 {
     auto new_bitmap = TRY(Bitmap::create(format(), alpha_type(), size()));
 
-    VERIFY(size_in_bytes() == new_bitmap->size_in_bytes());
-    memcpy(new_bitmap->scanline(0), scanline(0), size_in_bytes());
+    for (int y = 0; y < height(); ++y)
+        memcpy(new_bitmap->scanline_u8(y), scanline_u8(y), new_bitmap->pitch());
 
     return new_bitmap;
 }
@@ -203,6 +283,19 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::to_bitmap_backed_by_anonymous_buffer() co
     auto bitmap = TRY(Bitmap::create_shareable(format(), alpha_type(), size()));
     for (int y = 0; y < height(); ++y)
         memcpy(bitmap->scanline(y), scanline(y), bitmap->pitch());
+    return bitmap;
+}
+
+ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::to_bitmap_shareable_with_gpu_access() const
+{
+    if (is_in_shareable_memory()) {
+        // FIXME: The const_cast here is awkward.
+        return NonnullRefPtr { const_cast<Bitmap&>(*this) };
+    }
+    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(format(), alpha_type(), size()));
+    auto const row_size = minimum_pitch(width(), format());
+    for (int y = 0; y < height(); ++y)
+        memcpy(bitmap->scanline_u8(y), scanline_u8(y), row_size);
     return bitmap;
 }
 

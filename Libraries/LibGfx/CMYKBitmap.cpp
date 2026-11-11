@@ -24,7 +24,7 @@ ErrorOr<NonnullRefPtr<CMYKBitmap>> CMYKBitmap::create_with_size(IntSize const& s
 ErrorOr<NonnullRefPtr<Bitmap>> CMYKBitmap::to_low_quality_rgb() const
 {
     if (!m_rgb_bitmap) {
-        m_rgb_bitmap = TRY(Bitmap::create_shareable(BitmapFormat::BGRx8888, AlphaType::Premultiplied, m_size));
+        m_rgb_bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRx8888, AlphaType::Premultiplied, m_size));
 
         for (int y = 0; y < m_size.height(); ++y) {
             for (int x = 0; x < m_size.width(); ++x) {

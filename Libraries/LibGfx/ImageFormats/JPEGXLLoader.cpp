@@ -76,7 +76,7 @@ private:
         if (self.m_pending_bitmap)
             return false;
 
-        auto bitmap_or_error = Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, self.m_alpha_type, self.m_size);
+        auto bitmap_or_error = Bitmap::create_shareable_with_gpu_access(Gfx::BitmapFormat::RGBA8888, self.m_alpha_type, self.m_size);
         if (bitmap_or_error.is_error())
             return false;
 
