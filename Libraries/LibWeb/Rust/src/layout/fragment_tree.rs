@@ -1850,6 +1850,21 @@ impl RunFragmentBuilder {
             .any(|entry| !entry.inline_containing_block().is_invalid())
     }
 
+    pub(crate) fn any_pending_abspos_contained_by(&self, node: crate::layout::node_data::NodeSlotId) -> bool {
+        let inner = self.inner.borrow();
+        inner
+            .pending_abspos_at_root
+            .iter()
+            .chain(
+                inner
+                    .pending_fragments
+                    .get(&node.slot_index())
+                    .into_iter()
+                    .flat_map(|fragment| fragment.pending_abspos.iter()),
+            )
+            .any(|entry| entry.containing_block() == node)
+    }
+
     pub(crate) fn any_pending_abspos_names_inline_containing_block(
         &self,
         inline_box: crate::layout::node_data::NodeSlotId,

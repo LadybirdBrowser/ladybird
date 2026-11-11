@@ -1,0 +1,56 @@
+<!doctype html>
+<link rel="match" href="../expected/abspos-inline-containing-block-clip-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    .outer {
+        position: relative;
+        width: 300px;
+        height: 40px;
+    }
+    .clip {
+        overflow: hidden;
+        height: 40px;
+    }
+    .inline {
+        position: relative;
+        font: 20px/20px monospace;
+    }
+    .target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 600px;
+        height: 20px;
+        background: green;
+    }
+    .static {
+        position: static;
+    }
+    .block {
+        display: block;
+    }
+</style>
+<div class="outer">
+    <div class="clip">
+        <span class="inline">text<span class="target"></span></span>
+    </div>
+</div>
+<div class="outer">
+    <div class="clip">
+        <span class="inline block">text<span class="target"></span></span>
+    </div>
+</div>
+<div class="outer">
+    <div class="clip">
+        <span class="inline static">text<span class="target"></span></span>
+    </div>
+</div>
+<div class="outer">
+    <div class="clip">
+        <span class="inline"
+            >text<span><span class="target"></span></span
+        ></span>
+    </div>
+</div>
