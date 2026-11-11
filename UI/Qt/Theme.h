@@ -114,6 +114,9 @@ struct TextSelectionColors {
 TextSelectionColors address_field_text_selection(QPalette const&, QPalette::ColorGroup);
 TextSelectionColors panel_text_selection(QPalette::ColorGroup, QColor const& text);
 
+// The accent, deep enough that white text on it stays clear.
+QColor accent_fill();
+
 // The fill of a primary button, a blue that white text stays clear on.
 QColor primary();
 // The fill of the selected row of a menu or a list navigated with the keyboard.

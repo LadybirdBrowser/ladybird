@@ -524,10 +524,13 @@ TextSelectionColors panel_text_selection(QPalette::ColorGroup group, QColor cons
     return text_selection(group, is_dark(), chrome().toolbar, text);
 }
 
-// The theme's accent fills primary buttons and selected rows deep enough that white text on them clears 4.5:1.
-static QColor accent_fill()
+// The accent fills primary buttons, selected rows and checked buttons deep enough that white text on them clears 4.5:1.
+QColor accent_fill()
 {
-    return with_contrast(*s_color_theme.accent, Qt::white, 4.5f, Adjustment::Darken);
+    if (auto const& base_color = s_color_theme.accent.has_value() ? s_color_theme.accent : s_desktop_accent; base_color.has_value())
+        return with_contrast(*base_color, Qt::white, 4.5f, Adjustment::Darken);
+    auto const& accent = system_accent_color();
+    return with_contrast(is_dark() ? accent.dark : accent.light, Qt::white, 4.5f, Adjustment::Darken);
 }
 
 QColor primary()
