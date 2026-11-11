@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid disabled if grid item establishes independent formatting context</title>
+  <link rel="author" title="Matt Woodrow" href="https://bugs.webkit.org/show_bug.cgi?id=237692">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+  <style>
+
+html,body {
+  font:16px/1 monospace; padding:0; margin:0; line-height: 0;
+}
+
+.grid {
+  display: inline-block;
+  background-color: green;
+  width: 100px;
+  height: 100px;
+  margin-right: 20px;
+  margin-bottom: 20px;
+  vertical-align: top;
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+</body>
+</html>

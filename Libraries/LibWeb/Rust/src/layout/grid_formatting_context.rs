@@ -1627,8 +1627,9 @@ impl<'pass> GridFormattingContext<'pass> {
         // to establish an independent formatting context, the used value is
         // the initial value, grid-template-rows/none, and the grid container is not
         // a subgrid.
-        // FIXME: Also reject subgrid here when the grid container is forced to
-        // establish an independent formatting context.
+        if !self.can_be_subgrid(self.run.box_) {
+            return false;
+        }
         let list = self.select_grid_axis(axis, grid_style.template_columns, grid_style.template_rows);
         // https://drafts.csswg.org/css-grid-3/#subgrids
         // If the parent's corresponding axis is a grid axis, the subgridded axis is taken from the parent container as
@@ -1636,6 +1637,16 @@ impl<'pass> GridFormattingContext<'pass> {
         // also acts as a stacking axis.
         // FIXME: Lay out an axis that subgrids the stacking axis of a grid lanes container as a stacking axis.
         list.is_subgrid && self.parent_grid_placement().is_some()
+    }
+
+    /// Whether a grid container with a subgrid track list is a subgrid, rather than being forced to establish an
+    /// independent formatting context, which makes its track list none.
+    fn can_be_subgrid(&self, node: Node) -> bool {
+        !self
+            .run
+            .pass
+            .style_view(node)
+            .is_forced_to_establish_independent_formatting_context()
     }
 
     fn container_is_subgridded(&self, axis: Axis) -> bool {
@@ -2169,12 +2180,11 @@ impl<'pass> GridFormattingContext<'pass> {
                     child_grid_style.template_columns,
                     child_grid_style.template_rows,
                 );
-                let column_subgrid_span = child_columns
-                    .is_subgrid
+                let child_can_be_subgrid = self.can_be_subgrid(child);
+                let column_subgrid_span = (child_columns.is_subgrid && child_can_be_subgrid)
                     .then(|| automatic_subgrid_span(source, child_columns));
-                let row_subgrid_span = child_rows
-                    .is_subgrid
-                    .then(|| automatic_subgrid_span(source, child_rows));
+                let row_subgrid_span =
+                    (child_rows.is_subgrid && child_can_be_subgrid).then(|| automatic_subgrid_span(source, child_rows));
                 let (row_start, row_end) = self.select_grid_axis(
                     Axis::Row,
                     (child_grid_style.column_start, child_grid_style.column_end),
@@ -2219,7 +2229,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn new_grid_item(&self, collected_index: usize) -> GridItem {
         let box_ = self.collected_items[collected_index].box_;
-        let is_column_only_subgrid = self.facts(box_).display().is_grid_inside() && {
+        let is_column_only_subgrid = self.facts(box_).display().is_grid_inside() && self.can_be_subgrid(box_) && {
             let grid_style = self.grid_style(box_);
             self.select_item_grid_axis(
                 box_,
@@ -3620,10 +3630,9 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn node_is_subgridded(&self, node: Node, axis: Axis) -> bool {
-        let facts = self.facts(node);
-        if !facts.display().is_grid_inside()
-            || facts.is_absolutely_positioned()
+        if !self.facts(node).display().is_grid_inside()
             || self.is_grid_lanes_stacking_axis(axis)
+            || !self.can_be_subgrid(node)
         {
             return false;
         }

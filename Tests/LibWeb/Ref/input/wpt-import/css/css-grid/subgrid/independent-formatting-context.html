@@ -1,0 +1,115 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Test: subgrid disabled if grid item establishes independent formatting context</title>
+  <link rel="author" title="Matt Woodrow" href="https://bugs.webkit.org/show_bug.cgi?id=237692">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/independent-formatting-context-ref.html">
+  <style>
+
+html,body {
+  font:16px/1 monospace; padding:0; margin:0; line-height: 0;
+}
+
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-rows: 0px 100px;
+  width: 100px;
+  margin-right: 20px;
+  margin-bottom: 20px;
+  vertical-align: top;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / 3;
+  width: 100px;
+  height: 100px;
+  background-color: red;
+}
+
+.first {
+  grid-row: 1;
+  background-color: green;
+}
+
+.second {
+  grid-row: 2;
+  background-color: green;
+}
+
+  </style>
+</head>
+<body>
+<!-- The subgrid's style attribute establishes an independent formatting
+     context and makes them no longer eligible as subgrids.-->
+<div class="grid">
+  <div class="subgrid" style="position: absolute">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="container-type: size">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="container-type: inline-size">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: layout">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: paint">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: strict">
+    <div class="first"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: content">
+    <div class="first"></div>
+  </div>
+</div>
+
+<!-- Only layout and paint containment establish an independent formatting
+     context. These tests validate that other types of containment maintain
+     subgrid layout.-->
+<div class="grid">
+  <div class="subgrid" style="contain: none">
+    <div class="second"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: size">
+    <div class="second"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="contain: style">
+    <div class="second"></div>
+  </div>
+</div>
+</body>
+</html>

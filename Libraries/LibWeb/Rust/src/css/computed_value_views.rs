@@ -1284,6 +1284,34 @@ impl<'a> ComputedValuesView<'a> {
         )
     }
 
+    /// Whether this box's own style forces it to establish an independent formatting context even where it would
+    /// otherwise share one with its parent, as a subgrid does.
+    ///
+    /// https://drafts.csswg.org/css-grid-2/#subgrid-listing
+    /// If there is no parent grid, or if the grid container is otherwise forced to establish an independent formatting
+    /// context (for example, due to layout containment [CSS-CONTAIN-2] or absolute positioning [CSS-POSITION-3]), the
+    /// used value is the initial value, none, and the grid container is not a subgrid.
+    pub(crate) fn is_forced_to_establish_independent_formatting_context(self) -> bool {
+        if self.is_absolutely_positioned() {
+            return true;
+        }
+        let box_values = self.box_values();
+        // https://drafts.csswg.org/css-contain-2/#containment-types
+        // 1. The layout containment box establishes an independent formatting context.
+        // 4. The paint containment box establishes an independent formatting context.
+        let content_visibility_forces_containment =
+            self.misc_layout().content_visibility == crate::css::css_enums::content_visibility::AUTO;
+        if (box_values.layout_containment || box_values.paint_containment || content_visibility_forces_containment)
+            && containment_applies_to_principal_box(box_values.display)
+        {
+            return true;
+        }
+        // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+        // Applies style containment and size containment to the principal box, and establishes an independent
+        // formatting context.
+        box_values.is_size_container || box_values.is_inline_size_container
+    }
+
     // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
     // The computed-style-only half of the block-formatting-context predicate;
     // node_creates_block_formatting_context adds the terms that need the node
@@ -1328,21 +1356,7 @@ impl<'a> ComputedValuesView<'a> {
             return true;
         }
 
-        // https://drafts.csswg.org/css-contain-2/#containment-types
-        // 1. The layout containment box establishes an independent formatting context.
-        // 4. The paint containment box establishes an independent formatting context.
-        let content_visibility_forces_containment =
-            self.misc_layout().content_visibility == crate::css::css_enums::content_visibility::AUTO;
-        if (box_values.layout_containment || box_values.paint_containment || content_visibility_forces_containment)
-            && containment_applies_to_principal_box(display)
-        {
-            return true;
-        }
-
-        // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
-        // Applies style containment and size containment to the principal box, and establishes an independent
-        // formatting context.
-        if box_values.is_size_container || box_values.is_inline_size_container {
+        if self.is_forced_to_establish_independent_formatting_context() {
             return true;
         }
 
