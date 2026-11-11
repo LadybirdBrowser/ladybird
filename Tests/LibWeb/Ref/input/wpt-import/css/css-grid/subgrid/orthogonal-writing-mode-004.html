@@ -1,0 +1,131 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: subgrids with different writing-mode than parent</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/orthogonal-writing-mode-004-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:10px/1 Ahem; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid: 2px repeat(4, auto) / 10px repeat(50, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / subgrid;
+  background: lightgrey;
+  grid-column: 2 / span 5;
+  grid-row: 3 / span 3;
+  min-width:10px;
+  min-height:0;
+  border: solid lightblue;
+  border-width: 1px 5px 3px 7px;
+  padding:      5px 7px 3px 1px;
+  margin:       7px 3px 5px 1px;
+}
+
+item { background: magenta; }
+
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: grey; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: black; }
+x:nth-child(2n+5) { background: blue; }
+x:nth-child(2n+6) { background: cyan; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+.vl { writing-mode: vertical-lr; }
+.vr { writing-mode: vertical-rl; }
+.vlr { writing-mode: vertical-lr; direction:rtl; }
+.vrl { writing-mode: vertical-rl; direction:ltr; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vlr" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+</div>
+
+<div class="grid">
+  <x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vlr" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item><item>C</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vrl" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vrl" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;</item><item>C</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vlr" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+  <div class="subgrid vlr" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vrl" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+  <div class="subgrid vrl" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vlr" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+  <div class="subgrid vrl" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;&#x00C9;</item>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vlr" style="grid-column:2/5">
+    <item>X</item><item>&#x00C9;</item>
+  </div>
+  <div class="subgrid vrl" style="grid-column:5/8">
+    <item>X</item><item>&#x00C9;&#x00C9;</item>
+  </div>
+  <div class="subgrid vrl" style="grid-column:8/11">
+    <item>XXX</item><item>&#x00C9;</item>
+  </div>
+</div>
+
+</body>
+</html>

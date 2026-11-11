@@ -1302,6 +1302,8 @@ struct ParentGridData<'pass> {
     /// The size of the gutters that the grid owning the parent grid's tracks specifies between them.
     column_track_gutter_size: CssPixels,
     row_track_gutter_size: CssPixels,
+    /// The frame the parent grid lays out in, which its axes and sides are relative to.
+    frame: geometry::Frame,
 }
 
 impl<'pass> ParentGridData<'pass> {
@@ -1324,6 +1326,7 @@ impl<'pass> ParentGridData<'pass> {
             row_gutter_size: parent.gutter_size(Axis::Row),
             column_track_gutter_size: parent.track_gutter_size(Axis::Column),
             row_track_gutter_size: parent.track_gutter_size(Axis::Row),
+            frame: parent.run.pass.frame,
         }
     }
 }
@@ -1675,14 +1678,15 @@ impl<'pass> GridFormattingContext<'pass> {
         let Some(item) = self.parent_grid_placement() else {
             return CssPixels::default();
         };
-        if item.span(axis) <= 1 {
+        let parent_axis = self.parent_axis(axis);
+        if item.span(parent_axis) <= 1 {
             return CssPixels::default();
         }
-        let gaps = axis.select(&parent.column_gaps, &parent.row_gaps);
+        let gaps = parent_axis.select(&parent.column_gaps, &parent.row_gaps);
         if gaps.is_empty() {
             return CssPixels::default();
         }
-        let position = item.position(axis);
+        let position = item.position(parent_axis);
         if position >= 0
             && let Some(gap) = gaps.get(position as usize)
         {
@@ -1722,7 +1726,8 @@ impl<'pass> GridFormattingContext<'pass> {
             // A value of normal indicates that the subgrid has the same size gutters as its parent grid, i.e. the
             // applied difference is zero.
             return self.parent_grid().map_or_else(CssPixels::default, |parent| {
-                axis.select(parent.column_gutter_size, parent.row_gutter_size)
+                self.parent_axis(axis)
+                    .select(parent.column_gutter_size, parent.row_gutter_size)
             });
         }
         gap.to_px(available.to_px_or_zero())
@@ -1734,7 +1739,9 @@ impl<'pass> GridFormattingContext<'pass> {
         if self.container_is_subgridded(axis)
             && let Some(parent) = self.parent_grid()
         {
-            return axis.select(parent.column_track_gutter_size, parent.row_track_gutter_size);
+            return self
+                .parent_axis(axis)
+                .select(parent.column_track_gutter_size, parent.row_track_gutter_size);
         }
         self.gutter_size(axis)
     }
@@ -1852,11 +1859,12 @@ impl<'pass> GridFormattingContext<'pass> {
             if !is_subgrid {
                 continue;
             }
-            let start = parent_item.position(axis);
-            let end = start + parent_item.span(axis) as i32;
+            let parent_axis = self.parent_axis(axis);
+            let start = parent_item.position(parent_axis);
+            let end = start + parent_item.span(parent_axis) as i32;
             project_area_lines(
                 lines,
-                axis.select(&parent.column_lines, &parent.row_lines),
+                parent_axis.select(&parent.column_lines, &parent.row_lines),
                 start,
                 end,
                 self.subgrid_axis_runs_against_parent(axis),
@@ -1982,10 +1990,11 @@ impl<'pass> GridFormattingContext<'pass> {
         let source = TrackListSource::from_grid_style(grid_style);
         if self.is_subgridded(axis, grid_style) {
             let parent_item = self.parent_grid_placement().unwrap();
-            let track_count = parent_item.span(axis);
+            let parent_axis = self.parent_axis(axis);
+            let track_count = parent_item.span(parent_axis);
             let parent = self.parent_grid().unwrap();
-            let lines = axis.select(&parent.column_lines, &parent.row_lines);
-            let start = (parent_item.position(axis).max(0) as usize).min(lines.len());
+            let lines = parent_axis.select(&parent.column_lines, &parent.row_lines);
+            let start = (parent_item.position(parent_axis).max(0) as usize).min(lines.len());
             let end = start.saturating_add(track_count.saturating_add(1)).min(lines.len());
             if self.subgrid_axis_runs_against_parent(axis) {
                 let reversed: Vec<_> = lines[start..end].iter().rev().cloned().collect();
@@ -2350,15 +2359,18 @@ impl<'pass> GridFormattingContext<'pass> {
                 return vec![Track::auto()];
             };
             let parent_item = self.parent_grid_placement().unwrap();
-            let parent_tracks = axis.select(&parent.columns, &parent.rows);
+            let parent_axis = self.parent_axis(axis);
+            let parent_tracks = parent_axis.select(&parent.columns, &parent.rows);
             let mut tracks = Vec::new();
-            let span = parent_item.span(axis);
+            let span = parent_item.span(parent_axis);
             let runs_against_parent = self.subgrid_axis_runs_against_parent(axis);
             for offset in 0..span {
                 let offset = if runs_against_parent { span - 1 - offset } else { offset };
-                let index = parent_item.position(axis) + offset as i32;
+                let index = parent_item.position(parent_axis) + offset as i32;
                 if let Some(parent_track) = usize::try_from(index).ok().and_then(|index| parent_tracks.get(index)) {
-                    if self.subgrid_tracks_act_empty && !(axis.is_column() && self.inherits_resolved_parent_columns) {
+                    if self.subgrid_tracks_act_empty
+                        && !(parent_axis.is_column() && self.inherits_resolved_parent_columns)
+                    {
                         // https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution
                         // The subgrid itself lays out as an ordinary grid item in its parent grid,
                         // but acts as if it was completely empty for track sizing purposes in the
@@ -3655,7 +3667,7 @@ impl<'pass> GridFormattingContext<'pass> {
         if !self.container_is_subgridded(axis) {
             return None;
         }
-        let parent = self.parent_grid_placement()?;
+        self.parent_grid_placement()?;
         // https://drafts.csswg.org/css-grid-2/#subgrid-margins
         // In this process, the sum of the subgrid's margin, padding, scrollbar
         // gutter, and border at each edge are applied as an extra layer of
@@ -3667,13 +3679,25 @@ impl<'pass> GridFormattingContext<'pass> {
         let used = &self.container_cells;
         let (left_or_top, right_or_bottom) = if axis.is_column() {
             (
-                used.margin_left() + used.border_left() + used.padding_left() + parent.extra_margin_left,
-                used.padding_right() + used.border_right() + used.margin_right() + parent.extra_margin_right,
+                used.margin_left()
+                    + used.border_left()
+                    + used.padding_left()
+                    + self.extra_margin_from_parent_grid(geometry::Side::Left),
+                used.padding_right()
+                    + used.border_right()
+                    + used.margin_right()
+                    + self.extra_margin_from_parent_grid(geometry::Side::Right),
             )
         } else {
             (
-                used.margin_top() + used.border_top() + used.padding_top() + parent.extra_margin_top,
-                used.padding_bottom() + used.border_bottom() + used.margin_bottom() + parent.extra_margin_bottom,
+                used.margin_top()
+                    + used.border_top()
+                    + used.padding_top()
+                    + self.extra_margin_from_parent_grid(geometry::Side::Top),
+                used.padding_bottom()
+                    + used.border_bottom()
+                    + used.margin_bottom()
+                    + self.extra_margin_from_parent_grid(geometry::Side::Bottom),
             )
         };
         Some(if self.tracks_are_reversed(axis) {
@@ -3893,21 +3917,25 @@ impl<'pass> GridFormattingContext<'pass> {
             // NB: So while this grid sizes its rows, a subgrid that inherits its columns lays its items out in those
             //     resolved widths, rather than sizing the columns again from its own items alone.
             context.inherits_resolved_parent_columns = !axis.is_column();
+            // NB: The parent grid sizes `axis`, which may be the other axis of a subgrid in an orthogonal frame.
+            let parent_axis = axis;
+            let axis = context.axis_along_parent_axis(parent_axis);
+            let axis_along_parent_columns = context.axis_along_parent_axis(Axis::Column);
             let grid_style = context.grid_style(context.run.box_);
             context.cache_subgrid_axes(grid_style);
             let (columns, rows) = context.initialize_lines(grid_style);
             context.place_items();
             context.initialize_tracks(grid_style, &columns, &rows);
-            if !axis.is_column() {
+            if !parent_axis.is_column() {
                 let mut items = std::mem::take(&mut context.items);
                 for item in &mut items {
-                    context.apply_subgrid_edge_extra_margins(item, Axis::Column);
+                    context.apply_subgrid_edge_extra_margins(item, axis_along_parent_columns);
                 }
                 context.items = items;
-                context.resolve_item_metrics(Axis::Column);
-                context.run_track_sizing(Axis::Column);
-                context.resolve_item_metrics(Axis::Column);
-                context.resolve_item_sizes(Axis::Column);
+                context.resolve_item_metrics(axis_along_parent_columns);
+                context.run_track_sizing(axis_along_parent_columns);
+                context.resolve_item_metrics(axis_along_parent_columns);
+                context.resolve_item_sizes(axis_along_parent_columns);
             }
             context.resolve_item_metrics(axis);
 
@@ -3926,7 +3954,7 @@ impl<'pass> GridFormattingContext<'pass> {
             //          empty or not, sized to the subgrid's margin/border/padding at that edge, so that the edge tracks
             //          fit them even when no item is placed in them.
             if let Some((start_margin, end_margin)) = context.subgrid_edge_extra_margins(axis) {
-                let track_count = subgrid.span(axis);
+                let track_count = subgrid.span(parent_axis);
                 let hypothetical_item = |track: usize, size: CssPixels| ItemContribution {
                     spanned_tracks: Self::interleaved_index_of_track(track)
                         ..Self::interleaved_index_of_track(track) + 1,
@@ -3952,9 +3980,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 }
             }
             let interleaved_index_offset_in_parent =
-                Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+                Self::interleaved_index_of_track(subgrid.position(parent_axis).max(0) as usize);
             // NB: A subgrid that runs against its parent grid numbers the tracks it shares with it from the other end.
-            let interleaved_entry_count = subgrid.span(axis).saturating_mul(2).saturating_sub(1);
+            let interleaved_entry_count = subgrid.span(parent_axis).saturating_mul(2).saturating_sub(1);
             let runs_against_parent = context.subgrid_axis_runs_against_parent(axis);
             for contribution in &mut contributions {
                 if runs_against_parent {
@@ -4213,9 +4241,65 @@ impl<'pass> GridFormattingContext<'pass> {
     /// independent grid.
     fn subgrid_axis_runs_against_parent(&self, axis: Axis) -> bool {
         self.parent_grid().is_some_and(|parent| {
-            axis.select(parent.column_tracks_are_reversed, parent.row_tracks_are_reversed)
-                != self.axis_is_reversed(axis)
+            let (parent_axis, is_flipped) = self.axis_in_parent_grid(axis);
+            let parent_tracks_are_reversed =
+                parent_axis.select(parent.column_tracks_are_reversed, parent.row_tracks_are_reversed);
+            (self.axis_is_reversed(axis) != is_flipped) != parent_tracks_are_reversed
         })
+    }
+
+    /// The axis of the parent grid that the given axis of this grid lies along, and whether this grid's axis runs from
+    /// the high side of that parent axis. A grid in an orthogonal writing mode lays out in a frame of its own, so its
+    /// axes are those of its parent grid swapped.
+    ///
+    /// https://drafts.csswg.org/css-grid-2/#subgrid-indexing
+    /// Line numbering and placement rules obey the subgrid's own writing mode, just as they would for a nested
+    /// independent grid.
+    fn axis_in_parent_grid(&self, axis: Axis) -> (Axis, bool) {
+        let Some(parent) = self.parent_grid() else {
+            return (axis, false);
+        };
+        let low_side = if axis.is_column() {
+            geometry::Side::Left
+        } else {
+            geometry::Side::Top
+        };
+        let parent_side = self.run.pass.frame.side_in(low_side, parent.frame);
+        let parent_axis = if matches!(parent_side, geometry::Side::Left | geometry::Side::Right) {
+            Axis::Column
+        } else {
+            Axis::Row
+        };
+        (
+            parent_axis,
+            matches!(parent_side, geometry::Side::Right | geometry::Side::Bottom),
+        )
+    }
+
+    fn parent_axis(&self, axis: Axis) -> Axis {
+        self.axis_in_parent_grid(axis).0
+    }
+
+    /// The axis of this grid that lies along the given axis of its parent grid.
+    fn axis_along_parent_axis(&self, parent_axis: Axis) -> Axis {
+        if self.parent_axis(Axis::Column) == parent_axis {
+            Axis::Column
+        } else {
+            Axis::Row
+        }
+    }
+
+    /// The extra margin the parent grid gives this grid on the given side of this grid's frame.
+    fn extra_margin_from_parent_grid(&self, side: geometry::Side) -> CssPixels {
+        let (Some(parent), Some(placement)) = (self.parent_grid(), self.parent_grid_placement()) else {
+            return CssPixels::default();
+        };
+        match self.run.pass.frame.side_in(side, parent.frame) {
+            geometry::Side::Top => placement.extra_margin_top,
+            geometry::Side::Right => placement.extra_margin_right,
+            geometry::Side::Bottom => placement.extra_margin_bottom,
+            geometry::Side::Left => placement.extra_margin_left,
+        }
     }
 
     /// Maps an offset and size along the given axis, measured from the content edge the grid container's tracks start

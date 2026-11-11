@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrids with different writing-mode than parent</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 Ahem;
+}
+
+.grid {
+  display: grid;
+  grid: repeat(4, auto) / repeat(5, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid: auto / auto;
+  grid-column: 2 / span 5;
+  grid-row: 2 / span 5;
+  min-width:10px;
+  min-height:0;
+  border: 0 solid lightblue;
+  border-bottom-width: 40px;
+  background: yellow;
+  padding: 1px 3px 5px 7px;
+  margin: 3px 11px 7px 5px;
+}
+
+.vlr {
+  writing-mode: vertical-lr;
+  grid: auto / auto;
+  grid-column: 2 / span 5;
+  grid-row: 3 / span 5;
+  background: blue;
+}
+
+x {
+  min-width:10px;
+  min-height:0px;
+}
+
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: grey; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: black; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+.vl { writing-mode: vertical-lr; }
+.vr { writing-mode: vertical-rl; }
+.vlr { writing-mode: vertical-lr; direction:rtl; }
+.vrl { writing-mode: vertical-rl; direction:ltr; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid vrl">
+<x style="grid-column:1; height:0px"></x><x style="grid-column:2; height:16px"></x><x style="grid-column:3; height:30px"></x><x style="grid-column:4; height:52px"></x>
+<div class="subgrid hl">
+  <x style="grid-column:span 12">A _B</x>
+  <x style="width:100px; height:30px"></x>
+  <x style="background:yellow">C D_</x>
+</div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1; height:0px"></x><x style="grid-row:2; height:0px"></x><x style="grid-row:3; height:52px"></x><x style="grid-row:4; height:30px"></x>
+<div class="subgrid vlr" style="grid: auto / repeat(5, auto);">
+  <x>A _B</x>
+  <x style="width:100px; height:30px"></x>
+  <x>C D_</x>
+</div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1; height:0px"></x><x style="grid-row:2; height:0px"></x><x style="grid-row:3; height:4px"></x>
+<div class="subgrid vlr"></div>
+</div>
+
+</body>
+</html>

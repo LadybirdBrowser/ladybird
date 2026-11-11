@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: nested orthogonal writing-mode subgrids with percentage row-gap</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/grid-gap-009-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:24px/1 Ahem; padding:0; margin:0;
+}
+
+.grid {
+  display:inline-grid;
+  grid:100px auto/200px auto;
+  border:3px solid;
+  background:grey;
+  width:300px;
+  height:400px;
+}
+.subgrid {
+  display: grid;
+  grid: subgrid / 50px;
+  row-gap: 10%;
+  grid-area: span 2/span 2;
+  background:lightgrey;
+}
+span { background:cyan; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.vlr { writing-mode: vertical-lr; direction:rtl; }
+</style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="subgrid vlr">
+    <span class="hl">cc</span>
+  </div>
+</div>
+
+</body>
+</html>
