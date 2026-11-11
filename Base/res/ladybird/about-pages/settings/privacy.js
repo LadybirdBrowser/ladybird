@@ -11,8 +11,6 @@ const byteFormatter = getByteFormatter(unit => {
 const browsingDataSettings = document.querySelector("#browsing-data-settings");
 const browsingDataSettingsClose = document.querySelector("#browsing-data-settings-close");
 const browsingDataSettingsDialog = document.querySelector("#browsing-data-settings-dialog");
-const browsingDataSettingsMaxDiskCacheSize = document.querySelector("#browsing-data-settings-max-disk-cache-size");
-const browsingDataSettingsMaxDiskCacheUnit = document.querySelector("#browsing-data-settings-max-disk-cache-unit");
 const browsingDataTotalSize = document.querySelector("#browsing-data-total-size");
 
 const clearBrowsingDataCachedFiles = document.querySelector("#clear-browsing-data-cached-files");
@@ -26,20 +24,9 @@ const clearBrowsingDataTimeRange = document.querySelector("#clear-browsing-data-
 
 const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
 
-const MiB = 1024 * 1024;
-const GiB = MiB * 1024;
-
-let BROWSING_DATA = {};
-
 function loadSettings(settings) {
     if (Object.hasOwn(settings, "globalPrivacyControl")) {
         globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
-    }
-
-    if (Object.hasOwn(settings, "browsingData")) {
-        BROWSING_DATA = settings.browsingData;
-        showBrowsingDataSettings();
-        estimateBrowsingDataSizes();
     }
 }
 
@@ -50,14 +37,6 @@ function updateBrowsingDataSizes(sizes) {
 
     clearBrowsingDataCachedFilesSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.cacheSizeSinceRequestedTime)})`;
     clearBrowsingDataSiteDataSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.siteDataSizeSinceRequestedTime)})`;
-}
-
-function formatDiskCacheSize(bytes) {
-    if (bytes >= GiB && bytes % GiB == 0) {
-        return { value: bytes / GiB, unit: "GiB" };
-    }
-
-    return { value: bytes / MiB, unit: "MiB" };
 }
 
 function computeTimeRange() {
@@ -86,40 +65,6 @@ function estimateBrowsingDataSizes() {
     });
 }
 
-function saveBrowsingDataSettings() {
-    browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
-    browsingDataSettingsMaxDiskCacheSize.classList.remove("error");
-
-    if (
-        browsingDataSettingsMaxDiskCacheSize.value.length === 0 ||
-        !browsingDataSettingsMaxDiskCacheSize.checkValidity()
-    ) {
-        browsingDataSettingsMaxDiskCacheSize.classList.add("error");
-        return;
-    }
-
-    BROWSING_DATA.diskCache = {};
-    BROWSING_DATA.diskCache.maxSize =
-        browsingDataSettingsMaxDiskCacheUnit.value === "MiB"
-            ? browsingDataSettingsMaxDiskCacheSize.value * MiB
-            : browsingDataSettingsMaxDiskCacheSize.value * GiB;
-
-    ladybird.sendMessage("setBrowsingDataSettings", BROWSING_DATA);
-    browsingDataSettingsMaxDiskCacheSize.classList.add("success");
-
-    setTimeout(() => {
-        browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
-    }, 1000);
-}
-
-function showBrowsingDataSettings() {
-    const maxDiskCacheSize = BROWSING_DATA.diskCache?.maxSize || 5 * GiB;
-
-    const { value, unit } = formatDiskCacheSize(maxDiskCacheSize);
-    browsingDataSettingsMaxDiskCacheSize.value = value;
-    browsingDataSettingsMaxDiskCacheUnit.value = unit;
-}
-
 registerDialogDeepLink({
     hash: "clearBrowsingData",
     tab: "privacy",
@@ -133,13 +78,6 @@ browsingDataSettings.addEventListener("click", () => {
 
 browsingDataSettingsClose.addEventListener("click", () => {
     browsingDataSettingsDialog.close();
-});
-
-browsingDataSettingsMaxDiskCacheSize.addEventListener("change", () => {
-    saveBrowsingDataSettings();
-});
-browsingDataSettingsMaxDiskCacheUnit.addEventListener("change", () => {
-    saveBrowsingDataSettings();
 });
 
 clearBrowsingDataTimeRange.addEventListener("change", () => {
@@ -176,6 +114,8 @@ clearBrowsingDataRemoveData.addEventListener("click", () => {
 globalPrivacyControlToggle.addEventListener("change", () => {
     ladybird.sendMessage("setGlobalPrivacyControl", globalPrivacyControlToggle.checked);
 });
+
+document.addEventListener("WebUILoaded", estimateBrowsingDataSizes);
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadSettings") {
