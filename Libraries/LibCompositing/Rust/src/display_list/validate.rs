@@ -11,7 +11,6 @@
 
 use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, read_header};
 use super::commands::*;
-use crate::visual_context::{SNAP_ALIGN_COUNT, SNAP_STRICTNESS_COUNT};
 use libgfx_rust::{
     CapStyle, Color, CompositingAndBlendingOperator, GradientInterpolationMethod, GradientInterpolationType,
     HueInterpolationMethod, IntRect, InterpolationColorSpace, JoinStyle, LineStyle, MaskKind, Orientation,
@@ -48,7 +47,6 @@ macro_rules! tape_enum {
 
 tape_enum!(InlineClipKind as u8 { Rect, RoundedRect, Path });
 tape_enum!(ClipMode as u8 { Intersect, Difference });
-tape_enum!(CompositorScrollNodeKind as u8 { Viewport, Element, PseudoElement });
 tape_enum!(PathPaintKind as u8 { Color, PaintStyle });
 tape_enum!(DisplayListPaintStyleType as u8 { None, LinearGradient, RadialGradient, Pattern });
 tape_enum!(DisplayListGradientSpreadMethod as u8 { Pad, Repeat, Reflect });
@@ -135,13 +133,6 @@ impl Payload<'_> {
             _ => unreachable!(),
         };
         if !E::is_valid(raw) {
-            return Err("Display list command has an invalid enum value");
-        }
-        Ok(())
-    }
-
-    fn u8_below(self, offset: usize, count: u8) -> Result<(), ValidationError> {
-        if self.u8_at(offset) >= count {
             return Err("Display list command has an invalid enum value");
         }
         Ok(())
@@ -357,15 +348,12 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::PaintNestedDisplayList => size_of::<PaintNestedDisplayList>(),
         T::DrawIsolatedGroup => size_of::<DrawIsolatedGroup>(),
         T::DeclareMaskContent => size_of::<DeclareMaskContent>(),
-        T::CompositorScrollNode => size_of::<CompositorScrollNode>(),
         T::CompositorWheelHitTestTarget => size_of::<CompositorWheelHitTestTarget>(),
         T::CompositorWheelHitTestTargetWithCornerRadii => size_of::<CompositorWheelHitTestTargetWithCornerRadii>(),
         T::CompositorMainThreadWheelEventRegion => size_of::<CompositorMainThreadWheelEventRegion>(),
         T::CompositorScrollbar => size_of::<CompositorScrollbar>(),
         T::CompositorBlockingWheelEventRegion => size_of::<CompositorBlockingWheelEventRegion>(),
         T::PaintScrollBar => size_of::<PaintScrollBar>(),
-        T::CompositorSnapContainer => size_of::<CompositorSnapContainer>(),
-        T::CompositorSnapArea => size_of::<CompositorSnapArea>(),
         T::CompositorNestedContextWheelRegion => size_of::<CompositorNestedContextWheelRegion>(),
         T::Canvas2DFillPath => size_of::<Canvas2DFillPath>(),
         T::Canvas2DStrokePath => size_of::<Canvas2DStrokePath>(),
@@ -537,35 +525,11 @@ fn validate_command_fields(
             p.enum_at::<MaskKind>(offset_of!(DrawIsolatedGroup, mask_kind))?;
         }
         T::DeclareMaskContent => nested.add(offset_of!(DeclareMaskContent, content))?,
-        T::CompositorScrollNode => {
-            p.enum_at::<CompositorScrollNodeKind>(offset_of!(CompositorScrollNode, scroll_node_kind))?;
-            p.bool_at(offset_of!(CompositorScrollNode, is_viewport))?;
-            p.bool_at(offset_of!(CompositorScrollNode, can_be_wheel_scrolled_horizontally))?;
-            p.bool_at(offset_of!(CompositorScrollNode, can_be_wheel_scrolled_vertically))?;
-            p.bool_at(offset_of!(
-                CompositorScrollNode,
-                chains_scroll_to_ancestors_horizontally
-            ))?;
-            p.bool_at(offset_of!(CompositorScrollNode, chains_scroll_to_ancestors_vertically))?;
-            p.bool_at(offset_of!(CompositorScrollNode, shows_overscroll_effect_horizontally))?;
-            p.bool_at(offset_of!(CompositorScrollNode, shows_overscroll_effect_vertically))?;
-        }
         T::CompositorScrollbar => {
             p.bool_at(offset_of!(CompositorScrollbar, vertical))?;
             p.bool_at(offset_of!(CompositorScrollbar, is_painted_by_compositor))?;
         }
         T::PaintScrollBar => p.bool_at(offset_of!(PaintScrollBar, vertical))?,
-        T::CompositorSnapContainer => {
-            p.u8_below(offset_of!(CompositorSnapContainer, strictness), SNAP_STRICTNESS_COUNT)?;
-            p.bool_at(offset_of!(CompositorSnapContainer, snaps_x))?;
-            p.bool_at(offset_of!(CompositorSnapContainer, snaps_y))?;
-            p.bool_at(offset_of!(CompositorSnapContainer, horizontal_writing_mode))?;
-        }
-        T::CompositorSnapArea => {
-            p.u8_below(offset_of!(CompositorSnapArea, align_x), SNAP_ALIGN_COUNT)?;
-            p.u8_below(offset_of!(CompositorSnapArea, align_y), SNAP_ALIGN_COUNT)?;
-            p.bool_at(offset_of!(CompositorSnapArea, always_stop))?;
-        }
         T::Canvas2DFillPath => {
             p.span_at(offset_of!(Canvas2DFillPath, path_data))?;
             validate_canvas_2d_paint(p, offset_of!(Canvas2DFillPath, paint))?;

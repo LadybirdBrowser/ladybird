@@ -16,7 +16,7 @@ pub mod smooth_scroll_animation;
 pub mod visual_context_tree;
 pub mod wheel_gesture_identity;
 
-pub use crate::display_list::commands::{CompositorScrollNodeKind, ContextRef, EffectNodeIndex, SpatialNodeIndex};
+pub use crate::display_list::commands::{ContextRef, EffectNodeIndex, SpatialNodeIndex};
 pub use crate::ipc_types::Compositing_AppliedScrollRequest as AppliedScrollRequest;
 pub use crate::ipc_types::Compositing_AsyncScrollOffset as AsyncScrollOffset;
 pub use crate::ipc_types::Compositing_KeyboardScrollState as KeyboardScrollState;
@@ -48,6 +48,7 @@ pub use crate::ipc_types::Web_UIEvents_MouseButton as MouseButton;
 pub use crate::ipc_types::Web_UniqueNodeID as UniqueNodeId;
 pub use crate::ipc_types::Web_WheelDeltaPrecision as WheelDeltaPrecision;
 pub use crate::ipc_types::Web_WheelGestureMark as WheelGestureMark;
+pub use crate::visual_context::CompositorScrollNodeKind;
 pub use async_scroll_tree::*;
 pub use async_scrolling_state::*;
 pub use display_list::{AsyncScrollingMetadata, DisplayList};

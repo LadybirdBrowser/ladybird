@@ -20,7 +20,6 @@ use crate::visual_context::{
     VisualContextTree,
 };
 use libgfx_rust::{Color, CornerRadii, FloatPoint, FloatRect, IntRect};
-use std::io::Write;
 
 pub type AsyncScrollOperationID = u64;
 
@@ -326,23 +325,19 @@ pub fn async_scrolling_state_from(
         async_scrolling_state.device_pixels_per_css_pixel = metadata.device_pixels_per_css_pixel;
     }
     let scroll_table = visual_context_tree.compositor_scroll_table();
-    // Fall back to commands until WebContent fills the tree's compositor scroll table.
-    let use_scroll_table = !scroll_table.nodes.is_empty();
-    if use_scroll_table {
-        async_scrolling_state
-            .scroll_nodes
-            .extend(scroll_table.nodes.iter().map(async_scroll_node_from));
-        for container in scroll_table.snap_containers.iter() {
-            let Some(mut snap_container) = async_snap_container_from(container) else {
-                continue;
-            };
-            let first_area_index = container.first_area_index as usize;
-            let areas = &scroll_table.snap_areas[first_area_index..first_area_index + container.area_count as usize];
-            snap_container
-                .areas
-                .extend(areas.iter().filter_map(snap_area_geometry_from));
-            async_scrolling_state.snap_containers.push(snap_container);
-        }
+    async_scrolling_state
+        .scroll_nodes
+        .extend(scroll_table.nodes.iter().map(async_scroll_node_from));
+    for container in scroll_table.snap_containers.iter() {
+        let Some(mut snap_container) = async_snap_container_from(container) else {
+            continue;
+        };
+        let first_area_index = container.first_area_index as usize;
+        let areas = &scroll_table.snap_areas[first_area_index..first_area_index + container.area_count as usize];
+        snap_container
+            .areas
+            .extend(areas.iter().filter_map(snap_area_geometry_from));
+        async_scrolling_state.snap_containers.push(snap_container);
     }
     display_list.for_each_compositor_metadata(|context, command_type, payload| {
         let mut append_wheel_hit_test_target = |target_scroll_node_index: SpatialNodeIndex, rect, corner_radii| {
@@ -370,36 +365,6 @@ pub fn async_scrolling_state_from(
                         context,
                         rect: command.rect,
                     });
-            }
-            DisplayListCommandType::CompositorScrollNode => {
-                if use_scroll_table {
-                    return;
-                }
-                let command = read_command::<CompositorScrollNode>(payload);
-                let parent_scroll_node_index = if command.parent_scroll_node_index.0 != 0 {
-                    Some(command.parent_scroll_node_index)
-                } else {
-                    None
-                };
-                async_scrolling_state.scroll_nodes.push(AsyncScrollNode {
-                    scroll_node_index: command.scroll_node_index,
-                    stable_node_id: stable_scroll_node_id_for(
-                        command.scrollable_node_id,
-                        command.scroll_node_kind,
-                        command.pseudo_element_type,
-                    ),
-                    parent_scroll_node_index,
-                    scrollport_rect: command.scrollport_rect,
-                    min_scroll_offset: command.min_scroll_offset,
-                    max_scroll_offset: command.max_scroll_offset,
-                    is_viewport: command.is_viewport,
-                    can_be_wheel_scrolled_horizontally: command.can_be_wheel_scrolled_horizontally,
-                    can_be_wheel_scrolled_vertically: command.can_be_wheel_scrolled_vertically,
-                    chains_scroll_to_ancestors_horizontally: command.chains_scroll_to_ancestors_horizontally,
-                    chains_scroll_to_ancestors_vertically: command.chains_scroll_to_ancestors_vertically,
-                    shows_overscroll_effect_horizontally: command.shows_overscroll_effect_horizontally,
-                    shows_overscroll_effect_vertically: command.shows_overscroll_effect_vertically,
-                });
             }
             DisplayListCommandType::CompositorWheelHitTestTarget => {
                 let command = read_command::<CompositorWheelHitTestTarget>(payload);
@@ -454,63 +419,6 @@ pub fn async_scrolling_state_from(
                     is_painted_by_compositor: command.is_painted_by_compositor,
                 });
                 next_paint_order_index = next_paint_order_index.wrapping_add(1);
-            }
-            DisplayListCommandType::CompositorSnapContainer => {
-                if use_scroll_table {
-                    return;
-                }
-                let command = read_command::<CompositorSnapContainer>(payload);
-                let Some(strictness) = snap_strictness_from(command.strictness) else {
-                    return;
-                };
-                async_scrolling_state.snap_containers.push(AsyncSnapContainer {
-                    scroll_node_index: command.scroll_node_index,
-                    geometry: SnapContainerGeometry {
-                        snapport: command.snapport.into(),
-                        min_scroll_offset: command.min_scroll_offset.into(),
-                        max_scroll_offset: command.max_scroll_offset.into(),
-                        strictness,
-                        axes: SnapAxes {
-                            x: command.snaps_x,
-                            y: command.snaps_y,
-                        },
-                        horizontal_writing_mode: command.horizontal_writing_mode,
-                    },
-                    areas: Vec::new(),
-                });
-            }
-            DisplayListCommandType::CompositorSnapArea => {
-                if use_scroll_table {
-                    return;
-                }
-                let command = read_command::<CompositorSnapArea>(payload);
-                let snap_containers = &mut async_scrolling_state.snap_containers;
-                // A snap container's areas are recorded right after it.
-                let Some(container) = snap_containers
-                    .last_mut()
-                    .filter(|c| c.scroll_node_index == command.scroll_node_index)
-                else {
-                    let _ = writeln!(
-                        std::io::stderr(),
-                        "Ignoring a snap area recorded without its snap container"
-                    );
-                    return;
-                };
-                let (Some(align_x), Some(align_y)) =
-                    (snap_align_from(command.align_x), snap_align_from(command.align_y))
-                else {
-                    return;
-                };
-                container.areas.push(SnapAreaGeometry {
-                    identity: SnapAreaIdentity {
-                        node_id: command.area_node_id,
-                        pseudo_element_type: command.pseudo_element_type,
-                    },
-                    rect: command.rect.into(),
-                    align_x,
-                    align_y,
-                    always_stop: command.always_stop,
-                });
             }
             _ => {}
         }

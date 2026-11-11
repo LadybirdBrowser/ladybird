@@ -138,15 +138,12 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::BackdropFilterRegion
         | T::DrawRect
         | T::DeclareMaskContent
-        | T::CompositorScrollNode
         | T::CompositorWheelHitTestTarget
         | T::CompositorWheelHitTestTargetWithCornerRadii
         | T::CompositorMainThreadWheelEventRegion
         | T::CompositorScrollbar
         | T::CompositorBlockingWheelEventRegion
         | T::PaintScrollBar
-        | T::CompositorSnapContainer
-        | T::CompositorSnapArea
         | T::CompositorNestedContextWheelRegion
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath
@@ -291,15 +288,12 @@ fn command_blend(
         | T::DrawRect
         | T::PaintNestedDisplayList
         | T::DeclareMaskContent
-        | T::CompositorScrollNode
         | T::CompositorWheelHitTestTarget
         | T::CompositorWheelHitTestTargetWithCornerRadii
         | T::CompositorMainThreadWheelEventRegion
         | T::CompositorScrollbar
         | T::CompositorBlockingWheelEventRegion
         | T::PaintScrollBar
-        | T::CompositorSnapContainer
-        | T::CompositorSnapArea
         | T::CompositorNestedContextWheelRegion
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath

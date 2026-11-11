@@ -30,7 +30,6 @@ pub use scroll_table::{
     CompositorScrollNodeKind, CompositorScrollNodeRecord, CompositorScrollTable, CompositorSnapAreaRecord,
     CompositorSnapContainerRecord,
 };
-pub(crate) use scroll_table::{SNAP_ALIGN_COUNT, SNAP_STRICTNESS_COUNT};
 pub use world_transforms::WorldTransforms;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

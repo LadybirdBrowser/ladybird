@@ -628,15 +628,6 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "rect", command.rect);
             write!(output, " effect=e{}", command.effect.0).unwrap();
         }
-        DisplayListCommandType::CompositorScrollNode => {
-            let command = read_command::<CompositorScrollNode>(payload);
-            write_field(output, "scroll_node_index", command.scroll_node_index);
-            write_field(output, "parent_scroll_node_index", command.parent_scroll_node_index);
-            write_field(output, "scrollport_rect", command.scrollport_rect);
-            write_field(output, "min_scroll_offset", command.min_scroll_offset);
-            write_field(output, "max_scroll_offset", command.max_scroll_offset);
-            write!(output, " is_viewport={}", command.is_viewport).unwrap();
-        }
         DisplayListCommandType::CompositorBlockingWheelEventRegion => {
             let command = read_command::<CompositorBlockingWheelEventRegion>(payload);
             write_field(output, "rect", command.rect);
@@ -688,31 +679,6 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             .unwrap();
         }
         DisplayListCommandType::PaintScrollBar => {}
-        DisplayListCommandType::CompositorSnapContainer => {
-            let command = read_command::<CompositorSnapContainer>(payload);
-            write_field(output, "scroll_node_index", command.scroll_node_index);
-            write_field(output, "snapport", command.snapport);
-            write_field(output, "min_scroll_offset", command.min_scroll_offset);
-            write_field(output, "max_scroll_offset", command.max_scroll_offset);
-            write!(
-                output,
-                " strictness={} snaps_x={} snaps_y={} horizontal_writing_mode={}",
-                command.strictness, command.snaps_x, command.snaps_y, command.horizontal_writing_mode
-            )
-            .unwrap();
-        }
-        DisplayListCommandType::CompositorSnapArea => {
-            let command = read_command::<CompositorSnapArea>(payload);
-            write_field(output, "scroll_node_index", command.scroll_node_index);
-            write!(output, " pseudo_element_type={}", command.pseudo_element_type).unwrap();
-            write_field(output, "rect", command.rect);
-            write!(
-                output,
-                " align_x={} align_y={} always_stop={}",
-                command.align_x, command.align_y, command.always_stop
-            )
-            .unwrap();
-        }
         // The display list of a page holds none of the commands of the canvas 2D stream.
         DisplayListCommandType::Canvas2DFillPath
         | DisplayListCommandType::Canvas2DStrokePath
