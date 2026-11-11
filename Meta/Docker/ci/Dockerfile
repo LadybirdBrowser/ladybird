@@ -62,5 +62,4 @@ RUN apt-get update -o APT::Update::Error-Mode=any \
     && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 100 \
     && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 100 \
     && npm install -g prettier@3.8.1 \
-    && rustup component add rustfmt clippy \
     && rm -rf /opt/rustup/downloads /opt/rustup/tmp /opt/cargo/registry /tmp/ladybird /var/lib/apt/lists/*
