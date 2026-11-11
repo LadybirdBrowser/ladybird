@@ -46,6 +46,8 @@ public:
 
     bool is_dragging_bookmark() const { return !m_dragged_item_id.isEmpty(); }
 
+    QMenu* overflow_menu() const;
+
 private:
     virtual bool eventFilter(QObject* object, QEvent* event) override;
     virtual void paintEvent(QPaintEvent*) override;
@@ -66,11 +68,15 @@ private:
     void show_drop_target(DropTarget const&);
     void hide_drop_target();
 
+    int set_up_bookmark_button(QToolButton&, QString const& title);
+    QPixmap bookmark_button_image(QIcon const&, QString const& title);
+
     void cancel_press();
     bool is_past_drag_distance(QMouseEvent const&) const;
     void start_drag();
     bool handle_drag_event(QObject const&, QEvent&);
     void update_drag(QPoint global_position);
+    QMenu* drag_menu_at(QPoint global_position) const;
     void drop_dragged_item(QPoint global_position);
     void stop_drag();
 
@@ -93,9 +99,12 @@ private:
 
     QPointer<QToolButton> m_overflow_button;
     QPointer<QToolButton> m_pressed_button;
+    QPointer<QMenu> m_pressed_menu;
+    QPointer<QAction> m_pressed_menu_action;
     QPoint m_press_position;
     QString m_dragged_item_id;
     QPointer<QToolButton> m_dragged_button;
+    QPointer<QMenu> m_drag_source_menu;
     QWidget* m_drag_card { nullptr };
     int m_drag_card_pointer_offset { 0 };
     DropTarget m_drop_target;
