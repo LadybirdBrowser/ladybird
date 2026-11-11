@@ -27,6 +27,7 @@
 #if defined(AK_OS_MACOS)
 #    include <AK/LexicalPath.h>
 #    include <AK/StringBuilder.h>
+#    include <LibCore/IOSurface.h>
 #    include <LibCore/StatsLog.h>
 #    include <errno.h>
 #    include <limits.h>
@@ -762,6 +763,11 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     TRY(append_allowed_mach_services(profile, options));
 
     auto profile_string = profile.to_byte_string();
+
+    // IOSurface loads Launch Services preferences on first use. Do this before sandboxing, since a denied read
+    // makes Launch Services log errors whose formatting produces CoreFoundation warnings about URLs without schemes.
+    if (has_flag(options.system_services, SystemService::IOSurface))
+        Core::IOSurfaceHandle::initialize();
 
     char* errorbuf = nullptr;
 #    pragma clang diagnostic push
