@@ -63,6 +63,11 @@
                 width: 50%;
             }
 
+            .config-row > input[type="number"] {
+                max-width: 256px;
+                flex-shrink: 0;
+            }
+
             .inline-container input[type="checkbox"] {
                 flex-shrink: 0;
             }
@@ -1385,33 +1390,6 @@
             </div>
 
             <div class="tab-panel" id="tab-advanced" data-title="Advanced">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="card-group">
-                            <div class="inline-container">
-                                <div>
-                                    <label for="browsing-data-settings-max-disk-cache-size">
-                                        Maximum disk cache size
-                                        <p class="description">Limit the space used for the HTTP disk cache.</p>
-                                    </label>
-                                </div>
-                                <div class="input-field-container">
-                                    <input
-                                        id="browsing-data-settings-max-disk-cache-size"
-                                        type="number"
-                                        min="1"
-                                        style="width: 150px"
-                                    />
-                                    <select id="browsing-data-settings-max-disk-cache-unit" style="width: 80px">
-                                        <option value="MiB">MiB</option>
-                                        <option value="GiB">GiB</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <h3 class="card-title">DNS</h3>
                 <div class="card">
                     <div class="card-body">

@@ -135,11 +135,6 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         Application::the().languages_changed({});
     }
 
-    virtual void browsing_data_settings_changed() override
-    {
-        Application::request_server_manager().disk_cache_settings_changed();
-    }
-
     virtual void dns_settings_changed() override
     {
         Application::request_server_manager().dns_settings_changed();
@@ -158,6 +153,12 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void permission_settings_changed(Web::Permissions::PermissionName) override
     {
         Application::the().permission_settings_changed({});
+    }
+
+    virtual void config_variable_changed(ConfigVariableID id) override
+    {
+        if (id == ConfigVariableID::MaximumDiskCacheSize)
+            Application::request_server_manager().disk_cache_settings_changed();
     }
 };
 
