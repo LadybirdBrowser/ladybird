@@ -798,7 +798,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         stop_updating_selection();
 
         if (middle_button_autoscrolled && button == UIEvents::MouseButton::Middle)
-            m_middle_button_scroll_handler = nullptr;
+            stop_middle_button_scroll();
     });
 
     if (should_ignore_device_input_event()) {
@@ -2071,7 +2071,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (key == UIEvents::KeyCode::Key_Escape) {
         // NB: Exit autoscroll if active before handling other close requests.
         if (m_middle_button_scroll_handler) {
-            m_middle_button_scroll_handler = nullptr;
+            stop_middle_button_scroll();
             return EventResult::Handled;
         }
 
@@ -3547,7 +3547,7 @@ static bool is_inside_button(GC::Ptr<DOM::Node const> node)
 void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
     if (m_middle_button_scroll_handler) {
-        m_middle_button_scroll_handler = nullptr;
+        stop_middle_button_scroll();
         return;
     }
 
@@ -6048,6 +6048,14 @@ bool EventHandler::has_committed_root_box() const
     return document && document->has_committed_viewport_box();
 }
 
+void EventHandler::stop_middle_button_scroll()
+{
+    if (!m_middle_button_scroll_handler)
+        return;
+    m_middle_button_scroll_handler->request_indicator_repaint();
+    m_middle_button_scroll_handler = nullptr;
+}
+
 void EventHandler::release_held_scroll_key()
 {
     m_held_scroll_key.clear();
@@ -6059,8 +6067,8 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     clear_mousedown_tracking();
     stop_updating_selection();
     release_held_scroll_key();
+    stop_middle_button_scroll();
 
-    m_middle_button_scroll_handler = nullptr;
     m_mouse_pointer.prevent_mouse_event = false;
     m_additional_pointers.clear();
     m_captured_chrome_widget = nullptr;

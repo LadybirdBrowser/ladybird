@@ -27,6 +27,7 @@ public:
 
     void update_mouse_position(CSSPixelPoint position) { m_mouse_position = position; }
     void perform_tick();
+    void request_indicator_repaint();
 
     CSSPixelPoint origin() const { return m_origin; }
     bool mouse_has_moved_beyond_dead_zone() const { return m_mouse_has_moved_beyond_dead_zone; }
