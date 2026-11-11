@@ -345,6 +345,19 @@ TEST_CASE(sandbox_debugging_logs_each_refused_path_once)
     (void)rmdir(base.characters());
 }
 
+TEST_CASE(sandbox_debugging_logs_what_the_file_system_filter_refuses)
+{
+    auto output = stderr_of_debugged_child([&] {
+        confine({});
+
+        // The policy allows links, but the file system filter refuses them.
+        check(1, link("/", "/") < 0 && errno == EPERM);
+    });
+
+    EXPECT(output.contains("Sandbox refusal in "sv));
+    EXPECT(output.contains(": errno 1 for syscall link"sv));
+}
+
 TEST_CASE(the_broker_does_not_follow_a_link_out_of_a_writable_directory)
 {
     char base_template[] = "/tmp/lb-file-broker-XXXXXX";
