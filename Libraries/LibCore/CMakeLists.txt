@@ -115,8 +115,10 @@ ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCore PRIVATE Threads::Threads LibUnicode LibTextCodec mimalloc)
 
 # Development builds are in no stage of development, and leave it out of their product name.
+set(browser_is_release_build 0)
 set(browser_is_final_release 0)
 if (NOT LADYBIRD_VERSION STREQUAL "")
+    set(browser_is_release_build 1)
     set(browser_release_stage "${LADYBIRD_RELEASE_STAGE}")
     if (browser_release_stage STREQUAL "")
         set(browser_is_final_release 1)
