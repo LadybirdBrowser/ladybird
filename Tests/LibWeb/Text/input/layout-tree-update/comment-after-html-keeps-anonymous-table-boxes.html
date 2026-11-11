@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div style="display: table"><div id="cell" style="display: table-cell; padding: 10px">one</div><div style="display: table-cell; padding: 10px">two</div></div>
+<div id="lone-cell" style="display: table-cell">lone</div>
+<div style="float: left"><div style="display: table-row"><div id="row-cell" style="display: table-cell; padding: 10px">cell</div></div></div>
+<script src="../include.js"></script>
+<script>
+    const size = id => {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    };
+    const cases = [
+        ["cell in a table", "cell"],
+        ["lone cell", "lone-cell"],
+        ["cell in a row in a float", "row-cell"],
+    ];
+
+    promiseTest(async () => {
+        const before = cases.map(([, id]) => size(id));
+        document.appendChild(document.createComment("after html"));
+        await animationFrame();
+        cases.forEach(([name, id], index) => {
+            const after = size(id);
+            println(`${name}: ${after === before[index] ? "unchanged" : `${before[index]} became ${after}`}`);
+        });
+    });
+</script>
