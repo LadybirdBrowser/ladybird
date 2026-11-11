@@ -48,6 +48,7 @@ pub unsafe extern "C" fn layout_script_client_rects(
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     read_rows(host, |arena| {
         crate::painting::client_rects::for_each_client_rect(arena, layout_node, &viewport_mapping.mapping(), |rect| {
             // SAFETY: The consumer copies the plain-data rect synchronously.
@@ -63,6 +64,7 @@ pub extern "C" fn layout_script_bounding_client_rect(
     viewport_mapping: FfiViewportMapping<'_>,
     out: &mut FfiCssPixelRect,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     *out = read_rows(host, |arena| {
         crate::painting::client_rects::bounding_client_rect(arena, layout_node, &viewport_mapping.mapping()).into()
     });
@@ -75,6 +77,7 @@ pub extern "C" fn layout_script_transform_subtree_is_clipped_outside(
     root_bounds: FfiCssPixelRect,
     viewport_mapping: FfiViewportMapping<'_>,
 ) -> bool {
+    let viewport_mapping = viewport_mapping.resolve();
     read_rows(host, |arena| {
         crate::painting::intersection_observer::transform_subtree_is_clipped_outside(
             arena,
@@ -103,6 +106,7 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     ) -> FfiCssPixelRect,
     out: &mut FfiCssPixelRect,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     *out = read_rows(host, |arena| {
         crate::painting::intersection_observer::intersection_rect(
             arena,
@@ -151,6 +155,7 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     read_rows(host, |arena| {
         let paintable_rows = arena;
         let viewport_mapping = viewport_mapping.mapping();
@@ -368,6 +373,7 @@ pub extern "C" fn layout_script_caret(
     viewport_mapping: FfiViewportMapping<'_>,
     out: &mut FfiCaret,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     *out = read_rows(host, |arena| {
         let cursor = InlineCursor::new(arena);
         let Some(caret) = position
@@ -469,6 +475,7 @@ pub extern "C" fn layout_script_accumulated_sticky_offset(
     viewport_mapping: FfiViewportMapping<'_>,
     out: &mut FfiCssPixelPoint,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     *out = read_rows(host, |arena| viewport_mapping.mapping().sticky_offset(arena, slot)).into();
 }
 
@@ -480,6 +487,7 @@ pub extern "C" fn layout_script_offset_to_viewport_ignoring_transforms(
     viewport_mapping: FfiViewportMapping<'_>,
     out: &mut FfiCssPixelPoint,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     *out = read_rows(host, |arena| {
         viewport_mapping
             .mapping()

@@ -79,6 +79,31 @@ impl Default for ScrollStateSnapshot {
 }
 
 impl ScrollStateSnapshot {
+    pub fn from_device_offsets(device_offsets: Vec<FloatPoint>) -> Self {
+        Self {
+            device_offsets,
+            ..Self::default()
+        }
+    }
+
+    // The wire form, for C++ to carry to where Rust decodes it again.
+    pub fn to_encoded_bytes(&self) -> Vec<u8> {
+        let mut encoder = Encoder::new();
+        encoder.encode(self).expect("a scroll state snapshot encodes");
+        encoder.finish().0
+    }
+
+    pub fn from_encoded_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
+        let mut decoder = Decoder::new(bytes, []);
+        let snapshot = decoder.decode()?;
+        if !decoder.is_at_end() {
+            return Err(DecodeError::InvalidValue(
+                "bytes after an encoded scroll state snapshot",
+            ));
+        }
+        Ok(snapshot)
+    }
+
     pub fn device_offsets(&self) -> &[FloatPoint] {
         &self.device_offsets
     }
@@ -191,5 +216,86 @@ impl Decode for ScrollStateSnapshot {
             });
         }
         Ok(snapshot)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // An index far above any real node count, but still inside the range the decoder accepts. Densifying it would
+    // allocate (index + 1) * size_of::<FloatPoint>(), i.e. 512 MiB: the allocation the node-count bound exists to stop.
+    const MALICIOUS_INDEX: u32 = 0x0400_0000;
+
+    fn decode_snapshot(pairs: &[(u64, FloatPoint)]) -> ScrollStateSnapshot {
+        let mut encoder = Encoder::new();
+        encoder.encode(&(pairs.len() as u64)).unwrap();
+        for (index, offset) in pairs {
+            encoder.encode(index).unwrap();
+            encoder.encode(offset).unwrap();
+        }
+        ScrollStateSnapshot::from_encoded_bytes(&encoder.finish().0).unwrap()
+    }
+
+    #[test]
+    fn binding_to_node_count_keeps_in_range_and_drops_out_of_range() {
+        // A single 16-byte wire pair can claim any node index the decoder accepts. The decoder stages the pair instead
+        // of densifying, so decoding cannot abort or over-allocate. The index is validated only once the compositor
+        // supplies the node count, which drops it.
+        let mut snapshot = decode_snapshot(&[
+            (3, FloatPoint { x: 10.0, y: 20.0 }),
+            (MALICIOUS_INDEX.into(), FloatPoint { x: 30.0, y: 40.0 }),
+        ]);
+
+        snapshot.set_node_count(8);
+
+        assert_eq!(
+            snapshot.device_offset_for_index(SpatialNodeIndex(3)),
+            FloatPoint { x: 10.0, y: 20.0 }
+        );
+        assert_eq!(
+            snapshot.device_offset_for_index(SpatialNodeIndex(MALICIOUS_INDEX)),
+            FloatPoint::default()
+        );
+        assert!(snapshot.device_offsets().len() <= 8);
+    }
+
+    #[test]
+    fn set_device_offset_ignores_index_at_or_past_node_count() {
+        let mut snapshot = ScrollStateSnapshot::default();
+        snapshot.set_node_count(4);
+
+        snapshot.set_device_offset_for_index(SpatialNodeIndex(3), FloatPoint { x: 5.0, y: 6.0 });
+        snapshot.set_device_offset_for_index(SpatialNodeIndex(4), FloatPoint { x: 7.0, y: 8.0 });
+        snapshot.set_device_offset_for_index(SpatialNodeIndex(MALICIOUS_INDEX), FloatPoint { x: 9.0, y: 9.0 });
+
+        assert_eq!(
+            snapshot.device_offset_for_index(SpatialNodeIndex(3)),
+            FloatPoint { x: 5.0, y: 6.0 }
+        );
+        assert_eq!(
+            snapshot.device_offset_for_index(SpatialNodeIndex(4)),
+            FloatPoint::default()
+        );
+        assert!(snapshot.device_offsets().len() <= 4);
+    }
+
+    #[test]
+    fn wire_round_trip_preserves_scroll_offsets() {
+        let mut snapshot = ScrollStateSnapshot::default();
+        snapshot.set_device_offset_for_index(SpatialNodeIndex(3), FloatPoint { x: 10.0, y: 20.0 });
+
+        let mut decoded = ScrollStateSnapshot::from_encoded_bytes(&snapshot.to_encoded_bytes()).unwrap();
+        decoded.set_node_count(8);
+
+        assert_eq!(
+            decoded.device_offset_for_index(SpatialNodeIndex(3)),
+            FloatPoint { x: 10.0, y: 20.0 }
+        );
+        // Indices that were never set are holes that decode back to zero offsets.
+        assert_eq!(
+            decoded.device_offset_for_index(SpatialNodeIndex(1)),
+            FloatPoint::default()
+        );
     }
 }

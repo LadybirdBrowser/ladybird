@@ -9,13 +9,27 @@ use crate::layout::used_values;
 use crate::painting::display_list::commands::ContextRef;
 use std::ffi::c_void;
 
+/// What the host gives a query of its document's hit test list. The query finds the document scrolled where the scroll
+/// state the host keeps has it.
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct FfiHitTestQuery {
+    pub device_pixels_per_css_pixel: f64,
+    pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
+    /// Where set, the query reads the compositor's animations at this time, as a frame of the compositor's shows them.
+    pub has_visual_animation_sample_time: bool,
+    pub visual_animation_sample_time_ns: i64,
+}
+
+/// What a query of a hit test list reads besides the list, as an entry point put it together.
+#[derive(Clone, Copy)]
 pub struct FfiHitTestQueryCallbacks {
     pub device_pixels_per_css_pixel: f64,
-    pub scroll_offsets: *const libgfx_rust::FloatPoint,
-    pub scroll_offsets_len: usize,
-    /// Private: the world transforms a Rust entry point builds for the query, from the tree it reads and the offsets.
+    /// Where the query finds the document scrolled to: the scroll state the host keeps, or the offsets a clock lane
+    /// sealed.
+    scroll_offsets: *const libgfx_rust::FloatPoint,
+    scroll_offsets_len: usize,
+    /// The world transforms an entry point builds for the query, from the tree it reads and the offsets.
     world_transforms: *const c_void,
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
@@ -41,6 +55,21 @@ impl FfiHitTestQueryCallbacks {
             chrome_metrics,
             has_visual_animation_sample_time: false,
             visual_animation_sample_time_ns: 0,
+        }
+    }
+
+    /// Callbacks for `query`, a query of the host's, which finds the document scrolled to `scroll_offsets`. The entry
+    /// point keeps the offsets for the query.
+    pub(crate) fn for_host_query(query: &FfiHitTestQuery, scroll_offsets: &[libgfx_rust::FloatPoint]) -> Self {
+        Self {
+            device_pixels_per_css_pixel: query.device_pixels_per_css_pixel,
+            scroll_offsets: scroll_offsets.as_ptr(),
+            scroll_offsets_len: scroll_offsets.len(),
+            world_transforms: std::ptr::null(),
+            has_chrome_metrics: true,
+            chrome_metrics: query.chrome_metrics,
+            has_visual_animation_sample_time: query.has_visual_animation_sample_time,
+            visual_animation_sample_time_ns: query.visual_animation_sample_time_ns,
         }
     }
 
@@ -83,14 +112,18 @@ impl FfiHitTestQueryCallbacks {
             "the query's entry point builds its world transforms"
         );
         // SAFETY: The entry point keeps the table alive for the synchronous query.
-        unsafe { libcompositing_rust::ffi::world_transforms_from_handle(self.world_transforms) }
+        unsafe {
+            &*self
+                .world_transforms
+                .cast::<crate::painting::visual_context::WorldTransforms>()
+        }
     }
 
     pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
         if self.scroll_offsets.is_null() {
             return &[];
         }
-        // SAFETY: QueryContext keeps the document and its resolved scroll snapshot alive for the synchronous query.
+        // SAFETY: The entry point keeps the offsets alive for the synchronous query.
         unsafe { ak::slice_from_raw_parts(self.scroll_offsets, self.scroll_offsets_len) }
     }
 }

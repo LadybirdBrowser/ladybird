@@ -8489,11 +8489,6 @@ Compositing::AccumulatedVisualContextTree Document::visual_context_tree() const
     return paint_state().visual_context_tree(*this);
 }
 
-Compositing::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
-{
-    return paint_state().scroll_state_snapshot();
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
 void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry)
 {
@@ -12317,7 +12312,6 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
 
     return Painting::HitTestQuery {
         *m_hit_test_display_list,
-        scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
         visual_animation_sample_time_nanoseconds,

@@ -34,9 +34,6 @@ use std::sync::Arc;
 #[repr(C)]
 pub struct FfiHoverPlanInputs {
     pub device_pixels_per_css_pixel: f64,
-    /// The scroll offsets of the frame the rendering update presented, in device pixels, by scroll frame.
-    pub scroll_offsets: *const libgfx_rust::FloatPoint,
-    pub scroll_offset_count: usize,
     pub chrome_metrics: FfiChromeMetrics,
     /// The cursor of the document's page, which the hover asks to show the cursor of what it hovers.
     pub page_cursor: FfiPageCursor,
@@ -241,20 +238,15 @@ pub(crate) struct HoverPlan {
 }
 
 impl HoverPlan {
-    /// The plan `inputs` describes.
+    /// The plan `inputs` describes, with `scroll_offsets`, the scroll offsets of the frame the rendering update
+    /// presented, in device pixels, by scroll frame.
     ///
     /// # Safety
     ///
-    /// `inputs.scroll_offsets` must point at `inputs.scroll_offset_count` offsets, or be null, the effect timing
-    /// arrays at `inputs.effect_timing_count` entries each, or be null, `inputs.page_cursor` must name a live page
-    /// cursor, or none, and `inputs.link_reporter` a live link reporter, or none.
-    pub(crate) unsafe fn from_ffi(inputs: &FfiHoverPlanInputs) -> Self {
-        let scroll_offsets = if inputs.scroll_offsets.is_null() {
-            Vec::new()
-        } else {
-            // SAFETY: Guaranteed by the caller.
-            unsafe { ak::slice_from_raw_parts(inputs.scroll_offsets, inputs.scroll_offset_count) }.to_vec()
-        };
+    /// The effect timing arrays of `inputs` must point at `inputs.effect_timing_count` entries each, or be null,
+    /// `inputs.page_cursor` must name a live page cursor, or none, and `inputs.link_reporter` a live link reporter, or
+    /// none.
+    pub(crate) unsafe fn from_ffi(inputs: &FfiHoverPlanInputs, scroll_offsets: Vec<FloatPoint>) -> Self {
         let effect_timings = if inputs.effect_timing_count == 0 {
             Vec::new()
         } else {

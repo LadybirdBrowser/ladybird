@@ -290,7 +290,7 @@ static bool display_list_timing_enabled()
     return enabled;
 }
 
-void ConnectionFromWebContent::update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, IPC::Encoded<Compositing::ScrollStateSnapshot> scroll_state_snapshot)
+void ConnectionFromWebContent::update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto display_list = Compositing::DisplayList::create_from_shared_buffer(move(display_list_properties), move(display_list_buffer), tape_size, run_count);
@@ -302,7 +302,7 @@ void ConnectionFromWebContent::update_display_list(Web::CompositorContextId cont
     auto adopt_time = timer.elapsed_time();
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    if (!m_compositor_state->update_display_list(context_id, display_list.release_value(), async_scrolling_metadata, move(visual_context_tree), move(resource_transaction), scroll_state_snapshot)) {
+    if (!m_compositor_state->update_display_list(context_id, display_list.release_value(), async_scrolling_metadata, move(visual_context_tree), move(resource_transaction), scroll_state.bytes())) {
         did_misbehave("WebContent published a display list with scrolling state the compositor cannot use");
         return;
     }

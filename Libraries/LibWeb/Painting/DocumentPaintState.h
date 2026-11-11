@@ -6,15 +6,16 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
 
 namespace Web::Painting {
@@ -37,6 +38,10 @@ public:
     // Called from Document::update_paint_and_hit_testing_properties_if_needed() once the visual
     // context tree is settled; every other consumer reaches the scroll state through that update.
     void refresh_scroll_state(Layout::BegunRead const& read, DOM::Document&);
+    // The mapping reads the tree and the scroll state where it is used, so the tree has to outlive it.
+    Layout::RustFFI::FfiViewportMapping viewport_mapping(Compositing::AccumulatedVisualContextTree const&, double device_pixels_per_css_pixel) const;
+    // Only the scroll logic of the compositor, which is Rust, decodes it.
+    ByteBuffer encoded_scroll_state() const;
     void did_update_visual_context_values() { m_visual_context_tree_needs_compositor_update = true; }
 
     void update_accumulated_visual_contexts(Layout::BegunRead const& read, DOM::Document&);
@@ -69,8 +74,6 @@ public:
     void recompute_custom_highlight_states(Layout::BegunRead const& read, DOM::Document&, CSS::HighlightRegistry&);
     void reset_custom_highlight_states();
 
-    Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
-
     void set_boxes_with_auto_content_visibility(Vector<Compositing::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
     Vector<Compositing::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
@@ -94,8 +97,6 @@ private:
     void ensure_visual_context_tree(DOM::Document const&) const;
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
-
-    Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
 
     Vector<Compositing::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 

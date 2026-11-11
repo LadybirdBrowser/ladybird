@@ -123,10 +123,10 @@ void CompositorCore::set_scroll_capabilities(Web::CompositorContextId context_id
     RustFFI::compositor_core_set_scroll_capabilities(m_core, context_id.value(), capabilities);
 }
 
-bool CompositorCore::install_display_list_update(Web::CompositorContextId context_id, Compositing::DisplayList const& display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree const& visual_context_tree, IPC::Encoded<Compositing::ScrollStateSnapshot> const& scroll_state_snapshot, MonotonicTime now)
+bool CompositorCore::install_display_list_update(Web::CompositorContextId context_id, Compositing::DisplayList const& display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, MonotonicTime now)
 {
     auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
-    return RustFFI::compositor_core_install_display_list_update(m_core, context_id.value(), &display_list_for_scroll_logic, visual_context_tree.rust_handle(), scroll_state_snapshot.bytes(), now.nanoseconds());
+    return RustFFI::compositor_core_install_display_list_update(m_core, context_id.value(), &display_list_for_scroll_logic, visual_context_tree.rust_handle(), encoded_scroll_state, now.nanoseconds());
 }
 
 bool CompositorCore::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, MonotonicTime now)
@@ -139,36 +139,19 @@ bool CompositorCore::needs_animation_frames(Web::CompositorContextId context_id,
     return RustFFI::compositor_core_needs_animation_frames(m_core, context_id.value(), now.nanoseconds());
 }
 
-static void receive_frame_inputs(void* receiver, RustFFI::FfiFrameInputs const* lent)
-{
-    Compositing::ScrollStateSnapshot presented_scroll_state_snapshot;
-    presented_scroll_state_snapshot.assign_device_offsets(lent->presented_device_offsets);
-    Vector<ScrollbarOfFrame> scrollbars;
-    scrollbars.append(lent->scrollbars.data(), lent->scrollbars.size());
-    Optional<Compositing::SpatialNodeIndex> viewport_scroll_node_index;
-    if (lent->has_viewport_scroll_node_index)
-        viewport_scroll_node_index = lent->viewport_scroll_node_index;
-    *static_cast<Optional<FrameInputs>*>(receiver) = FrameInputs {
-        .visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(lent->visual_context_tree),
-        .presented_scroll_state_snapshot = move(presented_scroll_state_snapshot),
-        .scrollbars = move(scrollbars),
-        .viewport_scroll_node_index = viewport_scroll_node_index,
-    };
-}
-
 Optional<FrameInputs> CompositorCore::frame_inputs(Web::CompositorContextId context_id, MonotonicTime now)
 {
-    Optional<FrameInputs> frame_inputs;
-    RustFFI::compositor_core_frame_inputs(m_core, context_id.value(), now.nanoseconds(), &frame_inputs, receive_frame_inputs);
-    return frame_inputs;
+    auto* frame_inputs = RustFFI::compositor_core_frame_inputs(m_core, context_id.value(), now.nanoseconds());
+    if (!frame_inputs)
+        return {};
+    return FrameInputs::adopt(frame_inputs);
 }
 
 CompositorCore::ScreenshotInputs CompositorCore::frame_inputs_for_screenshot(Web::CompositorContextId context_id, MonotonicTime now)
 {
-    Optional<FrameInputs> frame_inputs;
     Gfx::IntRect scrollbar_fade_damage_rect;
-    RustFFI::compositor_core_frame_inputs_for_screenshot(m_core, context_id.value(), now.nanoseconds(), &frame_inputs, receive_frame_inputs, &scrollbar_fade_damage_rect);
-    return { .frame_inputs = frame_inputs.release_value(), .scrollbar_fade_damage_rect = scrollbar_fade_damage_rect };
+    auto* frame_inputs = RustFFI::compositor_core_frame_inputs_for_screenshot(m_core, context_id.value(), now.nanoseconds(), &scrollbar_fade_damage_rect);
+    return { .frame_inputs = FrameInputs::adopt(frame_inputs), .scrollbar_fade_damage_rect = scrollbar_fade_damage_rect };
 }
 
 DisplayTickResult CompositorCore::display_tick(Web::CompositorContextId context_id, MonotonicTime frame_time, MonotonicTime now, DisplayTickInputs const& inputs)

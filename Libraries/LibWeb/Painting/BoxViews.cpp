@@ -498,7 +498,8 @@ Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& docume
 {
     if (!document.has_committed_viewport_box())
         return {};
-    // NB: The scroll state's world transforms retain the tree they were built from.
+    // NB: The document's tree outlives the handle made here: the render state holds it, and so does the scroll state,
+    //     whose world transforms retain the tree they were built from.
     return viewport_mapping(document, document.visual_context_tree());
 }
 
@@ -506,15 +507,7 @@ Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& docume
 {
     if (!document.has_committed_viewport_box())
         return {};
-    auto const& scroll_state = document.scroll_state_snapshot();
-    auto scroll_offsets = scroll_state.device_offsets();
-    return {
-        .visual_context_tree = visual_context_tree.rust_handle(),
-        .world_transforms = scroll_state.world_transforms(visual_context_tree),
-        .scroll_offsets = scroll_offsets.data(),
-        .scroll_offsets_len = scroll_offsets.size(),
-        .device_pixels_per_css_pixel = static_cast<float>(document.page().client().device_pixels_per_css_pixel()),
-    };
+    return document.paint_state().viewport_mapping(visual_context_tree, document.page().client().device_pixels_per_css_pixel());
 }
 
 // NB: Taking the document's visual context tree brings it up to date, which can compact it and move a box's visual
@@ -562,7 +555,7 @@ CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint sc
     if (!has_committed_box(node) || !document.has_committed_viewport_box())
         return scroll_offset;
     auto visual_context_tree = document.visual_context_tree();
-    if (!visual_context_tree.translations_snap_to_device_pixels(accumulated_visual_context(node).spatial, document.scroll_state_snapshot()))
+    if (!visual_context_tree.translations_snap_to_device_pixels(accumulated_visual_context(node).spatial))
         return scroll_offset;
     auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
     auto snap = [&](CSSPixels value) { return CSSPixels::nearest_value_for(round(value.to_double() * pixel_ratio) / pixel_ratio); };

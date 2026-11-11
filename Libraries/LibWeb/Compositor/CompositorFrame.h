@@ -7,12 +7,12 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ByteBuffer.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -22,7 +22,8 @@
 namespace Web::Compositor {
 
 // What a navigable hands its compositor context for one frame. The frame owns everything its messages carry, so it
-// can be handed to the compositor from any thread.
+// can be handed to the compositor from any thread. Only the scroll logic of the compositor, which is Rust, decodes the
+// scroll state.
 struct CompositorFrame {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -31,7 +32,7 @@ struct CompositorFrame {
         NonnullRefPtr<Compositing::DisplayList> display_list;
         Compositing::AccumulatedVisualContextTree visual_context_tree;
         Compositing::DisplayListResourceTransaction resource_transaction;
-        Compositing::ScrollStateSnapshot scroll_state_snapshot;
+        ByteBuffer encoded_scroll_state;
     };
 
     // A new visual context tree for the display list the compositor already has.
@@ -42,7 +43,7 @@ struct CompositorFrame {
 
     // The scroll state of the display list the compositor already has.
     struct ScrollStateUpdate {
-        Compositing::ScrollStateSnapshot scroll_state_snapshot;
+        ByteBuffer encoded_scroll_state;
         Compositing::KeyboardScrollState keyboard_scroll_state;
     };
 

@@ -26,6 +26,8 @@ namespace Web::Painting {
 DocumentPaintState::DocumentPaintState(Layout::NodeArena& layout_node_arena)
     : m_layout_node_arena(layout_node_arena)
 {
+    // The render state keeps the scroll state, and outlives the layout tree this paint state is for.
+    Layout::RustFFI::render_state_forget_scroll_state(m_layout_node_arena->host());
 }
 
 void DocumentPaintState::ensure_visual_context_tree(DOM::Document const& document) const
@@ -76,7 +78,7 @@ BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_ev
 
 void DocumentPaintState::viewport_row_was_reset()
 {
-    m_scroll_state_snapshot = {};
+    Layout::RustFFI::render_state_forget_scroll_state(m_layout_node_arena->host());
     m_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree_needs_compositor_update = false;
 }
@@ -139,16 +141,24 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
 
 void DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
 {
-    // The render state hands over a new snapshot only where something invalidated the one kept.
-    Layout::RustFFI::render_state_refresh_scroll_state(
-        m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel(),
-        this, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
-            auto& paint_state = *static_cast<DocumentPaintState*>(sink);
-            ReadonlySpan<Gfx::FloatPoint> device_offsets { offsets, count };
-            if (paint_state.m_scroll_state_snapshot.device_offsets() != device_offsets)
-                paint_state.m_scroll_state_changed = true;
-            paint_state.m_scroll_state_snapshot.assign_device_offsets(device_offsets);
-        });
+    if (Layout::RustFFI::render_state_refresh_scroll_state(m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel()))
+        m_scroll_state_changed = true;
+}
+
+Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(Compositing::AccumulatedVisualContextTree const& visual_context_tree, double device_pixels_per_css_pixel) const
+{
+    Layout::RustFFI::FfiViewportMapping mapping {};
+    Layout::RustFFI::render_state_viewport_mapping(m_layout_node_arena->host(), visual_context_tree.rust_handle(), static_cast<float>(device_pixels_per_css_pixel), &mapping);
+    return mapping;
+}
+
+ByteBuffer DocumentPaintState::encoded_scroll_state() const
+{
+    ByteBuffer bytes;
+    Layout::RustFFI::render_state_encode_scroll_state(m_layout_node_arena->host(), &bytes, [](void* sink, u8 const* data, size_t size) {
+        MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
+    });
+    return bytes;
 }
 
 void DocumentPaintState::reset_selection_states(Layout::BegunRead const& read, DOM::Document& document)

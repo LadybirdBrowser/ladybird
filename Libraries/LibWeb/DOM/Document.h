@@ -690,8 +690,6 @@ public:
 
     PaintTiming::DocumentPaintTimingState& paint_timing_state() { return m_paint_timing_state; }
 
-    Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const;
-
     GC::Ref<NodeList> get_elements_by_name(Utf16View);
 
     GC::Ref<HTMLCollection> applets();

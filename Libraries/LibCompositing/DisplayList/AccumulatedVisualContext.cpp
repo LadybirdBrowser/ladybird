@@ -7,7 +7,6 @@
 
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/RustFFI.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 
@@ -127,16 +126,9 @@ Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(Effe
     return color;
 }
 
-bool AccumulatedVisualContextTree::translations_snap_to_device_pixels(SpatialNodeIndex spatial_node_index, ScrollStateSnapshot const& scroll_state) const
+bool AccumulatedVisualContextTree::translations_snap_to_device_pixels(SpatialNodeIndex spatial_node_index) const
 {
-    return Compositing::RustFFI::world_transforms_translations_snap_to_device_pixels(scroll_state.world_transforms(*this), spatial_node_index);
-}
-
-Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
-{
-    Gfx::FloatMatrix4x4 matrix;
-    Compositing::RustFFI::world_transforms_accumulated_matrix(scroll_state.world_transforms(*this), index, include_visual_viewport_transform == IncludeVisualViewportTransform::Yes, &matrix);
-    return matrix;
+    return Compositing::RustFFI::visual_context_tree_translations_snap_to_device_pixels(m_rust_tree, spatial_node_index);
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_image_frame_id(Function<void(u64)> const& visit) const

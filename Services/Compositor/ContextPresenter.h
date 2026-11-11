@@ -26,7 +26,6 @@
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/OverlayFade.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/UIOverlays.h>
 #include <LibCore/Forward.h>
@@ -116,8 +115,7 @@ public:
 private:
     struct RasterizedFrame {
         NonnullRefPtr<Compositing::DisplayList const> display_list;
-        Compositing::AccumulatedVisualContextTree visual_context_tree;
-        Compositing::ScrollStateSnapshot scroll_state_snapshot;
+        FrameInputs frame_inputs;
         Gfx::IntSize viewport_size;
         HashMap<Compositing::CanvasId, u64> canvas_content_generations;
         HashMap<Compositing::VideoSinkResourceId, Optional<u64>> video_frame_ids;
@@ -136,7 +134,6 @@ private:
     Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
     Gfx::IntRect frame_damage_for(PendingFrame const&, FrameInputs const&);
     Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, FrameInputs const&, Gfx::IntRect forced_damage_rect);
-    void keep_world_transforms_of_last_rasterized_frame(FrameInputs&);
     void remember_rasterized_frame(Gfx::IntSize viewport_size, FrameInputs&&);
     Optional<u64> current_video_frame_id(Compositing::VideoSinkResourceId);
     void stop_backing_store_shrink_timer();

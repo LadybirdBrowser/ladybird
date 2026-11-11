@@ -95,17 +95,15 @@ bool DisplayList::requires_direct_replay_without_nested_lists(AccumulatedVisualC
     return RustFFI::display_list_storage_requires_direct_replay_without_nested_lists(m_storage, visual_context_tree.rust_handle());
 }
 
-void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
+void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
 {
     VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
-    auto scroll_offsets = scroll_state.device_offsets();
-    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, &callbacks);
 }
 
-void DisplayList::replay_records(ReadonlyBytes records, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks)
+void DisplayList::replay_records(ReadonlyBytes records, RustFFI::FfiDisplayListReplayCallbacks const& callbacks)
 {
-    auto scroll_offsets = scroll_state.device_offsets();
-    RustFFI::display_list_replay_records(records.data(), records.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    RustFFI::display_list_replay_records(records.data(), records.size(), &callbacks);
 }
 
 u64 DisplayList::tape_size() const

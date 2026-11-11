@@ -17,7 +17,6 @@ use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encod
 pub type Web_CompositorContextId = CompositorContextId;
 pub type Web_UniqueNodeID = UniqueNodeId;
 pub type Web_CSSPixelPoint = CssPixelPoint;
-pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
 pub type Gfx_IntPoint = libgfx_rust::IntPoint;
 pub type Gfx_FloatPoint = libgfx_rust::FloatPoint;
 pub type Gfx_IntSize = libgfx_rust::IntSize;

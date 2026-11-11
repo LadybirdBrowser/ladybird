@@ -17,7 +17,6 @@
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
@@ -110,10 +109,11 @@ public:
     // display lists it nests.
     bool requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const&) const;
 
-    // Replays the list through a player's callbacks, against the visual context tree it was made for.
-    void replay(AccumulatedVisualContextTree const&, ScrollStateSnapshot const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
-    // Replays a stream of records that a command of a list being replayed nests.
-    static void replay_records(ReadonlyBytes records, ScrollStateSnapshot const&, RustFFI::FfiDisplayListReplayCallbacks const&);
+    // Replays the list through a player's callbacks, against the visual context tree it was made for, with nothing
+    // scrolled.
+    void replay(AccumulatedVisualContextTree const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    // Replays a stream of records that a command of a list being replayed nests, with nothing scrolled.
+    static void replay_records(ReadonlyBytes records, RustFFI::FfiDisplayListReplayCallbacks const&);
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.

@@ -14,15 +14,22 @@ use crate::host::{
     ContextTimer, DisplayTickInputs, DisplayTickResult, FfiCompositorCoreHost, Host, PresentScheduling, PresentationId,
     WebContentClientId,
 };
-use libcompositing_rust::display_list::commands::CompositorContextId;
-use libcompositing_rust::ffi::{FfiDisplayList, tree_sharing_handle};
+use libcompositing_rust::display_list::commands::{
+    CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkResourceId,
+};
+use libcompositing_rust::display_list::damage::LiveContentChanges;
+use libcompositing_rust::display_list::storage::storage_from_handle;
+use libcompositing_rust::ffi::{
+    FfiDisplayList, replay_display_list_storage, replay_nested_records, tree_sharing_handle,
+};
+use libcompositing_rust::host::FfiDisplayListReplayCallbacks;
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
 };
+use libcompositing_rust::scrolling::ScrollStateSnapshot;
 use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
-use libcompositing_rust::scrolling::{ScrollStateSnapshot, SpatialNodeIndex};
 use libcompositing_rust::time::MonotonicTime;
-use libgfx_rust::{FloatPoint, IntRect, IntSize};
+use libgfx_rust::{Color, IntRect, IntSize};
 use libipc_rust::cpp_connection::{EncodedValue, RawMessage};
 use std::ffi::c_void;
 use std::rc::Rc;
@@ -193,14 +200,14 @@ pub unsafe extern "C" fn compositor_core_install_display_list_update(
     context_id: u64,
     display_list: &FfiDisplayList<'_>,
     visual_context_tree: *const c_void,
-    scroll_state_snapshot: EncodedValue<'_>,
+    scroll_state: EncodedValue<'_>,
     now_nanoseconds: i64,
 ) -> bool {
     // SAFETY: The caller lends a strong reference to the storage.
     let Ok(display_list) = (unsafe { display_list.share() }) else {
         return false;
     };
-    let Ok(scroll_state_snapshot) = scroll_state_snapshot.decode::<ScrollStateSnapshot>() else {
+    let Ok(scroll_state_snapshot) = scroll_state.decode::<ScrollStateSnapshot>() else {
         return false;
     };
     core.install_display_list_update(
@@ -245,81 +252,164 @@ pub extern "C" fn compositor_core_needs_animation_frames(
     )
 }
 
-/// What a frame is painted with besides the display list and its resources, lent for the duration of a call.
-#[repr(C)]
-pub struct FfiFrameInputs<'a> {
-    /// One strong reference to the tree, which the receiver takes over.
-    pub visual_context_tree: *const c_void,
-    pub presented_device_offsets: ak::Span<'a, FloatPoint>,
-    pub scrollbars: ak::Span<'a, ScrollbarOfFrame>,
-    pub has_viewport_scroll_node_index: bool,
-    pub viewport_scroll_node_index: SpatialNodeIndex,
-}
-
-type ReceiveFrameInputs = unsafe extern "C" fn(*mut c_void, &FfiFrameInputs<'_>);
-
-/// # Safety
-///
-/// `receive` must take over the tree reference and copy what it keeps of the rest.
-unsafe fn lend_frame_inputs(frame_inputs: &FrameInputs, receiver: *mut c_void, receive: ReceiveFrameInputs) {
-    let lent = FfiFrameInputs {
-        visual_context_tree: Arc::into_raw(frame_inputs.visual_context_tree.as_arc().clone()).cast(),
-        presented_device_offsets: ak::Span::new(frame_inputs.presented_scroll_state_snapshot.device_offsets()),
-        scrollbars: ak::Span::new(&frame_inputs.scrollbars),
-        has_viewport_scroll_node_index: frame_inputs.viewport_scroll_node_index.is_some(),
-        viewport_scroll_node_index: frame_inputs.viewport_scroll_node_index.unwrap_or_default(),
-    };
-    // SAFETY: The receiver takes the tree reference over and copies the rest before it returns.
-    unsafe { receive(receiver, &lent) };
-}
-
-/// Answers false, without calling `receive`, for a context that has no display list yet.
-///
-/// # Safety
-///
-/// `receive` must take over the tree reference of the inputs it is lent, copy what it keeps of the rest, and not call
-/// back into the core.
+/// What a frame of the context is painted with besides the display list and its resources, until
+/// `compositor_frame_inputs_destroy` frees it. Each frame shows the scrollbars as of when it is painted, so this updates
+/// which of them are shown. Null for a context that has no display list yet.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_core_frame_inputs(
+pub extern "C" fn compositor_core_frame_inputs(
     core: &CompositorCore,
     context_id: u64,
     now_nanoseconds: i64,
-    receiver: *mut c_void,
-    receive: ReceiveFrameInputs,
-) -> bool {
-    let Some(frame_inputs) = core.frame_inputs(
+) -> *mut FrameInputs {
+    core.frame_inputs(
         CompositorContextId(context_id),
         MonotonicTime::from_nanoseconds(now_nanoseconds),
-    ) else {
-        return false;
-    };
-    // SAFETY: The caller's receiver does as this function asks of it.
-    unsafe { lend_frame_inputs(&frame_inputs, receiver, receive) };
-    true
+    )
+    .map_or(std::ptr::null_mut(), |frame_inputs| {
+        Box::into_raw(Box::new(frame_inputs))
+    })
 }
 
-/// Answers with the scrollbar fade damage that the screenshot does not present on screen.
-///
-/// # Safety
-///
-/// The context must have a display list. `receive` must take over the tree reference of the inputs it is lent, copy
-/// what it keeps of the rest, and not call back into the core.
+/// What a screenshot of the context is painted with, until `compositor_frame_inputs_destroy` frees it, with the
+/// scrollbar fade damage that the screenshot does not present on screen. The context must have a display list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_core_frame_inputs_for_screenshot(
+pub extern "C" fn compositor_core_frame_inputs_for_screenshot(
     core: &CompositorCore,
     context_id: u64,
     now_nanoseconds: i64,
-    receiver: *mut c_void,
-    receive: ReceiveFrameInputs,
     scrollbar_fade_damage_rect: &mut IntRect,
-) {
+) -> *mut FrameInputs {
     let screenshot_inputs = core.frame_inputs_for_screenshot(
         CompositorContextId(context_id),
         MonotonicTime::from_nanoseconds(now_nanoseconds),
     );
-    // SAFETY: The caller's receiver does as this function asks of it.
-    unsafe { lend_frame_inputs(&screenshot_inputs.frame_inputs, receiver, receive) };
     *scrollbar_fade_damage_rect = screenshot_inputs.scrollbar_fade_damage_rect;
+    Box::into_raw(Box::new(screenshot_inputs.frame_inputs))
+}
+
+/// # Safety
+///
+/// `frame_inputs` must be inputs the core handed out that nothing uses afterwards.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_frame_inputs_destroy(frame_inputs: *mut FrameInputs) {
+    // SAFETY: The caller hands over the inputs the core made.
+    drop(unsafe { Box::from_raw(frame_inputs) });
+}
+
+/// One strong reference to the visual context tree the frame is painted with, which the caller takes over.
+#[unsafe(no_mangle)]
+pub extern "C" fn compositor_frame_inputs_retain_visual_context_tree(frame_inputs: &FrameInputs) -> *const c_void {
+    Arc::into_raw(frame_inputs.visual_context_tree.as_arc().clone()).cast()
+}
+
+/// The scrollbars the frame shows, of which there are `count`, lent for as long as the inputs live.
+#[unsafe(no_mangle)]
+pub extern "C" fn compositor_frame_inputs_scrollbars(
+    frame_inputs: &FrameInputs,
+    count: &mut usize,
+) -> *const ScrollbarOfFrame {
+    *count = frame_inputs.scrollbars.len();
+    frame_inputs.scrollbars.as_ptr()
+}
+
+/// Replays the list `display_list_storage` holds as the frame shows it, scrolled where the frame presents it.
+///
+/// # Safety
+///
+/// `display_list_storage` must be a live storage handle of the list the context holds, and `callbacks` must be live.
+/// The painter callbacks run synchronously and may re-enter a replay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_frame_inputs_replay(
+    frame_inputs: &FrameInputs,
+    display_list_storage: *const c_void,
+    root_group_color: Color,
+    callbacks: *const FfiDisplayListReplayCallbacks,
+) {
+    // SAFETY: The caller lends a live storage handle and live callbacks.
+    unsafe {
+        replay_display_list_storage(
+            frame_inputs.visual_context_tree.as_arc(),
+            display_list_storage,
+            root_group_color,
+            frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+            callbacks,
+        );
+    }
+}
+
+/// Plays a stream of records that a command of the list being replayed nests, scrolled where the frame presents it.
+///
+/// # Safety
+///
+/// `records` must address `records_size` bytes of a tape that is valid for the call, and `callbacks` must be live.
+/// The painter callbacks run synchronously and may re-enter a replay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_frame_inputs_replay_records(
+    frame_inputs: &FrameInputs,
+    records: *const u8,
+    records_size: usize,
+    callbacks: *const FfiDisplayListReplayCallbacks,
+) {
+    // SAFETY: The caller lends the stated number of bytes and live callbacks.
+    unsafe {
+        replay_nested_records(
+            ak::slice_from_raw_parts(records, records_size),
+            frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+            callbacks,
+        );
+    }
+}
+
+/// What a frame painted with `frame_inputs` repaints of the frame painted last, with `last_frame_inputs` and the list
+/// `last_display_list_storage` holds. Writes the damage rect through `damage_rect` and returns whether the damage is
+/// bounded; unbounded damage means the whole viewport must repaint.
+///
+/// # Safety
+///
+/// Both storages must be live storage handles, and the id pointers must address the stated number of ids for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
+    frame_inputs: &FrameInputs,
+    display_list_storage: *const c_void,
+    last_frame_inputs: &FrameInputs,
+    last_display_list_storage: *const c_void,
+    viewport_rect: IntRect,
+    canvases_with_new_content: *const CanvasId,
+    canvases_with_new_content_len: usize,
+    video_sinks_with_new_frames: *const VideoSinkResourceId,
+    video_sinks_with_new_frames_len: usize,
+    image_frames_with_new_pixels: *const ImageFrameResourceId,
+    image_frames_with_new_pixels_len: usize,
+    forced_damage_rect: IntRect,
+    damage_rect: &mut IntRect,
+) -> bool {
+    // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
+    let (display_list, last_display_list, live_content_changes) = unsafe {
+        (
+            storage_from_handle(display_list_storage),
+            storage_from_handle(last_display_list_storage),
+            LiveContentChanges {
+                canvases: ak::slice_from_raw_parts(canvases_with_new_content, canvases_with_new_content_len),
+                video_sinks: ak::slice_from_raw_parts(video_sinks_with_new_frames, video_sinks_with_new_frames_len),
+                image_frames: ak::slice_from_raw_parts(image_frames_with_new_pixels, image_frames_with_new_pixels_len),
+                forced_damage_rect,
+            },
+        )
+    };
+    let damage = frame_inputs.damage_since(
+        display_list,
+        last_frame_inputs,
+        last_display_list,
+        viewport_rect,
+        live_content_changes,
+    );
+    match damage {
+        Some(bounded_damage_rect) => {
+            *damage_rect = bounded_damage_rect;
+            true
+        }
+        None => false,
+    }
 }
 
 /// What the presentation knows of a context as a tick of a display begins.

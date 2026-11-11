@@ -8,7 +8,7 @@
 
 use super::{ContextRef, DisplayList, ScrollStateSnapshot, SpatialNodeIndex};
 use crate::visual_context::VisualContextTree;
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, IntRect};
+use libgfx_rust::{FloatPoint, FloatRect, IntRect};
 use std::sync::Arc;
 
 pub use crate::visual_context::ffi_types::FfiVisualViewportTransform as TransformWithOrigin;
@@ -92,18 +92,6 @@ impl AccumulatedVisualContextTree {
         Self(Arc::new(self.0.with_visual_animation_samples(monotonic_time_ns)))
     }
 
-    // Whether the node's scroll translations and the origins drawn in its space round to whole device pixels: no
-    // transform but identities lies above it.
-    pub fn translations_snap_to_device_pixels(
-        &self,
-        spatial_node_index: SpatialNodeIndex,
-        scroll_state: &ScrollStateSnapshot,
-    ) -> bool {
-        scroll_state
-            .world_transforms(self)
-            .translations_snap_to_device_pixels(spatial_node_index)
-    }
-
     pub fn transform_point_for_hit_test(
         &self,
         context: ContextRef,
@@ -131,18 +119,6 @@ impl AccumulatedVisualContextTree {
             source_rect,
             include_visual_viewport_transform,
         )
-    }
-
-    // Sum of the snapshot entries along the scroll-parent chain from the given scroll-like node.
-    pub fn accumulated_matrix(
-        &self,
-        index: SpatialNodeIndex,
-        scroll_state: &ScrollStateSnapshot,
-        include_visual_viewport_transform: IncludeVisualViewportTransform,
-    ) -> FloatMatrix4x4 {
-        scroll_state
-            .world_transforms(self)
-            .to_viewport_matrix(index, include_visual_viewport_transform)
     }
 }
 

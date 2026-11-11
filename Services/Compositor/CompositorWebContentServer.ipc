@@ -5,7 +5,6 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>
 #include <LibCompositing/WebGL/ImageSourceFrame.h>
@@ -43,11 +42,12 @@ endpoint CompositorWebContentServer
     stop_presenting_to_client(Web::CompositorContextId context_id) =|
     destroy_context(Web::CompositorContextId context_id) =|
 
-    // The async scrolling metadata and the scroll state go still encoded: the scroll logic, which is Rust, decodes them.
-    update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, IPC::Encoded<Compositing::ScrollStateSnapshot> scroll_state_snapshot) =|
+    // The async scrolling metadata and the scroll state go encoded: the scroll logic, which is Rust, decodes them, and
+    // Rust encoded the scroll state.
+    update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state) =|
     update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction) =|
     update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction) =|
-    [RustReceiver] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
+    [RustReceiver] update_scroll_state(Web::CompositorContextId context_id, ByteBuffer scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)

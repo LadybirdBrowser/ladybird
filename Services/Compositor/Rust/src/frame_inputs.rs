@@ -6,6 +6,8 @@
 
 //! What a frame is painted with besides the display list and its resources.
 
+use libcompositing_rust::display_list::damage::{DisplayListFrame, LiveContentChanges, compute_display_list_damage};
+use libcompositing_rust::display_list::storage::DisplayListStorage;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot, SpatialNodeIndex};
 use libgfx_rust::{Color, FloatRect, IntRect};
 
@@ -90,4 +92,50 @@ pub struct FrameInputs {
     pub presented_scroll_state_snapshot: ScrollStateSnapshot,
     pub scrollbars: Vec<ScrollbarOfFrame>,
     pub viewport_scroll_node_index: Option<SpatialNodeIndex>,
+}
+
+impl FrameInputs {
+    // What a frame painted with these inputs repaints of the frame `last_frame_inputs` painted `last_display_list`
+    // with, or none where that has no bounds.
+    pub fn damage_since(
+        &self,
+        display_list: &DisplayListStorage,
+        last_frame_inputs: &FrameInputs,
+        last_display_list: &DisplayListStorage,
+        viewport_rect: IntRect,
+        mut live_content_changes: LiveContentChanges<'_>,
+    ) -> Option<IntRect> {
+        let scroll_offset_changed = |index: SpatialNodeIndex| {
+            last_frame_inputs
+                .presented_scroll_state_snapshot
+                .device_offset_for_index(index)
+                != self.presented_scroll_state_snapshot.device_offset_for_index(index)
+        };
+        if self.viewport_scroll_node_index.is_some_and(scroll_offset_changed) {
+            return None;
+        }
+        for scrollbar in &self.scrollbars {
+            if scrollbar.is_painted_by_compositor && scroll_offset_changed(scrollbar.scroll_node_index) {
+                live_content_changes.forced_damage_rect = live_content_changes
+                    .forced_damage_rect
+                    .united(scrollbar.thin_and_expanded_gutter_rect);
+            }
+        }
+        compute_display_list_damage(
+            last_frame_inputs.frame_of(last_display_list),
+            self.frame_of(display_list),
+            viewport_rect,
+            live_content_changes,
+        )
+    }
+
+    fn frame_of<'a>(&'a self, display_list: &'a DisplayListStorage) -> DisplayListFrame<'a> {
+        DisplayListFrame {
+            command_bytes: display_list.bytes(),
+            command_runs: display_list.command_runs(),
+            summary: display_list.summary(),
+            visual_context_tree: self.visual_context_tree.as_arc(),
+            scroll_offsets: self.presented_scroll_state_snapshot.device_offsets(),
+        }
+    }
 }

@@ -18,7 +18,7 @@ void DisplayListPlayer::execute(
     DisplayList const& display_list,
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceStorage const& resource_storage,
-    ScrollStateSnapshot const& scroll_state_snapshot,
+    FrameInputs const* frame_inputs,
     RefPtr<Gfx::PaintingSurface> surface,
     OwnedCanvasSurfaces const* canvas_surfaces)
 {
@@ -28,7 +28,7 @@ void DisplayListPlayer::execute(
     m_active_visual_context_tree = &visual_context_tree;
     m_resource_storage = &resource_storage;
     m_canvas_surfaces = canvas_surfaces;
-    execute_impl(display_list, scroll_state_snapshot);
+    execute_impl(display_list, frame_inputs);
     m_canvas_surfaces = nullptr;
     m_resource_storage = nullptr;
     m_active_visual_context_tree = nullptr;
@@ -43,27 +43,18 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
     TemporaryChange display_list_change { m_active_display_list, &display_list };
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
-    ScrollStateSnapshot scroll_state_snapshot;
-    execute_impl(display_list, scroll_state_snapshot);
-}
-
-void DisplayListPlayer::execute_command_bytes_into_surface(ReadonlyBytes command_bytes, Gfx::PaintingSurface& target_surface)
-{
-    TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
-    ScrollStateSnapshot scroll_state_snapshot;
-    execute_command_bytes(command_bytes, scroll_state_snapshot);
+    execute_impl(display_list, nullptr);
 }
 
 void DisplayListPlayer::execute_nested_display_list(
     DisplayList const& display_list,
-    AccumulatedVisualContextTree const& visual_context_tree,
-    ScrollStateSnapshot const& scroll_state_snapshot)
+    AccumulatedVisualContextTree const& visual_context_tree)
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     TemporaryChange display_list_change { m_active_display_list, &display_list };
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
-    execute_impl(display_list, scroll_state_snapshot);
+    execute_impl(display_list, nullptr);
 }
 
 // Builds the callbacks the Rust replay drives a player through.
@@ -109,9 +100,19 @@ void DisplayListPlayer::play_command_bytes(DisplayListCommandType command_type, 
     }
 }
 
-void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, ScrollStateSnapshot const& scroll_state)
+void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes)
 {
-    DisplayList::replay_records(command_bytes, scroll_state, ReplayCallbacks::for_player(*this));
+    auto callbacks = ReplayCallbacks::for_player(*this);
+    if (m_active_frame_inputs)
+        m_active_frame_inputs->replay_records(command_bytes, callbacks);
+    else
+        DisplayList::replay_records(command_bytes, callbacks);
+}
+
+void DisplayListPlayer::execute_command_bytes_into_surface(ReadonlyBytes command_bytes, Gfx::PaintingSurface& target_surface)
+{
+    TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
+    DisplayList::replay_records(command_bytes, ReplayCallbacks::for_player(*this));
 }
 
 void DisplayListPlayer::declare_mask_content(EffectNodeIndex effect, ReadonlyBytes content)
@@ -124,16 +125,21 @@ Optional<ReadonlyBytes> DisplayListPlayer::declared_mask_content(EffectNodeIndex
     return m_declared_mask_contents.get(effect.value());
 }
 
-void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
+void DisplayListPlayer::execute_impl(DisplayList const& display_list, FrameInputs const* frame_inputs)
 {
-    TemporaryChange active_scroll_state_change { m_active_scroll_state, &scroll_state };
+    TemporaryChange active_frame_inputs_change { m_active_frame_inputs, frame_inputs };
     TemporaryChange declared_mask_contents_change { m_declared_mask_contents, HashMap<u32, ReadonlyBytes> {} };
     auto const& visual_context_tree = active_visual_context_tree();
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);
 
     auto callbacks = ReplayCallbacks::for_player(*this);
-    display_list.replay(visual_context_tree, scroll_state, callbacks);
+    if (frame_inputs) {
+        VERIFY(frame_inputs->visual_context_tree().rust_handle() == visual_context_tree.rust_handle());
+        frame_inputs->replay(display_list, callbacks);
+    } else {
+        display_list.replay(visual_context_tree, callbacks);
+    }
 }
 
 }

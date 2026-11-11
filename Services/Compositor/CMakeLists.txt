@@ -12,6 +12,7 @@ set(SOURCES
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
     FontSkia.cpp
+    FrameInputs.cpp
     ConnectionFromClient.cpp
     ConnectionFromPresentation.cpp
     ConnectionFromWebContent.cpp

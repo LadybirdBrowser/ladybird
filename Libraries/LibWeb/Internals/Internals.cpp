@@ -1716,7 +1716,8 @@ GC::Ref<JS::Object> Internals::recorded_display_list_wheel_target_at(double x, d
         return first_wheel_step_route_to_object({ .route = { InputRoutingDecision::NoAsyncScrollingState }, .document_id = {} });
     auto visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document);
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    return first_wheel_step_route_to_object(Compositing::route_first_wheel_step_through_recorded_display_list(*display_list, visual_context_tree, document.scroll_state_snapshot(), document.wheel_event_listener_state_generation(), position, { static_cast<float>(delta_x), static_cast<float>(delta_y) }));
+    auto encoded_scroll_state = document.paint_state().encoded_scroll_state();
+    return first_wheel_step_route_to_object(Compositing::route_first_wheel_step_through_recorded_display_list(*display_list, visual_context_tree, encoded_scroll_state, document.wheel_event_listener_state_generation(), position, { static_cast<float>(delta_x), static_cast<float>(delta_y) }));
 }
 
 bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
@@ -1729,7 +1730,8 @@ bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
         return false;
     auto visual_context_tree = document.paint_state().visual_context_tree_without_update(read, document);
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    return Compositing::recorded_display_list_blocks_wheel_event_at(*display_list, visual_context_tree, document.scroll_state_snapshot(), position);
+    auto encoded_scroll_state = document.paint_state().encoded_scroll_state();
+    return Compositing::recorded_display_list_blocks_wheel_event_at(*display_list, visual_context_tree, encoded_scroll_state, position);
 }
 
 void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)

@@ -482,28 +482,40 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
 }
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
-/// sticky nodes' offsets on top of them, and hands the dense device-pixel snapshot to `publish`; otherwise the caller
-/// keeps its copy.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread; `publish` is called synchronously with `sink` and a
-/// view of the snapshot that is valid only for the duration of that call.
+/// sticky nodes' offsets on top of them, and has `host` keep them as its document's scroll state; otherwise the host
+/// keeps the one it has. Answers whether the offsets changed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_refresh_scroll_state(
+pub extern "C" fn render_state_refresh_scroll_state(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     device_pixels_per_css_pixel: f64,
-    sink: *mut c_void,
-    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
-) {
-    let snapshot = run_paint_pass(read, host, PassEffect::RewritesRows, |arena| {
+) -> bool {
+    let device_offsets = run_paint_pass(read, host, PassEffect::RewritesRows, |arena| {
         crate::painting::paint_passes::refresh_scroll_state(arena, device_pixels_per_css_pixel)
     });
-    if let Some(snapshot) = snapshot {
-        // SAFETY: The C++ sink copies the offsets synchronously.
-        unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
-    }
+    device_offsets.is_some_and(|device_offsets| host.refresh_scroll_state(device_offsets))
+}
+
+/// Has `host` forget its document's scroll state, as the viewport's row or the document's paint state starts over.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_forget_scroll_state(host: &crate::render_state::DocumentHost) {
+    host.forget_scroll_state();
+}
+
+/// Hands `append` the scroll state of `host`'s document as the scroll logic of the compositor reads it.
+///
+/// # Safety
+///
+/// `append` is called synchronously with `sink`, and must copy the bytes it keeps.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_encode_scroll_state(
+    host: &crate::render_state::DocumentHost,
+    sink: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    let bytes = host.scroll_state().to_encoded_bytes();
+    // SAFETY: The C++ sink copies the bytes synchronously.
+    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
 }
 
 /// # Safety
@@ -659,7 +671,7 @@ unsafe fn commit_frame(
         content,
         recorder,
         // SAFETY: Guaranteed by the caller.
-        presentation: unsafe { crate::painting::presentation::Presentation::adopt(presentation) }
+        presentation: unsafe { crate::painting::presentation::Presentation::adopt(presentation, &host.scroll_state()) }
             .expect("a committed frame is presented"),
         timestamp,
         held_for_testing,
@@ -1053,10 +1065,13 @@ pub extern "C" fn layout_hit_test_resolve_hit(
 pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
+    query: crate::painting::host::FfiHitTestQuery,
     point: FfiCssPixelPoint,
     out: &mut crate::painting::host::FfiTopmostItem,
 ) {
+    let scroll_state = host.scroll_state();
+    let callbacks =
+        crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(&query, scroll_state.device_offsets());
     *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(
         host,
         read,
@@ -1077,11 +1092,14 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
 pub unsafe extern "C" fn layout_hit_test_all(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
+    query: crate::painting::host::FfiHitTestQuery,
     point: FfiCssPixelPoint,
     push_context: *mut c_void,
     push: unsafe extern "C" fn(*mut c_void, usize, FfiCssPixelPoint),
 ) {
+    let scroll_state = host.scroll_state();
+    let callbacks =
+        crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(&query, scroll_state.device_offsets());
     let hits =
         with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, Vec::new(), |list, tree, arena| {
             let mut sampled = None;
@@ -1104,11 +1122,14 @@ pub unsafe extern "C" fn layout_hit_test_all(
 pub unsafe extern "C" fn layout_hit_test_caret_position_from_point(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
+    query: crate::painting::host::FfiHitTestQuery,
     point: FfiCssPixelPoint,
     constraint_scope: NodeSlotId,
     out: &mut FfiCaretAt,
 ) {
+    let scroll_state = host.scroll_state();
+    let callbacks =
+        crate::painting::host::FfiHitTestQueryCallbacks::for_host_query(&query, scroll_state.device_offsets());
     *out = with_hit_test_list_spatial_indexes_and_visual_context_tree(host, read, None, |list, tree, arena| {
         let world = callbacks.build_world_transforms(tree);
         list.caret_position_from_point(

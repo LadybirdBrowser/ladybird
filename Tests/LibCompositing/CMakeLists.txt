@@ -6,7 +6,6 @@ set(TEST_SOURCES
     TestPausedDebuggerOverlay.cpp
     TestPictureInPictureControls.cpp
     TestScrollRequest.cpp
-    TestScrollState.cpp
     TestTextureUpload.cpp
     TestUIOverlays.cpp
     TestVideoFrameHold.cpp

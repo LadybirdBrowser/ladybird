@@ -41,17 +41,15 @@ static Layout::Node* scrolling_box_of(Layout::BegunRead const& read, DOM::Docume
 }
 
 // https://drafts.csswg.org/css-conditional-5/#stuck
-static u8 stuck_edges(DOM::Document& document, Layout::Node const& layout_node)
+static u8 stuck_edges(Layout::Node const& layout_node)
 {
     auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
     if (!node_with_style || !node_with_style->is_sticky_position())
         return 0;
-    auto sticky_node_index = Layout::RustFFI::render_state_sticky_spatial_node_index(layout_node.document_host(), Painting::committed_row_slot(layout_node));
-    if (sticky_node_index == NumericLimits<u32>::max())
-        return 0;
-
     // A sticky box is stuck to the edge whose inset moved it from its normal position.
-    auto offset = document.paint_state().scroll_state_snapshot().device_offset_for_index(Compositing::SpatialNodeIndex { sticky_node_index });
+    Gfx::FloatPoint offset;
+    if (!Layout::RustFFI::render_state_sticky_device_offset(layout_node.document_host(), Painting::committed_row_slot(layout_node), &offset))
+        return 0;
     u8 edges = 0;
     if (offset.y() > 0)
         edges |= SCROLL_STATE_EDGE_TOP;
@@ -186,7 +184,7 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(Layout::BegunRead co
 
         ScrollStateSnapshot snapshot;
         if (auto* layout_node = element->unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
-            snapshot.stuck = stuck_edges(document, *layout_node);
+            snapshot.stuck = stuck_edges(*layout_node);
             snapshot.snapped = snapped_axes(document, element, *layout_node);
         }
         if (auto* scrolling_box = scrolling_box_of(read, document, element)) {

@@ -16,7 +16,6 @@
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Forward.h>

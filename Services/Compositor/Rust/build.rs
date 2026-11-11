@@ -30,6 +30,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("RawMessage", "IPC::FfiRawMessage"),
         ("EncodedValue", "AK::ReadonlyBytes"),
         ("FfiDisplayList", "Compositing::RustFFI::FfiDisplayList"),
+        (
+            "FfiDisplayListReplayCallbacks",
+            "Compositing::RustFFI::FfiDisplayListReplayCallbacks",
+        ),
+        ("CanvasId", "Compositing::CanvasId"),
+        ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
+        ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -37,6 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         [
             "AK/Span.h",
             "LibCompositing/DisplayList/ContextRef.h",
+            "LibCompositing/DisplayList/DisplayListResourceIds.h",
             "LibGfx/Color.h",
             "LibGfx/Point.h",
             "LibGfx/Rect.h",
