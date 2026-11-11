@@ -9,6 +9,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/NumericLimits.h>
 #include <AK/Random.h>
 #include <AK/Utf16String.h>
 #include <LibCore/GeolocationProvider.h>
@@ -79,10 +80,6 @@ static constexpr auto SITE_SETTING_POLICY_KEY = "policy"sv;
 static constexpr auto SITE_SETTING_SITE_FILTERS_KEY = "siteFilters"sv;
 
 static constexpr auto AUTOPLAY_KEY = "autoplay"sv;
-
-static constexpr auto BROWSING_DATA_KEY = "browsingData"sv;
-static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
-static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 static constexpr auto CRASH_REPORT_SENDING_KEY = "crashReportSending"sv;
@@ -168,6 +165,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .title = "Vertical tab hover expansion animation duration"sv,
         .description = "Duration in milliseconds of the vertical tab hover expansion animation. Set to 0 to disable the animation."sv,
         .default_value = 100,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::MaximumDiskCacheSize,
+        .name = "network.http_cache.maximum_size_mb"sv,
+        .title = "Maximum disk cache size"sv,
+        .description = "Limit the space used for the HTTP disk cache, in MiB."sv,
+        .default_value = HTTP::DEFAULT_MAXIMUM_DISK_CACHE_SIZE / MiB,
         .array_element_type = {},
     },
     {
@@ -366,6 +371,12 @@ static bool config_variable_value_is_valid(ConfigVariableDefinition const& varia
         return milliseconds.has_value() && *milliseconds >= 0 && value.get_double_with_precision_loss().value() == *milliseconds;
     }
 
+    if (variable.id == ConfigVariableID::MaximumDiskCacheSize) {
+        auto size = value.get_integer<u64>();
+        return size.has_value() && *size > 0 && *size <= NumericLimits<i64>::max() / MiB
+            && value.get_double_with_precision_loss() == size;
+    }
+
     if (variable.default_value.is_array() && variable.array_element_type.has_value())
         return json_array_contains_only_type(value.as_array(), *variable.array_element_type);
 
@@ -477,9 +488,6 @@ void Settings::load_from_json(JsonValue const& json_value)
         }
     }
 
-    if (auto browsing_data_settings = json.get(BROWSING_DATA_KEY); browsing_data_settings.has_value())
-        m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
-
     if (auto global_privacy_control = json.get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
         m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
@@ -590,7 +598,6 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
     auto browsing_behavior_changed = changed(BROWSING_BEHAVIOR_KEY);
     auto search_engine_settings_changed = changed(SEARCH_ENGINE_KEY);
     auto autoplay_settings_changed = changed(AUTOPLAY_KEY);
-    auto browsing_data_settings_changed = changed(BROWSING_DATA_KEY);
     auto global_privacy_control_changed = changed(GLOBAL_PRIVACY_CONTROL_KEY);
     auto crash_report_sending_changed = changed(CRASH_REPORT_SENDING_KEY);
     auto dns_settings_changed = changed(DNS_SETTINGS_KEY);
@@ -624,8 +631,6 @@ void Settings::replace_with_json(JsonValue const& json, PersistChange persist_ch
             observer.autoplay_settings_changed();
         for (auto name : changed_site_permissions)
             observer.permission_settings_changed(name);
-        if (browsing_data_settings_changed)
-            observer.browsing_data_settings_changed();
         if (global_privacy_control_changed)
             observer.global_privacy_control_changed();
         if (crash_report_sending_changed)
@@ -878,13 +883,6 @@ JsonValue Settings::serialize_json() const
         setting.set(SITE_SETTING_POLICY_KEY, permission_policy(name) == PermissionPolicy::Block ? "block"_string : "ask"_string);
         settings.set(Web::Permissions::to_string(name), move(setting));
     }
-
-    JsonObject disk_cache_settings;
-    disk_cache_settings.set(DISK_CACHE_MAXIMUM_SIZE_KEY, m_browsing_data_settings.disk_cache_settings.maximum_size);
-
-    JsonObject browsing_data;
-    browsing_data.set(DISK_CACHE_KEY, move(disk_cache_settings));
-    settings.set(BROWSING_DATA_KEY, move(browsing_data));
 
     settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
     settings.set(CRASH_REPORT_SENDING_KEY, crash_report_sending_to_string(m_crash_report_sending));
@@ -1428,28 +1426,9 @@ void Settings::set_permission_policy(Web::Permissions::PermissionName name, Perm
         observer.permission_settings_changed(name);
 }
 
-BrowsingDataSettings Settings::parse_browsing_data_settings(JsonValue const& settings)
+HTTP::DiskCacheSettings Settings::disk_cache_settings() const
 {
-    if (!settings.is_object())
-        return {};
-
-    BrowsingDataSettings browsing_data_settings;
-
-    if (auto disk_cache_settings = settings.as_object().get_object(DISK_CACHE_KEY); disk_cache_settings.has_value()) {
-        if (auto maximum_size = disk_cache_settings->get_integer<u64>(DISK_CACHE_MAXIMUM_SIZE_KEY); maximum_size.has_value())
-            browsing_data_settings.disk_cache_settings.maximum_size = *maximum_size;
-    }
-
-    return browsing_data_settings;
-}
-
-void Settings::set_browsing_data_settings(BrowsingDataSettings browsing_data_settings)
-{
-    m_browsing_data_settings = browsing_data_settings;
-    persist_settings();
-
-    for (auto& observer : m_observers)
-        observer.browsing_data_settings_changed();
+    return { .maximum_size = config_variable_as_integer<u64>(ConfigVariableID::MaximumDiskCacheSize) * MiB };
 }
 
 void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_control)

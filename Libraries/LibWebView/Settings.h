@@ -119,10 +119,6 @@ enum class PermissionPolicy : u8 {
     Block,
 };
 
-struct BrowsingDataSettings {
-    HTTP::DiskCacheSettings disk_cache_settings;
-};
-
 enum class GlobalPrivacyControl {
     No,
     Yes,
@@ -154,6 +150,7 @@ enum class ConfigVariableID : u8 {
     UseClientSideWindowDecorations,
     VerticalTabsHoverExpandDelay,
     VerticalTabsHoverExpandAnimationDuration,
+    MaximumDiskCacheSize,
     MaximumConnectionsPerDownload,
     SplitDownloadsWithoutValidators,
     RestartStalledConnections,
@@ -190,7 +187,6 @@ public:
     virtual void search_engine_settings_changed() { }
     virtual void autoplay_settings_changed() { }
     virtual void permission_settings_changed(Web::Permissions::PermissionName) { }
-    virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void crash_report_sending_changed() { }
     virtual void dns_settings_changed() { }
@@ -224,7 +220,6 @@ struct WEBVIEW_API SettingsData {
     AutoplaySiteSetting m_autoplay;
     HashMap<Web::Permissions::PermissionName, PermissionPolicy> m_permission_policies;
 
-    BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     CrashReportSending m_crash_report_sending { CrashReportSending::AskMe };
 
@@ -330,9 +325,7 @@ public:
     PermissionPolicy permission_policy(Web::Permissions::PermissionName) const;
     void set_permission_policy(Web::Permissions::PermissionName, PermissionPolicy);
 
-    static BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
-    BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
-    void set_browsing_data_settings(BrowsingDataSettings);
+    HTTP::DiskCacheSettings disk_cache_settings() const;
 
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
