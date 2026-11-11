@@ -5,6 +5,8 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/Format.h>
+#include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
@@ -253,10 +255,12 @@ private:
 
 class FileBrokerServer {
 public:
-    FileBrokerServer(Vector<ResolvedPathRule> rules, pid_t helper_pid, ByteString current_directory)
+    FileBrokerServer(Vector<ResolvedPathRule> rules, pid_t helper_pid, ByteString current_directory, ByteString helper_name)
         : m_rules(move(rules))
         , m_helper_pid(helper_pid)
         , m_current_directory(move(current_directory))
+        , m_helper_name(move(helper_name))
+        , m_logs_refusals(sandbox_debugging_is_enabled())
     {
     }
 
@@ -268,12 +272,57 @@ private:
         int fd { -1 };
     };
 
-    bool allows(StringView path, FileBrokerAccess access) const { return file_broker_allows(m_rules, path, access); }
+    bool allows(StringView path, FileBrokerAccess access) const
+    {
+        if (file_broker_allows(m_rules, path, access))
+            return true;
+        log_refusal(path, access);
+        return false;
+    }
 
-    // A path outside of what the helper can see has to look the same whether or not it exists.
+    static constexpr size_t max_logged_refusals = 4096;
+
+    // Each path is logged once for each kind of access, since libraries tend to ask for the same files again and again.
+    void log_refusal(StringView path, FileBrokerAccess access) const
+    {
+        if (!m_logs_refusals)
+            return;
+        if (m_logged_too_many_refusals)
+            return;
+        auto key = ByteString::formatted("{}:{}", to_underlying(access), path);
+        if (m_logged_refusals.contains(key))
+            return;
+        if (m_logged_refusals.size() == max_logged_refusals) {
+            m_logged_too_many_refusals = true;
+            warnln("Sandbox refusal in {}: too many refusals, further refusals are not logged", m_helper_name);
+            return;
+        }
+        m_logged_refusals.set(key);
+        auto access_name = [&] {
+            switch (access) {
+            case FileBrokerAccess::Metadata:
+                return "metadata"sv;
+            case FileBrokerAccess::Read:
+                return "read"sv;
+            case FileBrokerAccess::Write:
+                return "write"sv;
+            case FileBrokerAccess::ChangeEntry:
+                return "entry change"sv;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        warnln("Sandbox refusal in {}: {} access to {}", m_helper_name, access_name, path);
+    }
+
+    // A path outside of what the helper can see has to look the same whether or not it exists. Hiding that a path is
+    // missing changes nothing for the helper, so only hiding one that exists is logged.
     int failure_for(PathWalker const& walker, int error) const
     {
-        return allows(walker.failed_path(), FileBrokerAccess::Metadata) ? error : EACCES;
+        if (file_broker_allows(m_rules, walker.failed_path(), FileBrokerAccess::Metadata))
+            return error;
+        if (error != ENOENT)
+            log_refusal(walker.failed_path(), FileBrokerAccess::Metadata);
+        return EACCES;
     }
 
     ErrorOr<ByteString> absolute_path(StringView path, int directory_fd) const;
@@ -293,6 +342,10 @@ private:
     Vector<ResolvedPathRule> m_rules;
     pid_t m_helper_pid { 0 };
     ByteString m_current_directory;
+    ByteString m_helper_name;
+    bool m_logs_refusals { false };
+    mutable HashTable<ByteString> m_logged_refusals;
+    mutable bool m_logged_too_many_refusals { false };
 };
 
 }
@@ -444,10 +497,11 @@ int FileBrokerServer::make_directory(StringView path, u32 mode)
     // The kernel reports a directory that exists before it asks whether a new one could be made there, and libpulse
     // depends on that for a runtime directory that it may only read.
     auto target = walker.canonical_path_with_last_name();
-    if (!allows(target, FileBrokerAccess::ChangeEntry)) {
+    if (!file_broker_allows(m_rules, target, FileBrokerAccess::ChangeEntry)) {
         struct stat statbuf;
-        if (allows(target, FileBrokerAccess::Metadata) && fstatat(walker.fd(), walker.last_name().characters(), &statbuf, AT_SYMLINK_NOFOLLOW) == 0)
+        if (file_broker_allows(m_rules, target, FileBrokerAccess::Metadata) && fstatat(walker.fd(), walker.last_name().characters(), &statbuf, AT_SYMLINK_NOFOLLOW) == 0)
             return EEXIST;
+        log_refusal(target, FileBrokerAccess::ChangeEntry);
         return EACCES;
     }
     return mkdirat(walker.fd(), walker.last_name().characters(), mode) < 0 ? errno : 0;
@@ -486,8 +540,11 @@ int FileBrokerServer::bind_socket(int fd, char const* address, u32 length)
     if (fd < 0 || length < sizeof(sa_family_t) || length > sizeof(storage))
         return EINVAL;
     memcpy(&storage, address, length);
-    if (storage.ss_family != AF_INET && storage.ss_family != AF_INET6 && storage.ss_family != AF_NETLINK)
+    if (storage.ss_family != AF_INET && storage.ss_family != AF_INET6 && storage.ss_family != AF_NETLINK) {
+        if (m_logs_refusals)
+            warnln("Sandbox refusal in {}: binding a socket of address family {}", m_helper_name, storage.ss_family);
         return EACCES;
+    }
     return bind(fd, reinterpret_cast<sockaddr const*>(&storage), length) < 0 ? errno : 0;
 }
 
@@ -750,11 +807,13 @@ ErrorOr<void> start_file_broker(ReadonlySpan<PathRule> rules)
         // Everything else the helper has open is more than a broker for its files should ever hold.
         close_all_descriptors_except(fds[1]);
 
+        char helper_name[16] = {};
+        (void)prctl(PR_GET_NAME, helper_name, 0ul, 0ul, 0ul);
         (void)prctl(PR_SET_NAME, "FileBroker", 0ul, 0ul, 0ul);
         if (prctl(PR_SET_PDEATHSIG, SIGKILL, 0ul, 0ul, 0ul) < 0 || getppid() != helper_pid)
             _exit(1);
 
-        FileBrokerServer server { move(resolved_rules), helper_pid, current_directory };
+        FileBrokerServer server { move(resolved_rules), helper_pid, current_directory, ByteString { helper_name, strnlen(helper_name, sizeof(helper_name)) } };
         if (confine_broker().is_error())
             _exit(1);
 
