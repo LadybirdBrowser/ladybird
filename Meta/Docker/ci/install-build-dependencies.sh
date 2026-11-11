@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Installs what building Ladybird needs into the CI image.
+# Installs what building Ladybird needs, for the CI image and for the release builds in bare distribution containers.
 # The CI image's Dockerfile pins the versions and digests of what this installs, which its build passes in and which are
 # read from it otherwise.
 
@@ -90,6 +90,51 @@ case "${ID}" in
             update-alternatives --install "/usr/bin/${tool}" "${tool}" "/usr/bin/${tool}-${LLVM_VERSION}" 100
         done
         ;;
+    fedora)
+        dnf install -y --setopt=install_weak_deps=False \
+            autoconf \
+            autoconf-archive \
+            automake \
+            "clang(major) = ${LLVM_VERSION}" \
+            cmake \
+            compiler-rt \
+            curl \
+            file \
+            findutils \
+            gcc-c++ \
+            git \
+            glslang \
+            libdrm-devel \
+            liberation-sans-fonts \
+            libglvnd-devel \
+            libstdc++-devel \
+            libtool \
+            lld \
+            llvm \
+            nasm \
+            ncurses-devel \
+            ninja-build \
+            patchelf \
+            perl-FindBin \
+            perl-IPC-Cmd \
+            perl-lib \
+            perl-Time-Piece \
+            pulseaudio \
+            pulseaudio-libs-devel \
+            python3 \
+            qt6-qtbase-private-devel \
+            qt6-qtpositioning-devel \
+            qt6-qttools-devel \
+            qt6-qtwayland-devel \
+            rpm-build \
+            tar \
+            unzip \
+            which \
+            xcb-util-wm-devel \
+            xz \
+            zip \
+            zlib-ng-compat-static
+        ;;
     *)
         echo "Installing the build dependencies on ${PRETTY_NAME:-${ID}} is not supported." >&2
         exit 1
@@ -113,6 +158,13 @@ chmod +x "${rustup_init_directory}/rustup-init"
 rm "${rustup_init_directory}/rustup-init"
 rmdir "${rustup_init_directory}"
 rm -rf "${RUSTUP_HOME}/downloads" "${RUSTUP_HOME}/tmp" "${CARGO_HOME}/registry"
+if [ -n "${GITHUB_ENV:-}" ]; then
+    {
+        echo "RUSTUP_HOME=${RUSTUP_HOME}"
+        echo "CARGO_HOME=${CARGO_HOME}"
+    } >> "${GITHUB_ENV}"
+    echo "${CARGO_HOME}/bin" >> "${GITHUB_PATH}"
+fi
 
 # wasm-tools is required at build time to generate the WebAssembly spec tests (INCLUDE_WASM_SPEC_TESTS). The version is
 # pinned for reproducible test generation.
