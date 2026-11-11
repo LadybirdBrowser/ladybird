@@ -14,6 +14,7 @@
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -45,7 +46,7 @@ public:
     virtual void flush() = 0;
 
     // Unpremultiplied pixels come back as RGBA8888 and premultiplied pixels as BGRA8888, in the color space.
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&, Gfx::AlphaType, Gfx::ColorSpace const&) = 0;
+    virtual Optional<Gfx::DecodedImageFrame> read_back_pixels(Gfx::IntRect const&, Gfx::AlphaType, Gfx::ColorSpace const&) = 0;
 };
 
 }

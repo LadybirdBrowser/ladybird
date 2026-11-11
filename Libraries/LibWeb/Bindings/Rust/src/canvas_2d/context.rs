@@ -10,20 +10,20 @@
 use core::cell::{Cell, Ref as CellRef, RefCell, RefMut};
 use core::marker::PhantomData;
 use core::ops::Deref;
-use core::ptr::NonNull;
 
 use ak::Utf16String;
 use ak::math;
 use libcompositing_rust::display_list::canvas_2d::{Compositing, Paint, Stroke};
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Recorder};
 use libcompositing_rust::display_list::commands::{Canvas2DShadow, CanvasId};
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::path::Path;
 use libgfx_rust::{AffineTransform, Color, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, WindingRule};
 use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, GcRefMut, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{Canvas, FontMetricsSource, FontSelection, ResolvedFont, StyleValue, parse_color};
 use super::drawing_state::{CanvasColor, DrawingState, FillOrStrokeStyle};
-use super::host::{Bitmap, CppTransport, LentImageFrame};
+use super::host::CppTransport;
 use crate::bindings::interface::Wrappable;
 use crate::html::canvas_rendering_context2d::CanvasDirection;
 use crate::html::canvas_rendering_context2d_settings::CanvasRenderingContext2DSettings;
@@ -104,7 +104,7 @@ impl Drop for BackingStorage {
 /// A readback of the pixels of a rectangle of the canvas.
 #[derive(Clone)]
 struct CachedReadback {
-    pixels: Bitmap,
+    pixels: ImageFrameHandle,
     rect: IntRect,
     alpha_type: AlphaType,
     color_space: ColorSpace,
@@ -182,10 +182,7 @@ pub(crate) fn paint_of<'a>(
         // SAFETY: Nothing adds a stop to the gradient while the recorder records the paint.
         FillOrStrokeStyle::Gradient(gradient) => unsafe { gradient.paint_unguarded(color_space) },
         FillOrStrokeStyle::Pattern(pattern) => Paint::Pattern {
-            image: pattern.image().map(|frame| {
-                let frame = NonNull::new(frame.as_raw().cast_mut()).expect("an image frame has a frame");
-                recorder.add_image_frame(&LentImageFrame(frame))
-            }),
+            image: pattern.image().map(|frame| recorder.add_image_frame(frame)),
             repetition: pattern.repetition(),
             transform: pattern.transform(),
         },
@@ -423,7 +420,12 @@ impl ContextState {
 
     /// The pixels of the rectangle of the canvas, read back from the Compositor and converted to the color space.
     /// Unpremultiplied pixels come back as RGBA8888, and premultiplied pixels as BGRA8888.
-    pub(crate) fn read_pixels(&self, rect: IntRect, alpha_type: AlphaType, color_space: ColorSpace) -> Option<Bitmap> {
+    pub(crate) fn read_pixels(
+        &self,
+        rect: IntRect,
+        alpha_type: AlphaType,
+        color_space: ColorSpace,
+    ) -> Option<ImageFrameHandle> {
         if !self.has_backing_storage() {
             return None;
         }

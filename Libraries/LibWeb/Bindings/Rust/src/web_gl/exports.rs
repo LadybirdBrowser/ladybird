@@ -223,7 +223,7 @@ pub extern "C" fn web_webgl_context_clear_drawing_buffer(context: &ContextCell) 
     with_context(context, |context| context.proxy.clear_drawing_buffer());
 }
 
-/// A Gfx::Bitmap with a reference that the caller takes over, or null.
+/// A Gfx::DecodedImageFrame allocated with new that the caller takes over, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
     context: &ContextCell,
@@ -232,10 +232,10 @@ pub extern "C" fn web_webgl_context_read_back_drawing_buffer(
     width: i32,
     height: i32,
 ) -> *mut c_void {
-    let bitmap = with_context(context, |context| {
+    let frame = with_context(context, |context| {
         context.proxy.read_back_drawing_buffer(x, y, width, height)
     });
-    bitmap.map_or(core::ptr::null_mut(), super::host::Bitmap::into_raw)
+    frame.map_or(core::ptr::null_mut(), |frame| frame.hand_over_copy())
 }
 
 /// False when the context was lost already.

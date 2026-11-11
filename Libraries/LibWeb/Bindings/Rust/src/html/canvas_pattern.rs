@@ -78,9 +78,9 @@ pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: Co
         },
     );
     recorder.flush();
-    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied, color_space);
+    let frame = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied, color_space);
     recorder.destroy_context();
-    bitmap?.into_image_frame(color_space)
+    frame
 }
 
 #[derive(Trace)]

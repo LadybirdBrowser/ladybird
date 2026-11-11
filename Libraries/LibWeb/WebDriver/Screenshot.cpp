@@ -114,12 +114,12 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.
-    auto bitmap = canvas.get_bitmap_from_surface();
-    if (!bitmap)
+    auto frame = canvas.get_srgb_frame_from_surface();
+    if (!frame.has_value())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Captured screenshot is empty"sv);
     Gfx::PNGWriterOptions png_options;
     png_options.compression = Gfx::PNGCompression::Fast;
-    auto file = Gfx::PNGWriter::encode(*bitmap, png_options);
+    auto file = Gfx::PNGWriter::encode(*frame->bitmap_sharing_pixels(), png_options);
     if (file.is_error())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to serialize canvas"sv);
 

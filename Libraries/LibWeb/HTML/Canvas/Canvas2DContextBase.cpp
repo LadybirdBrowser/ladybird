@@ -258,12 +258,12 @@ Bindings::PredefinedColorSpace Canvas2DContextBase::color_space() const
     return predefined_color_space_from_underlying(web_canvas_2d_context_color_space(cell_of(*this)));
 }
 
-RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Bindings::PredefinedColorSpace color_space)
+Optional<Gfx::DecodedImageFrame> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Bindings::PredefinedColorSpace color_space)
 {
-    auto* bitmap = static_cast<Gfx::Bitmap*>(web_canvas_2d_context_read_pixels(this, rect, to_underlying(alpha_type), to_underlying(color_space)));
-    if (!bitmap)
-        return nullptr;
-    return adopt_ref(*bitmap);
+    auto frame = adopt_own_if_nonnull(static_cast<Gfx::DecodedImageFrame*>(web_canvas_2d_context_read_pixels(this, rect, to_underlying(alpha_type), to_underlying(color_space))));
+    if (!frame)
+        return {};
+    return move(*frame);
 }
 
 bool Canvas2DContextBase::draw_image(ImageBitmap& image_bitmap, float x, float y)

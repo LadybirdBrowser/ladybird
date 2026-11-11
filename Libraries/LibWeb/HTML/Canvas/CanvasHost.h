@@ -42,7 +42,7 @@ public:
     virtual CSSPixelRect canvas_viewport_rect() const = 0;
 
     // The bitmap of the canvas, converted to sRGB.
-    virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface();
+    virtual Optional<Gfx::DecodedImageFrame> get_srgb_frame_from_surface();
     // The bitmap of the canvas in the color space of its context, with that color space.
     Optional<Gfx::DecodedImageFrame> get_frame_from_surface();
     // The bitmap of the canvas as a serialization of it as a file of the type takes it: in the color space of its

@@ -661,22 +661,24 @@ void HTMLCanvasElement::did_commit_placeholder_frame(Gfx::IntSize size, bool ori
     }));
 }
 
-RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
+Optional<Gfx::DecodedImageFrame> HTMLCanvasElement::get_srgb_frame_from_surface()
 {
     if (!m_is_placeholder)
-        return CanvasHost::get_bitmap_from_surface();
+        return CanvasHost::get_srgb_frame_from_surface();
 
     auto size = bitmap_size_for_canvas();
     if (size.is_empty())
-        return nullptr;
+        return {};
 
     if (m_placeholder_canvas_id.has_value() && document().page().has_compositor_host()) {
-        auto frame = document().page().compositor_host().read_placeholder_canvas_pixels(*m_placeholder_canvas_id, { {}, size });
-        m_placeholder_frame_is_origin_clean = frame.origin_clean;
-        if (frame.bitmap && frame.bitmap->size() == size)
-            return frame.bitmap;
+        auto placeholder_pixels = document().page().compositor_host().read_placeholder_canvas_pixels(*m_placeholder_canvas_id, { {}, size });
+        m_placeholder_frame_is_origin_clean = placeholder_pixels.origin_clean;
+        if (placeholder_pixels.bitmap && placeholder_pixels.bitmap->size() == size) {
+            if (auto frame = Gfx::DecodedImageFrame::create(*placeholder_pixels.bitmap); !frame.is_error())
+                return frame.release_value();
+        }
     }
-    return CanvasHost::get_bitmap_from_surface();
+    return CanvasHost::get_srgb_frame_from_surface();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean

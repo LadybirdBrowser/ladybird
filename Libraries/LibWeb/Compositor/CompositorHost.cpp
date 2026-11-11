@@ -334,14 +334,17 @@ private:
         m_connection->update_canvas_2d_stream(*m_stream);
     }
 
-    virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space) override
+    virtual Optional<Gfx::DecodedImageFrame> read_back_pixels(Gfx::IntRect const& rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace const& color_space) override
     {
         if (!m_canvas_id.has_value())
-            return nullptr;
+            return {};
         auto shareable_bitmap = m_connection->get_canvas_pixels(*m_canvas_id, rect, alpha_type, color_space);
         if (!shareable_bitmap.is_valid())
-            return nullptr;
-        return shareable_bitmap.bitmap();
+            return {};
+        auto frame = Gfx::DecodedImageFrame::create(*shareable_bitmap.bitmap(), color_space);
+        if (frame.is_error())
+            return {};
+        return frame.release_value();
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;

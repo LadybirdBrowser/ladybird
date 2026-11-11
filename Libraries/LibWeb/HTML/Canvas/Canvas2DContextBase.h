@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -49,7 +50,7 @@ public:
     Bindings::PredefinedColorSpace color_space() const;
 
     // The pixels of the rectangle of the output bitmap, converted to the color space.
-    RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Bindings::PredefinedColorSpace = Bindings::PredefinedColorSpace::Srgb);
+    Optional<Gfx::DecodedImageFrame> read_pixels(Gfx::IntRect const&, Gfx::AlphaType = Gfx::AlphaType::Premultiplied, Bindings::PredefinedColorSpace = Bindings::PredefinedColorSpace::Srgb);
 
     // Draws the ImageBitmap at the point as drawImage() does, and returns whether that threw nothing.
     bool draw_image(ImageBitmap&, float x, float y);

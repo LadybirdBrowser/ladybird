@@ -22,7 +22,6 @@ use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::image_frame_from_pixels;
 use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D};
-use crate::canvas_2d::host::LentImageFrame;
 
 /// The size of a pixel of an ImageData and of a readback, whose pixels are RGBA8888.
 const BYTES_PER_PIXEL: usize = 4;
@@ -180,10 +179,9 @@ impl ContextState {
                 .into());
         };
 
-        let lent_frame = LentImageFrame(NonNull::new(frame.as_raw().cast_mut()).expect("an image frame has a frame"));
         self.record(|recorder| {
             recorder.put_image_frame(
-                &lent_frame,
+                &frame,
                 IntPoint {
                     x: destination_rect.x,
                     y: destination_rect.y,
@@ -318,10 +316,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's
         //    colorSpace using 'relative-colorimetric' rendering intent.
         // NB: The pixels of imageData are RGBA8888 and unpremultiplied.
-        let Some(readback_pixels) = readback.unpremultiplied_rgba_pixels() else {
+        if !readback.has_unpremultiplied_rgba8888_pixels() {
             return Ok(image_data);
-        };
-        if readback_pixels.width != readback_rect.width || readback_pixels.height != readback_rect.height {
+        }
+        if readback.width() != readback_rect.width || readback.height() != readback_rect.height {
             return Ok(image_data);
         }
         let image_data_pixels = image_data.pixels().expect("a new ImageData has room for its pixels");
@@ -334,12 +332,12 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         let rows = to_usize(i64::from(readback_rect.height));
         assert!(destination_x * BYTES_PER_PIXEL + row_size <= destination_pitch);
         assert!(destination_y + rows <= height as usize);
-        assert!(row_size <= readback_pixels.pitch);
+        assert!(row_size <= readback.pitch());
         for row in 0..rows {
             // SAFETY: The row is inside both the readback and the pixels of the new ImageData, as asserted above, and
             //         the two do not overlap.
             unsafe {
-                let source = readback_pixels.first_row.as_ptr().add(row * readback_pixels.pitch);
+                let source = readback.pixels().as_ptr().add(row * readback.pitch());
                 let destination = image_data_pixels
                     .as_ptr()
                     .add((destination_y + row) * destination_pitch + destination_x * BYTES_PER_PIXEL);

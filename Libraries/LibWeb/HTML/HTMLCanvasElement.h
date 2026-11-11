@@ -44,7 +44,7 @@ public:
     virtual CSS::ComputationContext canvas_font_computation_context() override;
     virtual CSS::ColorResolutionStyle canvas_color_resolution_style() override;
     virtual CSSPixelRect canvas_viewport_rect() const override;
-    virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface() override;
+    virtual Optional<Gfx::DecodedImageFrame> get_srgb_frame_from_surface() override;
     virtual bool is_origin_clean() const override;
 
     JS::ThrowCompletionOr<RenderingContext> get_context(Utf16View type, JS::Value options);

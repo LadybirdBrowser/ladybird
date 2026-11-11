@@ -10,6 +10,8 @@
 use core::ffi::c_void;
 use core::ptr::{self, NonNull};
 
+use libgfx_rust::image_frame::ImageFrameHandle;
+
 use super::proxy::transport::{ReadPixelsResult, SharedMemory, Transport};
 
 unsafe extern "C" {
@@ -72,7 +74,6 @@ unsafe extern "C" {
     safe fn web_webgl_anonymous_buffer_create(size: usize, out_data: &mut *mut u8) -> *mut c_void;
     fn web_webgl_anonymous_buffer_destroy(anonymous_buffer: *mut c_void);
     fn web_webgl_frame_destroy(frame: *mut c_void);
-    fn web_webgl_bitmap_unref(bitmap: *mut c_void);
 }
 
 pub(crate) struct AnonymousBuffer {
@@ -125,23 +126,6 @@ impl Drop for Frame {
     }
 }
 
-pub(crate) struct Bitmap(NonNull<c_void>);
-
-impl Bitmap {
-    pub(crate) fn into_raw(self) -> *mut c_void {
-        let bitmap = self.0.as_ptr();
-        core::mem::forget(self);
-        bitmap
-    }
-}
-
-impl Drop for Bitmap {
-    fn drop(&mut self) {
-        // SAFETY: The value owns one reference to the bitmap.
-        unsafe { web_webgl_bitmap_unref(self.0.as_ptr()) };
-    }
-}
-
 pub(crate) struct CppTransport(NonNull<c_void>);
 
 impl CppTransport {
@@ -180,7 +164,7 @@ unsafe extern "C" fn append_reply(reply_sink: *mut c_void, reply: *const u8, rep
 impl Transport for CppTransport {
     type SharedMemory = AnonymousBuffer;
     type Frame = Frame;
-    type Bitmap = Bitmap;
+    type DrawingBufferPixels = ImageFrameHandle;
 
     fn max_frames_per_message(&self) -> usize {
         web_webgl_max_frames_per_message()
@@ -292,8 +276,9 @@ impl Transport for CppTransport {
         unsafe { web_webgl_transport_read_buffer_sub_data(self.as_ptr(), target, offset, size, data.buffer.as_ptr()) }
     }
 
-    fn read_back_drawing_buffer(&self, x: i32, y: i32, width: i32, height: i32) -> Option<Bitmap> {
-        let bitmap = unsafe { web_webgl_transport_read_back_drawing_buffer(self.as_ptr(), x, y, width, height) };
-        NonNull::new(bitmap).map(Bitmap)
+    fn read_back_drawing_buffer(&self, x: i32, y: i32, width: i32, height: i32) -> Option<ImageFrameHandle> {
+        let frame = unsafe { web_webgl_transport_read_back_drawing_buffer(self.as_ptr(), x, y, width, height) };
+        // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
+        (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
     }
 }
