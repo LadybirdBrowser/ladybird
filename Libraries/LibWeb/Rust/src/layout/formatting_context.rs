@@ -552,12 +552,21 @@ pub(crate) fn place_child(
         abspos_boxes_placed_with_it.extend(lay_out_pending_abspos_children(run, batch));
     }
     let node_facts = NodeFacts::new(pass, node);
+    let committed_offset = point_add(
+        offset,
+        committed_offset_delta_at_placement(
+            pass,
+            node,
+            facts_decided_by_parent.used_insets,
+            offset_from_relatively_positioned_inline_ancestors,
+        ),
+    );
     let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
         let metrics = &geometry.cells;
         let collapsed = metrics.uses_collapsing_borders_model();
         CssPixelRect {
-            x: offset.x - metrics.border_box_left(collapsed),
-            y: offset.y - metrics.border_box_top(collapsed),
+            x: committed_offset.x - metrics.border_box_left(collapsed),
+            y: committed_offset.y - metrics.border_box_top(collapsed),
             width: metrics.border_box_inline_size(collapsed),
             height: metrics.border_box_block_size(collapsed),
         }
@@ -570,15 +579,7 @@ pub(crate) fn place_child(
         facts_decided_by_parent,
         abspos_layout_inputs,
         resolve_containing_line_box_index(pass, node, containing_line_box_fragment),
-        point_add(
-            offset,
-            committed_offset_delta_at_placement(
-                pass,
-                node,
-                facts_decided_by_parent.used_insets,
-                offset_from_relatively_positioned_inline_ancestors,
-            ),
-        ),
+        committed_offset,
         own_anchor_candidate_border_box_rect,
         physical_contents_shift,
     );
