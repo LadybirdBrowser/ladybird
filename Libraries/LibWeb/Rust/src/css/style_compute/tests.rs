@@ -177,6 +177,7 @@ fn element_adjustment_input() -> FfiBoxTypeTransformationInput {
         force_position_static: false,
         force_symbol_display_inline: false,
         webkit_box_layout_transformation_applies: false,
+        in_top_layer: false,
     }
 }
 

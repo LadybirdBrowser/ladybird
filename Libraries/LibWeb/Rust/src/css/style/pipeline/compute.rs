@@ -804,9 +804,10 @@ impl RetainedState {
         let box_type_input = self.box_type_transformation_input_with(
             records,
             facts,
-            match is_pseudo_element {
-                true => crate::css::style_compute::StyleAdjustmentTarget::PseudoElement,
-                false => crate::css::style_compute::StyleAdjustmentTarget::Element,
+            match (is_pseudo_element, target_pseudo_kind) {
+                (true, pseudo_kind::BACKDROP) => crate::css::style_compute::StyleAdjustmentTarget::Backdrop,
+                (true, _) => crate::css::style_compute::StyleAdjustmentTarget::PseudoElement,
+                (false, _) => crate::css::style_compute::StyleAdjustmentTarget::Element,
             },
             parent.map(|(parent, _)| parent),
         );

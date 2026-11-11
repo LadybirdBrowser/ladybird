@@ -1,0 +1,16 @@
+<!doctype html>
+<style>
+dialog {
+  outline: none;
+}
+#non-modal {
+    position: static;
+}
+</style>
+<p>Test that a non-top layer element doesn't share style with a top layer
+element. The test passes if you see two boxes.</p>
+<dialog id="non-modal" open></dialog>
+<dialog id="modal"></dialog>
+<script>
+document.querySelector('#modal').showModal();
+</script>

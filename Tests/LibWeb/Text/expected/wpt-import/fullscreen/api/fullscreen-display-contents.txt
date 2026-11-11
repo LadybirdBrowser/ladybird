@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	
+1 Pass
+Pass	
         Test that display:contents on fullscreen elements acts like
         display:block
     
