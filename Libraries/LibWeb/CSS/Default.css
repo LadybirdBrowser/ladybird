@@ -144,8 +144,8 @@ input[type=image] {
     cursor: pointer;
 }
 
-option {
-    display: none;
+option, optgroup {
+    display: block;
 }
 
 /* Custom <input type="range"> styles */

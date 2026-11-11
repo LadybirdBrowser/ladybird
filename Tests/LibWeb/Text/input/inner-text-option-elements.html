@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>#out { position: absolute; }</style>
+<script>
+test(() => {
+    function check(name, markup, setup) {
+        const div = document.createElement("div");
+        div.innerHTML = markup;
+        document.body.append(div);
+        if (setup) setup(div);
+        println(name + ": " + JSON.stringify(div.innerText));
+        div.remove();
+    }
+    check("dropdown", "before <select><option>one</option><optgroup label=group><option>two</option></optgroup></select> after");
+    check("block select", "before <select style='display:block'><option>one</option><option>two</option></select> after");
+    check("listbox", "<select multiple size=3><option>three</option><option>four</option></select>");
+    check("empty select", "a<select></select>b");
+    check("empty group", "a<select><optgroup></optgroup></select>b");
+    check("empty option", "a<select><option></option></select>b");
+    check("label and whitespace", "<select><option label=label>  one   two  </option><option style='white-space:pre;text-transform:uppercase'>  three   four  </option></select>");
+    check("hidden options", "<select><option style='display:none'>one</option><optgroup style='display:none'><option>two</option></optgroup><option style='visibility:hidden'>three</option></select>");
+    check("hidden select", "a<select style='display:none'><option>one</option></select>b");
+    check("invisible select", "a<select style='visibility:hidden'><option>one</option></select>b");
+    check("standalone", "a<optgroup>group<option>one</option></optgroup>b<option>two</option>c");
+    check("styled standalone option", "a<option style='text-transform:uppercase;white-space:pre'>  b   c  </option>d");
+    check("wrapped options", "<select></select>", div => {
+        const select = div.firstChild;
+        select.innerHTML = "<option>one</option>";
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = "ignored<optgroup label=group><option>two</option></optgroup>";
+        select.append(wrapper);
+    });
+    const standalone = document.createElement("option");
+    standalone.textContent = "  standalone   option  ";
+    document.body.append(standalone);
+    println("standalone option text: " + JSON.stringify(standalone.innerText));
+    standalone.remove();
+    const select = document.createElement("select");
+    select.innerHTML = "<option>one</option><optgroup><option>two</option></optgroup>";
+    document.body.append(select);
+    println("select text: " + JSON.stringify(select.innerText));
+    println("option display: " + getComputedStyle(select.firstChild).display);
+    println("optgroup display: " + getComputedStyle(select.lastChild).display);
+    select.multiple = true;
+    println("multiple text: " + JSON.stringify(select.innerText));
+    select.options[0].text = "changed";
+    println("updated text: " + JSON.stringify(select.innerText));
+    select.style.visibility = "hidden";
+    println("invisible select text: " + JSON.stringify(select.innerText));
+    select.style.contentVisibility = "hidden";
+    println("skipped select text: " + JSON.stringify(select.innerText));
+    select.remove();
+});
+</script>

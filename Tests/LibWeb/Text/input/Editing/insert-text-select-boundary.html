@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    for (const [multiple, spaced] of [[false, false], [true, false], [false, true]]) {
+        for (const start of ["select-start", "select-middle", "select-end", "option-start", "before-select", "after-select"]) {
+            const editor = document.createElement("div");
+            editor.contentEditable = "true";
+            editor.innerHTML = "<span>before</span><select" + (multiple ? " multiple" : "") + ">" + (spaced ? " " : "") + "<option>one</option><option>two</option>" + (spaced ? " " : "") + "</select><span>after</span>";
+            document.body.append(editor);
+            editor.focus();
+            const select = editor.querySelector("select");
+            const after = editor.lastChild.firstChild;
+            const range = new Range();
+            if (start === "select-start") range.setStart(select, 0);
+            if (start === "select-middle") range.setStart(select, select.childNodes.length / 2);
+            if (start === "select-end") range.setStart(select, select.childNodes.length);
+            if (start === "option-start") range.setStart(select.options[0].firstChild, 0);
+            if (start === "before-select") range.setStartBefore(select);
+            if (start === "after-select") range.setStartAfter(select);
+            range.setEnd(after, 2);
+            getSelection().removeAllRanges();
+            getSelection().addRange(range);
+            document.execCommand("insertText", false, "X");
+            println((multiple ? "multiple " : "single ") + (spaced ? "spaced " : "") + start + ": " + editor.innerHTML);
+            editor.remove();
+        }
+    }
+});
+</script>

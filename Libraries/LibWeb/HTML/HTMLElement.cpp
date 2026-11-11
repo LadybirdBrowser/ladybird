@@ -43,7 +43,10 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
+#include <LibWeb/HTML/HTMLOptGroupElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -593,8 +596,47 @@ static void apply_white_space_processing_rules(Vector<RenderedTextItem>& items, 
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
+static void collect_select_rendered_text(DOM::Node const& node, Vector<RenderedTextItem>& items, bool inside_optgroup = false)
+{
+    // A select's light-DOM children have no layout nodes: Its shadow tree renders the control's labels instead.
+    // Collect the option text separately, retaining the required line breaks for empty options and groups.
+    node.for_each_child([&](auto const& child) {
+        if (auto const* option = as_if<HTMLOptionElement>(child)) {
+            items.append(RequiredLineBreakCount { 1 });
+            // AD-HOC: The spec calls for normal block boxes in options. Use their normalized text here, since the
+            //         control renders labels rather than those boxes, and the label attribute isn't part of innerText.
+            items.append(option->text());
+            items.append(RequiredLineBreakCount { 1 });
+        } else if (is<HTMLOptGroupElement>(child)) {
+            if (!inside_optgroup) {
+                items.append(RequiredLineBreakCount { 1 });
+                collect_select_rendered_text(child, items, true);
+                items.append(RequiredLineBreakCount { 1 });
+            }
+        } else {
+            collect_select_rendered_text(child, items, inside_optgroup);
+        }
+        return IterationDecision::Continue;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
 static Vector<RenderedTextItem> rendered_text_collection_steps(Layout::BegunRead const& read, DOM::Node const& node)
 {
+    auto* layout_node = node.layout_node(read);
+    if (auto const* select = as_if<HTMLSelectElement>(node); select && layout_node) {
+        Vector<RenderedTextItem> items;
+        auto const& style_node = as<Layout::NodeWithStyle>(*layout_node);
+        if (style_node.visibility() == CSS::Visibility::Visible && style_node.content_visibility() != CSS::ContentVisibility::Hidden) {
+            if (layout_node->is_atomic_inline())
+                items.append(AtomicInlineStart {});
+            collect_select_rendered_text(*select, items);
+            if (layout_node->is_atomic_inline())
+                items.append(AtomicInlineEnd {});
+        }
+        return items;
+    }
+
     // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree
     //    order, and then concatenating the results to a single list.
     Vector<RenderedTextItem> items;
@@ -609,10 +651,12 @@ static Vector<RenderedTextItem> rendered_text_collection_steps(Layout::BegunRead
     // 3. If node is not being rendered, then return items.
     //    For the purpose of this step, the following elements must act as described
     //    if the computed value of the 'display' property is not 'none':
-    //    FIXME: - select elements have an associated non-replaced inline CSS box whose child boxes include only those of optgroup and option element child nodes;
-    //    FIXME: - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those of option element child nodes; and
-    //    FIXME: - option elements have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
-    auto* layout_node = node.layout_node(read);
+    //    - select elements have an associated non-replaced inline CSS box whose child boxes include only those of
+    //      optgroup and option element descendant nodes;
+    //    - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those
+    //      of option element descendant nodes; and
+    //    - option elements have an associated non-replaced block-level CSS box whose child boxes are as normal for
+    //      non-replaced block-level CSS boxes.
     if (!layout_node)
         return items;
     if (!layout_node->has_style_or_parent_with_style())
@@ -628,6 +672,14 @@ static Vector<RenderedTextItem> rendered_text_collection_steps(Layout::BegunRead
     // AD-HOC: If node's computed value of 'content-visibility' is 'hidden', then return items.
     if (style_node.content_visibility() == CSS::ContentVisibility::Hidden)
         return items;
+
+    if (auto const* option = as_if<HTMLOptionElement>(node)) {
+        items.clear();
+        items.append(RequiredLineBreakCount { 1 });
+        items.append(option->text());
+        items.append(RequiredLineBreakCount { 1 });
+        return items;
+    }
 
     // 4. If node is a Text node, then for each CSS text box produced by node, in content order, compute the text of the
     //    box after application of the CSS 'white-space' processing rules and 'text-transform' rules, set items to the
@@ -693,19 +745,29 @@ Utf16String HTMLElement::get_the_text_steps()
     if (!has_layout_box())
         return descendant_text_content();
 
+    if (layout_node(read)->content_visibility() == CSS::ContentVisibility::Hidden)
+        return {};
+
+    if (auto const* option = as_if<HTMLOptionElement>(*this))
+        return option->text();
+
     // 2. Let results be a new empty list.
     Vector<RenderedTextItem> results;
 
-    // 3. For each child node node of element:
-    for_each_child([&](Node const& node) {
-        // 1. Let current be the list resulting in running the rendered text collection steps with node.
-        //    Each item in results will either be a string or a positive integer (a required line break count).
-        auto current = rendered_text_collection_steps(read, node);
+    if (is<HTMLSelectElement>(*this)) {
+        collect_select_rendered_text(*this, results);
+    } else {
+        // 3. For each child node node of element:
+        for_each_child([&](Node const& node) {
+            // 1. Let current be the list resulting in running the rendered text collection steps with node.
+            //    Each item in results will either be a string or a positive integer (a required line break count).
+            auto current = rendered_text_collection_steps(read, node);
 
-        // 2. For each item item in current, append item to results.
-        results.extend(move(current));
-        return IterationDecision::Continue;
-    });
+            // 2. For each item item in current, append item to results.
+            results.extend(move(current));
+            return IterationDecision::Continue;
+        });
+    }
 
     // NB: Apply the CSS 'white-space' processing rules to the text that remains unprocessed. The start and the end of
     //     the element only start and end lines if the element is not inline-level.
