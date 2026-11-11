@@ -206,7 +206,6 @@ TEST_CASE(all_web_ui_pages_are_suggested)
         "about:crashes"sv,
         "about:newtab"sv,
         "about:settings"sv,
-        "about:services"sv,
         "about:welcome"sv,
     };
 
