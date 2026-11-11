@@ -756,7 +756,7 @@ QFrame#LadybirdFindInPageSeparator {{
 }}
 )",
                style_sheet_color(panel.page), style_sheet_color(panel.text), style_sheet_color(panel.muted), style_sheet_color(panel.body),
-               style_sheet_color(panel.control), style_sheet_color(no_match_fill), style_sheet_color(Theme::accent()),
+               style_sheet_color(panel.control), style_sheet_color(no_match_fill), style_sheet_color(Theme::accent_fill()),
                style_sheet_color(panel.separator), style_sheet_color(no_match_text))
         + panel_text_selection_style_sheet({ "QWidget#LadybirdFindInPageField QLineEdit" }, panel.text);
 }
