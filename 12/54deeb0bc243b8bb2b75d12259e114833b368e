@@ -1,0 +1,20 @@
+Ladybird limits document.write() and document.writeln() to 21 nested
+calls per document. Once a write reaches that limit, further writes
+are ignored until the outermost write returns. Independent writes
+can then proceed, and other documents retain their own limits.
+
+Blink enforces the same limit in Document::write(), with the depth in
+write_recursion_depth_ and suppression in write_recursion_is_too_deep_.
+WebKit uses Document::write() with m_writeRecursionDepth for the depth
+and m_writeRecursionIsTooDeep to suppress further writes. Both engines
+silently discard writes once the limit is reached. Ladybird uses 21
+to match their observable limit of 22 script elements when a script
+writes its own outerHTML during the initial document parse.
+
+Gecko also permits 21 nested writes in Document::WriteCommon(): It
+checks mWriteLevel against NS_MAX_DOCUMENT_WRITE_DEPTH (20) before
+incrementing it. Its mTooDeepWriteRecursion suppresses writes until
+the outermost call returns. Gecko throws NS_ERROR_UNEXPECTED when
+the limit is reached; Ladybird silently ignores the write, matching
+Blink and WebKit. This bounds recursive parser entry beyond the
+HTML document write steps, which specify no recursion limit.
