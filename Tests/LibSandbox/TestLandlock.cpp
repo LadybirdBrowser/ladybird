@@ -228,3 +228,46 @@ TEST_CASE(signals_stay_within_the_landlock_process_tree)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 #endif
+
+TEST_CASE(gpu_driver_paths_leave_out_shader_caches_that_cannot_be_used)
+{
+    char directory_template[] = "/tmp/lb-shader-cache-XXXXXX";
+    VERIFY(mkdtemp(directory_template));
+    auto directory = ByteString { directory_template };
+    auto regular_file = ByteString::formatted("{}/file", directory);
+    auto mesa_cache = ByteString::formatted("{}/mesa", directory);
+    auto nvidia_cache = ByteString::formatted("{}/nvidia", directory);
+
+    auto fd = open(regular_file.characters(), O_CREAT | O_WRONLY | O_CLOEXEC, 0600);
+    VERIFY(fd >= 0);
+    VERIFY(close(fd) == 0);
+    VERIFY(setenv("__GL_SHADER_DISK_CACHE_PATH", nvidia_cache.characters(), 1) == 0);
+
+    auto rules_for_mesa_cache = [](char const* mesa_cache_path) {
+        VERIFY(setenv("MESA_SHADER_CACHE_DIR", mesa_cache_path, 1) == 0);
+        Vector<Sandbox::PathRule> rules;
+        EXPECT(!Sandbox::add_gpu_driver_paths(rules).is_error());
+        return rules;
+    };
+    auto has_rule_for = [](Vector<Sandbox::PathRule> const& rules, StringView path) {
+        return any_of(rules, [&](auto const& rule) { return rule.path == path; });
+    };
+
+    auto rules = rules_for_mesa_cache(regular_file.characters());
+    EXPECT(!has_rule_for(rules, regular_file));
+
+    rules = rules_for_mesa_cache("../cache");
+    EXPECT(!has_rule_for(rules, "../cache"sv));
+
+    rules = rules_for_mesa_cache(mesa_cache.characters());
+    EXPECT(any_of(rules, [&](auto const& rule) {
+        return rule.path == mesa_cache && rule.access == Sandbox::PathRule::Access::ReadWrite;
+    }));
+
+    VERIFY(unsetenv("MESA_SHADER_CACHE_DIR") == 0);
+    VERIFY(unsetenv("__GL_SHADER_DISK_CACHE_PATH") == 0);
+    (void)unlink(regular_file.characters());
+    (void)rmdir(mesa_cache.characters());
+    (void)rmdir(nvidia_cache.characters());
+    (void)rmdir(directory.characters());
+}

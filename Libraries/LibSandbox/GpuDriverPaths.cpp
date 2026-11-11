@@ -124,6 +124,23 @@ static ErrorOr<void> add_loader_manifest_paths(Vector<PathRule>& paths)
     return {};
 }
 
+// A shader cache only makes the driver faster. If we cannot create or open its directory, for example because another
+// user owns it, we leave it out and the driver runs without its disk cache.
+static ErrorOr<void> add_shader_cache_path(Vector<PathRule>& paths, ByteString const& path)
+{
+    if (!path.starts_with('/')) {
+        dbgln("Leaving out the shader cache at {}: Not an absolute path", path);
+        return {};
+    }
+    if (auto result = Core::Directory::create(path, Core::Directory::CreateDirectories::Yes); result.is_error()) {
+        dbgln("Leaving out the shader cache at {}: {}", path, result.error());
+        return {};
+    }
+    if (auto result = add_path_if_exists(paths, path, PathRule::Access::ReadWrite); result.is_error())
+        dbgln("Leaving out the shader cache at {}: {}", path, result.error());
+    return {};
+}
+
 ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths)
 {
     TRY(add_path_if_exists(paths, "/lib"sv, PathRule::Access::ReadOnly));
@@ -180,16 +197,14 @@ ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths)
     auto mesa_shader_cache_path = Core::Environment::get("MESA_SHADER_CACHE_DIR"sv)
                                       .map([](auto path) { return path.to_byte_string(); })
                                       .value_or_lazy_evaluated([] { return ByteString::formatted("{}/mesa_shader_cache", Core::StandardPaths::cache_directory()); });
-    TRY(Core::Directory::create(mesa_shader_cache_path, Core::Directory::CreateDirectories::Yes));
-    TRY(add_path_if_exists(paths, mesa_shader_cache_path, PathRule::Access::ReadWrite));
+    TRY(add_shader_cache_path(paths, mesa_shader_cache_path));
 
     // The NVIDIA driver keeps its own shader cache.
     if (!Core::System::access("/dev/nvidiactl"sv, F_OK).is_error()) {
         auto nvidia_shader_cache_path = Core::Environment::get("__GL_SHADER_DISK_CACHE_PATH"sv)
                                             .map([](auto path) { return path.to_byte_string(); })
                                             .value_or_lazy_evaluated([] { return ByteString::formatted("{}/nvidia", Core::StandardPaths::cache_directory()); });
-        TRY(Core::Directory::create(nvidia_shader_cache_path, Core::Directory::CreateDirectories::Yes));
-        TRY(add_path_if_exists(paths, nvidia_shader_cache_path, PathRule::Access::ReadWrite));
+        TRY(add_shader_cache_path(paths, nvidia_shader_cache_path));
     }
 
     return {};
