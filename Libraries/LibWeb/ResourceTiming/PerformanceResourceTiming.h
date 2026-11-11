@@ -37,15 +37,6 @@ public:
 
     static void mark_resource_timing(NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
 
-    // NOTE: These three functions are answered by the registry for the given entry type.
-    // https://w3c.github.io/timing-entrytypes-registry/#registry
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-availablefromtimeline
-    static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::Yes; }
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-maxbuffersize
-    static Optional<u64> max_buffer_size() { return 250; }
-
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 

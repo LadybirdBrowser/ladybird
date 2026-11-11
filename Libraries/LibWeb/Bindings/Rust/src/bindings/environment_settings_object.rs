@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, Object, Trace};
+use libjs_rust::api::{Gc, Object, Realm, Trace};
 use liburl_rust::{RustUrl, Url};
 
 use crate::bindings::cpp_cell::CppCell;
@@ -19,6 +19,7 @@ use crate::bindings::cpp_cell::CppCell;
 unsafe extern "C" {
     fn web_bindings_relevant_settings_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_global_object(settings_object: *mut c_void) -> *mut c_void;
+    fn web_bindings_environment_settings_object_realm(settings_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_id(
         settings_object: *mut c_void,
         id: *mut c_void,
@@ -74,6 +75,14 @@ impl CppEnvironmentSettingsObject {
         let global_object = unsafe { web_bindings_environment_settings_object_global_object(self.as_ptr()) };
         // SAFETY: The global object is live.
         unsafe { Gc::from_non_null(NonNull::new(global_object.cast()).expect("a settings object has a global object")) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object's-realm
+    pub(crate) fn realm(&self) -> Gc<Realm> {
+        // SAFETY: The settings object is live, and LibWeb returns its live realm.
+        let realm = unsafe { web_bindings_environment_settings_object_realm(self.as_ptr()) };
+        // SAFETY: The realm is live.
+        unsafe { Gc::from_non_null(NonNull::new(realm.cast()).expect("a settings object has a realm")) }
     }
 
     /// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url

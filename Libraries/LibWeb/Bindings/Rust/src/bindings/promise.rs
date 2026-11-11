@@ -73,6 +73,7 @@ pub(crate) enum TaskSource {
     Networking = 3,
     PostedMessage = 6,
     FileReading = 13,
+    PerformanceTimeline = 15,
     FontLoading = 19,
     Crypto = 27,
     Storage = 29,

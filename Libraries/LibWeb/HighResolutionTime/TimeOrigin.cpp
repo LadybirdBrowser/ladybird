@@ -7,10 +7,16 @@
 
 #include <AK/Math.h>
 #include <AK/Time.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HighResolutionTime {
+
+extern "C" {
+double web_high_resolution_time_current_high_resolution_time(JSObject* global_object);
+double web_high_resolution_time_get_time_origin_timestamp(JSObject* global_object);
+}
 
 // https://w3c.github.io/hr-time/#dfn-estimated-monotonic-time-of-the-unix-epoch
 DOMHighResTimeStamp estimated_monotonic_time_of_the_unix_epoch()
@@ -117,6 +123,19 @@ DOMHighResTimeStamp unsafe_shared_current_time()
     // The unsafe shared current time must return the current value of the shared monotonic clock.
     // Note: This is in milliseconds (stored as a double).
     return MonotonicTime::now().to_seconds_f64() * 1000.0;
+}
+
+extern "C" {
+
+double web_high_resolution_time_current_high_resolution_time(JSObject* global_object)
+{
+    return current_high_resolution_time(*JS::HostABI::object_from_abi(global_object));
+}
+
+double web_high_resolution_time_get_time_origin_timestamp(JSObject* global_object)
+{
+    return get_time_origin_timestamp(*JS::HostABI::object_from_abi(global_object));
+}
 }
 
 }

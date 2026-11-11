@@ -73,7 +73,6 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
@@ -796,7 +795,6 @@ void shut_down_agent()
     Platform::discard_thread_pool_completions();
     Fetch::Fetching::disarm_all_body_stream_wakes();
     HTML::clear_message_event_ports_caches();
-    PerformanceTimeline::clear_supported_entry_types_caches();
     ServiceWorker::clear_service_worker_container_ready_promise_caches();
     PermissionsAPI::PermissionStore::forget_statuses_of_this_agent();
     FileAPI::forget_blob_url_store_of_this_agent();

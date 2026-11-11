@@ -69,8 +69,6 @@ JS::Realm& WorkerGlobalScope::realm() const
 
 void WorkerGlobalScope::initialize_web_interfaces_impl()
 {
-    WindowOrWorkerGlobalScopeMixin::initialize();
-
     m_navigator = WorkerNavigator::create(*this);
 }
 

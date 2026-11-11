@@ -7,7 +7,7 @@ partial interface mixin WindowOrWorkerGlobalScope {
 typedef sequence<PerformanceEntry> PerformanceEntryList;
 
 // https://w3c.github.io/hr-time/#sec-performance
-[Exposed=(Window, Worker)]
+[Exposed=(Window, Worker), ImplementedIn=Rust]
 interface Performance : EventTarget {
     DOMHighResTimeStamp now();
     readonly attribute DOMHighResTimeStamp timeOrigin;
@@ -29,6 +29,6 @@ interface Performance : EventTarget {
     // https://w3c.github.io/performance-timeline/#extensions-to-the-performance-interface
     // "Performance Timeline" extensions to the Performance interface
     PerformanceEntryList getEntries();
-    PerformanceEntryList getEntriesByType([FlyString] DOMString type);
-    PerformanceEntryList getEntriesByName(DOMString name, optional [FlyString] DOMString type);
+    PerformanceEntryList getEntriesByType(DOMString type);
+    PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
 };

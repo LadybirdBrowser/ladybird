@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
@@ -13,6 +14,10 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::UserTiming {
+
+extern "C" {
+PerformanceTimeline::PerformanceEntry* web_user_timing_performance_measure_create(FlatPtr measure_name, double start_time, double duration, JSValue detail);
+}
 
 GC_DEFINE_ALLOCATOR(PerformanceMeasure);
 
@@ -45,6 +50,14 @@ void PerformanceMeasure::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_detail);
+}
+
+extern "C" {
+
+PerformanceTimeline::PerformanceEntry* web_user_timing_performance_measure_create(FlatPtr measure_name, double start_time, double duration, JSValue detail)
+{
+    return PerformanceMeasure::create(Utf16String::from_raw(measure_name), start_time, duration, JS::HostABI::value_from_abi(detail)).ptr();
+}
 }
 
 }

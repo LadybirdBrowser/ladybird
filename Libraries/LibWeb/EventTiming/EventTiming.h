@@ -41,7 +41,7 @@ struct WindowEventTimingState {
     bool is_contextmenu_triggered { false };
 
     // eventCounts, a map with entries of the form type → numEvents.
-    // NB: This is created along with the Window's Performance object.
+    // NB: This is created when it is first asked for.
     GC::Ptr<EventCounts> event_counts;
 
     // interactionCount, an integer which counts the total number of distinct user interactions, for which there was a
@@ -56,6 +56,8 @@ struct WindowEventTimingState {
 // NB: The relevant global object of the given event target, if it is a Window. Only nodes and windows are the targets
 //     of events that are timed.
 HTML::Window* relevant_window_of_event_target(DOM::EventTarget&);
+
+GC::Ref<EventCounts> event_counts(HTML::Window&);
 
 // https://w3c.github.io/event-timing/#considered-for-event-timing
 bool is_considered_for_event_timing(DOM::Event const&);

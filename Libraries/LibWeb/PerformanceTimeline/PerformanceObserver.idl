@@ -7,13 +7,13 @@ callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList e
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverinit
 dictionary PerformanceObserverInit {
-    sequence<[FlyString] DOMString> entryTypes;
-    [FlyString] DOMString type;
+    sequence<DOMString> entryTypes;
+    DOMString type;
     boolean buffered;
 };
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PerformanceObserver {
     constructor(PerformanceObserverCallback callback);
     undefined observe(optional PerformanceObserverInit options = {});

@@ -49,6 +49,8 @@ unsafe extern "C" {
     pub(crate) fn web_bindings_realm_is_window(realm: *mut c_void) -> bool;
     pub(crate) fn web_bindings_realm_is_secure_context(realm: *mut c_void) -> bool;
 
+    pub(crate) fn web_bindings_report_an_exception(realm: *mut c_void, exception: u64);
+
     /// Runs the steps with the context while an execution context of the realm is on the stack, as an
     /// HTML::TemporaryExecutionContext puts it there, with callbacks enabled if `callbacks_enabled`.
     pub(crate) fn web_bindings_with_temporary_execution_context(

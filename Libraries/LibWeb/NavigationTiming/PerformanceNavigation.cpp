@@ -12,6 +12,10 @@
 
 namespace Web::NavigationTiming {
 
+extern "C" {
+PerformanceNavigation* web_navigation_timing_performance_navigation_create(HTML::Window*);
+}
+
 GC_DEFINE_ALLOCATOR(PerformanceNavigation);
 
 GC::Ref<PerformanceNavigation> PerformanceNavigation::create(HTML::Window& window)
@@ -68,6 +72,11 @@ u16 PerformanceNavigation::redirect_count() const
         return 0;
 
     return entry->redirect_count();
+}
+
+PerformanceNavigation* web_navigation_timing_performance_navigation_create(HTML::Window* window)
+{
+    return PerformanceNavigation::create(*window).ptr();
 }
 
 }

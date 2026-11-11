@@ -11,7 +11,7 @@
 #include <LibAudio/PlaybackStream.h>
 #include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/Performance.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebAudio/RustFFI.h>
 
@@ -72,6 +72,6 @@ void RustFFI::web_audio_output_discard_and_suspend(void* stream)
     static_cast<Audio::PlaybackStream*>(stream)->discard_buffer_and_suspend()->when_rejected([](auto&&) { });
 }
 i64 RustFFI::web_audio_monotonic_now_nanoseconds() { return MonotonicTime::now().nanoseconds(); }
-double web_audio_realtime_context_performance_now(DOM::EventTarget* global) { return as<HTML::Window>(*global).performance()->now(); }
+double web_audio_realtime_context_performance_now(DOM::EventTarget* global) { return HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(as<HTML::Window>(*global))); }
 
 }

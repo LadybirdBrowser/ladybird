@@ -33,7 +33,8 @@ use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
     web_bindings_define_unforgeable_attributes, web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype,
     web_bindings_perform_a_security_check, web_bindings_realm_is_secure_context, web_bindings_realm_is_window,
-    web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper, web_bindings_with_temporary_execution_context,
+    web_bindings_report_an_exception, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
+    web_bindings_with_temporary_execution_context,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -456,6 +457,12 @@ pub(crate) fn realm_is_window(realm: Gc<Realm>) -> bool {
 pub(crate) fn realm_is_secure_context(realm: Gc<Realm>) -> bool {
     // SAFETY: The realm is live.
     unsafe { web_bindings_realm_is_secure_context(realm.as_ptr().cast()) }
+}
+
+/// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
+pub(crate) fn report_an_exception(realm: Gc<Realm>, exception: Value) {
+    // SAFETY: The realm and the exception are live.
+    unsafe { web_bindings_report_an_exception(realm.as_ptr().cast(), exception.to_raw()) }
 }
 
 /// Runs the steps while an execution context of the realm is on the stack, for steps that can run script but that do not

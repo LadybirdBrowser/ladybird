@@ -21,8 +21,6 @@ public:
 
     static void create_navigation_timing_entry(DOM::Document&, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo>, u16 redirect_count, Bindings::NavigationTimingType, Optional<Fetch::Infrastructure::Response::CacheState> const&, Fetch::Infrastructure::Response::BodyInfo, Fetch::Infrastructure::Status);
 
-    static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::Yes; }
-    static Optional<u64> max_buffer_size() { return OptionalNone {}; }
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 
     virtual Utf16FlyString const& entry_type() const override;

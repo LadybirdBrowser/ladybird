@@ -188,11 +188,6 @@ WebIDL::ExceptionOr<void> initialize_window_web_interfaces(HTML::Window& window,
     window_global_mixin.initialize(realm, global_object);
     window_global_mixin.define_unforgeable_attributes(realm, global_object);
 
-    // The interface/unforgeable setup above is realm-scoped and must run for every Window wrapper realm.
-    // WindowOrWorkerGlobalScopeMixin state is impl-scoped and shared by all worlds for this Window.
-    if (&realm == &window.principal_realm())
-        window.WindowOrWorkerGlobalScopeMixin::initialize();
-
     if (window.is_internals_object_exposed())
         Bindings::define_internals_property(realm, window, global_object);
 
