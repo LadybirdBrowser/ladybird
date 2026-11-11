@@ -186,6 +186,7 @@ private:
     void schedule_tab_preview(int index);
     void show_tab_preview();
     void hide_tab_preview();
+    void stop_following_previewed_tab_frames();
     QPoint tab_preview_position_for(int index, QSize const& popup_size) const;
 
     // Where the pinned tabs sit in vertical tabs: a grid of tiles when expanded, one icon column when collapsed, and a
@@ -294,6 +295,7 @@ private:
     int m_tab_preview_index { -1 };
     QPointer<Tab> m_previewed_tab;
     QMetaObject::Connection m_tab_preview_paint_connection;
+    QMetaObject::Connection m_tab_preview_change_connection;
 };
 
 class TabWidget final : public QWidget {

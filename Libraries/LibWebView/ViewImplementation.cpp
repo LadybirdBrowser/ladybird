@@ -478,6 +478,11 @@ void ViewImplementation::set_hosts_remote_layer(bool hosts_remote_layer)
     did_create_remote_layer(remote_layer->core_animation_context_id);
 }
 
+void ViewImplementation::take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
+{
+    Application::the().take_frame_snapshot(page().compositor_context_id(), maximum_size, move(callback));
+}
+
 void ViewImplementation::recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>)
 {
     if (!m_hosts_remote_layer)

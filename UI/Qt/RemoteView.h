@@ -94,6 +94,9 @@ public:
     void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { HubConnection::the().async_view_set_presents_from_cpu_memory(view_id(), presents_from_cpu_memory); }
     void set_hosts_remote_layer(bool hosts_remote_layer) { HubConnection::the().async_view_set_hosts_remote_layer(view_id(), hosts_remote_layer); }
     void set_wants_frame_notifications(bool wants_frame_notifications) { HubConnection::the().async_view_set_wants_frame_notifications(view_id(), wants_frame_notifications); }
+    // What the view shows, from the Compositor, scaled down to fit within the size given.
+    void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
+    void did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap>);
     void set_has_system_focus(bool has_system_focus) { HubConnection::the().async_view_set_has_system_focus(view_id(), has_system_focus); }
     void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { HubConnection::the().async_view_load(view_id(), url, navigation_history_behavior); }
     void load_from_user_input(URL::URL const&);
@@ -315,6 +318,7 @@ private:
     HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_selected_text;
     HashMap<u64, Function<void(bool)>> m_pending_close_preflights;
     HashMap<u64, NonnullRefPtr<Core::Promise<String>>> m_pending_page_dumps;
+    HashMap<u64, Function<void(Optional<Gfx::ShareableBitmap>)>> m_pending_frame_snapshots;
     u64 m_next_request_id { 1 };
     u64 m_next_navigation_listener_id { 1 };
     WebView::PageBackingStores m_backing_stores;

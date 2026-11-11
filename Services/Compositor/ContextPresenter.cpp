@@ -169,10 +169,11 @@ bool ContextPresenter::acknowledge_presented_bitmap(i32 bitmap_id)
     return m_backing_store_manager.release_buffer(bitmap_id);
 }
 
-void ContextPresenter::did_finish_gpu_present(i32 bitmap_id)
+void ContextPresenter::did_finish_gpu_present(i32 bitmap_id, Gfx::IntSize frame_size)
 {
     m_backing_store_manager.complete_rendering(bitmap_id);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
+    m_size_of_latest_rendered_frame = frame_size;
 }
 
 bool ContextPresenter::update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& transform)
@@ -363,6 +364,7 @@ bool ContextPresenter::present_synchronously(DisplayListPlayerSkia& display_list
     display_list_player.flush(back_store);
     m_backing_store_manager.complete_rendering(render_target->bitmap_id);
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
+    m_size_of_latest_rendered_frame = pending_frame->viewport_rect.size();
     m_presented_frame = pending_frame->viewport_rect;
     m_pending_present_frame.clear();
     m_pending_present_frame_scheduled = false;
@@ -374,6 +376,64 @@ void ContextPresenter::paint_screenshot(DisplayListPlayerSkia& display_list_play
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
     paint_current_display_list(display_list_player, *target_surface, frame_inputs, composited_context_resolver, {}, PaintUIOverlay::No, false);
     display_list_player.flush(*target_surface);
+}
+
+static Gfx::IntSize size_fitting_within(Gfx::IntSize size, Gfx::IntSize maximum_size)
+{
+    if (size.width() <= maximum_size.width() && size.height() <= maximum_size.height())
+        return size;
+    auto scale = min(static_cast<double>(maximum_size.width()) / size.width(), static_cast<double>(maximum_size.height()) / size.height());
+    return { max(1, static_cast<int>(round(size.width() * scale))), max(1, static_cast<int>(round(size.height() * scale))) };
+}
+
+Optional<Gfx::ShareableBitmap> ContextPresenter::snapshot_of_presented_frame(Optional<Gfx::IntSize> maximum_size) const
+{
+    if (!m_latest_rendered_surface)
+        return {};
+    auto const& source = *m_latest_rendered_surface;
+    Gfx::IntSize frame_size { min(m_size_of_latest_rendered_frame.width(), source.size().width()), min(m_size_of_latest_rendered_frame.height(), source.size().height()) };
+    if (frame_size.is_empty())
+        return {};
+    auto snapshot_size = frame_size;
+    if (maximum_size.has_value() && !maximum_size->is_empty())
+        snapshot_size = size_fitting_within(frame_size, *maximum_size);
+
+    auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, snapshot_size);
+    if (bitmap_or_error.is_error())
+        return {};
+    auto bitmap = bitmap_or_error.release_value();
+
+    if (snapshot_size == frame_size) {
+        source.read_into_bitmap(*bitmap);
+        return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
+    }
+
+    // A linear filter reads only the pixels around each one it writes, so a frame scaled down to a fraction of its size
+    // in one step would skip most of them. Halving it first lets every pixel count.
+    auto image = source.sk_image_snapshot<sk_sp<SkImage>>();
+    auto image_size = frame_size;
+    SkSamplingOptions const sampling { SkFilterMode::kLinear };
+    auto draw_scaled = [&](Gfx::IntSize size) -> RefPtr<Gfx::PaintingSurface> {
+        auto surface_or_error = Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, source.skia_backend_context());
+        if (surface_or_error.is_error())
+            return nullptr;
+        auto surface = surface_or_error.release_value();
+        surface->canvas().drawImageRect(image.get(), SkRect::MakeIWH(image_size.width(), image_size.height()), SkRect::MakeIWH(size.width(), size.height()), sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
+        return surface;
+    };
+    while (image_size.width() / 2 >= snapshot_size.width() && image_size.height() / 2 >= snapshot_size.height()) {
+        Gfx::IntSize half_size { image_size.width() / 2, image_size.height() / 2 };
+        auto half = draw_scaled(half_size);
+        if (!half)
+            return {};
+        image = half->sk_image_snapshot<sk_sp<SkImage>>();
+        image_size = half_size;
+    }
+    auto snapshot_surface = draw_scaled(snapshot_size);
+    if (!snapshot_surface)
+        return {};
+    snapshot_surface->read_into_bitmap(*bitmap);
+    return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 
 void ContextPresenter::stop_backing_store_shrink_timer()

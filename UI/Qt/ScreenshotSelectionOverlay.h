@@ -48,7 +48,8 @@ public:
     Function<void()> on_close;
     Function<void(QImage)> on_finished;
     Function<void()> on_full_page_requested;
-    Function<QImage()> on_request_page_frame;
+    // The frame can arrive later, when the process that holds it sends it.
+    Function<void(Function<void(QImage)>)> on_request_page_frame;
     Function<void()> on_page_visibility_change;
 
 protected:
@@ -65,12 +66,17 @@ protected:
 private:
     void place_instructions();
     void cover_page();
+    void once_page_is_covered(Function<void()>);
     QRect selection() const;
     void finish(QImage);
     void update_chrome_style();
 
     QImage m_frame;
     bool m_reveals_page { false };
+    // Moves on whenever the page scrolls, so a frame that was asked for before then is not taken.
+    u64 m_reveal_generation { 0 };
+    // What the user asked for while the page was revealed, which takes the frame that covers it.
+    Function<void()> m_action_once_page_is_covered;
     QTimer* m_scroll_settle_timer { nullptr };
     QDeadlineTimer m_follow_frames_until;
     Optional<QPoint> m_drag_start;

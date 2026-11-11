@@ -237,6 +237,8 @@ public:
     // Whether the UI shows the view's frames in a remote layer, which the Compositor commits them into itself, rather
     // than in backing stores the view receives.
     void set_hosts_remote_layer(bool);
+    // What the view shows, from the Compositor, scaled down to fit within the size given.
+    void take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
     // The Compositor's remote layers went with its process, so the view asks the new one for another.
     void recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>);
     void set_has_system_focus(bool);

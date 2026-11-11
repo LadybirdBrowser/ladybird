@@ -19,6 +19,8 @@ CompositorPresentationClient::CompositorPresentationClient(NonnullOwnPtr<IPC::Tr
 
 void CompositorPresentationClient::die()
 {
+    fail_pending_frame_snapshots();
+
     if (auto callback = move(on_death)) {
         Core::deferred_invoke([callback = move(callback)]() mutable {
             callback();
@@ -74,6 +76,26 @@ void CompositorPresentationClient::did_present_frame_in_remote_layer(Web::Compos
 {
     if (auto* page = page_for_compositor_context_id(context_id))
         page->did_present_frame_in_remote_layer(content_rect, damage_rect, device_pixel_ratio);
+}
+
+void CompositorPresentationClient::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size, FrameSnapshotCallback callback)
+{
+    auto request_id = m_next_frame_snapshot_request_id++;
+    m_pending_frame_snapshots.set(request_id, move(callback));
+    async_take_frame_snapshot(context_id, request_id, maximum_size);
+}
+
+void CompositorPresentationClient::fail_pending_frame_snapshots()
+{
+    auto pending_frame_snapshots = move(m_pending_frame_snapshots);
+    for (auto& [_, callback] : pending_frame_snapshots)
+        callback({});
+}
+
+void CompositorPresentationClient::did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap> snapshot)
+{
+    if (auto callback = m_pending_frame_snapshots.take(request_id); callback.has_value())
+        (*callback)(move(snapshot));
 }
 
 void CompositorPresentationClient::did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
