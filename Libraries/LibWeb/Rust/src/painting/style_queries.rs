@@ -310,7 +310,7 @@ fn style_establishes_fixed_positioning_containing_block(
     false
 }
 
-pub(crate) fn inline_establishes_absolute_position_containing_block(style: ComputedValuesView<'_>) -> bool {
+fn inline_establishes_absolute_position_containing_block(style: ComputedValuesView<'_>) -> bool {
     let effects = style.effects();
     style.position() != positioning::STATIC
         || filter_has_filters(&effects.filter)
@@ -323,6 +323,13 @@ pub(crate) fn establishes_positioning_containing_blocks(arena: &impl PaintRead, 
         return (false, false);
     };
     let kind = row.kind();
+    if kind == NodeKind::InlineNode {
+        let absolute = !node_facts::has_flag(&row, NodeFlag::Anonymous)
+            && row
+                .style()
+                .is_some_and(inline_establishes_absolute_position_containing_block);
+        return (absolute, false);
+    }
     if !node_facts::kind_is_box(kind) {
         return (false, false);
     }

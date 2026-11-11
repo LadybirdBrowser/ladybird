@@ -236,10 +236,10 @@ pub(crate) trait PaintRead: GeometryRead {
     }
     fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_>;
 
-    /// The box whose content box a node is laid out against: an in-flow node's is its nearest
-    /// ancestor that forms a containing block for its children, and a positioned box's its nearest
-    /// ancestor box that establishes one for its position, or the root for a fixed-position box
-    /// without one. Layout and painting both walk to it with this.
+    /// The box whose content box supplies a node's layout coordinate space. An in-flow node uses the nearest ancestor
+    /// that forms a containing block for its children. An absolutely positioned node uses its positioning containing
+    /// block, or that inline's in-flow containing block when the positioning containing block is inline. A fixed-position
+    /// node uses the nearest ancestor that establishes a fixed-position containing block, or the root if there isn't one.
     fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
         use crate::css::css_enums::positioning;
         let mut row = self.node(id)?;
@@ -267,9 +267,13 @@ pub(crate) trait PaintRead: GeometryRead {
             let Some(ancestor_row) = self.node(ancestor) else {
                 break;
             };
-            if node_facts::kind_is_box(ancestor_row.kind()) && ancestor_row.flags() & establishes_containing_block != 0
-            {
-                return Some(current);
+            if ancestor_row.flags() & establishes_containing_block != 0 {
+                if node_facts::kind_is_box(ancestor_row.kind()) {
+                    return Some(current);
+                }
+                if ancestor_row.kind() == NodeKind::InlineNode {
+                    return self.node_containing_block_if_live(current);
+                }
             }
             row = ancestor_row;
         }

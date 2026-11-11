@@ -3969,7 +3969,13 @@ impl LayoutNodeArena {
             let data = self.data(node);
             let kind = data.kind.get();
             if super::node_facts::kind_is_box(kind) {
-                if super::node_facts::has_flag(data, establishes_containing_block) {
+                if super::node_facts::has_flag(data, establishes_containing_block)
+                    || (!search.inline_containing_block.is_invalid()
+                        && super::node_facts::node_forms_containing_block_for_children(
+                            data,
+                            super::node_facts::node_style_view(data),
+                        ))
+                {
                     search.containing_block = node;
                     break;
                 }
@@ -4006,15 +4012,7 @@ impl LayoutNodeArena {
     fn derive_containing_block_establishment_flags(&mut self, node: NodeSlotId) {
         let data = self.data(node);
         let previous_flags = data.flags.get();
-        let (absolute, fixed) = if data.kind.get() == NodeKind::InlineNode {
-            let absolute = !super::node_facts::has_flag(data, NodeFlag::Anonymous)
-                && self
-                    .node_style_if_live(node)
-                    .is_some_and(crate::painting::style_queries::inline_establishes_absolute_position_containing_block);
-            (absolute, false)
-        } else {
-            crate::painting::style_queries::establishes_positioning_containing_blocks(self, node)
-        };
+        let (absolute, fixed) = crate::painting::style_queries::establishes_positioning_containing_blocks(self, node);
         let establishment_flags = NodeFlag::EstablishesAbsolutePositionContainingBlock as u32
             | NodeFlag::EstablishesFixedPositionContainingBlock as u32;
         let mut flags = previous_flags & !establishment_flags;

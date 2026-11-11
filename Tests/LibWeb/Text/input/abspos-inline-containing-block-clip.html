@@ -1,0 +1,82 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .outer {
+        position: relative;
+        width: 300px;
+        height: 40px;
+    }
+    .clip {
+        overflow: hidden;
+        height: 40px;
+    }
+    .inline {
+        position: relative;
+        font: 20px/20px monospace;
+    }
+    .target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 600px;
+        height: 20px;
+    }
+    .category::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        width: 600px;
+        height: 4px;
+    }
+</style>
+<script>
+    test(() => {
+        function check(label, inlineStyle, targetStyle = "", wrapperTag = "") {
+            const outer = document.createElement("div");
+            outer.className = "outer";
+            outer.innerHTML = `<div class="clip"><span class="inline" style="${inlineStyle}">text<span class="target" style="${targetStyle}"></span></span></div>`;
+            document.body.appendChild(outer);
+            const inline = outer.querySelector(".inline");
+            const target = outer.querySelector(".target");
+            if (wrapperTag) {
+                const wrapper = document.createElement(wrapperTag);
+                inline.insertBefore(wrapper, target);
+                wrapper.appendChild(target);
+            }
+            function measure(state) {
+                const rect = target.getBoundingClientRect();
+                println(
+                    `${label}${state}: scrollWidth ${outer.scrollWidth}, inside ${document.elementFromPoint(150, rect.top + 5) === target}, outside ${document.elementFromPoint(450, rect.top + 5) === target}`
+                );
+            }
+            measure("");
+            if (label === "inline") {
+                inline.style.position = "static";
+                measure(" made static");
+                inline.style.position = "relative";
+                measure(" made relative");
+            }
+            outer.remove();
+        }
+        check("inline", "");
+        check("block", "display: block");
+        check("static inline", "position: static");
+        check("nested inline", "", "", "span");
+        check("block inside inline", "", "", "div");
+        check("will-change inline", "position: static; will-change: position");
+        check("fixed child", "", "position: fixed");
+
+        const scroller = document.createElement("div");
+        scroller.style = "width: 300px; overflow: auto";
+        scroller.innerHTML =
+            '<div class="outer"><div class="clip"><a class="inline"><span class="category">inline</span></a></div></div>';
+        document.body.appendChild(scroller);
+        println(`pseudo-element: scrollWidth ${scroller.scrollWidth}`);
+        scroller.querySelector("a").style.display = "block";
+        println(`pseudo-element with block: scrollWidth ${scroller.scrollWidth}`);
+        scroller.remove();
+    });
+</script>

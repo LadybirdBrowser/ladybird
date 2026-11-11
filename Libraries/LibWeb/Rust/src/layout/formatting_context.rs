@@ -500,12 +500,6 @@ pub(crate) fn place_child(
         );
         return None;
     };
-    fragments.note_placed_box(
-        &run.pass,
-        node,
-        placement,
-        cells_kept_for_contained_abspos(run, node, || placed_child.geometry.cells),
-    );
     let PlacedChild {
         mut geometry,
         facts_decided_by_parent,
@@ -543,6 +537,12 @@ pub(crate) fn place_child(
         Some(root) => fragments.take_in_child_root_at_placement(node, root, pass),
         None => fragments.open_fragment_of_placed_box(node),
     }
+    fragments.note_placed_box(
+        &run.pass,
+        node,
+        placement,
+        cells_kept_for_contained_abspos(run, node, || geometry.cells),
+    );
     let mut abspos_boxes_placed_with_it = Vec::new();
     loop {
         let batch = fragments.take_drainable_abspos(node, pass);
@@ -598,7 +598,10 @@ fn cells_kept_for_contained_abspos(
     let data = run.pass.node_data(node);
     let may_contain_abspos = node_facts::has_flag(data, NodeFlag::EstablishesAbsolutePositionContainingBlock)
         || node_facts::has_flag(data, NodeFlag::EstablishesFixedPositionContainingBlock)
-        || data.parent.get().is_invalid();
+        || data.parent.get().is_invalid()
+        || run
+            .fragments
+            .is_some_and(|fragments| fragments.any_pending_abspos_contained_by(node));
     may_contain_abspos.then(|| fragment_tree::CellsInFrame {
         cells: cells_in_run_frame(),
         frame: run.pass.frame,
@@ -4035,18 +4038,18 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let placement = facts_decided_by_parent
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");
+    let Some(run_root_fragment) = fragment_arrival else {
+        panic!("the root of a partial relayout is laid out by a run of its own");
+    };
+    fragments.take_in_child_root_at_placement(root, run_root_fragment, pass);
+    // The retained offset already includes relative positioning. Publish it directly instead
+    // of applying placement adjustments a second time.
     fragments.note_placed_box(
         &run.pass,
         root,
         placement,
         cells_kept_for_contained_abspos(run, root, || root_geometry.cells),
     );
-    // The retained offset already includes relative positioning. Publish it directly instead
-    // of applying placement adjustments a second time.
-    let Some(run_root_fragment) = fragment_arrival else {
-        panic!("the root of a partial relayout is laid out by a run of its own");
-    };
-    fragments.take_in_child_root_at_placement(root, run_root_fragment, pass);
     fragments.build_fragment_for_placed_box(
         pass,
         root,

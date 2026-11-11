@@ -1,0 +1,11 @@
+inline: scrollWidth 300, inside true, outside false
+inline made static: scrollWidth 600, inside true, outside true
+inline made relative: scrollWidth 300, inside true, outside false
+block: scrollWidth 300, inside true, outside false
+static inline: scrollWidth 600, inside true, outside true
+nested inline: scrollWidth 300, inside true, outside false
+block inside inline: scrollWidth 300, inside true, outside false
+will-change inline: scrollWidth 300, inside true, outside false
+fixed child: scrollWidth 300, inside true, outside true
+pseudo-element: scrollWidth 300
+pseudo-element with block: scrollWidth 300
