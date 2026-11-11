@@ -29,6 +29,7 @@ public:
 // The component layout a texture reads a surface's plane through, which for a planar surface differs per plane.
 enum class MetalTextureFormat : u8 {
     BGRA8,
+    RGBA8,
     R8,
     RG8,
     R16,

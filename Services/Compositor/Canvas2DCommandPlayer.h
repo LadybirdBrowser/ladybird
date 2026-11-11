@@ -70,6 +70,7 @@ private:
 #undef DECLARE_PLAY_COMMAND
 
     void clear_rect(Gfx::FloatRect const&, Gfx::Color);
+    sk_sp<SkImage> image_of_frame(Gfx::DecodedImageFrame const&) const;
     void draw_image(SkImage const&, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode, Compositing::Canvas2DCompositing const&);
 
     ReadonlyBytes inline_data(Compositing::DisplayListDataSpan) const;

@@ -65,7 +65,8 @@ struct DisplayListRasterCache::ImageFrameImage {
     {
     }
 
-    // A raster image reads the pixels of the frame, so the frame must live as long as the image.
+    // A raster image, or a texture over the IOSurface of the frame, reads the pixels of the frame, so the frame must live
+    // as long as the image.
     Gfx::DecodedImageFrame frame;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
@@ -224,6 +225,11 @@ sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_stru
 
 static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
+    if (skia_backend_context) {
+        if (auto image = Gfx::sk_texture_image_sharing_pixels_of_decoded_image_frame(frame, *skia_backend_context))
+            return image;
+    }
+
     auto raster_image = Gfx::sk_image_from_decoded_image_frame(frame);
     auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
     if (!gr_context)
