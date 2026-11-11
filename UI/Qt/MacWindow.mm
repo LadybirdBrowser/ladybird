@@ -525,9 +525,12 @@ void ensure_appkit_window_is_exposed(QWidget& widget)
     if (!widget.isVisible() || !window || window->isExposed())
         return;
 
-    // Qt restores a native view's exposed state from its display callback. A view whose backing layer is already
-    // clean can remain unexposed after being shown or raised, causing Qt to route hover events to the view below it.
-    [reinterpret_cast<NSView*>(widget.winId()) setNeedsDisplay:YES];
+    // Qt restores a native view's exposed state from its content layer's display callback. A view whose backing layer
+    // is already clean can remain unexposed after being shown or raised, causing Qt to route hover events below it.
+    // Display the content layer directly: marking the NSView as needing display can leave that callback uncalled.
+    auto* layer = static_cast<CALayer*>(appkit_content_layer(widget));
+    [layer setNeedsDisplay];
+    [layer displayIfNeeded];
 }
 
 void set_appkit_window_content_aspect_ratio(QWidget& widget, Gfx::IntSize aspect_ratio)
