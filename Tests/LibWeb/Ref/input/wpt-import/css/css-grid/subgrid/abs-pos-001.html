@@ -1,0 +1,129 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: grid-aligned abs.pos. inside subgrid</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/abs-pos-001-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid: repeat(4, auto) / repeat(10, 30px);
+  grid-template-areas: ". . . . . . . . . . .";
+  place-content: start;
+  border: 1px solid;
+  width: 500px;
+  grid-auto-columns: 100px;
+  grid-auto-rows: 100px;
+  position: relative;
+  padding: 4px 3px 1px 10px;
+}
+
+.subgrid {
+  display: grid;
+  grid: auto / subgrid;
+  background: lightgrey;
+  grid-column: 2 / span 8;
+  grid-row: 2 / span 2;
+  min-width:0;
+  min-height:0;
+}
+
+i {
+  grid-row: 1;
+  counter-increment: i;
+  background: pink;
+}
+i::before { content: counter(i, decimal); }
+
+x {
+  position: absolute;
+  top:0; bottom:0; left:0; right:0;
+  background: silver;
+}
+
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid">
+  <x style="grid-column:3/5">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid">
+  <x style="grid-column:3/-1">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid">
+  <x style="grid-column:3">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid">
+  <x style="grid-column:auto/3">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid">
+  <x style="grid-column:auto/1">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr">
+  <x style="grid-column:3/5">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr">
+  <x style="grid-column:3/-1">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr">
+  <x style="grid-column:3">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr">
+  <x style="grid-column:auto/3">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr">
+  <x style="grid-column:auto/1">x</x>
+</div>
+</div>
+
+</body>
+</html>
