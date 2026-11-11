@@ -1,0 +1,9 @@
+Ladybird limits a replaced box’s intrinsic inline sizes by its
+max-height, transferred through its aspect ratio. Blink does the same:
+For intrinsic sizes, its CalculateInitialFragmentGeometry() sizes a
+replaced box through ComputeReplacedSize() with ReplacedSizeMode::
+kIgnoreInlineLengths, which applies the block-axis limits. Gecko’s
+nsLayoutUtils::IntrinsicForAxis() transfers max-height through the
+aspect ratio, and min-height only when that constrains something. And
+WebKit’s RenderReplaced::computeReplacedLogicalWidth() calls its
+computeIntrinsicSizesConstrainedByTransferredMinMaxSizes().
