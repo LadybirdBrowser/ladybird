@@ -54,7 +54,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...HEAD")"
-          if grep -Eqx 'Meta/Docker/ci/Dockerfile|rust-toolchain.toml' <<< "${changed_files}" \
+          if grep -Eqx 'Meta/Docker/ci/Dockerfile|Meta/Docker/ci/install-build-dependencies.sh|rust-toolchain.toml' <<< "${changed_files}" \
             && ! grep -qx 'Meta/Docker/ci/VERSION' <<< "${changed_files}"; then
             echo "Meta/Docker/ci/VERSION must change when CI image inputs change."
             exit 1
