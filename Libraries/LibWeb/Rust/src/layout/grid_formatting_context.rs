@@ -3720,6 +3720,13 @@ impl<'pass> GridFormattingContext<'pass> {
         if !axis.is_column() && live.has_definite_inline_size {
             available.inline_size = AvailableSize::definite(live.content_inline_size);
         }
+        // NB: The subgrid's size in the axis being sized depends on the tracks it contributes to, so it is not known
+        //     yet, and percentages against it (such as those of its gaps) resolve as for an indefinite size.
+        if axis.is_column() {
+            available.inline_size = AvailableSize::Indefinite;
+        } else {
+            available.block_size = AvailableSize::Indefinite;
+        }
         let input = LayoutInput::new(
             available,
             self.track_sizing_constraints(),

@@ -1,0 +1,68 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid with border-bottom and percentage gap</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid: 0 15px 15px 0 0 40px / repeat(5, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid: repeat(4, auto) / auto auto;
+  gap: 3px 8px;
+  background: lightgrey;
+  grid-column: 2 / span 5;
+  grid-row: 2 / span 5;
+  background: grey;
+  width: 40px;
+  height: 30px;
+}
+
+.subgrid > * { background: lightgrey; }
+
+x {
+  min-width:10px;
+  min-height:0px;
+}
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: magenta; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: grey; }
+
+e { display:block; width: 20px; height:15px; background:black; }
+
+f {
+  grid-area: 4/2/span 1/span 5;
+  background: lightblue!important;
+  height: 40px;
+}
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<x style="grid-row:1; height:0"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+<f></f>
+<div class="subgrid">
+<c><e></e></c>
+<d><e></e></d>
+<c><e></e></c>
+<d><e></e></d>
+</div>
+</div>
+
+</body>
+</html>
