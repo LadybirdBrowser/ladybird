@@ -9,6 +9,7 @@
 
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
+use std::borrow::Cow;
 
 use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
@@ -163,10 +164,21 @@ fn frame_color_space(frame: &ImageFrameHandle) -> FrameColorSpace {
     color_space
 }
 
-/// The pixels of the frame, which borrow from it.
-fn frame_bytes(frame: &ImageFrameHandle) -> &[u8] {
+/// The pixels of the frame in rows `minimum_pitch()` bytes apart, so that what is written does not depend on how far
+/// apart the memory of this machine places them. They borrow from the frame unless its rows are farther apart.
+fn tightly_packed_frame_bytes(frame: &ImageFrameHandle) -> Cow<'_, [u8]> {
     // SAFETY: The handle keeps the pixels mapped, and nothing writes to the pixels of a frame.
-    unsafe { ak::slice_from_raw_parts(frame.pixels().as_ptr(), frame.size_in_bytes()) }
+    let bytes = unsafe { ak::slice_from_raw_parts(frame.pixels().as_ptr(), frame.size_in_bytes()) };
+    let row_size = frame.minimum_pitch();
+    if frame.pitch() == row_size {
+        return Cow::Borrowed(bytes);
+    }
+    let rows = bytes.chunks_exact(frame.pitch());
+    let mut tightly_packed_bytes = Vec::with_capacity(rows.len() * row_size);
+    for row in rows {
+        tightly_packed_bytes.extend_from_slice(&row[..row_size]);
+    }
+    Cow::Owned(tightly_packed_bytes)
 }
 
 /// Writes a copy of the bitmap data of the frame, or that there is none.
@@ -185,10 +197,10 @@ fn serialize_bitmap_data(serialized: &mut SerializationWriter, frame: Option<&Im
     });
     serialized.write_i32(frame.width());
     serialized.write_i32(frame.height());
-    serialized.write_u64(frame.pitch() as u64);
+    serialized.write_u64(frame.minimum_pitch() as u64);
     serialize_enumeration(serialized, &BITMAP_FORMATS, frame.bitmap_format_value(), for_storage);
     serialize_enumeration(serialized, &ALPHA_TYPES, frame.alpha_type_value(), for_storage);
-    serialized.write_bytes(frame_bytes(frame));
+    serialized.write_bytes(&tightly_packed_frame_bytes(frame));
     if !has_color_space {
         return;
     }
@@ -251,10 +263,10 @@ fn write_transferred_bitmap_data(data_holder: &mut TransferDataWriter, frame: Op
     });
     data_holder.write(&frame.width());
     data_holder.write(&frame.height());
-    data_holder.write(&(frame.pitch() as u64));
+    data_holder.write(&(frame.minimum_pitch() as u64));
     data_holder.write(&frame.bitmap_format_value());
     data_holder.write(&frame.alpha_type_value());
-    data_holder.write(frame_bytes(frame));
+    data_holder.write(&*tightly_packed_frame_bytes(frame));
     if has_color_space {
         write_transferred_color_space(data_holder, &color_space);
     }

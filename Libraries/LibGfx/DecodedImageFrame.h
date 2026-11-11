@@ -56,8 +56,8 @@ public:
     IntRect rect() const { return { {}, m_size }; }
     IntSize size() const { return m_size; }
 
-    size_t pitch() const { return Bitmap::minimum_pitch(m_size.width(), m_format); }
-    size_t size_in_bytes() const { return Bitmap::size_in_bytes(pitch(), m_size.height()); }
+    size_t pitch() const { return m_pitch; }
+    size_t size_in_bytes() const { return Bitmap::size_in_bytes(m_pitch, m_size.height()); }
     ReadonlyBytes pixels() const { return { m_shared_memory.data<u8>() + m_offset_of_pixels, size_in_bytes() }; }
 
     Core::AnonymousBuffer const& shared_memory() const { return m_shared_memory; }
@@ -73,6 +73,7 @@ private:
         : m_id(next_id())
         , m_shared_memory(move(shared_memory))
         , m_offset_of_pixels(offset_of_pixels)
+        , m_pitch(Bitmap::minimum_pitch(size.width(), format))
         , m_size(size)
         , m_format(format)
         , m_alpha_type(alpha_type)
@@ -89,6 +90,7 @@ private:
     u64 m_id { 0 };
     Core::AnonymousBuffer m_shared_memory;
     size_t m_offset_of_pixels { 0 };
+    size_t m_pitch { 0 };
     IntSize m_size;
     BitmapFormat m_format { BitmapFormat::Invalid };
     AlphaType m_alpha_type { AlphaType::Premultiplied };
