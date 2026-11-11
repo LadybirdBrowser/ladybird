@@ -1,0 +1,17 @@
+Ladybird treats nested object patterns as references into the assigned
+value. Evaluating a computed key creates no object for the pattern,
+and the destructuring expression returns the original assigned value.
+
+V8 preserves the assigned value in a register while its bytecode
+builder evaluates the computed key. BuildDestructuringObjectAssignment()
+recursively calls BuildAssignment() for nested patterns, then reloads
+the original value when the assignment result is needed.
+
+JavaScriptCore evaluates a computed key with emitNodeForProperty() in
+ObjectPatternNode::bindValue(), reads the assigned value with
+emitGetByVal(), and recursively binds each nested target pattern.
+
+SpiderMonkey evaluates keys in emitDestructuringOpsObject(), keeping
+the assigned value on the stack. emitSetOrInitializeDestructuring()
+recursively handles nested patterns through emitDestructuringOps(),
+which leaves the original assigned value on the stack.
