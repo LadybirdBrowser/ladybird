@@ -252,6 +252,15 @@ impl LayoutNodeArena {
         if damage.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
+        if damage.intersects(
+            PaintDamage::ALL_HIT
+                | PaintDamage::MOVED
+                | PaintDamage::ORDER
+                | PaintDamage::CONTEXT_ORDER
+                | PaintDamage::ELIGIBILITY,
+        ) {
+            self.note_hit_test_items_changed();
+        }
         if damage.intersects(PaintDamage::ALL_DRAW | PaintDamage::MOVED | PaintDamage::ORDER) {
             self.request_ink_overflow_recalculation(row);
             self.request_inline_ink_overflow_recalculation(row);
@@ -369,7 +378,12 @@ impl LayoutNodeArena {
         None
     }
 
+    pub(crate) fn note_hit_test_items_changed(&mut self) {
+        self.paintable_rows.hit_test_items_stamp = crate::cow_column::new_edit_token();
+    }
+
     pub(crate) fn push_all_paint_damage(&mut self) {
+        self.note_hit_test_items_changed();
         let set = &mut self.paintable_rows.damage;
         set.push_revision += 1;
         set.all = set.stamp_for_push();

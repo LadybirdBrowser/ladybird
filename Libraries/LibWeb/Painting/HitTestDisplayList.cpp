@@ -23,6 +23,11 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     return adopt_ref(*new HitTestDisplayList(visual_context_tree_structural_epoch, arena, chrome_widget_registry, Layout::RustFFI::layout_hit_test_list_generation(arena.host())));
 }
 
+NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_before_any_recording(Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
+{
+    return adopt_ref(*new HitTestDisplayList(0, arena, chrome_widget_registry, 0));
+}
+
 HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry, u64 rust_generation)
     : m_visual_context_tree_structural_epoch(visual_context_tree_structural_epoch)
     , m_arena(arena)

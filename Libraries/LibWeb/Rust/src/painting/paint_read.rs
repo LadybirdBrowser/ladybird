@@ -121,6 +121,7 @@ fn link(link: NodeSlotId) -> Option<NodeSlotId> {
 
 pub(crate) trait GeometryRead: Sized {
     fn ink_overflow_stamp(&self) -> u64;
+    fn hit_test_items_stamp(&self) -> u64;
     fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow;
 
     fn absolute_ink_overflow_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
@@ -431,6 +432,10 @@ impl<Live: AsRef<LayoutNodeArena> + LiveAbsoluteRects> GeometryRead for Live {
         self.as_ref().paintable_rows.ink_overflow_stamp
     }
 
+    fn hit_test_items_stamp(&self) -> u64 {
+        self.as_ref().paintable_rows.hit_test_items_stamp
+    }
+
     fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow {
         self.as_ref()
             .paintable_rows
@@ -601,6 +606,10 @@ impl GeometryRead for PaintSource<'_> {
 
     fn ink_overflow_stamp(&self) -> u64 {
         self.rows().ink_overflow_stamp
+    }
+
+    fn hit_test_items_stamp(&self) -> u64 {
+        self.rows().hit_test_items_stamp
     }
 
     fn stored_ink_overflow(&self, id: NodeSlotId) -> crate::painting::ink_overflow::InkOverflow {

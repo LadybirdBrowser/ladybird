@@ -55,6 +55,8 @@ private:
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(Layout::BegunRead const& read, u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&);
+    // What answers hit tests of a document no recording of which has landed: it is current for no frame.
+    static NonnullRefPtr<HitTestDisplayList> create_before_any_recording(Layout::NodeArena&, ChromeWidgetRegistry&);
 
     u64 visual_context_tree_structural_epoch() const { return m_visual_context_tree_structural_epoch; }
     [[nodiscard]] bool is_current() const;

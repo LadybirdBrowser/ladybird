@@ -580,7 +580,14 @@ impl crate::layout::LayoutNodeArena {
         }
     }
 
+    pub(crate) fn ink_overflow_is_settled(&self) -> bool {
+        self.paintable_rows.ink_overflow_requests.is_empty()
+    }
+
     pub(crate) fn settle_ink_overflow(&mut self) {
+        // A relayout leaves the boxes of a line without their share of its fragments until it is assigned again,
+        // and what a box paints follows its share.
+        crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(self);
         let verification = crate::painting::record::ink_bounds::verification();
         if self.paintable_rows.ink_overflow_requests.is_empty() && !verification.enabled {
             return;

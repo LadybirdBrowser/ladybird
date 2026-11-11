@@ -74,6 +74,120 @@ fn own_accumulated_2d_scale(
     )
 }
 
+struct WholeDocumentWalk<'a, R: PaintRead> {
+    rows: &'a R,
+    spaces: WorldTransforms,
+    paint_overlay: bool,
+    items: Vec<HitTestItem>,
+}
+
+impl<R: PaintRead> HitTestItemSink for WholeDocumentWalk<'_, R> {
+    fn hit_test_facts(&mut self, paintable: NodeSlotId) -> HitTestFacts {
+        hit_test_facts(self.rows, paintable)
+    }
+
+    fn own_accumulated_2d_scale(&self, paintable: NodeSlotId) -> libgfx_rust::FloatSize {
+        own_accumulated_2d_scale(self.rows, &self.spaces, paintable)
+    }
+
+    fn append(&mut self, item: HitTestItem) {
+        self.items.push(item);
+    }
+}
+
+impl<R: PaintRead> WholeDocumentWalk<'_, R> {
+    fn scope(&mut self, scope: PaintScope) {
+        let plan = PaintScopePlan::build(self.rows, scope, self.paint_overlay);
+        if plan.establishes_stacking_context && !stacking_context_paints(self.rows, scope.owner) {
+            return;
+        }
+        for item in plan.items {
+            match item {
+                PaintOrderItem::Producer(producer) => {
+                    for kind in producer_kinds(producer) {
+                        self.producer(scope.owner, kind);
+                    }
+                }
+                PaintOrderItem::Scope(child) => self.scope(child),
+            }
+        }
+    }
+
+    fn producer(&mut self, owner: NodeSlotId, kind: ProducerKind) {
+        let rows = self.rows;
+        if let Some(phase) = hit_phase(kind) {
+            hit_test_items_of_phase(rows, self, owner, phase);
+        } else if kind == ProducerKind::Svg {
+            self.svg_box(owner);
+        }
+    }
+
+    fn svg_box(&mut self, svg_box: NodeSlotId) {
+        let rows = self.rows;
+        if svg_box_is_hidden_by_an_empty_mask_or_clip(rows, svg_box) {
+            return;
+        }
+        hit_test_items_of_phase(rows, self, svg_box, PaintPhase::Foreground);
+        for child in svg_children_painted_with_their_parent(rows, svg_box) {
+            self.svg_box(child);
+        }
+    }
+}
+
+/// Every hit-test item of a document as of one state of its rows.
+pub(crate) struct WholeDocumentHitTestList {
+    hit_test_items_stamp: u64,
+    visual_context_tree_structural_epoch: u64,
+    pub list: HitTestList,
+}
+
+impl WholeDocumentHitTestList {
+    /// The list in `kept` where it still says what the rows do, and otherwise a list walked from the rows, which
+    /// `kept` holds from then on. The items name nodes of `tree`, so a tree built anew makes a new list too.
+    pub(crate) fn current<'kept>(
+        kept: &'kept mut Option<Self>,
+        rows: &impl PaintRead,
+        tree: &VisualContextTree,
+        viewport: NodeSlotId,
+    ) -> &'kept mut HitTestList {
+        let hit_test_items_stamp = rows.hit_test_items_stamp();
+        let is_current = kept.as_ref().is_some_and(|kept| {
+            kept.hit_test_items_stamp == hit_test_items_stamp
+                && kept.visual_context_tree_structural_epoch == tree.structural_epoch
+        });
+        if !is_current {
+            *kept = Some(Self {
+                hit_test_items_stamp,
+                visual_context_tree_structural_epoch: tree.structural_epoch,
+                list: HitTestList {
+                    items: Arc::new(hit_test_items_in_paint_order(rows, tree, viewport, true)),
+                    ..HitTestList::default()
+                },
+            });
+        }
+        &mut kept.as_mut().expect("a list was kept above").list
+    }
+}
+
+/// Every hit-test item of the document in paint order, with the overlays of stacking contexts where `paint_overlay`.
+fn hit_test_items_in_paint_order(
+    rows: &impl PaintRead,
+    tree: &VisualContextTree,
+    viewport: NodeSlotId,
+    paint_overlay: bool,
+) -> Vec<HitTestItem> {
+    let mut walk = WholeDocumentWalk {
+        rows,
+        spaces: WorldTransforms::new(tree, &[], None),
+        paint_overlay,
+        items: Vec::new(),
+    };
+    if rows.paintable_row_is_populated(viewport) {
+        walk.scope(PaintScope::stacking_context(viewport));
+    }
+    walk.items
+}
+
 /// An item under a point, with the point in the space of the item.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PointHit {

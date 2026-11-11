@@ -1207,6 +1207,7 @@ pub(crate) fn commit_replacing(
     let number = arena.layout_commit_count() as u32;
     let is_full_commit = arena.data(root).kind.get() == NodeKind::Viewport;
     arena.clear_absolute_rect_memo();
+    arena.note_hit_test_items_changed();
     Commit {
         arena,
         messages: Vec::new(),

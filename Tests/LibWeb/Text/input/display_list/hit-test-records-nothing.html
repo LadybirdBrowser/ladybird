@@ -6,6 +6,8 @@
 </style>
 <div id="box"></div>
 <script>
+    // A hit test reads the document's rows as they are, so it finds a box where a change that no frame has shown
+    // yet put it, records nothing, and leaves the change for the next frame to record.
     promiseTest(async () => {
         const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
         const settle = async () => {
@@ -18,11 +20,12 @@
         // Printing changes the document and would invalidate the recording under test.
         const results = [];
         await settle();
-        for (const left of [10, 20]) {
+        for (const left of [10, 200, 20]) {
             box.style.left = `${left}px`;
             internals.beginDisplayListTrace();
             const target = document.elementFromPoint(50, 50);
-            results.push(`left=${left}: hit target=${target.id}, hit-test recordings=${recordingCount()}`);
+            const caret = document.caretPositionFromPoint(50, 50);
+            results.push(`left=${left}: hit target=${target.id || target.localName}, caret in ${caret.offsetNode.id || caret.offsetNode.nodeName}, recordings=${recordingCount()}`);
 
             internals.beginDisplayListTrace();
             await settle();
