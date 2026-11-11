@@ -1,29 +1,36 @@
 name: Backport
 
-# Commenting `/backport release/2026.11 [release/2026.10 ...]` on a merged PR cherry-picks its commits onto each of
-# those release branches with `git cherry-pick -x`, and opens a PR against each of them from a branch named
+# Labeling a PR to master with `backport 2026.11` cherry-picks its commits onto release/2026.11 once it is merged, or
+# right away if it already is, with `git cherry-pick -x`, and opens a PR against that release branch from a branch named
 # `backport/<PR>-to-<release branch>`, titled `[Backport <release branch>] <PR title>`. These PRs are opened by a bot,
-# not by the commenter, and run CI like any other PR. A cherry-pick that conflicts still gets a PR, as a draft with the
-# conflict committed; resolve it on that PR's branch. The original PR gets a comment with the outcome.
+# not by whoever added the label, and run CI like any other PR. A cherry-pick that conflicts still gets a PR, as a draft
+# with the conflict committed; resolve it on that PR's branch. The original PR gets a comment with the outcome. The
+# `no backport` label records that a PR shouldn't be backported, and removing it backports to the PR's backport labels.
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request_target:
+    types: [closed, labeled, unlabeled]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   prepare:
     if: >-
       github.repository == 'LadybirdBrowser/ladybird'
-      && github.event.issue.pull_request
-      && startsWith(github.event.comment.body, '/backport')
+      && github.event.pull_request.merged
+      && github.event.pull_request.base.ref == 'master'
+      && contains(toJSON(github.event.pull_request.labels.*.name), '"backport ')
+      && (github.event.action == 'closed'
+        || (github.event.action == 'labeled'
+          && (startsWith(github.event.label.name, 'backport ') || github.event.label.name == 'no backport'))
+        || (github.event.action == 'unlabeled' && github.event.label.name == 'no backport'))
     runs-on: blacksmith-2vcpu-ubuntu-2404
 
     permissions:
-      pull-requests: read
+      pull-requests: write
 
     outputs:
       branches: ${{ steps.parse.outputs.branches }}
@@ -35,64 +42,80 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.issue.number }}
-          COMMENTER: ${{ github.event.comment.user.login }}
-          BODY: ${{ github.event.comment.body }}
+          PR: ${{ github.event.pull_request.number }}
+          SENDER: ${{ github.event.sender.login }}
+          ACTION: ${{ github.event.action }}
+          ADDED_LABEL: ${{ github.event.label.name }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
-          set -euo pipefail
-          read -r command arguments <<< "$(printf '%s\n' "$BODY" | head -n1 | tr -d '\r')" || true
-          if [ "$command" != /backport ]; then
-            echo "Not a /backport command."
-            exit 0
-          fi
+          mapfile -t backport_labels < <(jq -r '.[] | select(startswith("backport "))' <<< "$LABELS")
+          problems=()
+          problem() {
+            echo "::error::$*"
+            problems+=("$*")
+          }
 
-          case "$(gh api "repos/${REPO}/collaborators/${COMMENTER}/permission" --jq .permission)" in
-            admin|maintain|write) ;;
-            *)
-              echo "::error::Backports need write access to this repository, which ${COMMENTER} doesn't have."
-              exit 1
-              ;;
-          esac
-          if [ "$(gh api "repos/${REPO}/pulls/${PR}" --jq .merged)" != true ]; then
-            echo "::error::#${PR} isn't merged, so there is nothing to backport yet."
-            exit 1
-          fi
-
-          read -r -a requested <<< "${arguments:-}"
           branches=()
-          for branch in "${requested[@]}"; do
-            branch="release/${branch#release/}"
-            if ! [[ "$branch" =~ ^release/[0-9]{4}\.([1-9]|1[0-2])$ ]]; then
-              echo "::error::${branch} isn't a release branch, such as release/2026.11."
-              exit 1
+          permission=$(gh api "repos/${REPO}/collaborators/${SENDER}/permission" --jq .permission)
+          if jq -e 'index("no backport")' <<< "$LABELS" > /dev/null; then
+            listed=$(printf "\`%s\`, " "${backport_labels[@]}")
+            problem "This PR is labeled both \`no backport\` and ${listed%, }." \
+              "Remove \`no backport\` to backport it, or the backport labels if it shouldn't be backported."
+          elif ! [[ "$permission" =~ ^(admin|maintain|write)$ ]]; then
+            problem "Backports need write access to this repository, which ${SENDER} doesn't have." \
+              "Someone with write access can remove and re-add the backport labels."
+          else
+            if [ "$ACTION" = labeled ]; then
+              # The release branches that the PR was already labeled for got their backports when it was merged.
+              backport_labels=("$ADDED_LABEL")
             fi
-            if ! gh api "repos/${REPO}/branches/${branch}" --silent 2> /dev/null; then
-              echo "::error::${branch} doesn't exist."
-              exit 1
-            fi
-            head="backport/${PR}-to-${branch}"
-            if lookup=$(gh api "repos/${REPO}/branches/${head}" --silent 2>&1); then
-              open_prs=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO%%/*}:${head}&base=${branch}" --jq length)
-              if [ "$open_prs" -eq 0 ]; then
-                echo "::error::${head} is left over from a closed backport PR. Delete it, then comment /backport again."
-                exit 1
+            for label in "${backport_labels[@]}"; do
+              version="${label#backport }"
+              if ! [[ "$version" =~ ^[0-9]{4}\.([1-9]|1[0-2])$ ]]; then
+                problem "\`${label}\` doesn't name a release, such as \`backport 2026.11\`." \
+                  "Replace it with the label of the release to backport to."
+                continue
               fi
-            elif [[ "$lookup" != *"(HTTP 404)"* ]]; then
-              echo "::error::Couldn't check whether ${head} exists: ${lookup}"
-              exit 1
-            fi
-            branches+=("$branch")
-          done
-          if [ "${#branches[@]}" -eq 0 ]; then
-            echo "::error::Name the release branches to backport to, such as: /backport release/2026.11"
+              branch="release/${version}"
+              if ! gh api "repos/${REPO}/branches/${branch}" --silent 2> /dev/null; then
+                problem "\`${branch}\` doesn't exist, so there is nothing to backport to for \`${label}\`." \
+                  "Remove the label."
+                continue
+              fi
+              head="backport/${PR}-to-${branch}"
+              if lookup=$(gh api "repos/${REPO}/branches/${head}" --silent 2>&1); then
+                open_prs=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO%%/*}:${head}&base=${branch}" --jq length)
+                if [ "$open_prs" -eq 0 ]; then
+                  problem "\`${head}\` is left over from a closed backport PR." \
+                    "Delete that branch, then remove and re-add \`${label}\`."
+                  continue
+                fi
+              elif [[ "$lookup" != *"(HTTP 404)"* ]]; then
+                problem "Couldn't check whether \`${head}\` exists (${lookup})." \
+                  "Remove and re-add \`${label}\` to try again."
+                continue
+              fi
+              branches+=("$branch")
+            done
+          fi
+
+          echo "branches=${branches[*]}" >> "$GITHUB_OUTPUT"
+          if [ "${#branches[@]}" -gt 0 ]; then
+            echo "Backporting #${PR} to ${branches[*]}, for ${SENDER}." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${#problems[@]}" -gt 0 ]; then
+            {
+              echo "Some of the backports that this PR's labels ask for can't start:"
+              echo
+              printf -- '- %s\n' "${problems[@]}"
+            } > "${RUNNER_TEMP}/problems.md"
+            gh api "repos/${REPO}/issues/${PR}/comments" -F "body=@${RUNNER_TEMP}/problems.md" --silent
             exit 1
           fi
-          echo "branches=${branches[*]}" >> "$GITHUB_OUTPUT"
-          echo "Backporting #${PR} to ${branches[*]}, for ${COMMENTER}." >> "$GITHUB_STEP_SUMMARY"
 
   backport:
     needs: prepare
-    if: needs.prepare.outputs.branches != ''
+    if: ${{ !cancelled() && needs.prepare.outputs.branches != '' }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
 
     permissions: {}
