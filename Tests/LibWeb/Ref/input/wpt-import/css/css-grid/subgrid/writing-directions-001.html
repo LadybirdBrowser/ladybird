@@ -1,0 +1,100 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: nested subgrids map margin/border/padding according to writing direction</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/writing-directions-001-ref.html">
+  <style>
+html,body {
+  font:12px/1 monospace;
+}
+
+.grid {
+  display: grid;
+  grid: 0.2em 1.4em / repeat(10, 30px);
+  border: 1px solid;
+  padding: 0 0 0 0;
+}
+
+div > div {
+  display: grid;
+  grid-column: 2 / span 3;
+  grid: auto / subgrid;
+  border: 1px solid;
+  background: grey;
+}
+
+n {
+  grid-row: 1;
+  counter-increment: n;
+}
+n::before { content: counter(n, decimal); }
+
+x {
+  background: silver;
+}
+
+.rtl { direction:rtl; }
+.ltr { direction:ltr; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid; padding: 0 0 0 10px;">
+      <div class="ltr" style="grid-template-columns: subgrid;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid; ">
+      <div class="ltr" style="grid-template-columns: subgrid; padding: 0 0 0 10px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid; border-right: 20px solid; border-left: 10px solid;">
+      <div class="ltr" style="grid-template-columns: subgrid; ">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid;">
+      <div class="ltr" style="grid-template-columns: subgrid; border-right: 20px solid; border-left: 10px solid;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid; margin: 0 20px 0 0;">
+      <div class="ltr" style="grid-template-columns: subgrid; ">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid;">
+      <div class="ltr" style="grid-template-columns: subgrid; margin: 0 20px 0 0;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+</body>
+</html>

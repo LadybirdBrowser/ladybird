@@ -1,0 +1,185 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: subgrid line name ordering matches writing direction</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/line-names-012-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace;
+}
+
+.grid {
+  display: grid;
+  grid: 0.2em 1.4em / repeat(10,30px);
+  border: 1px solid;
+  padding: 0 2px;
+}
+
+div > div {
+  position: relative;
+  display: grid;
+  grid-column: 2 / span 2;
+  grid: auto / subgrid;
+  border: 1px solid black;
+  background: grey;
+}
+
+n {
+  grid-row: 1;
+  counter-increment: n;
+}
+n::before { content: counter(n, decimal); }
+
+x {
+  background: silver;
+}
+
+.rtl { writing-mode: horizontal-tb; direction:rtl; }
+.ltr { writing-mode: horizontal-tb; direction:ltr; }
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="rtl" style="grid-template-columns: subgrid [a][][];">
+    <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+      <x style="grid-column: a;">x</x>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a];">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column-end:span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a -1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [a][a] 30px;">
+      <div class="ltr" style="grid-template-columns: subgrid [][][a];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [a][a] 30px;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a -1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column-end:span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column-end:span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a -1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(9,30px) [a] 30px;">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column-end:span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(9,30px) [a] 30px;">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column-end:span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a -1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(9,30px) [a] 30px;">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column:2/span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(9,30px) [a] 30px">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [][][a]; grid-column:2/span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][][];">
+        <x style="grid-column: a -1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(4,30px) [a] 30px repeat(5,30px);">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [a][a]; grid-column:2/span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][a];">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(4,30px) [a] 30px repeat(5,30px);">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [a][a]; grid-column:2/span 5;">
+      <div class="ltr" style="grid-template-columns: subgrid [a][a];">
+        <x style="grid-column: a 2;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div class="rtl" style="grid-template-columns: subgrid [a] [a] [] [a]; grid-column-end:span 3;">
+      <div class="ltr" style="grid-template-columns: subgrid [a] [a] [] [a]; grid-column-end:span 3;">
+        <x style="grid-column: a;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="rtl" style="grid-template-columns: subgrid [a] [a] [] [a]; grid-column-end:span 3;">
+    <div class="ltr" style="grid-template-columns: subgrid [a] [a] [] [a]; grid-column-end:span 3;">
+      <x style="grid-column: a 2;">x</x>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

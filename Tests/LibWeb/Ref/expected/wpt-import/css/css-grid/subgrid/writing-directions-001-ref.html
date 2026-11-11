@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: nested subgrids map margin/border/padding according to writing direction</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <style>
+html,body {
+  font:12px/1 monospace;
+}
+
+.grid {
+  display: grid;
+  grid: 0.2em 1.4em / repeat(10, 30px);
+  border: 1px solid;
+  padding: 0 0 0 0;
+}
+
+div > div {
+  display: grid;
+  grid-column: 2 / span 3;
+  grid: auto / subgrid;
+  border: 1px solid;
+  background: grey;
+}
+
+n {
+  grid-row: 1;
+  counter-increment: n;
+}
+n::before { content: counter(n, decimal); }
+
+x {
+  background: silver;
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid; padding: 0 0 0 10px;">
+      <div style="grid-template-columns: subgrid; grid-column: 1 /span 3; margin-right: 29px;">
+        <x style="grid-column: 1; ">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid;">
+      <div style="grid-template-columns: subgrid; grid-column: 1 /span 3; margin-right: 29px; padding-left: 10px;">
+        <x style="grid-column: 1; ">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid; border-right: 20px solid; border-left: 10px solid;">
+      <div style="grid-template-columns: subgrid; grid-column-start:span 3; margin-right: 10px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid;">
+      <div style="grid-template-columns: subgrid; grid-column-start:span 3; border-right: 20px solid; border-left: 10px solid; margin-right: 29px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid; margin: 0 20px 0 0;">
+      <div style="grid-template-columns: subgrid; grid-column-start:span 3; margin-right: 9px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+<div class="grid">
+  <n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+    <div style="grid-template-columns: subgrid;">
+      <div style="grid-template-columns: subgrid; grid-column-start:span 3; margin: 0 20px 0 0; margin-right: 49px;">
+        <x style="grid-column: 1;">x</x>
+      </div>
+    </div>
+</div>
+
+</body>
+</html>

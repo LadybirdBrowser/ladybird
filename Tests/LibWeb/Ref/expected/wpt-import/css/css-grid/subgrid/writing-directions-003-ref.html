@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: out-of-flow subgridded items properly map repetitions</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <style>
+
+.grid {
+  display: grid;
+  grid-template: repeat(5, 10px) repeat(5, 10px) / repeat(5, 10px) repeat(5, 10px);
+  background: grey;
+  border: 1px solid;
+  width: 100px;
+  height: 100px;
+}
+
+.grid-item {
+  width: 10px;
+  height: 10px;
+  background: orange;
+  border: 1px solid;
+}
+
+.rtl { direction:rtl; }
+
+.ltr { direction:ltr; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid rtl">
+  <div class="grid-item" style="grid-column: 10; grid-row: 10;"></div>
+  <div class="grid-item" style="grid-column: 9; grid-row: 9;"></div>
+  <div class="grid-item" style="grid-column: 8; grid-row: 8;"></div>
+  <div class="grid-item" style="grid-column: 7; grid-row: 7;"></div>
+  <div class="grid-item" style="grid-column: 6; grid-row: 6;"></div>
+  <div class="grid-item" style="grid-column: 5; grid-row: 5;"></div>
+  <div class="grid-item" style="grid-column: 4; grid-row: 4;"></div>
+  <div class="grid-item" style="grid-column: 3; grid-row: 3;"></div>
+  <div class="grid-item" style="grid-column: 2; grid-row: 2;"></div>
+  <div class="grid-item" style="grid-column: 1; grid-row: 1;"></div>
+</div>
+
+<div class="grid ltr">
+  <div class="grid-item" style="grid-column: 10; grid-row: 10;"></div>
+  <div class="grid-item" style="grid-column: 9; grid-row: 9;"></div>
+  <div class="grid-item" style="grid-column: 8; grid-row: 8;"></div>
+  <div class="grid-item" style="grid-column: 7; grid-row: 7;"></div>
+  <div class="grid-item" style="grid-column: 6; grid-row: 6;"></div>
+  <div class="grid-item" style="grid-column: 5; grid-row: 5;"></div>
+  <div class="grid-item" style="grid-column: 4; grid-row: 4;"></div>
+  <div class="grid-item" style="grid-column: 3; grid-row: 3;"></div>
+  <div class="grid-item" style="grid-column: 2; grid-row: 2;"></div>
+  <div class="grid-item" style="grid-column: 1; grid-row: 1;"></div>
+</div>
+
+</body>
+</html>
