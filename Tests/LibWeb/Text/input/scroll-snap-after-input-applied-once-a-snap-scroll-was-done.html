@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    function keepThisProcessBusyFor(milliseconds) {
+        const until = performance.now() + milliseconds;
+        while (performance.now() < until) {}
+    }
+
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // The gesture settles off a snap position, so a snap scroll to 200 follows. This process has to see that scroll
+        // still on its way, or it already has the scroll's completion before it gets busy.
+        while (true) {
+            await internals.wheel(50, 50, 0, 120, true);
+            while (scroller.scrollTop === 120)
+                await animationFrame();
+            if (scroller.scrollTop !== 200)
+                break;
+            await scrollSettled(scroller, () => (scroller.scrollTop = 0));
+        }
+
+        // While this process is busy, the compositor finishes the snap scroll and then scrolls the box for the input of
+        // a new gesture, so this process gets the end of the snap scroll and that input's offset in one update.
+        keepThisProcessBusyFor(500);
+        const wheeled = internals.wheelThroughUIProcess(50, 50, 0, 20, true);
+        keepThisProcessBusyFor(500);
+        await wheeled;
+
+        // The input moves the box off its snap position, once this process has the update. Nothing is printed until the
+        // end, since a change to the document's layout would snap the box as well.
+        const giveUpAt = performance.now() + 3000;
+        while (scroller.scrollTop === 200 && performance.now() < giveUpAt)
+            await animationFrame();
+        const offsetAfterTheInput = scroller.scrollTop;
+
+        // The new gesture snaps the box back once its input ends.
+        while (scroller.scrollTop % 200 !== 0 && performance.now() < giveUpAt)
+            await animationFrame();
+        const offsetOnceTheGestureSettled = scroller.scrollTop;
+
+        println(`scroll offset after the input: ${offsetAfterTheInput}`);
+        println(`scroll offset after the gesture settled: ${offsetOnceTheGestureSettled}`);
+    });
+</script>
