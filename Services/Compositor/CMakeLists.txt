@@ -7,6 +7,7 @@ set(SOURCES
     ColorSpaceSkia.cpp
     CompositorCore.cpp
     CompositorState.cpp
+    ContextLayers.cpp
     ContextPresenter.cpp
     DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp

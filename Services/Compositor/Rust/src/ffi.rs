@@ -14,10 +14,11 @@ use crate::host::{
     ContextTimer, DisplayTickInputs, DisplayTickResult, FfiCompositorCoreHost, Host, PresentScheduling, PresentationId,
     WebContentClientId,
 };
+use crate::layers::ContextLayerPlan;
 use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkResourceId,
 };
-use libcompositing_rust::display_list::damage::LiveContentChanges;
+use libcompositing_rust::display_list::damage::{LayerPlans, LiveContentChanges};
 use libcompositing_rust::display_list::storage::storage_from_handle;
 use libcompositing_rust::ffi::{
     FfiDisplayList, replay_display_list_storage, replay_nested_records, tree_sharing_handle,
@@ -385,12 +386,15 @@ pub unsafe extern "C" fn compositor_frame_inputs_replay_records(
 /// What a frame painted with `frame_inputs` repaints of the frame painted last, with `last_frame_inputs` and the list
 /// `last_display_list_storage` holds. Writes the damage rect through `damage_rect` and returns whether the damage is
 /// bounded; unbounded damage means the whole viewport must repaint. Live content changes do not damage the records at
-/// `offsets_of_records_composited_as_media_layers`.
+/// `offsets_of_records_composited_as_media_layers`. Given the layer plans of both frames, which have the same layers,
+/// writes the damage of each layer through `layer_damage_rects` and sets the bit of each layer whose damage is
+/// unbounded in `unbounded_layer_bits`.
 ///
 /// # Safety
 ///
 /// Both storages must be live storage handles, and the id and offset pointers must address the stated number of
-/// values for the call.
+/// values for the call. Either both plans are null, or `layer_damage_rects` addresses one rect for each of their
+/// layers.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
     frame_inputs: &FrameInputs,
@@ -407,7 +411,11 @@ pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
     forced_damage_rect: IntRect,
     offsets_of_records_composited_as_media_layers: *const u32,
     offsets_of_records_composited_as_media_layers_len: usize,
+    last_layer_plan: Option<&ContextLayerPlan>,
+    layer_plan: Option<&ContextLayerPlan>,
     damage_rect: &mut IntRect,
+    layer_damage_rects: *mut IntRect,
+    unbounded_layer_bits: &mut u32,
 ) -> bool {
     // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
     let (display_list, last_display_list, live_content_changes) = unsafe {
@@ -426,14 +434,33 @@ pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
             },
         )
     };
+    let layer_plans = match (last_layer_plan, layer_plan) {
+        (Some(last_layer_plan), Some(layer_plan)) => Some(LayerPlans {
+            old: &last_layer_plan.0,
+            new: &layer_plan.0,
+        }),
+        _ => None,
+    };
     let damage = frame_inputs.damage_since(
         display_list,
         last_frame_inputs,
         last_display_list,
         viewport_rect,
         live_content_changes,
+        layer_plans,
     );
-    match damage {
+    if !damage.layer_rects.is_empty() {
+        // SAFETY: The caller provides a rect for each layer of the plans.
+        let layer_damage_rects = unsafe { ak::slice_from_raw_parts_mut(layer_damage_rects, damage.layer_rects.len()) };
+        *unbounded_layer_bits = 0;
+        for (index, layer_damage_rect) in damage.layer_rects.iter().enumerate() {
+            match layer_damage_rect {
+                Some(rect) => layer_damage_rects[index] = *rect,
+                None => *unbounded_layer_bits |= 1 << index,
+            }
+        }
+    }
+    match damage.rect {
         Some(bounded_damage_rect) => {
             *damage_rect = bounded_damage_rect;
             true

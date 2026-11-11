@@ -6,7 +6,9 @@
 
 //! What a frame is painted with besides the display list and its resources.
 
-use libcompositing_rust::display_list::damage::{DisplayListFrame, LiveContentChanges, compute_display_list_damage};
+use libcompositing_rust::display_list::damage::{
+    DisplayListDamage, DisplayListFrame, LayerPlans, LiveContentChanges, compute_display_list_damage,
+};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot, SpatialNodeIndex};
 use libgfx_rust::{Color, FloatRect, IntRect};
@@ -96,7 +98,7 @@ pub struct FrameInputs {
 
 impl FrameInputs {
     // What a frame painted with these inputs repaints of the frame `last_frame_inputs` painted `last_display_list`
-    // with, or none where that has no bounds.
+    // with, none where that has no bounds, and given the frames' layer plans, what it repaints of each layer.
     pub fn damage_since(
         &self,
         display_list: &DisplayListStorage,
@@ -104,7 +106,8 @@ impl FrameInputs {
         last_display_list: &DisplayListStorage,
         viewport_rect: IntRect,
         mut live_content_changes: LiveContentChanges<'_>,
-    ) -> Option<IntRect> {
+        layer_plans: Option<LayerPlans<'_>>,
+    ) -> DisplayListDamage {
         let scroll_offset_changed = |index: SpatialNodeIndex| {
             last_frame_inputs
                 .presented_scroll_state_snapshot
@@ -112,7 +115,7 @@ impl FrameInputs {
                 != self.presented_scroll_state_snapshot.device_offset_for_index(index)
         };
         if self.viewport_scroll_node_index.is_some_and(scroll_offset_changed) {
-            return None;
+            return DisplayListDamage::unbounded(layer_plans.map_or(0, |plans| plans.new.layers.len()));
         }
         for scrollbar in &self.scrollbars {
             if scrollbar.is_painted_by_compositor && scroll_offset_changed(scrollbar.scroll_node_index) {
@@ -126,9 +129,8 @@ impl FrameInputs {
             self.frame_of(display_list),
             viewport_rect,
             live_content_changes,
-            None,
+            layer_plans,
         )
-        .rect
     }
 
     fn frame_of<'a>(&'a self, display_list: &'a DisplayListStorage) -> DisplayListFrame<'a> {

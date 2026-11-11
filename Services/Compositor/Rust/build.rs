@@ -59,7 +59,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut builder = cbindgen::Builder::new().with_config(config);
-    for source in ["src/ffi.rs", "src/host.rs", "src/frame_inputs.rs", "src/core/mod.rs"] {
+    for source in [
+        "src/ffi.rs",
+        "src/host.rs",
+        "src/frame_inputs.rs",
+        "src/layers.rs",
+        "src/core/mod.rs",
+    ] {
         println!("cargo:rerun-if-changed={source}");
         builder = builder.with_src(manifest_dir.join(source));
     }

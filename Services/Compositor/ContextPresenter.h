@@ -17,6 +17,7 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositedContext.h>
 #include <Compositor/CompositorCoreHost.h>
+#include <Compositor/ContextLayers.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/Forward.h>
 #include <Compositor/FrameInputs.h>
@@ -131,17 +132,55 @@ private:
         Yes,
     };
 
+    struct LiveContentChangesSinceLastRaster {
+        Vector<Compositing::CanvasId> canvases;
+        Vector<Compositing::VideoSinkResourceId> video_sinks;
+        Vector<Compositing::ImageFrameResourceId> image_frames;
+        Vector<MediaActivity::Update> media_updates;
+        bool repaints_everything { false };
+    };
+
+    struct LayerSurface {
+        RefPtr<Gfx::PaintingSurface> surface;
+        Gfx::IntRect rect;
+    };
+
+    struct LayerUpdate {
+        OwnPtr<LayerPlan> new_plan;
+        bool keeps_plan { false };
+        Vector<LiveMedia> active_media;
+        Gfx::IntRect painted_damage;
+        Vector<Gfx::IntRect> damage_of_layers;
+        u32 fully_repainted_layer_bits { 0 };
+        bool repaints_everything { false };
+
+        bool has_plan() const { return new_plan || keeps_plan; }
+    };
+
+    struct FrameDamage {
+        Gfx::IntRect rect;
+        LayerUpdate layers;
+    };
+
     bool is_present_blocked() const;
     bool can_render_frame() const;
+    void paint_frame(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Gfx::IntRect damage_rect, LayerUpdate&);
     void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
+    bool paint_layered_frame(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Gfx::IntRect damage_rect, LayerUpdate const&);
+    void paint_compositor_overlays(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, PaintUIOverlay);
     Gfx::IntSize raster_size() const;
     Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
-    Gfx::IntRect frame_damage_for(PendingFrame const&, FrameInputs const&);
-    Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size, FrameInputs const&, Gfx::IntRect forced_damage_rect);
+    FrameDamage frame_damage_for(PendingFrame const&, FrameInputs const&);
+    LiveContentChangesSinceLastRaster live_content_changes_since_last_raster(Gfx::IntSize viewport_size);
+    DisplayListDamage damage_since_last_raster(Gfx::IntSize viewport_size, FrameInputs const&, Gfx::IntRect forced_damage_rect, LiveContentChangesSinceLastRaster const&, ReadonlySpan<u32> offsets_of_records_composited_as_media_layers, LayerPlan const* last_layer_plan, LayerPlan const* layer_plan);
+    LayerUpdate layer_update_for(FrameInputs const&, Gfx::IntRect viewport_rect, MonotonicTime now);
+    void commit_layer_update(LayerUpdate&&);
+    void drop_layers();
     void remember_rasterized_frame(Gfx::IntSize viewport_size, FrameInputs&&);
     Optional<u64> current_video_frame_id(Compositing::VideoSinkResourceId);
     void stop_backing_store_shrink_timer();
     void stop_surplus_backing_store_retirement_timer();
+    void stop_layer_drop_timer();
 
     RefPtr<Compositing::DisplayList const> m_display_list;
     Compositing::DisplayListResourceStorage m_resource_storage;
@@ -167,6 +206,13 @@ private:
     Gfx::FloatPoint m_raster_translation;
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
     RefPtr<Core::Timer> m_surplus_backing_store_retirement_timer;
+
+    MediaActivity m_media_activity;
+    OwnPtr<LayerPlan> m_layer_plan;
+    Vector<LiveMedia> m_layer_plan_active_media;
+    Vector<LayerSurface> m_layer_surfaces;
+    bool m_repaint_everything_after_dropping_layers { false };
+    RefPtr<Core::Timer> m_layer_drop_timer;
 
     Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };

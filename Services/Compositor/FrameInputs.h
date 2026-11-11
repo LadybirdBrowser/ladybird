@@ -84,6 +84,13 @@ struct LiveContentChanges {
     ReadonlySpan<u32> offsets_of_records_composited_as_media_layers;
 };
 
+struct DisplayListDamage {
+    // Empty where the damage has no bounds.
+    Optional<Gfx::IntRect> rect;
+    // With the frames' layer plans, the damage of each layer, empty where that has no bounds.
+    Vector<Optional<Gfx::IntRect>> layer_rects;
+};
+
 // What a frame is painted with besides the display list and its resources, which the scroll and input logic holds:
 // where the frame presents everything that scrolls is known to it alone.
 class FrameInputs {
@@ -103,9 +110,12 @@ public:
     // Replays a stream of records that a command of the list being replayed nests.
     void replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
 
+    RustFFI::ContextLayerPlan* build_layer_plan(Compositing::DisplayList const&, Gfx::IntRect viewport_rect, ReadonlySpan<RustFFI::FfiLiveMedia> active_media) const;
+    bool places_content_like(FrameInputs const&) const;
+
     // What painting the list with these inputs repaints of the last frame, which painted its list with its inputs.
-    // Empty where the damage has no bounds.
-    Optional<Gfx::IntRect> damage_since(Compositing::DisplayList const&, FrameInputs const& last_frame_inputs, Compositing::DisplayList const& last_display_list, Gfx::IntRect viewport_rect, LiveContentChanges) const;
+    // Given the layer plans of both frames, which must have the same layers, also what it repaints of each layer.
+    DisplayListDamage damage_since(Compositing::DisplayList const&, FrameInputs const& last_frame_inputs, Compositing::DisplayList const& last_display_list, Gfx::IntRect viewport_rect, LiveContentChanges, RustFFI::ContextLayerPlan const* last_layer_plan = nullptr, RustFFI::ContextLayerPlan const* layer_plan = nullptr) const;
 
 private:
     FrameInputs(RustFFI::FrameInputs*, Compositing::AccumulatedVisualContextTree);
