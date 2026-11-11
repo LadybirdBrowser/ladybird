@@ -293,7 +293,7 @@ ErrorOr<ImageFrameDescriptor> GIFImageDecoderPlugin::frame(size_t index, Optiona
     while (context.frames_decoded <= index)
         TRY(decode_next_frame(context));
 
-    return ImageFrameDescriptor { TRY(context.canvas->to_bitmap_backed_by_anonymous_buffer()), context.frame_durations[index] };
+    return ImageFrameDescriptor { TRY(context.canvas->to_bitmap_shareable_with_gpu_access()), context.frame_durations[index] };
 }
 
 }

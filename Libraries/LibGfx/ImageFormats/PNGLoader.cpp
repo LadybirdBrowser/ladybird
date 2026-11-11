@@ -81,7 +81,7 @@ ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(Readonl
         // NOTE: If we didn't fail in initialize(), that means we have size information.
         //       We can create a single-frame bitmap with that size and return it.
         //       This is weird, but kinda matches the behavior of other browsers.
-        auto bitmap = TRY(Bitmap::create_shareable(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
+        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
         decoder->m_context->frame_descriptors.append({ move(bitmap), 0 });
         decoder->m_context->frame_count = 1;
         return decoder;
@@ -344,7 +344,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         // Allocate into the in_flight_bitmap member — so the bitmap survives a potential libpng longjmp out of
         // png_read_image() below.
         if (use == DecodedFrameUse::Output)
-            in_flight_bitmap = TRY(Bitmap::create_shareable(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
+            in_flight_bitmap = TRY(Bitmap::create_shareable_with_gpu_access(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
         else
             in_flight_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, frame_size));
 
@@ -418,7 +418,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             }
 
             animation_frame_count++;
-            frame_descriptors.append({ TRY(output_buffer->to_bitmap_backed_by_anonymous_buffer()), duration_ms() });
+            frame_descriptors.append({ TRY(output_buffer->to_bitmap_shareable_with_gpu_access()), duration_ms() });
 
             switch (dispose_op) {
             case PNG_DISPOSE_OP_NONE:

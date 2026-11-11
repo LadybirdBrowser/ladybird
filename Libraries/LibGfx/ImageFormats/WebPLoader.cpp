@@ -170,8 +170,10 @@ static ErrorOr<ImageFrameDescriptor> decode_next_webp_animation_frame(WebPLoadin
         return Error::from_string_literal("Failed to decode animated frame");
 
     auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-    auto bitmap = TRY(Bitmap::create_shareable(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
-    memcpy(bitmap->scanline_u8(0), frame_data, context.size.width() * context.size.height() * 4);
+    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
+    auto const frame_row_size = Bitmap::minimum_pitch(context.size.width(), bitmap_format);
+    for (int y = 0; y < context.size.height(); ++y)
+        memcpy(bitmap->scanline_u8(y), frame_data + y * frame_row_size, frame_row_size);
 
     auto duration = timestamp - context.anim_old_timestamp;
     context.anim_old_timestamp = timestamp;
@@ -186,7 +188,7 @@ static ErrorOr<void> decode_webp_image(WebPLoadingContext& context)
     VERIFY(!context.has_animation);
 
     auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-    auto bitmap = TRY(Bitmap::create_shareable(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
+    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
 
     auto image_data = WebPDecodeBGRAInto(context.data.data(), context.data.size(), bitmap->scanline_u8(0), bitmap->data_size(), bitmap->pitch());
     if (image_data == nullptr)

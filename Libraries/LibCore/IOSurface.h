@@ -24,6 +24,9 @@ public:
     static IOSurfaceHandle create(int width, int height);
     static ErrorOr<IOSurfaceHandle> from_mach_port(MachPort const& port);
 
+    static ErrorOr<IOSurfaceHandle> try_create_with_four_bytes_per_pixel(int width, int height, u32 pixel_format);
+    static size_t bytes_per_row_aligned_as_the_system_aligns_it(size_t minimum_bytes_per_row);
+
     // Adopts a surface owned by someone else, such as one a decoder hands back, by retaining it.
     static IOSurfaceHandle from_ref(void* io_surface_ref);
 

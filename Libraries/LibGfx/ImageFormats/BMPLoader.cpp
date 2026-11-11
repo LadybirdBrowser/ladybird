@@ -1318,7 +1318,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
     u32 const absolute_height = static_cast<u32>(abs(static_cast<i64>(context.dib.core.height)));
     u32 const height = !context.is_included_in_ico ? absolute_height : (absolute_height / 2);
 
-    context.bitmap = TRY(Bitmap::create_shareable(format, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
+    context.bitmap = TRY(Bitmap::create_shareable_with_gpu_access(format, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
 
     ByteBuffer rle_buffer;
     ReadonlyBytes bytes { context.file_bytes + context.data_offset, context.file_size - context.data_offset };

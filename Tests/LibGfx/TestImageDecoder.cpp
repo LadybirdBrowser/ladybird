@@ -112,7 +112,7 @@ TEST_CASE(test_frames_are_decoded_into_shareable_bitmaps)
             continue;
         for (size_t index = 0; index < decoder->frame_count(); ++index) {
             auto frame = TRY_OR_FAIL(decoder->frame(index));
-            if (!frame.image->anonymous_buffer().is_valid())
+            if (!frame.image->is_in_shareable_memory())
                 FAIL(ByteString::formatted("Frame {} of {} is not shareable", index, path));
         }
     }

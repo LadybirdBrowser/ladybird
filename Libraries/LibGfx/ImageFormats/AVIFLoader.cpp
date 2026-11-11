@@ -107,7 +107,7 @@ static ErrorOr<void> decode_avif_image(AVIFLoadingContext& context)
     avifRGBImage rgb;
     while (avifDecoderNextImage(context.decoder) == AVIF_RESULT_OK) {
         auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-        auto bitmap = TRY(Bitmap::create_shareable(bitmap_format, AlphaType::Unpremultiplied, context.size.value()));
+        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, AlphaType::Unpremultiplied, context.size.value()));
 
         avifRGBImageSetDefaults(&rgb, context.decoder->image);
         rgb.pixels = bitmap->scanline_u8(0);
