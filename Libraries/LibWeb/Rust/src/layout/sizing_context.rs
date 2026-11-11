@@ -1690,10 +1690,23 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> Option<TransferredInlineSizeLimits> {
+        // NB: Replaced boxes transfer their limits as part of replaced element sizing.
+        if self.facts(sized.node).is_replaced_box() {
+            return None;
+        }
+        self.transferred_inline_size_limits_of_any_box(sized, available_space, constraints)
+    }
+
+    /// The limits that [`Self::transferred_inline_size_limits`] gives, for a replaced box too.
+    fn transferred_inline_size_limits_of_any_box(
+        &self,
+        sized: SizedBox<'_>,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<TransferredInlineSizeLimits> {
         let node = sized.node;
         let facts = self.facts(node);
-        // NB: Replaced boxes transfer their limits as part of replaced element sizing.
-        if facts.is_replaced_box() || !self.should_treat_inline_size_as_auto(sized, available_space) {
+        if !self.should_treat_inline_size_as_auto(sized, available_space) {
             return None;
         }
         let ratio = facts.preferred_aspect_ratio()?;
@@ -2999,8 +3012,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             inline_size: available,
             block_size: AvailableSize::Indefinite,
         };
-        self.transferred_inline_size_limits(sized, available_space, constraints)
-            .map_or(inline_size, |limits| limits.clamp(inline_size))
+        let Some(limits) = self.transferred_inline_size_limits_of_any_box(sized, available_space, constraints) else {
+            return inline_size;
+        };
+        // Replaced element sizing already raises a replaced box to a transferred minimum, but never lowers its natural
+        // size to a transferred maximum.
+        if self.facts(node).is_replaced_box() {
+            return limits.maximum.map_or(inline_size, |maximum| inline_size.min(maximum));
+        }
+        limits.clamp(inline_size)
     }
 
     fn min_content_inline_size_answered_without_measuring_content(

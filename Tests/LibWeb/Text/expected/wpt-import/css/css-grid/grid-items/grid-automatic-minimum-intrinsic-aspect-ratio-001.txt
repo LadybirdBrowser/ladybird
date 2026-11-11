@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 14 tests
 
-12 Pass
-2 Fail
+13 Pass
+1 Fail
 Pass	.container 1
 Fail	.container 2
-Fail	.container 3
+Pass	.container 3
 Pass	.container 4
 Pass	.container 5
 Pass	.container 6

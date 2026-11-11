@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<div style="display: inline-flex"><img id="max-height" style="max-height: 65px"></div>
+<div style="display: inline-flex"><img id="min-height" style="min-height: 260px"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A 228x130 image.
+        const canvas = document.createElement("canvas");
+        canvas.width = 228;
+        canvas.height = 130;
+        canvas.getContext("2d").fillRect(0, 0, 228, 130);
+        const url = canvas.toDataURL();
+        for (const id of ["max-height", "min-height"]) {
+            const image = document.getElementById(id);
+            await new Promise(resolve => {
+                image.onload = resolve;
+                image.src = url;
+            });
+            const imageRect = image.getBoundingClientRect();
+            const containerRect = image.parentElement.getBoundingClientRect();
+            println(`${id}: image ${Math.round(imageRect.width)}x${Math.round(imageRect.height)}, flex container ${Math.round(containerRect.width)} wide`);
+        }
+    });
+</script>

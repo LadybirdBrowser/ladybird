@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>aspect-ratio flex item</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#algo-main-item" title="Part E">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht" />
+<meta name="assert" content="% max-height is updated when height of parent changes when %max-height affects max-content size of item">
+
+<style>
+#target {
+  display: flex;
+  align-items: start;
+  width: 50px;
+  height: 50px;
+}
+
+img {
+  /* Remove min-width:auto because it complicates things. */
+  min-width: 0px;
+  max-height: 100%;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="target">
+  <!-- This image's natural size is 1000x1000 -->
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAPoAQMAAAB3bUanAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAKpJREFUeNrswYEAAAAAgKD9qRepAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABg9uBAAAAAAADI/7URVFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVWlPTgkAAAAABD0/7UrbAAAAADMAuw/AAGdJWCbAAAAAElFTkSuQmCC
+">
+</div>
+
+<script>
+document.body.offsetTop;
+target.style.width = '100px';
+document.body.offsetTop;
+target.style.height = '100px';
+</script>
