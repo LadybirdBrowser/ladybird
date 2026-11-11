@@ -216,10 +216,40 @@ static void show_menu_later(QToolButton& button)
     QTimer::singleShot(0, &button, &QToolButton::showMenu);
 }
 
+static QMenu* parent_menu(QMenu const& menu)
+{
+    if (auto* parent = as_if<QMenu>(menu.parentWidget()))
+        return parent;
+    // The menu of a folder that does not fit on the bar opens from the overflow menu.
+    auto const* bar = as_if<BookmarksBar>(menu.parentWidget());
+    auto* overflow_menu = bar ? bar->overflow_menu() : nullptr;
+    if (overflow_menu && overflow_menu->actions().contains(menu.menuAction()))
+        return overflow_menu;
+    return nullptr;
+}
+
 static void close_menu_chain(QMenu& menu)
 {
-    for (auto* open_menu = &menu; open_menu; open_menu = as_if<QMenu>(open_menu->parentWidget()))
+    for (auto* open_menu = &menu; open_menu; open_menu = parent_menu(*open_menu))
         open_menu->close();
+}
+
+static QMenu& innermost_open_menu(QMenu& menu)
+{
+    auto* innermost_menu = &menu;
+    while (auto* action = innermost_menu->activeAction()) {
+        auto* submenu = action->menu();
+        if (!submenu || !submenu->isVisible())
+            break;
+        innermost_menu = submenu;
+    }
+    return *innermost_menu;
+}
+
+static QString bookmark_item_id(QAction const& action)
+{
+    QObject const* entry = action.menu() ? static_cast<QObject const*>(action.menu()) : &action;
+    return entry->property("id").toString();
 }
 
 BookmarksBar::BookmarksBar(QWidget* parent)
@@ -237,8 +267,15 @@ BookmarksBar::BookmarksBar(QWidget* parent)
 
     m_overflow_button = findChild<QToolButton*>(QStringLiteral("qt_toolbar_ext_button"), Qt::FindDirectChildrenOnly);
     update_chrome_style();
+    if (auto* menu = overflow_menu())
+        menu->installEventFilter(this);
 
     rebuild();
+}
+
+QMenu* BookmarksBar::overflow_menu() const
+{
+    return m_overflow_button ? m_overflow_button->menu() : nullptr;
 }
 
 BookmarksBar::~BookmarksBar()
@@ -311,6 +348,8 @@ void BookmarksBar::rebuild()
         if (auto* menu = action->menu())
             menu->close();
     }
+    if (auto* menu = overflow_menu())
+        menu->close();
 
     // The items the bar showed before, so those added or removed since can slide in or out.
     auto animates = m_has_been_built && !SystemAppearance::prefers_reduced_motion();
@@ -336,32 +375,12 @@ void BookmarksBar::rebuild()
     clear();
 
     auto set_button_properties = [&](QToolButton* button, QString const& title) {
-        button->setProperty(BOOKMARK_ITEM_PROPERTY, true);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        button->ensurePolished();
-
-        auto option = bookmark_button_style_option(*button);
-
-        QFontMetrics title_font_metrics(bookmark_title_font(*button));
-        auto height = BOOKMARK_BUTTON_HEIGHT;
-        auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, height };
-
-        auto layout = bookmark_button_layout(*button, option, title, max_size_rect);
-
-        auto text = title_font_metrics.elidedText(title, Qt::ElideRight, layout.available_text_width);
-        button->setText(text);
-
-        layout = bookmark_button_layout(*button, option, text, max_size_rect);
-
-        button->setFixedWidth(layout.preferred_width);
-        button->setFixedHeight(height);
-
-        button->installEventFilter(this);
+        auto width = set_up_bookmark_button(*button, title);
 
         auto id = ak_string_from_qstring(button->defaultAction() ? button->defaultAction()->property("id").toString() : QString {});
         current_ids.set(id);
         if (animates && !id.is_empty() && !previous_items.contains(id))
-            slide_in(*button, layout.preferred_width);
+            slide_in(*button, width);
     };
 
     for (auto const& item : Application::bookmarks().menu().items()) {
@@ -385,13 +404,12 @@ void BookmarksBar::rebuild()
                 auto* submenu = create_application_menu(*this, *folder);
                 install_menu_event_filter(this, submenu);
 
-                auto* action = new QAction(title, this);
+                auto* action = submenu->menuAction();
                 action->setIcon(create_chrome_icon(ChromeIcon::Folder, palette()));
                 action->setProperty("id", submenu->property("id"));
                 action->setProperty("type", submenu->property("type"));
                 action->setProperty("target_folder_id", submenu->property("target_folder_id"));
                 action->setProperty("parent_folder_id", submenu->property("parent_folder_id"));
-                action->setMenu(submenu);
                 addAction(action);
 
                 if (auto* button = as_if<QToolButton>(widgetForAction(action))) {
@@ -417,6 +435,44 @@ void BookmarksBar::rebuild()
                 slide_out(item.index, item.image);
         }
     }
+}
+
+int BookmarksBar::set_up_bookmark_button(QToolButton& button, QString const& title)
+{
+    button.setProperty(BOOKMARK_ITEM_PROPERTY, true);
+    button.setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    button.ensurePolished();
+
+    auto option = bookmark_button_style_option(button);
+
+    QFontMetrics title_font_metrics(bookmark_title_font(button));
+    auto height = BOOKMARK_BUTTON_HEIGHT;
+    auto max_size_rect = QRect { 0, 0, BOOKMARK_BUTTON_MAX_WIDTH, height };
+
+    auto layout = bookmark_button_layout(button, option, title, max_size_rect);
+
+    auto text = title_font_metrics.elidedText(title, Qt::ElideRight, layout.available_text_width);
+    button.setText(text);
+
+    layout = bookmark_button_layout(button, option, text, max_size_rect);
+
+    button.setFixedWidth(layout.preferred_width);
+    button.setFixedHeight(height);
+
+    button.installEventFilter(this);
+    return layout.preferred_width;
+}
+
+QPixmap BookmarksBar::bookmark_button_image(QIcon const& icon, QString const& title)
+{
+    QToolButton button { this };
+    button.setAutoRaise(true);
+    button.setIcon(icon);
+    button.setIconSize(iconSize());
+    // The button is drawn the way it looks under the pointer.
+    button.setProperty(BOOKMARK_DROP_TARGET_PROPERTY, true);
+    set_up_bookmark_button(button, title);
+    return button.grab();
 }
 
 void BookmarksBar::report_context_menu_item() const
@@ -462,7 +518,15 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
         }
     }
 
-    if (object == m_pressed_button && event->type() == QEvent::MouseMove) {
+    if (auto* menu = m_pressed_menu ? as_if<QMenu>(object) : nullptr) {
+        if (event->type() == QEvent::Hide && menu == m_pressed_menu)
+            cancel_press();
+        if (event->type() == QEvent::MouseButtonRelease && as<QMouseEvent>(*event).button() == Qt::LeftButton)
+            cancel_press();
+    }
+
+    auto is_pressed_object = object == m_pressed_button || (m_pressed_menu && as_if<QMenu>(object));
+    if (is_pressed_object && event->type() == QEvent::MouseMove) {
         auto const& mouse_event = as<QMouseEvent>(*event);
         auto offset = mouse_event.globalPosition().toPoint() - m_press_position;
 
@@ -471,7 +535,7 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
             cancel_press();
         } else if (is_past_drag_distance(mouse_event)) {
             // A folder that is dragged downward opens instead.
-            if (auto button = m_pressed_button; button->defaultAction()->menu() && offset.y() > abs(offset.x())) {
+            if (auto button = m_pressed_button; button && button->defaultAction()->menu() && offset.y() > abs(offset.x())) {
                 cancel_press();
                 show_menu_later(*button);
             } else {
@@ -488,6 +552,8 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
             auto* button = as_if<QToolButton>(childAt(mapFromGlobal(global_position)));
             // NB: A folder's menu is its button's action's.
             auto* folder_menu = button && button->defaultAction() ? button->defaultAction()->menu() : nullptr;
+            if (button && button == m_overflow_button)
+                folder_menu = overflow_menu();
             if (folder_menu && !folder_menu->isVisible()) {
                 close_menu_chain(*menu);
                 show_menu_later(*button);
@@ -542,6 +608,17 @@ bool BookmarksBar::handle_left_mouse_click(QMouseEvent* event, QObject* item)
     if (event->modifiers().testFlag(Qt::ControlModifier))
         return handle_middle_mouse_click(event, item);
 
+    if (auto* menu = as_if<QMenu>(item)) {
+        if (auto* action = menu->actionAt(event->pos())) {
+            if (!bookmark_item_id(*action).isEmpty()) {
+                m_pressed_menu = menu;
+                m_pressed_menu_action = action;
+                m_press_position = event->globalPosition().toPoint();
+            }
+        }
+        return false;
+    }
+
     auto* button = as_if<QToolButton>(item);
     if (!button || !button->property(BOOKMARK_ITEM_PROPERTY).toBool())
         return false;
@@ -586,6 +663,8 @@ void BookmarksBar::cancel_press()
     if (m_pressed_button && m_pressed_button->defaultAction()->menu())
         m_pressed_button->setDown(false);
     m_pressed_button = nullptr;
+    m_pressed_menu = nullptr;
+    m_pressed_menu_action = nullptr;
 }
 
 bool BookmarksBar::is_past_drag_distance(QMouseEvent const& event) const
@@ -597,10 +676,12 @@ bool BookmarksBar::is_past_drag_distance(QMouseEvent const& event) const
 void BookmarksBar::start_drag()
 {
     auto dragged_button = m_pressed_button;
-    auto* dragged_action = dragged_button ? dragged_button->defaultAction() : nullptr;
+    auto dragged_menu_action = m_pressed_menu_action;
+    auto* dragged_action = dragged_button ? dragged_button->defaultAction() : dragged_menu_action.data();
     if (!dragged_action)
         return;
 
+    m_drag_source_menu = m_pressed_menu;
     cancel_press();
 
     m_dragged_button = dragged_button;
@@ -611,9 +692,19 @@ void BookmarksBar::start_drag()
         m_drag_card->move(dragged_button->pos());
         m_drag_card->show();
         m_drag_card->raise();
+    } else {
+        // The card shows once the pointer is over the bar.
+        m_drag_card = new BookmarkDragCard(*this, bookmark_button_image(dragged_menu_action->icon(), dragged_menu_action->text()));
+        m_drag_card_pointer_offset = m_drag_card->width() / 2;
+        for (auto* action : actions()) {
+            if (auto* button = widgetForAction(action); button && button->property(BOOKMARK_ITEM_PROPERTY).toBool()) {
+                m_drag_card->move(0, button->y());
+                break;
+            }
+        }
     }
 
-    m_dragged_item_id = dragged_action->property("id").toString();
+    m_dragged_item_id = bookmark_item_id(*dragged_action);
     QApplication::setOverrideCursor(Qt::DragMoveCursor);
 
     // Qt passes moves to different widgets while a button is held, and to none once a menu has opened and closed.
@@ -663,7 +754,7 @@ bool BookmarksBar::handle_drag_event(QObject const& object, QEvent& event)
 void BookmarksBar::update_drag(QPoint global_position)
 {
     auto position = mapFromGlobal(global_position);
-    auto is_over_bar = rect().contains(position);
+    auto is_over_bar = !drag_menu_at(global_position) && rect().contains(position);
 
     if (m_drag_card) {
         m_drag_card->move(position.x() - m_drag_card_pointer_offset, m_drag_card->y());
@@ -676,6 +767,17 @@ void BookmarksBar::update_drag(QPoint global_position)
         return;
     }
     show_drop_target(drop_target_on_bar(position));
+}
+
+QMenu* BookmarksBar::drag_menu_at(QPoint global_position) const
+{
+    if (!m_drag_source_menu)
+        return nullptr;
+    for (auto* menu = &innermost_open_menu(*m_drag_source_menu); menu; menu = parent_menu(*menu)) {
+        if (menu->isVisible() && menu->geometry().contains(global_position))
+            return menu;
+    }
+    return nullptr;
 }
 
 void BookmarksBar::drop_dragged_item(QPoint global_position)
@@ -732,6 +834,12 @@ void BookmarksBar::stop_drag()
         QApplication::sendEvent(m_dragged_button, &release);
     }
     m_dragged_button = nullptr;
+
+    if (m_drag_source_menu)
+        close_menu_chain(*m_drag_source_menu);
+    m_drag_source_menu = nullptr;
+    if (auto* popup = as_if<QMenu>(QApplication::activePopupWidget()))
+        close_menu_chain(*popup);
 }
 
 BookmarksBar::DropTarget BookmarksBar::drop_target_on_bar(QPoint position) const
