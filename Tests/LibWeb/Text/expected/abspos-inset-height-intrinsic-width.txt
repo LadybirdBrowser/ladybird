@@ -1,0 +1,48 @@
+block horizontal-tb: box 200x100, image 200x100
+block vertical-rl: box 100x50, image 100x50
+block vertical-lr: box 100x50, image 100x50
+block rtl: box 200x100, image 200x100
+block explicit height: box 200x100, image 200x100
+block insets: box 120x60, image 120x60
+block box model: box 140x80, image 120x60
+block percentage margins: box 122x61, image 122x61
+block max height: box 120x60, image 120x60
+block min height: box 280x140, image 280x140
+block percentage max height: box 100x50, image 100x50
+block minimum wins: box 240x120, image 240x120
+block border-box limit: box 100x60, image 80x40
+block intrinsic maximum: box 200x100, image 200x100
+block max width: box 100x100, image 200x100
+block min width: box 300x100, image 200x100
+block narrow container: box 200x100, image 200x100
+block auto height: box 400x200, image 400x200
+block content height: box 400x200, image 400x200
+block before resize: box 200x100, image 200x100
+block after resize: box 300x150, image 300x150
+block changed inset: box 100x50, image 100x50
+block removed inset: box 400x200, image 400x200
+block restored inset: box 300x150, image 300x150
+flex horizontal-tb: box 200x100, image 200x100
+flex vertical-rl: box 100x50, image 100x50
+flex vertical-lr: box 100x50, image 100x50
+flex rtl: box 200x100, image 200x100
+flex explicit height: box 200x100, image 200x100
+flex insets: box 120x60, image 120x60
+flex box model: box 140x80, image 120x60
+flex percentage margins: box 122x61, image 122x61
+flex max height: box 120x60, image 120x60
+flex min height: box 280x140, image 280x140
+flex percentage max height: box 100x50, image 100x50
+flex minimum wins: box 240x120, image 240x120
+flex border-box limit: box 100x60, image 80x40
+flex intrinsic maximum: box 200x100, image 200x100
+flex max width: box 100x100, image 200x100
+flex min width: box 300x100, image 200x100
+flex narrow container: box 200x100, image 200x100
+flex auto height: box 400x200, image 400x200
+flex content height: box 400x200, image 400x200
+flex before resize: box 200x100, image 200x100
+flex after resize: box 300x150, image 300x150
+flex changed inset: box 100x50, image 100x50
+flex removed inset: box 400x200, image 400x200
+flex restored inset: box 300x150, image 300x150

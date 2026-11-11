@@ -1,0 +1,95 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        inline-size: 390px;
+        block-size: 100px;
+    }
+    .absolute {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        line-height: 0;
+    }
+    .child {
+        display: block;
+        block-size: 100%;
+    }
+    img {
+        block-size: 100%;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const image = new Image();
+        image.src =
+            "data:image/svg+xml," +
+            encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"></svg>');
+        await image.decode();
+        function add(style = "", containerStyle = "") {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.style.cssText = containerStyle;
+            const box = document.createElement("div");
+            box.className = "absolute";
+            box.style.cssText = style;
+            const child = document.createElement("a");
+            child.className = "child";
+            child.append(image.cloneNode());
+            box.append(child);
+            container.append(box);
+            document.body.append(container);
+            return [container, box];
+        }
+        function report(name, container, box) {
+            const size = element => {
+                const rect = element.getBoundingClientRect();
+                return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+            };
+            println(`${name}: box ${size(box)}, image ${size(box.querySelector("img"))}`);
+        }
+        for (const display of ["block", "flex"]) {
+            for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+                report(`${display} ${mode}`, ...add(`display: ${display}`, `writing-mode: ${mode}`));
+            }
+            report(`${display} rtl`, ...add(`display: ${display}`, "direction: rtl"));
+            report(`${display} explicit height`, ...add(`display: ${display}; block-size: 100px`));
+            report(`${display} insets`, ...add(`display: ${display}; inset-block: 10px 30px`));
+            report(
+                `${display} box model`,
+                ...add(`display: ${display}; padding: 5px; border: 5px solid; margin: 10px`)
+            );
+            report(`${display} percentage margins`, ...add(`display: ${display}; margin-block: 5%`));
+            report(`${display} max height`, ...add(`display: ${display}; max-block-size: 60px`));
+            report(`${display} min height`, ...add(`display: ${display}; min-block-size: 140px`));
+            report(`${display} percentage max height`, ...add(`display: ${display}; max-block-size: 50%`));
+            report(
+                `${display} minimum wins`,
+                ...add(`display: ${display}; min-block-size: 120px; max-block-size: 60px`)
+            );
+            report(
+                `${display} border-box limit`,
+                ...add(
+                    `display: ${display}; padding: 5px; border: 5px solid; box-sizing: border-box; max-block-size: 60px`
+                )
+            );
+            report(`${display} intrinsic maximum`, ...add(`display: ${display}; max-block-size: max-content`));
+            report(`${display} max width`, ...add(`display: ${display}; max-inline-size: 100px`));
+            report(`${display} min width`, ...add(`display: ${display}; min-inline-size: 300px`));
+            report(`${display} narrow container`, ...add(`display: ${display}`, "inline-size: 100px"));
+            report(`${display} auto height`, ...add(`display: ${display}; inset-block-end: auto`));
+            report(`${display} content height`, ...add(`display: ${display}; block-size: max-content`));
+            const [container, box] = add(`display: ${display}`);
+            report(`${display} before resize`, container, box);
+            container.style.blockSize = "150px";
+            report(`${display} after resize`, container, box);
+            box.style.insetBlockEnd = "100px";
+            report(`${display} changed inset`, container, box);
+            box.style.insetBlockEnd = "auto";
+            report(`${display} removed inset`, container, box);
+            box.style.insetBlockEnd = "0";
+            report(`${display} restored inset`, container, box);
+        }
+    });
+</script>

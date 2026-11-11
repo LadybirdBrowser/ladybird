@@ -1951,6 +1951,55 @@ impl AbsposEngine<'_> {
         equation.stretch_fit_size()
     }
 
+    fn stretch_block_size_for_intrinsic_inline_sizing(
+        &self,
+        sized: OutOfFlowBox<'_>,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        let style = self.style_of(sized);
+        if !style.height().is_auto() || self.sizing().establishes_orthogonal_flow(sized.node) {
+            return None;
+        }
+        let equation = self.axis_equation(
+            sized,
+            inputs,
+            SizingAxis::Block,
+            available_space.block_size.to_px_or_zero(),
+            available_space.inline_size.to_px_or_zero(),
+            self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
+        );
+        if self.sizes_to_fit_content(sized, equation, false) {
+            return None;
+        }
+        // https://drafts.csswg.org/css-sizing-3/#definite
+        // The stretch-fit block size is definite without laying out the contents. Descendant percentages resolve
+        // against it during intrinsic inline sizing, with only definite minimum and maximum sizes applied.
+        let mut block_size = equation.stretch_fit_size();
+        if style.height().calc_size().is_some() {
+            block_size = self.sizing().resolve_calc_size(
+                sized.sized_box(),
+                SizingAxis::Block,
+                style.height(),
+                block_size,
+                constraints.percentage_basis_block_size,
+            );
+        }
+        let inner_size = |size: &ComputedSize| {
+            self.calculate_inner_size(sized, SizingAxis::Block, size, available_space, constraints, inputs)
+        };
+        if !style.max_height().is_none() && !style.max_height().is_intrinsic_sizing_constraint() {
+            block_size = block_size.min(inner_size(style.max_height()));
+        }
+        if !crate::layout::sizing_context::is_plain_auto(style.min_height())
+            && !style.min_height().is_intrinsic_sizing_constraint()
+        {
+            block_size = block_size.max(inner_size(style.min_height()));
+        }
+        Some(block_size)
+    }
+
     /// The content inline size of a non-replaced box: its specified size, or the size that auto gives it in the space
     /// between its insets and margins, adjusted by calc-size() and its limits.
     fn non_replaced_inline_size(
@@ -1991,11 +2040,31 @@ impl AbsposEngine<'_> {
             // https://drafts.csswg.org/css-position-3/#abspos-auto-size
             // For the purpose of computing these sizes, any auto margins are treated as zero.
             let available = Self::shrink_to_fit_available_size(inputs, SizingAxis::Inline, equation);
-            let preferred = sizing.calculate_max_content_inline_size(sized.sized_box(), constraints);
+            let block_size =
+                self.stretch_block_size_for_intrinsic_inline_sizing(sized, inputs, available_space, constraints);
+            let preferred = block_size.map_or_else(
+                || sizing.calculate_max_content_inline_size(sized.sized_box(), constraints),
+                |block_size| {
+                    sizing.calculate_max_content_inline_size_at_definite_block_size(
+                        sized.sized_box(),
+                        constraints,
+                        block_size,
+                    )
+                },
+            );
             if preferred <= available {
                 preferred
             } else {
-                let preferred_minimum = sizing.calculate_min_content_inline_size(sized.sized_box(), constraints);
+                let preferred_minimum = block_size.map_or_else(
+                    || sizing.calculate_min_content_inline_size(sized.sized_box(), constraints),
+                    |block_size| {
+                        sizing.calculate_min_content_inline_size_at_definite_block_size(
+                            sized.sized_box(),
+                            constraints,
+                            block_size,
+                        )
+                    },
+                );
                 preferred_minimum.max(available).min(preferred)
             }
         };
