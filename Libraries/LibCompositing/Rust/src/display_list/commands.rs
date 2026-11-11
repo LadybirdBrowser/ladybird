@@ -916,16 +916,11 @@ impl DisplayListCommand for DrawCompositedContext {
 pub struct DrawCanvas {
     pub dst_rect: IntRect,
     pub canvas_id: CanvasId,
-    // NB: The canvas pixels live in the compositor's canvas surface registry, so the command bytes don't
-    //     change when the canvas content does. The content generation encodes content changes so that display
-    //     list damage computation can tell that the canvas needs to be repainted.
-    pub content_generation: u64,
     pub scaling_mode: ScalingMode,
 }
 ffi_bytes_fields!(DrawCanvas {
     dst_rect,
     canvas_id,
-    content_generation,
     scaling_mode
 });
 

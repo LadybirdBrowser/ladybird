@@ -760,13 +760,7 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn draw_canvas(
-        &mut self,
-        dst_rect: IntRect,
-        canvas_id: CanvasId,
-        content_generation: u64,
-        scaling_mode: ScalingMode,
-    ) {
+    pub fn draw_canvas(&mut self, dst_rect: IntRect, canvas_id: CanvasId, scaling_mode: ScalingMode) {
         if dst_rect.is_empty() {
             return;
         }
@@ -774,7 +768,6 @@ impl DisplayListRecorder {
             &DrawCanvas {
                 dst_rect,
                 canvas_id,
-                content_generation,
                 scaling_mode,
             },
             &[],

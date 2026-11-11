@@ -1141,9 +1141,9 @@ mod tests {
         use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
         let element = MarkedBox::Node(StyleNodeID::from_raw(1));
         let row = MarkedBox::Row(NodeSlotId::new(1, 1));
-        let canvas = |content_generation| {
+        let canvas = |canvas_id| {
             ReplacedPaintFacts::Canvas(FfiCanvasPaintFacts {
-                content_generation,
+                canvas_id,
                 ..Default::default()
             })
         };

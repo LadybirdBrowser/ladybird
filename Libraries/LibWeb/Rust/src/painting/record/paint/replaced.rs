@@ -299,12 +299,9 @@ pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<
             (facts.content_width, facts.content_height),
             (canvas_rect.width, canvas_rect.height),
         );
-        recorder.recorder.draw_canvas(
-            canvas_rect,
-            CanvasId(facts.canvas_id),
-            facts.content_generation,
-            scaling_mode,
-        );
+        recorder
+            .recorder
+            .draw_canvas(canvas_rect, CanvasId(facts.canvas_id), scaling_mode);
     });
 }
 

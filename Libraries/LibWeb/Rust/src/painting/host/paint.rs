@@ -491,7 +491,6 @@ pub struct FfiCanvasPaintFacts {
     pub content_width: i32,
     pub content_height: i32,
     pub canvas_id: u64,
-    pub content_generation: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

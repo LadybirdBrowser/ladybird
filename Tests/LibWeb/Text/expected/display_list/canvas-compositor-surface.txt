@@ -6,5 +6,5 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawCanvas@s1/e0 dst_rect=[8,8 32x32] content_generation=0
+DrawCanvas@s1/e0 dst_rect=[8,8 32x32]
 
