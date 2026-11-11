@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>IntersectionObserver observing a clipped SVG &lt;rect> element</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/intersection-observer-test-utils.js"></script>
+<style>
+.spacer {
+  height: calc(100vh + 100px);
+}
+</style>
+<div class="spacer"></div>
+<svg viewBox="0 0 200 100" width="400">
+  <clipPath id="clip">
+    <circle cx="75" cy="50" r="20"/>
+  </clipPath>
+  <g clip-path="url(#clip)">
+    <rect id="target" x="50" y="25" width="100" height="50" fill="blue"/>
+  </g>
+</svg>
+<div class="spacer"></div>
+<script>
+const viewportWidth = document.documentElement.clientWidth;
+const viewportHeight = document.documentElement.clientHeight;
+setup(() => {
+  window.entries = [];
+  window.target = document.getElementById("target");
+  window.targetRect = target.getBoundingClientRect();
+});
+runTestCycle(function() {
+  assert_true(!!target, "target exists");
+  const observer = new IntersectionObserver(function(changes) {
+    entries = entries.concat(changes)
+  });
+  observer.observe(target);
+  entries = entries.concat(observer.takeRecords());
+  assert_equals(entries.length, 0, "No initial notifications");
+  runTestCycle(step0, "First rAF.");
+});
+function step0() {
+  document.scrollingElement.scrollTop = 300;
+  runTestCycle(step1, "document.scrollingElement.scrollTop = 300");
+  // The numbers in brackets are target client rect; intersection rect;
+  // and root bounds.
+  checkLastEntry(entries, 0, [
+    108, 108 + targetRect.width, viewportHeight + 158, viewportHeight + 158 + targetRect.height,
+    0, 0, 0, 0,
+    0, viewportWidth, 0, viewportHeight,
+    false,
+  ]);
+}
+function step1() {
+  document.scrollingElement.scrollTop = 100;
+  runTestCycle(step2, "document.scrollingElement.scrollTop = 100");
+  checkLastEntry(entries, 1, [
+    108, 108 + targetRect.width, viewportHeight - 142, viewportHeight - 142 + targetRect.height,
+    118, 198, viewportHeight - 132, viewportHeight - 52,
+    0, viewportWidth, 0, viewportHeight,
+    true,
+  ]);
+}
+function step2() {
+  document.scrollingElement.scrollTop = 0;
+  checkLastEntry(entries, 2, [
+    108, 108 + targetRect.width, viewportHeight + 58, viewportHeight + 58 + targetRect.height,
+    0, 0, 0, 0,
+    0, viewportWidth, 0, viewportHeight,
+    false,
+  ]);
+}
+</script>

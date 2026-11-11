@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	IntersectionObserver observing a clipped SVG <rect> element
+Pass	First rAF.
+Fail	document.scrollingElement.scrollTop = 300
+Pass	document.scrollingElement.scrollTop = 100

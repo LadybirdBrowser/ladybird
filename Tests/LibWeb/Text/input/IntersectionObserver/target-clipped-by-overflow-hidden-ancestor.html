@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .clip {
+        width: 300px;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    .clip > * {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        vertical-align: top;
+    }
+</style>
+<div class="clip" id="spans"></div>
+<div class="clip" id="images"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const spans = document.getElementById("spans");
+        for (let i = 0; i < 10; i++)
+            spans.append(document.createElement("span"));
+        const images = document.getElementById("images");
+        for (let i = 0; i < 30; i++) {
+            const image = document.createElement("img");
+            image.loading = "lazy";
+            image.src = `../../../Assets/120.png?${i}`;
+            images.append(image);
+        }
+
+        const intersecting = await new Promise(resolve => {
+            const observer = new IntersectionObserver(entries => {
+                observer.disconnect();
+                resolve(entries.filter(entry => entry.isIntersecting).map(entry => [...spans.children].indexOf(entry.target)));
+            });
+            for (const span of spans.children)
+                observer.observe(span);
+        });
+        println(`spans reported as intersecting: ${intersecting.join(", ")}`);
+
+        const visibleImages = [...images.children].slice(0, 4);
+        await Promise.all(visibleImages.map(image => image.complete ? null : new Promise(resolve => image.addEventListener("load", resolve))));
+        await animationFrame();
+        await animationFrame();
+        const loaded = [...images.children].flatMap((image, index) => image.naturalWidth ? [index] : []);
+        println(`lazy images loaded: ${loaded.join(", ")}`);
+    });
+</script>
