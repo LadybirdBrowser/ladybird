@@ -62,8 +62,9 @@ ErrorOr<void> install_no_new_privileges()
 ErrorOr<void> configure_runtime()
 {
 #if defined(AK_OS_LINUX) && defined(__GLIBC__) && defined(M_ARENA_MAX) && !defined(HAS_ADDRESS_SANITIZER)
-    if (mallopt(M_ARENA_MAX, 4) == 0)
-        return Error::from_string_literal("mallopt(M_ARENA_MAX) failed");
+    // NB: This only limits memory use. Other allocators, such as hardened_malloc, do not know this option and return 0,
+    //     so we ignore a failure.
+    (void)mallopt(M_ARENA_MAX, 4);
 #endif
 #if defined(AK_OS_LINUX) && defined(HAS_ADDRESS_SANITIZER)
     // The sanitizers symbolize a report through an llvm-symbolizer process they start the first time they need one, but
