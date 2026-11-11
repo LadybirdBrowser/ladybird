@@ -1,0 +1,18 @@
+Ladybird keeps a content-sized absolutely positioned block indefinite
+while laying out its children, so cyclic percentage heights behave as
+auto. Heights resolved before that layout remain definite, including
+stretch-fit heights and heights derived from a preferred aspect ratio.
+
+Blink separates these paths in CanComputeBlockSizeWithoutLayout() and
+ComputeOofBlockDimensions(): A fit-content automatic height requires
+layout without a fixed block size. Gecko makes the same distinction in
+nsIFrame::ComputeAbsolutePosAutoSize(), leaving content-sized heights
+unconstrained while resolving stretch and aspect-ratio sizes up front.
+
+WebKit recomputes an out-of-flow height in RenderBlock::
+availableLogicalHeightForPercentageComputation() when RenderBox::
+hasFullyConstrainedLogicalHeight() finds two specified block insets.
+That predicate has no alignment check. Ladybird follows the cyclic-
+percentage rule and the Chrome measurements for this case: A percentage-
+height child with 60px of content stays 60px inside an anchor-centered
+content-sized parent, including when the parent has a 120px minimum.
