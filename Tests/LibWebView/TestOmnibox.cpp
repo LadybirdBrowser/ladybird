@@ -5,6 +5,7 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWebView/AutocompleteMuxer.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/WebUI.h>
@@ -150,9 +151,9 @@ struct Harness {
     void check_invariants()
     {
         auto fail = [&](StringView invariant) {
-            FAIL(MUST(String::formatted("Omnibox invariant broken: {} (query '{}', display '{}', popup {}, pending {}, selection {}, rows [{}])",
+            FAIL(MUST(String::formatted("Omnibox invariant broken: {} (query '{}', display '{}', popup {}, pending {}, selection {}, rows [{}]){}",
                 invariant, omnibox.query(), display_text, omnibox.is_popup_visible(), omnibox.has_pending_suggestions(),
-                omnibox.selected_suggestion(), describe_rows())));
+                omnibox.selected_suggestion(), describe_rows(), describe_context ? describe_context() : String {})));
         };
 
         // The chrome is told about every change it has to draw.
@@ -281,6 +282,8 @@ struct Harness {
 
     ScriptedProvider* provider { nullptr };
     Omnibox omnibox;
+    // Says how the test got here, for a failure in a generated test.
+    Function<String()> describe_context;
 
     String display_text;
     Optional<size_t> selection_start;
@@ -1299,4 +1302,201 @@ TEST_CASE(committing_may_reentrantly_end_editing)
     EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
     EXPECT(!harness.omnibox.is_editing());
     EXPECT(!harness.omnibox.is_popup_visible());
+}
+
+namespace {
+
+// A small deterministic generator, so a failing walk can be replayed from its seed.
+class WalkRandom {
+public:
+    explicit WalkRandom(u64 seed)
+        : m_state(seed)
+    {
+    }
+
+    u64 next()
+    {
+        m_state += 0x9e3779b97f4a7c15;
+        auto value = m_state;
+        value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9;
+        value = (value ^ (value >> 27)) * 0x94d049bb133111eb;
+        return value ^ (value >> 31);
+    }
+
+    size_t below(size_t bound) { return next() % bound; }
+
+private:
+    u64 m_state { 0 };
+};
+
+struct WalkPage {
+    StringView url;
+    StringView title;
+};
+
+static constexpr Array walk_pages {
+    WalkPage { "https://www.reddit.com/"sv, "Reddit"sv },
+    WalkPage { "https://reddit.com/r/programming/"sv, "Programming"sv },
+    WalkPage { "https://www.thev.example/"sv, "The V"sv },
+    WalkPage { "https://the.example/news"sv, "The News"sv },
+    WalkPage { "https://ladybird.org/"sv, "Ladybird"sv },
+    WalkPage { "https://example.com/fragrance"sv, "Eau de Parfum"sv },
+};
+
+StringView walk_page_address(StringView url)
+{
+    if (auto scheme_end = url.find("://"sv); scheme_end.has_value())
+        url = url.substring_view(*scheme_end + 3);
+    if (url.starts_with("www."sv))
+        url = url.substring_view(4);
+    return url;
+}
+
+// The rows a query would get, put in order by the real muxer. Remote rows come in a later delivery, as they do.
+Vector<AutocompleteSuggestion> walk_rows(String const& query, bool with_remote_rows)
+{
+    auto trimmed_query = query.bytes_as_string_view().trim_whitespace();
+    if (trimmed_query.is_empty())
+        return {};
+
+    auto verbatim = search_row(trimmed_query);
+    verbatim.is_verbatim = true;
+    verbatim.relevance = 900;
+    verbatim.can_be_inline_completed = false;
+
+    Vector<AutocompleteSuggestion> local_rows;
+    for (size_t index = 0; index < walk_pages.size(); ++index) {
+        auto const& page = walk_pages[index];
+        if (walk_page_address(page.url).starts_with(trimmed_query, CaseSensitivity::CaseInsensitive)) {
+            auto suggestion = history_row(page.url, 1000 - static_cast<i32>(index) * 10);
+            suggestion.title = MUST(String::from_utf8(page.title));
+            suggestion.match_class = WebView::AutocompleteMatchClass::URLPrefix;
+            local_rows.append(move(suggestion));
+        } else if (trimmed_query.length() >= 3 && page.title.starts_with(trimmed_query, CaseSensitivity::CaseInsensitive)) {
+            local_rows.append(non_automatic_history_row(page.url, page.title));
+            local_rows.last().relevance = 950;
+        }
+    }
+
+    Vector<AutocompleteSuggestion> remote_rows;
+    if (with_remote_rows) {
+        for (auto suffix : { " news"sv, " 2026"sv }) {
+            auto remote = search_row(MUST(String::formatted("{}{}", trimmed_query, suffix)));
+            remote.relevance = 700;
+            remote.can_be_automatically_selected = false;
+            remote_rows.append(move(remote));
+        }
+    }
+
+    return WebView::mux_autocomplete_suggestions(trimmed_query, move(verbatim), move(local_rows), move(remote_rows), 8);
+}
+
+// How often the walks reach the states worth checking, so they cannot quietly stop reaching them.
+struct WalkCoverage {
+    size_t inline_completions { 0 };
+    size_t explicit_selections { 0 };
+    size_t pending_steps { 0 };
+    size_t returns_to_suggestions { 0 };
+    size_t returns_to_typed_text { 0 };
+};
+
+void walk(u64 seed, size_t step_count, WalkCoverage& coverage)
+{
+    WalkRandom random(seed);
+    // NB: The harness checks its invariants once more as it is destroyed, and a failure there describes the steps, so
+    //     they must outlive it.
+    Vector<String> steps;
+    Harness harness;
+    harness.describe_context = [&] {
+        return MUST(String::formatted("\n    seed {}, steps: {}", seed, MUST(String::join(", "sv, steps))));
+    };
+
+    auto restart = [&] {
+        harness.omnibox.end_editing();
+        harness.begin_editing();
+    };
+
+    harness.begin_editing();
+    static constexpr auto typed_characters = "redthvlaybi eaux"sv;
+
+    for (size_t step = 0; step < step_count; ++step) {
+        auto action = random.below(100);
+        if (action < 35) {
+            auto character = typed_characters[random.below(typed_characters.length())];
+            steps.append(MUST(String::formatted("type '{}'", character)));
+            harness.press_key(character);
+        } else if (action < 47) {
+            steps.append("backspace"_string);
+            harness.press_backspace();
+        } else if (action < 62) {
+            steps.append("deliver"_string);
+            if (!harness.provider->query_ids.is_empty())
+                harness.provider->deliver(walk_rows(harness.provider->queries.last(), false));
+        } else if (action < 70) {
+            steps.append("deliver with remote rows"_string);
+            if (!harness.provider->query_ids.is_empty())
+                harness.provider->deliver(walk_rows(harness.provider->queries.last(), true));
+        } else if (action < 74) {
+            // A late answer to an earlier query must change nothing.
+            steps.append("deliver stale"_string);
+            if (harness.provider->query_ids.size() >= 2) {
+                auto index = random.below(harness.provider->query_ids.size() - 1);
+                harness.provider->deliver(harness.provider->query_ids[index], walk_rows(harness.provider->queries[index], true));
+            }
+        } else if (action < 81) {
+            steps.append("down"_string);
+            harness.omnibox.select_next_suggestion();
+        } else if (action < 85) {
+            steps.append("up"_string);
+            harness.omnibox.select_previous_suggestion();
+        } else if (action < 89) {
+            steps.append("tab"_string);
+            harness.omnibox.accept_completion();
+        } else if (action < 93) {
+            steps.append("escape"_string);
+            if (harness.omnibox.escape_pressed() == Omnibox::EscapeAction::EndEditing)
+                restart();
+        } else {
+            steps.append("return"_string);
+            if (harness.display_text.is_empty())
+                continue;
+
+            // Return goes exactly where the field said it would.
+            auto target = harness.omnibox.suggestion_for_return();
+            auto expected = target.has_value() ? target->text : harness.omnibox.query();
+            ++(target.has_value() ? coverage.returns_to_suggestions : coverage.returns_to_typed_text);
+            auto commit_count = harness.commits.size();
+            harness.omnibox.return_pressed();
+            if (harness.commits.size() != commit_count + 1 || harness.commits.last() != expected) {
+                FAIL(MUST(String::formatted("Return did not go to '{}'{}", expected, harness.describe_context())));
+                return;
+            }
+            restart();
+        }
+        harness.check_invariants();
+        if (Test::current_test_result() == Test::TestResult::Failed)
+            return;
+
+        coverage.inline_completions += harness.omnibox.is_inline_completed() ? 1 : 0;
+        coverage.explicit_selections += harness.omnibox.selection_is_explicit() ? 1 : 0;
+        coverage.pending_steps += harness.omnibox.has_pending_suggestions() ? 1 : 0;
+    }
+}
+
+}
+
+TEST_CASE(random_editing_keeps_the_omnibox_consistent)
+{
+    WalkCoverage coverage;
+    for (u64 seed = 1; seed <= 400; ++seed) {
+        walk(seed, 60, coverage);
+        if (Test::current_test_result() == Test::TestResult::Failed)
+            return;
+    }
+
+    EXPECT(coverage.inline_completions >= 100);
+    EXPECT(coverage.explicit_selections >= 100);
+    EXPECT(coverage.pending_steps >= 100);
+    EXPECT(coverage.returns_to_suggestions >= 50);
+    EXPECT(coverage.returns_to_typed_text >= 50);
 }
