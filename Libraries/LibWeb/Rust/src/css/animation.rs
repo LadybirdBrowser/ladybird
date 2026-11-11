@@ -8623,6 +8623,7 @@ pub(crate) struct CustomPropertyInterval {
     pub(crate) custom_name_id: u32,
     pub(crate) cyclic: [bool; 2],
     pub(crate) name: crate::css::retained_fly_string::RetainedUtf16FlyString,
+    /// Written endpoint values; empty for neutral endpoints and for cached unregistered intervals.
     pub(crate) declared_values: [RetainedStyleValueData; 2],
     /// Fresh interval values awaiting cache insertion.
     pub(crate) values_to_retain: Option<[RetainedStyleValueData; 2]>,
@@ -9162,6 +9163,9 @@ pub(crate) fn resolve_published_animation_declarations(
             let custom_is_inherited = registry.name_inherits(&interned_name);
             interval.values_to_retain =
                 (can_retain_interval_values && !has_retained_values).then(|| interval_values.clone());
+            if has_retained_values && !registry.is_registered(&interned_name) {
+                interval.declared_values.fill(RetainedStyleValueData::none());
+            }
             for (lookup, value) in interval.interval_span.into_iter().zip(interval_values) {
                 let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {

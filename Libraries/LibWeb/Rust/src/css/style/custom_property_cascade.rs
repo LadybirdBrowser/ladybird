@@ -827,7 +827,8 @@ impl RetainedState {
     /// Mark cyclic endpoints in `intervals` and return the names of cyclic element declarations.
     /// Cycles can pass through the selected animation intervals, as with
     /// `--p: var(--q)` in a keyframe beside `--q: var(--p)` on the element. An animated value wins
-    /// the cascade over a declared one, so a name it animates reads as its selected endpoints do. What a value
+    /// the cascade over a declared one. Retained unregistered intervals shadow declarations without
+    /// adding dependencies; other intervals read as their selected endpoints do. What a value
     /// reads is what substituting it looks up, over `base`, the element's environment beneath its
     /// animations, with their values `animated`, and `inheritance`, the environment it inherits:
     /// which branch of an `if()` or fallback that takes depends on the values, and what decides that

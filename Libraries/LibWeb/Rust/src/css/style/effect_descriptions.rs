@@ -473,9 +473,18 @@ impl PublishedEffect {
             return;
         }
 
-        let Some(values) = interval.values_to_retain else {
+        let Some(mut values) = interval.values_to_retain else {
             return;
         };
+
+        for (value, cyclic) in values.iter_mut().zip(interval.cyclic) {
+            if !cyclic {
+                continue;
+            }
+            // AD-HOC: Retain a cyclic conversion as unset so its inherited or initial value is resolved when applied.
+            //         Caching the fallback's value would freeze it across later style changes.
+            *value = RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::UNSET).clone();
+        }
 
         interval_cache
             .lock()
