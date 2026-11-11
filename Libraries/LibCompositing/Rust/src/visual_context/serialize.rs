@@ -26,6 +26,7 @@ use crate::visual_animation::{
     MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationKeyframe,
     VisualAnimationTransformOperation, VisualAnimationValue,
 };
+use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
@@ -430,12 +431,20 @@ impl Encode for BackdropFilterData {
     }
 }
 
+// The compositor builds Skia filters from these bytes, so a tree only decodes with well-formed graphs in it.
+fn checked_filter_graph(bytes: std::sync::Arc<Vec<u8>>) -> Result<std::sync::Arc<Vec<u8>>, DecodeError> {
+    if Filter::deserialize(&bytes).is_none() {
+        return Err(DecodeError::InvalidValue("filter graph"));
+    }
+    Ok(bytes)
+}
+
 impl Decode for BackdropFilterData {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             region: decoder.decode()?,
             corner_radii: decoder.decode()?,
-            filter: decoder.decode()?,
+            filter: checked_filter_graph(decoder.decode()?)?,
         })
     }
 }
@@ -455,7 +464,10 @@ impl Decode for EffectsData {
         Ok(Self {
             opacity: decoder.decode()?,
             blend_mode: decoder.decode()?,
-            filter: decoder.decode()?,
+            filter: decoder
+                .decode::<Option<std::sync::Arc<Vec<u8>>>>()?
+                .map(checked_filter_graph)
+                .transpose()?,
             backdrop_filter: decoder.decode()?,
             isolation: decoder.decode()?,
         })
@@ -1246,9 +1258,9 @@ mod tests {
                 isolation: false,
                 opacity: 0.25,
                 blend_mode: CompositingAndBlendingOperator::PlusLighter,
-                filter: Some(std::sync::Arc::new(vec![1, 2, 3, 4])),
+                filter: Some(std::sync::Arc::new(Filter::blur(2.0, 3.0, None).serialize())),
                 backdrop_filter: Some(BackdropFilterData {
-                    filter: std::sync::Arc::new(vec![5, 6, 7]),
+                    filter: std::sync::Arc::new(Filter::hue_rotate(90.0, None).serialize()),
                     region: IntRect::new(9, 10, 11, 12),
                     corner_radii: CornerRadii {
                         top_left: CornerRadius {
@@ -2321,6 +2333,38 @@ mod tests {
         let mut isolation_effect_at_the_root = hostile_tree();
         isolation_effect_at_the_root.root_isolation_effect = Some(EffectNodeIndex(0));
         assert!(VisualContextTree::from_bytes(&encode_tree(&isolation_effect_at_the_root)).is_ok());
+    }
+
+    #[test]
+    fn a_tree_whose_filters_are_not_filter_graphs_is_rejected() {
+        let malformed = std::sync::Arc::new(vec![200]);
+        fn effects_of(tree: &mut VisualContextTree) -> &mut EffectsData {
+            tree.effect_nodes
+                .iter_mut()
+                .find_map(|node| match &mut node.data {
+                    EffectNodeData::Effects(effects) if effects.backdrop_filter.is_some() => Some(effects),
+                    _ => None,
+                })
+                .expect("the tree has an effect with a backdrop filter")
+        }
+
+        let mut bad_filter = tree_with_every_node_kind();
+        effects_of(&mut bad_filter).filter = Some(malformed.clone());
+        assert_eq!(
+            VisualContextTree::from_bytes(&bad_filter.to_bytes()).err(),
+            Some(DecodeError::InvalidValue("filter graph"))
+        );
+
+        let mut bad_backdrop_filter = tree_with_every_node_kind();
+        effects_of(&mut bad_backdrop_filter)
+            .backdrop_filter
+            .as_mut()
+            .expect("the effect has a backdrop filter")
+            .filter = malformed;
+        assert_eq!(
+            VisualContextTree::from_bytes(&bad_backdrop_filter.to_bytes()).err(),
+            Some(DecodeError::InvalidValue("filter graph"))
+        );
     }
 
     #[test]

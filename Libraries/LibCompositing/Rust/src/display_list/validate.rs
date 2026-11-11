@@ -11,6 +11,7 @@
 
 use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, read_header};
 use super::commands::*;
+use libgfx_rust::filter::Filter;
 use libgfx_rust::{
     CapStyle, Color, CompositingAndBlendingOperator, GradientInterpolationMethod, GradientInterpolationType,
     HueInterpolationMethod, IntRect, InterpolationColorSpace, JoinStyle, LineStyle, MaskKind, Orientation,
@@ -294,9 +295,27 @@ fn validate_canvas_2d_paint(payload: Payload, offset: usize) -> Result<(), Valid
     )
 }
 
+// A serialized filter graph, which the player builds Skia filters from.
+fn validate_filter_graph_at(payload: Payload, offset: usize, may_draw_images: bool) -> Result<(), ValidationError> {
+    let (start, size) = payload.span_at(offset)?;
+    let Some(filter) = Filter::deserialize(&payload.bytes[start..start + size]) else {
+        return Err("Display list filter is not a well-formed filter graph");
+    };
+    let mut draws_an_image = false;
+    filter.for_each_image_frame_id(&mut |_| draws_an_image = true);
+    if draws_an_image && !may_draw_images {
+        return Err("Canvas 2D stream filter draws an image");
+    }
+    Ok(())
+}
+
 fn validate_canvas_2d_compositing(payload: Payload, offset: usize) -> Result<(), ValidationError> {
     payload.span_at(offset + offset_of!(Canvas2DCompositing, filter))?;
     payload.bool_at(offset + offset_of!(Canvas2DCompositing, has_filter))?;
+    if payload.u8_at(offset + offset_of!(Canvas2DCompositing, has_filter)) != 0 {
+        // A canvas filter comes from CSS filter functions, which draw no images.
+        validate_filter_graph_at(payload, offset + offset_of!(Canvas2DCompositing, filter), false)?;
+    }
     // The player turns the global alpha into a byte, which only a value from 0 to 1 converts to.
     let global_alpha = payload.f32_at(offset + offset_of!(Canvas2DCompositing, global_alpha));
     if !(0.0..=1.0).contains(&global_alpha) {
@@ -517,7 +536,9 @@ fn validate_command_fields(
         T::DrawIsolatedGroup => {
             nested.add(offset_of!(DrawIsolatedGroup, content))?;
             nested.add(offset_of!(DrawIsolatedGroup, mask))?;
-            p.span_at(offset_of!(DrawIsolatedGroup, filter))?;
+            if p.span_at(offset_of!(DrawIsolatedGroup, filter))?.1 != 0 {
+                validate_filter_graph_at(p, offset_of!(DrawIsolatedGroup, filter), true)?;
+            }
             p.enum_at::<CompositingAndBlendingOperator>(offset_of!(
                 DrawIsolatedGroup,
                 compositing_and_blending_operator
@@ -823,6 +844,7 @@ pub fn validate_canvas_2d_tape(tape: &[u8]) -> Result<(), ValidationError> {
 mod tests {
     use super::*;
     use crate::display_list::builder::DisplayListBuilder;
+    use crate::display_list::canvas_2d::{Compositing, Paint, TapeWriter};
     use crate::display_list::storage::write_run;
     use libgfx_rust::FloatRect;
 
@@ -833,6 +855,82 @@ mod tests {
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
             background_color_animation_effect: EffectNodeIndex::NONE,
         }
+    }
+
+    fn group_with_filter(filter: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        let context = ContextRef::default();
+        let mut builder = DisplayListBuilder::new();
+        let mut group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
+        builder.append(&fill_rect(), &[], context);
+        let content = builder.group_content_span(&group);
+        let filter = builder.append_group_inline_data(&mut group, filter);
+        builder.finish_group(
+            group,
+            &DrawIsolatedGroup {
+                clip_rect: FloatRect::new(0.0, 0.0, 10.0, 10.0),
+                content,
+                mask: DisplayListDataSpan::default(),
+                filter,
+                opacity: 1.0,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Alpha,
+            },
+            context,
+        );
+        let recorded = builder.finish();
+        let run_bytes = run_table_bytes(&recorded.command_runs);
+        (recorded.bytes, run_bytes)
+    }
+
+    fn canvas_fill_with_filter(filter: &[u8]) -> Vec<u8> {
+        let mut tape = TapeWriter::default();
+        tape.fill_path(
+            &[],
+            &Paint::Color(Color::default()),
+            WindingRule::Nonzero,
+            &Compositing {
+                filter: Some(filter),
+                ..Compositing::default()
+            },
+        );
+        tape.bytes().to_vec()
+    }
+
+    #[test]
+    fn a_group_filter_must_be_a_filter_graph() {
+        let blur = Filter::blur(2.0, 2.0, None).serialize();
+        let (tape, runs) = group_with_filter(&blur);
+        assert!(validate_tape(&tape, &runs).is_ok());
+
+        for malformed in [&blur[..blur.len() - 1], &[200][..]] {
+            let (tape, runs) = group_with_filter(malformed);
+            assert_eq!(
+                validate_tape(&tape, &runs),
+                Err("Display list filter is not a well-formed filter graph")
+            );
+        }
+    }
+
+    #[test]
+    fn a_canvas_filter_must_be_a_filter_graph_without_images() {
+        let blur = Filter::blur(2.0, 2.0, None).serialize();
+        assert!(validate_canvas_2d_tape(&canvas_fill_with_filter(&blur)).is_ok());
+        assert_eq!(
+            validate_canvas_2d_tape(&canvas_fill_with_filter(&[])),
+            Err("Display list filter is not a well-formed filter graph")
+        );
+
+        let image = Filter::Image {
+            frame_id: 1,
+            src_rect: IntRect::new(0, 0, 1, 1),
+            dest_rect: IntRect::new(0, 0, 1, 1),
+            scaling_mode: ScalingMode::Bilinear,
+        }
+        .serialize();
+        assert_eq!(
+            validate_canvas_2d_tape(&canvas_fill_with_filter(&image)),
+            Err("Canvas 2D stream filter draws an image")
+        );
     }
 
     fn run_table_bytes(runs: &[DisplayListCommandRun]) -> Vec<u8> {

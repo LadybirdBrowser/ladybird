@@ -439,7 +439,7 @@ mod tests {
         let colors = [Color(0xff00_00ff), Color(0xffff_0000)];
         let positions = [0.0, 1.0];
         let path = [1u8, 2, 3, 4, 5];
-        let filter = [9u8, 8, 7];
+        let filter = libgfx_rust::filter::Filter::blur(2.0, 2.0, None).serialize();
         let mut writer = TapeWriter::default();
         writer.fill_path(
             &path,
