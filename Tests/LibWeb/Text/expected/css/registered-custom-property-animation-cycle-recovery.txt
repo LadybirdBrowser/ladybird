@@ -1,0 +1,8 @@
+--ident restores its literal endpoint after breaking an initial cycle: safe
+--ident refreshes its referenced keyframe value after breaking an initial cycle: changed
+--ident uses its initial value after introducing a cycle: base
+--ident refreshes its referenced keyframe value after introducing and breaking a cycle: changed
+--universal restores its literal endpoint after breaking an initial cycle: safe
+--universal refreshes its referenced keyframe value after breaking an initial cycle: changed
+--universal uses its initial value after introducing a cycle: base
+--universal refreshes its referenced keyframe value after introducing and breaking a cycle: changed

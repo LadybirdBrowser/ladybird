@@ -1,0 +1,76 @@
+<!doctype html>
+<style>
+    @property --ident {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: base;
+    }
+    @property --universal {
+        syntax: "*";
+        inherits: false;
+        initial-value: base;
+    }
+    @keyframes mixed {
+        from {
+            --ident: var(--ident-reader);
+            --universal: var(--universal-reader);
+        }
+        50%,
+        to {
+            --ident: safe;
+            --universal: safe;
+        }
+    }
+    .target {
+        --ident-reader: base;
+        --universal-reader: base;
+        animation: mixed 1s linear paused;
+    }
+    #cyclic {
+        --ident-reader: var(--ident);
+        --universal-reader: var(--universal);
+    }
+</style>
+<div id="cyclic" class="target"></div>
+<div id="noncyclic" class="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cyclic = document.getElementById("cyclic");
+        const noncyclic = document.getElementById("noncyclic");
+        const cyclicAnimation = cyclic.getAnimations()[0];
+        const noncyclicAnimation = noncyclic.getAnimations()[0];
+        cyclicAnimation.currentTime = 400;
+        noncyclicAnimation.currentTime = 400;
+        for (const name of ["--ident", "--universal"]) {
+            const reader = `${name}-reader`;
+            const value = target => getComputedStyle(target).getPropertyValue(name);
+            // NB: Sample the referenced interval on both elements before changing whether it forms a cycle.
+            value(cyclic);
+            value(noncyclic);
+
+            cyclic.style.setProperty(reader, "changed");
+            // NB: Resolve the changed reader in the literal-only interval before sampling its referenced keyframe again.
+            cyclicAnimation.currentTime = 900;
+            value(cyclic);
+            cyclicAnimation.currentTime = 400;
+            println(`${name} restores its literal endpoint after breaking an initial cycle: ${value(cyclic)}`);
+            cyclicAnimation.currentTime = 0;
+            println(
+                `${name} refreshes its referenced keyframe value after breaking an initial cycle: ${value(cyclic)}`
+            );
+            cyclicAnimation.currentTime = 400;
+
+            noncyclic.style.setProperty(reader, `var(${name})`);
+            println(`${name} uses its initial value after introducing a cycle: ${value(noncyclic)}`);
+            noncyclic.style.setProperty(reader, "changed");
+            noncyclicAnimation.currentTime = 900;
+            value(noncyclic);
+            noncyclicAnimation.currentTime = 0;
+            println(
+                `${name} refreshes its referenced keyframe value after introducing and breaking a cycle: ${value(noncyclic)}`
+            );
+            noncyclicAnimation.currentTime = 400;
+        }
+    });
+</script>
