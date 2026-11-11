@@ -325,11 +325,11 @@ private:
     OwnPtr<WebView::SpellChecker> m_spell_checker;
     OwnPtr<WebView::MicrophoneAuthorizer> m_microphone_authorizer;
     OwnPtr<WebView::Settings> m_settings;
-    OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<SessionStore> m_session_store;
     OwnPtr<SessionStore> m_private_session_store;
     OwnPtr<WebView::FaviconStore> m_favicon_store;
     OwnPtr<WebView::FaviconStore> m_private_favicon_store;
+    OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<WebView::HistoryStore> m_history_store;
     OwnPtr<WebView::AutocompleteService> m_autocomplete_service;
     bool m_should_remove_unreferenced_favicons { false };

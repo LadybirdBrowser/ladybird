@@ -12,6 +12,7 @@
 #include <LibCore/File.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/BookmarkStore.h>
 
@@ -178,12 +179,13 @@ static Vector<BookmarkItem> create_default_bookmarks()
     };
 }
 
-BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
+BookmarkStore BookmarkStore::create(ByteString bookmarks_path, WebView::FaviconStore& favicon_store)
 {
-    BookmarkStore store { move(bookmarks_path) };
+    BookmarkStore store { move(bookmarks_path), favicon_store };
 
     if (!FileSystem::exists(store.m_bookmarks_path)) {
         store.m_items = create_default_bookmarks();
+        store.read_missing_favicons();
         store.persist_bookmarks();
         return store;
     }
@@ -197,11 +199,13 @@ BookmarkStore BookmarkStore::create(ByteString bookmarks_path)
     if (auto items = bookmarks_json.value().get_array(ITEMS_KEY); items.has_value())
         store.m_items = parse_bookmark_items(*items);
 
+    store.read_missing_favicons();
     return store;
 }
 
-BookmarkStore::BookmarkStore(ByteString bookmarks_path)
+BookmarkStore::BookmarkStore(ByteString bookmarks_path, WebView::FaviconStore& favicon_store)
     : m_bookmarks_path(move(bookmarks_path))
+    , m_favicon_store(favicon_store)
 {
 }
 
@@ -268,6 +272,9 @@ static Vector<BookmarkItem>& find_target_folder(Vector<BookmarkItem>& items, Opt
 
 void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_hash, Optional<String const&> target_folder_id)
 {
+    if (favicon_hash.has_value())
+        cache_favicon(*favicon_hash);
+
     BookmarkItem item {
         .id = generate_random_uuid(),
         .date_added = UnixDateTime::now(),
@@ -323,6 +330,7 @@ void BookmarkStore::import_items(JsonArray const& items_array)
         },
     });
 
+    read_missing_favicons();
     persist_bookmarks();
     notify_observers();
 }
@@ -439,19 +447,29 @@ void BookmarkStore::move_item(StringView id, Optional<String const&> target_fold
 void BookmarkStore::update_favicon(URL::URL const& url, String favicon_hash)
 {
     auto item = find_bookmark_by_url(url);
-    if (!item.has_value() || !item->is_bookmark())
+    if (!item.has_value() && !favicon_hashes().contains(favicon_hash))
         return;
 
-    auto& bookmark = const_cast<BookmarkItem::Bookmark&>(item->bookmark());
+    auto favicon_became_available = cache_favicon(favicon_hash);
+    auto hash_changed = item.has_value() && item->bookmark().favicon_hash != favicon_hash;
 
-    if (bookmark.favicon_hash == favicon_hash)
-        return;
+    if (hash_changed) {
+        auto& bookmark = const_cast<BookmarkItem::Bookmark&>(item->bookmark());
+        bookmark.favicon_hash = move(favicon_hash);
+        const_cast<BookmarkItem&>(*item).last_modified = UnixDateTime::now();
 
-    bookmark.favicon_hash = move(favicon_hash);
-    const_cast<BookmarkItem&>(*item).last_modified = UnixDateTime::now();
+        persist_bookmarks();
+    }
 
-    persist_bookmarks();
-    notify_observers();
+    if (hash_changed || favicon_became_available)
+        notify_observers();
+}
+
+Optional<ByteBuffer> BookmarkStore::favicon_png(String const& favicon_hash) const
+{
+    if (auto favicon = m_favicons.get(favicon_hash); favicon.has_value())
+        return *favicon;
+    return {};
 }
 
 static Optional<Vector<BookmarkItem>&> find_containing_item_list_impl(Vector<BookmarkItem>& items, StringView id)
@@ -511,6 +529,25 @@ HashTable<String> BookmarkStore::favicon_hashes() const
     HashTable<String> hashes;
     collect_favicon_hashes(m_items, hashes);
     return hashes;
+}
+
+void BookmarkStore::read_missing_favicons()
+{
+    for (auto const& hash : favicon_hashes())
+        cache_favicon(hash);
+}
+
+bool BookmarkStore::cache_favicon(String const& favicon_hash)
+{
+    if (m_favicons.contains(favicon_hash))
+        return false;
+
+    auto favicon = m_favicon_store.favicon_png(favicon_hash);
+    if (!favicon.has_value())
+        return false;
+
+    m_favicons.set(favicon_hash, favicon.release_value());
+    return true;
 }
 
 JsonValue BookmarkStore::serialize_store() const

@@ -51,7 +51,7 @@ void BookmarksPage::bookmarks_changed()
 void BookmarksPage::load_bookmarks()
 {
     auto items = Application::bookmark_store().serialize_items([](String const& favicon_hash) {
-        return Application::bookmarks().favicon_png(favicon_hash);
+        return Application::bookmark_store().favicon_png(favicon_hash);
     });
     send_message("loadBookmarks"_string, move(items));
 }
