@@ -1,0 +1,3 @@
+off-black: selection rgba(101, 2, 0, 0.8), text rgb(26, 26, 46)
+light: selection rgba(101, 2, 0, 0.8), text rgb(244, 244, 244)
+decorated: selection rgba(101, 2, 0, 0.8), text rgb(26, 26, 46)
