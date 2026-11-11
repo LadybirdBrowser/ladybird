@@ -9,11 +9,13 @@
 
 use super::builder::read_command;
 use super::commands::*;
+use super::filter_graph::{FilterGraph, LoweredFilterGraph};
 use super::nested_records::span_bytes;
+use super::replay::ReplayLayer;
 use ak::Span;
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
-use libgfx_rust::Color;
+use libgfx_rust::{Color, CompositingAndBlendingOperator, CornerRadii, IntRect};
 use std::borrow::Cow;
 use std::ffi::c_void;
 
@@ -60,7 +62,7 @@ pub struct PlayedGradientColorStops<'a> {
 
 /// What the payload of a command holds, read. A command leaves empty what it has none of: its glyphs, the layers of a
 /// text shadow, the glyph runs of a 2D canvas, the stops of a gradient or of a gradient paint, its dash array, its
-/// path, which is null for none, and the serialized filter graph of a 2D canvas draw.
+/// path, which is null for none, and the filter graph of a 2D canvas draw.
 #[repr(C)]
 pub struct PlayedPayload<'a> {
     pub glyphs: Span<'a, DisplayListGlyph>,
@@ -69,7 +71,7 @@ pub struct PlayedPayload<'a> {
     pub color_stops: PlayedGradientColorStops<'a>,
     pub dash_array: Span<'a, f32>,
     pub path: *const PathGeometryData,
-    pub filter: Span<'a, u8>,
+    pub filter: FilterGraph<'a>,
 }
 
 /// The values a played payload lends.
@@ -82,7 +84,7 @@ pub(crate) struct PayloadValues<'p> {
     positions: Cow<'p, [f32]>,
     dash_array: Cow<'p, [f32]>,
     path: Option<(Path, PathGeometryData)>,
-    filter: &'p [u8],
+    filter: LoweredFilterGraph,
 }
 
 impl<'p> PayloadValues<'p> {
@@ -148,7 +150,7 @@ impl<'p> PayloadValues<'p> {
             },
             dash_array: Span::new(&self.dash_array),
             path: self.path.as_ref().map_or(std::ptr::null(), |(_, data)| data),
-            filter: Span::new(self.filter),
+            filter: self.filter.graph(),
         }
     }
 
@@ -191,7 +193,43 @@ impl<'p> PayloadValues<'p> {
             self.read_color_stops(payload, paint.color_stops);
         }
         if compositing.has_filter {
-            self.filter = span_bytes(payload, compositing.filter);
+            self.filter = LoweredFilterGraph::read(span_bytes(payload, compositing.filter));
+        }
+    }
+}
+
+/// The layer of an effect node as a painter opens it, with its filters as graphs.
+#[repr(C)]
+pub struct PlayedLayer<'a> {
+    pub opacity: f32,
+    pub blend_mode: CompositingAndBlendingOperator,
+    pub filter: FilterGraph<'a>,
+    pub backdrop_filter: FilterGraph<'a>,
+    pub backdrop_region: IntRect,
+    pub backdrop_corner_radii: CornerRadii,
+    /// The color the backdrop is read over, transparent unless the parent layer is the root isolation layer.
+    pub backdrop_base_color: Color,
+    /// Where a blur() in the backdrop filter mirrors: the region as the clips around the box leave it, in the
+    /// effect's space. None when the filter holds no such blur.
+    pub backdrop_blur_edge: OptionalFloatRect,
+    pub effect: EffectNodeIndex,
+    /// Bounds of everything replay draws into the layer, in the effect's space, when known.
+    pub content_bounds: OptionalFloatRect,
+}
+
+impl<'a> PlayedLayer<'a> {
+    pub fn of(layer: &ReplayLayer, filter: &'a LoweredFilterGraph, backdrop_filter: &'a LoweredFilterGraph) -> Self {
+        Self {
+            opacity: layer.opacity,
+            blend_mode: layer.blend_mode,
+            filter: filter.graph(),
+            backdrop_filter: backdrop_filter.graph(),
+            backdrop_region: layer.backdrop_region,
+            backdrop_corner_radii: layer.backdrop_corner_radii,
+            backdrop_base_color: layer.backdrop_base_color,
+            backdrop_blur_edge: layer.backdrop_blur_edge,
+            effect: layer.effect,
+            content_bounds: layer.content_bounds,
         }
     }
 }

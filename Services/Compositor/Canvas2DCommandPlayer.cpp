@@ -98,7 +98,7 @@ static SkPath skia_path_from(Gfx::FFI::PathGeometryData const* path)
 
 sk_sp<SkImageFilter> Canvas2DCommandPlayer::image_filter_from(PlayedPayload const& payload) const
 {
-    if (payload.filter.is_empty())
+    if (payload.filter.nodes.is_empty())
         return nullptr;
     return Gfx::to_skia_image_filter(payload.filter, [](u64) -> Gfx::DecodedImageFrame const& {
         // A canvas filter comes from CSS filter functions, which draw no images.

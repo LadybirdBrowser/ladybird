@@ -31,6 +31,12 @@
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
 
+namespace Compositing {
+
+struct FilterGraph;
+
+}
+
 namespace Gfx {
 
 constexpr SkColorType to_skia_color_type(Gfx::BitmapFormat format)
@@ -145,10 +151,10 @@ constexpr SkSamplingOptions to_skia_sampling_options(ScalingMode scaling_mode)
 
 SkMatrix to_skia_matrix(AffineTransform const&);
 SkPath to_skia_path(PathData const&);
-// Builds the SkImageFilter tree a serialized filter graph describes; `image_frame` supplies the
+// Builds the SkImageFilter tree of a filter graph, or null for a graph without nodes; `image_frame` supplies the
 // frames the graph names by id.
 // With `blur_edge`, every blur() filter function reads its input mirrored at that rect, not what lies outside it.
-sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Function<DecodedImageFrame const&(u64)> const& image_frame, Optional<FloatRect> blur_edge = {});
+sk_sp<SkImageFilter> to_skia_image_filter(Compositing::FilterGraph const&, Function<DecodedImageFrame const&(u64)> const& image_frame, Optional<FloatRect> blur_edge = {});
 sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
 
 // The returned SkImage references the source bitmap's pixels without copying; the caller

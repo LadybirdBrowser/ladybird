@@ -102,8 +102,9 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "FillRoundedRectRing",
             "DrawIsolatedGroup",
             "ReplayClip",
-            "ReplayLayer",
+            "PlayedLayer",
             "PlayedPayload",
+            "FilterGraph",
             "ReplayMask",
             "CanvasId",
             "VideoSinkResourceId",
@@ -158,8 +159,9 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("FillRoundedRectRing", "Compositing::FillRoundedRectRing"),
         ("DrawIsolatedGroup", "Compositing::DrawIsolatedGroup"),
         ("ReplayClip", "Compositing::ReplayClip"),
-        ("ReplayLayer", "Compositing::ReplayLayer"),
+        ("PlayedLayer", "Compositing::PlayedLayer"),
         ("PlayedPayload", "Compositing::PlayedPayload"),
+        ("FilterGraph", "Compositing::FilterGraph"),
         ("ReplayMask", "Compositing::ReplayMask"),
         ("CanvasId", "Compositing::CanvasId"),
         ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
@@ -433,6 +435,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     let commands_source = manifest_dir.join("src/display_list/commands.rs");
     let played_source = manifest_dir.join("src/display_list/played.rs");
+    let filter_graph_source = manifest_dir.join("src/display_list/filter_graph.rs");
     let scroll_table_source = manifest_dir.join("src/visual_context/scroll_table.rs");
     let types_sources: Vec<PathBuf> = libgfx_type_sources
         .iter()
@@ -499,6 +502,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .export
         .include
         .extend(public_type_names(&played_source)?);
+    commands_config
+        .export
+        .include
+        .extend(public_type_names(&filter_graph_source)?);
     commands_config.export.exclude = types_with_existing_cpp_definitions
         .iter()
         .map(|name| name.to_string())
@@ -544,6 +551,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // An ak::Span is laid out as an AK ReadonlySpan.
         ("Span", "AK::ReadonlySpan"),
         ("PathGeometryData", "Gfx::FFI::PathGeometryData"),
+        ("ChannelSelector", "Gfx::FFI::ChannelSelector"),
+        ("TurbulenceType", "Gfx::FFI::TurbulenceType"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
         commands_config
@@ -596,11 +605,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         after_includes.push('\n');
     }
-    after_includes.push_str("\nnamespace Gfx::FFI {\n\nstruct PathGeometryData;\n\n}\n");
+    after_includes.push_str(
+        "\nnamespace Gfx::FFI {\n\nstruct PathGeometryData;\nenum class ChannelSelector : int32_t;\nenum class \
+         TurbulenceType : int32_t;\n\n}\n",
+    );
     commands_config.after_includes = Some(after_includes);
     generate_ffi_header_strict(
         commands_config,
-        &[commands_source, played_source, scroll_table_source],
+        &[commands_source, played_source, filter_graph_source, scroll_table_source],
         &out_dir,
         Path::new("DisplayList/DisplayListCommandsGenerated.h"),
     );

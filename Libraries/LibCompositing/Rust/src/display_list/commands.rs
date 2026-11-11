@@ -239,27 +239,6 @@ pub struct ReplayClip {
     pub mode: ClipMode,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct ReplayLayer {
-    pub opacity: f32,
-    pub blend_mode: CompositingAndBlendingOperator,
-    pub filter_bytes: *const u8,
-    pub filter_bytes_size: usize,
-    pub backdrop_filter_bytes: *const u8,
-    pub backdrop_filter_bytes_size: usize,
-    pub backdrop_region: IntRect,
-    pub backdrop_corner_radii: CornerRadii,
-    /// The color the backdrop is read over, transparent unless the parent layer is the root isolation layer.
-    pub backdrop_base_color: Color,
-    /// Where a blur() in the backdrop filter mirrors: the region as the clips around the box leave it, in the
-    /// effect's space. None when the filter holds no such blur.
-    pub backdrop_blur_edge: OptionalFloatRect,
-    pub effect: EffectNodeIndex,
-    /// Bounds of everything replay draws into the layer, in the effect's space, when known.
-    pub content_bounds: OptionalFloatRect,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct ReplayMask {

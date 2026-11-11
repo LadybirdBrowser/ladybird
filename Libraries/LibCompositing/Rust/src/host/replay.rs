@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::display_list::commands::{DisplayListCommandType, DrawIsolatedGroup, ReplayClip, ReplayLayer, ReplayMask};
-use crate::display_list::played::{PlayedCommand, PlayedPayload};
-use crate::display_list::replay::ReplayPainter;
+use crate::display_list::commands::{DisplayListCommandType, DrawIsolatedGroup, ReplayClip, ReplayMask};
+use crate::display_list::filter_graph::{FilterGraph, LoweredFilterGraph};
+use crate::display_list::played::{PlayedCommand, PlayedLayer, PlayedPayload};
+use crate::display_list::replay::{ReplayLayer, ReplayPainter};
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatVector3, IntRect, IntSize, MaskKind, WindingRule};
@@ -22,13 +23,13 @@ pub struct FfiDisplayListReplayCallbacks {
     pub push_clip: unsafe extern "C" fn(*mut c_void, *const ReplayClip),
     /// Takes the contours of the path, the identity of the path, and the fill rule.
     pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const PathGeometryData, u64, WindingRule),
-    pub push_layer: unsafe extern "C" fn(*mut c_void, *const ReplayLayer),
+    pub push_layer: unsafe extern "C" fn(*mut c_void, *const PlayedLayer),
     // Arguments: the mask, and the layer whose backdrop filter the mask's layer starts with, or null.
-    pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, *const ReplayLayer),
+    pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, *const PlayedLayer),
     pub begin_mask_content: unsafe extern "C" fn(*mut c_void, *const ReplayMask),
     pub end_mask: unsafe extern "C" fn(*mut c_void),
-    // Arguments: the group, and its serialized filter graph with its size, which is zero for no filter.
-    pub begin_isolated_group: unsafe extern "C" fn(*mut c_void, *const DrawIsolatedGroup, *const u8, usize),
+    // Arguments: the group, and its filter graph, which has no nodes for no filter.
+    pub begin_isolated_group: unsafe extern "C" fn(*mut c_void, *const DrawIsolatedGroup, *const FilterGraph),
     pub begin_isolated_group_mask: unsafe extern "C" fn(*mut c_void, MaskKind),
     pub end_isolated_group: unsafe extern "C" fn(*mut c_void),
     pub use_cached_tile_raster: unsafe extern "C" fn(*mut c_void, u64, IntSize) -> bool,
@@ -72,14 +73,24 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
     }
 
     fn push_layer(&mut self, layer: &ReplayLayer) {
-        // SAFETY: The C++ painter reads the layer and its filter bytes synchronously; the tree keeps them alive.
-        unsafe { (self.push_layer)(self.context, layer) };
+        let filter = LoweredFilterGraph::read(layer.filter);
+        let backdrop_filter = LoweredFilterGraph::read(layer.backdrop_filter);
+        // SAFETY: The C++ painter reads the layer and its filter graphs synchronously.
+        unsafe { (self.push_layer)(self.context, &PlayedLayer::of(layer, &filter, &backdrop_filter)) };
     }
 
     fn push_mask(&mut self, mask: &ReplayMask, backdrop: Option<&ReplayLayer>) {
-        let backdrop = backdrop.map_or(std::ptr::null(), |backdrop| backdrop as *const ReplayLayer);
-        // SAFETY: The C++ painter reads the mask, the layer and its filter bytes synchronously; the tree keeps
-        //         them alive.
+        let filters = backdrop.map(|backdrop| {
+            (
+                LoweredFilterGraph::read(backdrop.filter),
+                LoweredFilterGraph::read(backdrop.backdrop_filter),
+            )
+        });
+        let backdrop = backdrop
+            .zip(filters.as_ref())
+            .map(|(backdrop, (filter, backdrop_filter))| PlayedLayer::of(backdrop, filter, backdrop_filter));
+        let backdrop = backdrop.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
+        // SAFETY: The C++ painter reads the mask, the layer and its filter graphs synchronously.
         unsafe { (self.push_mask)(self.context, mask, backdrop) };
     }
 
@@ -94,8 +105,9 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
     }
 
     fn begin_isolated_group(&mut self, group: &DrawIsolatedGroup, filter: &[u8]) {
-        // SAFETY: The C++ painter reads the group and its filter synchronously.
-        unsafe { (self.begin_isolated_group)(self.context, group, filter.as_ptr(), filter.len()) };
+        let filter = LoweredFilterGraph::read(filter);
+        // SAFETY: The C++ painter reads the group and its filter graph synchronously.
+        unsafe { (self.begin_isolated_group)(self.context, group, &filter.graph()) };
     }
 
     fn begin_isolated_group_mask(&mut self, kind: MaskKind) {

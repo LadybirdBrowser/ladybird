@@ -71,11 +71,11 @@ private:
     void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule) override;
     void push_uncached_clip_path(Gfx::PathData const&, Gfx::WindingRule) override;
     void push_transform(Gfx::AffineTransform const&) override;
-    void push_layer(Compositing::ReplayLayer const&) override;
-    void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;
+    void push_layer(Compositing::PlayedLayer const&) override;
+    void push_mask(Compositing::ReplayMask const&, Compositing::PlayedLayer const* backdrop) override;
     void begin_mask_content(Compositing::ReplayMask const&) override;
     void end_mask() override;
-    void begin_isolated_group(Compositing::DrawIsolatedGroup const&, ReadonlyBytes filter) override;
+    void begin_isolated_group(Compositing::DrawIsolatedGroup const&, Compositing::FilterGraph const&) override;
     void begin_isolated_group_mask(Gfx::MaskKind) override;
     void end_isolated_group() override;
     bool use_cached_tile_raster(u64 key, Gfx::IntSize) override;
@@ -87,9 +87,9 @@ private:
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 
     SkPaint paint_style_to_skia_paint(Compositing::DisplayListPaintStyle const&, Compositing::PlayedGradientColorStops const&, Gfx::FloatRect const& bounding_rect);
-    sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&);
-    sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
-    sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes, Optional<Gfx::FloatRect> blur_edge = {});
+    sk_sp<SkImageFilter> layer_image_filter(Compositing::PlayedLayer const&);
+    sk_sp<SkImageFilter> backdrop_image_filter(Compositing::PlayedLayer const&, bool limited_to_region);
+    sk_sp<SkImageFilter> image_filter_from(Compositing::FilterGraph const&, Optional<Gfx::FloatRect> blur_edge = {});
     // The raster of a tile that the command played next draws.
     sk_sp<SkImage> take_tile_raster();
 

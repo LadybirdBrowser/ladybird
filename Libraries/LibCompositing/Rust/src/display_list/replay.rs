@@ -10,7 +10,7 @@ use crate::display_list::builder::{
 use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
     DisplayListCommandType, DisplayListPaintStyle, DisplayListPaintStyleType, DrawIsolatedGroup, DrawRepeatedTile,
-    EffectNodeIndex, FillPath, InlineClipKind, OptionalFloatRect, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask,
+    EffectNodeIndex, FillPath, InlineClipKind, OptionalFloatRect, PathPaintKind, ReplayClip, ReplayMask,
     SpatialNodeIndex, StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
@@ -27,11 +27,31 @@ use crate::visual_context::{
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
-    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, IntSize,
-    MaskKind, WindingRule, enclosing_int_rect, multiply_affine,
+    AffineTransform, Color, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect,
+    FloatVector3, IntRect, IntSize, MaskKind, WindingRule, enclosing_int_rect, multiply_affine,
 };
 use std::cell::RefCell;
 use std::hash::Hasher;
+
+/// The layer of an effect node: its opacity and blend mode, and its filter and backdrop filter as serialized graphs,
+/// which are empty for none.
+#[derive(Clone, Copy, Debug)]
+pub struct ReplayLayer<'a> {
+    pub opacity: f32,
+    pub blend_mode: CompositingAndBlendingOperator,
+    pub filter: &'a [u8],
+    pub backdrop_filter: &'a [u8],
+    pub backdrop_region: IntRect,
+    pub backdrop_corner_radii: CornerRadii,
+    /// The color the backdrop is read over, transparent unless the parent layer is the root isolation layer.
+    pub backdrop_base_color: Color,
+    /// Where a blur() in the backdrop filter mirrors: the region as the clips around the box leave it, in the
+    /// effect's space. None when the filter holds no such blur.
+    pub backdrop_blur_edge: OptionalFloatRect,
+    pub effect: EffectNodeIndex,
+    /// Bounds of everything replay draws into the layer, in the effect's space, when known.
+    pub content_bounds: OptionalFloatRect,
+}
 
 pub trait ReplayPainter {
     fn canvas_matrix(&mut self) -> FloatMatrix4x4;
@@ -449,28 +469,16 @@ fn replay_layer_of(
     effects: &crate::visual_context::EffectsData,
     effect: EffectNodeIndex,
     content_bounds: Option<FloatRect>,
-) -> ReplayLayer {
-    let (filter_bytes, filter_bytes_size) = match &effects.filter {
-        Some(bytes) => (bytes.as_ptr(), bytes.len()),
-        None => (std::ptr::null(), 0),
+) -> ReplayLayer<'_> {
+    let (backdrop_filter, backdrop_region, backdrop_corner_radii) = match &effects.backdrop_filter {
+        Some(backdrop) => (backdrop.filter.as_slice(), backdrop.region, backdrop.corner_radii),
+        None => (&[][..], IntRect::default(), CornerRadii::default()),
     };
-    let (backdrop_filter_bytes, backdrop_filter_bytes_size, backdrop_region, backdrop_corner_radii) =
-        match &effects.backdrop_filter {
-            Some(backdrop) => (
-                backdrop.filter.as_ptr(),
-                backdrop.filter.len(),
-                backdrop.region,
-                backdrop.corner_radii,
-            ),
-            None => (std::ptr::null(), 0, IntRect::default(), CornerRadii::default()),
-        };
     ReplayLayer {
         opacity: effects.opacity,
         blend_mode: effects.blend_mode,
-        filter_bytes,
-        filter_bytes_size,
-        backdrop_filter_bytes,
-        backdrop_filter_bytes_size,
+        filter: effects.filter.as_deref().map_or(&[], Vec::as_slice),
+        backdrop_filter,
         backdrop_region,
         backdrop_corner_radii,
         backdrop_base_color: Color::TRANSPARENT,
@@ -511,7 +519,7 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
         .then(|| enclosing_int_rect(rect))
 }
 
-impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
+impl<'a, Painter: ReplayPainter> ReplayDriver<'a, Painter> {
     fn ensure_ctm_space(&mut self, spatial: SpatialNodeIndex) {
         let space = self.world.draw_space[spatial.0 as usize];
         if self.current_ctm_space == Some(space) {
@@ -563,7 +571,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         &self,
         target_index: usize,
         mask: &crate::visual_context::MaskData,
-    ) -> Option<ReplayLayer> {
+    ) -> Option<ReplayLayer<'a>> {
         if !mask.masks_backdrop {
             return None;
         }
@@ -822,10 +830,9 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                                 if backdrop_is_drawn_by_masks(tree, effect) {
                                     // NB: The outermost mask layer draws the backdrop, and applies the opacity and
                                     //     blend mode to it and the masked content together.
-                                    layer.backdrop_filter_bytes = std::ptr::null();
-                                    layer.backdrop_filter_bytes_size = 0;
+                                    layer.backdrop_filter = &[];
                                     layer.opacity = 1.0;
-                                    layer.blend_mode = libgfx_rust::CompositingAndBlendingOperator::Normal;
+                                    layer.blend_mode = CompositingAndBlendingOperator::Normal;
                                 } else if effects.backdrop_filter.is_some() {
                                     layer.backdrop_base_color = self.backdrop_base_color(effect);
                                     layer.backdrop_blur_edge = self.backdrop_blur_edge(effect);
@@ -1177,7 +1184,7 @@ mod tests {
         fn push_layer(&mut self, layer: &ReplayLayer) {
             self.events.push(PainterEvent::PushLayer(layer.opacity));
             self.layer_content_bounds.push(layer.content_bounds.get());
-            if layer.backdrop_filter_bytes_size != 0 {
+            if !layer.backdrop_filter.is_empty() {
                 self.backdrop_base_colors.push(layer.backdrop_base_color);
             }
         }
@@ -2223,8 +2230,7 @@ mod tests {
         };
         let layer = replay_layer_of(&with_backdrop, EffectNodeIndex(3), None);
         assert_eq!(layer.opacity, 0.5);
-        assert_eq!(layer.backdrop_filter_bytes, filter.as_ptr());
-        assert_eq!(layer.backdrop_filter_bytes_size, 3);
+        assert_eq!(layer.backdrop_filter, &[1, 2, 3]);
         assert_eq!(layer.backdrop_region, region);
         assert_eq!(layer.backdrop_corner_radii, radii);
         assert_eq!(layer.effect, EffectNodeIndex(3));
@@ -2233,8 +2239,7 @@ mod tests {
             unreachable!()
         };
         let layer = replay_layer_of(&without_backdrop, EffectNodeIndex(4), None);
-        assert!(layer.backdrop_filter_bytes.is_null());
-        assert_eq!(layer.backdrop_filter_bytes_size, 0);
+        assert!(layer.backdrop_filter.is_empty());
         assert_eq!(layer.backdrop_region, IntRect::default());
     }
 

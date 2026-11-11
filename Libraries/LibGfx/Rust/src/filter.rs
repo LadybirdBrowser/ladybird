@@ -7,8 +7,8 @@
 //! Image filter graphs and their serialized form.
 //!
 //! A [`Filter`] is a tree of image filter operations. Painting never executes one itself: filters
-//! reach the Skia display list player, the compositor, and IPC as the byte form produced by
-//! [`Filter::serialize`], and C++ builds the `SkImageFilter` from that.
+//! reach the compositor and IPC as the byte form produced by [`Filter::serialize`], and the
+//! compositor's replay reads them back to hand the painter their nodes.
 //!
 //! The byte form is a pre-order walk of the tree. Each node is a one-byte operation tag followed by
 //! the operation's fields in declaration order; an optional input is a presence byte followed by
@@ -992,8 +992,7 @@ impl Decode for Filter {
 mod tests {
     use super::*;
 
-    // The serialized form of every_operation_filter(). The Skia filter reader of the compositor
-    // decodes the same layout, so a change that breaks this test needs the same change there.
+    // The serialized form of every_operation_filter(), which pins the layout of the byte form.
     const EVERY_OPERATION_FILTER_BYTES: &str = concat!(
         "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004",
         "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000",

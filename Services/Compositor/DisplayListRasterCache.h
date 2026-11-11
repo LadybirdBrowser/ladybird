@@ -31,7 +31,7 @@ class sk_sp;
 
 namespace Compositing {
 
-struct ReplayLayer;
+struct PlayedLayer;
 
 }
 
@@ -85,8 +85,9 @@ public:
     sk_sp<SkImage> create_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize);
     sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
-    sk_sp<SkImageFilter> layer_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
-    sk_sp<SkImageFilter> backdrop_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
+    // A layer's filter is cached by the content hash of its graph.
+    sk_sp<SkImageFilter> layer_image_filter(u64 tree_structural_epoch, Compositing::PlayedLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
+    sk_sp<SkImageFilter> backdrop_image_filter(u64 tree_structural_epoch, Compositing::PlayedLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
 
     // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
     // the caches that are keyed on it work.

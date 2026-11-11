@@ -1294,7 +1294,7 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command, Play
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::begin_isolated_group(DrawIsolatedGroup const& command, ReadonlyBytes filter)
+void DisplayListPlayerSkia::begin_isolated_group(DrawIsolatedGroup const& command, FilterGraph const& filter)
 {
     auto& canvas = surface().canvas();
     canvas.save();
@@ -1304,8 +1304,8 @@ void DisplayListPlayerSkia::begin_isolated_group(DrawIsolatedGroup const& comman
         group_paint.setAlphaf(command.opacity);
     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
         group_paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-    if (!filter.is_empty())
-        group_paint.setImageFilter(image_filter_from_bytes(filter));
+    if (!filter.nodes.is_empty())
+        group_paint.setImageFilter(image_filter_from(filter));
     canvas.saveLayer(nullptr, &group_paint);
 }
 
@@ -1484,7 +1484,7 @@ void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform
 // Skia reads a layer's backdrop from the layer's parent, so the filtered backdrop has to become the
 // layer's initial content here, where the layer is opened. The canvas clip is not narrowed to the
 // backdrop region, since that would clip the box's overflowing content along with it.
-void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
+void DisplayListPlayerSkia::push_layer(PlayedLayer const& layer)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -1500,12 +1500,12 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
         paint_has_effects = true;
     }
 
-    if (layer.filter_bytes_size) {
+    if (!layer.filter.nodes.is_empty()) {
         paint.setImageFilter(layer_image_filter(layer));
         paint_has_effects = true;
     }
 
-    if (!layer.backdrop_filter_bytes_size) {
+    if (layer.backdrop_filter.nodes.is_empty()) {
         if (layer.content_bounds.has_value()) {
             auto content_bounds = to_skia_rect(*layer.content_bounds);
             canvas.saveLayer(&content_bounds, &paint);
@@ -1560,14 +1560,13 @@ static Gfx::FloatRect backdrop_blur_edge_on_surface(SkCanvas const& canvas, Gfx:
 }
 
 // With `limited_to_region`, the filtered backdrop is cropped to the rounded region inside the filter graph.
-sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer const& layer, bool limited_to_region)
+sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(PlayedLayer const& layer, bool limited_to_region)
 {
-    ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
     Optional<Gfx::FloatRect> blur_edge;
     if (layer.backdrop_blur_edge.has_value())
         blur_edge = backdrop_blur_edge_on_surface(surface().canvas(), *layer.backdrop_blur_edge);
     return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, blur_edge, limited_to_region, [&] {
-        auto image_filter = image_filter_from_bytes(filter_bytes, blur_edge);
+        auto image_filter = image_filter_from(layer.backdrop_filter, blur_edge);
         if (layer.backdrop_base_color.alpha() != 0) {
             auto base = SkImageFilters::Shader(SkShaders::Color(to_skia_color(layer.backdrop_base_color)));
             image_filter = SkImageFilters::Compose(move(image_filter), SkImageFilters::Blend(SkBlendMode::kSrcOver, move(base), nullptr));
@@ -1589,28 +1588,27 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer co
     });
 }
 
-sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)
+sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(PlayedLayer const& layer)
 {
-    ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
     return raster_cache().layer_image_filter(active_visual_context_tree().structural_epoch(), layer, [&] {
-        return image_filter_from_bytes(filter_bytes);
+        return image_filter_from(layer.filter);
     });
 }
 
-sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyBytes filter_bytes, Optional<Gfx::FloatRect> blur_edge)
+sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from(FilterGraph const& filter, Optional<Gfx::FloatRect> blur_edge)
 {
-    return Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& { return resource_storage().image_frame(ImageFrameResourceId { image_id }); }, blur_edge);
+    return Gfx::to_skia_image_filter(filter, [&](u64 image_id) -> Gfx::DecodedImageFrame const& { return resource_storage().image_frame(ImageFrameResourceId { image_id }); }, blur_edge);
 }
 
 // A mask that applies to a box's filtered backdrop starts its layer with that backdrop, read from the
 // layer's parent, as push_layer() does for an unmasked box. The box's opacity and blend mode then apply
 // to the masked backdrop and content together.
-void DisplayListPlayerSkia::push_mask(ReplayMask const& mask, ReplayLayer const* backdrop)
+void DisplayListPlayerSkia::push_mask(ReplayMask const& mask, PlayedLayer const* backdrop)
 {
     auto& canvas = surface().canvas();
     canvas.save();
     canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()), true);
-    if (backdrop && backdrop->backdrop_filter_bytes_size) {
+    if (backdrop && !backdrop->backdrop_filter.nodes.is_empty()) {
         SkPaint paint;
         if (backdrop->opacity < 1.0f)
             paint.setAlphaf(backdrop->opacity);

@@ -38,11 +38,11 @@ struct DisplayListRasterCache::LayerImageFilterCache {
     AK_ALLOC_WITH_KMALLOC;
 
     struct Entry {
-        ByteBuffer filter_bytes;
+        u64 filter_content_hash { 0 };
         sk_sp<SkImageFilter> image_filter;
     };
     struct BackdropEntry {
-        ByteBuffer filter_bytes;
+        u64 filter_content_hash { 0 };
         Gfx::IntRect region;
         Optional<Gfx::FloatRect> blur_edge;
         Gfx::CornerRadii corner_radii;
@@ -195,23 +195,23 @@ DisplayListRasterCache::LayerImageFilterCache& DisplayListRasterCache::ensure_la
     return *m_layer_image_filter_cache;
 }
 
-sk_sp<SkImageFilter> DisplayListRasterCache::layer_image_filter(u64 tree_structural_epoch, ReplayLayer const& layer, Function<sk_sp<SkImageFilter>()> const& create)
+sk_sp<SkImageFilter> DisplayListRasterCache::layer_image_filter(u64 tree_structural_epoch, PlayedLayer const& layer, Function<sk_sp<SkImageFilter>()> const& create)
 {
-    ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
+    auto filter_content_hash = layer.filter.content_hash;
     auto& entries = ensure_layer_image_filter_cache(tree_structural_epoch).entries_by_tree_structural_epoch_and_effect.ensure(tree_structural_epoch);
-    if (auto cached = entries.get(layer.effect.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
+    if (auto cached = entries.get(layer.effect.value()); cached.has_value() && cached->filter_content_hash == filter_content_hash)
         return cached->image_filter;
     auto image_filter = create();
-    entries.set(layer.effect.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
+    entries.set(layer.effect.value(), LayerImageFilterCache::Entry { filter_content_hash, image_filter });
     return image_filter;
 }
 
-sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_structural_epoch, ReplayLayer const& layer, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create)
+sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_structural_epoch, PlayedLayer const& layer, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create)
 {
-    ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
+    auto filter_content_hash = layer.backdrop_filter.content_hash;
     auto& entries = ensure_layer_image_filter_cache(tree_structural_epoch).backdrop_entries_by_tree_structural_epoch_and_effect.ensure(tree_structural_epoch);
     if (auto cached = entries.get(layer.effect.value()); cached.has_value()
-        && cached->filter_bytes.bytes() == filter_bytes
+        && cached->filter_content_hash == filter_content_hash
         && cached->region == layer.backdrop_region
         && cached->blur_edge == blur_edge
         && cached->corner_radii == layer.backdrop_corner_radii
@@ -219,7 +219,7 @@ sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_stru
         && cached->limited_to_region == limited_to_region)
         return cached->image_filter;
     auto image_filter = create();
-    entries.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, blur_edge, layer.backdrop_corner_radii, layer.backdrop_base_color, limited_to_region, image_filter });
+    entries.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { filter_content_hash, layer.backdrop_region, blur_edge, layer.backdrop_corner_radii, layer.backdrop_base_color, limited_to_region, image_filter });
     return image_filter;
 }
 

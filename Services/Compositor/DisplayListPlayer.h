@@ -60,11 +60,11 @@ private:
     // The path is not kept beyond the clip.
     virtual void push_uncached_clip_path(Gfx::PathData const&, Gfx::WindingRule) = 0;
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
-    virtual void push_layer(Compositing::ReplayLayer const&) = 0;
-    virtual void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) = 0;
+    virtual void push_layer(Compositing::PlayedLayer const&) = 0;
+    virtual void push_mask(Compositing::ReplayMask const&, Compositing::PlayedLayer const* backdrop) = 0;
     virtual void begin_mask_content(Compositing::ReplayMask const&) = 0;
     virtual void end_mask() = 0;
-    virtual void begin_isolated_group(Compositing::DrawIsolatedGroup const&, ReadonlyBytes filter) = 0;
+    virtual void begin_isolated_group(Compositing::DrawIsolatedGroup const&, Compositing::FilterGraph const&) = 0;
     virtual void begin_isolated_group_mask(Gfx::MaskKind) = 0;
     virtual void end_isolated_group() = 0;
     virtual bool use_cached_tile_raster(u64 key, Gfx::IntSize) = 0;
