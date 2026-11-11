@@ -42,18 +42,8 @@ function updateSearchSuggestions() {
         searchSuggestionsDescription.textContent = `Your typing in the address bar is sent to ${name} before you press Enter.`;
 }
 
-// The search engines are shown in a new random order each time, so that none is favored by its place in the list.
-function shuffled(items) {
-    const result = [...items];
-    for (let i = result.length - 1; i > 0; --i) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-}
-
 function renderSearchEngines() {
-    const names = shuffled(engines.search.map(engine => engine.name));
+    const names = engines.search.map(engine => engine.name).sort((a, b) => a.localeCompare(b));
 
     searchEngines.replaceChildren();
     for (const name of names) {
