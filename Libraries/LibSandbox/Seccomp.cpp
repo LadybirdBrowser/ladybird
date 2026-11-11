@@ -8,6 +8,7 @@
 #include <LibCore/CrashHandler.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibSandbox/FileBroker.h>
+#include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <asm/termbits.h>
 #include <errno.h>
@@ -57,6 +58,8 @@ static constexpr u16 signal_mask_trap = 5;
 // A refusal for a system call that the file system filter sends to the broker. The policy can't refuse it with an errno,
 // because the kernel takes the filter's trap over that, so it traps too, with the errno added to this.
 static constexpr u16 refused_path_syscall_trap = 0x1000;
+// A refusal that is logged before the errno added to this goes back, when sandbox debugging is on.
+static constexpr u16 logged_refusal_trap = 0x2000;
 
 static constexpr u32 thread_clone_required_flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
 static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
@@ -67,6 +70,14 @@ static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
     | CLONE_DETACHED
     | CLONE_CHILD_SETTID;
 static constexpr u32 fork_clone_flags = CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD;
+
+// A refusal gives the system call an errno. With sandbox debugging on, it traps first, so the refusal can be logged.
+static sock_filter refusal_action(int error)
+{
+    if (sandbox_debugging_is_enabled())
+        return BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP | (logged_refusal_trap + error));
+    return BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (static_cast<u32>(error) & SECCOMP_RET_DATA));
+}
 
 static constexpr unsigned read_only_open_flags = [] {
     unsigned flags = O_CLOEXEC | O_DIRECTORY | O_NOCTTY | O_NOFOLLOW | O_NONBLOCK;
@@ -81,7 +92,7 @@ static constexpr unsigned read_only_open_flags = [] {
 #define SECCOMP_LOAD_ARGUMENT(index) BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<unsigned int>(offsetof(seccomp_data, args[(index)])))
 #define SECCOMP_ALLOW BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)
 #define SECCOMP_TRAP BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP)
-#define SECCOMP_ERRNO(error) BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | ((error) & SECCOMP_RET_DATA))
+#define SECCOMP_ERRNO(error) refusal_action(error)
 #define SECCOMP_ALLOW_NOTHING BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0)
 #define SECCOMP_APPEND_ALLOW_SYSCALL(policy, name)                               \
     do {                                                                         \
@@ -518,45 +529,63 @@ static size_t safe_string_length(char const* string)
     return length;
 }
 
-static void write_bytes(char const* string, size_t length)
-{
-    while (length > 0) {
-        auto written = write(STDERR_FILENO, string, length);
-        if (written <= 0)
-            return;
-        string += written;
-        length -= static_cast<size_t>(written);
+// Builds one line of a log message, so that it reaches stderr in one write and lines from two threads never mix.
+class LogLine {
+public:
+    void append(char const* string) { append_bytes(string, safe_string_length(string)); }
+
+    void append_unsigned(u64 value)
+    {
+        char buffer[20];
+        size_t index = sizeof(buffer);
+        do {
+            buffer[--index] = static_cast<char>('0' + (value % 10));
+            value /= 10;
+        } while (value > 0);
+        append_bytes(buffer + index, sizeof(buffer) - index);
     }
-}
 
-static void write_string(char const* string)
-{
-    write_bytes(string, safe_string_length(string));
-}
+    void append_hex(u64 value)
+    {
+        constexpr char const* digits = "0123456789abcdef";
+        char buffer[16];
+        size_t index = sizeof(buffer);
+        do {
+            buffer[--index] = digits[value & 0xf];
+            value >>= 4;
+        } while (value > 0);
+        append("0x");
+        append_bytes(buffer + index, sizeof(buffer) - index);
+    }
 
-static void write_unsigned(u64 value)
-{
-    char buffer[20];
-    size_t index = sizeof(buffer);
-    do {
-        buffer[--index] = static_cast<char>('0' + (value % 10));
-        value /= 10;
-    } while (value > 0);
-    write_bytes(buffer + index, sizeof(buffer) - index);
-}
+    void write_to_stderr()
+    {
+        append("\n");
+        char const* data = m_data;
+        size_t length = m_length;
+        while (length > 0) {
+            auto written = write(STDERR_FILENO, data, length);
+            if (written <= 0)
+                return;
+            data += written;
+            length -= static_cast<size_t>(written);
+        }
+    }
 
-static void write_hex(u64 value)
-{
-    constexpr char const* digits = "0123456789abcdef";
-    char buffer[16];
-    size_t index = sizeof(buffer);
-    do {
-        buffer[--index] = digits[value & 0xf];
-        value >>= 4;
-    } while (value > 0);
-    write_string("0x");
-    write_bytes(buffer + index, sizeof(buffer) - index);
-}
+private:
+    void append_bytes(char const* bytes, size_t length)
+    {
+        // The last byte is kept for the newline.
+        auto room = sizeof(m_data) - 1 - m_length;
+        if (length > room)
+            length = room;
+        __builtin_memcpy(m_data + m_length, bytes, length);
+        m_length += length;
+    }
+
+    char m_data[512];
+    size_t m_length { 0 };
+};
 
 #define CASE_SYSCALL_NAME(name) \
     case __NR_##name:           \
@@ -574,8 +603,38 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_access
         CASE_SYSCALL_NAME(access);
 #endif
+#ifdef __NR_acct
+        CASE_SYSCALL_NAME(acct);
+#endif
+#ifdef __NR_arch_prctl
+        CASE_SYSCALL_NAME(arch_prctl);
+#endif
 #ifdef __NR_bind
         CASE_SYSCALL_NAME(bind);
+#endif
+#ifdef __NR_brk
+        CASE_SYSCALL_NAME(brk);
+#endif
+#ifdef __NR_chdir
+        CASE_SYSCALL_NAME(chdir);
+#endif
+#ifdef __NR_chmod
+        CASE_SYSCALL_NAME(chmod);
+#endif
+#ifdef __NR_chown
+        CASE_SYSCALL_NAME(chown);
+#endif
+#ifdef __NR_chroot
+        CASE_SYSCALL_NAME(chroot);
+#endif
+#ifdef __NR_clock_getres
+        CASE_SYSCALL_NAME(clock_getres);
+#endif
+#ifdef __NR_clock_gettime
+        CASE_SYSCALL_NAME(clock_gettime);
+#endif
+#ifdef __NR_clock_nanosleep
+        CASE_SYSCALL_NAME(clock_nanosleep);
 #endif
 #ifdef __NR_clone
         CASE_SYSCALL_NAME(clone);
@@ -583,14 +642,53 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_clone3
         CASE_SYSCALL_NAME(clone3);
 #endif
+#ifdef __NR_close
+        CASE_SYSCALL_NAME(close);
+#endif
+#ifdef __NR_close_range
+        CASE_SYSCALL_NAME(close_range);
+#endif
 #ifdef __NR_connect
         CASE_SYSCALL_NAME(connect);
+#endif
+#ifdef __NR_creat
+        CASE_SYSCALL_NAME(creat);
+#endif
+#ifdef __NR_dup
+        CASE_SYSCALL_NAME(dup);
+#endif
+#ifdef __NR_dup2
+        CASE_SYSCALL_NAME(dup2);
+#endif
+#ifdef __NR_dup3
+        CASE_SYSCALL_NAME(dup3);
+#endif
+#ifdef __NR_epoll_create1
+        CASE_SYSCALL_NAME(epoll_create1);
+#endif
+#ifdef __NR_epoll_ctl
+        CASE_SYSCALL_NAME(epoll_ctl);
+#endif
+#ifdef __NR_epoll_pwait
+        CASE_SYSCALL_NAME(epoll_pwait);
+#endif
+#ifdef __NR_epoll_wait
+        CASE_SYSCALL_NAME(epoll_wait);
+#endif
+#ifdef __NR_eventfd2
+        CASE_SYSCALL_NAME(eventfd2);
 #endif
 #ifdef __NR_execve
         CASE_SYSCALL_NAME(execve);
 #endif
 #ifdef __NR_execveat
         CASE_SYSCALL_NAME(execveat);
+#endif
+#ifdef __NR_exit
+        CASE_SYSCALL_NAME(exit);
+#endif
+#ifdef __NR_exit_group
+        CASE_SYSCALL_NAME(exit_group);
 #endif
 #ifdef __NR_faccessat
         CASE_SYSCALL_NAME(faccessat);
@@ -601,11 +699,38 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_fallocate
         CASE_SYSCALL_NAME(fallocate);
 #endif
+#ifdef __NR_fanotify_mark
+        CASE_SYSCALL_NAME(fanotify_mark);
+#endif
+#ifdef __NR_fchdir
+        CASE_SYSCALL_NAME(fchdir);
+#endif
+#ifdef __NR_fchmod
+        CASE_SYSCALL_NAME(fchmod);
+#endif
+#ifdef __NR_fchmodat
+        CASE_SYSCALL_NAME(fchmodat);
+#endif
+#ifdef __NR_fchmodat2
+        CASE_SYSCALL_NAME(fchmodat2);
+#endif
+#ifdef __NR_fchownat
+        CASE_SYSCALL_NAME(fchownat);
+#endif
 #ifdef __NR_fcntl
         CASE_SYSCALL_NAME(fcntl);
 #endif
 #ifdef __NR_fcntl64
         CASE_SYSCALL_NAME(fcntl64);
+#endif
+#ifdef __NR_fdatasync
+        CASE_SYSCALL_NAME(fdatasync);
+#endif
+#ifdef __NR_flock
+        CASE_SYSCALL_NAME(flock);
+#endif
+#ifdef __NR_fork
+        CASE_SYSCALL_NAME(fork);
 #endif
 #ifdef __NR_fstat
         CASE_SYSCALL_NAME(fstat);
@@ -613,11 +738,53 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_fstatfs
         CASE_SYSCALL_NAME(fstatfs);
 #endif
+#ifdef __NR_fsync
+        CASE_SYSCALL_NAME(fsync);
+#endif
+#ifdef __NR_ftruncate
+        CASE_SYSCALL_NAME(ftruncate);
+#endif
 #ifdef __NR_futex
         CASE_SYSCALL_NAME(futex);
 #endif
+#ifdef __NR_futex_time64
+        CASE_SYSCALL_NAME(futex_time64);
+#endif
+#ifdef __NR_futimesat
+        CASE_SYSCALL_NAME(futimesat);
+#endif
+#ifdef __NR_getcpu
+        CASE_SYSCALL_NAME(getcpu);
+#endif
+#ifdef __NR_getcwd
+        CASE_SYSCALL_NAME(getcwd);
+#endif
 #ifdef __NR_getdents64
         CASE_SYSCALL_NAME(getdents64);
+#endif
+#ifdef __NR_getegid
+        CASE_SYSCALL_NAME(getegid);
+#endif
+#ifdef __NR_geteuid
+        CASE_SYSCALL_NAME(geteuid);
+#endif
+#ifdef __NR_getgid
+        CASE_SYSCALL_NAME(getgid);
+#endif
+#ifdef __NR_getpeername
+        CASE_SYSCALL_NAME(getpeername);
+#endif
+#ifdef __NR_getpid
+        CASE_SYSCALL_NAME(getpid);
+#endif
+#ifdef __NR_getppid
+        CASE_SYSCALL_NAME(getppid);
+#endif
+#ifdef __NR_getpriority
+        CASE_SYSCALL_NAME(getpriority);
+#endif
+#ifdef __NR_getrandom
+        CASE_SYSCALL_NAME(getrandom);
 #endif
 #ifdef __NR_getresgid
         CASE_SYSCALL_NAME(getresgid);
@@ -625,17 +792,74 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_getresuid
         CASE_SYSCALL_NAME(getresuid);
 #endif
+#ifdef __NR_getrlimit
+        CASE_SYSCALL_NAME(getrlimit);
+#endif
+#ifdef __NR_getrusage
+        CASE_SYSCALL_NAME(getrusage);
+#endif
+#ifdef __NR_getsockname
+        CASE_SYSCALL_NAME(getsockname);
+#endif
+#ifdef __NR_getsockopt
+        CASE_SYSCALL_NAME(getsockopt);
+#endif
+#ifdef __NR_gettid
+        CASE_SYSCALL_NAME(gettid);
+#endif
+#ifdef __NR_gettimeofday
+        CASE_SYSCALL_NAME(gettimeofday);
+#endif
+#ifdef __NR_getuid
+        CASE_SYSCALL_NAME(getuid);
+#endif
+#ifdef __NR_getxattr
+        CASE_SYSCALL_NAME(getxattr);
+#endif
+#ifdef __NR_inotify_add_watch
+        CASE_SYSCALL_NAME(inotify_add_watch);
+#endif
 #ifdef __NR_ioctl
         CASE_SYSCALL_NAME(ioctl);
 #endif
 #ifdef __NR_kcmp
         CASE_SYSCALL_NAME(kcmp);
 #endif
+#ifdef __NR_lchown
+        CASE_SYSCALL_NAME(lchown);
+#endif
+#ifdef __NR_lgetxattr
+        CASE_SYSCALL_NAME(lgetxattr);
+#endif
 #ifdef __NR_link
         CASE_SYSCALL_NAME(link);
 #endif
 #ifdef __NR_linkat
         CASE_SYSCALL_NAME(linkat);
+#endif
+#ifdef __NR_listxattr
+        CASE_SYSCALL_NAME(listxattr);
+#endif
+#ifdef __NR_llistxattr
+        CASE_SYSCALL_NAME(llistxattr);
+#endif
+#ifdef __NR_lremovexattr
+        CASE_SYSCALL_NAME(lremovexattr);
+#endif
+#ifdef __NR_lseek
+        CASE_SYSCALL_NAME(lseek);
+#endif
+#ifdef __NR_lsetxattr
+        CASE_SYSCALL_NAME(lsetxattr);
+#endif
+#ifdef __NR_lstat
+        CASE_SYSCALL_NAME(lstat);
+#endif
+#ifdef __NR_madvise
+        CASE_SYSCALL_NAME(madvise);
+#endif
+#ifdef __NR_membarrier
+        CASE_SYSCALL_NAME(membarrier);
 #endif
 #ifdef __NR_memfd_create
         CASE_SYSCALL_NAME(memfd_create);
@@ -646,14 +870,35 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_mkdirat
         CASE_SYSCALL_NAME(mkdirat);
 #endif
+#ifdef __NR_mknod
+        CASE_SYSCALL_NAME(mknod);
+#endif
+#ifdef __NR_mknodat
+        CASE_SYSCALL_NAME(mknodat);
+#endif
 #ifdef __NR_mmap
         CASE_SYSCALL_NAME(mmap);
 #endif
 #ifdef __NR_mmap2
         CASE_SYSCALL_NAME(mmap2);
 #endif
+#ifdef __NR_mount
+        CASE_SYSCALL_NAME(mount);
+#endif
 #ifdef __NR_mprotect
         CASE_SYSCALL_NAME(mprotect);
+#endif
+#ifdef __NR_mremap
+        CASE_SYSCALL_NAME(mremap);
+#endif
+#ifdef __NR_munmap
+        CASE_SYSCALL_NAME(munmap);
+#endif
+#ifdef __NR_name_to_handle_at
+        CASE_SYSCALL_NAME(name_to_handle_at);
+#endif
+#ifdef __NR_nanosleep
+        CASE_SYSCALL_NAME(nanosleep);
 #endif
 #ifdef __NR_newfstatat
         CASE_SYSCALL_NAME(newfstatat);
@@ -661,17 +906,77 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_open
         CASE_SYSCALL_NAME(open);
 #endif
+#ifdef __NR_open_by_handle_at
+        CASE_SYSCALL_NAME(open_by_handle_at);
+#endif
 #ifdef __NR_openat
         CASE_SYSCALL_NAME(openat);
 #endif
+#ifdef __NR_pipe2
+        CASE_SYSCALL_NAME(pipe2);
+#endif
+#ifdef __NR_pivot_root
+        CASE_SYSCALL_NAME(pivot_root);
+#endif
+#ifdef __NR_pkey_mprotect
+        CASE_SYSCALL_NAME(pkey_mprotect);
+#endif
+#ifdef __NR_poll
+        CASE_SYSCALL_NAME(poll);
+#endif
+#ifdef __NR_ppoll
+        CASE_SYSCALL_NAME(ppoll);
+#endif
 #ifdef __NR_prctl
         CASE_SYSCALL_NAME(prctl);
+#endif
+#ifdef __NR_pread64
+        CASE_SYSCALL_NAME(pread64);
+#endif
+#ifdef __NR_prlimit64
+        CASE_SYSCALL_NAME(prlimit64);
+#endif
+#ifdef __NR_process_vm_readv
+        CASE_SYSCALL_NAME(process_vm_readv);
+#endif
+#ifdef __NR_process_vm_writev
+        CASE_SYSCALL_NAME(process_vm_writev);
+#endif
+#ifdef __NR_pselect6
+        CASE_SYSCALL_NAME(pselect6);
+#endif
+#ifdef __NR_ptrace
+        CASE_SYSCALL_NAME(ptrace);
+#endif
+#ifdef __NR_pwrite64
+        CASE_SYSCALL_NAME(pwrite64);
+#endif
+#ifdef __NR_quotactl
+        CASE_SYSCALL_NAME(quotactl);
+#endif
+#ifdef __NR_read
+        CASE_SYSCALL_NAME(read);
 #endif
 #ifdef __NR_readlink
         CASE_SYSCALL_NAME(readlink);
 #endif
 #ifdef __NR_readlinkat
         CASE_SYSCALL_NAME(readlinkat);
+#endif
+#ifdef __NR_readv
+        CASE_SYSCALL_NAME(readv);
+#endif
+#ifdef __NR_recvfrom
+        CASE_SYSCALL_NAME(recvfrom);
+#endif
+#ifdef __NR_recvmmsg
+        CASE_SYSCALL_NAME(recvmmsg);
+#endif
+#ifdef __NR_recvmsg
+        CASE_SYSCALL_NAME(recvmsg);
+#endif
+#ifdef __NR_removexattr
+        CASE_SYSCALL_NAME(removexattr);
 #endif
 #ifdef __NR_rename
         CASE_SYSCALL_NAME(rename);
@@ -682,8 +987,35 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_renameat2
         CASE_SYSCALL_NAME(renameat2);
 #endif
+#ifdef __NR_restart_syscall
+        CASE_SYSCALL_NAME(restart_syscall);
+#endif
 #ifdef __NR_rmdir
         CASE_SYSCALL_NAME(rmdir);
+#endif
+#ifdef __NR_rseq
+        CASE_SYSCALL_NAME(rseq);
+#endif
+#ifdef __NR_rt_sigaction
+        CASE_SYSCALL_NAME(rt_sigaction);
+#endif
+#ifdef __NR_rt_sigprocmask
+        CASE_SYSCALL_NAME(rt_sigprocmask);
+#endif
+#ifdef __NR_rt_sigreturn
+        CASE_SYSCALL_NAME(rt_sigreturn);
+#endif
+#ifdef __NR_sched_get_priority_max
+        CASE_SYSCALL_NAME(sched_get_priority_max);
+#endif
+#ifdef __NR_sched_get_priority_min
+        CASE_SYSCALL_NAME(sched_get_priority_min);
+#endif
+#ifdef __NR_sched_getaffinity
+        CASE_SYSCALL_NAME(sched_getaffinity);
+#endif
+#ifdef __NR_sched_getscheduler
+        CASE_SYSCALL_NAME(sched_getscheduler);
 #endif
 #ifdef __NR_sched_setaffinity
         CASE_SYSCALL_NAME(sched_setaffinity);
@@ -694,8 +1026,44 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_sched_setscheduler
         CASE_SYSCALL_NAME(sched_setscheduler);
 #endif
+#ifdef __NR_sched_yield
+        CASE_SYSCALL_NAME(sched_yield);
+#endif
 #ifdef __NR_seccomp
         CASE_SYSCALL_NAME(seccomp);
+#endif
+#ifdef __NR_sendfile
+        CASE_SYSCALL_NAME(sendfile);
+#endif
+#ifdef __NR_sendmmsg
+        CASE_SYSCALL_NAME(sendmmsg);
+#endif
+#ifdef __NR_sendmsg
+        CASE_SYSCALL_NAME(sendmsg);
+#endif
+#ifdef __NR_sendto
+        CASE_SYSCALL_NAME(sendto);
+#endif
+#ifdef __NR_set_robust_list
+        CASE_SYSCALL_NAME(set_robust_list);
+#endif
+#ifdef __NR_set_tid_address
+        CASE_SYSCALL_NAME(set_tid_address);
+#endif
+#ifdef __NR_setpriority
+        CASE_SYSCALL_NAME(setpriority);
+#endif
+#ifdef __NR_setsockopt
+        CASE_SYSCALL_NAME(setsockopt);
+#endif
+#ifdef __NR_setxattr
+        CASE_SYSCALL_NAME(setxattr);
+#endif
+#ifdef __NR_shutdown
+        CASE_SYSCALL_NAME(shutdown);
+#endif
+#ifdef __NR_sigaltstack
+        CASE_SYSCALL_NAME(sigaltstack);
 #endif
 #ifdef __NR_socket
         CASE_SYSCALL_NAME(socket);
@@ -712,11 +1080,35 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_statx
         CASE_SYSCALL_NAME(statx);
 #endif
+#ifdef __NR_swapoff
+        CASE_SYSCALL_NAME(swapoff);
+#endif
+#ifdef __NR_swapon
+        CASE_SYSCALL_NAME(swapon);
+#endif
 #ifdef __NR_symlink
         CASE_SYSCALL_NAME(symlink);
 #endif
 #ifdef __NR_symlinkat
         CASE_SYSCALL_NAME(symlinkat);
+#endif
+#ifdef __NR_sysinfo
+        CASE_SYSCALL_NAME(sysinfo);
+#endif
+#ifdef __NR_tgkill
+        CASE_SYSCALL_NAME(tgkill);
+#endif
+#ifdef __NR_truncate
+        CASE_SYSCALL_NAME(truncate);
+#endif
+#ifdef __NR_umask
+        CASE_SYSCALL_NAME(umask);
+#endif
+#ifdef __NR_umount2
+        CASE_SYSCALL_NAME(umount2);
+#endif
+#ifdef __NR_uname
+        CASE_SYSCALL_NAME(uname);
 #endif
 #ifdef __NR_unlink
         CASE_SYSCALL_NAME(unlink);
@@ -724,8 +1116,32 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_unlinkat
         CASE_SYSCALL_NAME(unlinkat);
 #endif
+#ifdef __NR_uselib
+        CASE_SYSCALL_NAME(uselib);
+#endif
+#ifdef __NR_utime
+        CASE_SYSCALL_NAME(utime);
+#endif
 #ifdef __NR_utimensat
         CASE_SYSCALL_NAME(utimensat);
+#endif
+#ifdef __NR_utimes
+        CASE_SYSCALL_NAME(utimes);
+#endif
+#ifdef __NR_vfork
+        CASE_SYSCALL_NAME(vfork);
+#endif
+#ifdef __NR_wait4
+        CASE_SYSCALL_NAME(wait4);
+#endif
+#ifdef __NR_waitid
+        CASE_SYSCALL_NAME(waitid);
+#endif
+#ifdef __NR_write
+        CASE_SYSCALL_NAME(write);
+#endif
+#ifdef __NR_writev
+        CASE_SYSCALL_NAME(writev);
 #endif
     default:
         return "unknown";
@@ -735,11 +1151,13 @@ static char const* syscall_name(long syscall_number)
 #undef CASE_SYSCALL_NAME
 
 static char s_process_name[16] = "unknown";
+// Read when the handler is installed, since the handler itself can't look at the environment.
+static bool s_logs_refusals = false;
 
 // The arguments are copied out before anything is written back, because the result register and the
 // first argument register are the same one on some architectures.
 struct SyscallRegisters {
-    FlatPtr arguments[5];
+    FlatPtr arguments[6];
     FlatPtr* result;
 };
 
@@ -755,6 +1173,7 @@ static SyscallRegisters syscall_registers(void* context)
             static_cast<FlatPtr>(machine_context.gregs[REG_RDX]),
             static_cast<FlatPtr>(machine_context.gregs[REG_R10]),
             static_cast<FlatPtr>(machine_context.gregs[REG_R8]),
+            static_cast<FlatPtr>(machine_context.gregs[REG_R9]),
         },
         reinterpret_cast<FlatPtr*>(&machine_context.gregs[REG_RAX]),
     };
@@ -767,6 +1186,7 @@ static SyscallRegisters syscall_registers(void* context)
             static_cast<FlatPtr>(machine_context.regs[2]),
             static_cast<FlatPtr>(machine_context.regs[3]),
             static_cast<FlatPtr>(machine_context.regs[4]),
+            static_cast<FlatPtr>(machine_context.regs[5]),
         },
         reinterpret_cast<FlatPtr*>(&machine_context.regs[0]),
     };
@@ -779,6 +1199,7 @@ static SyscallRegisters syscall_registers(void* context)
             static_cast<FlatPtr>(machine_context.__gregs[REG_A0 + 2]),
             static_cast<FlatPtr>(machine_context.__gregs[REG_A0 + 3]),
             static_cast<FlatPtr>(machine_context.__gregs[REG_A0 + 4]),
+            static_cast<FlatPtr>(machine_context.__gregs[REG_A0 + 5]),
         },
         reinterpret_cast<FlatPtr*>(&machine_context.__gregs[REG_A0]),
     };
@@ -1387,6 +1808,27 @@ static void emulate_signal_mask_change(void* context)
     set_syscall_result(registers, change_signal_mask(registers, context));
 }
 
+static void append_syscall_details(LogLine& line, siginfo_t const* info, void* context)
+{
+    line.append("syscall ");
+    line.append(syscall_name(info->si_syscall));
+    line.append(" (");
+    line.append_unsigned(static_cast<u64>(info->si_syscall));
+    line.append("), architecture ");
+    line.append_hex(info->si_arch);
+    line.append(", instruction pointer ");
+    line.append_hex(reinterpret_cast<FlatPtr>(info->si_call_addr));
+
+    auto registers = syscall_registers(context);
+    line.append(", args [");
+    for (size_t i = 0; i < array_size(registers.arguments); ++i) {
+        if (i != 0)
+            line.append(", ");
+        line.append_hex(registers.arguments[i]);
+    }
+    line.append("]");
+}
+
 static void handle_sigsys(int, siginfo_t* info, void* context)
 {
     if (info->si_code == SYS_SECCOMP && info->si_arch == audit_architecture) {
@@ -1414,50 +1856,31 @@ static void handle_sigsys(int, siginfo_t* info, void* context)
             return;
         }
 #endif
-        if (info->si_errno > refused_path_syscall_trap && info->si_errno < refused_path_syscall_trap + 0x1000) {
-            set_syscall_result(syscall_registers(context), -(info->si_errno - refused_path_syscall_trap));
-            return;
+        for (auto trap : { refused_path_syscall_trap, logged_refusal_trap }) {
+            if (info->si_errno > trap && info->si_errno < trap + 0x1000) {
+                auto error = info->si_errno - trap;
+                if (s_logs_refusals) {
+                    LogLine line;
+                    line.append("Sandbox refusal in ");
+                    line.append(s_process_name);
+                    line.append(": errno ");
+                    line.append_unsigned(static_cast<u64>(error));
+                    line.append(" for ");
+                    append_syscall_details(line, info, context);
+                    line.write_to_stderr();
+                }
+                set_syscall_result(syscall_registers(context), -error);
+                return;
+            }
         }
     }
 
-    write_string("Sandbox violation in ");
-    write_string(s_process_name);
-    write_string(": disallowed syscall ");
-    write_string(syscall_name(info->si_syscall));
-    write_string(" (");
-    write_unsigned(static_cast<u64>(info->si_syscall));
-    write_string("), architecture ");
-    write_hex(info->si_arch);
-    write_string(", instruction pointer ");
-    write_hex(reinterpret_cast<FlatPtr>(info->si_call_addr));
-
-#if defined(__x86_64__)
-    auto* machine_context = &static_cast<ucontext_t*>(context)->uc_mcontext;
-    write_string(", args [");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_RDI]));
-    write_string(", ");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_RSI]));
-    write_string(", ");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_RDX]));
-    write_string(", ");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_R10]));
-    write_string(", ");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_R8]));
-    write_string(", ");
-    write_hex(static_cast<u64>(machine_context->gregs[REG_R9]));
-    write_string("]");
-#elif defined(__aarch64__)
-    auto* machine_context = &static_cast<ucontext_t*>(context)->uc_mcontext;
-    write_string(", args [");
-    for (size_t i = 0; i < 6; ++i) {
-        if (i != 0)
-            write_string(", ");
-        write_hex(static_cast<u64>(machine_context->regs[i]));
-    }
-    write_string("]");
-#endif
-
-    write_string("\n");
+    LogLine line;
+    line.append("Sandbox violation in ");
+    line.append(s_process_name);
+    line.append(": disallowed ");
+    append_syscall_details(line, info, context);
+    line.write_to_stderr();
 
     Core::CrashHandler::handle_fatal_signal(SIGSYS, info, context);
 }
@@ -1473,6 +1896,7 @@ static ErrorOr<void> install_sigsys_handler()
         return Error::from_syscall("sigaction(SIGSYS)"sv, errno);
 
     (void)prctl(PR_GET_NAME, s_process_name, 0ul, 0ul, 0ul);
+    s_logs_refusals = sandbox_debugging_is_enabled();
     return {};
 }
 
@@ -2463,6 +2887,31 @@ ErrorOr<void> SeccompPolicy::install()
 {
     TRY(install_sigsys_handler());
 
+    // A logged refusal traps, and the kernel kills a process for a trap that arrives while SIGSYS is blocked, as it is
+    // in glibc's pthread_create(). The file broker's filter keeps SIGSYS out of every mask, so without the broker this
+    // policy has to, ahead of any group that allows rt_sigprocmask.
+#ifdef __NR_rt_sigprocmask
+    if (sandbox_debugging_is_enabled() && !file_broker_is_active()) {
+        static constexpr size_t after_the_syscall_number_load = 4;
+        VERIFY(m_filter[after_the_syscall_number_load - 1].k == offsetof(seccomp_data, nr));
+        sock_filter const keep_sigsys_unblocked[] = {
+            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigprocmask, 0, 4),
+            SECCOMP_LOAD_ARGUMENT(0),
+            BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SIG_UNBLOCK, 0, 1),
+            SECCOMP_ALLOW,
+            BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP | signal_mask_trap),
+        };
+        for (size_t i = 0; i < array_size(keep_sigsys_unblocked); ++i)
+            MUST(m_filter.try_insert(after_the_syscall_number_load + i, keep_sigsys_unblocked[i]));
+
+        sigset_t trap_signal;
+        sigemptyset(&trap_signal);
+        sigaddset(&trap_signal, SIGSYS);
+        if (auto error = pthread_sigmask(SIG_UNBLOCK, &trap_signal, nullptr); error != 0)
+            return Error::from_syscall("pthread_sigmask"sv, error);
+    }
+#endif
+
     // The trap handler can't make a system call that traps again, so what it needs to reach the broker has to be allowed
     // outright. A policy that sends nothing there keeps these closed, so that one that pairs no sockets still can't.
     if (m_sends_paths_to_file_broker) {
@@ -2807,9 +3256,14 @@ ErrorOr<void> install_file_system_filter()
     TRY(filter.try_append(SECCOMP_ALLOW));
     TRY(filter.try_append(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP | signal_mask_trap)));
 #endif
+    auto logs_refusals = sandbox_debugging_is_enabled();
     for (auto const& answer : answers) {
+        auto action = answer.action;
+        // With sandbox debugging on, a refusal traps so that it can be logged, like refusal_action() does.
+        if (logs_refusals && (action & SECCOMP_RET_ACTION_FULL) == SECCOMP_RET_ERRNO)
+            action = SECCOMP_RET_TRAP | (logged_refusal_trap + (action & SECCOMP_RET_DATA));
         TRY(filter.try_append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, answer.syscall_number, 0, 1)));
-        TRY(filter.try_append(BPF_STMT(BPF_RET | BPF_K, answer.action)));
+        TRY(filter.try_append(BPF_STMT(BPF_RET | BPF_K, action)));
     }
     TRY(filter.try_append(SECCOMP_ALLOW));
 
