@@ -1,0 +1,3 @@
+Window replaced: true
+Beacon queued: true
+Beacon followed its redirect

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A beacon a document sends as it unloads follows its redirect to the end, even though navigating away aborts the
+    // document and gives the navigable a new Window.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `unload-beacon-${crypto.randomUUID()}`;
+        const destinationURL = await server.createEcho("POST", `/${token}/destination`, {
+            status: 200,
+            body: "",
+        });
+        const beaconURL = await server.createEcho("POST", `/${token}/beacon`, {
+            status: 307,
+            headers: { Location: destinationURL },
+            body: "",
+            wait_for_unblock: token,
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../../Assets/blank.html";
+        document.body.append(iframe);
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        const frameWindow = iframe.contentWindow;
+        frameWindow.marker = true;
+        let beaconQueued = false;
+        frameWindow.addEventListener("unload", () => {
+            beaconQueued = frameWindow.navigator.sendBeacon(beaconURL, "unload");
+        });
+
+        iframe.src = "../../../Assets/blank.html?navigated";
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        await server.waitForRequest(beaconURL);
+        await fetch(new URL(`/unblock/${token}`, server.baseURL));
+        await server.waitForRequest(destinationURL);
+
+        println(`Window replaced: ${frameWindow.marker === undefined}`);
+        println(`Beacon queued: ${beaconQueued}`);
+        println("Beacon followed its redirect");
+        done();
+    });
+</script>
