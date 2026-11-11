@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<!-- A box with an aspect ratio and an intrinsic max-width given through calc-size(), in a shrink-to-fit container. -->
+<div style="display: inline-flex">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'/%3E" style="max-width: calc-size(max-content, size)">
+</div>
+<div style="display: inline-flex">
+    <div style="aspect-ratio: 2; max-width: calc-size(max-content, size)">x</div>
+</div>
