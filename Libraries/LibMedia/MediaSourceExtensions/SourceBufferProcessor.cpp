@@ -811,79 +811,131 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
     if (!m_buffer_full_flag)
         return;
 
-    // 3. Let removal ranges equal a list of presentation time ranges that can be evicted from the presentation to make
-    //    room for the new data.
-    // 4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to the
-    //    removal range start and end timestamp respectively.
-    // AD-HOC: Steps 3 and 4 are completed together by removing frames relative to the current playback position. We
-    //         first evict frames strictly before current_time across all tracks (oldest first), and if more room is
-    //         needed, evict frames beyond the buffered segment containing current_time (latest first). The per-track
-    //         demuxer enforces the "don't break the currently-playing segment" boundary so seeks naturally preserve
-    //         data around the new position.
+    // AD-HOC: Steps 3 and 4 run twice, removing frames relative to the current playback position. We first evict
+    //         frames strictly before current_time across all tracks (oldest first), and if more room is needed, evict
+    //         frames beyond the buffered segment containing current_time (latest first). The per-track demuxer
+    //         enforces the "don't break the currently-playing segment" boundary so seeks naturally preserve data
+    //         around the new position.
+
     VERIFY(consumed_bytes_after_append > current_capacity_in_bytes);
     auto bytes_to_evict = consumed_bytes_after_append - current_capacity_in_bytes;
     size_t bytes_evicted = 0;
 
-    while (bytes_evicted < bytes_to_evict) {
-        TrackBuffer* oldest_track_buffer = nullptr;
-        AK::Duration oldest_timestamp;
-        for (auto& [track_id, track_buffer] : m_track_buffers) {
-            auto candidate = track_buffer->demuxer().earliest_evictable_frame_timestamp(track_buffer->track(), current_time);
-            if (!candidate.has_value())
-                continue;
-            if (!oldest_track_buffer || candidate.value() < oldest_timestamp) {
-                oldest_track_buffer = track_buffer.ptr();
-                oldest_timestamp = candidate.value();
+    {
+        // 3. Let removal ranges equal a list of presentation time ranges that can be evicted from the presentation to
+        //    make room for the new data.
+        struct EarliestRemovalRange {
+            TrackBuffer& track_buffer;
+            Vector<SourceBufferDemuxer::EarliestEvictableGroup> evictable_groups;
+            size_t group_count { 0 };
+
+            size_t freed_bytes() const { return group_count == 0 ? 0 : evictable_groups[group_count - 1].bytes_freed_by_evicting_through_this_group; }
+        };
+        Vector<EarliestRemovalRange> removal_ranges;
+        for (auto& [track_id, track_buffer] : m_track_buffers)
+            removal_ranges.append({ *track_buffer, track_buffer->demuxer().earliest_evictable_groups(track_buffer->track(), current_time, bytes_to_evict) });
+
+        size_t planned_bytes = 0;
+        while (planned_bytes < bytes_to_evict) {
+            EarliestRemovalRange* oldest_range = nullptr;
+            AK::Duration oldest_timestamp;
+            for (auto& range : removal_ranges) {
+                if (range.group_count == range.evictable_groups.size())
+                    continue;
+                auto candidate = range.evictable_groups[range.group_count].presentation_timestamp;
+                if (!oldest_range || candidate < oldest_timestamp) {
+                    oldest_range = &range;
+                    oldest_timestamp = candidate;
+                }
             }
+            if (!oldest_range)
+                break;
+            planned_bytes -= oldest_range->freed_bytes();
+            oldest_range->group_count++;
+            planned_bytes += oldest_range->freed_bytes();
         }
-        if (!oldest_track_buffer)
-            break;
-        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame_and_dependants(oldest_track_buffer->track());
+
+        // 4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to the
+        //    removal range start and end timestamp respectively.
+        for (auto& range : removal_ranges) {
+            if (range.group_count > 0)
+                bytes_evicted += range.track_buffer.demuxer().take_earliest_groups(range.track_buffer.track(), range.group_count);
+        }
     }
 
-    while (bytes_evicted < bytes_to_evict) {
-        TrackBuffer* latest_track_buffer = nullptr;
-        AK::Duration latest_timestamp;
-        for (auto& [track_id, track_buffer] : m_track_buffers) {
-            auto candidate = track_buffer->demuxer().latest_evictable_frame_timestamp(track_buffer->track(), current_time);
-            if (!candidate.has_value())
-                continue;
-            if (!latest_track_buffer || candidate.value() > latest_timestamp) {
-                latest_track_buffer = track_buffer.ptr();
-                latest_timestamp = candidate.value();
+    if (bytes_evicted < bytes_to_evict) {
+        auto remaining_bytes_to_evict = bytes_to_evict - bytes_evicted;
+
+        // 3. Let removal ranges equal a list of presentation time ranges that can be evicted from the presentation to
+        //    make room for the new data.
+        struct LatestRemovalRange {
+            TrackBuffer& track_buffer;
+            Vector<SourceBufferDemuxer::LatestEvictableFrame> evictable_frames;
+            size_t frame_count { 0 };
+        };
+        Vector<LatestRemovalRange> removal_ranges;
+        for (auto& [track_id, track_buffer] : m_track_buffers)
+            removal_ranges.append({ *track_buffer, track_buffer->demuxer().latest_evictable_frames(track_buffer->track(), current_time, remaining_bytes_to_evict) });
+
+        Vector<LatestRemovalRange*> removal_order;
+        size_t planned_bytes = 0;
+        while (planned_bytes < remaining_bytes_to_evict) {
+            LatestRemovalRange* latest_range = nullptr;
+            AK::Duration latest_timestamp;
+            for (auto& range : removal_ranges) {
+                if (range.frame_count == range.evictable_frames.size())
+                    continue;
+                auto candidate = range.evictable_frames[range.frame_count].presentation_timestamp;
+                if (!latest_range || candidate > latest_timestamp) {
+                    latest_range = &range;
+                    latest_timestamp = candidate;
+                }
             }
+            if (!latest_range)
+                break;
+            planned_bytes += latest_range->evictable_frames[latest_range->frame_count].byte_count;
+            latest_range->frame_count++;
+            removal_order.append(latest_range);
         }
-        if (!latest_track_buffer)
-            break;
-        auto last_decode_timestamp = latest_track_buffer->last_decode_timestamp();
-        auto removed_frame = latest_track_buffer->demuxer().take_latest_frame(latest_track_buffer->track());
-        bytes_evicted += removed_frame.byte_size;
+
+        // 4. For each range in removal ranges, run the coded frame removal algorithm with start and end equal to the
+        //    removal range start and end timestamp respectively.
+        for (auto& range : removal_ranges) {
+            if (range.frame_count > 0)
+                bytes_evicted += range.track_buffer.demuxer().take_latest_frames(range.track_buffer.track(), range.frame_count);
+        }
 
         // https://w3c.github.io/media-source/#dfn-coded-frame-removal
-        // AD-HOC: Steps starting from 3.3.1 are implemented here.
+        // AD-HOC: Steps starting from 3.3.1 are implemented here, for each removed frame in the order it was removed.
+        for (auto& range : removal_ranges)
+            range.frame_count = 0;
+        for (auto* range : removal_order) {
+            auto const& removed_frame = range->evictable_frames[range->frame_count++];
+            auto last_decode_timestamp = range->track_buffer.last_decode_timestamp();
 
-        // 1. For each removed frame, if the frame has a decode timestamp equal to the last decode timestamp for the
-        //    frame's track, run the following steps:
-        // AD-HOC: The spec doesn't nest steps 2-5 below under step 1's if statement, but clearing the last decode
-        //         timestamp upon every removal here would potentially force a RAP unexpectedly.
-        //         https://github.com/w3c/media-source/issues/290
-        if (last_decode_timestamp.has_value() && removed_frame.decode_timestamp == last_decode_timestamp.value()) {
-            // -> If mode equals "segments":
-            if (m_mode == AppendMode::Segments) {
-                // Set [[group end timestamp]] to presentation timestamp.
-                m_group_end_timestamp = latest_timestamp;
+            // 1. For each removed frame, if the frame has a decode timestamp equal to the last decode timestamp for
+            //    the frame's track, run the following steps:
+            // AD-HOC: The spec doesn't nest steps 2-5 below under step 1's if statement, but clearing the last decode
+            //         timestamp upon every removal here would potentially force a RAP unexpectedly.
+            //         https://github.com/w3c/media-source/issues/290
+            if (last_decode_timestamp.has_value() && removed_frame.decode_timestamp == last_decode_timestamp.value()) {
+                // -> If mode equals "segments":
+                if (m_mode == AppendMode::Segments) {
+                    // Set [[group end timestamp]] to presentation timestamp.
+                    m_group_end_timestamp = removed_frame.presentation_timestamp;
+                }
+                // -> If mode equals "sequence":
+                else if (m_mode == AppendMode::Sequence) {
+                    // Set [[group start timestamp]] equal to the [[group end timestamp]].
+                    m_group_start_timestamp = m_group_end_timestamp;
+                }
+                // 2. Unset the last decode timestamp on all track buffers.
+                // 3. Unset the last frame duration on all track buffers.
+                // 4. Unset the highest end timestamp on all track buffers.
+                unset_all_track_buffer_timestamps();
+                // 5. Set the need random access point flag on all track buffers to true.
+                set_need_random_access_point_flag_on_all_track_buffers(true);
             }
-            // -> If mode equals "sequence":
-            else if (m_mode == AppendMode::Sequence) {
-                // Set [[group start timestamp]] equal to the [[group end timestamp]].
-                m_group_start_timestamp = m_group_end_timestamp;
-            }
-            // 2. Unset the last decode timestamp on all track buffers.
-            // 3. Unset the last frame duration on all track buffers.
-            // 4. Unset the highest end timestamp on all track buffers.
-            unset_all_track_buffer_timestamps();
-            // 5. Set the need random access point flag on all track buffers to true.
-            set_need_random_access_point_flag_on_all_track_buffers(true);
         }
     }
 
