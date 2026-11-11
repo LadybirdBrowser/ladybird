@@ -596,13 +596,16 @@ Optional<H265::Profile> H265::Parameters::profile() const
     // are the most constrained profiles a record was captured for, so a claim to either settles the answer.
     static constexpr u32 MAIN_COMPATIBILITY_FLAG = 1u << 1;
     static constexpr u32 MAIN_10_COMPATIBILITY_FLAG = 1u << 2;
-    if ((profile_compatibility_flags & MAIN_COMPATIBILITY_FLAG) != 0)
+    // ITU-T H.265 (07/2024), A.3.2: Main decoders also decode streams that conform to the Main Still Picture profile.
+    static constexpr u32 MAIN_STILL_PICTURE_COMPATIBILITY_FLAG = 1u << 3;
+    if ((profile_compatibility_flags & (MAIN_COMPATIBILITY_FLAG | MAIN_STILL_PICTURE_COMPATIBILITY_FLAG)) != 0)
         return Profile::Main;
     if ((profile_compatibility_flags & MAIN_10_COMPATIBILITY_FLAG) != 0)
         return Profile::Main10;
 
     switch (profile_idc) {
     case 1:
+    case 3:
         return Profile::Main;
     case 2:
         return Profile::Main10;
