@@ -322,6 +322,8 @@ class RustConstructor:
 class RustMembers:
     # The attributes and the operations that the implementation has methods for.
     attributes: List[RustAttribute] = field(default_factory=list)
+    # The static attributes, which the interface object has.
+    static_attributes: List[RustAttribute] = field(default_factory=list)
     operation_sets: List[RustOperationSet] = field(default_factory=list)
     # The static operations, which the interface object has.
     static_operation_sets: List[RustOperationSet] = field(default_factory=list)
@@ -410,8 +412,6 @@ def rust_members(interface: Interface) -> RustMembers:
     if interface.async_iterable is not None and interface.async_iterable.key_type is not None:
         fail("it has a pair asynchronously iterable declaration")
     has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
-    if interface.static_attributes:
-        fail("it has static attributes")
 
     members = RustMembers()
     if interface.async_iterable is not None:
@@ -562,6 +562,17 @@ def rust_members(interface: Interface) -> RustMembers:
         members.attributes.append(rust_attribute)
         members.attributes_in_order.append(rust_attribute)
 
+    for attribute in interface.static_attributes:
+        check_extended_attributes(
+            attribute.name, attribute.extended_attributes, SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES - {"FIXME"}
+        )
+        check_exposure(attribute.name, attribute.extended_attributes)
+        if not attribute.readonly:
+            fail(f"its static attribute {attribute.name} is not read only, which the Rust bindings do not handle yet")
+        members.static_attributes.append(
+            RustAttribute(attribute, method_of(attribute.name, attribute.extended_attributes), None)
+        )
+
     def operation_sets(static: bool) -> List[RustOperationSet]:
         operations_of_interface = interface.static_operations if static else interface.regular_operations
         for operation in operations_of_interface:
@@ -654,6 +665,7 @@ def rust_members(interface: Interface) -> RustMembers:
 
     # NB: The spellings of a CSS descriptor or property are attributes with the same steps, which name the same methods.
     attribute_methods = {attribute.getter_method for attribute in members.attributes if attribute.event_type is None}
+    attribute_methods.update(attribute.getter_method for attribute in members.static_attributes)
     attribute_methods.update(
         attribute.setter_method for attribute in members.attributes if attribute.setter_method is not None
     )

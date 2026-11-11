@@ -882,6 +882,14 @@ def implementation_method_signatures(
             )
     if members.named_properties is not None:
         signatures.append("fn supported_property_names(&self, cx: &mut CallContext) -> Vec<Utf16String>")
+    for attribute in members.static_attributes:
+        what = f"{interface.name}.{attribute.attribute.name}"
+        result_type = (
+            "Value"
+            if attribute.returns_js_value
+            else rust_type(attribute.attribute.type, context, what, is_result=True)
+        )
+        signatures.append(f"fn {attribute.getter_method}(cx: &mut CallContext) -> WebIdlResult<{result_type}>")
     for operation_set in members.static_operation_sets:
         for overload in operation_set.overloads:
             what = f"{interface.name}.{operation_set.name}()"
@@ -1351,6 +1359,9 @@ def write_rust_interface(
     if members.async_iterator is not None:
         write_rust_async_iterator(out, context, interface)
 
+    for attribute in members.static_attributes:
+        write_rust_static_attribute_getter(out, context, interface, attribute)
+
     for operation_set in members.static_operation_sets:
         write_rust_operation_set(out, context, interface, operation_set, write_rust_static_operation)
 
@@ -1495,6 +1506,18 @@ def write_rust_interface(
     )
     if members.constants:
         out.write("        define_constants(vm, constructor, &CONSTANTS);\n")
+    for attribute in members.static_attributes:
+        definition = (
+            f'define_attribute(vm, realm, constructor, "{attribute.attribute.name}", '
+            f"raw_native!({attribute.getter_function}), None);"
+        )
+        out.write(
+            member_exposure_definition(
+                definition,
+                secure_context_only="SecureContext" in attribute.attribute.extended_attributes,
+                window_only=attribute.is_window_only,
+            )
+        )
     for operation_set in members.static_operation_sets:
         name = operation_set.name
         definition = (
@@ -2028,6 +2051,29 @@ def write_rust_stringifier(out: TextIO, function: str, method: str) -> None:
         let result = Implementation::{method}(&implementation, &mut cx)
             .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
         result.to_js(&cx)
+    }}
+"""
+    )
+
+
+def write_rust_static_attribute_getter(
+    out: TextIO, context: GenerationContext, interface: Interface, attribute: RustAttribute
+) -> None:
+    """The native function of the getter of a static attribute, which runs in the current realm,
+    https://webidl.spec.whatwg.org/#dfn-attribute-getter"""
+    what = f"{interface.name}.{attribute.attribute.name}"
+    conversion = (
+        "Ok(result)"
+        if attribute.returns_js_value
+        else rust_to_js_value(attribute.attribute.type, "result", "&cx", context, what)
+    )
+    out.write(
+        f"""
+    fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let mut cx = CallContext::new(vm, vm.current_realm().expect("a native function runs in a realm"));
+        let result = Implementation::{attribute.getter_method}(&mut cx)
+            .map_err(|exception| exception.throw_in_current_realm(cx.vm()))?;
+        {conversion}
     }}
 """
     )
