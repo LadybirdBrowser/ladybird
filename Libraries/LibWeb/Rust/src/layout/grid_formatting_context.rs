@@ -4919,8 +4919,11 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             None
         };
+        let subgrid_edge_extra_margins = self.subgrid_edge_extra_margins(axis);
+        let subgrid_track_offsets = subgrid_edge_extra_margins.map(|margins| (margins, self.axis_track_offsets(axis)));
         if let (Some(start_line), Some(end_line)) = (start_line, end_line)
             && start_line < self.axis_tracks(axis).len() as i32
+            && subgrid_edge_extra_margins.is_none()
         {
             return self.axis_grid_area(axis, Some((start_line, (end_line - start_line) as usize)));
         }
@@ -4931,13 +4934,25 @@ impl<'pass> GridFormattingContext<'pass> {
         // NB: A line between two tracks has a gutter in it. An area's start edge comes after the gutter, and its end edge
         //     before it, as in placed_axis_grid_area().
         let explicit_line_position = |line: i32, is_end: bool| {
-            let tracks = self.interleaved_tracks(axis);
-            let mut offset = self.content_start_offset(axis, self.axis_available(axis).to_px_or_zero());
             let entries = if is_end {
                 line.saturating_mul(2).saturating_sub(1)
             } else {
                 line.saturating_mul(2)
             };
+            // NB: A subgrid's lines are those of its parent grid, but the first and last of its tracks only reach as
+            //     far as its content edges, which its margin, border and padding move inwards from the parent's lines.
+            if let Some(((start_margin, end_margin), offsets)) = &subgrid_track_offsets {
+                let (start_margin, end_margin) = (*start_margin, *end_margin);
+                let positions = &offsets.aligned_offset_after_interleaved_entries;
+                let index = (entries.max(0) as usize).min(positions.len().saturating_sub(1));
+                let content_size = match self.axis_available(axis) {
+                    AvailableSize::Definite(size) => size,
+                    _ => offsets.sum_of_tracks_and_gaps - start_margin - end_margin,
+                };
+                return positions[index].clamp(CssPixels::default(), content_size.max(CssPixels::default()));
+            }
+            let tracks = self.interleaved_tracks(axis);
+            let mut offset = self.content_start_offset(axis, self.axis_available(axis).to_px_or_zero());
             for track in tracks.iter().take(entries.max(0) as usize) {
                 offset += track.base_size;
             }
