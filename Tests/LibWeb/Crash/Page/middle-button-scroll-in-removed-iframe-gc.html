@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    iframe.style = "position: absolute; left: 0; top: 0; width: 300px; height: 200px; border: none";
+    iframe.srcdoc = "<div style='height: 5000px'>tall</div>";
+    iframe.onload = () => {
+        // Start middle-button autoscroll inside the iframe, and leave it running.
+        internals.mouseDown(100, 100, 1, internals.BUTTON_MIDDLE);
+        internals.mouseUp(100, 100, internals.BUTTON_MIDDLE);
+
+        // Drop the iframe while its navigable's event handler still owns the autoscroll, and collect it.
+        iframe.remove();
+        internals.gc();
+
+        // Sweeping is incremental, so give it time to reach the navigable.
+        setTimeout(() => {
+            internals.gc();
+            setTimeout(() => document.documentElement.classList.remove("test-wait"), 500);
+        }, 500);
+    };
+    document.body.appendChild(iframe);
+</script>
+</body>

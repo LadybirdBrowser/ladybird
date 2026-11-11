@@ -294,6 +294,7 @@ private:
 
     void clear_mousedown_tracking();
     void stop_updating_selection();
+    void stop_middle_button_scroll();
 
     enum class HoverUpdateCause : u8 {
         PointerMoved,

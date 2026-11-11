@@ -26,10 +26,14 @@ MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CS
     , m_origin(origin)
     , m_mouse_position(origin)
 {
-    static_cast<DOM::Node&>(m_container_element->document()).set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    request_indicator_repaint();
 }
 
-MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
+// The handler can die along with its navigable in a GC sweep, after its element and document are already gone — so
+// the destructor must not touch them. Instead, EventHandler asks for the repaint when it stops the scroll.
+MiddleButtonScrollHandler::~MiddleButtonScrollHandler() = default;
+
+void MiddleButtonScrollHandler::request_indicator_repaint()
 {
     static_cast<DOM::Node&>(m_container_element->document()).set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
