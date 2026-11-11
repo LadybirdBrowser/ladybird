@@ -1466,6 +1466,40 @@ void Application::update_compositor_context_visibility(Web::CompositorContextId 
     m_compositor_client->async_set_context_visibility(context_id, context_visibility);
 }
 
+Optional<Application::RemoteLayer> Application::create_remote_layer()
+{
+    if (!m_compositor_presentation_client || !can_send_compositor_process_ipc(m_compositor_client))
+        return {};
+    VERIFY(m_compositor_client);
+
+    auto remote_layer_id = m_next_remote_layer_id++;
+    auto response = m_compositor_client->try_create_remote_layer(m_compositor_presentation_id, remote_layer_id);
+    if (response.is_error())
+        return {};
+    auto core_animation_context_id = response.release_value();
+    if (core_animation_context_id == 0)
+        return {};
+    return RemoteLayer { .id = remote_layer_id, .core_animation_context_id = core_animation_context_id };
+}
+
+void Application::destroy_remote_layer(u64 remote_layer_id)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_destroy_remote_layer(remote_layer_id);
+}
+
+void Application::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_show_context_in_remote_layer(remote_layer_id, context_id);
+}
+
 void Application::update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))

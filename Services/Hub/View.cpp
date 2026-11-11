@@ -28,6 +28,7 @@ private:
         track_installed_backing_stores(bitmap_ids);
         if (auto* ui = ConnectionFromUI::the())
             ui->async_view_install_backing_stores(m_view.view_id(), m_view.page().id().value(), move(bitmap_ids), move(backing_stores));
+        m_view.did_install_backing_stores_in_ui();
     }
 
     virtual void add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
@@ -684,6 +685,29 @@ void View::did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage
 {
     if (auto* ui = ConnectionFromUI::the())
         ui->async_view_accept_presented_backing_store(view_id(), bitmap_id, damage_rect);
+}
+
+void View::did_create_remote_layer(u32 core_animation_context_id)
+{
+    m_ui_hosts_remote_layer = core_animation_context_id != 0;
+    m_ui_awaits_first_frame_in_remote_layer = m_ui_hosts_remote_layer;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_set_remote_layer(view_id(), core_animation_context_id);
+}
+
+// The UI shows the backing stores it was given, as when a page from another process comes to display the tab, until it
+// hears of a frame shown in the remote layer again.
+void View::did_install_backing_stores_in_ui()
+{
+    m_ui_awaits_first_frame_in_remote_layer = m_ui_hosts_remote_layer;
+}
+
+void View::did_present_frame_in_remote_layer(Gfx::IntSize size, double device_pixel_ratio)
+{
+    if (!exchange(m_ui_awaits_first_frame_in_remote_layer, false) && !m_wants_frame_notifications)
+        return;
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_did_present_frame_in_remote_layer(view_id(), size, device_pixel_ratio);
 }
 
 void View::prepare_page_for_navigable(WebView::WebContentPage& page)

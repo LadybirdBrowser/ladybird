@@ -92,6 +92,8 @@ public:
     void set_window_size(Gfx::IntSize size) { HubConnection::the().async_view_set_window_size(view_id(), size); }
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { HubConnection::the().async_view_set_system_visibility_state(view_id(), move(visibility_state)); }
     void set_presents_from_cpu_memory(bool presents_from_cpu_memory) { HubConnection::the().async_view_set_presents_from_cpu_memory(view_id(), presents_from_cpu_memory); }
+    void set_hosts_remote_layer(bool hosts_remote_layer) { HubConnection::the().async_view_set_hosts_remote_layer(view_id(), hosts_remote_layer); }
+    void set_wants_frame_notifications(bool wants_frame_notifications) { HubConnection::the().async_view_set_wants_frame_notifications(view_id(), wants_frame_notifications); }
     void set_has_system_focus(bool has_system_focus) { HubConnection::the().async_view_set_has_system_focus(view_id(), has_system_focus); }
     void load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior navigation_history_behavior = Web::Bindings::NavigationHistoryBehavior::Auto) { HubConnection::the().async_view_load(view_id(), url, navigation_history_behavior); }
     void load_from_user_input(URL::URL const&);
@@ -239,6 +241,8 @@ public:
     void did_keep_front_backing_store_as_backup() { m_backing_stores.keep_front_as_backup(); }
     void did_clear_backup_backing_store() { m_backing_stores.clear_backup(); }
     void did_clear_backing_stores() { m_backing_stores.clear(); }
+    void did_set_remote_layer(u32 core_animation_context_id) { remote_layer_changed(core_animation_context_id); }
+    void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio);
 
     // Hands a backing store back to the page that presented it, which can have outlived the view.
     static void release_backing_store_to_page(u64 page_id, i32 bitmap_id);
@@ -249,6 +253,8 @@ public:
 protected:
     virtual void show_context_menu(Menu&, Gfx::IntPoint) { }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
+    // The ID is 0 when the view has no remote layer, and goes on showing backing stores.
+    virtual void remote_layer_changed(u32 core_animation_context_id) { (void)core_animation_context_id; }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
 
     void set_page_background_color_to_system_canvas(bool dark) { HubConnection::the().async_view_set_page_background_color_to_system_canvas(view_id(), dark); }

@@ -159,6 +159,8 @@ private:
     virtual void view_set_window_size(u64 view_id, Gfx::IntSize size) override;
     virtual void view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) override;
     virtual void view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) override;
+    virtual void view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) override;
+    virtual void view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications) override;
     virtual void view_set_has_system_focus(u64 view_id, bool has_system_focus) override;
     virtual void view_open_url_in_new_tab(u64 view_id, URL::URL url, Web::HTML::ActivateTab activate_tab) override;
     virtual void view_open_url_in_new_window(u64 view_id, URL::URL url, WebView::IsPrivate is_private) override;

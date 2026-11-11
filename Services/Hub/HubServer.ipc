@@ -236,6 +236,9 @@ endpoint HubServer
     view_set_window_size(u64 view_id, Gfx::IntSize size) =|
     view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) =|
     view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory) =|
+    view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) =|
+    // The UI hears of the first frame shown in a new remote layer, and of every frame while it wants to.
+    view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications) =|
     view_set_has_system_focus(u64 view_id, bool has_system_focus) =|
     view_open_url_in_new_tab(u64 view_id, URL::URL url, Web::HTML::ActivateTab activate_tab) =|
     view_open_url_in_new_window(u64 view_id, URL::URL url, WebView::IsPrivate is_private) =|

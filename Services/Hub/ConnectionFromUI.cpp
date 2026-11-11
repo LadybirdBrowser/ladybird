@@ -910,6 +910,18 @@ void ConnectionFromUI::view_set_system_visibility_state(u64 view_id, Web::HTML::
     }
 }
 
+void ConnectionFromUI::view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer)
+{
+    if (auto* view = find_view(view_id))
+        view->set_hosts_remote_layer(hosts_remote_layer);
+}
+
+void ConnectionFromUI::view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications)
+{
+    if (auto* view = find_view(view_id))
+        view->set_wants_frame_notifications(wants_frame_notifications);
+}
+
 void ConnectionFromUI::view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory)
 {
     if (auto* view = find_view(view_id)) {

@@ -176,6 +176,13 @@ void RemoteView::did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rec
         on_ready_to_paint();
 }
 
+void RemoteView::did_present_frame_in_remote_layer(Gfx::IntSize size, double device_pixel_ratio)
+{
+    m_backing_stores.present_frame_shown_in_remote_layer(size, device_pixel_ratio);
+    if (on_ready_to_paint)
+        on_ready_to_paint();
+}
+
 void RemoteView::release_backing_store_to_page(u64 page_id, i32 bitmap_id)
 {
     if (auto* hub = HubConnection::the_if_connected())
