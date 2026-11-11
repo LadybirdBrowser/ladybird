@@ -8,8 +8,11 @@
 
 use super::bridge::FfiContainerEffectKind;
 use super::container_queries::ContainerVerdict;
-use super::fast_hash::FastSet as HashSet;
+use super::fast_hash::{FastMap as HashMap, FastSet as HashSet};
+use super::pipeline::Record;
 use super::{RetainedState, StyleEngine, StyleNodeID};
+use std::collections::hash_map::Entry;
+use std::sync::Arc;
 
 /// What the host learned about size container queries while it computed styles: which elements
 /// were asked about, which elements asked, and which containers had no box to answer with yet.
@@ -24,6 +27,10 @@ pub(super) struct SizeContainerQueryFacts {
     /// Containers a style computation asked about before they had a committed box. The layout
     /// that gives them one is where their dependents move.
     needing_evaluation_after_layout: HashSet<StyleNodeID>,
+    /// Queried containers whose font moved since their dependents were last recorded, each with the record it held
+    /// before the move. An animated container passes through its base record within every update, on its way to the
+    /// record with its animated values, so only a font that differs from the one before it counts.
+    font_moves: HashMap<StyleNodeID, Arc<Record>>,
     /// A container's eligibility changed, so units can newly select it even when it was not queried before.
     availability_changed: HashSet<StyleNodeID>,
     /// The size containers whose records say they answer size queries, as the records they were last published
@@ -38,8 +45,23 @@ impl SizeContainerQueryFacts {
         self.queried_containers.contains(&node)
     }
 
-    pub(super) fn note_font_input_change(&mut self, node: StyleNodeID) {
-        self.needing_evaluation_after_layout.insert(node);
+    /// Font-relative size queries can change even when the container's box keeps the same dimensions.
+    pub(super) fn note_held_record_change(&mut self, node: StyleNodeID, previous: Arc<Record>, current: &Record) {
+        if !self.is_queried_container(node) {
+            return;
+        }
+        match self.font_moves.entry(node) {
+            Entry::Occupied(entry) => {
+                if same_font(entry.get(), current) {
+                    entry.remove();
+                }
+            }
+            Entry::Vacant(entry) => {
+                if !same_font(&previous, current) {
+                    entry.insert(previous);
+                }
+            }
+        }
     }
 
     /// Follows whether `node` answers size queries, noting where that changed.
@@ -60,9 +82,20 @@ impl SizeContainerQueryFacts {
         self.queried_containers.remove(&node);
         self.dependents.remove(&node);
         self.needing_evaluation_after_layout.remove(&node);
+        self.font_moves.remove(&node);
         self.availability_changed.remove(&node);
         self.available.remove(&node);
     }
+}
+
+fn same_font(first: &Record, second: &Record) -> bool {
+    let font_group = crate::css::table_group_builder::group_index::FONT;
+    let (first, second) = (
+        first.payloads[font_group].as_ptr(),
+        second.payloads[font_group].as_ptr(),
+    );
+    // SAFETY: Both records hold a reference to their font payloads.
+    first == second || unsafe { crate::css::computed_values::style_group_payloads_equal(font_group, first, second) }
 }
 
 fn set_contains(set: &mut HashSet<StyleNodeID>, node: StyleNodeID, contains: bool) {
@@ -101,6 +134,7 @@ impl StyleEngine {
             .size_container_queries
             .needing_evaluation_after_layout
             .is_empty()
+            || !self.retained.size_container_queries.font_moves.is_empty()
             || !self.retained.size_container_queries.availability_changed.is_empty()
     }
 
@@ -152,6 +186,7 @@ impl StyleEngine {
         let mut containers = std::mem::take(&mut self.retained.size_container_queries.needing_evaluation_after_layout);
         let availability_changed = std::mem::take(&mut self.retained.size_container_queries.availability_changed);
         containers.extend(availability_changed.iter().copied());
+        containers.extend(std::mem::take(&mut self.retained.size_container_queries.font_moves).into_keys());
         for container in containers {
             // A container that has left the document has no dependents left to move.
             if self.retained.projection.is_live(container) {

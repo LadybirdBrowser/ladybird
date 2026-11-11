@@ -1,0 +1,1 @@
+item height after resize: 574
