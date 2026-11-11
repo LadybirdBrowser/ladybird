@@ -58,6 +58,7 @@ private:
     void extract_item_properties(QObject*);
 
     struct DropTarget {
+        QPointer<QMenu> menu;
         size_t index { 0 };
         QRect indicator_rect;
         QPointer<QAction> folder_action;
@@ -65,6 +66,7 @@ private:
         bool operator==(DropTarget const&) const = default;
     };
     DropTarget drop_target_on_bar(QPoint) const;
+    DropTarget drop_target_in_menu(QMenu&, QPoint) const;
     void show_drop_target(DropTarget const&);
     void hide_drop_target();
 
@@ -77,8 +79,17 @@ private:
     bool handle_drag_event(QObject const&, QEvent&);
     void update_drag(QPoint global_position);
     QMenu* drag_menu_at(QPoint global_position) const;
+    void scroll_drag_menu();
+    void close_submenu_opened_by_drag(QMenu&);
+    void send_move_to_menu(QMenu&, QPoint position);
+    void close_menus_opened_by_drag();
+    void prepare_menu_to_open_during_drag(QMenu&);
+    Vector<QMenu*> drag_source_menus() const;
+    void set_drag_source_menu_hidden(bool);
+    void update_drag_source_menu_visibility();
     void drop_dragged_item(QPoint global_position);
     void stop_drag();
+    size_t first_overflow_index() const;
 
     void slide_in(QWidget&, int width);
     void slide_out(int index, QPixmap const& image);
@@ -102,12 +113,23 @@ private:
     QPointer<QMenu> m_pressed_menu;
     QPointer<QAction> m_pressed_menu_action;
     QPoint m_press_position;
+    QPoint m_drag_position;
     QString m_dragged_item_id;
     QPointer<QToolButton> m_dragged_button;
     QPointer<QMenu> m_drag_source_menu;
+    bool m_drag_source_menu_is_hidden { false };
+    QPointer<QMenu> m_drag_folder_menu;
+    struct MenuWithoutGrab {
+        QPointer<QMenu> menu;
+        Qt::WindowFlags usual_window_flags;
+    };
+    Vector<MenuWithoutGrab> m_drag_menus_without_grab;
     QWidget* m_drag_card { nullptr };
     int m_drag_card_pointer_offset { 0 };
     DropTarget m_drop_target;
+    QPointer<QWidget> m_menu_drop_indicator;
+    QTimer* m_drag_menu_scroll_timer { nullptr };
+    QEvent const* m_move_sent_to_menu { nullptr };
 };
 
 // A window shows one bookmarks bar, above the selected tab's page, or over it while the pointer is near the toolbar.
