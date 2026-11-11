@@ -15,7 +15,8 @@ namespace WebView {
 
 // The host of a URL without "www.", which the pages of a site share.
 WEBVIEW_API Optional<String> autocomplete_host_family(URL::URL const&);
-WEBVIEW_API bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const&, AutocompleteSuggestion const&);
+// The first of the suggestions that goes where the needle goes.
+WEBVIEW_API Optional<size_t> index_of_suggestion_with_same_destination(AutocompleteSuggestion const& needle, ReadonlySpan<AutocompleteSuggestion>);
 
 WEBVIEW_API Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     StringView query,

@@ -104,9 +104,7 @@ static Optional<size_t> index_of_suggestion(String const& suggestion_text, Vecto
 
 static Optional<size_t> index_of_suggestion(AutocompleteSuggestion const& needle, Vector<AutocompleteSuggestion> const& suggestions)
 {
-    return suggestions.find_first_index_if([&](auto const& suggestion) {
-        return autocomplete_suggestions_have_same_destination(needle, suggestion);
-    });
+    return index_of_suggestion_with_same_destination(needle, suggestions);
 }
 
 static Optional<size_t> index_of_automatic_default(Vector<AutocompleteSuggestion> const& suggestions)

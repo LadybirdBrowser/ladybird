@@ -241,23 +241,6 @@ Optional<URL::URL> url_from_text(StringView text)
     return sanitize_url(trimmed_text);
 }
 
-bool autocomplete_urls_match(StringView left, StringView right)
-{
-    auto parse_destination = [](StringView value) {
-        auto classified_input = classify_user_input(value);
-        if (classified_input.url.has_value())
-            return classified_input.url;
-        return URL::Parser::basic_parse(MUST(String::formatted("https://{}", value)));
-    };
-
-    auto left_url = parse_destination(left);
-    auto right_url = parse_destination(right);
-    if (!left_url.has_value() || !right_url.has_value())
-        return false;
-
-    return left_url->equals(*right_url);
-}
-
 bool autocomplete_url_can_complete(StringView query, StringView suggestion)
 {
     auto suggestion_url = URL::Parser::basic_parse(suggestion);
