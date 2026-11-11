@@ -1,0 +1,89 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrids with different writing-mode than parent</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace;
+}
+
+.grid {
+  display: grid;
+  grid: repeat(4, auto) / repeat(5, auto);
+  place-content: start;
+  border: 1px solid;
+}
+
+.subgrid {
+  display: grid;
+  grid: auto / auto;
+  background: lightgrey;
+  grid-column: 2 / span 5;
+  grid-row: 2 / span 5;
+  min-width:10px;
+  min-height:0;
+  border: 0 solid lightblue;
+  border-bottom-width: 40px;
+}
+
+.vlr {
+  writing-mode: vertical-lr;
+  grid: auto / auto;
+  grid-column: 2 / span 5;
+  grid-row: 3 / span 5;
+  background: blue;
+}
+
+x {
+  min-width:10px;
+  min-height:0px;
+}
+x:nth-child(2n+1) { background: silver; }
+x:nth-child(2n+2) { background: grey; }
+x:nth-child(2n+3) { background: pink; }
+x:nth-child(2n+4) { background: black; }
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+.vl { writing-mode: vertical-lr; }
+.vr { writing-mode: vertical-rl; }
+.vlr { writing-mode: vertical-lr; direction:rtl; }
+.vrl { writing-mode: vertical-rl; direction:ltr; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vrl" style="text-indent:10px">
+    A B
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:1"></x><x style="grid-row:2"></x><x style="grid-row:3"></x><x style="grid-row:4"></x><x style="grid-row:5"></x><x style="grid-row:6"></x>
+  <div class="subgrid vr">
+    <div class="subgrid hr">A B</div>
+  </div>
+</div>
+
+<div class="grid">
+<x style="grid-row:3; height:50px; background:black"></x>
+<x style="grid-row:4; height:50px; background:pink"></x>
+<x style="grid-row:5; height:40px; background:black"></x>
+<div class="subgrid vlr">
+<div class="subgrid hl">
+  <x style="grid-row:2 / span 2; height: 100px">A B C D E F</x>
+</div>
+</div>
+</div>
+
+
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: repeat(auto-fill / INTEGER, line-names)</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/repeat-auto-fill-005-ref.html">
+  <style>
+html,body {
+  color:black; background-color:white; font:10px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: inline-grid;
+  grid-auto-columns: 20px;
+  background: lightgrey;
+}
+
+.subgrid {
+  display: grid;
+  grid-column: 2 / span 4;
+  background: black;
+  writing-mode: vertical-lr;
+}
+
+item {
+  min-width: 0;
+  min-height: 10px;
+  grid-row:x -2 / x -1;
+  background: grey;
+  writing-mode: horizontal-tb;
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[]) [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [] [x] []">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [x] [x] repeat(auto-fill,[x]) [x] [x] []">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(auto-fill,[x]) [] [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(1,[]) [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] repeat(1,[]) [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(2,[]) repeat(auto-fill,[]) [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(2,[x]) repeat(auto-fill,[]) [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(2,[x]) repeat(auto-fill,[x]) [] []">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(3,[]) repeat(auto-fill,[]) [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(4,[]) repeat(auto-fill,[x]) [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] [] [] [] repeat(auto-fill,[x]) [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(auto-fill,[]) [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(auto-fill,[x]) [] [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid [] repeat(auto-fill,[x]) [] [] [] [x]">
+    <item></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" style="grid-template-rows:subgrid repeat(5,[]) repeat(auto-fill,[]) [x]">
+    <item></item>
+  </div>
+</div>
+
+<script>
+  const expectedResults = [
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] []",
+    "subgrid [x] [x] [] [] [x]",
+    "subgrid [x] [x] [] [x] []",
+    "subgrid [x] [x] [x] [x] []",
+    "subgrid [] [] [] [] []",
+    "subgrid [] [] [] [x] []",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] []",
+    "subgrid [] [] [] [] []",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [x] [x] [] [] [x]",
+    "subgrid [x] [x] [x] [] []",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] [x]",
+    "subgrid [] [] [] [] []",
+  ];
+  [...document.querySelectorAll('.subgrid')].forEach(function(subgrid, i) {
+    let actual = window.getComputedStyle(subgrid)['grid-template-rows'];
+    let expected = expectedResults[i];
+    if (actual != expected) {
+      let err = "Unexpected getComputedStyle value for subgrid " + i + " with className '" + subgrid.className + "':" +
+      " Actual: \"" + actual + "\", Expected: \"" + expected + "\"";
+      document.body.appendChild(document.createTextNode(err));
+    }
+  });
+</script>
+
+</body>
+</html>
