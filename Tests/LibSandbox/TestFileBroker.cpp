@@ -5,6 +5,7 @@
  */
 
 #include <AK/Platform.h>
+#include <AK/StringBuilder.h>
 #include <LibSandbox/FileBroker.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
@@ -273,6 +274,73 @@ TEST_CASE(the_broker_enforces_the_path_rules)
     (void)rmdir(subdirectory.characters());
     (void)rmdir(hidden.characters());
     (void)rmdir(writable.characters());
+    (void)rmdir(read_only.characters());
+    (void)rmdir(base.characters());
+}
+
+// Runs the body in a child with LADYBIRD_SANDBOX_DEBUG set, and returns what the child and its broker wrote to stderr.
+template<typename Body>
+static ByteString stderr_of_debugged_child(Body body)
+{
+    int fds[2];
+    VERIFY(pipe(fds) == 0);
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        close(fds[0]);
+        check(60, dup2(fds[1], STDERR_FILENO) == STDERR_FILENO);
+        close(fds[1]);
+        check(61, setenv("LADYBIRD_SANDBOX_DEBUG", "1", 1) == 0);
+        body();
+        _exit(0);
+    }
+
+    close(fds[1]);
+    StringBuilder output;
+    char buffer[4096];
+    ssize_t received = 0;
+    while ((received = read(fds[0], buffer, sizeof(buffer))) > 0)
+        output.append(StringView { buffer, static_cast<size_t>(received) });
+    close(fds[0]);
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    return output.to_byte_string();
+}
+
+TEST_CASE(sandbox_debugging_logs_each_refused_path_once)
+{
+    char base_template[] = "/tmp/lb-file-broker-XXXXXX";
+    VERIFY(mkdtemp(base_template));
+    ByteString base { base_template };
+    auto read_only = ByteString::formatted("{}/read-only", base);
+    auto hidden = ByteString::formatted("{}/hidden", base);
+    auto hidden_file = ByteString::formatted("{}/file", hidden);
+    VERIFY(mkdir(read_only.characters(), 0700) == 0);
+    VERIFY(mkdir(hidden.characters(), 0700) == 0);
+    make_file(hidden_file);
+
+    auto output = stderr_of_debugged_child([&] {
+        Vector<PathRule> rules;
+        MUST(Sandbox::add_path_if_exists(rules, read_only, PathRule::Access::ReadOnly));
+        MUST(Sandbox::add_path_if_exists(rules, "/proc/self"sv, PathRule::Access::ReadOnly));
+        confine(rules);
+
+        check(1, error_opening(hidden_file, O_RDONLY) == EACCES);
+        check(2, error_opening(hidden_file, O_RDONLY) == EACCES);
+        // A directory that exists is reported as such, which is no refusal to log.
+        check(3, mkdir(read_only.characters(), 0700) < 0 && errno == EEXIST);
+    });
+
+    auto refusal = ByteString::formatted("read access to {}\n", hidden_file);
+    EXPECT_EQ(output.count(refusal), 1u);
+    EXPECT(!output.contains("entry change"sv));
+
+    (void)unlink(hidden_file.characters());
+    (void)rmdir(hidden.characters());
     (void)rmdir(read_only.characters());
     (void)rmdir(base.characters());
 }

@@ -89,6 +89,9 @@ struct SeatbeltProfile {
 [[nodiscard]] ErrorOr<void> restrict_filesystem(ReadonlySpan<PathRule> = {});
 // Whether restrict_filesystem() also kept this process from signalling any process outside its own tree.
 [[nodiscard]] bool signals_stay_within_the_process_tree();
+// Whether LADYBIRD_SANDBOX_DEBUG asks the sandbox to log what it refuses. The file broker then confines the file system
+// even where Landlock exists, because Landlock refuses a path without telling the process, and the broker can log it.
+[[nodiscard]] bool sandbox_debugging_is_enabled();
 [[nodiscard]] ErrorOr<void> add_gpu_driver_paths(Vector<PathRule>& paths);
 #endif
 

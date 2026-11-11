@@ -71,6 +71,8 @@ set(XML_PARSER_DEBUG ON)
 
 # False positive: ANDROID_LOG_DEBUG is a log level, not a debug flag
 # set(ANDROID_LOG_DEBUG ON)
+# False positive: LADYBIRD_SANDBOX_DEBUG is an environment variable, not a debug flag
+# set(LADYBIRD_SANDBOX_DEBUG ON)
 # Third-party: skia vcpkg port overlay
 # set(gn_defines_DEBUG ON)
 # set(gn_include_dirs_DEBUG ON)
