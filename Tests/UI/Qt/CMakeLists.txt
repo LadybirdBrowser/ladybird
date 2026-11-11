@@ -34,7 +34,6 @@ set(TEST_SOURCES
     TestJavaScriptDialog.cpp
     TestNativeTextEditingLineEdit.cpp
     TestNativeWindowContainerFocus.cpp
-    TestPerformanceMonitorWidget.cpp
     TestPermissionPromptPopover.cpp
     TestProcessManagerWindow.cpp
     TestScreenshotSelectionOverlay.cpp
