@@ -11,8 +11,6 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     return()
 endif()
 
-find_package(Python3 REQUIRED)
-
 set(LADYBIRD_A11Y_BRIDGE_MAC_ENV
     "LADYBIRD_BINARY=$<TARGET_FILE:ladybird>"
 )
