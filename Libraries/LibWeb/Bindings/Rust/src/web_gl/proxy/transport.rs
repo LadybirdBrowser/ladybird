@@ -26,7 +26,7 @@ pub(crate) trait Transport {
     type SharedMemory: SharedMemory;
     /// An image that a command names by its position among the frames sent with the commands.
     type Frame;
-    type Bitmap;
+    type DrawingBufferPixels;
 
     fn max_frames_per_message(&self) -> usize;
     fn create_shared_memory(&self, size: usize) -> Option<Self::SharedMemory>;
@@ -67,5 +67,5 @@ pub(crate) trait Transport {
         pixels: Option<&Self::SharedMemory>,
     ) -> ReadPixelsResult;
     fn read_buffer_sub_data(&self, target: u32, offset: i64, size: i64, data: &Self::SharedMemory) -> bool;
-    fn read_back_drawing_buffer(&self, x: i32, y: i32, width: i32, height: i32) -> Option<Self::Bitmap>;
+    fn read_back_drawing_buffer(&self, x: i32, y: i32, width: i32, height: i32) -> Option<Self::DrawingBufferPixels>;
 }

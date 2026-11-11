@@ -43,100 +43,13 @@ unsafe extern "C" {
         alpha_type: AlphaType,
         color_space: ColorSpace,
     ) -> *mut c_void;
-    fn web_canvas_2d_bitmap_ref(bitmap: *mut c_void);
-    fn web_canvas_2d_bitmap_unref(bitmap: *mut c_void);
-    fn web_canvas_2d_bitmap_size_in_bytes(bitmap: *mut c_void) -> usize;
-    fn web_canvas_2d_image_frame_from_bitmap(bitmap: *mut c_void, color_space: ColorSpace) -> *mut c_void;
-    fn web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(
-        bitmap: *mut c_void,
-        out_pixels: *mut *const u8,
-        out_pitch: *mut usize,
-        out_width: *mut i32,
-        out_height: *mut i32,
-    ) -> bool;
 }
 
 /// A Gfx::Font that C++ lends.
 pub(crate) struct LentFont(pub(crate) NonNull<c_void>);
 
-/// A Gfx::DecodedImageFrame that C++ lends.
-pub(crate) struct LentImageFrame(pub(crate) NonNull<c_void>);
-
 /// A Compositing::VideoFrameHold that C++ lends.
 pub(crate) struct LentVideoFrameHold(pub(crate) NonNull<c_void>);
-
-/// A Gfx::Bitmap, one reference to which the value owns.
-pub(crate) struct Bitmap(NonNull<c_void>);
-
-/// The pixels of a bitmap that are RGBA8888 and unpremultiplied, as a readback of a canvas gives them: `height` rows of
-/// `width` pixels, `pitch` bytes apart.
-pub(crate) struct UnpremultipliedRgbaPixels {
-    pub(crate) first_row: NonNull<u8>,
-    pub(crate) pitch: usize,
-    pub(crate) width: i32,
-    pub(crate) height: i32,
-}
-
-// SAFETY (of every call below): The value owns a reference to the bitmap.
-impl Bitmap {
-    pub(crate) fn into_raw(self) -> *mut c_void {
-        let bitmap = self.0.as_ptr();
-        core::mem::forget(self);
-        bitmap
-    }
-
-    /// A frame of the pixels of the bitmap, which are in the color space, or none if one cannot be made.
-    pub(crate) fn into_image_frame(self, color_space: ColorSpace) -> Option<ImageFrameHandle> {
-        let frame = unsafe { web_canvas_2d_image_frame_from_bitmap(self.into_raw(), color_space) };
-        if frame.is_null() {
-            return None;
-        }
-        // SAFETY: LibWeb hands over a frame that it allocated with new.
-        Some(unsafe { ImageFrameHandle::adopt(frame) })
-    }
-
-    pub(crate) fn size_in_bytes(&self) -> usize {
-        unsafe { web_canvas_2d_bitmap_size_in_bytes(self.0.as_ptr()) }
-    }
-
-    /// The pixels, which stay valid while the value lives, if the bitmap is RGBA8888 and unpremultiplied.
-    pub(crate) fn unpremultiplied_rgba_pixels(&self) -> Option<UnpremultipliedRgbaPixels> {
-        let (mut first_row, mut pitch, mut width, mut height) = (core::ptr::null(), 0, 0, 0);
-        let is_rgba = unsafe {
-            web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(
-                self.0.as_ptr(),
-                &raw mut first_row,
-                &raw mut pitch,
-                &raw mut width,
-                &raw mut height,
-            )
-        };
-        if !is_rgba {
-            return None;
-        }
-        Some(UnpremultipliedRgbaPixels {
-            first_row: NonNull::new(first_row.cast_mut()).expect("a bitmap has pixels"),
-            pitch,
-            width,
-            height,
-        })
-    }
-}
-
-impl Clone for Bitmap {
-    fn clone(&self) -> Self {
-        // SAFETY: The value owns a reference to the bitmap, so it is live.
-        unsafe { web_canvas_2d_bitmap_ref(self.0.as_ptr()) };
-        Self(self.0)
-    }
-}
-
-impl Drop for Bitmap {
-    fn drop(&mut self) {
-        // SAFETY: The value owns one reference to the bitmap.
-        unsafe { web_canvas_2d_bitmap_unref(self.0.as_ptr()) };
-    }
-}
 
 pub(crate) struct CppTransport(NonNull<c_void>);
 
@@ -164,9 +77,8 @@ impl Drop for CppTransport {
 // video frame hold passed are lent for the call.
 impl Transport for CppTransport {
     type Font = LentFont;
-    type ImageFrame = LentImageFrame;
+    type ImageFrame = ImageFrameHandle;
     type VideoFrameHold = LentVideoFrameHold;
-    type Bitmap = Bitmap;
 
     fn create_context(&self, size: IntSize, alpha: bool, will_read_frequently: bool, color_space: ColorSpace) -> bool {
         unsafe {
@@ -198,8 +110,8 @@ impl Transport for CppTransport {
         FontResourceId(unsafe { web_canvas_2d_transport_add_font(self.as_ptr(), font.0.as_ptr()) })
     }
 
-    fn add_image_frame(&self, frame: &LentImageFrame) -> ImageFrameResourceId {
-        ImageFrameResourceId(unsafe { web_canvas_2d_transport_add_image_frame(self.as_ptr(), frame.0.as_ptr()) })
+    fn add_image_frame(&self, frame: &ImageFrameHandle) -> ImageFrameResourceId {
+        ImageFrameResourceId(unsafe { web_canvas_2d_transport_add_image_frame(self.as_ptr(), frame.as_raw()) })
     }
 
     fn retain_video_frame_hold(&self, hold: &LentVideoFrameHold) {
@@ -218,8 +130,13 @@ impl Transport for CppTransport {
         unsafe { web_canvas_2d_transport_flush(self.as_ptr()) };
     }
 
-    fn read_back_pixels(&self, rect: IntRect, alpha_type: AlphaType, color_space: ColorSpace) -> Option<Bitmap> {
-        let bitmap = unsafe {
+    fn read_back_pixels(
+        &self,
+        rect: IntRect,
+        alpha_type: AlphaType,
+        color_space: ColorSpace,
+    ) -> Option<ImageFrameHandle> {
+        let frame = unsafe {
             web_canvas_2d_transport_read_back_pixels(
                 self.as_ptr(),
                 rect.x,
@@ -230,6 +147,7 @@ impl Transport for CppTransport {
                 color_space,
             )
         };
-        NonNull::new(bitmap).map(Bitmap)
+        // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
+        (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
     }
 }

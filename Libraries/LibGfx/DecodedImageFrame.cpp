@@ -16,6 +16,9 @@ void* ladybird_gfx_decoded_image_frame_retain(void const*, Gfx::FFI::FfiImageFra
 void ladybird_gfx_decoded_image_frame_release(void*);
 }
 
+static_assert(to_underlying(Gfx::BitmapFormat::RGBA8888) == 4);
+static_assert(to_underlying(Gfx::AlphaType::Unpremultiplied) == 1);
+
 extern "C" void* ladybird_gfx_decoded_image_frame_retain(void const* frame, Gfx::FFI::FfiImageFrameSnapshot* out_snapshot)
 {
     VERIFY(frame);
@@ -25,6 +28,9 @@ extern "C" void* ladybird_gfx_decoded_image_frame_retain(void const* frame, Gfx:
         .id = typed_frame.id(),
         .width = typed_frame.width(),
         .height = typed_frame.height(),
+        .bitmap_format_value = to_underlying(typed_frame.format()),
+        .alpha_type_value = to_underlying(typed_frame.alpha_type()),
+        .pixels = typed_frame.pixels().data(),
     };
     return new Gfx::DecodedImageFrame(typed_frame);
 }

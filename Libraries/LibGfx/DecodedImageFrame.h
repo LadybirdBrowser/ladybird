@@ -38,6 +38,13 @@ public:
         return frame;
     }
 
+    DecodedImageFrame with_pixels_reinterpreted_in(ColorSpace color_space) const
+    {
+        auto frame = with_new_id();
+        frame.m_color_space = move(color_space);
+        return frame;
+    }
+
     ColorSpace const& color_space() const { return m_color_space; }
     u64 id() const { return m_id; }
 

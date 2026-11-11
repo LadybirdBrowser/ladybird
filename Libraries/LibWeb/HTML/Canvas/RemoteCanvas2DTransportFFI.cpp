@@ -46,11 +46,6 @@ void web_canvas_2d_transport_record_present(void* transport);
 size_t web_canvas_2d_transport_pending_command_count(void const* transport);
 void web_canvas_2d_transport_flush(void* transport);
 void* web_canvas_2d_transport_read_back_pixels(void* transport, i32 x, i32 y, i32 width, i32 height, u8 alpha_type, u8 color_space);
-void web_canvas_2d_bitmap_ref(void* bitmap);
-void web_canvas_2d_bitmap_unref(void* bitmap);
-size_t web_canvas_2d_bitmap_size_in_bytes(void* bitmap);
-bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** out_pixels, size_t* out_pitch, i32* out_width, i32* out_height);
-void* web_canvas_2d_image_frame_from_bitmap(void* bitmap, u8 color_space);
 }
 
 static RemoteCanvas2DTransport& transport_from(void* transport)
@@ -121,46 +116,8 @@ void web_canvas_2d_transport_flush(void* transport)
 void* web_canvas_2d_transport_read_back_pixels(void* transport, i32 x, i32 y, i32 width, i32 height, u8 alpha_type, u8 color_space)
 {
     VERIFY(Gfx::is_valid_alpha_type(alpha_type));
-    auto bitmap = transport_from(transport).read_back_pixels({ x, y, width, height }, static_cast<Gfx::AlphaType>(alpha_type), gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
-    if (!bitmap)
-        return nullptr;
-    return &bitmap.release_nonnull().leak_ref();
-}
-
-void web_canvas_2d_bitmap_ref(void* bitmap)
-{
-    static_cast<Gfx::Bitmap*>(bitmap)->ref();
-}
-
-void web_canvas_2d_bitmap_unref(void* bitmap)
-{
-    static_cast<Gfx::Bitmap*>(bitmap)->unref();
-}
-
-size_t web_canvas_2d_bitmap_size_in_bytes(void* bitmap)
-{
-    return static_cast<Gfx::Bitmap*>(bitmap)->size_in_bytes();
-}
-
-bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** out_pixels, size_t* out_pitch, i32* out_width, i32* out_height)
-{
-    auto const& typed_bitmap = *static_cast<Gfx::Bitmap const*>(bitmap);
-    if (typed_bitmap.format() != Gfx::BitmapFormat::RGBA8888 || typed_bitmap.alpha_type() != Gfx::AlphaType::Unpremultiplied)
-        return false;
-    *out_pixels = typed_bitmap.scanline_u8(0);
-    *out_pitch = typed_bitmap.pitch();
-    *out_width = typed_bitmap.width();
-    *out_height = typed_bitmap.height();
-    return true;
-}
-
-// A Gfx::DecodedImageFrame of the pixels of the bitmap, which are in the color space, allocated with new, or null if
-// one cannot be made. The reference to the bitmap is taken over either way.
-void* web_canvas_2d_image_frame_from_bitmap(void* bitmap, u8 color_space)
-{
-    NonnullRefPtr<Gfx::Bitmap const> adopted_bitmap = adopt_ref(*static_cast<Gfx::Bitmap*>(bitmap));
-    auto frame = Gfx::DecodedImageFrame::create(*adopted_bitmap, gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
-    if (frame.is_error())
+    auto frame = transport_from(transport).read_back_pixels({ x, y, width, height }, static_cast<Gfx::AlphaType>(alpha_type), gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
+    if (!frame.has_value())
         return nullptr;
     return new Gfx::DecodedImageFrame { frame.release_value() };
 }

@@ -482,7 +482,13 @@ impl<T: Transport> Proxy<T> {
         self.transport().clear_drawing_buffer();
     }
 
-    pub(crate) fn read_back_drawing_buffer(&self, x: i32, y: i32, width: i32, height: i32) -> Option<T::Bitmap> {
+    pub(crate) fn read_back_drawing_buffer(
+        &self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+    ) -> Option<T::DrawingBufferPixels> {
         if self.lost.get() {
             return None;
         }

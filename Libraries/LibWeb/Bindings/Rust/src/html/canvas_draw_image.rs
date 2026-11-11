@@ -6,8 +6,6 @@
 
 //! https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawimage
 
-use core::ptr::NonNull;
-
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::CanvasId;
 use libgfx_rust::image_frame::ImageFrameHandle;
@@ -20,7 +18,7 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::{CanvasImageSourceKind, Usability, capture_video_frame};
 use crate::canvas_2d::context::{CanvasKind, ContextState, RenderingContext2D};
 use crate::canvas_2d::float;
-use crate::canvas_2d::host::{LentImageFrame, LentVideoFrameHold};
+use crate::canvas_2d::host::LentVideoFrameHold;
 
 /// The union CanvasImageSource of HTML/Canvas/CanvasDrawImage.idl, whose members the bindings convert.
 #[derive(Clone, Copy)]
@@ -321,7 +319,6 @@ impl ContextState {
         //       only afterwards.
         if self.recorder_is_ready() {
             let state = self.drawing_state();
-            let frame = LentImageFrame(NonNull::new(frame.as_raw().cast_mut()).expect("an image frame has a frame"));
             self.record(|recorder| {
                 recorder.draw_image_frame(
                     &frame,

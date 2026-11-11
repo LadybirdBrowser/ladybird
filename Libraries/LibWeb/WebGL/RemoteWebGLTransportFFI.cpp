@@ -77,7 +77,6 @@ void web_webgl_constants_restated_in_rust(ConstantsRestatedInRust* out_constants
 void* web_webgl_anonymous_buffer_create(size_t size, u8** out_data);
 void web_webgl_anonymous_buffer_destroy(void* anonymous_buffer);
 void web_webgl_frame_destroy(void* frame);
-void web_webgl_bitmap_unref(void* bitmap);
 }
 
 static RemoteWebGLTransport& transport_from(void* transport)
@@ -180,7 +179,10 @@ void* web_webgl_transport_read_back_drawing_buffer(void* transport, i32 x, i32 y
     auto shareable_bitmap = transport_from(transport).read_back_drawing_buffer({ x, y, width, height });
     if (!shareable_bitmap.is_valid())
         return nullptr;
-    return &NonnullRefPtr<Gfx::Bitmap> { *shareable_bitmap.bitmap() }.leak_ref();
+    auto frame = Gfx::DecodedImageFrame::create(*shareable_bitmap.bitmap());
+    if (frame.is_error())
+        return nullptr;
+    return new Gfx::DecodedImageFrame { frame.release_value() };
 }
 
 size_t web_webgl_max_frames_per_message()
@@ -226,11 +228,6 @@ void web_webgl_anonymous_buffer_destroy(void* anonymous_buffer)
 void web_webgl_frame_destroy(void* frame)
 {
     delete static_cast<ImageSourceFrameOwnedByRecorder*>(frame);
-}
-
-void web_webgl_bitmap_unref(void* bitmap)
-{
-    static_cast<Gfx::Bitmap*>(bitmap)->unref();
 }
 
 }

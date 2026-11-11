@@ -234,7 +234,7 @@ struct MockTransport {
 impl Transport for MockTransport {
     type SharedMemory = MockMemory;
     type Frame = u32;
-    type Bitmap = (i32, i32, i32, i32);
+    type DrawingBufferPixels = (i32, i32, i32, i32);
 
     fn max_frames_per_message(&self) -> usize {
         self.replayer.max_frames_per_message.get()

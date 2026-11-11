@@ -11,6 +11,7 @@
 #include <AK/Variant.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGC/Ptr.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -39,7 +40,7 @@ public:
     void reset_to_default_state() { }
     void prepare_for_compositing();
     void clear_drawing_buffer();
-    RefPtr<Gfx::Bitmap> read_back_drawing_buffer(Gfx::IntRect const&);
+    Optional<Gfx::DecodedImageFrame> read_back_drawing_buffer(Gfx::IntRect const&);
 
     // https://registry.khronos.org/webgl/specs/latest/1.0/#CONTEXT_LOST
     // The compositor process (and with it the GL state) went away: set the context lost
