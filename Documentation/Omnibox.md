@@ -209,6 +209,10 @@ for example:
 Title-only, folder, substring, previous-search, and remote suggestion matches are not automatic URL
 actions. The verbatim URL-or-search action remains available in every non-empty result list.
 
+When the typed text has no scheme but is taken for a web address, such as `setup.py`, the address
+is the verbatim action, and a search for the text follows it. That search is never selected
+automatically, and it merges with a remote suggestion of the same text.
+
 Automatic defaults use hysteresis during incremental refreshes. A challenger replaces the current
 default only when it exceeds the incumbent by both 10 percent and 100 relevance points. This avoids
 visible selection churn as local and remote results arrive.

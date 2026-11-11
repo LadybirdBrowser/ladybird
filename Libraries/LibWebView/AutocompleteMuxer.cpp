@@ -118,11 +118,14 @@ static bool is_local_navigation(AutocompleteSuggestion const& suggestion)
     return suggestion.source != AutocompleteSuggestionSource::Search && suggestion.source != AutocompleteSuggestionSource::RemoteURL;
 }
 
-static bool is_remote_suggestion(AutocompleteSuggestion const& suggestion)
+static bool is_remote_suggestion(AutocompleteSuggestion const& suggestion, String const& normalized_query)
 {
     if (suggestion.source == AutocompleteSuggestionSource::RemoteURL)
         return true;
-    return suggestion.source == AutocompleteSuggestionSource::Search && !suggestion.is_verbatim;
+    // NB: The search that follows a typed address like "setup.py" is for the text as typed, not a remote suggestion.
+    return suggestion.source == AutocompleteSuggestionSource::Search
+        && !suggestion.is_verbatim
+        && normalize_omnibox_destination(suggestion.text, OmniboxDestinationKind::Search) != normalized_query;
 }
 
 static bool suggestion_is_better(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
@@ -321,6 +324,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     Vector<size_t> deferred_source_indices;
     size_t local_navigation_count = 0;
     size_t remote_suggestion_count = 0;
+    auto normalized_query = normalize_omnibox_destination(query, OmniboxDestinationKind::Search);
     auto verbatim_index = candidates.find_first_index_if([](auto const& candidate) { return candidate.is_verbatim; });
 
     for (size_t index = 0; index < candidates.size() && result.size() < result_limit; ++index) {
@@ -329,8 +333,9 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
         auto exceeds_origin_limit = !query_contains_path
             && origin.has_value()
             && origin_counts.get(*origin).value_or(0) >= origin_limit;
+        auto candidate_is_remote_suggestion = is_remote_suggestion(candidate, normalized_query);
         auto exceeds_source_limit = (is_local_navigation(candidate) && local_navigation_count >= 4)
-            || (is_remote_suggestion(candidate) && remote_suggestion_count >= 3);
+            || (candidate_is_remote_suggestion && remote_suggestion_count >= 3);
         auto must_reserve_verbatim_slot = verbatim_index.has_value()
             && index < *verbatim_index
             && result.size() + 1 == result_limit;
@@ -345,7 +350,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
         if (origin.has_value())
             origin_counts.set(*origin, origin_counts.get(*origin).value_or(0) + 1);
         local_navigation_count += is_local_navigation(candidate) ? 1 : 0;
-        remote_suggestion_count += is_remote_suggestion(candidate) ? 1 : 0;
+        remote_suggestion_count += candidate_is_remote_suggestion ? 1 : 0;
         result.append(candidate);
     }
 

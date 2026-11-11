@@ -15,6 +15,7 @@
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -249,5 +250,9 @@ private:
     Optional<AutocompleteQueryID> m_active_query_id;
     OmniboxDestinationKind m_destination_kind_for_last_commit { OmniboxDestinationKind::URL };
 };
+
+// Where the text the omnibox committed goes. A search goes to the search engine, even for text that also reads as an
+// address, such as "setup.py" or "localhost:631", unless the user asked for an address with AppendTLD.
+WEBVIEW_API Optional<URL::URL> url_for_omnibox_destination(StringView text, OmniboxDestinationKind, Optional<SearchEngine> const&, AppendTLD);
 
 }

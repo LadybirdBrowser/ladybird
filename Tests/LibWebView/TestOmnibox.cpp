@@ -182,10 +182,12 @@ struct Harness {
             }
 
             // The highlighted row is where Return goes: that row, or the search for the text as typed that the row is.
+            // NB: Text as typed that is taken for an address goes to the address, not to a search for it.
             auto const& highlighted = rows[*selection];
             auto return_goes_to_highlighted_row = return_target.has_value()
                 ? &*return_target == &highlighted
-                : highlighted.source == AutocompleteSuggestionSource::Search && is_search_for_query(highlighted);
+                : highlighted.source == AutocompleteSuggestionSource::Search && is_search_for_query(highlighted)
+                    && WebView::classify_user_input(omnibox.query()).classification == WebView::UserInputClassification::Search;
             if (!return_goes_to_highlighted_row)
                 fail("Return does not go where the highlighted row says"sv);
 
@@ -1646,8 +1648,12 @@ struct ScenarioProfile {
         auto limit = WebView::autocomplete_preliminary_limit(WebView::default_autocomplete_suggestion_limit);
         auto local_rows = WebView::web_ui_autocomplete_suggestions(trimmed_query);
         Optional<AutocompleteSuggestion> verbatim_row;
-        if (local_rows.is_empty())
-            verbatim_row = WebView::make_verbatim_autocomplete_suggestion(query, search_engine);
+        if (local_rows.is_empty()) {
+            auto classified_query = WebView::classify_user_input(trimmed_query);
+            verbatim_row = WebView::make_verbatim_autocomplete_suggestion(query, classified_query, search_engine);
+            if (auto search = WebView::make_search_suggestion_for_address_like_text(query, classified_query, search_engine); search.has_value())
+                local_rows.append(search.release_value());
+        }
         local_rows.extend(WebView::rank_history_suggestions(trimmed_query, history, limit, scenario_now()));
         local_rows.extend(WebView::rank_bookmark_suggestions(trimmed_query, bookmarks, limit));
         local_rows.extend(WebView::rank_engagement_suggestions(trimmed_query, engagements, limit, scenario_now()));
@@ -1881,4 +1887,53 @@ TEST_CASE(scenario_backspacing_a_completion_without_a_search_engine_offers_to_ch
     EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::ChooseSearchEngine);
     EXPECT(scenario.top_row_is_highlighted());
     EXPECT_EQ(scenario.return_destination(), "about:settings#search"sv);
+}
+
+TEST_CASE(scenario_typed_text_that_looks_like_an_address_also_offers_a_search)
+{
+    Scenario scenario({});
+    scenario.type("setup.py"sv);
+
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::LiteralURL);
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(!scenario.return_searches());
+    EXPECT(!scenario.icon_is_search());
+
+    auto const& rows = scenario.harness.omnibox.suggestions();
+    EXPECT_EQ(rows.size(), 2u);
+    if (rows.size() >= 2) {
+        EXPECT_EQ(rows[1].source, AutocompleteSuggestionSource::Search);
+        EXPECT_EQ(rows[1].text, "setup.py"sv);
+    }
+
+    // Choosing the search searches.
+    scenario.harness.omnibox.select_next_suggestion();
+    EXPECT(scenario.return_searches());
+    EXPECT(scenario.icon_is_search());
+
+    // The search goes to the search engine, though its text reads as an address.
+    auto const& search_engine = scenario.profile.search_engine;
+    auto search_url = WebView::url_for_omnibox_destination("setup.py"sv, WebView::OmniboxDestinationKind::Search, search_engine, WebView::AppendTLD::No);
+    EXPECT(search_url.has_value() && search_url->serialize() == search_engine->format_search_query_for_navigation("setup.py"sv));
+    auto address_url = WebView::url_for_omnibox_destination("setup.py"sv, WebView::OmniboxDestinationKind::URL, search_engine, WebView::AppendTLD::No);
+    EXPECT(address_url.has_value() && address_url->serialize() == "https://setup.py/"sv);
+}
+
+TEST_CASE(scenario_a_typed_address_and_the_same_remote_phrase_offer_one_search)
+{
+    Scenario scenario({});
+    scenario.type("setup.py"sv, { "setup.py"_string });
+
+    auto const& rows = scenario.harness.omnibox.suggestions();
+    EXPECT_EQ(rows.size(), 2u);
+    EXPECT_EQ(rows.first().source, AutocompleteSuggestionSource::LiteralURL);
+}
+
+TEST_CASE(scenario_typed_text_with_a_scheme_does_not_offer_a_search)
+{
+    Scenario scenario({});
+    scenario.type("https://setup.py"sv);
+
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::LiteralURL);
+    EXPECT(!scenario.harness.omnibox.suggestions().contains([](auto const& row) { return row.source == AutocompleteSuggestionSource::Search; }));
 }

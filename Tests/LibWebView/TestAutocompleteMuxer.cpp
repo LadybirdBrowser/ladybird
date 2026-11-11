@@ -718,3 +718,22 @@ TEST_CASE(a_remote_address_does_not_choose_the_default_row)
             EXPECT_EQ(result.relevance, 300);
     }
 }
+
+TEST_CASE(the_search_for_a_typed_address_does_not_take_a_remote_slot)
+{
+    auto typed_search = search("setup.py"sv, 850, false);
+    typed_search.can_be_automatically_selected = false;
+    Vector<WebView::AutocompleteSuggestion> local_suggestions;
+    local_suggestions.append(move(typed_search));
+    local_suggestions.append(history("https://a.example/setup.py"sv, 600, false));
+    local_suggestions.append(history("https://b.example/setup.py"sv, 600, false));
+    auto results = WebView::mux_autocomplete_suggestions(
+        "setup.py"sv,
+        WebView::make_verbatim_autocomplete_suggestion("setup.py"sv, WebView::classify_user_input("setup.py"sv), {}),
+        move(local_suggestions),
+        WebView::make_remote_autocomplete_suggestions({ "setup.py tutorial"_string, "setup.py install"_string, "setup.py develop"_string }),
+        6);
+
+    EXPECT_EQ(results.size(), 6u);
+    EXPECT(results.contains([](auto const& result) { return result.text == "setup.py develop"sv; }));
+}

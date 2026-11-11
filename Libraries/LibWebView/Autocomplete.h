@@ -24,6 +24,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -114,7 +115,9 @@ WEBVIEW_API bool remote_autocomplete_suggestion_matches_input(StringView suggest
 // that turns into a page.
 WEBVIEW_API Vector<AutocompleteSuggestion> make_remote_autocomplete_suggestions(Vector<String> remote_suggestions, ReadonlySpan<AutocompleteSuggestion> local_suggestions = {}, LocalSuggestionsAreComplete = LocalSuggestionsAreComplete::Yes);
 // The row for the text as typed: the address it is, or else a search for it.
-WEBVIEW_API Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, Optional<SearchEngine> const&);
+WEBVIEW_API Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, ClassifiedUserInput const&, Optional<SearchEngine> const&);
+// For typed text without a scheme that is taken for a web address, such as "setup.py", a search for it as well.
+WEBVIEW_API Optional<AutocompleteSuggestion> make_search_suggestion_for_address_like_text(StringView query, ClassifiedUserInput const&, Optional<SearchEngine> const&);
 WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
 WEBVIEW_API size_t autocomplete_preliminary_limit(size_t max_suggestions);
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
@@ -172,6 +175,8 @@ private:
     Optional<AutocompleteQueryID> m_query_id;
     String m_query;
     String m_trimmed_query;
+    // NB: Classifying the query looks at the file system, so it is classified once, when the query starts.
+    ClassifiedUserInput m_classified_query;
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     bool m_local_query_complete { false };
     bool m_remote_query_complete { false };

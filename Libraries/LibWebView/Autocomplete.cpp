@@ -62,6 +62,7 @@ void Autocomplete::cancel_pending_query()
     m_query_id = {};
     m_query = {};
     m_trimmed_query = {};
+    m_classified_query = {};
     m_local_suggestions.clear();
     m_remote_suggestions.clear();
     m_visited_host_families.clear();
@@ -242,19 +243,30 @@ static bool starts_with_web_scheme(StringView text)
     return text.starts_with("http://"sv, CaseSensitivity::CaseInsensitive) || text.starts_with("https://"sv, CaseSensitivity::CaseInsensitive);
 }
 
-static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
+Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, ClassifiedUserInput const& classified_query, Optional<SearchEngine> const& search_engine)
 {
-    if (query.is_empty() || classify_user_input(query).classification != UserInputClassification::InternalURL)
-        return {};
-
-    return make_literal_url_suggestion(query);
+    if (!query.is_empty() && classified_query.classification == UserInputClassification::InternalURL)
+        return make_literal_url_suggestion(query);
+    return search_for_query_suggestion(search_engine, query);
 }
 
-Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, Optional<SearchEngine> const& search_engine)
+Optional<AutocompleteSuggestion> make_search_suggestion_for_address_like_text(StringView query, ClassifiedUserInput const& classified_query, Optional<SearchEngine> const& search_engine)
 {
-    if (auto url_suggestion = literal_url_suggestion(query); url_suggestion.has_value())
-        return url_suggestion;
-    return search_for_query_suggestion(search_engine, query);
+    if (!search_engine.has_value() || starts_with_web_scheme(query))
+        return {};
+    if (classified_query.classification != UserInputClassification::InternalURL || !classified_query.url.has_value())
+        return {};
+    if (!classified_query.url->scheme().is_one_of("http"sv, "https"sv))
+        return {};
+
+    // NB: The address is what Return goes to, and the search ranks below it.
+    auto suggestion = search_for_query_suggestion(search_engine, query);
+    if (!suggestion.has_value())
+        return {};
+    suggestion->relevance = 850;
+    suggestion->is_verbatim = false;
+    suggestion->can_be_automatically_selected = false;
+    return suggestion;
 }
 
 // A remote suggestion that is a web address goes to that address rather than to a search for it. Only a public site
@@ -394,9 +406,9 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     m_query = move(query);
     m_local_query_complete = false;
     m_remote_query_complete = false;
-    auto classified_input = classify_user_input(m_trimmed_query);
-    m_external_url = classified_input.classification == UserInputClassification::ExternalURL
-        ? move(classified_input.url)
+    m_classified_query = classify_user_input(m_trimmed_query);
+    m_external_url = m_classified_query.classification == UserInputClassification::ExternalURL
+        ? m_classified_query.url
         : Optional<URL::URL> {};
     m_external_url_handler_query_complete = !m_external_url.has_value();
     m_external_url_has_handler = false;
@@ -541,7 +553,10 @@ void Autocomplete::deliver_current_result()
             if (auto search_suggestion = search_for_query_suggestion(m_host.autocomplete_settings().search_engine_settings().engine, m_query); search_suggestion.has_value())
                 additional_suggestions.append(search_suggestion.release_value());
         } else {
-            verbatim_suggestion = make_verbatim_autocomplete_suggestion(m_query, m_host.autocomplete_settings().search_engine_settings().engine);
+            auto const& search_engine = m_host.autocomplete_settings().search_engine_settings().engine;
+            verbatim_suggestion = make_verbatim_autocomplete_suggestion(m_query, m_classified_query, search_engine);
+            if (auto search_suggestion = make_search_suggestion_for_address_like_text(m_query, m_classified_query, search_engine); search_suggestion.has_value())
+                additional_suggestions.append(search_suggestion.release_value());
         }
     }
     additional_suggestions.extend(m_local_suggestions);
