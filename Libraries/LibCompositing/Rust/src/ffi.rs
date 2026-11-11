@@ -241,8 +241,8 @@ pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, lengt
     // SAFETY: The caller guarantees `bytes` addresses `length` readable bytes.
     let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
     match crate::visual_context::VisualContextTree::from_bytes(bytes) {
-        Some(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
-        None => std::ptr::null(),
+        Ok(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
+        Err(_) => std::ptr::null(),
     }
 }
 
