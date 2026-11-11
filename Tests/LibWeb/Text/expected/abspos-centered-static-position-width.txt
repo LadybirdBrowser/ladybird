@@ -1,0 +1,10 @@
+ltr offset 0: width 160, left 0
+ltr offset 70: width 240, left 30
+ltr offset 140: width 160, left 140
+rtl offset 0: width 160, left 140
+rtl offset 70: width 240, left 30
+rtl offset 140: width 160, left 0
+ltr grid column 1: width 100, left 0
+ltr grid column 2: width 150, left 100
+rtl grid column 1: width 100, left 200
+rtl grid column 2: width 150, left 50

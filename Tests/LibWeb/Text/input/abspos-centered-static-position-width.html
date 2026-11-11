@@ -1,0 +1,66 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 300px;
+        height: 100px;
+    }
+    .flex {
+        display: flex;
+        justify-content: center;
+        width: 160px;
+        height: 60px;
+    }
+    .box {
+        position: absolute;
+        font-size: 0;
+        line-height: 0;
+    }
+    .word {
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+    }
+</style>
+<script>
+    test(() => {
+        for (const direction of ["ltr", "rtl"]) {
+            for (const offset of [0, 70, 140]) {
+                const container = document.createElement("div");
+                container.className = "container";
+                container.style.direction = direction;
+                const flex = document.createElement("div");
+                flex.className = "flex";
+                flex.style.marginInlineStart = `${offset}px`;
+                const box = document.createElement("div");
+                box.className = "box";
+                box.innerHTML = '<span class="word"></span><wbr>'.repeat(6);
+                flex.append(box);
+                container.append(flex);
+                document.body.append(container);
+                const rect = box.getBoundingClientRect();
+                println(
+                    `${direction} offset ${offset}: width ${rect.width}, left ${rect.x - container.getBoundingClientRect().x}`
+                );
+            }
+        }
+        for (const direction of ["ltr", "rtl"]) {
+            for (const column of [1, 2]) {
+                const grid = document.createElement("div");
+                grid.className = "container";
+                grid.style.cssText = `display: grid; direction: ${direction}; grid-template-columns: 100px 150px; grid-template-rows: 100px`;
+                const box = document.createElement("div");
+                box.className = "box";
+                box.style.cssText = `grid-column: ${column} / ${column + 1}; justify-self: center`;
+                box.innerHTML = '<span class="word"></span><wbr>'.repeat(6);
+                grid.append(box);
+                document.body.append(grid);
+                const rect = box.getBoundingClientRect();
+                println(
+                    `${direction} grid column ${column}: width ${rect.width}, left ${rect.x - grid.getBoundingClientRect().x}`
+                );
+            }
+        }
+    });
+</script>
