@@ -132,6 +132,14 @@ PresentationId CompositorState::register_presentation(CompositorStateClient& pre
 
 void CompositorState::unregister_presentation(CompositorStateClient& presentation)
 {
+    Vector<u64> remote_layer_ids;
+    for (auto const& [remote_layer_id, remote_layer] : m_remote_layers) {
+        if (remote_layer.presentation == &presentation)
+            remote_layer_ids.append(remote_layer_id);
+    }
+    for (auto remote_layer_id : remote_layer_ids)
+        destroy_remote_layer(remote_layer_id);
+
     Vector<Web::CompositorContextId> bound_context_ids;
     for (auto const& [context_id, bound_presentation] : m_context_presentations) {
         if (bound_presentation == &presentation)
@@ -183,6 +191,82 @@ void CompositorState::unbind_presentation(Web::CompositorContextId context_id)
     context->presenter.invalidate_backing_stores();
     resize_backing_stores_if_needed(context_id, *context);
     schedule_pending_present_frame_if_unblocked(context_id, *context);
+}
+
+u32 CompositorState::create_remote_layer(CompositorStateClient& presentation, u64 remote_layer_id)
+{
+    VERIFY(m_presentations.contains(&presentation));
+    if (auto existing = m_remote_layers.find(remote_layer_id); existing != m_remote_layers.end()) {
+        dbgln("Compositor: Ignoring creation of remote layer {}, which already exists", remote_layer_id);
+        return 0;
+    }
+    auto layer = RemoteLayer::try_create();
+    if (!layer)
+        return 0;
+    auto core_animation_context_id = layer->core_animation_context_id();
+    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {} });
+    return core_animation_context_id;
+}
+
+void CompositorState::destroy_remote_layer(u64 remote_layer_id)
+{
+    show_context_in_remote_layer(remote_layer_id, {});
+    m_remote_layers.remove(remote_layer_id);
+}
+
+void CompositorState::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id)
+{
+    auto remote_layer = m_remote_layers.find(remote_layer_id);
+    if (remote_layer == m_remote_layers.end())
+        return;
+    if (remote_layer->value.shown_context_id == context_id)
+        return;
+
+    if (auto shown_context_id = exchange(remote_layer->value.shown_context_id, {}); shown_context_id.has_value()) {
+        if (auto* shown_context = presented_context_if_present(*shown_context_id))
+            stop_showing_context_in_remote_layer(*shown_context_id, *shown_context);
+    }
+    if (!context_id.has_value())
+        return;
+
+    auto* context = presented_context_if_present(*context_id);
+    if (!context || !context->presenter.presents_to_client()) {
+        dbgln("Compositor: Ignoring context {} for remote layer {}, as it is not a root context", *context_id, remote_layer_id);
+        return;
+    }
+    if (context->remote_layer_id.has_value()) {
+        if (auto other_remote_layer = m_remote_layers.find(*context->remote_layer_id); other_remote_layer != m_remote_layers.end())
+            other_remote_layer->value.shown_context_id = {};
+    }
+
+    remote_layer->value.shown_context_id = context_id;
+    context->remote_layer_id = remote_layer_id;
+    stop_delivering_in_flight_frames_to_their_viewer(*context_id);
+    // The presentation no longer shows the stores it was given, so none of them is waiting to be released by it.
+    context->presenter.acknowledge_all_presented_bitmaps();
+    context->presenter.invalidate_backing_stores();
+    resize_backing_stores_if_needed(*context_id, *context);
+    schedule_pending_present_frame_if_unblocked(*context_id, *context);
+}
+
+void CompositorState::stop_showing_context_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context)
+{
+    context.remote_layer_id = {};
+    stop_delivering_in_flight_frames_to_their_viewer(context_id);
+    context.presenter.invalidate_backing_stores();
+    resize_backing_stores_if_needed(context_id, context);
+    schedule_pending_present_frame_if_unblocked(context_id, context);
+}
+
+// The frames were drawn into stores of the way the context was shown before, so they are released without being shown.
+void CompositorState::stop_delivering_in_flight_frames_to_their_viewer(Web::CompositorContextId context_id)
+{
+    for (auto& pending_present : m_pending_async_presents) {
+        if (pending_present.context_id != context_id)
+            continue;
+        pending_present.publish_to_presentation = false;
+        pending_present.shows_in_remote_layer = false;
+    }
 }
 
 CompositorStateClient* CompositorState::presentation_for_context(Web::CompositorContextId context_id) const
@@ -305,6 +389,11 @@ void CompositorState::destroy_context(Web::CompositorContextId context_id)
             possible_child_context.parent_context_id = {};
     }
     m_context_presentations.remove(context_id);
+    if (context->remote_layer_id.has_value()) {
+        // The layer keeps the context's last frame until another context is shown in it.
+        if (auto remote_layer = m_remote_layers.find(*context->remote_layer_id); remote_layer != m_remote_layers.end())
+            remote_layer->value.shown_context_id = {};
+    }
     if (auto timers = m_context_timers.find(context_id); timers != m_context_timers.end()) {
         for (auto& [_, timer] : timers->value) {
             timer->on_timeout = {};
@@ -1037,7 +1126,8 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Present
 
     m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id, prepared_frame->device_pixel_ratio);
     auto* pending_present = &m_pending_async_presents.last();
-    pending_present->publish_to_presentation = presentation_for_context(context_id) != nullptr;
+    pending_present->shows_in_remote_layer = context.presenter.backing_store_publication_mode() == BackingStoreManager::PublicationMode::ShownInRemoteLayer;
+    pending_present->publish_to_presentation = !pending_present->shows_in_remote_layer && presentation_for_context(context_id) != nullptr;
 
     auto& event_loop = Core::EventLoop::current();
     auto self = NonnullRefPtr { *this };
@@ -1297,6 +1387,33 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     deliver_rendered_frame(finished_present);
 }
 
+static void log_presented_frame(Optional<u64> page_id, Gfx::IntRect damage)
+{
+    auto* log = Core::StatsLog::the();
+    if (!log || !page_id.has_value())
+        return;
+    JsonObject data;
+    data.set("page_id"sv, *page_id);
+    data.set("changed"sv, !damage.is_empty());
+    data.set("damage_x"sv, damage.x());
+    data.set("damage_y"sv, damage.y());
+    data.set("damage_width"sv, damage.width());
+    data.set("damage_height"sv, damage.height());
+    log->event("frame"sv, move(data));
+}
+
+void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context, PendingAsyncPresent const& pending_present)
+{
+    VERIFY(context.remote_layer_id.has_value());
+    auto remote_layer = m_remote_layers.find(*context.remote_layer_id);
+    VERIFY(remote_layer != m_remote_layers.end());
+    auto const* shared_image_buffer = context.presenter.shared_image_buffer_of_latest_rendered_store();
+    VERIFY(shared_image_buffer);
+
+    remote_layer->value.layer->show_frame(*shared_image_buffer, pending_present.viewport_rect.size(), pending_present.device_pixel_ratio);
+    remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
+}
+
 void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_present)
 {
     if (pending_present.was_cancelled || exchange(pending_present.was_delivered, true))
@@ -1308,23 +1425,16 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
 
     context->presenter.did_finish_gpu_present(pending_present.bitmap_id);
     auto* presentation = pending_present.publish_to_presentation ? presentation_for_context(context_id) : nullptr;
-    if (context->presenter.presents_to_client() && !presentation) {
+    if (pending_present.shows_in_remote_layer) {
+        log_presented_frame(context->page_id, pending_present.damage_rect);
+        show_frame_in_remote_layer(context_id, *context, pending_present);
+    } else if (context->presenter.presents_to_client() && !presentation) {
         // Nobody shows the frame, so it is released here, on another turn, as a presentation would release it.
         Core::deferred_invoke([self = NonnullRefPtr { *this }, context_id, bitmap_id = pending_present.bitmap_id] {
             self->presented_bitmap_ready_to_paint(context_id, bitmap_id);
         });
     } else if (context->presenter.presents_to_client()) {
-        if (auto* log = Core::StatsLog::the(); log && context->page_id.has_value()) {
-            auto const& damage = pending_present.damage_rect;
-            JsonObject data;
-            data.set("page_id"sv, *context->page_id);
-            data.set("changed"sv, !damage.is_empty());
-            data.set("damage_x"sv, damage.x());
-            data.set("damage_y"sv, damage.y());
-            data.set("damage_width"sv, damage.width());
-            data.set("damage_height"sv, damage.height());
-            log->event("frame"sv, move(data));
-        }
+        log_presented_frame(context->page_id, pending_present.damage_rect);
         presentation->did_present_frame(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.bitmap_id, pending_present.device_pixel_ratio);
     }
     resize_backing_stores_if_needed(context_id, *context);
@@ -1437,9 +1547,15 @@ CompositedContextSurface CompositorState::resolve_composited_context(Web::Compos
 
 void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId context_id, PresentedContext& context)
 {
-    auto publication_mode = presentation_for_context(context_id) ? BackingStoreManager::PublicationMode::Published : BackingStoreManager::PublicationMode::Unpublished;
+    auto publication_mode = BackingStoreManager::PublicationMode::Unpublished;
+    if (context.remote_layer_id.has_value())
+        publication_mode = BackingStoreManager::PublicationMode::ShownInRemoteLayer;
+    else if (presentation_for_context(context_id))
+        publication_mode = BackingStoreManager::PublicationMode::Published;
+
     if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode); publication.has_value()) {
-        publish_backing_stores(context_id, context, publication.release_value());
+        if (publication_mode == BackingStoreManager::PublicationMode::Published)
+            publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
     }
 }
@@ -1524,14 +1640,15 @@ void CompositorState::shrink_backing_stores_after_resize(Web::CompositorContextI
 void CompositorState::add_backing_store_for_pending_frame_if_needed(Web::CompositorContextId context_id, PresentedContext& context)
 {
     auto* presentation = presentation_for_context(context_id);
-    if (!presentation)
+    if (!presentation && !context.remote_layer_id.has_value())
         return;
     auto publication = context.presenter.add_backing_store_for_pending_frame_if_needed(m_skia_backend_context);
     if (!publication.has_value())
         return;
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} gained backing store {}, as the window server still reads every released one", context_id, publication->bitmap_ids);
-    presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
+    if (presentation && context.presenter.backing_store_publication_mode() == BackingStoreManager::PublicationMode::Published)
+        presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
     schedule_surplus_backing_store_retirement(context_id, context);
 }
 
@@ -1549,7 +1666,8 @@ void CompositorState::retire_idle_surplus_backing_stores(Web::CompositorContextI
         return;
 
     auto retired_bitmap_ids = context->presenter.retire_idle_surplus_backing_stores();
-    if (auto* presentation = presentation_for_context(context_id); presentation && !retired_bitmap_ids.is_empty()) {
+    auto shows_stores_to_presentation = context->presenter.backing_store_publication_mode() == BackingStoreManager::PublicationMode::Published;
+    if (auto* presentation = presentation_for_context(context_id); presentation && shows_stores_to_presentation && !retired_bitmap_ids.is_empty()) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired idle backing stores {}", context_id, retired_bitmap_ids);
         presentation->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
     }

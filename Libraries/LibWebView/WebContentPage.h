@@ -169,6 +169,7 @@ public:
     void did_not_dispatch_input_event_through_compositor(u64 event_id);
     void did_dispatch_input_event_through_compositor(u64 event_id, bool performed_default_action);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio);
+    void did_present_frame_in_remote_layer(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids);

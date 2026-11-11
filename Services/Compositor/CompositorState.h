@@ -19,6 +19,7 @@
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/FramePacer.h>
+#include <Compositor/RemoteLayer.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
@@ -50,6 +51,8 @@ public:
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) = 0;
+    // The frame is on screen already, in the remote layer that shows the context.
+    virtual void did_present_frame_in_remote_layer(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -153,6 +156,13 @@ public:
     void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
     void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);
 
+    // A remote layer shows the frames of one root context at a time, in a view of the presentation it was created
+    // for. Answers the ID of its CoreAnimation context, or 0 where the platform has no remote layers.
+    u32 create_remote_layer(CompositorStateClient&, u64 remote_layer_id);
+    void destroy_remote_layer(u64 remote_layer_id);
+    // The layer keeps the frame it shows until the context it is given next presents one.
+    void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);
+
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
         u64 secret { 0 };
@@ -197,6 +207,7 @@ private:
         double display_refresh_rate { 60.0 };
         // Whether the presentation shows this context's frames from CPU memory for now, as when the UI paints it itself.
         bool presents_from_cpu_memory { false };
+        Optional<u64> remote_layer_id;
         PacedTickRequest rendering_opportunity_request;
         PacedTickRequest clock_tick_request;
     };
@@ -220,6 +231,7 @@ private:
         bool was_delivered { false };
         // A frame that started rendering before its context was bound has no published buffer to present to.
         bool publish_to_presentation { true };
+        bool shows_in_remote_layer { false };
     };
 
 public:
@@ -274,6 +286,9 @@ private:
     void publish_backing_stores(Web::CompositorContextId, PresentedContext&, BackingStoreManager::Publication&&);
     BackingStoreManager::GpuSharing gpu_sharing_for_context(Web::CompositorContextId) const;
     void unbind_presentation(Web::CompositorContextId);
+    void stop_showing_context_in_remote_layer(Web::CompositorContextId, PresentedContext&);
+    void stop_delivering_in_flight_frames_to_their_viewer(Web::CompositorContextId);
+    void show_frame_in_remote_layer(Web::CompositorContextId, PresentedContext&, PendingAsyncPresent const&);
     void update_scroll_capabilities();
     void did_finish_async_present(PendingAsyncPresent&);
     void deliver_rendered_frame(PendingAsyncPresent&);
@@ -297,6 +312,13 @@ private:
     u64 m_next_presentation_id { 1 };
     HashMap<PresentationId, CompositorStateClient*> m_presentations_by_id;
     HashMap<Web::CompositorContextId, CompositorStateClient*> m_context_presentations;
+
+    struct RemoteLayerState {
+        CompositorStateClient* presentation { nullptr };
+        OwnPtr<RemoteLayer> layer;
+        Optional<Web::CompositorContextId> shown_context_id;
+    };
+    HashMap<u64, RemoteLayerState> m_remote_layers;
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;

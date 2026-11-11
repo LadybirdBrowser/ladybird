@@ -30,6 +30,7 @@ public:
         Gfx::IntSize size;
         Vector<i32> bitmap_ids;
     };
+    // The stores that were allocated or added, with the images the presentation imports, if it shows the stores.
     struct Publication {
         Vector<i32> bitmap_ids;
         Vector<Gfx::SharedImage> shared_images;
@@ -42,7 +43,10 @@ public:
 
     enum class PublicationMode {
         Unpublished,
+        // The presentation shows the stores, and releases each when it shows another.
         Published,
+        // The compositor shows the stores itself, in a remote layer, so a store is replaced on screen by the next one.
+        ShownInRemoteLayer,
     };
 
     enum class GpuSharing {
@@ -70,6 +74,8 @@ public:
     bool release_buffer(i32 bitmap_id);
     void release_all_presented_buffers();
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
+    Gfx::SharedImageBuffer const* shared_image_buffer_of_latest_rendered_store() const;
+    PublicationMode publication_mode() const { return m_publication_mode; }
 
     Optional<Publication> add_backing_store_if_window_server_still_reads_every_released_store(RefPtr<Gfx::SkiaBackendContext> const&);
     bool has_surplus_backing_stores() const { return m_backing_stores.size() > m_initial_backing_store_count; }
@@ -84,18 +90,18 @@ private:
 
     struct BackingStore {
         RefPtr<Gfx::PaintingSurface> surface;
-        OwnPtr<Gfx::SharedImageBuffer> published_shared_image_buffer;
+        OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
         Gfx::IntRect accumulated_damage;
-        bool was_presented_to_client { false };
+        bool was_shown_on_screen { false };
         bool was_rendered_into_since_last_retirement_check { false };
     };
 
     static constexpr size_t maximum_backing_store_count = 8;
 
-    static BackingStore create_published_shareable_backing_store(Gfx::IntSize, i32 bitmap_id, BufferState, RefPtr<Gfx::SkiaBackendContext> const&);
-    static bool published_surface_is_in_use(BackingStore const&);
+    static BackingStore create_shareable_backing_store(Gfx::IntSize, i32 bitmap_id, BufferState, RefPtr<Gfx::SkiaBackendContext> const&);
+    static bool shared_surface_is_in_use(BackingStore const&);
     static bool store_can_be_rendered_into(BackingStore const&);
 
     int m_next_bitmap_id { 0 };
