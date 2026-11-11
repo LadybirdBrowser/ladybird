@@ -8624,10 +8624,12 @@ pub(crate) struct CustomPropertyInterval {
     pub(crate) cyclic: [bool; 2],
     pub(crate) name: crate::css::retained_fly_string::RetainedUtf16FlyString,
     pub(crate) declared_values: [RetainedStyleValueData; 2],
+    /// Fresh interval values awaiting cache insertion.
+    pub(crate) values_to_retain: Option<[RetainedStyleValueData; 2]>,
 }
 
 impl CustomPropertyInterval {
-    fn declaration_indices(&self) -> [usize; 2] {
+    pub(crate) fn declaration_indices(&self) -> [usize; 2] {
         self.interval_span.map(|lookup| lookup.declaration_index)
     }
 }
@@ -8640,6 +8642,7 @@ pub(crate) struct AnimatedCustomProperties {
     names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     units: Vec<Vec<u16>>,
     pub(crate) intervals: Vec<CustomPropertyInterval>,
+    pub(crate) registration_generation: u64,
     /// Whether any interval values are resolved afresh rather than retained across samples.
     pub(crate) has_uncached_interval_values: bool,
 }
@@ -8921,6 +8924,7 @@ fn select_contributing_custom_property_intervals(
                         _ => RetainedStyleValueData::none(),
                     }
                 }),
+                values_to_retain: None,
             });
         }
         intervals_by_effect.push(intervals);
@@ -8953,6 +8957,7 @@ pub(crate) fn resolve_published_animation_declarations(
         names: Vec::new(),
         units: Vec::new(),
         intervals: Vec::new(),
+        registration_generation: engine.custom_property_registration_generation(),
         has_uncached_interval_values: false,
     };
     let substitution_marks = std::cell::Cell::new(0_u8);
@@ -9125,7 +9130,7 @@ pub(crate) fn resolve_published_animation_declarations(
                 });
             }
         }
-        for interval in intervals {
+        for mut interval in intervals {
             let name_id = interval.custom_name_id;
             let important = custom_properties.is_important(name_id);
             let name = custom_properties.units(name_id);
@@ -9155,12 +9160,8 @@ pub(crate) fn resolve_published_animation_declarations(
             // SAFETY: The sample keeps the name alive while it is retained for the lookup.
             let interned_name = unsafe { ak::Utf16FlyString::from_raw_borrowed(custom_properties.name(name_id).raw()) };
             let custom_is_inherited = registry.name_inherits(&interned_name);
-            if can_retain_interval_values && !has_retained_values {
-                effect.update_retained_custom_property_interval_values(
-                    interval.declaration_indices(),
-                    interval_values.clone(),
-                );
-            }
+            interval.values_to_retain =
+                (can_retain_interval_values && !has_retained_values).then(|| interval_values.clone());
             for (lookup, value) in interval.interval_span.into_iter().zip(interval_values) {
                 let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {
@@ -9594,6 +9595,7 @@ mod tests {
             names: Vec::new(),
             units: Vec::new(),
             intervals: Vec::new(),
+            registration_generation: 0,
             has_uncached_interval_values: false,
         };
 
