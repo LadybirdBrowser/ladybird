@@ -13,6 +13,8 @@
 
 namespace WebView {
 
+// The host of a URL without "www.", which the pages of a site share.
+WEBVIEW_API Optional<String> autocomplete_host_family(URL::URL const&);
 WEBVIEW_API bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const&, AutocompleteSuggestion const&);
 
 WEBVIEW_API Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(

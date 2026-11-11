@@ -10,6 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
+#include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
@@ -42,6 +43,8 @@ enum class AutocompleteSuggestionSource {
     Bookmark,
     Adaptive,
     Search,
+    // A remote suggestion that is an address rather than something to search for.
+    RemoteURL,
     // Without a search engine, a query that would be searched for offers to choose one instead.
     ChooseSearchEngine,
 };
@@ -88,9 +91,28 @@ struct WEBVIEW_API AutocompleteBookmark {
     Optional<ByteBuffer> favicon_png;
 };
 
+// A remote suggestion, classified once when it arrives.
+struct RemoteAutocompleteSuggestion {
+    String text;
+    // The address it goes to, if it is a web address on a public site.
+    Optional<String> url;
+    // Text without a scheme is an address only if the user has been to this site.
+    Optional<String> host_family_the_user_must_have_visited;
+};
+
+enum class LocalSuggestionsAreComplete {
+    No,
+    Yes,
+};
+
 WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
 WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
-WEBVIEW_API Vector<String> filter_remote_autocomplete_suggestions(StringView input, Vector<String> suggestions);
+// Remote suggestions for the previous text stay while the user types, as long as they still start with the text.
+WEBVIEW_API bool remote_autocomplete_suggestion_matches_input(StringView suggestion, StringView input);
+// The rows for remote suggestions. A web address without a scheme is a page only for a site among the local rows. Until
+// the local rows are complete, such an address for a site not among them yet is left out, rather than shown as a search
+// that turns into a page.
+WEBVIEW_API Vector<AutocompleteSuggestion> make_remote_autocomplete_suggestions(Vector<String> remote_suggestions, ReadonlySpan<AutocompleteSuggestion> local_suggestions = {}, LocalSuggestionsAreComplete = LocalSuggestionsAreComplete::Yes);
 // The row for the text as typed: the address it is, or else a search for it.
 WEBVIEW_API Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringView query, Optional<SearchEngine> const&);
 WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
@@ -157,7 +179,10 @@ private:
     bool m_external_url_has_handler { false };
     Optional<URL::URL> m_external_url;
     Vector<AutocompleteSuggestion> m_local_suggestions;
-    Vector<String> m_remote_suggestions;
+    // NB: The sites among the local rows, which tell which remote addresses are pages. They are kept for as long as remote
+    //     rows carry over to the next text, so a remote page stays one while the local rows for that text load.
+    HashTable<String> m_visited_host_families;
+    Vector<RemoteAutocompleteSuggestion> m_remote_suggestions;
     RefPtr<Core::Timer> m_remote_query_timer;
     Function<void()> m_cancel_remote_query;
 };

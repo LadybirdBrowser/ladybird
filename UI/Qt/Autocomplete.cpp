@@ -188,11 +188,14 @@ public:
         case HighlightInputRole:
             return qstring_from_ak_string(suggestion.highlight_input);
         case StartsGroupRole: {
-            // Pages that follow search suggestions start a group of their own.
+            // Pages that follow search suggestions start a group of their own. An address the search engine suggested
+            // stays among its other suggestions.
             if (suggestion_index == 0)
                 return false;
-            auto is_search = [](auto const& suggestion) { return suggestion.source == WebView::AutocompleteSuggestionSource::Search; };
-            return is_search(m_suggestions[suggestion_index - 1]) != is_search(suggestion);
+            auto is_from_search = [](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Search || suggestion.source == WebView::AutocompleteSuggestionSource::RemoteURL;
+            };
+            return is_from_search(m_suggestions[suggestion_index - 1]) != is_from_search(suggestion);
         }
         default:
             return {};
