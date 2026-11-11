@@ -1,0 +1,95 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+        font: 20px/20px Ahem;
+    }
+    .containing-block {
+        position: relative;
+        inline-size: 400px;
+        block-size: 100px;
+    }
+    .parent {
+        text-align: center;
+    }
+    .target {
+        position: absolute;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const cases = [];
+        function add(name, containerStyle = "", targetStyle = "", parentStyle = "", before = "") {
+            const container = document.createElement("div");
+            container.className = "containing-block";
+            container.style.cssText = containerStyle;
+            const parent = document.createElement("div");
+            parent.className = "parent";
+            parent.style.cssText = parentStyle;
+            parent.innerHTML = before;
+            const target = document.createElement("span");
+            target.className = "target";
+            target.style.cssText = targetStyle;
+            target.textContent = "XXXX XXXX XXXX";
+            parent.append(target);
+            container.append(parent);
+            document.body.append(container);
+            cases.push([name, container, target]);
+        }
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+            for (const direction of ["ltr", "rtl"]) {
+                add(`${mode} ${direction}`, `writing-mode: ${mode}; direction: ${direction}`);
+            }
+        }
+        add("opposing child direction", "", "direction: rtl");
+        add("margins and edges", "", "margin-inline: 10px; padding-inline: 10px; border: 5px solid");
+        add("explicit start inset", "", "left: 10px");
+        add("explicit end inset", "", "right: 10px");
+        add("maximum width", "", "max-width: 150px");
+        add("minimum width", "", "min-width: 250px");
+        add("unbreakable content", "", "white-space: nowrap");
+        add("containing block padding", "padding: 20px; border: 5px solid");
+        add("nested parent offset", "", "", "margin-left: 100px; width: 200px");
+        add("end-aligned parent", "", "", "text-align: right");
+        add(
+            "orthogonal vertical-rl",
+            "height: 400px",
+            "writing-mode: vertical-rl",
+            "text-align: left",
+            '<div style="height: 200px"></div>'
+        );
+        add(
+            "orthogonal vertical-lr",
+            "height: 400px",
+            "writing-mode: vertical-lr",
+            "text-align: left",
+            '<div style="height: 200px"></div>'
+        );
+        add(
+            "orthogonal horizontal",
+            "writing-mode: vertical-rl; width: 400px",
+            "writing-mode: horizontal-tb",
+            "text-align: start",
+            '<div style="width: 200px"></div>'
+        );
+        add("content-based block size", "", "width: 80px", "text-align: left", '<div style="height: 80px"></div>');
+        await document.fonts.ready;
+        function report(name, container, target) {
+            const outer = container.getBoundingClientRect();
+            const rect = target.getBoundingClientRect();
+            println(`${name}: ${rect.x - outer.x},${rect.y - outer.y} ${rect.width}x${rect.height}`);
+        }
+        for (const entry of cases) report(...entry);
+        const [name, container, target] = cases[0];
+        container.style.width = "200px";
+        report("after containing block resize", container, target);
+        container.style.width = "400px";
+        target.parentElement.style.textAlign = "left";
+        report("after static position moves", container, target);
+    });
+</script>

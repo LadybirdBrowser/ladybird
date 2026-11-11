@@ -1912,6 +1912,36 @@ impl AbsposEngine<'_> {
         !equation.has_both_insets() || self.own_self_alignment_keyword(sized, inline_axis).is_some()
     }
 
+    fn shrink_to_fit_available_size(
+        inputs: &abspos_inputs::AbsposLayoutInputs,
+        axis: SizingAxis,
+        mut equation: AxisEquation,
+    ) -> CssPixels {
+        let (anchor_aligns_inline, anchor_aligns_block) = inputs.containing_block_info.anchor_aligned_axes();
+        if equation.start.is_none() && equation.end.is_none() && !axis.select(anchor_aligns_inline, anchor_aligns_block)
+        {
+            let static_position = static_position_rect_for_sizing(inputs);
+            let rect = static_position.rect;
+            let offset = axis.select(rect.offset.inline_offset, rect.offset.block_offset);
+            // https://drafts.csswg.org/css-position-3/#resolving-inset-auto
+            // Resolve the static-position inset before measuring the available space, without depending on the size
+            // of the box being sized. The opposite inset and any auto margins contribute zero.
+            match axis.select(static_position.inline_alignment, static_position.block_alignment) {
+                AxisEdge::Start => equation.start = Some(offset),
+                AxisEdge::End => {
+                    equation.end = Some(
+                        equation.containing_block_size
+                            - offset
+                            - axis.select(rect.size.inline_size, rect.size.block_size),
+                    );
+                }
+                // FIXME: Implement the center alignment case.
+                AxisEdge::Center => {}
+            }
+        }
+        equation.stretch_fit_size()
+    }
+
     /// The content inline size of a non-replaced box: its specified size, or the size that auto gives it in the space
     /// between its insets and margins, adjusted by calc-size() and its limits.
     fn non_replaced_inline_size(
@@ -1942,10 +1972,16 @@ impl AbsposEngine<'_> {
             inner_size(style.width())
         } else if !self.sizes_to_fit_content(sized, equation, true) {
             equation.stretch_fit_size()
+        } else if sizing.establishes_orthogonal_flow(node) && sized.cells.has_definite_block_size() {
+            sizing.calculate_max_content_inline_size_at_definite_block_size(
+                sized.sized_box(),
+                constraints,
+                sized.cells.content_block_size(),
+            )
         } else {
             // https://drafts.csswg.org/css-position-3/#abspos-auto-size
             // For the purpose of computing these sizes, any auto margins are treated as zero.
-            let available = equation.stretch_fit_size();
+            let available = Self::shrink_to_fit_available_size(inputs, SizingAxis::Inline, equation);
             let preferred = sizing.calculate_max_content_inline_size(sized.sized_box(), constraints);
             if preferred <= available {
                 preferred
@@ -2145,7 +2181,13 @@ impl AbsposEngine<'_> {
         } else if !self.sizes_to_fit_content(sized, equation, false) {
             Some(equation.stretch_fit_size())
         } else {
-            self.automatic_block_size(sized, available_space, constraints, pass, equation.stretch_fit_size())
+            self.automatic_block_size(
+                sized,
+                available_space,
+                constraints,
+                pass,
+                Self::shrink_to_fit_available_size(inputs, SizingAxis::Block, equation),
+            )
         };
         let minimum =
             (!crate::layout::sizing_context::is_plain_auto(style.min_height())).then(|| inner_size(style.min_height()));
@@ -2347,6 +2389,23 @@ impl<'pass> AbsposEngine<'pass> {
             },
             self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
         );
+
+        if self.sizing().establishes_orthogonal_flow(node)
+            && style.width().is_auto()
+            && !self
+                .sizing()
+                .box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints)
+        {
+            // The frame's block size is the orthogonal box's inline size. Its content-based block size depends on
+            // wrapping at that resolved size.
+            self.compute_inline_size(
+                sized,
+                available_space,
+                constraints,
+                inputs,
+                self.auto_margin_overflow(inputs.containing_block, SizingAxis::Inline),
+            );
+        }
 
         {
             let used = sized.cells;

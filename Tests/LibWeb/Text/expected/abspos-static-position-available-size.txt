@@ -1,0 +1,22 @@
+horizontal-tb ltr: 200,0 200x40
+horizontal-tb rtl: 0,0 200x40
+vertical-rl ltr: 60,200 40x200
+vertical-rl rtl: 60,0 40x200
+vertical-lr ltr: 0,200 40x200
+vertical-lr rtl: 0,0 40x200
+opposing child direction: 200,0 200x40
+margins and edges: 210,0 180x70
+explicit start inset: 10,0 280x20
+explicit end inset: 110,0 280x20
+maximum width: 200,0 150x60
+minimum width: 200,0 250x40
+unbreakable content: 200,0 280x20
+containing block padding: 225,25 220x40
+nested parent offset: 200,0 200x40
+end-aligned parent: 400,0 80x60
+orthogonal vertical-rl: 0,200 40x200
+orthogonal vertical-lr: 0,200 40x200
+orthogonal horizontal: 0,0 200x40
+content-based block size: 0,80 80x60
+after containing block resize: 100,0 100x60
+after static position moves: 0,0 280x20
