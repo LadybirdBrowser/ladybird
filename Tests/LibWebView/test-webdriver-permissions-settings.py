@@ -233,7 +233,7 @@ def check_site_settings(webdriver_binary):
             return wait_for_saved(permissions_file, lambda saved: condition(saved["decisions"]))["decisions"]
 
         def check_invalid_urls():
-            for value in ("not a URL", "about:blank", "file:///tmp/test", "data:text/html,test"):
+            for value in ("not a URL", "https://", "about:blank", "file:///tmp/test", "data:text/html,test"):
                 add_site(value)
                 assert script("return !document.querySelector('#site-settings-input').validity.valid;"), value
 
