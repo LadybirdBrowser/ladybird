@@ -23,7 +23,7 @@ jobs:
       group: ${{ github.ref == 'refs/heads/master' && 'libjs-test262-master' || format('libjs-test262-{0}', github.run_id) }}
       cancel-in-progress: false
     container:
-      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29
+      image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.11.11.1
 
     steps:
       - name: Checkout LadybirdBrowser/ladybird
