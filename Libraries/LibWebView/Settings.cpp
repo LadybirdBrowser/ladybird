@@ -727,7 +727,8 @@ Settings::Settings(ByteString settings_path)
 void Settings::reset_to_defaults()
 {
     static_cast<SettingsData&>(*this) = SettingsData();
-    m_new_tab_page_url = URL::about_blank();
+
+    m_new_tab_page_url = default_new_tab_page_url();
     m_languages = Web::default_preferred_languages();
 
     for (auto const& variable : config_variable_definitions()) {
@@ -1021,6 +1022,11 @@ void Settings::set_window_settings(WindowSettings window_settings)
 {
     m_window_settings = move(window_settings);
     persist_settings();
+}
+
+URL::URL const& Settings::default_new_tab_page_url()
+{
+    return URL::about_newtab();
 }
 
 void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)

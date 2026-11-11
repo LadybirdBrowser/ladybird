@@ -232,11 +232,14 @@ void SettingsUI::load_features()
 
 JsonObject SettingsUI::serialize_settings() const
 {
-    auto settings = Application::settings().serialize_json();
+    auto settings_json = Application::settings().serialize_json();
+    auto settings = move(settings_json.as_object());
+
+    settings.set("defaultNewTabPageURL"sv, Settings::default_new_tab_page_url().serialize());
 
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_settings;
-    site_settings.set("autoplay"sv, settings.as_object().get("autoplay"sv).value());
+    site_settings.set("autoplay"sv, settings.get("autoplay"sv).value());
     for (auto name : Web::Permissions::PERMISSION_NAMES) {
         JsonArray sites;
         for (auto const& site : Application::default_session().permission_manager->site_decisions(name)) {
@@ -262,7 +265,7 @@ JsonObject SettingsUI::serialize_settings() const
         site_settings.set(Web::Permissions::to_string(name), move(setting));
     }
 
-    settings.as_object().set("siteSettings"sv, move(site_settings));
+    settings.set("siteSettings"sv, move(site_settings));
 
     JsonArray config_variables;
     for (auto const& variable : config_variable_definitions()) {
@@ -282,7 +285,7 @@ JsonObject SettingsUI::serialize_settings() const
         config_variables.must_append(move(variable_object));
     }
 
-    settings.as_object().set("configVariableDefinitions"sv, move(config_variables));
+    settings.set("configVariableDefinitions"sv, move(config_variables));
 
     JsonArray lists;
     for (auto const& list : Application::settings().content_blocker_lists()) {
@@ -298,10 +301,10 @@ JsonObject SettingsUI::serialize_settings() const
         object.set("lastUpdatedAt"sv, updated.has_value() ? JsonValue(updated->milliseconds_since_epoch()) : JsonValue {});
         lists.must_append(move(object));
     }
-    settings.as_object().set("contentBlockerLists"sv, move(lists));
-    settings.as_object().set("contentBlockerListUpdateInProgress"sv, Application::the().content_blocker_list_update_in_progress());
+    settings.set("contentBlockerLists"sv, move(lists));
+    settings.set("contentBlockerListUpdateInProgress"sv, Application::the().content_blocker_list_update_in_progress());
 
-    return move(settings.as_object());
+    return settings;
 }
 
 void SettingsUI::load_current_settings()
