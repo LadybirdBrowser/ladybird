@@ -2508,6 +2508,22 @@ ErrorOr<void> SeccompPolicy::install()
     append(SECCOMP_ERRNO(EPERM));
 #endif
 
+    // So does creating a process, when no group allowed it. NVIDIA's EGL library, for one, tries to start nvidia-modprobe
+    // with posix_spawn() when it loads, even on a machine without an NVIDIA GPU. With an error, it gives up and glvnd
+    // moves on to the next vendor.
+#ifdef __NR_clone
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clone, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_fork
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fork, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_vfork
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_vfork, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+
     append_kill();
 
     sock_fprog program {
