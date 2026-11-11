@@ -113,6 +113,13 @@ ClassifiedUserInput classify_user_input(StringView location, AppendTLD append_tl
         return {};
     }
 
+    return classify_user_input_ignoring_local_files(location, append_tld);
+}
+
+ClassifiedUserInput classify_user_input_ignoring_local_files(StringView location, AppendTLD append_tld)
+{
+    location = location.trim_whitespace();
+
     bool https_scheme_was_guessed = false;
     bool input_has_explicit_port = false;
     ByteString schemeless_location;

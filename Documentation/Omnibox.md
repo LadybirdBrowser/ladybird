@@ -52,7 +52,7 @@ generation. Stale results can therefore neither reopen the popup nor become an E
 
 `AutocompleteSuggestion` contains:
 
-- Its source: literal URL, history, bookmark, adaptive engagement, or search.
+- Its source: literal URL, history, bookmark, adaptive engagement, search, or remote URL.
 - Destination text and optional title, subtitle, and favicon.
 - The input used for presentation highlighting.
 - A match class and separate relevance components.
@@ -71,6 +71,20 @@ not otherwise treated as the same destination.
 
 Search destinations are identified by Unicode case-folded text with whitespace normalized. This
 allows an exact remote suggestion to merge with the verbatim search action.
+
+A remote suggestion that is an https address on a public site, taken as it would be if the user
+typed it, is a remote URL rather than a search. Rows do not show the scheme, so an http address
+stays a search rather than look like the https site. Addresses with an IP, localhost, a port or no
+public suffix stay searches, so the search engine cannot name the user's own machine or network
+directly. A public host name can still resolve there, as it can for any link on the web. Addresses
+with a user name, such as `https://bank.example@evil.example/`, also stay searches, since they name
+one site and go to another. An address without a scheme, such as `google.com`, may be a
+phrase like `setup.py` instead, so it is a remote URL only when a local candidate is on the same
+host, ignoring `www.`. Until the local candidates arrive, such an address on a site among the
+local candidates for the earlier text, from which remote suggestions carry over, stays a remote URL.
+Any other such address is left out, so a row does not turn from a search into a page. A remote URL
+merges with local candidates for the same URL, and with a local presentation of the same origin,
+whose title and favicon are kept.
 
 When history, bookmark, and adaptive candidates identify the same URL, their score components and
 eligibility flags are combined. Bookmark presentation is preferred so its title and favicon remain
@@ -162,7 +176,7 @@ constructs a bounded result list while preserving the verbatim action and limiti
 The current limits are soft:
 
 - At most four local navigation rows before deferred local rows.
-- At most three remote search rows before deferred remote rows.
+- At most three remote rows before deferred remote rows.
 - At most two rows per origin for ordinary host queries.
 - At most one row per origin and five total rows for one- and two-character host queries.
 

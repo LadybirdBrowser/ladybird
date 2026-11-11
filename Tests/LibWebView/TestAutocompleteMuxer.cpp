@@ -481,14 +481,182 @@ TEST_CASE(presentation_match_ranges_are_case_insensitive_and_merged)
 
 TEST_CASE(remote_suggestions_are_filtered_for_a_new_input)
 {
-    auto suggestions = WebView::filter_remote_autocomplete_suggestions("reddit soc"sv, {
-                                                                                           "reddit soccer"_string,
-                                                                                           "Reddit social"_string,
-                                                                                           "reddit streams"_string,
-                                                                                           "soccer"_string,
-                                                                                       });
+    EXPECT(WebView::remote_autocomplete_suggestion_matches_input("reddit soccer"sv, "reddit soc"sv));
+    EXPECT(WebView::remote_autocomplete_suggestion_matches_input("Reddit social"sv, "reddit soc"sv));
+    EXPECT(!WebView::remote_autocomplete_suggestion_matches_input("reddit streams"sv, "reddit soc"sv));
+    EXPECT(!WebView::remote_autocomplete_suggestion_matches_input("soccer"sv, "reddit soc"sv));
+}
+
+TEST_CASE(remote_web_addresses_are_not_searches)
+{
+    auto suggestions = WebView::make_remote_autocomplete_suggestions({
+        "https://google.com/"_string,
+        "http://example.com/page"_string,
+        "google.com"_string,
+        "google"_string,
+        "https google"_string,
+    });
+
+    EXPECT_EQ(suggestions.size(), 5u);
+    EXPECT(suggestions[0].source == WebView::AutocompleteSuggestionSource::RemoteURL);
+    EXPECT_EQ(suggestions[0].text, "https://google.com/"sv);
+    // Rows do not show the scheme, so an http address would look like the https site.
+    EXPECT(suggestions[1].source == WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(suggestions[1].text, "http://example.com/page"sv);
+    // An address without a scheme may be a phrase, so it is a search unless the user has been to the site.
+    EXPECT(suggestions[2].source == WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(suggestions[2].text, "google.com"sv);
+    EXPECT(suggestions[3].source == WebView::AutocompleteSuggestionSource::Search);
+    EXPECT(suggestions[4].source == WebView::AutocompleteSuggestionSource::Search);
+}
+
+TEST_CASE(remote_web_address_without_a_scheme_is_a_page_for_a_visited_site)
+{
+    Vector<WebView::AutocompleteSuggestion> local_suggestions;
+    local_suggestions.append(history("https://www.google.com/maps"sv, 800));
+    local_suggestions.append(search("setup.py"sv, 900, true));
+
+    auto suggestions = WebView::make_remote_autocomplete_suggestions({
+                                                                         "google.com"_string,
+                                                                         "setup.py"_string,
+                                                                         "readme.md"_string,
+                                                                     },
+        local_suggestions);
+
+    EXPECT_EQ(suggestions.size(), 3u);
+    EXPECT(suggestions[0].source == WebView::AutocompleteSuggestionSource::RemoteURL);
+    EXPECT_EQ(suggestions[0].text, "https://google.com/"sv);
+    EXPECT(suggestions[1].source == WebView::AutocompleteSuggestionSource::Search);
+    EXPECT(suggestions[2].source == WebView::AutocompleteSuggestionSource::Search);
+}
+
+TEST_CASE(remote_web_address_without_a_scheme_is_a_page_for_a_site_typed_before)
+{
+    for (auto typed_address : { "google.com"sv, "google.com:8443"sv }) {
+        Vector<WebView::AutocompleteSuggestion> local_suggestions;
+        local_suggestions.append(suggestion(WebView::AutocompleteSuggestionSource::Adaptive, typed_address, 800, false));
+
+        auto suggestions = WebView::make_remote_autocomplete_suggestions({ "google.com"_string }, local_suggestions);
+
+        EXPECT_EQ(suggestions.size(), 1u);
+        EXPECT(suggestions[0].source == WebView::AutocompleteSuggestionSource::RemoteURL);
+    }
+}
+
+TEST_CASE(remote_bare_web_address_waits_for_the_local_rows)
+{
+    // Before the local rows arrive, a bare address is left out, as it could still turn out to be a page. One for a site
+    // among the rows so far is a page already, and the rest keep their rank.
+    Vector<WebView::AutocompleteSuggestion> local_suggestions;
+    local_suggestions.append(history("https://www.google.com/maps"sv, 800));
+    auto suggestions = WebView::make_remote_autocomplete_suggestions({ "ladybird.org"_string, "google.com"_string, "google maps"_string },
+        local_suggestions, WebView::LocalSuggestionsAreComplete::No);
 
     EXPECT_EQ(suggestions.size(), 2u);
-    EXPECT_EQ(suggestions[0], "reddit soccer"sv);
-    EXPECT_EQ(suggestions[1], "Reddit social"sv);
+    EXPECT(suggestions[0].source == WebView::AutocompleteSuggestionSource::RemoteURL);
+    EXPECT_EQ(suggestions[0].text, "https://google.com/"sv);
+    EXPECT_EQ(suggestions[0].relevance, 699);
+    EXPECT(suggestions[1].source == WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(suggestions[1].text, "google maps"sv);
+    EXPECT_EQ(suggestions[1].relevance, 698);
+}
+
+TEST_CASE(remote_web_address_merges_with_history_for_the_same_address)
+{
+    auto visited = history("https://google.com/"sv, 1000);
+    visited.title = "Google"_string;
+    visited.favicon_png = MUST(ByteBuffer::copy("favicon"sv.bytes()));
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "https://goo"sv,
+        {},
+        { move(visited) },
+        WebView::make_remote_autocomplete_suggestions({ "https://google.com/"_string }),
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT(results[0].source == WebView::AutocompleteSuggestionSource::History);
+    EXPECT_EQ(results[0].title, "Google"sv);
+    EXPECT(results[0].favicon_png.has_value());
+}
+
+TEST_CASE(a_remote_address_before_a_local_row_for_the_same_page_shows_as_the_local_row)
+{
+    auto visited = history("https://example.com/"sv, 900, false);
+    visited.title = "Example"_string;
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "exa"sv,
+        {},
+        { suggestion(WebView::AutocompleteSuggestionSource::RemoteURL, "https://example.com/"sv, 950, false), move(visited) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::History);
+    EXPECT_EQ(results[0].title, "Example"sv);
+}
+
+TEST_CASE(remote_web_address_yields_to_a_local_presentation_of_its_origin)
+{
+    auto visited = history("https://www.google.com/"sv, 200, false);
+    visited.favicon_png = MUST(ByteBuffer::copy("favicon"sv.bytes()));
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "https://goo"sv,
+        {},
+        { move(visited) },
+        WebView::make_remote_autocomplete_suggestions({ "https://google.com/"_string }),
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].text, "https://www.google.com/"sv);
+    EXPECT(results[0].favicon_png.has_value());
+}
+
+TEST_CASE(a_short_query_keeps_a_local_row_over_a_remote_address_of_the_same_site)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "fo"sv,
+        {},
+        { history("https://foo.com/a"sv, 300, false) },
+        WebView::make_remote_autocomplete_suggestions({ "https://foo.com/b"_string }),
+        8);
+
+    EXPECT(results.contains([](auto const& result) { return result.text == "https://foo.com/a"sv; }));
+    EXPECT(!results.contains([](auto const& result) { return result.text == "https://foo.com/b"sv; }));
+    // The remote address is for another page, so its rank is not the local row's.
+    for (auto const& result : results) {
+        if (result.text == "https://foo.com/a"sv)
+            EXPECT_EQ(result.relevance, 300);
+    }
+}
+
+TEST_CASE(remote_web_address_keeps_a_typed_address)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "https://google.com/"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "https://google.com/"sv, 900, true, true),
+        {},
+        WebView::make_remote_autocomplete_suggestions({ "https://google.com/"_string }),
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT(results[0].source == WebView::AutocompleteSuggestionSource::LiteralURL);
+    EXPECT(results[0].is_verbatim);
+}
+
+TEST_CASE(remote_suggestions_do_not_link_into_the_users_network)
+{
+    auto suggestions = WebView::make_remote_autocomplete_suggestions({
+        "localhost:631"_string,
+        "192.168.1.1"_string,
+        "http://10.0.0.1/admin"_string,
+        "http://router.local/"_string,
+        "https://example.com:8443/"_string,
+        "http://localhost/"_string,
+    });
+
+    for (auto const& suggestion : suggestions)
+        EXPECT_EQ(suggestion.source, WebView::AutocompleteSuggestionSource::Search);
 }

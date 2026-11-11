@@ -23,6 +23,24 @@ bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const
     return autocomplete_urls_match(left.text, right.text);
 }
 
+// A local row for the same page as a remote address ranks as the remote address did, so the popup keeps the rank the
+// search engine gave it. Only a row that cannot become the default takes it, though: the search engine must not choose
+// the default row or the inline completion.
+static i32 relevance_of_local_row_for_remote_address(AutocompleteSuggestion const& one, AutocompleteSuggestion const& other)
+{
+    // NB: The two rows may come in either order.
+    auto const& local = one.source == AutocompleteSuggestionSource::RemoteURL ? other : one;
+    auto const& remote = one.source == AutocompleteSuggestionSource::RemoteURL ? one : other;
+    if (local.can_be_automatically_selected || local.can_be_inline_completed)
+        return local.relevance;
+    return max(local.relevance, remote.relevance);
+}
+
+static bool is_remote_address_meeting_local_row(AutocompleteSuggestion const& one, AutocompleteSuggestion const& other)
+{
+    return (one.source == AutocompleteSuggestionSource::RemoteURL) != (other.source == AutocompleteSuggestionSource::RemoteURL);
+}
+
 static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSuggestion suggestion)
 {
     auto is_verbatim = existing.is_verbatim || suggestion.is_verbatim;
@@ -32,13 +50,17 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     auto history_relevance = max(existing.history_relevance, suggestion.history_relevance);
     auto bookmark_relevance = max(existing.bookmark_relevance, suggestion.bookmark_relevance);
     auto adaptive_relevance = max(existing.adaptive_relevance, suggestion.adaptive_relevance);
-    auto relevance = max(existing.relevance, suggestion.relevance);
+    auto relevance = is_remote_address_meeting_local_row(existing, suggestion)
+        ? relevance_of_local_row_for_remote_address(existing, suggestion)
+        : max(existing.relevance, suggestion.relevance);
     if (match_relevance != 0 || history_relevance != 0 || bookmark_relevance != 0 || adaptive_relevance != 0)
         relevance = max(relevance, match_relevance + history_relevance + bookmark_relevance + adaptive_relevance);
 
     auto suggestion_has_preferred_presentation = suggestion.source == AutocompleteSuggestionSource::Bookmark
         || (existing.source == AutocompleteSuggestionSource::Adaptive && suggestion.source == AutocompleteSuggestionSource::History)
-        || (existing.source == AutocompleteSuggestionSource::LiteralURL && suggestion.source != AutocompleteSuggestionSource::LiteralURL);
+        || (existing.source == AutocompleteSuggestionSource::LiteralURL && suggestion.source != AutocompleteSuggestionSource::LiteralURL && suggestion.source != AutocompleteSuggestionSource::RemoteURL)
+        // NB: A remote address has no title or favicon, so a local row for the same page is shown in its place.
+        || (existing.source == AutocompleteSuggestionSource::RemoteURL && suggestion.source != AutocompleteSuggestionSource::RemoteURL);
     if (suggestion_has_preferred_presentation) {
         existing = move(suggestion);
     } else {
@@ -71,26 +93,35 @@ static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, Autocom
     suggestions.append(move(suggestion));
 }
 
-static Optional<String> origin_family(AutocompleteSuggestion const& suggestion)
+Optional<String> autocomplete_host_family(URL::URL const& url)
 {
-    if (suggestion.source == AutocompleteSuggestionSource::Search)
+    if (!url.host().has_value())
         return {};
-    auto url = URL::Parser::basic_parse(suggestion.text);
-    if (!url.has_value() || !url->host().has_value())
-        return {};
-    auto host = MUST(String::from_utf8(url->serialized_host())).to_ascii_lowercase();
+    auto host = MUST(String::from_utf8(url.serialized_host())).to_ascii_lowercase();
     if (host.bytes_as_string_view().starts_with("www."sv))
         return MUST(String::from_utf8(host.bytes_as_string_view().substring_view(4)));
     return host;
 }
 
-static bool is_local_navigation(AutocompleteSuggestion const& suggestion)
+static Optional<String> origin_family(AutocompleteSuggestion const& suggestion)
 {
-    return suggestion.source != AutocompleteSuggestionSource::Search;
+    if (suggestion.source == AutocompleteSuggestionSource::Search)
+        return {};
+    auto url = URL::Parser::basic_parse(suggestion.text);
+    if (!url.has_value())
+        return {};
+    return autocomplete_host_family(*url);
 }
 
-static bool is_remote_search(AutocompleteSuggestion const& suggestion)
+static bool is_local_navigation(AutocompleteSuggestion const& suggestion)
 {
+    return suggestion.source != AutocompleteSuggestionSource::Search && suggestion.source != AutocompleteSuggestionSource::RemoteURL;
+}
+
+static bool is_remote_suggestion(AutocompleteSuggestion const& suggestion)
+{
+    if (suggestion.source == AutocompleteSuggestionSource::RemoteURL)
+        return true;
     return suggestion.source == AutocompleteSuggestionSource::Search && !suggestion.is_verbatim;
 }
 
@@ -157,9 +188,14 @@ static void coalesce_equivalent_origin_presentations(Vector<AutocompleteSuggesti
         if (!group_titles[*existing_index].has_value() && candidate.title.has_value())
             group_titles[*existing_index] = candidate.title;
 
+        // NB: A remote address has no title or favicon, so a local presentation of the same origin is kept over it.
         auto& existing = representatives[*existing_index];
-        if (suggestion_is_better(candidate, existing))
+        if (is_remote_address_meeting_local_row(existing, candidate)) {
+            if (existing.source == AutocompleteSuggestionSource::RemoteURL)
+                existing = move(candidate);
+        } else if (suggestion_is_better(candidate, existing)) {
             existing = move(candidate);
+        }
     }
 
     candidates = move(representatives);
@@ -237,7 +273,13 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
                 continue;
             }
 
+            // NB: A local row is kept over a remote address for another page of the site, with its own rank.
             auto& existing = representatives[*existing_index];
+            if (is_remote_address_meeting_local_row(existing, candidate)) {
+                if (existing.source == AutocompleteSuggestionSource::RemoteURL)
+                    existing = move(candidate);
+                continue;
+            }
             auto candidate_preference = short_query_origin_preference(candidate, query_length);
             auto existing_preference = short_query_origin_preference(existing, query_length);
             if (candidate_preference > existing_preference
@@ -267,7 +309,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     HashMap<String, size_t> origin_counts;
     Vector<size_t> deferred_source_indices;
     size_t local_navigation_count = 0;
-    size_t remote_search_count = 0;
+    size_t remote_suggestion_count = 0;
     auto verbatim_index = candidates.find_first_index_if([](auto const& candidate) { return candidate.is_verbatim; });
 
     for (size_t index = 0; index < candidates.size() && result.size() < result_limit; ++index) {
@@ -277,7 +319,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
             && origin.has_value()
             && origin_counts.get(*origin).value_or(0) >= origin_limit;
         auto exceeds_source_limit = (is_local_navigation(candidate) && local_navigation_count >= 4)
-            || (is_remote_search(candidate) && remote_search_count >= 3);
+            || (is_remote_suggestion(candidate) && remote_suggestion_count >= 3);
         auto must_reserve_verbatim_slot = verbatim_index.has_value()
             && index < *verbatim_index
             && result.size() + 1 == result_limit;
@@ -292,7 +334,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
         if (origin.has_value())
             origin_counts.set(*origin, origin_counts.get(*origin).value_or(0) + 1);
         local_navigation_count += is_local_navigation(candidate) ? 1 : 0;
-        remote_search_count += is_remote_search(candidate) ? 1 : 0;
+        remote_suggestion_count += is_remote_suggestion(candidate) ? 1 : 0;
         result.append(candidate);
     }
 
