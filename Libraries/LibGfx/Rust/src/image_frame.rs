@@ -25,6 +25,7 @@ pub struct FfiImageFrameSnapshot {
     pub bitmap_format_value: i32,
     pub alpha_type_value: i32,
     pub pixels: *const u8,
+    pub pitch: usize,
 }
 
 impl Default for FfiImageFrameSnapshot {
@@ -36,6 +37,7 @@ impl Default for FfiImageFrameSnapshot {
             bitmap_format_value: 0,
             alpha_type_value: 0,
             pixels: std::ptr::null(),
+            pitch: 0,
         }
     }
 }
@@ -124,8 +126,14 @@ impl ImageFrameHandle {
             && self.alpha_type_value() == ALPHA_TYPE_VALUE_OF_UNPREMULTIPLIED
     }
 
+    /// The bytes between the starts of two rows, which can be more than the rows hold.
     #[inline]
     pub fn pitch(&self) -> usize {
+        self.0.snapshot.pitch
+    }
+
+    #[inline]
+    pub fn minimum_pitch(&self) -> usize {
         usize::try_from(self.width()).expect("a frame has a width") * BYTES_PER_PIXEL
     }
 

@@ -99,7 +99,8 @@ struct SharedPixelsOfFrame {
 
 size_t ImageBitmap::shared_pixels_size(Gfx::DecodedImageFrame const& frame)
 {
-    return round_up_to_power_of_two(frame.size_in_bytes(), shared_pixels_alignment);
+    auto const tightly_packed_size = Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(frame.width(), frame.format()), frame.height());
+    return round_up_to_power_of_two(tightly_packed_size, shared_pixels_alignment);
 }
 
 // Hands a decoded frame over to the Rust implementation, which takes it over, or null for none.
@@ -224,7 +225,12 @@ bool web_image_bitmap_copy_to_shared_pixels(ImageBitmapSharedPixels* shared_pixe
 {
     if (!shared_pixels || ImageBitmap::shared_pixels_size(*frame) > shared_pixels->buffer.size() - shared_pixels->used_size)
         return false;
-    frame->pixels().copy_to({ shared_pixels->buffer.data<u8>() + shared_pixels->used_size, frame->size_in_bytes() });
+    // NB: The receiver reads the rows as tightly packed, which the rows of the frame need not be.
+    auto const row_size = Gfx::Bitmap::minimum_pitch(frame->width(), frame->format());
+    auto const pixels = frame->pixels();
+    auto* destination = shared_pixels->buffer.data<u8>() + shared_pixels->used_size;
+    for (int y = 0; y < frame->height(); ++y)
+        __builtin_memcpy(destination + static_cast<size_t>(y) * row_size, pixels.offset(static_cast<size_t>(y) * frame->pitch()), row_size);
     *buffer_index = shared_pixels->buffer_index;
     *offset = shared_pixels->used_size;
     shared_pixels->used_size += ImageBitmap::shared_pixels_size(*frame);

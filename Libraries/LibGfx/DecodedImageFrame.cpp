@@ -31,6 +31,7 @@ extern "C" void* ladybird_gfx_decoded_image_frame_retain(void const* frame, Gfx:
         .bitmap_format_value = to_underlying(typed_frame.format()),
         .alpha_type_value = to_underlying(typed_frame.alpha_type()),
         .pixels = typed_frame.pixels().data(),
+        .pitch = typed_frame.pitch(),
     };
     return new Gfx::DecodedImageFrame(typed_frame);
 }
