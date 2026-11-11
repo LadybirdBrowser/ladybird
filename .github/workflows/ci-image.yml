@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           ci_image_version="$(tr -d '[:space:]' < Meta/Docker/ci/VERSION)"
-          if ! [[ "${ci_image_version}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]+$ ]]; then
+          if ! [[ "${ci_image_version}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]+(\.[0-9]+)?$ ]]; then
             echo "Invalid CI image version: ${ci_image_version}"
             exit 1
           fi
