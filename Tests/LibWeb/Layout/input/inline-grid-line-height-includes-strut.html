@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: inline-grid;
+        grid: 100px / 100px;
+        background: blue;
+    }
+    .block {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        background: blue;
+    }
+</style>
+<!-- An inline grid on its own on a line still has the strut of the line box below its baseline, as an inline block has. -->
+<div><div class="grid"><div></div></div></div>
+<div><div class="block"></div></div>

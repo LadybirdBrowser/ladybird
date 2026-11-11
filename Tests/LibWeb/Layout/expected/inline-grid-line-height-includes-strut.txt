@@ -1,0 +1,13 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 206 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 206 0+0+0] children: not-inline
+      BlockContainer <div> at [0,0] [0+0+0 800 0+0+0] [0+0+0 103 0+0+0] children: inline
+        frag 0 from Box start: 0, length: 0, rect: [0,0 100x100] baseline: 100
+        Box <div.grid> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [GFC] children: not-inline
+          BlockContainer <div> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+      BlockContainer <div> at [0,103] [0+0+0 800 0+0+0] [0+0+0 103 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [0,103 100x100] baseline: 100
+        BlockContainer <div.block> at [0,103] inline-block [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x206] (z-index: auto)

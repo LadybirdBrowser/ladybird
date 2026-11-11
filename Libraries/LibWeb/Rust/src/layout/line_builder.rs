@@ -1014,7 +1014,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     // line height properties.
                     should_align_strut_to_line_box_baseline |= has_line_relative_aligned_subtree
                         || ((style.display().is_inline_block()
-                            || (style.display().is_inline_outside() && style.display().is_flex_inside()))
+                            || (style.display().is_inline_outside()
+                                && (style.display().is_flex_inside() || style.display().is_grid_inside())))
                             && alignment_style.vertical_align_keyword() == vertical_align::BASELINE);
                 }
                 line_box_baseline = adjusted_baseline;
