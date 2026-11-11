@@ -67,31 +67,7 @@ public:
 private:
     HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&, u64 rust_generation);
 
-    struct Item {
-        size_t item_index { 0 };
-        Layout::RustFFI::FfiHitTestItemExport facts;
-
-        size_t index() const { return item_index; }
-        Compositing::RustFFI::NodeSlotId paintable() const { return facts.paintable; }
-        Compositing::RustFFI::NodeSlotId hit_node() const { return facts.hit_node; }
-        ChromeWidgetKind chrome_widget_kind() const { return static_cast<ChromeWidgetKind>(facts.chrome_widget_kind); }
-        Compositing::ContextRef context() const { return facts.context; }
-    };
-
-    struct TopmostItem {
-        size_t index { 0 };
-        CSSPixelPoint local_point;
-    };
-
-    static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
-    [[nodiscard]] Item item(Layout::BegunRead const& read, size_t index) const;
-
-    [[nodiscard]] Optional<TopmostItem> find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
-    [[nodiscard]] Vector<TopmostItem> hit_items_topmost_first(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
-
-    [[nodiscard]] Layout::Node const* layout_node_for_item(Layout::BegunRead const& read, Item) const;
-    [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item) const;
-    [[nodiscard]] HitTestResult hit_test_result_for_item(Layout::BegunRead const& read, Item, CSSPixelPoint local_point) const;
+    [[nodiscard]] HitTestResult hit_test_result_for(Layout::BegunRead const& read, Layout::RustFFI::FfiPointHit const&) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_from(Layout::RustFFI::FfiCaretAt const&) const;
 
     u64 m_visual_context_tree_structural_epoch { 0 };

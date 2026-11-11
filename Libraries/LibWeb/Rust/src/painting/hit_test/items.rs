@@ -449,6 +449,9 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
             return;
         }
         let context = self.rows.paintable_data(paintable).accumulated_visual_context;
+        if !self.sink.wants(HitTestItemKind::SvgPath, bounding_box, context) {
+            return;
+        }
         let item = HitTestItem {
             rect: bounding_box,
             path: Some(path),
@@ -481,6 +484,9 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
             CssPixels::default(),
         );
         let context = self.rows.paintable_data(paintable).accumulated_visual_context;
+        if !self.sink.wants(HitTestItemKind::Box, rect, context) {
+            return;
+        }
         let item = HitTestItem {
             rect,
             ..self.base_hit_test_item(HitTestItemKind::Box, paintable, context)
@@ -582,6 +588,9 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
         context: ContextRef,
         border_radii: BorderRadii,
     ) {
+        if !self.sink.wants(HitTestItemKind::Box, rect, context) {
+            return;
+        }
         let item = HitTestItem {
             rect,
             border_radii,
@@ -627,6 +636,9 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
     }
 
     fn append_empty_editable(&mut self, paintable: NodeSlotId, rect: CssPixelRect, context: ContextRef) {
+        if !self.sink.wants(HitTestItemKind::EmptyEditable, rect, context) {
+            return;
+        }
         let item = HitTestItem {
             rect,
             ..self.base_hit_test_item(HitTestItemKind::EmptyEditable, paintable, context)
@@ -635,6 +647,12 @@ impl<'a, R: PaintRead, S: HitTestItemSink> HitTestItems<'a, R, S> {
     }
 
     fn append_chrome_widget(&mut self, paintable: NodeSlotId, chrome_widget_kind: u8, context: ContextRef) {
+        if !self
+            .sink
+            .wants(HitTestItemKind::ChromeWidget, CssPixelRect::default(), context)
+        {
+            return;
+        }
         let item = HitTestItem {
             chrome_widget_kind,
             ..self.base_hit_test_item(HitTestItemKind::ChromeWidget, paintable, context)

@@ -398,10 +398,6 @@ pub(crate) fn scope_ink_bound(source: &impl PaintRead, scope: PaintScope) -> Sco
         .map_or(ScopeInkBound::Unbounded, ScopeInkBound::Rect)
 }
 
-pub(crate) fn maintenance_enabled() -> bool {
-    crate::painting::record::ink_bounds::verification().enabled
-}
-
 fn include_child(ink: &mut InkOverflow, child: InkOverflow) {
     ink.rect.unite(child.rect);
     ink.unbounded |= child.contribution_unbounded;
@@ -535,7 +531,7 @@ struct StoredInkOverflowAuditCounts {
 
 impl crate::layout::LayoutNodeArena {
     pub(crate) fn request_ink_overflow_recalculation(&mut self, node: NodeSlotId) {
-        if !maintenance_enabled() || !self.paintable_row_is_populated(node) {
+        if !self.paintable_row_is_populated(node) {
             return;
         }
         if self.paintable_rows.mark_ink_overflow_dirty(node) {
@@ -544,9 +540,6 @@ impl crate::layout::LayoutNodeArena {
     }
 
     pub(crate) fn request_containing_block_ink_overflow_recalculation(&mut self, node: NodeSlotId) {
-        if !maintenance_enabled() {
-            return;
-        }
         if self.paintable_row_is_populated(node) {
             let block = self.live_paintable_data(node).containing_block;
             self.request_ink_overflow_recalculation(block);
@@ -554,9 +547,6 @@ impl crate::layout::LayoutNodeArena {
     }
 
     pub(crate) fn request_inline_ink_overflow_recalculation(&mut self, node: NodeSlotId) {
-        if !maintenance_enabled() {
-            return;
-        }
         let rows = self.paintable_rows();
         let root = if node_painting::is_fragmented_inline(&rows, node) {
             rows.inline_pieces_root(node)
@@ -570,7 +560,7 @@ impl crate::layout::LayoutNodeArena {
 
     /// Takes the row's contribution away from whatever gathered it. The row must still name its containing block.
     pub(crate) fn forget_ink_overflow_of_row_being_reset(&mut self, node: NodeSlotId) {
-        if !maintenance_enabled() || !self.paintable_row_is_populated(node) {
+        if !self.paintable_row_is_populated(node) {
             return;
         }
         self.request_containing_block_ink_overflow_recalculation(node);
@@ -591,9 +581,6 @@ impl crate::layout::LayoutNodeArena {
     }
 
     pub(crate) fn settle_ink_overflow(&mut self) {
-        if !maintenance_enabled() {
-            return;
-        }
         let verification = crate::painting::record::ink_bounds::verification();
         if self.paintable_rows.ink_overflow_requests.is_empty() && !verification.enabled {
             return;

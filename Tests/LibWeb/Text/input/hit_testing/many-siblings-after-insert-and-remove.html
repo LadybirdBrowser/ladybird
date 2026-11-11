@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #list > div { height: 2px; }
+    #overlay { position: absolute; left: 100px; top: 0; width: 50px; height: 6000px; }
+</style>
+<div id="list"></div>
+<div id="overlay"></div>
+<script>
+    function describe(element) {
+        return element ? element.id || element.dataset.index || element.localName : "null";
+    }
+    function probe(label, x, y) {
+        const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+        println(`${label}: ${describe(document.elementFromPoint(x, y))} [${all}]`);
+    }
+    // Probes a point given relative to the top left corner of where the element is drawn.
+    function probeAt(label, element, dx, dy) {
+        const rect = element.getBoundingClientRect();
+        probe(label, rect.left + dx, rect.top + dy);
+    }
+    test(() => {
+        const list = document.getElementById("list");
+        for (let index = 0; index < 3000; ++index) {
+            const row = document.createElement("div");
+            row.dataset.index = `row-${index}`;
+            list.appendChild(row);
+        }
+        window.scrollTo(0, 0);
+        probe("first row", 10, 1);
+        probe("row 250", 10, 501);
+        probe("overlay over row 100", 120, 201);
+        list.children[10].remove();
+        probe("after removing an earlier row", 10, 501);
+        const tall = document.createElement("div");
+        tall.dataset.index = "tall";
+        tall.style.height = "100px";
+        list.insertBefore(tall, list.children[5]);
+        probe("the inserted row", 10, 60);
+        probe("after inserting a tall row", 10, 501);
+        const translated = list.children[150];
+        const whereItWas = translated.getBoundingClientRect();
+        translated.style.transform = "translateX(400px)";
+        probe("where a translated row was", 10, whereItWas.top + 1);
+        probeAt("where the translated row is", translated, 10, 1);
+        window.scrollTo(0, 4000);
+        probe("after scrolling", 10, 301);
+        probe("overlay after scrolling", 120, 301);
+        window.scrollTo(0, 0);
+    });
+</script>

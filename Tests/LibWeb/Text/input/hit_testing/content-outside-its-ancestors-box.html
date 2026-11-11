@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    div { box-sizing: border-box; }
+    #positioned { position: relative; width: 300px; height: 40px; background: lightblue; }
+    #clipper { width: 100px; height: 20px; overflow: hidden; background: orange; }
+    #escaper { position: absolute; left: 200px; top: 100px; width: 50px; height: 50px; background: green; }
+    #small { width: 60px; height: 20px; margin-top: 150px; background: yellow; }
+    #translated { transform: translate(300px, 10px); width: 40px; height: 40px; background: pink; }
+    #float-holder { width: 60px; height: 10px; margin-top: 60px; background: silver; }
+    #float { float: left; margin-left: 150px; width: 80px; height: 70px; background: teal; }
+    #negative-holder { clear: both; width: 50px; height: 10px; margin-left: 400px; margin-top: 90px; background: gray; }
+    #negative { margin-left: -90px; margin-top: -30px; width: 60px; height: 25px; background: purple; }
+    #transformed { transform: translateX(10px); width: 30px; height: 10px; margin-top: 20px; background: brown; }
+    #fixed { position: fixed; left: 500px; top: 5px; width: 40px; height: 40px; background: red; }
+    #stacked { position: relative; z-index: 1; width: 30px; height: 10px; background: olive; }
+    #viewport-fixed { position: fixed; left: 600px; top: 100px; width: 40px; height: 40px; background: navy; }
+</style>
+<div id="positioned"><div id="clipper"><div><div id="escaper"></div></div></div></div>
+<div id="small"><div id="translated"></div></div>
+<div id="float-holder"><div id="float"></div></div>
+<div id="negative-holder"><div id="negative"></div></div>
+<div id="transformed"><div id="fixed"></div></div>
+<div id="stacked"><div id="viewport-fixed"></div></div>
+<script>
+    function describe(element) {
+        return element ? element.id || element.dataset.index || element.localName : "null";
+    }
+    function probe(label, x, y) {
+        const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+        println(`${label}: ${describe(document.elementFromPoint(x, y))} [${all}]`);
+    }
+    // Probes a point given relative to the top left corner of where the element is drawn.
+    function probeAt(label, element, dx, dy) {
+        const rect = element.getBoundingClientRect();
+        probe(label, rect.left + dx, rect.top + dy);
+    }
+    test(() => {
+        const element = id => document.getElementById(id);
+        probeAt("absolute box past a clipping ancestor it is not contained by", element("escaper"), 25, 25);
+        probeAt("clipped part of the clipping ancestor", element("clipper"), 150, 10);
+        probeAt("translated child outside its parent", element("translated"), 20, 30);
+        probeAt("where the translated child was laid out", element("small"), 20, 10);
+        probeAt("below the parent where the translated child was laid out", element("small"), 20, 30);
+        probeAt("float overflowing its container", element("float"), 40, 50);
+        probeAt("child pulled out by negative margins", element("negative"), 5, 5);
+        probeAt("fixed box contained by a transformed box", element("fixed"), 20, 20);
+        probeAt("fixed box under a positioned stacking context", element("viewport-fixed"), 20, 20);
+    });
+</script>

@@ -834,11 +834,10 @@ impl<'tree> Commit<'_, 'tree> {
             ),
         ];
         let data = self.arena().live_paintable_data(slot);
-        let ink_depends_on_later_fragment_placements = crate::painting::ink_overflow::maintenance_enabled()
-            && (containing_block_fragment != 0
-                || !later_fragments.is_empty()
-                || data.has_flag(crate::painting::paintable_data::PaintableFlag::HasLaterBoxFragments)
-                || data.has_flag(crate::painting::paintable_data::PaintableFlag::InLaterContainingBlockFragment));
+        let ink_depends_on_later_fragment_placements = containing_block_fragment != 0
+            || !later_fragments.is_empty()
+            || data.has_flag(crate::painting::paintable_data::PaintableFlag::HasLaterBoxFragments)
+            || data.has_flag(crate::painting::paintable_data::PaintableFlag::InLaterContainingBlockFragment);
         if flags.iter().any(|&(flag, value)| data.has_flag(flag) != value) {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();

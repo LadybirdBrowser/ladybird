@@ -22,42 +22,48 @@ pub(crate) fn row_dom_style_node(arena: &impl PaintRead, slot: NodeSlotId) -> u3
     }
 }
 
-impl HitTestList {
-    /// The DOM node the item dispatches events to. A text fragment generated for a pseudo-element
-    /// dispatches to the pseudo-element's generator.
-    pub(crate) fn item_dispatch_target(&self, arena: &impl PaintRead, item_index: usize) -> FfiNodeIdentity {
-        let item = &self.items[item_index];
-        match item.kind {
-            HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item)
-                .map_or_else(FfiNodeIdentity::default, |slot| row_node_identity(arena, slot, true)),
-            _ => event_dispatch_target_of_paintable(arena, item.paintable),
-        }
+/// The DOM node the item dispatches events to. A text fragment generated for a pseudo-element
+/// dispatches to the pseudo-element's generator.
+pub(crate) fn item_dispatch_target(arena: &impl PaintRead, item: &HitTestItem) -> FfiNodeIdentity {
+    match item.kind {
+        HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item)
+            .map_or_else(FfiNodeIdentity::default, |slot| row_node_identity(arena, slot, true)),
+        _ => event_dispatch_target_of_paintable(arena, item.paintable),
     }
+}
 
+pub(crate) fn resolve_hit(
+    arena: &impl PaintRead,
+    item: &HitTestItem,
+    local_point: CssPixelPoint,
+) -> crate::painting::host::FfiResolvedHit {
+    let mut result = crate::painting::host::FfiResolvedHit {
+        dispatch: item_dispatch_target(arena, item),
+        ..Default::default()
+    };
+    match item.kind {
+        HitTestItemKind::TextFragment => {
+            result.fallback_dispatch = event_dispatch_target_of_paintable(arena, item.paintable);
+            result.has_index_in_node = true;
+            result.index_in_node = fragment_index_in_node_for_point(arena, item, local_point);
+            result.is_text_fragment = true;
+        }
+        HitTestItemKind::EmptyEditable => {
+            result.has_index_in_node = true;
+        }
+        _ => {}
+    }
+    result
+}
+
+impl HitTestList {
     pub(crate) fn resolve_hit(
         &self,
         arena: &impl PaintRead,
         item_index: usize,
         local_point: CssPixelPoint,
     ) -> crate::painting::host::FfiResolvedHit {
-        let item = &self.items[item_index];
-        let mut result = crate::painting::host::FfiResolvedHit {
-            dispatch: self.item_dispatch_target(arena, item_index),
-            ..Default::default()
-        };
-        match item.kind {
-            HitTestItemKind::TextFragment => {
-                result.fallback_dispatch = event_dispatch_target_of_paintable(arena, item.paintable);
-                result.has_index_in_node = true;
-                result.index_in_node = fragment_index_in_node_for_point(arena, item, local_point);
-                result.is_text_fragment = true;
-            }
-            HitTestItemKind::EmptyEditable => {
-                result.has_index_in_node = true;
-            }
-            _ => {}
-        }
-        result
+        resolve_hit(arena, &self.items[item_index], local_point)
     }
 }
 

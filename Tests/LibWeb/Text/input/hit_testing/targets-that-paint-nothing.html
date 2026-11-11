@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { position: absolute; left: 0; width: 400px; height: 40px; }
+    #transparent { top: 0; }
+    #opaque-under { top: 0; background: orange; z-index: -1; }
+    #zero-opacity { top: 50px; opacity: 0; background: green; }
+    #hidden { top: 100px; visibility: hidden; background: red; }
+    #visible-child { visibility: visible; width: 100px; height: 20px; }
+    #no-events { top: 150px; pointer-events: none; background: silver; }
+    #events-child { pointer-events: auto; width: 100px; height: 20px; }
+    #far-child-holder { top: 200px; width: 10px; height: 10px; }
+    #far-child { position: absolute; left: 300px; top: 0; width: 50px; height: 30px; }
+    svg { position: absolute; left: 0; top: 260px; }
+</style>
+<div id="opaque-under" class="row"></div>
+<div id="transparent" class="row"></div>
+<div id="zero-opacity" class="row"></div>
+<div id="hidden" class="row"><div id="visible-child"></div></div>
+<div id="no-events" class="row"><div id="events-child"></div></div>
+<div id="far-child-holder" class="row"><div id="far-child"></div></div>
+<svg id="svg" width="300" height="120">
+    <line id="stroked" x1="20" y1="20" x2="200" y2="20" stroke="black" stroke-width="16" />
+    <rect id="unfilled" x="20" y="50" width="100" height="40" fill="none" stroke="black" stroke-width="2" />
+    <g id="group" pointer-events="bounding-box"><rect id="in-group" x="200" y="60" width="20" height="20" fill="none" /><rect x="260" y="100" width="20" height="20" fill="none" /></g>
+</svg>
+<script>
+    function describe(element) {
+        return element ? element.id || element.localName : "null";
+    }
+    function probe(label, x, y) {
+        const all = document.elementsFromPoint(x, y).map(describe).join(" ");
+        println(`${label}: ${describe(document.elementFromPoint(x, y))} [${all}]`);
+    }
+</script>
+<script>
+    test(() => {
+        probe("transparent box over an opaque one", 200, 20);
+        probe("box with zero opacity", 200, 70);
+        probe("visible child of a hidden box", 50, 110);
+        probe("hidden box beside its visible child", 200, 110);
+        probe("child that takes events in a box that takes none", 50, 160);
+        probe("box that takes no events", 200, 160);
+        probe("transparent child far from its small parent", 320, 215);
+        probe("edge of a wide stroke", 100, 287);
+        probe("inside an unfilled rect", 70, 330);
+        probe("stroke of the unfilled rect", 20, 330);
+        probe("bounding box of a group between its children", 240, 350);
+    });
+</script>
