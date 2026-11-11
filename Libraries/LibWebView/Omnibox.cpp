@@ -5,6 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/AutocompleteMuxer.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/URL.h>
@@ -145,6 +146,13 @@ static Optional<size_t> index_of_typed_text_suggestion(String const& query, Vect
     if (auto index = suggestions.find_first_index_if([](auto const& suggestion) { return suggestion.is_verbatim; }); index.has_value())
         return index;
     return index_of_exact_search_suggestion(query, suggestions);
+}
+
+Optional<URL::URL> url_for_omnibox_destination(StringView text, OmniboxDestinationKind destination_kind, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
+{
+    if (destination_kind == OmniboxDestinationKind::Search && append_tld == AppendTLD::No && search_engine.has_value())
+        return URL::Parser::basic_parse(search_engine->format_search_query_for_navigation(text.trim_whitespace()));
+    return sanitize_url(text, search_engine, append_tld);
 }
 
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)
