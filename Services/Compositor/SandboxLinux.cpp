@@ -9,12 +9,22 @@
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 
+#if defined(USE_FONTCONFIG)
+#    include <LibGfx/Font/GlobalFontConfig.h>
+#endif
+
 namespace Compositor {
 
 ErrorOr<void> restrict_filesystem(StringView resource_root)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
+
+#if defined(USE_FONTCONFIG)
+    // We ask fontconfig how to hint each font that we draw. It reads its configuration files when it starts, and they
+    // can be anywhere, so it has to start before the sandbox is in place.
+    (void)Gfx::GlobalFontConfig::the();
+#endif
 
     Vector<Sandbox::PathRule> paths;
     TRY(Sandbox::add_path_if_exists(paths, TRY(String::formatted("{}/fonts", resource_root)), Sandbox::PathRule::Access::ReadOnly));
