@@ -100,10 +100,12 @@ impl Encoder {
         value.encode_owned(self)
     }
 
+    #[inline]
     pub fn append_bytes(&mut self, bytes: &[u8]) {
         self.bytes.extend_from_slice(bytes);
     }
 
+    #[inline]
     pub fn encode_size(&mut self, size: usize) -> Result<(), EncodeError> {
         let size = u32::try_from(size).map_err(|_| EncodeError::SizeTooLarge(size))?;
         self.append_bytes(&size.to_ne_bytes());
@@ -140,6 +142,7 @@ impl<'a> Decoder<'a> {
         T::decode(self)
     }
 
+    #[inline]
     pub fn read_bytes(&mut self, count: usize) -> Result<&'a [u8], DecodeError> {
         let end = self.position.checked_add(count).ok_or(DecodeError::UnexpectedEnd)?;
         let bytes = self.bytes.get(self.position..end).ok_or(DecodeError::UnexpectedEnd)?;
@@ -147,6 +150,7 @@ impl<'a> Decoder<'a> {
         Ok(bytes)
     }
 
+    #[inline]
     pub fn decode_size(&mut self) -> Result<usize, DecodeError> {
         let max_size = std::mem::replace(&mut self.max_size_of_next_value, usize::MAX);
         let size = self.decode::<u32>()? as usize;
@@ -191,6 +195,7 @@ macro_rules! impl_number {
     ($($type:ty),*) => {
         $(
             impl Encode for $type {
+                #[inline]
                 fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
                     encoder.append_bytes(&self.to_ne_bytes());
                     Ok(())
@@ -213,6 +218,7 @@ macro_rules! impl_number {
             impl Decode for $type {
                 const MIN_ENCODED_SIZE: usize = size_of::<$type>();
 
+                #[inline]
                 fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
                     let bytes = decoder.read_bytes(size_of::<$type>())?;
                     Ok(<$type>::from_ne_bytes(bytes.try_into().map_err(|_| DecodeError::UnexpectedEnd)?))
@@ -233,6 +239,7 @@ macro_rules! impl_number {
 impl_number!(u16, u32, u64, i8, i16, i32, i64, f32, f64);
 
 impl Encode for u8 {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.append_bytes(&[*self]);
         Ok(())
@@ -251,6 +258,7 @@ impl Encode for u8 {
 impl Decode for u8 {
     const MIN_ENCODED_SIZE: usize = 1;
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(decoder.read_bytes(1)?[0])
     }
@@ -262,6 +270,7 @@ impl Decode for u8 {
 
 // NB: A size_t encodes as the 64-bit number it is on every target Ladybird supports.
 impl Encode for usize {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         (*self as u64).encode(encoder)
     }
@@ -270,6 +279,7 @@ impl Encode for usize {
 impl Decode for usize {
     const MIN_ENCODED_SIZE: usize = 8;
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         usize::try_from(decoder.decode::<u64>()?).map_err(|_| DecodeError::InvalidValue("size_t"))
     }
@@ -287,6 +297,7 @@ impl Decode for usize {
 }
 
 impl Encode for bool {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         u8::from(*self).encode(encoder)
     }
@@ -295,6 +306,7 @@ impl Encode for bool {
 impl Decode for bool {
     const MIN_ENCODED_SIZE: usize = 1;
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         match decoder.decode::<u8>()? {
             0 => Ok(false),
