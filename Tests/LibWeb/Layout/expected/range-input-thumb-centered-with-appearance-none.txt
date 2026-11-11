@@ -1,0 +1,53 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 127 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 111 0+0+8] children: not-inline
+      BlockContainer <input.custom> at [8,8] [0+0+0 200 0+0+584] [0+0+0 25 0+0+0] children: not-inline
+        Box <div> at [8,8] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [8,8] positioned flex-item [0+0+0 200 0+0+0] [0+0+0 25 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [8,8] positioned [0+0+0 100 0+0+0] [0+0+0 25 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [108,8] positioned [100+0+0 25 0+0+75] [0+0+0 25 0+0+0] children: not-inline
+      BlockContainer <input.custom.tall> at [8,33] [0+0+0 200 0+0+584] [0+0+0 40 0+0+0] children: not-inline
+        Box <div> at [8,33] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [8,40.5] positioned flex-item [0+0+0 200 0+0+0] [0+0+0 25 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [8,40.5] positioned [0+0+0 100 0+0+0] [0+0+0 25 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [108,40.5] positioned [100+0+0 25 0+0+75] [0+0+0 25 0+0+0] children: not-inline
+      BlockContainer <input.custom.small-thumb> at [8,73] [0+0+0 200 0+0+584] [0+0+0 25 0+0+0] children: not-inline
+        Box <div> at [8,73] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 25 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [8,80.5] positioned flex-item [0+0+0 200 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [8,80.5] positioned [0+0+0 100 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [108,80.5] positioned [100+0+0 10 0+0+90] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,98] [0+0+0 784 0+0+0] [0+0+0 21 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [10,100 129x16] baseline: 18
+        frag 1 from TextNode start: 0, length: 1, rect: [141,103 8x16] baseline: 13
+            " "
+        frag 2 from RangeInputBox start: 0, length: 0, rect: [151,100 129x16] baseline: 18
+        frag 3 from TextNode start: 0, length: 1, rect: [282,103 8x16] baseline: 13
+            " "
+        frag 4 from RangeInputBox start: 0, length: 0, rect: [292,100 129x16] baseline: 18
+        BlockContainer <input> at [10,100] inline-block [2+0+0 129 0+0+2] [2+0+0 16 0+0+2] [BFC] children: not-inline
+          Box <div> at [10,100] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [10,100] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [10,100] positioned [0+0+0 64.5 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [74.5,100] positioned [64.5+0+0 16 0+0+48.5] [0+0+0 16 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+        RangeInputBox <input> at [151,100] inline-block [2+0+0 129 0+0+2] [2+0+0 16 0+0+2] [BFC] children: not-inline
+          Box <div> at [151,100] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [151,106] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [151,106] positioned [0+0+0 64.5 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [215.5,108] positioned [64.5+0+0 16 0+0+48.5] [0+0+0 16 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+        RangeInputBox <input.native-large-thumb> at [292,100] inline-block [2+0+0 129 0+0+2] [2+0+0 16 0+0+2] [BFC] children: not-inline
+          Box <div> at [292,100] flex-container(row) [0+0+0 129 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [292,106] positioned flex-item [0+0+0 129 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [292,106] positioned [0+0+0 64.5 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [356.5,108] positioned [64.5+0+0 24 0+0+40.5] [0+0+0 24 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x127] (z-index: auto)
+  SC for BlockContainer<DIV> [108,8 25x25] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [108,40.5 25x25] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [108,80.5 10x10] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [74.5,100 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [215.5,108 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [356.5,108 24x24] (z-index: auto), has_transform
