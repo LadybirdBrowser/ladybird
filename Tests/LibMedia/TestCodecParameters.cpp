@@ -318,6 +318,30 @@ TEST_CASE(fully_specified_codec_parameters)
     }
 }
 
+TEST_CASE(unrecognized_profiles_share_one_support_key)
+{
+    auto support_key_for = [](StringView codec_string) {
+        return Media::normalize_parsed_codec_for_support_keying(Media::parse_codec_parameters_string(codec_string).value());
+    };
+
+    struct SupportKeyCase {
+        StringView unrecognized_profile;
+        StringView other_unrecognized_profile;
+        StringView recognized_profile;
+    };
+    Array<SupportKeyCase, 2> const cases { {
+        { "avc1.860028"sv, "avc1.8b0033"sv, "avc1.42001e"sv },
+        { "hev1.31.00000000.L120.00.00.00.00"sv, "hvc1.9.200.H153.90.12"sv, "hvc1.1.6.L93.B0"sv },
+    } };
+    for (auto const& support_key_case : cases) {
+        auto key = support_key_for(support_key_case.unrecognized_profile);
+        EXPECT(key == support_key_for(support_key_case.other_unrecognized_profile));
+        EXPECT(key != support_key_for(support_key_case.recognized_profile));
+        // The shared key has to stay unrecognized, or it would be answered for a real profile.
+        EXPECT(key == Media::normalize_parsed_codec_for_support_keying(key));
+    }
+}
+
 TEST_CASE(a_configuration_record_on_a_frame_describes_its_stream)
 {
     // A vpcC payload for profile 2, 10-bit 4:2:0, which begins after the box's version and flags.
