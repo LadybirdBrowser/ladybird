@@ -491,10 +491,14 @@ fn parse_conic_gradient(
 }
 
 fn default_radial_size() -> StyleValueData {
+    radial_size_with_extent(2)
+}
+
+fn radial_size_with_extent(extent: u8) -> StyleValueData {
     StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
         component_count: 1,
         is_extent_0: true,
-        extent_0: 2,
+        extent_0: extent,
         value_0: RetainedStyleValueData::none(),
         is_extent_1: false,
         extent_1: 0,
@@ -533,6 +537,148 @@ fn radial_size_shape(size: &StyleValueData) -> Option<(u8, bool)> {
     Some((*component_count, *is_extent_0))
 }
 
+// https://compat.spec.whatwg.org/#css-gradients-webkit-radial-gradient
+// https://www.w3.org/TR/2011/WD-css3-images-20110217/#radial-gradients
+fn parse_webkit_radial_gradient(
+    context: &ParseContext,
+    property: u16,
+    name: &[u16],
+    arguments: &[ComponentValue],
+) -> Option<StyleValueData> {
+    use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
+    let (repeating, name) = strip_ascii_prefix(name, b"repeating-").map_or((false, name), |name| (true, name));
+    if !equals_ascii_case_insensitive(name, b"radial-gradient") {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments);
+    let position = parse_position_from_stream(context, property, &mut tokens, false);
+    if position.is_some() {
+        // The legacy syntax only accepts one- or two-component positions.
+        if arguments[..tokens.current_index()]
+            .iter()
+            .filter(|token| !token.is_whitespace())
+            .count()
+            > 2
+        {
+            return None;
+        }
+        tokens.discard_whitespace();
+        if !tokens.next_token().is_comma() {
+            return None;
+        }
+        tokens.discard_a_token();
+    }
+
+    let mut ending_shape = None;
+    let mut size_keyword = None;
+    let mut extent = 2;
+    loop {
+        tokens.discard_whitespace();
+        if ending_shape.is_none()
+            && let Some(shape) = parse_ending_shape(&mut tokens)
+        {
+            ending_shape = Some(shape);
+            continue;
+        }
+        let Some(identifier) = tokens.next_token().ident() else {
+            break;
+        };
+        let Some(code) = keyword_from_ascii_case_insensitive(identifier) else {
+            break;
+        };
+        match code {
+            code @ (keyword::CLOSEST_CORNER
+            | keyword::CLOSEST_SIDE
+            | keyword::FARTHEST_CORNER
+            | keyword::FARTHEST_SIDE
+            | keyword::CONTAIN
+            | keyword::COVER)
+                if size_keyword.is_none() =>
+            {
+                size_keyword = Some(code);
+                extent = match code {
+                    keyword::CLOSEST_CORNER => 0,
+                    keyword::CLOSEST_SIDE | keyword::CONTAIN => 1,
+                    keyword::FARTHEST_SIDE => 3,
+                    _ => 2,
+                };
+                tokens.discard_a_token();
+            }
+            _ => break,
+        }
+    }
+    let has_shape_or_size = ending_shape.is_some() || size_keyword.is_some();
+    let size = if has_shape_or_size {
+        size_keyword = Some(size_keyword.unwrap_or(keyword::COVER));
+        radial_size_with_extent(extent)
+    } else if let Some(size) = parse_radial_size(context, property, &mut tokens) {
+        let StyleValueData::RadialSize(payload) = &size else {
+            unreachable!()
+        };
+        if payload.component_count != 2 || payload.is_extent_0 || payload.is_extent_1 {
+            return None;
+        }
+        size
+    } else {
+        default_radial_size()
+    };
+    let has_radii = radial_size_shape(&size)?.0 == 2;
+    tokens.discard_whitespace();
+    if has_shape_or_size || has_radii {
+        if !tokens.next_token().is_comma() {
+            return None;
+        }
+        tokens.discard_a_token();
+    }
+
+    let mut stops = Vec::new();
+    for stop in arguments[tokens.current_index()..].split(ComponentValue::is_comma) {
+        let mut stop_tokens = TokenStream::new(stop);
+        stop_tokens.discard_whitespace();
+        let color = retained(parse_color_value(context, property, &mut stop_tokens, false)?);
+        let mut positions = Vec::new();
+        stop_tokens.discard_whitespace();
+        while stop_tokens.has_next_token() && positions.len() < 2 {
+            positions.push(retained(parse_length_percentage_from_stream(
+                context,
+                property,
+                &mut stop_tokens,
+                NumericRange::INFINITE,
+                NumericRange::INFINITE,
+            )?));
+            stop_tokens.discard_whitespace();
+        }
+        if stop_tokens.has_next_token() {
+            return None;
+        }
+        if positions.is_empty() {
+            positions.push(RetainedStyleValueData::none());
+        }
+        for position in positions {
+            stops.push(RetainedColorStop::from_retained_values(
+                RetainedStyleValueData::none(),
+                color.clone(),
+                position,
+                RetainedStyleValueData::none(),
+            ));
+        }
+    }
+    Some(StyleValueData::RadialGradient(StyleValueBox::new(
+        RadialGradientPayload {
+            ending_shape: ending_shape.unwrap_or(1),
+            webkit: true,
+            has_explicit_position: position.is_some(),
+            webkit_size_keyword: size_keyword.unwrap_or(0),
+            size: retained(size),
+            position: retained(position.unwrap_or_else(center_position)),
+            color_stop_list: RetainedColorStopList::from_vec(stops),
+            repeating,
+            color_interpolation_method: RetainedStyleValueData::none(),
+            color_syntax: 0,
+        },
+    )))
+}
+
 // https://drafts.csswg.org/css-images-4/#radial-gradients
 // <radial-gradient-syntax> = [ [ [ <radial-shape> || <radial-size> ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <color-stop-list>
 fn parse_radial_gradient(
@@ -541,6 +687,9 @@ fn parse_radial_gradient(
     name: &[u16],
     arguments: &[ComponentValue],
 ) -> Option<StyleValueData> {
+    if let Some(name) = strip_ascii_prefix(name, b"-webkit-") {
+        return parse_webkit_radial_gradient(context, property, name, arguments);
+    }
     let (repeating, name) = strip_ascii_prefix(name, b"repeating-").map_or((false, name), |name| (true, name));
     if !equals_ascii_case_insensitive(name, b"radial-gradient") {
         return None;
@@ -607,6 +756,9 @@ fn parse_radial_gradient(
     Some(StyleValueData::RadialGradient(StyleValueBox::new(
         RadialGradientPayload {
             ending_shape,
+            webkit: false,
+            has_explicit_position: false,
+            webkit_size_keyword: 0,
             size: retained(size),
             position: retained(position.unwrap_or_else(center_position)),
             color_stop_list,

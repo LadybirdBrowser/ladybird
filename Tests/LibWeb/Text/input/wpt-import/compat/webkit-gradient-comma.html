@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://compat.spec.whatwg.org/#css-gradients-webkit-radial-gradient">
+<link rel="help" href="https://www.w3.org/TR/css3-images/#radial-gradients">
+<meta name="assert" content="Negative radii values are invalid.">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+test(function() {
+    assert_true(CSS.supports("background-image", "-webkit-radial-gradient(1px 2px, 3% 4%, red, blue)"));
+}, '-webkit-radial-gradient accepts comma before color stops.');
+
+test(function() {
+    assert_false(CSS.supports("background-image", "-webkit-radial-gradient(1px 2px, 3% 4% red, blue)"));
+}, '-webkit-radial-gradient rejects missing comma before color stops.');
+</script>

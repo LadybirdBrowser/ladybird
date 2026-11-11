@@ -1007,6 +1007,9 @@ fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) 
         StyleValueData::RadialGradient(radial_gradient_payload) => {
             let RadialGradientPayload {
                 ending_shape,
+                webkit,
+                has_explicit_position,
+                webkit_size_keyword,
                 size,
                 position,
                 color_stop_list,
@@ -1022,6 +1025,9 @@ fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) 
                 Some(Absolutized::Changed(retain_new(StyleValueData::RadialGradient(
                     StyleValueBox::new(RadialGradientPayload {
                         ending_shape: *ending_shape,
+                        webkit: *webkit,
+                        has_explicit_position: *has_explicit_position,
+                        webkit_size_keyword: *webkit_size_keyword,
                         size,
                         position,
                         color_stop_list,

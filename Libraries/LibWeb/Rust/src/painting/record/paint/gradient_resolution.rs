@@ -896,6 +896,7 @@ pub(crate) fn resolve_gradient_paint_with_input(
                 repeating,
                 color_interpolation_method,
                 color_syntax,
+                ..
             } = &**radial_gradient_payload;
             let (data, center, gradient_size) = resolve_radial_gradient_paint(
                 color_stop_list.as_slice(),

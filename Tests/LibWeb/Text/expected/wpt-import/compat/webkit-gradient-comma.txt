@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	-webkit-radial-gradient accepts comma before color stops.
+Pass	-webkit-radial-gradient rejects missing comma before color stops.
