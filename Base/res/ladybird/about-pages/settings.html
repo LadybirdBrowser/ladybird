@@ -1734,16 +1734,8 @@
                 });
             });
 
-            // Links to sections that were merged into others still open where their settings went.
-            const MOVED_SECTIONS = {
-                general: "appearance",
-                services: "privacy",
-                network: "advanced",
-                languages: "browsing",
-            };
             const hash = location.hash.slice(1);
-            const section = hash ? tabForDeepLink(hash) : "appearance";
-            switchTab(MOVED_SECTIONS[section] ?? section);
+            switchTab(hash ? tabForDeepLink(hash) : "appearance");
 
             // FIXME: Remove this once closedby="any" triggers for Esc key.
             document.querySelectorAll("dialog").forEach(dialog => {
