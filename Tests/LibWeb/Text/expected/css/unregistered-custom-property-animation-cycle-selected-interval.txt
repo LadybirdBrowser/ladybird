@@ -1,0 +1,4 @@
+an unselected cyclic interval does not invalidate the safe interval: true
+a selected cyclic interval is invalid: true
+a retained cyclic interval stays invalid after a style change: true
+returning to the safe interval restores its value: true

@@ -7322,6 +7322,7 @@ fn finish_animation_sample(
             input.stores.base,
             input.stores.inheritance,
             &retained,
+            &custom_properties.intervals,
         );
         for name in names_in_a_cycle {
             let value = registry.invalid_at_computed_value_time(&name, inherited);

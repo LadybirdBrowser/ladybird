@@ -1,0 +1,22 @@
+<!doctype html>
+<div id="interval"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const interval = document.getElementById("interval");
+        const animation = interval.animate(
+            [{ "--saved": "safe" }, { "--saved": "middle" }, { "--saved": "var(--saved)" }],
+            1000
+        );
+        animation.pause();
+        const intervalValue = () => getComputedStyle(interval).getPropertyValue("--saved");
+        animation.currentTime = 0;
+        println(`an unselected cyclic interval does not invalidate the safe interval: ${intervalValue() === "safe"}`);
+        animation.currentTime = 900;
+        println(`a selected cyclic interval is invalid: ${intervalValue() === ""}`);
+        interval.style.color = "red";
+        println(`a retained cyclic interval stays invalid after a style change: ${intervalValue() === ""}`);
+        animation.currentTime = 0;
+        println(`returning to the safe interval restores its value: ${intervalValue() === "safe"}`);
+    });
+</script>

@@ -824,9 +824,9 @@ impl RetainedState {
         .then_some(previous)
     }
 
-    /// The custom properties in a dependency cycle through what an element's animations declare, as
+    /// The custom properties in a dependency cycle through the selected animation intervals, as
     /// `--p: var(--q)` in a keyframe beside `--q: var(--p)` on the element. An animated value wins
-    /// the cascade over a declared one, so a name it animates reads as its keyframes do. What a value
+    /// the cascade over a declared one, so a name it animates reads as its selected endpoints do. What a value
     /// reads is what substituting it looks up, over `base`, the element's environment beneath its
     /// animations, with their values `animated`, and `inheritance`, the environment it inherits:
     /// which branch of an `if()` or fallback that takes depends on the values, and what decides that
@@ -841,25 +841,21 @@ impl RetainedState {
             crate::css::retained_fly_string::RetainedUtf16FlyString,
             RetainedStyleValueData,
         )],
+        intervals: &[crate::css::animation::CustomPropertyInterval],
     ) -> Vec<crate::css::retained_fly_string::RetainedUtf16FlyString> {
         type Name = crate::css::retained_fly_string::RetainedUtf16FlyString;
-        let slot = pseudo.map_or(0, |kind| kind + 1);
         let mut written: Vec<(Name, &StyleValueData)> = Vec::new();
-        for effect in self.element_animation_effects(node, slot) {
-            for keyframe in effect.keyframes() {
-                for declaration in effect.custom_declarations_of(keyframe) {
-                    let crate::css::style::effect_descriptions::PublishedValue::Declared(value) = &declaration.value
-                    else {
-                        continue;
-                    };
-                    written.push((declaration.name.clone(), value.data()));
+        for interval in intervals {
+            for value in &interval.declared_values {
+                if let Some(value) = value.optional_data() {
+                    written.push((interval.name.clone(), value));
                 }
             }
         }
         if !written.iter().any(|(_, value)| substitutes(value)) {
             return Vec::new();
         }
-        let written_names: HashSet<usize> = written.iter().map(|(name, _)| name.raw()).collect();
+        let written_names: HashSet<usize> = intervals.iter().map(|interval| interval.name.raw()).collect();
         let declarations = self
             .live_style
             .as_ref()
