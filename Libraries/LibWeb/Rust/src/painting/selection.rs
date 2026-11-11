@@ -716,9 +716,6 @@ fn set_highlight_pseudo_styles_of_rows(
 }
 
 fn request_ink_for_highlight_style_rows(arena: &mut LayoutNodeArena, rows: &[NodeSlotId]) {
-    if !crate::painting::ink_overflow::maintenance_enabled() {
-        return;
-    }
     for &row in rows {
         arena.request_ink_overflow_recalculation(row);
         arena.request_inline_ink_overflow_recalculation(row);

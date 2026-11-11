@@ -31,7 +31,7 @@ pub(crate) struct ScopePlan {
 /// A box phase in paint order is up to three producers: its hit-test items, the scroll
 /// metadata recorded with the background, and its commands. An SVG root paints its
 /// background, border and then all of its content as one producer.
-fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 5]> {
+pub(crate) fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 5]> {
     use ProducerKind::*;
     match producer {
         PaintProducer::BoxPhase(PaintPhase::Background) => {

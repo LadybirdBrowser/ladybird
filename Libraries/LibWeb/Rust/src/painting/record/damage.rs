@@ -252,9 +252,7 @@ impl LayoutNodeArena {
         if damage.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
-        if crate::painting::ink_overflow::maintenance_enabled()
-            && damage.intersects(PaintDamage::ALL_DRAW | PaintDamage::MOVED | PaintDamage::ORDER)
-        {
+        if damage.intersects(PaintDamage::ALL_DRAW | PaintDamage::MOVED | PaintDamage::ORDER) {
             self.request_ink_overflow_recalculation(row);
             self.request_inline_ink_overflow_recalculation(row);
             if damage.contains(PaintDamage::MOVED) {

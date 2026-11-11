@@ -14,12 +14,11 @@ use super::order_tree::ProducerKind;
 use super::trace::{Action, Observer, Operation};
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintScope, PaintScopePlan};
 use crate::painting::paint_read::{GeometryRead, PaintRead};
-use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use libgfx_rust::Color;
@@ -49,7 +48,7 @@ fn draw_kind(phase: PaintPhase) -> ProducerKind {
     }
 }
 
-fn hit_phase(kind: ProducerKind) -> Option<PaintPhase> {
+pub(crate) fn hit_phase(kind: ProducerKind) -> Option<PaintPhase> {
     match kind {
         ProducerKind::HitBackground => Some(PaintPhase::Background),
         ProducerKind::HitForeground => Some(PaintPhase::Foreground),
@@ -95,15 +94,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             );
         });
         root_group_color
-    }
-
-    // https://drafts.csswg.org/css-transforms-1/#transform-function-lists
-    // If a transform function causes the current transformation matrix of an object to be
-    // non-invertible, the object and its content do not get displayed. Content whose transform
-    // is animated is retained so the compositor can reveal it without a main-thread repaint.
-    fn stacking_context_paints(&self, owner: NodeSlotId) -> bool {
-        !(self.data(owner).has_flag(PaintableFlag::HasNonInvertibleCssTransform)
-            && self.source.node_flags_if_live(owner) & NodeFlag::HasAnimatedOpacityOrTransform as u32 == 0)
     }
 
     // The transparent fill that triggers a content-generating SVG filter, and the mask
@@ -178,7 +168,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
 impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     fn plan_scope(&mut self, scope: PaintScope) -> ScopePlan {
         let plan = PaintScopePlan::build(self.source, scope, self.inputs.should_paint_overlay);
-        let active = !plan.establishes_stacking_context || self.stacking_context_paints(scope.owner);
+        let active = !plan.establishes_stacking_context
+            || crate::painting::hit_test::walk::stacking_context_paints(self.source, scope.owner);
         ScopePlan {
             active,
             items: if active { plan.items } else { SmallVec::new() },

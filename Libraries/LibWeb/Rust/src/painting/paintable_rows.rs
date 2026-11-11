@@ -764,12 +764,10 @@ impl LayoutNodeArena {
         store.visual_context_records.set(index, None);
         set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
         drop_table(&mut store.stacking_context_entries, index);
-        if crate::painting::ink_overflow::maintenance_enabled() {
-            if let Some(dirty) = self.paintable_rows.ink_overflow_dirty.get_mut(index) {
-                *dirty = false;
-            }
-            self.request_ink_overflow_recalculation(layout_node);
+        if let Some(dirty) = self.paintable_rows.ink_overflow_dirty.get_mut(index) {
+            *dirty = false;
         }
+        self.request_ink_overflow_recalculation(layout_node);
         self.notify_committed_box_changed(layout_node);
     }
 
