@@ -7,6 +7,7 @@
 use super::*;
 use crate::css::style_value::GridTrackSizeListPayload;
 use crate::css::style_value::StyleValueBox;
+use crate::css::style_value::StyleValueData;
 use std::ops::Range;
 
 mod grid_lanes;
@@ -210,7 +211,7 @@ impl OwnedUsedGridTrackList {
     // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
     pub(crate) fn style_value(&self) -> crate::css::style_value::StyleValueData {
         use crate::css::css_string::CssString;
-        use crate::css::style_value::{RetainedGridTrackEntry, RetainedGridTrackEntryList, StyleValueData};
+        use crate::css::style_value::{RetainedGridTrackEntry, RetainedGridTrackEntryList};
         assert!(if self.is_subgrid {
             self.track_sizes.is_empty()
         } else {
@@ -2004,6 +2005,22 @@ impl<'pass> GridFormattingContext<'pass> {
                 row_lines_are_fixed,
             )
         };
+        let (template_row_count, template_column_count) = match grid_style.grid_template_areas_style_value.data() {
+            Some(StyleValueData::GridTemplateArea(payload)) => (payload.row_count, payload.column_count),
+            _ => (0, 0),
+        };
+        // https://drafts.csswg.org/css-grid-2/#explicit-grids
+        // The size of the explicit grid is determined by the larger of the number of rows/columns defined by
+        // grid-template-areas and the number of rows/columns sized by grid-template-rows/grid-template-columns.
+        if !column_lines_are_fixed {
+            column_lines.resize_with(
+                column_lines.len().max(template_column_count.saturating_add(1)),
+                Vec::new,
+            );
+        }
+        if !row_lines_are_fixed {
+            row_lines.resize_with(row_lines.len().max(template_row_count.saturating_add(1)), Vec::new);
+        }
         add_template_area_lines(
             column_lines,
             row_lines,

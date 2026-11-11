@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 30px);
+        grid-template-areas: ". . . . .";
+        grid-auto-columns: 100px;
+        position: relative;
+        width: 500px;
+    }
+    .item {
+        grid-column: 2 / -1;
+        height: 10px;
+        background: green;
+    }
+    .abspos {
+        position: absolute;
+        inset: 0;
+    }
+</style>
+<!-- Line -1 is the last line of the five columns that grid-template-areas defines, though none of them is named. -->
+<div class="grid"><div class="item"></div></div>
+<div class="grid"><div class="item abspos"></div></div>
