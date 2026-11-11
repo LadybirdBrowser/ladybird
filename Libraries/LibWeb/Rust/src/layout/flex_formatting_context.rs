@@ -3654,6 +3654,49 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.specified_main_max_size(index)
     }
 
+    /// The automatic inline main size of a replaced item with a natural inline size, which replaced element sizing
+    /// finds by transferring its min and max block sizes through its aspect ratio, as it does for a replaced box in
+    /// block layout. Its max-content and min-content inline sizes are its natural inline size alone.
+    /// https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
+    fn automatic_inline_main_size_of_replaced_item(&self, index: usize, max_content: bool) -> Option<CssPixels> {
+        // NB: A cyclic percentage inline size of a replaced box resolves against zero for its min-content
+        //     contribution, which the intrinsic size calculation already handles.
+        // NB: A box with no natural inline size takes its inline size from its block size through its aspect ratio,
+        //     which the intrinsic size calculation already does.
+        if !self.main_axis_is_horizontal()
+            || !self.flex_item_details[index].inputs.is_replaced_box
+            || self.flex_item_details[index].inputs.auto_content_size.width.is_none()
+            || self.computed_main_size(index).contains_percentage()
+            || self.computed_main_max_size(index).contains_percentage()
+        {
+            return None;
+        }
+        // NB: Replaced element sizing transfers the block size implied by the box's content inline size. The item's
+        //     cells hold its flex base size by now, so start it from its natural inline size instead, as block
+        //     layout does.
+        let mut cells = self.flex_item_details[index].cells;
+        cells.set_content_inline_size(if max_content {
+            self.calculate_max_content_inline_size(index)
+        } else {
+            self.calculate_min_content_inline_size(index)
+        });
+        let sizing = self.sizing();
+        let sized = sizing_context::SizedBox::new(self.flex_items[index].box_, &cells);
+        let available_space = AvailableSpace {
+            inline_size: if max_content {
+                AvailableSize::MaxContent
+            } else {
+                AvailableSize::MinContent
+            },
+            block_size: AvailableSize::Indefinite,
+        };
+        let constraints = self.item_containing_block_constraints();
+        if !sizing.box_is_sized_as_replaced_element(sized, available_space, constraints) {
+            return None;
+        }
+        Some(sizing.compute_inline_size_for_replaced_element(sized, available_space, constraints))
+    }
+
     // https://drafts.csswg.org/css-flexbox-1/#intrinsic-item-contributions
     fn calculate_main_content_contribution(&self, index: usize, max_content: bool) -> CssPixels {
         // The main-size max-content contribution of a flex item is
@@ -3666,7 +3709,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         //          contribution. Taking the larger of the two would make a `width: 40px; flex: 1 1 0` item whose padding
         //          and content add up to more than 40px stretch its container, e.g. YouTube's voice search button.
         let size = if self.should_treat_main_size_as_auto(index) {
-            if max_content {
+            if let Some(size) = self.automatic_inline_main_size_of_replaced_item(index, max_content) {
+                size
+            } else if max_content {
                 self.calculate_max_content_main_size(index)
             } else {
                 self.calculate_min_content_main_size(index)
