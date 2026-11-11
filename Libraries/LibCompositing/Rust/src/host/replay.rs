@@ -5,6 +5,7 @@
  */
 
 use crate::display_list::commands::{DisplayListCommandType, DrawIsolatedGroup, ReplayClip, ReplayLayer, ReplayMask};
+use crate::display_list::played::{PlayedCommand, PlayedPayload};
 use crate::display_list::replay::ReplayPainter;
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
@@ -37,9 +38,10 @@ pub struct FfiDisplayListReplayCallbacks {
     pub pop: unsafe extern "C" fn(*mut c_void),
     pub push_device_space_plane_clip: unsafe extern "C" fn(*mut c_void, *const FloatVector3, usize),
     pub push_transform: unsafe extern "C" fn(*mut c_void, *const AffineTransform),
-    pub push_clip_path_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, WindingRule),
-    // Arguments: the command type, the command struct, and the payload its spans point into, with its size.
-    pub play_command: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, *const u8, *const u8, usize),
+    /// Takes the contours of a path that is not kept beyond the clip, and the fill rule.
+    pub push_uncached_clip_path: unsafe extern "C" fn(*mut c_void, *const PathGeometryData, WindingRule),
+    /// Takes the command type, the command, whose type the command type picks, and what its payload holds.
+    pub play_command: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, *const c_void, *const PlayedPayload),
 }
 
 impl ReplayPainter for FfiDisplayListReplayCallbacks {
@@ -137,21 +139,14 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
         unsafe { (self.push_transform)(self.context, transform) };
     }
 
-    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule) {
-        // SAFETY: The C++ painter reads the serialized path synchronously.
-        unsafe { (self.push_clip_path_bytes)(self.context, path_bytes.as_ptr(), path_bytes.len(), winding_rule) };
+    fn push_uncached_clip_path(&mut self, path: &Path, winding_rule: WindingRule) {
+        let data = path.geometry_data();
+        // SAFETY: The C++ painter reads the contours synchronously.
+        unsafe { (self.push_uncached_clip_path)(self.context, &raw const data, winding_rule) };
     }
 
-    fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]) {
-        // SAFETY: The C++ painter copies the command struct out of `command` and reads the payload synchronously.
-        unsafe {
-            (self.play_command)(
-                self.context,
-                command_type,
-                command.as_ptr(),
-                payload.as_ptr(),
-                payload.len(),
-            );
-        }
+    fn play_command(&mut self, command: &PlayedCommand, payload: &PlayedPayload) {
+        // SAFETY: The C++ painter reads the command and the payload synchronously.
+        unsafe { (self.play_command)(self.context, command.command_type(), command.as_ffi_pointer(), payload) };
     }
 }

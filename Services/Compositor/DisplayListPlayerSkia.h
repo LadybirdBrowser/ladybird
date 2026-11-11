@@ -60,8 +60,8 @@ public:
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \
-    void play_command(Compositing::command_type const&) override;
-    ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
+    void play_command(Compositing::command_type const&, Compositing::PlayedPayload const&) override;
+    ENUMERATE_PLAYED_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
     void set_matrix(Gfx::FloatMatrix4x4 const&) override;
     Gfx::FloatMatrix4x4 canvas_matrix() const override;
@@ -69,7 +69,7 @@ private:
 
     void push_clip(Compositing::ReplayClip const&) override;
     void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule) override;
-    void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule) override;
+    void push_uncached_clip_path(Gfx::PathData const&, Gfx::WindingRule) override;
     void push_transform(Gfx::AffineTransform const&) override;
     void push_layer(Compositing::ReplayLayer const&) override;
     void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;
@@ -86,15 +86,12 @@ private:
 
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 
-    SkPaint paint_style_to_skia_paint(Compositing::DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+    SkPaint paint_style_to_skia_paint(Compositing::DisplayListPaintStyle const&, Compositing::PlayedGradientColorStops const&, Gfx::FloatRect const& bounding_rect);
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&);
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
     sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes, Optional<Gfx::FloatRect> blur_edge = {});
-    SkPath path_from_data(Compositing::DisplayListDataSpan) const;
     // The raster of a tile that the command played next draws.
     sk_sp<SkImage> take_tile_raster();
-    ReadonlySpan<Color> gradient_colors(Compositing::DisplayListGradientColorStops) const;
-    ReadonlySpan<float> gradient_positions(Compositing::DisplayListGradientColorStops) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CompositedContextResolver const* m_composited_context_resolver { nullptr };

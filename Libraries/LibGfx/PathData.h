@@ -40,7 +40,4 @@ struct PathData {
     WindingRule winding_rule { WindingRule::Nonzero };
 };
 
-// The contours are valid only during the call. Bytes that describe no path give no contours.
-void with_contours_of_serialized_path(ReadonlyBytes serialized_path, Function<void(PathData const&)> const& callback);
-
 }

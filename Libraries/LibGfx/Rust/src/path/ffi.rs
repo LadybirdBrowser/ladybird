@@ -9,7 +9,6 @@
 //! Only LibGfx's copy of this crate makes and frees these paths. Rust code builds and queries its
 //! own paths with `Path`.
 
-use super::encoding;
 use super::geometry::{PathGeometry, PathVerb};
 use crate::geometry::FloatPoint;
 
@@ -115,17 +114,6 @@ pub unsafe extern "C" fn path_geometry_contour_cubic_to(
 pub unsafe extern "C" fn path_geometry_contour_close(path: *mut PathGeometry) {
     // SAFETY: Forwarded from the caller.
     unsafe { &mut *path }.contour_close();
-}
-
-/// The path that the bytes describe. Bytes that describe no path give an empty path.
-///
-/// # Safety
-/// `bytes` must point to `count` bytes, or be null with a count of zero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn path_geometry_decode(bytes: *const u8, count: usize) -> *mut PathGeometry {
-    // SAFETY: Forwarded from the caller.
-    let bytes = unsafe { ak::slice_from_raw_parts(bytes, count) };
-    into_raw(encoding::decode(bytes).unwrap_or_default())
 }
 
 impl PathGeometryData {

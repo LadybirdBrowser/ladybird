@@ -10,6 +10,7 @@
 use super::builder::{append_record, for_each_command};
 use super::commands::*;
 use super::ffi_bytes::FfiBytes;
+use super::played::{PayloadValues, PlayedCommand, PlayedPayload};
 use super::validate::validate_canvas_2d_tape;
 use libgfx_rust::{
     AffineTransform, CapStyle, Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, IntPoint, JoinStyle,
@@ -391,21 +392,23 @@ pub extern "C" fn canvas_2d_tape_validate(
     }
 }
 
-/// Calls `visit` with the type and the payload of each record of a tape that passed `canvas_2d_tape_validate`, in
-/// order.
+/// Plays the commands of a tape that passed `canvas_2d_tape_validate`, in order, by calling `play` with the type of
+/// each, the command, whose type the command type picks, and what its payload holds.
 ///
 /// # Safety
-/// `visit` runs synchronously and reads the payload only while it runs.
+/// `play` runs synchronously and reads the command and the payload only while it runs.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn canvas_2d_tape_for_each_command(
+pub unsafe extern "C" fn canvas_2d_tape_play(
     tape: ak::Span<'_, u8>,
     context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, ak::Span<'_, u8>),
+    play: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, *const c_void, *const PlayedPayload),
 ) {
     for_each_command(tape.as_slice(), |header, _, payload| {
         debug_assert!(header.command_type.is_canvas_2d());
-        // SAFETY: The caller reads the payload synchronously.
-        unsafe { visit(context, header.command_type, ak::Span::new(payload)) };
+        let command = PlayedCommand::read(header.command_type, payload);
+        let values = PayloadValues::read(&command, payload);
+        // SAFETY: The caller reads the command and the payload only while it runs.
+        unsafe { play(context, header.command_type, command.as_ffi_pointer(), &values.played()) };
     });
 }
 

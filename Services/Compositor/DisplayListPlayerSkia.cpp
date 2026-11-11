@@ -236,9 +236,9 @@ static SkRect glyph_run_bounds_including_antialiasing(SkTextBlob const& blob, Gf
     return bounds;
 }
 
-void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
+void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command, PlayedPayload const& payload)
 {
-    auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
+    ReadonlySpan<DisplayListGlyph> glyphs = payload.glyphs;
     if (glyphs.is_empty())
         return;
 
@@ -257,7 +257,7 @@ static void apply_compositing_and_blending_operator(SkPaint& paint, Gfx::Composi
         paint.setBlender(Gfx::to_skia_blender(compositing_and_blending_operator));
 }
 
-void DisplayListPlayerSkia::play_command(FillRect const& command)
+void DisplayListPlayerSkia::play_command(FillRect const& command, PlayedPayload const&)
 {
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
@@ -271,7 +271,7 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(PaintCaret const& command)
+void DisplayListPlayerSkia::play_command(PaintCaret const& command, PlayedPayload const&)
 {
     if (!caret_is_visible_at_time(command, MonotonicTime::now().nanoseconds()))
         return;
@@ -283,7 +283,7 @@ void DisplayListPlayerSkia::play_command(PaintCaret const& command)
     canvas.drawRect(to_skia_rect(command.rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
+void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command, PlayedPayload const&)
 {
     if (!m_composited_context_resolver)
         return;
@@ -313,7 +313,7 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
     canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
+void DisplayListPlayerSkia::play_command(DrawCanvas const& command, PlayedPayload const&)
 {
     auto const* surfaces = canvas_surfaces();
     if (!surfaces)
@@ -335,7 +335,7 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
     canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
+void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command, PlayedPayload const&)
 {
     Gfx::IntSize visible_size;
     auto image = raster_cache().image_for_video_sink(resource_storage(), command.video_sink_id, m_skia_backend_context, visible_size);
@@ -421,7 +421,7 @@ sk_sp<SkColorFilter> force_dark_image_color_filter()
     return sk_ref_sp(filter);
 }
 
-void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command)
+void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command, PlayedPayload const&)
 {
     auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
     if (!image)
@@ -463,7 +463,7 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command)
+void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command, PlayedPayload const&)
 {
     auto const& frame = resource_storage().image_frame(command.frame_id);
     auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
@@ -533,7 +533,7 @@ static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::FloatRec
     canvas.drawPaint(paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& command)
+void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& command, PlayedPayload const&)
 {
     auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
     if (!image)
@@ -606,7 +606,7 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     canvas.drawRect(to_skia_rect(pattern_rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
+void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command, PlayedPayload const&)
 {
     auto image = take_tile_raster();
     auto tile_size = command.tile_size;
@@ -742,16 +742,6 @@ static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolatio
     return interpolation;
 }
 
-ReadonlySpan<Color> DisplayListPlayerSkia::gradient_colors(DisplayListGradientColorStops color_stops) const
-{
-    return inline_objects<Color>(color_stops.colors);
-}
-
-ReadonlySpan<float> DisplayListPlayerSkia::gradient_positions(DisplayListGradientColorStops color_stops) const
-{
-    return inline_objects<float>(color_stops.positions);
-}
-
 static Vector<SkColor4f> to_skia_gradient_colors(ReadonlySpan<Color> color_stop_colors)
 {
     Vector<SkColor4f> colors;
@@ -761,10 +751,10 @@ static Vector<SkColor4f> to_skia_gradient_colors(ReadonlySpan<Color> color_stop_
     return colors;
 }
 
-void DisplayListPlayerSkia::play_command(PaintLinearGradient const& command)
+void DisplayListPlayerSkia::play_command(PaintLinearGradient const& command, PlayedPayload const& payload)
 {
-    auto color_stop_colors = gradient_colors(command.color_stops);
-    auto color_stop_positions = gradient_positions(command.color_stops);
+    ReadonlySpan<Color> color_stop_colors = payload.color_stops.colors;
+    ReadonlySpan<float> color_stop_positions = payload.color_stops.positions;
     VERIFY(!color_stop_colors.is_empty());
 
     auto colors = to_skia_gradient_colors(color_stop_colors);
@@ -793,7 +783,7 @@ void DisplayListPlayerSkia::play_command(PaintLinearGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
+void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command, PlayedPayload const&)
 {
     auto content_rrect = to_skia_rrect(command.device_content_rect, command.content_corner_radii);
 
@@ -811,9 +801,9 @@ void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
 
 // An outer shadow is drawn outside the box's shape and an inner one inside it, blurred as the rounded rectangle box
 // shadows are.
-void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command)
+void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command, PlayedPayload const& payload)
 {
-    auto shape = path_from_data(command.shape_path_data);
+    auto shape = Gfx::to_skia_path(Gfx::PathData::from_ffi(*payload.path));
 
     // The spread distance grows the shape of an outer shadow, and shrinks the shape whose outside casts an inner one,
     // by the outline of a stroke along the shape twice as wide.
@@ -851,7 +841,7 @@ void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command)
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(PaintInnerBoxShadow const& command)
+void DisplayListPlayerSkia::play_command(PaintInnerBoxShadow const& command, PlayedPayload const&)
 {
     auto outer_rect = to_skia_rrect(command.outer_shadow_rect, command.content_corner_radii);
     auto inner_rect = to_skia_rrect(command.inner_shadow_rect, command.inner_shadow_corner_radii);
@@ -885,10 +875,10 @@ static bool draws_same_glyph_raster_shifted_by_whole_pixels(TextShadowLayer cons
         && layer.offset - anchor.offset == (layer.rounded_offset - anchor.rounded_offset).to_type<float>();
 }
 
-void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
+void DisplayListPlayerSkia::play_command(PaintTextShadow const& command, PlayedPayload const& payload)
 {
-    auto glyphs = inline_objects<DisplayListGlyph>(command.glyphs);
-    auto layers = inline_objects<TextShadowLayer>(command.layers);
+    ReadonlySpan<DisplayListGlyph> glyphs = payload.glyphs;
+    ReadonlySpan<TextShadowLayer> layers = payload.text_shadow_layers;
     if (glyphs.is_empty() || layers.is_empty())
         return;
 
@@ -936,7 +926,7 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
     }
 }
 
-void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& command)
+void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& command, PlayedPayload const&)
 {
     auto const& rect = command.rect;
 
@@ -952,7 +942,7 @@ void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& comma
     canvas.drawRRect(rounded_rect, paint);
 }
 
-void DisplayListPlayerSkia::play_command(FillRoundedRectRing const& command)
+void DisplayListPlayerSkia::play_command(FillRoundedRectRing const& command, PlayedPayload const&)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -1076,13 +1066,13 @@ static SkPaint gradient_paint_style_to_skia_paint(
     return paint;
 }
 
-SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle const& paint_style, PlayedGradientColorStops const& color_stops, Gfx::FloatRect const& bounding_rect)
 {
     auto make_gradient_paint = [&](auto make_shader) {
         return gradient_paint_style_to_skia_paint(
             paint_style.gradient,
-            gradient_colors(paint_style.gradient.color_stops),
-            gradient_positions(paint_style.gradient.color_stops),
+            color_stops.colors,
+            color_stops.positions,
             bounding_rect,
             make_shader);
     };
@@ -1134,19 +1124,14 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
     VERIFY_NOT_REACHED();
 }
 
-SkPath DisplayListPlayerSkia::path_from_data(DisplayListDataSpan path_data) const
+void DisplayListPlayerSkia::play_command(FillPath const& command, PlayedPayload const& payload)
 {
-    return Gfx::skia_path_from_serialized_bytes(inline_data(path_data));
-}
-
-void DisplayListPlayerSkia::play_command(FillPath const& command)
-{
-    auto path = path_from_data(command.path_data);
+    auto path = Gfx::to_skia_path(Gfx::PathData::from_ffi(*payload.path));
     path.setFillType(to_skia_path_fill_type(command.winding_rule));
 
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        paint = paint_style_to_skia_paint(command.paint_style, command.path_bounding_rect);
+        paint = paint_style_to_skia_paint(command.paint_style, payload.color_stops, command.path_bounding_rect);
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));
@@ -1156,12 +1141,12 @@ void DisplayListPlayerSkia::play_command(FillPath const& command)
     surface().canvas().drawPath(path, paint);
 }
 
-void DisplayListPlayerSkia::play_command(StrokePath const& command)
+void DisplayListPlayerSkia::play_command(StrokePath const& command, PlayedPayload const& payload)
 {
-    auto path = path_from_data(command.path_data);
+    auto path = Gfx::to_skia_path(Gfx::PathData::from_ffi(*payload.path));
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        paint = paint_style_to_skia_paint(command.paint_style, command.path_bounding_rect);
+        paint = paint_style_to_skia_paint(command.paint_style, payload.color_stops, command.path_bounding_rect);
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));
@@ -1172,12 +1157,12 @@ void DisplayListPlayerSkia::play_command(StrokePath const& command)
     paint.setStrokeCap(to_skia_cap(command.cap_style));
     paint.setStrokeJoin(to_skia_join(command.join_style));
     paint.setStrokeMiter(command.miter_limit);
-    auto dash_array = inline_objects<float>(command.dash_array);
+    ReadonlySpan<float> dash_array = payload.dash_array;
     paint.setPathEffect(SkDashPathEffect::Make({ dash_array.data(), dash_array.size() }, command.dash_offset));
     surface().canvas().drawPath(path, paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawEllipse const& command)
+void DisplayListPlayerSkia::play_command(DrawEllipse const& command, PlayedPayload const&)
 {
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
@@ -1189,7 +1174,7 @@ void DisplayListPlayerSkia::play_command(DrawEllipse const& command)
     canvas.drawOval(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawLine const& command)
+void DisplayListPlayerSkia::play_command(DrawLine const& command, PlayedPayload const&)
 {
     auto from = to_skia_point(command.from);
     auto to = to_skia_point(command.to);
@@ -1237,11 +1222,7 @@ void DisplayListPlayerSkia::play_command(DrawLine const& command)
 }
 
 // The backdrop filter is applied by the layer of the effect the command records under.
-void DisplayListPlayerSkia::play_command(BackdropFilterRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(DrawRect const& command)
+void DisplayListPlayerSkia::play_command(DrawRect const& command, PlayedPayload const&)
 {
     auto const& rect = command.rect;
     auto& canvas = surface().canvas();
@@ -1253,10 +1234,10 @@ void DisplayListPlayerSkia::play_command(DrawRect const& command)
     canvas.drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(PaintRadialGradient const& command)
+void DisplayListPlayerSkia::play_command(PaintRadialGradient const& command, PlayedPayload const& payload)
 {
-    auto color_stop_colors = gradient_colors(command.color_stops);
-    auto color_stop_positions = gradient_positions(command.color_stops);
+    ReadonlySpan<Color> color_stop_colors = payload.color_stops.colors;
+    ReadonlySpan<float> color_stop_positions = payload.color_stops.positions;
     VERIFY(!color_stop_colors.is_empty());
 
     auto colors = to_skia_gradient_colors(color_stop_colors);
@@ -1287,10 +1268,10 @@ void DisplayListPlayerSkia::play_command(PaintRadialGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
+void DisplayListPlayerSkia::play_command(PaintConicGradient const& command, PlayedPayload const& payload)
 {
-    auto color_stop_colors = gradient_colors(command.color_stops);
-    auto color_stop_positions = gradient_positions(command.color_stops);
+    ReadonlySpan<Color> color_stop_colors = payload.color_stops.colors;
+    ReadonlySpan<float> color_stop_positions = payload.color_stops.positions;
     VERIFY(!color_stop_colors.is_empty());
 
     auto colors = to_skia_gradient_colors(color_stop_colors);
@@ -1311,12 +1292,6 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     paint.setShader(shader);
     apply_compositing_and_blending_operator(paint, command.compositing_and_blending_operator);
     surface().canvas().drawRect(to_skia_rect(rect), paint);
-}
-
-void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const&)
-{
-    // NB: Replay plays a group through begin_isolated_group() and end_isolated_group().
-    VERIFY_NOT_REACHED();
 }
 
 void DisplayListPlayerSkia::begin_isolated_group(DrawIsolatedGroup const& command, ReadonlyBytes filter)
@@ -1350,13 +1325,7 @@ void DisplayListPlayerSkia::end_isolated_group()
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(DeclareMaskContent const&)
-{
-    // NB: Replay keeps the content a mask declares, and plays it from begin_mask_content().
-    VERIFY_NOT_REACHED();
-}
-
-void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
+void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command, PlayedPayload const&)
 {
     auto& canvas = surface().canvas();
     auto const& nested_display_list = resource_storage().display_list_resource(command.display_list_id);
@@ -1464,31 +1433,7 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTarget const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTargetWithCornerRadii const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorMainThreadWheelEventRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorScrollbar const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorBlockingWheelEventRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
+void DisplayListPlayerSkia::play_command(PaintScrollBar const& command, PlayedPayload const&)
 {
     // A scrollbar command of the display list with no scrollbar of the frame is painted as the command gives it. The
     // colors are the ones the display list resolved for the page, which it may have darkened.
@@ -1522,10 +1467,10 @@ void DisplayListPlayerSkia::push_clip_path(Gfx::PathData const& path, u64 path_i
     clip_path(raster_cache().clip_path(path_identity, path), winding_rule, true);
 }
 
-void DisplayListPlayerSkia::push_clip_path_bytes(ReadonlyBytes path_bytes, Gfx::WindingRule winding_rule)
+void DisplayListPlayerSkia::push_uncached_clip_path(Gfx::PathData const& path, Gfx::WindingRule winding_rule)
 {
     surface().canvas().save();
-    clip_path(Gfx::skia_path_from_serialized_bytes(path_bytes), winding_rule, true);
+    clip_path(Gfx::to_skia_path(path), winding_rule, true);
 }
 
 void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform)

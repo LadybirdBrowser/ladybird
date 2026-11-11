@@ -103,6 +103,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "DrawIsolatedGroup",
             "ReplayClip",
             "ReplayLayer",
+            "PlayedPayload",
             "ReplayMask",
             "CanvasId",
             "VideoSinkResourceId",
@@ -158,6 +159,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("DrawIsolatedGroup", "Compositing::DrawIsolatedGroup"),
         ("ReplayClip", "Compositing::ReplayClip"),
         ("ReplayLayer", "Compositing::ReplayLayer"),
+        ("PlayedPayload", "Compositing::PlayedPayload"),
         ("ReplayMask", "Compositing::ReplayMask"),
         ("CanvasId", "Compositing::CanvasId"),
         ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
@@ -220,55 +222,25 @@ fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(names)
 }
 
-fn display_list_command_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+// The commands of the `played_commands!` table that a painter plays.
+fn played_commands(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     let source = std::fs::read_to_string(path)?;
-    let mut names = Vec::new();
-    for line in source.lines() {
-        let Some(rest) = line.strip_prefix("impl DisplayListCommand for ") else {
-            continue;
-        };
-        let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-        if name.is_empty() {
-            return Err(format!("unparsable DisplayListCommand impl header: {line}").into());
-        }
-        names.push(name);
-    }
-    if names.is_empty() {
-        return Err("no DisplayListCommand impls found".into());
+    let (_, table) = source
+        .split_once("\nplayed_commands! {")
+        .ok_or("played_commands! table not found")?;
+    let (_, played) = table
+        .split_once("played: [")
+        .ok_or("played_commands! has no played section")?;
+    let (played, _) = played.split_once(']').ok_or("unterminated played section")?;
+    let names: Vec<String> = played
+        .split(',')
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty())
+        .collect();
+    if let Some(name) = names.iter().find(|name| !name.chars().all(|c| c.is_alphanumeric())) {
+        return Err(format!("unparsable played_commands! entry: {name}").into());
     }
     Ok(names)
-}
-
-// The variants of DisplayListCommandType in declaration order, which is the order of their discriminants.
-fn display_list_command_type_variants(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-    let source = std::fs::read_to_string(path)?;
-    let (_, body) = source
-        .split_once("pub enum DisplayListCommandType {")
-        .ok_or("DisplayListCommandType not found")?;
-    let (body, _) = body.split_once('}').ok_or("unterminated DisplayListCommandType")?;
-    let variants: Vec<String> = body
-        .lines()
-        .map(|line| line.trim().trim_end_matches(','))
-        .filter(|line| !line.is_empty() && !line.starts_with("//"))
-        .map(String::from)
-        .collect();
-    if variants.is_empty() || variants.iter().any(|name| !name.chars().all(|c| c.is_alphanumeric())) {
-        return Err(format!("unparsable DisplayListCommandType variants: {variants:?}").into());
-    }
-    Ok(variants)
-}
-
-fn display_list_payload_alignment(path: &Path) -> Result<String, Box<dyn Error>> {
-    let source = std::fs::read_to_string(path)?;
-    let value = source
-        .lines()
-        .find_map(|line| line.strip_prefix("pub const COMMAND_ALIGNMENT: usize = "))
-        .and_then(|rest| rest.strip_suffix(';'))
-        .ok_or("COMMAND_ALIGNMENT not found")?;
-    if value.is_empty() || !value.chars().all(|c| c.is_ascii_digit()) {
-        return Err(format!("unparsable COMMAND_ALIGNMENT: {value}").into());
-    }
-    Ok(value.to_string())
 }
 
 fn generate_ipc_definitions(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
@@ -460,6 +432,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         libgfx_src_dir.join("paint_enums.rs"),
     ];
     let commands_source = manifest_dir.join("src/display_list/commands.rs");
+    let played_source = manifest_dir.join("src/display_list/played.rs");
     let scroll_table_source = manifest_dir.join("src/visual_context/scroll_table.rs");
     let types_sources: Vec<PathBuf> = libgfx_type_sources
         .iter()
@@ -522,6 +495,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .into_iter()
             .filter(|name| name != "CompositorScrollTable"),
     );
+    commands_config
+        .export
+        .include
+        .extend(public_type_names(&played_source)?);
     commands_config.export.exclude = types_with_existing_cpp_definitions
         .iter()
         .map(|name| name.to_string())
@@ -564,6 +541,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
         ("CompositorContextId", "Web::CompositorContextId"),
         ("UniqueNodeId", "Web::UniqueNodeID"),
+        // An ak::Span is laid out as an AK ReadonlySpan.
+        ("Span", "AK::ReadonlySpan"),
+        ("PathGeometryData", "Gfx::FFI::PathGeometryData"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
         commands_config
@@ -574,6 +554,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     commands_config.includes = [
         "AK/Forward.h",
         "AK/Optional.h",
+        "AK/Span.h",
         "AK/Types.h",
         "LibGfx/AffineTransform.h",
         "LibGfx/AntiAliasing.h",
@@ -600,33 +581,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     .into_iter()
     .map(String::from)
     .collect();
-    // The commands of the canvas 2D stream go into a list of their own, as only the canvas player plays them.
-    let variants = display_list_command_type_variants(&commands_source)?;
     let mut after_includes = String::new();
+    let played = played_commands(&played_source)?;
     for (macro_name, canvas_2d) in [
-        ("ENUMERATE_DISPLAY_LIST_COMMANDS", false),
-        ("ENUMERATE_CANVAS_2D_COMMANDS", true),
+        ("ENUMERATE_PLAYED_DISPLAY_LIST_COMMANDS", false),
+        ("ENUMERATE_PLAYED_CANVAS_2D_COMMANDS", true),
     ] {
         after_includes.push_str(&format!("\n#define {macro_name}(V)"));
-        for name in variants.iter().filter(|name| name.starts_with("Canvas2D") == canvas_2d) {
-            after_includes.push_str(&format!(" \\\n    V({name})"));
+        for command in played
+            .iter()
+            .filter(|command| command.starts_with("Canvas2D") == canvas_2d)
+        {
+            after_includes.push_str(&format!(" \\\n    V({command})"));
         }
         after_includes.push('\n');
     }
-    after_includes.push_str(&format!(
-        "\nnamespace Compositing {{\n\n// Every record and every payload starts at a multiple of this.\nconstexpr size_t display_list_payload_alignment = {};\n\n}}",
-        display_list_payload_alignment(&manifest_dir.join("src/display_list/builder.rs"))?
-    ));
+    after_includes.push_str("\nnamespace Gfx::FFI {\n\nstruct PathGeometryData;\n\n}\n");
     commands_config.after_includes = Some(after_includes);
-    for name in display_list_command_names(&commands_source)? {
-        commands_config.export.pre_body.insert(
-            name.clone(),
-            format!("    static constexpr DisplayListCommandType command_type = DisplayListCommandType::{name};"),
-        );
-    }
     generate_ffi_header_strict(
         commands_config,
-        &[commands_source, scroll_table_source],
+        &[commands_source, played_source, scroll_table_source],
         &out_dir,
         Path::new("DisplayList/DisplayListCommandsGenerated.h"),
     );

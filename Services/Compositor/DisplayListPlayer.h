@@ -35,20 +35,6 @@ protected:
     Compositing::AccumulatedVisualContextTree const& active_visual_context_tree() const { return *m_active_visual_context_tree; }
     Compositing::DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
     OwnedCanvasSurfaces const* canvas_surfaces() const { return m_canvas_surfaces; }
-    ReadonlyBytes inline_data(Compositing::DisplayListDataSpan span) const
-    {
-        VERIFY(static_cast<size_t>(span.offset) + span.size <= m_current_command_payload.size());
-        return m_current_command_payload.slice(span.offset, span.size);
-    }
-    template<typename T>
-    ReadonlySpan<T> inline_objects(Compositing::DisplayListDataSpan span) const
-    {
-        static_assert(alignof(T) <= Compositing::display_list_payload_alignment);
-        auto bytes = inline_data(span);
-        VERIFY(bytes.size() % sizeof(T) == 0);
-        VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
-        return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
-    }
     void execute_impl(Compositing::DisplayList const&, FrameInputs const*);
     void execute_display_list_into_surface(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
     void execute_nested_display_list(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&);
@@ -58,11 +44,11 @@ protected:
 
 private:
     struct ReplayCallbacks;
-    void play_command_bytes(Compositing::DisplayListCommandType, u8 const* command, ReadonlyBytes payload);
+    void play_command(Compositing::DisplayListCommandType, void const* command, Compositing::PlayedPayload const&);
 
 #define DECLARE_PLAY_COMMAND(command_type) \
-    virtual void play_command(Compositing::command_type const&) = 0;
-    ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
+    virtual void play_command(Compositing::command_type const&, Compositing::PlayedPayload const&) = 0;
+    ENUMERATE_PLAYED_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
     virtual void set_matrix(Gfx::FloatMatrix4x4 const&) = 0;
     virtual Gfx::FloatMatrix4x4 canvas_matrix() const = 0;
@@ -71,7 +57,8 @@ private:
     virtual void push_clip(Compositing::ReplayClip const&) = 0;
     // A path stays the same for as long as it has its identity.
     virtual void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule) = 0;
-    virtual void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule) = 0;
+    // The path is not kept beyond the clip.
+    virtual void push_uncached_clip_path(Gfx::PathData const&, Gfx::WindingRule) = 0;
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(Compositing::ReplayLayer const&) = 0;
     virtual void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) = 0;
@@ -91,7 +78,6 @@ private:
     Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
-    ReadonlyBytes m_current_command_payload;
     Vector<NonnullRefPtr<Gfx::PaintingSurface>> m_surfaces_drawn_into_before;
 };
 

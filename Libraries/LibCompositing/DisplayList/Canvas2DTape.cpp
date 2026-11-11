@@ -18,10 +18,10 @@ ErrorOr<void> validate_canvas_2d_tape(ReadonlyBytes tape)
     return {};
 }
 
-void for_each_canvas_2d_command(ReadonlyBytes tape, Function<void(DisplayListCommandType, ReadonlyBytes payload)> const& callback)
+void play_canvas_2d_tape(ReadonlyBytes tape, Function<void(DisplayListCommandType, void const* command, PlayedPayload const&)> const& play)
 {
-    RustFFI::canvas_2d_tape_for_each_command(tape, const_cast<void*>(static_cast<void const*>(&callback)), [](void* context, DisplayListCommandType command_type, ReadonlyBytes payload) {
-        (*static_cast<Function<void(DisplayListCommandType, ReadonlyBytes)> const*>(context))(command_type, payload);
+    RustFFI::canvas_2d_tape_play(tape, const_cast<void*>(static_cast<void const*>(&play)), [](void* context, DisplayListCommandType command_type, void const* command, PlayedPayload const* payload) {
+        (*static_cast<Function<void(DisplayListCommandType, void const*, PlayedPayload const&)> const*>(context))(command_type, command, *payload);
     });
 }
 

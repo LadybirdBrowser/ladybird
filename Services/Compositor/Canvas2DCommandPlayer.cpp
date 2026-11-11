@@ -22,6 +22,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/PathData.h>
 #include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>
 #include <core/SkFont.h>
@@ -75,49 +76,31 @@ void Canvas2DCommandPlayer::clear(Gfx::Color color)
 
 void Canvas2DCommandPlayer::play(ReadonlyBytes tape)
 {
-    for_each_canvas_2d_command(tape, [&](DisplayListCommandType command_type, ReadonlyBytes payload) {
-        m_payload = payload;
+    play_canvas_2d_tape(tape, [&](DisplayListCommandType command_type, void const* command, PlayedPayload const& payload) {
         switch (command_type) {
-#define PLAY_CANVAS_2D_COMMAND(command_type)                                        \
-    case DisplayListCommandType::command_type:                                      \
-        play_command(read_display_list_object<Compositing::command_type>(payload)); \
+#define PLAY_CANVAS_2D_COMMAND(command_type)                                            \
+    case DisplayListCommandType::command_type:                                          \
+        play_command(*static_cast<Compositing::command_type const*>(command), payload); \
         break;
-            ENUMERATE_CANVAS_2D_COMMANDS(PLAY_CANVAS_2D_COMMAND)
+            ENUMERATE_PLAYED_CANVAS_2D_COMMANDS(PLAY_CANVAS_2D_COMMAND)
 #undef PLAY_CANVAS_2D_COMMAND
         default:
             // NB: Validation lets only the commands of the canvas 2D stream onto the tape of a canvas.
             VERIFY_NOT_REACHED();
         }
     });
-    m_payload = {};
 }
 
-ReadonlyBytes Canvas2DCommandPlayer::inline_data(DisplayListDataSpan span) const
+static SkPath skia_path_from(Gfx::FFI::PathGeometryData const* path)
 {
-    return m_payload.slice(span.offset, span.size);
+    return Gfx::to_skia_path(Gfx::PathData::from_ffi(*path));
 }
 
-// NB: The tape is not aligned for the values of an array span, so they are copied out.
-template<typename T>
-static Vector<T> inline_objects(ReadonlyBytes bytes)
+sk_sp<SkImageFilter> Canvas2DCommandPlayer::image_filter_from(PlayedPayload const& payload) const
 {
-    Vector<T> objects;
-    objects.resize(bytes.size() / sizeof(T));
-    if (!objects.is_empty())
-        __builtin_memcpy(objects.data(), bytes.data(), objects.size() * sizeof(T));
-    return objects;
-}
-
-SkPath Canvas2DCommandPlayer::path_from(DisplayListDataSpan path_data) const
-{
-    return Gfx::skia_path_from_serialized_bytes(inline_data(path_data));
-}
-
-sk_sp<SkImageFilter> Canvas2DCommandPlayer::image_filter_from(Canvas2DCompositing const& compositing) const
-{
-    if (!compositing.has_filter)
+    if (payload.filter.is_empty())
         return nullptr;
-    return Gfx::to_skia_image_filter(inline_data(compositing.filter), [](u64) -> Gfx::DecodedImageFrame const& {
+    return Gfx::to_skia_image_filter(payload.filter, [](u64) -> Gfx::DecodedImageFrame const& {
         // A canvas filter comes from CSS filter functions, which draw no images.
         VERIFY_NOT_REACHED();
     });
@@ -128,14 +111,14 @@ SkColorSpace* Canvas2DCommandPlayer::surface_color_space() const
     return m_surface->sk_surface().imageInfo().colorSpace();
 }
 
-Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, Canvas2DCompositing const& compositing) const
+Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, Canvas2DCompositing const& compositing, PlayedPayload const& payload) const
 {
     SkPaint paint;
     auto* color_space = surface_color_space();
 
     auto set_shader_with_color_stops = [&](auto make_shader) {
-        auto stop_colors = inline_objects<Gfx::Color>(inline_data(style.color_stops.colors));
-        auto positions = inline_objects<float>(inline_data(style.color_stops.positions));
+        ReadonlySpan<Gfx::Color> stop_colors = payload.color_stops.colors;
+        ReadonlySpan<float> positions = payload.color_stops.positions;
         Vector<SkColor4f> colors;
         colors.ensure_capacity(stop_colors.size());
         for (auto const& color : stop_colors)
@@ -210,7 +193,7 @@ Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, 
     }
 
     paint.setAlphaf(paint.getAlphaf() * compositing.global_alpha);
-    paint.setImageFilter(image_filter_from(compositing));
+    paint.setImageFilter(image_filter_from(payload));
     return paint;
 }
 
@@ -334,11 +317,11 @@ static SkPath prune_path_for_stroking(SkPath const& path)
     return builder.detach();
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DFillPath const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DFillPath const& command, PlayedPayload const& payload)
 {
-    auto path = path_from(command.path_data);
+    auto path = skia_path_from(payload.path);
     path.setFillType(Gfx::to_skia_path_fill_type(command.winding_rule));
-    auto paint = paint_from(command.paint, command.compositing);
+    auto paint = paint_from(command.paint, command.compositing, payload);
     if (!paint.has_value())
         return;
     paint->setAntiAlias(true);
@@ -347,15 +330,15 @@ void Canvas2DCommandPlayer::play_command(Canvas2DFillPath const& command)
     });
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DStrokePath const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DStrokePath const& command, PlayedPayload const& payload)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (command.thickness <= 0)
         return;
 
-    auto path = prune_path_for_stroking(path_from(command.path_data));
-    auto dash_array = inline_objects<float>(inline_data(command.dash_array));
-    auto paint = paint_from(command.paint, command.compositing);
+    auto path = prune_path_for_stroking(skia_path_from(payload.path));
+    ReadonlySpan<float> dash_array = payload.dash_array;
+    auto paint = paint_from(command.paint, command.compositing, payload);
     if (!paint.has_value())
         return;
     paint->setAntiAlias(true);
@@ -370,11 +353,11 @@ void Canvas2DCommandPlayer::play_command(Canvas2DStrokePath const& command)
     });
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRuns const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRuns const& command, PlayedPayload const& payload)
 {
     if (!m_resolvers.font)
         return;
-    auto paint = paint_from(command.paint, command.compositing);
+    auto paint = paint_from(command.paint, command.compositing, payload);
     if (!paint.has_value())
         return;
 
@@ -384,14 +367,14 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRuns const& command)
         Vector<SkPoint, 32> glyph_positions;
     };
 
-    auto tape_glyphs = inline_objects<DisplayListGlyph>(inline_data(command.glyphs));
-    auto tape_runs = inline_objects<Canvas2DGlyphRun>(inline_data(command.runs));
+    ReadonlySpan<DisplayListGlyph> tape_glyphs = payload.glyphs;
+    ReadonlySpan<Canvas2DGlyphRun> tape_runs = payload.glyph_runs;
     Vector<SkiaGlyphRun, 2> skia_runs;
     skia_runs.ensure_capacity(tape_runs.size());
     size_t first_glyph = 0;
     for (auto const& run : tape_runs) {
         // NB: The tape validation guarantees that the runs split the glyphs exactly.
-        auto run_glyphs = tape_glyphs.span().slice(first_glyph, run.glyph_count);
+        auto run_glyphs = tape_glyphs.slice(first_glyph, run.glyph_count);
         first_glyph += run.glyph_count;
         auto const* font = m_resolvers.font(run.font_id.value());
         if (!font || run_glyphs.is_empty() || font->is_invisible())
@@ -461,12 +444,12 @@ void Canvas2DCommandPlayer::clear_rect(Gfx::FloatRect const& rect, Gfx::Color co
     canvas.restore();
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DClearRect const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DClearRect const& command, PlayedPayload const&)
 {
     clear_rect(command.rect, command.color);
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DDrawImageFrame const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DDrawImageFrame const& command, PlayedPayload const& payload)
 {
     auto const* frame = m_resolvers.image_frame(command.frame_id.value());
     if (!frame)
@@ -474,10 +457,10 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawImageFrame const& command)
     auto image = image_of_frame(*frame);
     if (!image)
         return;
-    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);
+    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing, payload);
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DDrawCanvas const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DDrawCanvas const& command, PlayedPayload const& payload)
 {
     if (!m_resolvers.canvas_surface)
         return;
@@ -489,23 +472,23 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawCanvas const& command)
     auto image = source_surface->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
-    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);
+    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing, payload);
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DDrawVideoFrame const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DDrawVideoFrame const& command, PlayedPayload const& payload)
 {
     if (!m_resolvers.video_frame_image)
         return;
     auto image = m_resolvers.video_frame_image(command.video_sink_handle, command.generation);
     if (!image)
         return;
-    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);
+    draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing, payload);
 }
 
-void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode scaling_mode, Canvas2DCompositing const& compositing)
+void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::ScalingMode scaling_mode, Canvas2DCompositing const& compositing, PlayedPayload const& payload)
 {
     SkPaint paint;
-    paint.setImageFilter(image_filter_from(compositing));
+    paint.setImageFilter(image_filter_from(payload));
     paint.setAlpha(static_cast<u8>(compositing.global_alpha * 255));
 
     draw_with_compositing(m_surface->canvas(), paint, compositing, [&](SkCanvas& canvas, SkPaint const& paint) {
@@ -519,36 +502,36 @@ void Canvas2DCommandPlayer::draw_image(SkImage const& image, Gfx::FloatRect cons
     });
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DSetTransform const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DSetTransform const& command, PlayedPayload const&)
 {
     m_surface->canvas().setMatrix(Gfx::to_skia_matrix(command.transform));
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DSave const&)
+void Canvas2DCommandPlayer::play_command(Canvas2DSave const&, PlayedPayload const&)
 {
     m_surface->canvas().save();
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DRestore const&)
+void Canvas2DCommandPlayer::play_command(Canvas2DRestore const&, PlayedPayload const&)
 {
     m_surface->canvas().restore();
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DClipPath const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DClipPath const& command, PlayedPayload const& payload)
 {
-    auto path = path_from(command.path_data);
+    auto path = skia_path_from(payload.path);
     path.setFillType(Gfx::to_skia_path_fill_type(command.winding_rule));
     m_surface->canvas().clipPath(path, SkClipOp::kIntersect, true);
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DReset const&)
+void Canvas2DCommandPlayer::play_command(Canvas2DReset const&, PlayedPayload const&)
 {
     auto& canvas = m_surface->canvas();
     canvas.restoreToCount(m_initial_save_count);
     canvas.save();
 }
 
-void Canvas2DCommandPlayer::play_command(Canvas2DClearCanvas const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DClearCanvas const& command, PlayedPayload const&)
 {
     auto size = m_surface->size();
     if (size.is_empty())
@@ -574,7 +557,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DClearCanvas const& command)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata
-void Canvas2DCommandPlayer::play_command(Canvas2DPutImageFrame const& command)
+void Canvas2DCommandPlayer::play_command(Canvas2DPutImageFrame const& command, PlayedPayload const&)
 {
     // NB: putImageData() sets the pixels of the output bitmap, so they are written to the surface directly, without
     //     the current transformation matrix, the clipping region, or compositing.

@@ -10,14 +10,14 @@ use crate::display_list::builder::{
 use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
     DisplayListCommandType, DisplayListPaintStyle, DisplayListPaintStyleType, DrawIsolatedGroup, DrawRepeatedTile,
-    EffectNodeIndex, FillPath, InlineClipKind, OptionalFloatRect, PaintScrollBar, PathPaintKind, ReplayClip,
-    ReplayLayer, ReplayMask, SpatialNodeIndex, StrokePath,
+    EffectNodeIndex, FillPath, InlineClipKind, OptionalFloatRect, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask,
+    SpatialNodeIndex, StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
-use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
+use crate::display_list::played::{PayloadValues, PlayedCommand, PlayedPayload};
 use crate::fast_hash::{FastMap, fast_hasher};
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
@@ -63,10 +63,9 @@ pub trait ReplayPainter {
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
     fn push_transform(&mut self, transform: &AffineTransform);
-    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule);
-    // Plays one command. `command` holds the command struct, which can differ from the one at the start of
-    // `payload`; the command's spans point into `payload`.
-    fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
+    // Clips to a path that is not kept beyond the clip.
+    fn push_uncached_clip_path(&mut self, path: &Path, winding_rule: WindingRule);
+    fn play_command(&mut self, command: &PlayedCommand, payload: &PlayedPayload);
 
     fn execute_run<'t>(&mut self, _run_index: usize, records: &'t [u8], replay: &mut RecordsReplay<'t, '_>) {
         replay_records(records, replay, self);
@@ -169,6 +168,28 @@ fn play_isolated_group<'t, Painter: ReplayPainter + ?Sized>(
     painter.end_isolated_group();
 }
 
+// Plays a command as its record holds it, but for what moves with scrolling.
+fn play_recorded_command<Painter: ReplayPainter + ?Sized>(
+    command_type: DisplayListCommandType,
+    payload: &[u8],
+    replay: &RecordsReplay,
+    painter: &mut Painter,
+) {
+    let mut command = PlayedCommand::read(command_type, payload);
+    let values = PayloadValues::read(&command, payload);
+    if let PlayedCommand::PaintScrollBar(command) = &mut command {
+        let device_offset = device_offset_for_index(replay.scroll_offsets, command.scroll_node_index);
+        if command.vertical {
+            let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
+            command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
+        } else {
+            let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
+            command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
+        }
+    }
+    painter.play_command(&command, &values.played());
+}
+
 // Plays one command and the records it nests.
 fn play_command<'t, Painter: ReplayPainter + ?Sized>(
     header: &DisplayListCommandHeader,
@@ -177,20 +198,6 @@ fn play_command<'t, Painter: ReplayPainter + ?Sized>(
     painter: &mut Painter,
 ) {
     match header.command_type {
-        DisplayListCommandType::PaintScrollBar => {
-            let mut command = read_command::<PaintScrollBar>(payload);
-            let device_offset = device_offset_for_index(replay.scroll_offsets, command.scroll_node_index);
-            if command.vertical {
-                let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
-                command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
-            } else {
-                let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
-                command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
-            }
-            let mut command_bytes = [0u8; std::mem::size_of::<PaintScrollBar>()];
-            command.write_ffi_bytes(&mut command_bytes);
-            painter.play_command(header.command_type, &command_bytes, payload);
-        }
         DisplayListCommandType::DrawIsolatedGroup => play_isolated_group(payload, replay, painter),
         DisplayListCommandType::DeclareMaskContent => {
             let command = read_command::<DeclareMaskContent>(payload);
@@ -207,19 +214,19 @@ fn play_command<'t, Painter: ReplayPainter + ?Sized>(
                     rasterize_tile(tile_records, command.tile_size, Some(key), replay, painter);
                 }
             }
-            painter.play_command(header.command_type, payload, payload);
+            play_recorded_command(header.command_type, payload, replay, painter);
         }
         DisplayListCommandType::FillPath => {
             let command = read_command::<FillPath>(payload);
             rasterize_pattern_tile(payload, command.paint_kind, &command.paint_style, replay, painter);
-            painter.play_command(header.command_type, payload, payload);
+            play_recorded_command(header.command_type, payload, replay, painter);
         }
         DisplayListCommandType::StrokePath => {
             let command = read_command::<StrokePath>(payload);
             rasterize_pattern_tile(payload, command.paint_kind, &command.paint_style, replay, painter);
-            painter.play_command(header.command_type, payload, payload);
+            play_recorded_command(header.command_type, payload, replay, painter);
         }
-        _ => painter.play_command(header.command_type, payload, payload),
+        _ => play_recorded_command(header.command_type, payload, replay, painter),
     }
 }
 
@@ -276,7 +283,10 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
     painter: &mut Painter,
 ) {
     for_each_command(records, |header, _, payload| {
-        if header.command_type.is_compositor_metadata() {
+        // A backdrop filter region draws nothing: its run enters the effect that applies the filter.
+        if header.command_type.is_compositor_metadata()
+            || header.command_type == DisplayListCommandType::BackdropFilterRegion
+        {
             return;
         }
         if header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect) {
@@ -310,7 +320,8 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
             }
             match clip.kind {
                 InlineClipKind::Path => {
-                    painter.push_clip_path_bytes(span_bytes(payload, clip.path_data), clip.path_winding_rule);
+                    let path = Path::from_serialized_bytes(span_bytes(payload, clip.path_data));
+                    painter.push_uncached_clip_path(&path, clip.path_winding_rule);
                 }
                 InlineClipKind::Rect | InlineClipKind::RoundedRect => painter.push_clip(&ReplayClip {
                     rect: clip.clip_rect_or_path_device_bounds,
@@ -1209,10 +1220,10 @@ mod tests {
         }
         fn push_transform(&mut self, _transform: &AffineTransform) {}
 
-        fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule) {}
+        fn push_uncached_clip_path(&mut self, _path: &Path, _winding_rule: WindingRule) {}
 
-        fn play_command(&mut self, command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {
-            self.events.push(PainterEvent::Play(command_type));
+        fn play_command(&mut self, command: &PlayedCommand, _payload: &PlayedPayload) {
+            self.events.push(PainterEvent::Play(command.command_type()));
         }
 
         fn execute_run<'t>(&mut self, run_index: usize, records: &'t [u8], replay: &mut RecordsReplay<'t, '_>) {

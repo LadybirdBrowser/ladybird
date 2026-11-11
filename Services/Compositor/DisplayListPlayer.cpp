@@ -83,26 +83,23 @@ struct DisplayListPlayer::ReplayCallbacks {
             .pop = [](void* context) { static_cast<DisplayListPlayer*>(context)->pop(); },
             .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) { static_cast<DisplayListPlayer*>(context)->push_device_space_plane_clip({ vertices, vertex_count }); },
             .push_transform = [](void* context, Gfx::AffineTransform const* transform) { static_cast<DisplayListPlayer*>(context)->push_transform(*transform); },
-            .push_clip_path_bytes = [](void* context, u8 const* path_bytes, size_t path_bytes_size, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_clip_path_bytes({ path_bytes, path_bytes_size }, winding_rule); },
-            .play_command = [](void* context, DisplayListCommandType command_type, u8 const* command, u8 const* payload, size_t payload_size) { static_cast<DisplayListPlayer*>(context)->play_command_bytes(command_type, command, { payload, payload_size }); },
+            .push_uncached_clip_path = [](void* context, Gfx::FFI::PathGeometryData const* path, Gfx::WindingRule winding_rule) { static_cast<DisplayListPlayer*>(context)->push_uncached_clip_path(Gfx::PathData::from_ffi(*path), winding_rule); },
+            .play_command = [](void* context, DisplayListCommandType command_type, void const* command, PlayedPayload const* payload) { static_cast<DisplayListPlayer*>(context)->play_command(command_type, command, *payload); },
         };
     }
 };
 
-void DisplayListPlayer::play_command_bytes(DisplayListCommandType command_type, u8 const* command, ReadonlyBytes payload)
+void DisplayListPlayer::play_command(DisplayListCommandType command_type, void const* command, PlayedPayload const& payload)
 {
-    TemporaryChange current_command_payload_change { m_current_command_payload, payload };
     switch (command_type) {
-#define PLAY_DISPLAY_LIST_COMMAND(command_type)                                                  \
-    case DisplayListCommandType::command_type:                                                   \
-        play_command(read_display_list_object<command_type>({ command, sizeof(command_type) })); \
+#define PLAY_DISPLAY_LIST_COMMAND(command_type)                            \
+    case DisplayListCommandType::command_type:                             \
+        play_command(*static_cast<command_type const*>(command), payload); \
         break;
-        ENUMERATE_DISPLAY_LIST_COMMANDS(PLAY_DISPLAY_LIST_COMMAND)
+        ENUMERATE_PLAYED_DISPLAY_LIST_COMMANDS(PLAY_DISPLAY_LIST_COMMAND)
 #undef PLAY_DISPLAY_LIST_COMMAND
-#define REJECT_CANVAS_2D_COMMAND(command_type) case DisplayListCommandType::command_type:
-        ENUMERATE_CANVAS_2D_COMMANDS(REJECT_CANVAS_2D_COMMAND)
-#undef REJECT_CANVAS_2D_COMMAND
-        // NB: The display list of a page never holds a command of the canvas 2D stream; validation rejects one.
+    default:
+        // NB: Replay plays only these commands of a page; validation rejects a command of the canvas 2D stream.
         VERIFY_NOT_REACHED();
     }
 }

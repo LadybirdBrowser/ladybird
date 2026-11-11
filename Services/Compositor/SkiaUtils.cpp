@@ -75,15 +75,6 @@ SkPath to_skia_path(PathData const& data)
         to_skia_path_fill_type(data.winding_rule));
 }
 
-SkPath skia_path_from_serialized_bytes(ReadonlyBytes serialized_path)
-{
-    SkPath path;
-    with_contours_of_serialized_path(serialized_path, [&](PathData const& data) {
-        path = to_skia_path(data);
-    });
-    return path;
-}
-
 namespace {
 
 // Reads a serialized filter graph node by node and builds the SkImageFilter tree as it goes. The

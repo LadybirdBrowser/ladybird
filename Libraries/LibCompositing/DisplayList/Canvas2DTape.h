@@ -17,7 +17,8 @@ namespace Compositing {
 // Checks the tape of a segment that came from WebContent.
 COMPOSITING_API ErrorOr<void> validate_canvas_2d_tape(ReadonlyBytes);
 
-// Calls the callback with the type and the payload of each record of a checked tape, in order.
-COMPOSITING_API void for_each_canvas_2d_command(ReadonlyBytes tape, Function<void(DisplayListCommandType, ReadonlyBytes payload)> const&);
+// Plays the commands of a checked tape in order, calling `play` with the type of each, the command, whose type the
+// command type names, and what its payload holds.
+COMPOSITING_API void play_canvas_2d_tape(ReadonlyBytes tape, Function<void(DisplayListCommandType, void const* command, PlayedPayload const&)> const& play);
 
 }
