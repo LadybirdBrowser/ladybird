@@ -84,6 +84,11 @@ if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     target_link_options(compositorservice INTERFACE LINKER:--allow-multiple-definition)
 endif()
 
+if (HAS_FONTCONFIG)
+    target_link_libraries(compositorservice PRIVATE Fontconfig::Fontconfig)
+    target_link_libraries(Compositor PRIVATE Fontconfig::Fontconfig)
+endif()
+
 if (HAS_VULKAN)
     target_sources(compositorservice PRIVATE SkiaVulkanMemoryAllocator.cpp)
     target_link_libraries(compositorservice PRIVATE Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator)
