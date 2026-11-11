@@ -1509,6 +1509,33 @@ void Application::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSiz
     m_compositor_client->async_set_remote_layer_fit(remote_layer_id, fit_within);
 }
 
+void Application::begin_synchronized_resize(u64 remote_layer_id, u64 token)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_begin_synchronized_resize(remote_layer_id, token);
+}
+
+void Application::await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize size)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_await_synchronized_resize_frame(remote_layer_id, token, size);
+}
+
+void Application::commit_synchronized_resize(u64 remote_layer_id, u64 token)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_commit_synchronized_resize(remote_layer_id, token);
+}
+
 void Application::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
     if (!m_compositor_presentation_client) {

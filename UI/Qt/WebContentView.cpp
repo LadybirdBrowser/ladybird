@@ -1875,6 +1875,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
     WebContentViewBase::resizeEvent(event);
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     update_iosurface_layer_frame();
+    synchronize_resize_with_remote_layer();
 #endif
 
     for (auto* overlay : overlays()) {

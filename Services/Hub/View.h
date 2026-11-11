@@ -76,6 +76,8 @@ private:
     virtual void release_backing_store(i32) override { }
     virtual void did_create_remote_layer(u32 core_animation_context_id) override;
     virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) override;
+    virtual void did_hold_synchronized_resize_frame(u64 token) override;
+    virtual void did_commit_synchronized_resize(u64 token) override;
 
     void forward_callbacks_to_ui(bool is_tab);
 

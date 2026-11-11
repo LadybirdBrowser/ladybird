@@ -162,6 +162,9 @@ private:
     virtual void view_set_hosts_remote_layer(u64 view_id, bool hosts_remote_layer) override;
     virtual void view_set_wants_frame_notifications(u64 view_id, bool wants_frame_notifications) override;
     virtual void view_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::IntSize> maximum_size) override;
+    virtual void view_begin_synchronized_resize(u64 view_id, u64 token) override;
+    virtual void view_await_synchronized_resize_frame(u64 view_id, u64 token, Gfx::IntSize size) override;
+    virtual void view_commit_synchronized_resize(u64 view_id, u64 token) override;
     virtual void view_set_has_system_focus(u64 view_id, bool has_system_focus) override;
     virtual void view_open_url_in_new_tab(u64 view_id, URL::URL url, Web::HTML::ActivateTab activate_tab) override;
     virtual void view_open_url_in_new_window(u64 view_id, URL::URL url, WebView::IsPrivate is_private) override;

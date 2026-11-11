@@ -37,6 +37,8 @@ private:
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) override;
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) override;
     virtual void did_present_frame_in_remote_layer(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) override;
+    virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) override { async_did_hold_synchronized_resize_frame(remote_layer_id, token); }
+    virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) override { async_did_commit_synchronized_resize(remote_layer_id, token); }
 
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;

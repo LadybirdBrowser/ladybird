@@ -39,6 +39,9 @@ private:
     virtual void destroy_remote_layer(u64 remote_layer_id) override;
     virtual void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>) override;
     virtual void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within) override;
+    virtual void begin_synchronized_resize(u64 remote_layer_id, u64 token) override { m_compositor_state->begin_synchronized_resize(remote_layer_id, token); }
+    virtual void await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize size) override { m_compositor_state->await_synchronized_resize_frame(remote_layer_id, token, size); }
+    virtual void commit_synchronized_resize(u64 remote_layer_id, u64 token) override { m_compositor_state->commit_synchronized_resize(remote_layer_id, token); }
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays) override;

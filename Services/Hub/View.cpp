@@ -710,6 +710,18 @@ void View::did_present_frame_in_remote_layer(Gfx::IntSize size, double device_pi
         ui->async_view_did_present_frame_in_remote_layer(view_id(), size, device_pixel_ratio);
 }
 
+void View::did_hold_synchronized_resize_frame(u64 token)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_did_hold_synchronized_resize_frame(view_id(), token);
+}
+
+void View::did_commit_synchronized_resize(u64 token)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_view_did_commit_synchronized_resize(view_id(), token);
+}
+
 void View::prepare_page_for_navigable(WebView::WebContentPage& page)
 {
     ViewImplementation::prepare_page_for_navigable(page);

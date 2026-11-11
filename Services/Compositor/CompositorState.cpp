@@ -204,7 +204,7 @@ u32 CompositorState::create_remote_layer(CompositorStateClient& presentation, u6
     if (!layer)
         return 0;
     auto core_animation_context_id = layer->core_animation_context_id();
-    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {}, .fit_within = {} });
+    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {}, .fit_within = {}, .size_of_shown_frame_laid_out_by_page = {} });
     return core_animation_context_id;
 }
 
@@ -212,6 +212,10 @@ void CompositorState::destroy_remote_layer(u64 remote_layer_id)
 {
     show_context_in_remote_layer(remote_layer_id, {});
     m_remote_layers.remove(remote_layer_id);
+    auto had_synchronized_resizes = !m_synchronized_resizes.is_empty();
+    m_synchronized_resizes.remove_all_matching([&](auto const& resize) { return resize.remote_layer_id == remote_layer_id; });
+    if (had_synchronized_resizes && m_synchronized_resizes.is_empty())
+        release_synchronized_resize_hold();
 }
 
 void CompositorState::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id)
@@ -222,6 +226,7 @@ void CompositorState::show_context_in_remote_layer(u64 remote_layer_id, Optional
     if (remote_layer->value.shown_context_id == context_id)
         return;
 
+    remote_layer->value.size_of_shown_frame_laid_out_by_page = {};
     if (auto shown_context_id = exchange(remote_layer->value.shown_context_id, {}); shown_context_id.has_value()) {
         if (auto* shown_context = presented_context_if_present(*shown_context_id))
             stop_showing_context_in_remote_layer(*shown_context_id, *shown_context);
@@ -235,8 +240,10 @@ void CompositorState::show_context_in_remote_layer(u64 remote_layer_id, Optional
         return;
     }
     if (context->remote_layer_id.has_value()) {
-        if (auto other_remote_layer = m_remote_layers.find(*context->remote_layer_id); other_remote_layer != m_remote_layers.end())
+        if (auto other_remote_layer = m_remote_layers.find(*context->remote_layer_id); other_remote_layer != m_remote_layers.end()) {
             other_remote_layer->value.shown_context_id = {};
+            other_remote_layer->value.size_of_shown_frame_laid_out_by_page = {};
+        }
     }
 
     remote_layer->value.shown_context_id = context_id;
@@ -256,6 +263,70 @@ void CompositorState::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::In
         return;
     remote_layer->value.fit_within = fit_within;
     remote_layer->value.layer->place_frame(fit_within);
+}
+
+// A UI that never commits its resize, as one that crashed, would otherwise freeze every window of the browser.
+static constexpr auto SYNCHRONIZED_RESIZE_HOLD_LIMIT = AK::Duration::from_seconds(1);
+
+void CompositorState::begin_synchronized_resize(u64 remote_layer_id, u64 token)
+{
+    if (!m_remote_layers.contains(remote_layer_id))
+        return;
+    if (!m_remote_layer_changes_are_held) {
+        m_remote_layer_changes_are_held = true;
+        RemoteLayer::hold_changes_on_screen();
+        if (!m_synchronized_resize_hold_timeout) {
+            m_synchronized_resize_hold_timeout = Core::Timer::create_single_shot(SYNCHRONIZED_RESIZE_HOLD_LIMIT, [this] {
+                dbgln("Compositor: Releasing the window resize that was never committed");
+                release_synchronized_resize_hold();
+            });
+        }
+        m_synchronized_resize_hold_timeout->start();
+    }
+    m_synchronized_resizes.append({ .remote_layer_id = remote_layer_id, .token = token, .awaited_size = {}, .frame_is_held = false });
+}
+
+void CompositorState::await_synchronized_resize_frame(u64 remote_layer_id, u64 token, Gfx::IntSize size)
+{
+    for (auto& resize : m_synchronized_resizes) {
+        if (resize.remote_layer_id == remote_layer_id && resize.token == token)
+            resize.awaited_size = size;
+    }
+    report_held_synchronized_resize_frames(remote_layer_id);
+}
+
+void CompositorState::report_held_synchronized_resize_frames(u64 remote_layer_id)
+{
+    auto remote_layer = m_remote_layers.find(remote_layer_id);
+    if (remote_layer == m_remote_layers.end())
+        return;
+    auto shown_size = remote_layer->value.size_of_shown_frame_laid_out_by_page;
+    for (auto& resize : m_synchronized_resizes) {
+        if (resize.remote_layer_id != remote_layer_id || resize.frame_is_held || !resize.awaited_size.has_value() || resize.awaited_size != shown_size)
+            continue;
+        resize.frame_is_held = true;
+        remote_layer->value.presentation->did_hold_synchronized_resize_frame(remote_layer_id, resize.token);
+    }
+}
+
+void CompositorState::commit_synchronized_resize(u64 remote_layer_id, u64 token)
+{
+    m_synchronized_resizes.remove_all_matching([&](auto const& resize) {
+        return resize.remote_layer_id == remote_layer_id && resize.token == token;
+    });
+    if (m_synchronized_resizes.is_empty())
+        release_synchronized_resize_hold();
+    if (auto remote_layer = m_remote_layers.find(remote_layer_id); remote_layer != m_remote_layers.end())
+        remote_layer->value.presentation->did_commit_synchronized_resize(remote_layer_id, token);
+}
+
+void CompositorState::release_synchronized_resize_hold()
+{
+    if (m_synchronized_resize_hold_timeout)
+        m_synchronized_resize_hold_timeout->stop();
+    m_synchronized_resizes.clear();
+    if (exchange(m_remote_layer_changes_are_held, false))
+        RemoteLayer::release_changes_held_off_screen();
 }
 
 void CompositorState::stop_showing_context_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context)
@@ -1119,6 +1190,7 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Gfx::In
 {
     auto* context = presented_context_if_present(context_id);
     VERIFY(context);
+    context->size_laid_out_by_page = viewport_rect.size();
     // The frame joins whatever is queued, so a frame queued earlier cannot be presented after it.
     context->presenter.queue_present_frame({ viewport_rect, {} });
     if (try_present_frame_during_resize(context_id, *context))
@@ -1427,7 +1499,10 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
     auto const* shared_image_buffer = context.presenter.shared_image_buffer_of_latest_rendered_store();
     VERIFY(shared_image_buffer);
 
-    remote_layer->value.layer->show_frame(*shared_image_buffer, pending_present.viewport_rect.size(), pending_present.device_pixel_ratio, remote_layer->value.fit_within);
+    auto frame_size = pending_present.viewport_rect.size();
+    remote_layer->value.layer->show_frame(*shared_image_buffer, frame_size, pending_present.device_pixel_ratio, remote_layer->value.fit_within);
+    remote_layer->value.size_of_shown_frame_laid_out_by_page = frame_size == context.size_laid_out_by_page ? Optional<Gfx::IntSize> { frame_size } : OptionalNone {};
+    report_held_synchronized_resize_frames(remote_layer->key);
     remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
 }
 

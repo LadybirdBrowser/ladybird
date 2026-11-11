@@ -168,6 +168,9 @@ private:
     virtual void view_set_remote_layer(u64 view_id, u32 core_animation_context_id) override;
     virtual void view_did_present_frame_in_remote_layer(u64 view_id, Gfx::IntSize size, double device_pixel_ratio) override;
     virtual void view_did_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::ShareableBitmap> snapshot) override;
+    // NB: A view waits for these while CoreAnimation commits a resize, and ignores those that come too late.
+    virtual void view_did_hold_synchronized_resize_frame(u64, u64) override { }
+    virtual void view_did_commit_synchronized_resize(u64, u64) override { }
     virtual void view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event) override;
     virtual void view_finish_handling_mouse_event(u64 view_id, u64 input_id, Web::MouseEvent event, Web::EventResult result) override;
     virtual void view_finish_handling_drag_event(u64 view_id, u64 input_id, Web::DragEvent event) override;

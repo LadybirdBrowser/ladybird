@@ -7,6 +7,7 @@
 #include <LibWebView/CompositorPresentationClient.h>
 
 #include <LibCore/EventLoop.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 
@@ -96,6 +97,18 @@ void CompositorPresentationClient::did_take_frame_snapshot(u64 request_id, Optio
 {
     if (auto callback = m_pending_frame_snapshots.take(request_id); callback.has_value())
         (*callback)(move(snapshot));
+}
+
+void CompositorPresentationClient::did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token)
+{
+    if (auto* view = ViewImplementation::find_view_showing_remote_layer(remote_layer_id))
+        view->synchronized_resize_frame_held({}, token);
+}
+
+void CompositorPresentationClient::did_commit_synchronized_resize(u64 remote_layer_id, u64 token)
+{
+    if (auto* view = ViewImplementation::find_view_showing_remote_layer(remote_layer_id))
+        view->synchronized_resize_committed({}, token);
 }
 
 void CompositorPresentationClient::did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
