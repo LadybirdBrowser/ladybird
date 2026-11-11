@@ -474,8 +474,15 @@
                 display: block;
             }
 
+            .expandable-list {
+                margin-top: 6px;
+            }
+
             .expandable-list summary {
                 cursor: pointer;
+            }
+
+            .expandable-list[open] summary {
                 margin-bottom: 20px;
             }
 
@@ -697,6 +704,10 @@
                 padding: 16px 0 6px;
             }
 
+            .tab-panel > .list-section {
+                padding-top: 40px;
+            }
+
             button.link-button {
                 height: auto;
                 margin: 0;
@@ -793,6 +804,10 @@
                 font-size: 13px;
                 font-weight: 600;
                 color: var(--text);
+            }
+
+            .tab-panel > .card-title:not(:first-child) {
+                margin-top: 40px;
             }
 
             .card,
@@ -1227,74 +1242,85 @@
                         <label for="enable-content-blocking">Block ads, trackers and more</label>
                         <input id="enable-content-blocking" type="checkbox" switch />
                     </div>
-                </div>
-                <template id="filter-list-row">
-                    <div class="filter-list-row">
-                        <input type="checkbox" />
-                        <label class="item-name">
-                            <span class="label"></span>
-                            <span class="description"></span>
+                    <template id="filter-list-row">
+                        <div class="filter-list-row">
+                            <input type="checkbox" />
+                            <label class="item-name">
+                                <span class="label"></span>
+                                <span class="description"></span>
+                            </label>
+                            <button class="link-button">Remove</button>
+                        </div>
+                    </template>
+                    <div class="card-group list-section">
+                        <div class="list-heading">
+                            <span>Filter lists</span>
+                            <span>
+                                <button id="update-content-blocker-lists" class="link-button">
+                                    Update enabled lists
+                                </button>
+                                <button
+                                    id="add-filter-list"
+                                    class="link-button"
+                                    aria-expanded="false"
+                                    aria-controls="add-filter-list-form"
+                                >
+                                    Add filter list…
+                                </button>
+                            </span>
+                        </div>
+                        <div id="content-blocker-lists" class="boxed-list"></div>
+                        <div id="add-filter-list-form" class="add-filter-list" hidden>
+                            <p class="description">
+                                Add a filter list maintained by a source you trust. Automatic updates reveal your IP
+                                address to that source.
+                            </p>
+                            <div class="input-field-container form-row">
+                                <input
+                                    id="custom-content-blocker-subscription-url"
+                                    type="url"
+                                    placeholder="Filter list URL"
+                                />
+                                <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
+                            </div>
+                            <p id="custom-content-blocker-subscription-status" class="description" role="status"></p>
+                            <div class="inline-container">
+                                <p class="description">Or import an Adblock-compatible list stored on this computer.</p>
+                                <input
+                                    id="local-content-blocker-list-picker"
+                                    type="file"
+                                    accept=".txt,text/plain"
+                                    hidden
+                                />
+                                <button id="import-local-content-blocker-list" class="secondary-button">
+                                    Import list…
+                                </button>
+                            </div>
+                            <p id="local-content-blocker-list-status" class="description" role="status"></p>
+                        </div>
+                        <details class="expandable-list">
+                            <summary>Show language-specific lists</summary>
+                            <div id="language-content-blocker-lists" class="boxed-list"></div>
+                        </details>
+                    </div>
+
+                    <div id="content-blocker-disabled-sites-section" class="card-group list-section" hidden>
+                        <div class="list-heading"><span>Turned off on</span></div>
+                        <div id="content-blocker-disabled-sites" class="boxed-list"></div>
+                    </div>
+
+                    <div class="card-group">
+                        <div class="list-heading"><span>Custom filters</span></div>
+                        <label for="custom-content-blocker-filters">
+                            Add Adblock-compatible rules, one per line.
                         </label>
-                        <button class="link-button">Remove</button>
-                    </div>
-                </template>
-                <div class="list-section">
-                    <div class="list-heading">
-                        <span>Filter lists</span>
-                        <span>
-                            <button id="update-content-blocker-lists" class="link-button">Update enabled lists</button>
-                            <button
-                                id="add-filter-list"
-                                class="link-button"
-                                aria-expanded="false"
-                                aria-controls="add-filter-list-form"
-                            >
-                                Add filter list…
-                            </button>
-                        </span>
-                    </div>
-                    <div id="content-blocker-lists" class="boxed-list"></div>
-                    <div id="add-filter-list-form" class="add-filter-list" hidden>
-                        <p class="description">
-                            Add a filter list maintained by a source you trust. Automatic updates reveal your IP address
-                            to that source.
-                        </p>
-                        <div class="input-field-container form-row">
-                            <input
-                                id="custom-content-blocker-subscription-url"
-                                type="url"
-                                placeholder="Filter list URL"
-                            />
-                            <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
-                        </div>
-                        <p id="custom-content-blocker-subscription-status" class="description" role="status"></p>
-                        <div class="inline-container">
-                            <p class="description">Or import an Adblock-compatible list stored on this computer.</p>
-                            <input id="local-content-blocker-list-picker" type="file" accept=".txt,text/plain" hidden />
-                            <button id="import-local-content-blocker-list" class="secondary-button">
-                                Import list…
+                        <textarea id="custom-content-blocker-filters" rows="12" spellcheck="false"></textarea>
+                        <div class="button-container">
+                            <span id="custom-content-blocker-filters-status" class="description" role="status"></span>
+                            <button id="save-custom-content-blocker-filters" class="secondary-button">
+                                Save changes
                             </button>
                         </div>
-                        <p id="local-content-blocker-list-status" class="description" role="status"></p>
-                    </div>
-                </div>
-                <details class="expandable-list">
-                    <summary>Show language-specific lists</summary>
-                    <div id="language-content-blocker-lists" class="boxed-list"></div>
-                </details>
-
-                <div id="content-blocker-disabled-sites-section" class="list-section" hidden>
-                    <div class="list-heading"><span>Turned off on</span></div>
-                    <div id="content-blocker-disabled-sites" class="boxed-list"></div>
-                </div>
-
-                <h3 class="card-title">Custom filters</h3>
-                <div class="card card-body">
-                    <label for="custom-content-blocker-filters"> Add Adblock-compatible rules, one per line. </label>
-                    <textarea id="custom-content-blocker-filters" rows="12" spellcheck="false"></textarea>
-                    <div class="button-container">
-                        <span id="custom-content-blocker-filters-status" class="description" role="status"></span>
-                        <button id="save-custom-content-blocker-filters" class="secondary-button">Save changes</button>
                     </div>
                 </div>
             </div>
