@@ -1,0 +1,9 @@
+Ladybird opens at most six connections to a host at once for fetches,
+and doesn’t count WebSockets toward that limit. The other engines all
+limit a host to six connections the same way. Chromium does it with its
+g_max_sockets_per_group for the normal socket pool, and gives WebSockets
+a separate pool limited to 255. Gecko does it with the pref named
+network.http.max-persistent-connections-per-server. And WebKit sets its
+kHTTPLoadWidth limit to 6 in initializeNetworkSettings(), in the file
+NetworkProcessCocoa.mm, and its curl port uses the same value through
+CurlDefaultMaxHostConnections.
