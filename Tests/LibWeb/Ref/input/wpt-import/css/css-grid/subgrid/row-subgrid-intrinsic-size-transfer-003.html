@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid: percentage block-size transferred through a row subgrid whose row is content-sized</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-grid-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="An intrinsically-sized grid with an auto row: a fixed-height item inside a row subgrid sizes the row, and a sibling aspect-ratio item with a percentage block-size then transfers that row size into the grid's column when the columns are re-resolved.">
+<p>Test passes if there is a filled green square.</p>
+<style>
+  .grid {
+    display: inline-grid;
+    grid-template-rows: auto;
+    grid-template-columns: auto;
+  }
+
+  .subgrid {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-template-columns: auto;
+  }
+
+  .subgrid>div {
+    grid-area: 1 / 1;
+    background: green;
+  }
+
+  .item {
+    aspect-ratio: 1;
+    height: 100%;
+  }
+
+  .tall {
+    height: 100px;
+  }
+</style>
+<div class="grid">
+  <div class="subgrid">
+    <div class="item"></div>
+    <div class="tall"></div>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-control">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#track-sizing">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="overflow on a grid item does not cause it to establish an independent formatting context, and as a result does not prohibit subgrid">
+<style>
+.grid {
+  display: inline-grid;
+  grid-template: auto auto / auto auto;
+  background-color: green;
+}
+.subgrid {
+    grid-row: span 2;
+    grid-column: 2;
+    display: grid;
+    grid-template-rows: subgrid;
+    overflow: hidden;
+}
+.item {
+    width: 50px;
+    height: 50px;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square.</p>
+<div class="grid">
+  <div class="item" style="grid-row: 1;"></div>
+  <div class="subgrid">
+    <div class="item" style="grid-row: 2;"></div>
+  </div>
+</div>
+</body>
+</html>

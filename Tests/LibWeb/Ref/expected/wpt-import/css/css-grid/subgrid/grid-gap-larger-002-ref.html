@@ -1,0 +1,33 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: subgrid with larger gap than parent grid</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display:inline-grid;
+  grid:100px auto/100px;
+  gap:20px;
+  border:3px solid;
+  background:yellow;
+}
+span { background:lightgrey; }
+span:nth-child(2n+1) { background:grey; }
+</style>
+</head>
+<body>
+
+<div class="grid">
+  <span style="height:60px">a</span><span style="margin-top:40px">b</span>
+</div>
+
+</body>
+</html>

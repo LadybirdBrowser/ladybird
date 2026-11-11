@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid with baseline-aligned standalone axis</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  font: 15px/1 Ahem;
+}
+div {
+  align-items: baseline;
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+}
+div > div { grid-template-columns: subgrid }
+.subgrid { grid-column: 1 / -1 }
+.item:nth-child(2) { font-size: 30px }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+<div>
+  <div class="subgrid">
+    <div class="item" data-offset-y="12" data-expected-height="15">X</div>
+    <div class="item" data-offset-y="0" data-expected-height="30">X</div>
+  </div>
+</div>
+</body>

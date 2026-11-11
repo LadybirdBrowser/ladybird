@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid: percentage block-size transferred through nested row subgrids into the grid's intrinsic inline-size</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-grid-sizing">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2075059">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Three nested row subgrids inside an intrinsically-sized grid with a definite row: sizing the columns of an inner subgrid must not recurse into the outer grid's column sizing, and the aspect-ratio item's percentage block-size still transfers into the grid's column.">
+<p>Test passes if there is a filled green square.</p>
+<style>
+  .grid {
+    display: inline-grid;
+    grid-template-rows: 100px;
+    grid-template-columns: auto;
+  }
+
+  .subgrid {
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+
+  .item {
+    aspect-ratio: 1;
+    height: 100%;
+    background: green;
+  }
+</style>
+<div class="grid">
+  <div class="subgrid">
+    <div class="subgrid">
+      <div class="subgrid">
+        <div class="item"></div>
+      </div>
+    </div>
+  </div>
+</div>

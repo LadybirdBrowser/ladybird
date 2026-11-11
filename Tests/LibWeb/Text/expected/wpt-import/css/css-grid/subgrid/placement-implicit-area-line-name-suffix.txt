@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	subgrid implicit area line name "x-end-end" resolves by suffix, not by first substring match

@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrids with column gap larger than 2x the track size</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1841297">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/grid-gap-012-ref.html">
+
+<div style="display: grid; grid-template-columns: 100px 100px 100px; width: 300px">
+  <div style="display: grid; grid-template-columns: subgrid; gap: 250px; grid-column: span 3">
+    <div style="width: 100px; height: 100px; background-color: blue; grid-column: 2"></div>
+    <div style="width: 100px; height: 100px; background-color: blue; grid-column: 3"></div>
+  </div>
+</div>

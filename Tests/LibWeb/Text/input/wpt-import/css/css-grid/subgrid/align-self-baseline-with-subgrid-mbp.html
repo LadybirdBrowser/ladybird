@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<meta name="assert" content="Margin, border, and padding of subgrids should influence the offset of items in the same baseline alignment context">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-item-contribution">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+html,body {
+  color:black; background-color:white;  padding:0; margin:0;
+}
+.grid {
+    font:16px/1 Ahem;
+    display: inline-grid;
+    border: 1px solid black;
+    grid-template-columns: auto auto;
+}
+.subgrid {
+    display: grid;
+    grid-template-rows: subgrid;
+    border: 9px solid blue;
+    margin-top: 15px;
+    padding-top: 6px;
+}
+.first-baseline {
+    align-self: baseline;
+}
+</style>
+</head>
+<body onload="checkLayout('.first-baseline')">
+<div id="target" class="grid">
+    <div data-offset-y="31" class="first-baseline">X</div>
+    <div class="subgrid">
+        <div data-offset-y="31"  class="first-baseline">X</div>
+    </div>
+</div>
+</body>
+</html>

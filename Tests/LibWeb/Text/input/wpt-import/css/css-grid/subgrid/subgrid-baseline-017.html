@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: a baseline-aligned subgridded axis with both its own items and a nested standalone subgrid keeps items in place</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-sharing-group">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<!--
+  DOM nesting (class name -> baseline-axis role):
+    .grid          (root)
+    -> .subgrid-axis  (subgridded axis, baseline-aligns its own top-row items)
+      -> .subgrid       (standalone axis)
+        -> .subgrid       (standalone axis)
+          -> .inner-grid    (standalone axis)
+            -> .inner-subgrid (subgridded axis)
+-->
+<style>
+  body { margin: 0; padding: 0; font: 15px/1 Ahem; }
+  .grid {
+    display: inline-grid;
+    grid-template-columns: repeat(2, auto);
+    grid-template-rows:
+      [top-start] min-content
+      [top-end middle-start] min-content
+      [middle-end bottom-start] min-content
+      [bottom-end];
+  }
+  .subgrid-axis {
+    align-items: baseline;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+  }
+  .axis-item { grid-row: top; }
+  .subgrid {
+    align-items: baseline;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    grid-row: middle;
+    grid-template-rows:
+      [top-start] min-content
+      [top-end middle-start] min-content
+      [middle-end bottom-start] min-content
+      [bottom-end];
+  }
+  .inner-grid {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    grid-template-rows: minmax(2rem, auto) auto;
+  }
+  .inner-subgrid {
+    display: grid;
+    align-items: baseline;
+    grid-template-rows: subgrid;
+    grid-template-columns: repeat(3, auto);
+    grid-row: 1 / -1;
+  }
+  .big { font-size: 30px; }
+  .mid { font-size: 20px; }
+  .small { font-size: 10px; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+<div class="grid">
+  <div class="subgrid-axis">
+    <div class="item axis-item big" style="grid-column: 1;" data-offset-x="0" data-offset-y="0">X</div>
+    <div class="item axis-item small" style="grid-column: 2;" data-offset-x="60" data-offset-y="16">y</div>
+    <div class="subgrid">
+      <div class="subgrid">
+        <div class="inner-grid">
+          <div class="inner-subgrid">
+            <div class="item big" data-offset-x="0" data-offset-y="30">A</div>
+            <div class="item mid" data-offset-x="30" data-offset-y="38">B</div>
+            <div class="item small" data-offset-x="50" data-offset-y="46">C</div>
+          </div>
+          <div class="inner-subgrid">
+            <div class="item" data-offset-x="60" data-offset-y="42">d</div>
+            <div class="item big" data-offset-x="75" data-offset-y="30">E</div>
+            <div class="item mid" data-offset-x="105" data-offset-y="38">F</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>

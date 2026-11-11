@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+* {
+  grid-template-rows: subgrid;
+  display: inline-grid;
+}
+
+html {
+  contain: strict;
+}
+</style>
+<script>
+  window.addEventListener('load', () => {
+    document.head.appendChild(document.createElement('style'))
+  })
+</script>

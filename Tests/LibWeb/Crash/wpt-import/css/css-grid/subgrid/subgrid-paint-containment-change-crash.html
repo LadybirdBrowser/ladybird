@@ -1,0 +1,21 @@
+<html>
+<head>
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=311942">
+</head>
+<body>
+<div style="display: grid">
+  <div id="change" style="display: grid; grid-template-rows: subgrid [a] [b] [c];">
+    <div>one</div>
+    <foo style="display: grid; grid-template-rows: subgrid [a] [b] [c];">
+      <bar id="x">two</bar>
+    </foo>
+  </div>
+</div>
+</body>
+<script>
+  document.body.offsetHeight;
+  x.style.border = "1px solid red";
+  document.getElementById("change").style.contain = 'paint';
+</script>
+</html>
+

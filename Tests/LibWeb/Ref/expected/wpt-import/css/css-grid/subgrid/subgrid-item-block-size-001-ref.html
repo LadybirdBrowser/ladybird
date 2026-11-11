@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid item auto block-size</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+
+body { width:600px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow:dense;
+  column-gap: 40px;
+  row-gap: 0px;
+}
+
+.card {
+  background-color: #fff;
+  grid-row: auto / span 3;
+  grid-template-rows: repeat(3, auto);
+  grid-template-columns: auto;
+  display: grid;
+  row-gap: 40px;
+}
+
+
+.card .inner, .card footer {
+  padding: 10px;
+}
+
+.card .inner { background: grey; }
+
+.card h2 {
+  margin: 0;
+  color: #fff;
+  background-color: rgb(3,99,143);
+  border-bottom: 4px solid rgb(24,154,153);
+}
+
+.card footer {
+  background-color: rgb(182,222,211);
+}
+
+* { box-sizing: border-box; }
+
+item {
+  border: 1px solid;
+  visibility: visible;
+}
+
+.hidden { visibility: hidden; }
+</style>
+<body>
+
+<div class="grid">
+
+   <div class="card">
+     <h2><span class="hidden">My title</span></h2>
+     <div class="inner">
+       <p>The contents.<span class="hidden"> I have a lot of content, more content than the other ones.</span></p>
+     </div>
+     <footer>Footer contents</footer>
+   </div>
+
+   <div class="card hidden">
+     <h2 style="grid-area:1/1"><span>My title</span></h2>
+     <div class="inner" style="grid-area:2/1">
+       <p>The contents. I have a lot of content, more content than the other ones.</p>
+     </div>
+     <footer style="grid-area:3/1">Footer contents</footer>
+
+     <item style="grid-area:1/1">1</item>
+     <item style="grid-area:2/1">2</item>
+     <item style="grid-area:3/1">3</item>
+
+   </div>
+
+    <div class="card">
+     <h2>My title</h2>
+     <div class="inner">
+       <p>The contents. I have a lot of content, more content than the other ones.</p>
+     </div>
+     <footer><span class="hidden">Footer contents</span></footer>
+   </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test Reference</title>
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 220px;
+    grid-auto-rows: auto auto;
+  }
+
+  .box {
+    display: grid;
+    grid-template-rows: auto auto;
+    grid-row: span 2;
+    overflow: hidden;
+    padding: 0 60px;
+    background: #eee;
+  }
+
+  .item { grid-row: 1; line-height: 24px; }
+  .footer { grid-row: 2; margin: 0; background: tomato; }
+</style>
+<div class="grid">
+  <div class="box">
+    <div class="item"><div>wrapping wrapping wrapping wrapping wrapping wrapping wrapping</div></div>
+    <p class="footer">FOOTER</p>
+  </div>
+</div>

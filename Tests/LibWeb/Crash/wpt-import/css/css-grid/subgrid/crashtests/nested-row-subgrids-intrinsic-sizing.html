@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2075059">
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: 200px;
+  }
+
+  .item {
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+</style>
+<div class="grid">
+  <div class="item">
+    <div class="item">
+      <div class="item">
+        <div></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid item using line names from outer grid</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:24px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid: auto / [a] 50px 50px [a] 50px 50px [a];
+  padding: 20px 10px;
+}
+
+.subgrid {
+  display: grid;
+  grid: 50px / subgrid;
+  grid-column: span 3;
+}
+
+x { background: grey; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="subgrid">
+    <x style="grid-column: 1 / 3"></x>
+  </div>
+</div>
+
+</body>
+</html>

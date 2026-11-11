@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Subgrid's own column-gap must not inflate intrinsic width in the subgridded axis

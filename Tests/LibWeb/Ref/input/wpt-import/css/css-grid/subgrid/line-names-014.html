@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Clamping a nested subgrid's grid-template-areas</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#grid-template-areas-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.grid {
+  background: red;
+  display: grid;
+  height: 100px;
+  width: 100px;
+  grid-template: 50px 50px / 50px 50px;
+}
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-rows: 50px 50px;
+  grid-column: span 2;
+  grid-row: span 2;
+  grid-template-areas: "item item"
+                       "item item";
+}
+.item {
+  background: green;
+  grid-area: item;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid">
+  <div class="subgrid">
+    <div class="subgrid ">
+      <div class="item"></div>
+    </div>
+  </div>
+</div>

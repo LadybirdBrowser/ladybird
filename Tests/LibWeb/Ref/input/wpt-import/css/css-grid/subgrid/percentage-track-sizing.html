@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid percentage track sizing</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-overview">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.grid {
+  display: grid;
+  background: red;
+  height: 100px;
+  width: 100px;
+}
+.subgrid {
+  display: grid;
+  grid-template-columns: 100% 0%;
+  grid-template-rows: subgrid;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid">
+  <div class="subgrid">
+    <div style="background: green"></div>
+  </div>
+</div>
+</html>

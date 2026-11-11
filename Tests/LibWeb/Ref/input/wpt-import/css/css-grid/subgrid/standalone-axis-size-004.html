@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid contribution size on standalone axis</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.grid {
+  display: inline-grid;
+  grid-template: 100px / minmax(auto, 100px);
+}
+.subgrid {
+  width: 100%;
+  display: grid;
+  background: green;
+  grid-template-rows: subgrid;
+}
+.w200 { width: 200px }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid">
+  <div class="subgrid">
+    <div class="w200"></div>
+  </div>
+</div>

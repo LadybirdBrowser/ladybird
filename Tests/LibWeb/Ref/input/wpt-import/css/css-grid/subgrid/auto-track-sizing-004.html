@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid auto track sizing</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-overview">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.grid {
+  display: inline-grid;
+  grid-template-columns: repeat(10, auto);
+  grid-template-rows: repeat(5, 5px auto);
+}
+.subgrid {
+  display: grid;
+  grid-template: subgrid / subgrid;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+.item {
+  background: green;
+  height: 50px;
+  width: 50px;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="grid">
+    <div class="subgrid">
+      <div class="item" style="grid-column: span 3; grid-row: span 8;"></div>
+      <div class="item" style="grid-column: span 7; grid-row: span 8;"></div>
+      <div class="item" style="grid-column: span 6; grid-row: span 2;"></div>
+      <div class="item" style="grid-column: span 4; grid-row: span 2;"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

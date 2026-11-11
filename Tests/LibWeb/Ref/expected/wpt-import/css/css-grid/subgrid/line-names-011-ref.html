@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>CSS Grid Test: subgrid line names do not apply to non-subgrids</title>
+  <link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2">
+  <style>
+    html,body {
+      color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+    }
+
+    div > div { background: grey; grid-column:2 / span 2; }
+
+    i {
+      grid-row: 1;
+      counter-increment: i;
+    }
+    i::before { content: counter(i, decimal); }
+
+    x { background: silver; }
+  </style>
+</head>
+<body>
+
+  <div style="display:grid; grid-template-columns: subgrid [a] [b] [c] [d];">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <x style="grid-column: 2 / 3">x</x>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 'auto [a] auto [b]';">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    <div style="display:grid; grid:subgrid [c] [d] [d] [e] / auto; ">
+      <x style="grid-column: 3">x</x>
+    </div>
+  </div>
+</body>
+</html>

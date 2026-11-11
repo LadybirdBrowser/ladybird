@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid is allowed on fieldset and button</title>
+  <link rel="author" title="Daniel Holbert" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1999886">
+  <!-- TODO(dholbert): This file should ultimately be merged into
+       independent-formatting-context-ref.html; see
+       https://bugzilla.mozilla.org/show_bug.cgi?id=2000014 -->
+  <style>
+
+html,body {
+  font:16px/1 monospace; padding:0; margin:0; line-height: 0;
+}
+
+.grid {
+  display: inline-block;
+  background-color: green;
+  width: 100px;
+  height: 100px;
+  margin-right: 20px;
+  margin-bottom: 20px;
+  vertical-align: top;
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+</div>
+
+<div class="grid">
+</div>
+
+</body>
+</html>

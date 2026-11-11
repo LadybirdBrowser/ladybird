@@ -1,0 +1,64 @@
+<!doctype html>
+<title>CSS Grid: Resizing nested grids inside a subgrid with container queries</title>
+<meta name="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com" />
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#size-container">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution">
+<link rel="help" href="https://issues.chromium.org/issues/575916165">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #grid {
+    width: 100px;
+  }
+  .grid {
+    display: grid;
+  }
+  #subgrid {
+    display: grid;
+    grid-template-columns: subgrid;
+  }
+  #box {
+    width: 100px;
+    height: 20px;
+  }
+  #container {
+    container-type: inline-size;
+    width: 100%;
+  }
+  #panel {
+    height: 10px;
+  }
+  @container (width < 150px) {
+    #panel {
+      display: none;
+    }
+  }
+</style>
+<div id="grid" class="grid">
+  <div id="subgrid"></div>
+</div>
+<script>
+  test(() => {
+    const grid = document.querySelector("#grid");
+    const subgrid = document.querySelector("#subgrid");
+    subgrid.innerHTML = '<div class="grid">'.repeat(11) +
+        '<div id="box"></div><div id="container"><div id="panel"></div></div>' +
+        '</div>'.repeat(11);
+
+    const container = document.querySelector("#container");
+    const panel = document.querySelector("#panel");
+    assert_equals(container.offsetWidth, 100);
+    assert_equals(panel.offsetHeight, 0);
+
+    const iterations = 10;
+    for (let i = 0; i < iterations; ++i) {
+      grid.style.width = "200px";
+      assert_equals(container.offsetWidth, 200);
+      assert_equals(panel.offsetHeight, 10);
+
+      grid.style.width = "100px";
+      assert_equals(container.offsetWidth, 100);
+      assert_equals(panel.offsetHeight, 0);
+    }
+  }, "Container queries update when nested grids in a subgrid are resized");
+</script>

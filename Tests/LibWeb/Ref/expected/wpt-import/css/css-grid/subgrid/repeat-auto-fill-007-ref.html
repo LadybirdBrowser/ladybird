@@ -1,0 +1,167 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: repeat(auto-fill / INTEGER, line-names)</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:10px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: inline-grid;
+  grid-auto-columns: 20px;
+  background: lightgrey;
+}
+
+.subgrid {
+  display: grid;
+  grid: subgrid / auto;
+  grid-column: 2 / span 4;
+  background: black;
+  writing-mode: vertical-rl;
+}
+
+item {
+  min-width: 0;
+  min-height: 10px;
+  background: grey;
+  writing-mode: horizontal-tb;
+}
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 2"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:2 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:2 / 4"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:3 / 4"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 2"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 4"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 2"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 2"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:2 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:2 / 3"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 5"></item>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid">
+    <item style="grid-row:1 / 2"></item>
+  </div>
+</div>
+
+</body>
+</html>

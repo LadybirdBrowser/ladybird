@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1606485">
+<style>
+* {
+  grid-template-rows: subgrid;
+  display: grid;
+  overflow: scroll;
+  contain: strict;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let e = document.createElement('s');
+  document.documentElement.appendChild(e);
+  document.documentElement.getBoundingClientRect() // Update layout
+});
+</script>
