@@ -470,6 +470,45 @@ impl VisualContextTree {
         false
     }
 
+    pub fn nearest_layer_at_or_above(&self, mut effect: EffectNodeIndex) -> Option<EffectNodeIndex> {
+        while !effect.is_none() {
+            if self.effect_pushes_layer_at_replay(effect) {
+                return Some(effect);
+            }
+            effect = self.effect_nodes[effect.0 as usize].parent;
+        }
+        None
+    }
+
+    pub fn content_under_effect_composites_into_root_group(&self, effect: EffectNodeIndex) -> bool {
+        self.nearest_layer_at_or_above(effect)
+            .is_none_or(|layer| self.root_isolation_effect == Some(layer))
+    }
+
+    // The backdrop of an effect whose box's masks draw it is read where the outermost of those masks composites.
+    pub fn first_effect_reading_root_group(&self) -> Option<EffectNodeIndex> {
+        let reading_effect = self.effect_nodes.iter().enumerate().position(|(index, node)| {
+            let EffectNodeData::Effects(effects) = &node.data else {
+                return false;
+            };
+            if effects.blend_mode == CompositingAndBlendingOperator::Normal && effects.backdrop_filter.is_none() {
+                return false;
+            }
+            let mut reader = EffectNodeIndex(index as u32);
+            loop {
+                let parent = self.effect_nodes[reader.0 as usize].parent;
+                if parent.is_none()
+                    || !matches!(&self.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop)
+                {
+                    break;
+                }
+                reader = parent;
+            }
+            self.content_under_effect_composites_into_root_group(self.effect_nodes[reader.0 as usize].parent)
+        })?;
+        Some(EffectNodeIndex(reading_effect as u32))
+    }
+
     // A blend mode or a backdrop filter reads what the canvas holds outside the effect's own layer.
     pub fn has_unisolated_destination_reading_effect(&self) -> bool {
         self.effect_nodes.iter().any(|node| {
