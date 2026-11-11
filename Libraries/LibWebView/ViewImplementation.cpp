@@ -14,6 +14,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <LibCompositing/FrameFitting.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
@@ -474,6 +475,7 @@ void ViewImplementation::set_hosts_remote_layer(bool hosts_remote_layer)
         return;
     }
     m_remote_layer_id = remote_layer->id;
+    update_remote_layer_fit();
     Application::the().show_context_in_remote_layer(remote_layer->id, page().compositor_context_id());
     did_create_remote_layer(remote_layer->core_animation_context_id);
 }
@@ -481,6 +483,23 @@ void ViewImplementation::set_hosts_remote_layer(bool hosts_remote_layer)
 void ViewImplementation::take_frame_snapshot(Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
     Application::the().take_frame_snapshot(page().compositor_context_id(), maximum_size, move(callback));
+}
+
+void ViewImplementation::set_scales_frames_to_fit(bool scales_frames_to_fit)
+{
+    m_scales_frames_to_fit = scales_frames_to_fit;
+    update_remote_layer_fit();
+}
+
+// The Compositor fits the frames into the view itself, for a view that scales them to fit.
+void ViewImplementation::update_remote_layer_fit()
+{
+    if (!m_remote_layer_id.has_value())
+        return;
+    Optional<Gfx::IntSize> fit_within;
+    if (m_scales_frames_to_fit && !viewport_size().is_empty())
+        fit_within = viewport_size().to_type<int>();
+    Application::the().set_remote_layer_fit(*m_remote_layer_id, fit_within);
 }
 
 void ViewImplementation::recreate_remote_layer_after_compositor_reconnect(Badge<WebContentClient>)
@@ -3104,14 +3123,13 @@ void ViewImplementation::set_device_pixel_ratio_for_testing(WebContentPage& page
 
 Gfx::IntRect ViewImplementation::rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size)
 {
-    auto scale = min(static_cast<float>(target_size.width()) / frame_size.width(), static_cast<float>(target_size.height()) / frame_size.height());
-    auto fitted_size = frame_size.to_type<float>().scaled(scale).to_rounded<int>();
-    return Gfx::IntRect { {}, fitted_size }.centered_within({ {}, target_size });
+    return Compositing::rect_fitting_frame(frame_size, target_size);
 }
 
 void ViewImplementation::handle_resize()
 {
     page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    update_remote_layer_fit();
 
     // The page forwards its new size to the compositor once it has laid it out. Until then, scaling frames to fit needs
     // the compositor to keep presenting them whole at the size they were laid out for.

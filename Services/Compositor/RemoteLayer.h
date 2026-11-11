@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
@@ -31,16 +32,23 @@ public:
 
     u32 core_animation_context_id() const { return m_core_animation_context_id; }
 
-    // Shows the part of the buffer that the frame was painted into, at the top left of the layer.
-    void show_frame(Gfx::SharedImageBuffer const&, Gfx::IntSize painted_size, double device_pixel_ratio);
+    // Shows the part of the buffer that the frame was painted into, at the top left of the layer at its own size, or
+    // scaled to fit within the size of the view given, in device pixels.
+    void show_frame(Gfx::SharedImageBuffer const&, Gfx::IntSize painted_size, double device_pixel_ratio, Optional<Gfx::IntSize> fit_within);
+    // Places the frame on display again, as when the view that it is scaled into changes size.
+    void place_frame(Optional<Gfx::IntSize> fit_within);
 
 private:
     RemoteLayer() = default;
 
 #ifdef AK_OS_MACOS
+    void lay_out_frame(Optional<Gfx::IntSize> fit_within);
+
     void* m_context { nullptr };
     void* m_root_layer { nullptr };
     void* m_content_layer { nullptr };
+    Gfx::IntSize m_painted_size;
+    double m_device_pixel_ratio { 1.0 };
 #endif
     u32 m_core_animation_context_id { 0 };
 };
@@ -53,7 +61,11 @@ inline OwnPtr<RemoteLayer> RemoteLayer::try_create()
 
 inline RemoteLayer::~RemoteLayer() = default;
 
-inline void RemoteLayer::show_frame(Gfx::SharedImageBuffer const&, Gfx::IntSize, double)
+inline void RemoteLayer::show_frame(Gfx::SharedImageBuffer const&, Gfx::IntSize, double, Optional<Gfx::IntSize>)
+{
+}
+
+inline void RemoteLayer::place_frame(Optional<Gfx::IntSize>)
 {
 }
 #endif

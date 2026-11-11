@@ -1500,6 +1500,15 @@ void Application::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web
     m_compositor_client->async_show_context_in_remote_layer(remote_layer_id, context_id);
 }
 
+void Application::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_set_remote_layer_fit(remote_layer_id, fit_within);
+}
+
 void Application::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
 {
     if (!m_compositor_presentation_client) {

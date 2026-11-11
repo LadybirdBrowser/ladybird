@@ -110,6 +110,15 @@ void ConnectionFromClient::show_context_in_remote_layer(u64 remote_layer_id, Opt
     m_compositor_state->show_context_in_remote_layer(remote_layer_id, context_id);
 }
 
+void ConnectionFromClient::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within)
+{
+    if (fit_within.has_value() && fit_within->is_empty()) {
+        did_misbehave("Empty size for a remote layer to fit frames within");
+        return;
+    }
+    m_compositor_state->set_remote_layer_fit(remote_layer_id, fit_within);
+}
+
 void ConnectionFromClient::create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
 {
     auto* connection = web_content_connection(web_content_connection_id);
