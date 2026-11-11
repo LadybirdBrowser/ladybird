@@ -5943,8 +5943,9 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
     bool adopted_any_scroll_offset = false;
     for (auto const& async_scroll_offset : async_scroll_updates.scroll_offsets) {
         auto& user_input_scroll_count = m_compositor_user_input_scroll_counts.ensure(async_scroll_offset.stable_node_id);
+        bool user_input_scrolled_the_box = async_scroll_offset.user_input_scroll_count > user_input_scroll_count;
         // User input the compositor scrolled the box for keeps the box's gesture going, even where the box stayed put.
-        if (async_scroll_offset.user_input_scroll_count > user_input_scroll_count)
+        if (user_input_scrolled_the_box)
             extend_user_scroll_gesture_of(async_scroll_offset.stable_node_id);
         user_input_scroll_count = max(user_input_scroll_count, async_scroll_offset.user_input_scroll_count);
         m_compositor_context_user_input_scroll_count = max(m_compositor_context_user_input_scroll_count, async_scroll_offset.context_user_input_scroll_count);
@@ -5972,8 +5973,17 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
                     async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
             }
 
-            // The input that took the scroll over goes on with the box's sequence as a gesture of its own.
-            if (user_input_took_over_the_scroll_of(async_scroll_offset.stable_node_id))
+            // The input that took the scroll over goes on with the box's sequence as a gesture of its own. So does input
+            // the compositor applied once the scroll was done, which these updates report along with the scroll's
+            // completion when they were merged while this process was busy: The box is no longer where the scroll took
+            // it, and nothing else would snap it once that input ends.
+            auto user_input_moved_the_box_after_its_scroll = user_input_scrolled_the_box && any_of(m_pending_async_scroll_operations, [&](auto const& pending_operation) {
+                return pending_operation.stable_node_id == async_scroll_offset.stable_node_id
+                    && pending_operation.destination_scroll_offset.has_value()
+                    && pending_operation.destination_scroll_offset.value() != css_scroll_offset
+                    && async_scroll_updates.completed_operation_ids.contains_slow(pending_operation.operation_id);
+            });
+            if (user_input_moved_the_box_after_its_scroll || user_input_took_over_the_scroll_of(async_scroll_offset.stable_node_id))
                 note_user_scroll_gesture_of(async_scroll_offset.stable_node_id, scroll_offset_before_scroll, UserScrollMovedBox::No);
             continue;
         }

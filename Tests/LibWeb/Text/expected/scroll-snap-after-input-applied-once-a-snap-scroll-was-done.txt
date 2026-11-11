@@ -1,0 +1,2 @@
+scroll offset after the input: 220
+scroll offset after the gesture settled: 200
