@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    .grid {
+        display: grid;
+        grid-template-rows: 100px;
+        width: 300px;
+        justify-content: start;
+    }
+    .subgrid {
+        display: grid;
+        grid-template-rows: subgrid;
+        aspect-ratio: 1;
+        background: green;
+    }
+</style>
+<!-- The ignored max-height must not limit the column contribution taken through the aspect ratio from the row. -->
+<div class="grid" style="grid-template-columns: auto">
+    <div class="subgrid" style="max-height: 10px"></div>
+</div>
+<!-- The ignored height must not give the subgrid a transferred size suggestion in the column axis. -->
+<div class="grid" style="grid-template-columns: minmax(auto, 10px)">
+    <div class="subgrid" style="height: 200px"></div>
+</div>
+<!-- The ignored height must not keep the column from following the row through the aspect ratio. -->
+<div class="grid" style="grid-template-columns: auto">
+    <div class="subgrid" style="height: 200px"></div>
+</div>
