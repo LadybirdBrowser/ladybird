@@ -150,11 +150,15 @@ fi
 export RUSTUP_HOME=/opt/rustup
 export CARGO_HOME=/opt/cargo
 rust_toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' "${SOURCE_DIR}/rust-toolchain.toml")"
+# Install the components that rust-toolchain.toml lists along with the toolchain, because rustup can fail to add them
+# later, when cargo first runs, in GitHub's job containers ("detected conflict").
+rust_components="$(sed -n 's/^components = \[\(.*\)\]/\1/p' "${SOURCE_DIR}/rust-toolchain.toml" | tr -d '" ')"
 rustup_init_directory="$(mktemp -d)"
 download "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${ARCH}-unknown-linux-gnu/rustup-init" \
     "${RUSTUP_INIT_SHA256}" "${rustup_init_directory}/rustup-init"
 chmod +x "${rustup_init_directory}/rustup-init"
-"${rustup_init_directory}/rustup-init" -y --no-modify-path --profile minimal --default-toolchain "${rust_toolchain}"
+"${rustup_init_directory}/rustup-init" -y --no-modify-path --profile minimal --default-toolchain "${rust_toolchain}" \
+    --component "${rust_components}"
 rm "${rustup_init_directory}/rustup-init"
 rmdir "${rustup_init_directory}"
 rm -rf "${RUSTUP_HOME}/downloads" "${RUSTUP_HOME}/tmp" "${CARGO_HOME}/registry"
