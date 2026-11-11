@@ -587,6 +587,21 @@ impl<T: Decode> Decode for Option<T> {
     }
 }
 
+/// A shared value goes as the value, and decodes to one of its own.
+impl<T: Encode + ?Sized> Encode for std::sync::Arc<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        (**self).encode(encoder)
+    }
+}
+
+impl<T: Decode> Decode for std::sync::Arc<T> {
+    const MIN_ENCODED_SIZE: usize = T::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self::new(decoder.decode()?))
+    }
+}
+
 /// `IPC::File`: a file descriptor, which goes as an attachment.
 #[derive(Debug)]
 pub struct File(pub OwnedDescriptor);
@@ -847,6 +862,18 @@ mod tests {
         assert_eq!(round_trip(&value).0, value);
         let array = [1u8, 2, 3];
         assert_eq!(round_trip(&array).0, array);
+    }
+
+    #[test]
+    fn shared_values_go_as_their_values() {
+        let value = std::sync::Arc::new(vec![1u16, 2, 3]);
+        let (decoded, bytes) = round_trip(&value);
+        assert_eq!(decoded, value);
+        assert_eq!(bytes, round_trip(&*value).1);
+        let shared_slice: std::sync::Arc<[u16]> = std::sync::Arc::from(vec![1u16, 2, 3]);
+        let mut encoder = Encoder::new();
+        encoder.encode(&shared_slice).unwrap();
+        assert_eq!(encoder.finish().0, bytes);
     }
 
     #[test]
