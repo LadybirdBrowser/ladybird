@@ -249,10 +249,8 @@ function (generate_js_bindings target)
         endif()
 
         list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${BINDINGS_HEADER})
-        set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 
         list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${BINDINGS_SOURCES})
-        set(LIBWEB_ALL_BINDINGS_SOURCES ${LIBWEB_ALL_BINDINGS_SOURCES} PARENT_SCOPE)
 
         # The module's enumerations, which LibWebCommon provides so that processes without LibWeb can use them.
         set(COMMON_BINDINGS_HEADER "${LIBWEB_COMMON_BINDINGS_DIRECTORY}/${basename}.h")
@@ -260,10 +258,9 @@ function (generate_js_bindings target)
             install(FILES ${COMMON_BINDINGS_HEADER} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWebCommon/Bindings")
         endif()
         list(APPEND LIBWEB_ALL_COMMON_BINDINGS_HEADERS ${COMMON_BINDINGS_HEADER})
-        set(LIBWEB_ALL_COMMON_BINDINGS_HEADERS ${LIBWEB_ALL_COMMON_BINDINGS_HEADERS} PARENT_SCOPE)
     endmacro()
 
-    function(libweb_js_bindings class)
+    macro(libweb_js_bindings class)
         get_filename_component(basename "${class}" NAME)
         set(idl_path "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         if ("${basename}.idl" IN_LIST LIBWEB_ALL_GENERATED_IDL)
@@ -273,11 +270,9 @@ function (generate_js_bindings target)
         libweb_add_bindings_source(${class})
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${idl_path}")
-        set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
 
         list(APPEND LIBWEB_ALL_PARSED_IDL_FILES "${idl_path}")
-        set(LIBWEB_ALL_PARSED_IDL_FILES ${LIBWEB_ALL_PARSED_IDL_FILES} PARENT_SCOPE)
-    endfunction()
+    endmacro()
 
     set(bindings_generator "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_libweb_bindings.py")
     set(bindings_generator_dependencies
