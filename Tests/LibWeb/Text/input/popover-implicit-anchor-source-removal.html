@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 200px; height: 150px; }
+    #source { position: absolute; left: 20px; top: 30px; width: 50px; height: 20px; }
+    #popup {
+        position: absolute;
+        position-anchor: auto;
+        inset: auto;
+        left: anchor(right, 5px);
+        top: anchor(top, 7px);
+        width: 60px;
+        height: 25px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+</style>
+<div id="stage">
+    <!-- The wrapper keeps the source's parent distinct from its containing block. -->
+    <div id="boundary"><div><div id="source"></div></div></div>
+</div>
+<div id="popup" popover="manual"></div>
+<script>
+    test(() => {
+        const source = document.getElementById("source");
+        const popup = document.getElementById("popup");
+        const position = () => {
+            const rect = popup.getBoundingClientRect();
+            return `${rect.x},${rect.y}`;
+        };
+        popup.showPopover({ source });
+        const before = position();
+        source.remove();
+        const after = position();
+        println(`before removal: ${before}`);
+        println(`after removal: ${after}`);
+        println(`still open: ${popup.matches(":popover-open")}`);
+    });
+</script>

@@ -971,6 +971,9 @@ struct StyleNodeTables {
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
     anchor_name_elements: CowMap<ScopedAnchorName, Vec<StyleNodeID>>,
+    implicit_anchor_elements: CowMap<StyleNodeID, StyleNodeID>,
+    /// Elements that have served as implicit anchors retain their geometry until their identity is retired.
+    implicit_anchor_candidates: CowSet<StyleNodeID>,
     /// The nodes sitting in the user agent shadow tree of the focused text control, which is what
     /// a caret is painted inside. At most one control is focused, so this holds one control's
     /// shadow tree and is empty the rest of the time.
@@ -2048,6 +2051,40 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_implicit_anchor_element(&mut self, element: StyleNodeID, anchor: Option<StyleNodeID>) {
+        if let Some(anchor) = anchor {
+            self.style_node_tables.implicit_anchor_elements.insert(element, anchor);
+            self.style_node_tables.implicit_anchor_candidates.insert(anchor);
+        } else {
+            self.style_node_tables.implicit_anchor_elements.remove(&element);
+        }
+    }
+
+    pub(crate) fn implicit_anchor_element(&self, node: NodeSlotId) -> Option<StyleNodeID> {
+        if self.node_is_generated_for_pseudo_element(node) {
+            return self.node_style_node(node);
+        }
+        let element = self.dom_node_style_node(node)?;
+        self.style_node_tables.implicit_anchor_elements.get(&element).copied()
+    }
+
+    pub(crate) fn node_is_anchor_candidate(&self, node: NodeSlotId) -> bool {
+        super::node_facts::has_flag(self.data(node), NodeFlag::HasAnchorNames)
+            || self.dom_node_style_node(node).is_some_and(|element| {
+                self.style_node_tables.implicit_anchor_candidates.contains(&element)
+                    || self.bound_rows.pseudo_elements.get(&element).is_some_and(|rows| {
+                        rows.0.iter().any(|&row| {
+                            self.node_style_if_live(row).is_some_and(|style| {
+                                style.is_absolutely_positioned()
+                                    && (style.anchor().position_anchor_type == 2
+                                        || (style.anchor().position_anchor_type == 0
+                                            && !style.anchor().position_area.as_slice().is_empty()))
+                            })
+                        })
+                    })
+            })
+    }
+
     /// Replaces the elements registered under `anchor_name` in the tree scope hosted by
     /// `scope_host`, in tree order. An empty list forgets the name.
     pub(crate) fn set_anchor_name_elements(
@@ -2261,6 +2298,8 @@ impl LayoutNodeArena {
             math_attribute_facts,
             svg_points,
             anchor_name_elements,
+            implicit_anchor_elements,
+            implicit_anchor_candidates,
             identities_in_focused_text_control,
             element_scroll_offsets,
             pseudo_element_scroll_offsets,
@@ -2271,6 +2310,8 @@ impl LayoutNodeArena {
         let removed_svg_attribute_facts = svg_attribute_facts.remove(&style_node);
         svg_points.remove(&style_node);
         math_attribute_facts.remove(&style_node);
+        implicit_anchor_elements.retain(|element, anchor| *element != style_node && *anchor != style_node);
+        let removed_implicit_anchor = implicit_anchor_candidates.remove(&style_node);
         identities_in_focused_text_control.remove(&style_node);
         element_scroll_offsets.remove(&style_node);
         pseudo_element_scroll_offsets.remove(&style_node);
@@ -2283,6 +2324,9 @@ impl LayoutNodeArena {
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
         anchor_name_elements.retain(|name, _| name.scope_host != Some(style_node));
+        if removed_implicit_anchor {
+            self.record_partial_relayout_escape();
+        }
         // The SVG facts let go of the reference atoms they hold as they leave.
         if let Some(removed) = removed_svg_attribute_facts {
             self.retain_published_reference_atoms(

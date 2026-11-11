@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body { margin: 0; }
+#out { position: absolute; }
+#origin { width: 100px; height: 50px; margin-left: 200px; }
+#origin::before { content: ""; position: absolute; width: 20px; height: 20px; position-anchor: none; left: anchor(left, 7px); top: anchor(bottom, 9px); }
+#origin.enabled::before { position-anchor: auto; }
+button { position: absolute; left: 100px; top: 80px; width: 100px; height: 40px; }
+#second { left: 300px; top: 180px; }
+[popover] { position: absolute; inset: auto; margin: 0; border: 0; padding: 0; width: 60px; height: 20px; position-area: bottom; }
+</style>
+<button id="first" popovertarget="popup">First</button>
+<button id="second" popovertarget="popup">Second</button>
+<div id="popup" popover="manual"></div>
+<script>
+test(() => {
+    const first = document.getElementById("first");
+    const second = document.getElementById("second");
+    const popup = document.getElementById("popup");
+    function report(label) {
+        const r = popup.getBoundingClientRect();
+        println(`${label}: ${r.x},${r.y} ${r.width}x${r.height}`);
+    }
+    first.click();
+    report("popovertarget");
+    popup.hidePopover();
+    popup.showPopover({ source: second });
+    report("different source");
+    second.style.left = "400px";
+    report("source moved");
+    second.style.display = "none";
+    report("source display none");
+    second.style.display = "";
+    report("source display restored");
+    second.remove();
+    report("source removed");
+    document.body.append(second);
+    report("source reinserted");
+    popup.style.positionAnchor = "none";
+    popup.style.left = "7px";
+    popup.style.top = "9px";
+    report("position-anchor none");
+    popup.style.positionArea = "none";
+    popup.style.positionAnchor = "auto";
+    popup.style.left = "anchor(left, 7px)";
+    popup.style.top = "anchor(bottom, 9px)";
+    popup.style.width = "anchor-size(width, 60px)";
+    report("anchor functions");
+    popup.style.positionAnchor = "normal";
+    report("normal without position-area");
+    popup.style.positionAnchor = "auto";
+    popup.hidePopover();
+    popup.style.display = "block";
+    report("hidden clears anchor");
+    popup.showPopover();
+    report("shown without source");
+    popup.hidePopover();
+    popup.showPopover({ source: first });
+    report("shown with first source");
+    first.style.anchorName = "--first";
+    popup.style.positionAnchor = "--first";
+    popup.hidePopover();
+    popup.showPopover({ source: second });
+    report("named anchor overrides source");
+    popup.hidePopover();
+    popup.style.positionAnchor = "auto";
+    popup.style.width = "60px";
+    popup.style.left = "auto";
+    popup.style.top = "auto";
+    popup.style.justifySelf = "anchor-center";
+    popup.style.alignSelf = "anchor-center";
+    popup.showPopover({ source: second });
+    report("anchor-center");
+    popup.hidePopover();
+    const host = document.createElement("div");
+    host.style.cssText = "position: absolute; left: 200px; top: 280px;";
+    document.body.append(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const inline = document.createElement("span");
+    inline.textContent = "Inline anchor";
+    shadow.append(inline);
+    popup.style.positionArea = "bottom";
+    popup.style.alignSelf = "normal";
+    popup.showPopover({ source: inline });
+    let anchorRect = inline.getBoundingClientRect();
+    let popupRect = popup.getBoundingClientRect();
+    println(`inline source across shadow root: ${popupRect.y === anchorRect.bottom}, ${Math.abs(popupRect.x + popupRect.width / 2 - anchorRect.x - anchorRect.width / 2) < 0.1}`);
+    popup.hidePopover();
+    shadow.removeChild(inline);
+    shadow.append(inline);
+    popup.showPopover({ source: inline });
+    anchorRect = inline.getBoundingClientRect();
+    popupRect = popup.getBoundingClientRect();
+    println(`inline source reconnected: ${popupRect.y === anchorRect.bottom && Math.abs(popupRect.x + popupRect.width / 2 - anchorRect.x - anchorRect.width / 2) < 0.1}`);
+    popup.hidePopover();
+    first.style.position = "relative";
+    popup.style.positionArea = "top left";
+    popup.style.justifySelf = "normal";
+    popup.showPopover({ source: first });
+    function reportRelative(label) {
+        const a = first.getBoundingClientRect();
+        const p = popup.getBoundingClientRect();
+        println(`${label}: ${p.right === a.left}, ${p.bottom === a.top}`);
+    }
+    reportRelative("relative implicit anchor");
+    popup.hidePopover();
+    const origin = document.createElement("div");
+    origin.id = "origin";
+    document.body.append(origin);
+    println(`pseudo anchor initially disabled: ${getComputedStyle(origin, "::before").left}`);
+    origin.className = "enabled";
+    const originRect = origin.getBoundingClientRect();
+    const pseudoStyle = getComputedStyle(origin, "::before");
+    println(`pseudo anchor enabled: ${parseFloat(pseudoStyle.left) === originRect.left}, ${parseFloat(pseudoStyle.top) === originRect.bottom}`);
+});
+</script>

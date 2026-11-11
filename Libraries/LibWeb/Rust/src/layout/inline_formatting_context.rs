@@ -2890,7 +2890,7 @@ impl<'context> InlineFormattingContext<'context> {
         let mut candidates = Vec::<(Node, CssPixelRect)>::new();
         let mut indices = HashMap::<Node, usize>::default();
         for piece in &self.line_data().inline_box_pieces {
-            if !self.facts(piece.node).has_anchor_names() {
+            if !self.facts(piece.node).is_anchor_candidate() {
                 continue;
             }
             let rect = CssPixelRect::from(piece.border_box_rect).translated_by(piece.relpos_delta.into());

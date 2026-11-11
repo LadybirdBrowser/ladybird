@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>Implicit anchor element for pseudo-elements using anchor functions</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#implicit">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+body { margin: 0 }
+#target  {
+    margin-top: 100px;
+    margin-left: 50px;
+    width: 100px;
+    height: 100px;
+    background: blue;
+}
+#target::before, #target::after {
+    width: 100px;
+    height: 100px;
+    position: absolute;
+    position-anchor: auto;
+}
+#target.moved {
+    margin-top: 200px;
+    margin-left: 200px;
+}
+#target::before {
+    left: anchor(right);
+    top: anchor(top);
+    background: green;
+    content:'';
+}
+#target::after {
+    left: anchor(left);
+    top: anchor(bottom);
+    background: green;
+    content:'';
+}
+</style>
+<div id=target></div>
+<script>
+test(() => {
+    assert_equals(getComputedStyle(target, '::before').top, '100px');
+    assert_equals(getComputedStyle(target, '::before').left, '150px');
+    assert_equals(getComputedStyle(target, '::after').top, '200px');
+    assert_equals(getComputedStyle(target, '::after').left, '50px');
+}, "The implicit anchor element of a pseudo-element is its originating element");
+
+test(() => {
+    target.classList.add("moved");
+    assert_equals(getComputedStyle(target, '::before').top, '200px');
+    assert_equals(getComputedStyle(target, '::before').left, '300px');
+    assert_equals(getComputedStyle(target, '::after').top, '300px');
+    assert_equals(getComputedStyle(target, '::after').left, '200px');
+}, "Anchored position after moving");
+</script>

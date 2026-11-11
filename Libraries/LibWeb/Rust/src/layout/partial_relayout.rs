@@ -311,8 +311,10 @@ impl LayoutNodeArena {
         self.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
             let data = self.data(node);
             affects_anchor_positioning = affects_anchor_positioning
-                || node_facts::has_flag(data, NodeFlag::HasAnchorNames)
-                || (will_relayout_subtree && node_facts::node_uses_anchor_positioning(data));
+                || self.node_is_anchor_candidate(node)
+                || (will_relayout_subtree
+                    && (node_facts::node_uses_anchor_positioning(data)
+                        || self.implicit_anchor_element(node).is_some()));
             !affects_anchor_positioning
         });
         affects_anchor_positioning
@@ -574,6 +576,7 @@ impl LayoutNodeArena {
         let anchor = style.anchor();
         if style.position() != positioning::ABSOLUTE
             || style.has_position_anchor()
+            || self.implicit_anchor_element(node).is_some()
             || anchor.position_area.length != 0
             || anchor.position_try_fallbacks.length != 0
         {

@@ -1,0 +1,20 @@
+popovertarget: 120,120 60x20
+different source: 320,220 60x20
+source moved: 420,220 60x20
+source display none: 0,0 60x20
+source display restored: 420,220 60x20
+source removed: 0,0 60x20
+source reinserted: 420,220 60x20
+position-anchor none: 7,9 60x20
+anchor functions: 400,220 100x20
+normal without position-area: 7,9 60x20
+hidden clears anchor: 7,9 60x20
+shown without source: 7,9 60x20
+shown with first source: 100,120 100x20
+named anchor overrides source: 100,120 100x20
+anchor-center: 420,190 60x20
+inline source across shadow root: true, true
+inline source reconnected: true
+relative implicit anchor: true, true
+pseudo anchor initially disabled: 7px
+pseudo anchor enabled: true, true

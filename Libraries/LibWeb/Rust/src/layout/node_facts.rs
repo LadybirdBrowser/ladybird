@@ -1193,8 +1193,8 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::Anonymous)
     }
 
-    pub(crate) fn has_anchor_names(&self) -> bool {
-        has_flag(self.data(), NodeFlag::HasAnchorNames)
+    pub(crate) fn is_anchor_candidate(&self) -> bool {
+        self.pass.arena().node_is_anchor_candidate(self.node)
     }
 
     pub(crate) fn can_have_children(&self) -> bool {

@@ -66,6 +66,10 @@ pub(crate) enum LayoutChange {
         anchor_name: usize,
         elements: Box<[StyleNodeID]>,
     },
+    SetImplicitAnchorElement {
+        element: StyleNodeID,
+        anchor: Option<StyleNodeID>,
+    },
     /// What the element has scrolled to.
     SetElementScrollOffset {
         element: StyleNodeID,
@@ -189,6 +193,7 @@ impl LayoutChange {
             | Self::ApplyLayoutTreeUpdateMark { .. }
             | Self::RecordPartialRelayoutEscape
             | Self::SetAnchorNameElements { .. }
+            | Self::SetImplicitAnchorElement { .. }
             | Self::SetElementScrollOffset { .. }
             | Self::SetWritingSuggestion(_)
             | Self::SetPseudoElementScrollOffset { .. }
@@ -279,6 +284,7 @@ impl LayoutChange {
                 anchor_name,
                 elements,
             } => arena.set_anchor_name_elements(scope_host, anchor_name, elements.iter().copied()),
+            Self::SetImplicitAnchorElement { element, anchor } => arena.set_implicit_anchor_element(element, anchor),
             Self::SetElementScrollOffset { element, offset } => arena.set_element_scroll_offset(element, offset),
             Self::SetWritingSuggestion(suggestion) => arena.set_writing_suggestion(suggestion),
             Self::SetPseudoElementScrollOffset {
@@ -588,6 +594,19 @@ pub extern "C" fn render_state_set_anchor_name_elements(
             .collect(),
     };
     queue(host, change);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_set_implicit_anchor_element(host: &DocumentHost, element: u32, anchor: u32) {
+    if let Some(element) = StyleNodeID::from_raw(element) {
+        queue(
+            host,
+            LayoutChange::SetImplicitAnchorElement {
+                element,
+                anchor: StyleNodeID::from_raw(anchor),
+            },
+        );
+    }
 }
 
 #[unsafe(no_mangle)]

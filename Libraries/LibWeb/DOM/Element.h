@@ -362,6 +362,9 @@ public:
     // elements keep 0, which is what makes them free.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
+
+    GC::Ptr<Element> implicit_anchor_element() const;
+    void set_implicit_anchor_element(GC::Ptr<Element>);
     // Tells the hover of the render clock what link this element is, as its href or style node changed.
     void update_hover_link();
     void record_style_environment_change();
@@ -978,6 +981,7 @@ protected:
     struct RareData;
 
 private:
+    void publish_implicit_anchor_element();
     void bump_dom_tree_version_for_attribute_change();
     void clear_custom_highlight_styles();
     // The attributes of an element, in order, in the same allocation as their count and capacity.

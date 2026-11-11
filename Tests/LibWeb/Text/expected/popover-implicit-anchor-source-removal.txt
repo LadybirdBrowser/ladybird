@@ -1,0 +1,3 @@
+before removal: 100,70
+after removal: 5,7
+still open: true

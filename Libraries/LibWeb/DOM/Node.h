@@ -90,6 +90,7 @@ enum class RootNodeComposed {
     X(HTMLObjectElementContentDocumentResized)        \
     X(HTMLVideoElementNaturalDimensionsChanged)       \
     X(HTMLVideoElementSetVideoTrack)                  \
+    X(ImplicitAnchorChange)                           \
     X(KeyframeEffect)                                 \
     X(LayoutTreeUpdate)                               \
     X(MathMLAttributeChange)                          \

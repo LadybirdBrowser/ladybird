@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	The implicit anchor element of a pseudo-element is its originating element
+Pass	Anchored position after moving
