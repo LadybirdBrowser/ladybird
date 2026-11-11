@@ -1,0 +1,3 @@
+cell in a table: unchanged
+lone cell: unchanged
+cell in a row in a float: unchanged

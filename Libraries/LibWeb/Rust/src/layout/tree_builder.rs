@@ -1498,8 +1498,9 @@ impl TreeBuildJob {
             document_needs_full_layout_tree_update: host.arena().needs_full_layout_tree_update(),
             ..Default::default()
         };
-        // Whether the document already had a viewport, read before the build replaces it.
-        let document_had_layout_node = !host.arena().layout_root().is_invalid();
+        // The document's viewport, read before the build replaces it.
+        let prior_document_layout_node = host.arena().layout_root();
+        let document_had_layout_node = !prior_document_layout_node.is_invalid();
         if document_had_layout_node && !context.document_needs_full_layout_tree_update {
             state.quote_depth_cursor = Some(QuoteDepthCursor::new(host.arena(), document_identity));
         }
@@ -1516,9 +1517,11 @@ impl TreeBuildJob {
 
         let document_layout_node = host.arena().layout_root();
         // NB: A build that escaped its rebuild roots still skipped every clean subtree, so it did not build the
-        //     whole tree again.
+        //     whole tree again. A build that gave the document a new viewport did, though it recorded no rebuild root.
         let rebuilt_whole_tree = !document_layout_node.is_invalid()
-            && (context.document_needs_full_layout_tree_update || !document_had_layout_node);
+            && (context.document_needs_full_layout_tree_update
+                || !document_had_layout_node
+                || document_layout_node != prior_document_layout_node);
         let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
             && !rebuilt_whole_tree
             && !state.layout_tree_update_escaped_rebuild_roots;
