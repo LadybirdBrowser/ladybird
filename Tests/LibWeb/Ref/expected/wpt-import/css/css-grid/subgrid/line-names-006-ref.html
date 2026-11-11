@@ -1,0 +1,115 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid line name resolution</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+div > div { background: grey; grid-column: 2 / span 2; }
+
+i {
+  grid-row: 1;
+  counter-increment: i;
+}
+i::before { content: counter(i, decimal); }
+
+x { background: silver; }
+
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+  </style>
+</head>
+<body>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid; grid-template-areas: '. a a a a';">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid [a];">
+    <x style="grid-column: 1 / 2">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid [a]; grid-column:1/span 2">
+    <x style="grid-column: 1 / 2">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid [a] [a]; grid-column-end:span 3">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid [a] [a] [a] [a]; grid-column-end:span 3">
+    <x style="grid-column: 3 / 4">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid [] [a] [a]; grid-column-end:span 6">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid; grid-template-areas: '. a a a a';">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid [a];">
+    <x style="grid-column: 1 / 2">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid [a]; grid-column:1/span 2">
+    <x style="grid-column: 1 / 2">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid [a] [a]; grid-column-end:span 3">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid [a] [a] [a] [a]; grid-column-end:span 3">
+    <x style="grid-column: 3 / 4">x</x>
+  </div>
+</div>
+
+<div style="display:grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="hr" style="display:grid; grid:auto/subgrid [] [a] [a]; grid-column-end:span 6">
+    <x style="grid-column: 2 / 3">x</x>
+  </div>
+</div>
+
+</body>
+</html>

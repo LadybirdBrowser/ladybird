@@ -1903,20 +1903,34 @@ impl<'pass> GridFormattingContext<'pass> {
     ) -> (Vec<TrackDefinition<'pass>>, Vec<TrackDefinition<'pass>>) {
         let mut columns = self.expand_axis(Axis::Column, grid_style);
         let mut rows = self.expand_axis(Axis::Row, grid_style);
+        let column_lines_are_fixed = self.is_subgridded(Axis::Column, grid_style);
+        let row_lines_are_fixed = self.is_subgridded(Axis::Row, grid_style);
         self.project_parent_grid_areas(
             &mut columns.lines,
             &mut rows.lines,
-            self.is_subgridded(Axis::Column, grid_style),
-            self.is_subgridded(Axis::Row, grid_style),
+            column_lines_are_fixed,
+            row_lines_are_fixed,
         );
-        let (column_lines, row_lines) = if self.grid_axes_are_transposed {
-            (&mut rows.lines, &mut columns.lines)
+        let (column_lines, row_lines, column_lines_are_fixed, row_lines_are_fixed) = if self.grid_axes_are_transposed {
+            (
+                &mut rows.lines,
+                &mut columns.lines,
+                row_lines_are_fixed,
+                column_lines_are_fixed,
+            )
         } else {
-            (&mut columns.lines, &mut rows.lines)
+            (
+                &mut columns.lines,
+                &mut rows.lines,
+                column_lines_are_fixed,
+                row_lines_are_fixed,
+            )
         };
         add_template_area_lines(
             column_lines,
             row_lines,
+            column_lines_are_fixed,
+            row_lines_are_fixed,
             grid_style.areas.as_slice(),
             grid_style.names.raws(),
         );
@@ -6799,6 +6813,8 @@ pub(crate) fn expand_subgrid<'pass>(
 pub(crate) fn add_template_area_lines(
     columns: &mut Vec<Vec<LineName>>,
     rows: &mut Vec<Vec<LineName>>,
+    column_lines_are_fixed: bool,
+    row_lines_are_fixed: bool,
     areas: &[ComputedGridArea],
     names: &[usize],
 ) {
@@ -6808,31 +6824,48 @@ pub(crate) fn add_template_area_lines(
     // template. For each named grid area foo, four implicitly-assigned line names are created: two named foo-start,
     // naming the row-start and column-start lines of the named grid area, and two named foo-end, naming the row-end
     // and column-end lines of the named grid area.
+    //
+    // NB: The lines of a subgridded axis are those of the subgrid's explicit grid, which its areas cannot extend. An
+    //     area that reaches past them names the last line instead, as a partially overlapped area of the parent grid
+    //     does.
     let max_column = areas.iter().map(|area| area.column_end).max().unwrap_or_default();
     let max_row = areas.iter().map(|area| area.row_end).max().unwrap_or_default();
-    columns.resize_with(columns.len().max(max_column.saturating_add(1)), Vec::new);
-    rows.resize_with(rows.len().max(max_row.saturating_add(1)), Vec::new);
+    if !column_lines_are_fixed {
+        columns.resize_with(columns.len().max(max_column.saturating_add(1)), Vec::new);
+    }
+    if !row_lines_are_fixed {
+        rows.resize_with(rows.len().max(max_row.saturating_add(1)), Vec::new);
+    }
+    let last_column = columns.len().saturating_sub(1);
+    let last_row = rows.len().saturating_sub(1);
 
     for area in areas {
-        columns[area.column_start].push(LineName::implicit(
+        let column_start = area.column_start.min(last_column);
+        let column_end = area.column_end.min(last_column);
+        let row_start = area.row_start.min(last_row);
+        let row_end = area.row_end.min(last_row);
+        if columns.is_empty() || rows.is_empty() {
+            continue;
+        }
+        columns[column_start].push(LineName::implicit(
             area.implicit_start_name_index,
             names[area.implicit_start_name_index as usize],
             names[area.name_index as usize],
             true,
         ));
-        columns[area.column_end].push(LineName::implicit(
+        columns[column_end].push(LineName::implicit(
             area.implicit_end_name_index,
             names[area.implicit_end_name_index as usize],
             names[area.name_index as usize],
             false,
         ));
-        rows[area.row_start].push(LineName::implicit(
+        rows[row_start].push(LineName::implicit(
             area.implicit_start_name_index,
             names[area.implicit_start_name_index as usize],
             names[area.name_index as usize],
             true,
         ));
-        rows[area.row_end].push(LineName::implicit(
+        rows[row_end].push(LineName::implicit(
             area.implicit_end_name_index,
             names[area.implicit_end_name_index as usize],
             names[area.name_index as usize],
