@@ -1695,30 +1695,55 @@ impl<'pass> GridFormattingContext<'pass> {
         // will be assigned to the first and/or last line of the subgrid such that a named grid area exists
         // representing that partially overlapped area of the subgrid; thus the line name assignments of the
         // subgrid might not always correspond exactly to the line name assignments of the parent grid.
-        #[derive(Clone, Copy)]
-        struct Area {
-            name_raw: usize,
-            start_name_raw: usize,
-            end_name_raw: usize,
-            row_start: Option<usize>,
-            row_end: Option<usize>,
-            column_start: Option<usize>,
-            column_end: Option<usize>,
-        }
-
-        // Names the two lines a parent grid area contributes to a subgrid, in subgrid-local coordinates.
-        fn name_subgrid_area_lines(lines: &mut [Vec<LineName>], area: Area, start: i32, end: i32) {
-            for (index, raw, area_is_start) in [(start, area.start_name_raw, true), (end, area.end_name_raw, false)] {
-                let Some(line) = lines.get_mut(index as usize) else {
+        //
+        // NB: Each subgridded axis takes the area lines of the parent grid on its own, line by line, so an area that
+        //     only overlaps the subgrid in that axis still names the subgrid's lines, and an area whose lines were
+        //     themselves projected from several areas into the parent keeps each of those lines.
+        fn project_area_lines(lines: &mut [Vec<LineName>], parent_lines: &[Vec<LineName>], start: i32, end: i32) {
+            let area_lines = || {
+                parent_lines.iter().enumerate().flat_map(|(index, names)| {
+                    names
+                        .iter()
+                        .filter(|name| name.implicit && name.area_name_raw != 0)
+                        .map(move |name| (index as i32, *name))
+                })
+            };
+            for (index, name) in area_lines() {
+                let local = if (start..=end).contains(&index) {
+                    index - start
+                } else if name.area_is_start && index < start {
+                    // The area starts before the subgrid; it overlaps the subgrid if it ends inside of it.
+                    let ends_inside = area_lines().any(|(end_index, end_name)| {
+                        !end_name.area_is_start && end_name.area_name_raw == name.area_name_raw && end_index > start
+                    });
+                    if !ends_inside {
+                        continue;
+                    }
+                    0
+                } else if !name.area_is_start && index > end {
+                    // The area ends after the subgrid; it overlaps the subgrid if it starts inside of it.
+                    let starts_inside = area_lines().any(|(start_index, start_name)| {
+                        start_name.area_is_start && start_name.area_name_raw == name.area_name_raw && start_index < end
+                    });
+                    if !starts_inside {
+                        continue;
+                    }
+                    end - start
+                } else {
                     continue;
                 };
+                let Some(line) = lines.get_mut(local as usize) else {
+                    continue;
+                };
+                if line
+                    .iter()
+                    .any(|existing| existing.implicit && existing.raw == name.raw)
+                {
+                    continue;
+                }
                 line.push(LineName {
-                    name_index: crate::layout::GRID_NO_INDEX,
-                    raw,
-                    implicit: true,
-                    adopted_from_parent: false,
-                    area_name_raw: area.name_raw,
-                    area_is_start,
+                    adopted_from_parent: true,
+                    ..name
                 });
             }
         }
@@ -1729,78 +1754,16 @@ impl<'pass> GridFormattingContext<'pass> {
         let Some(parent_item) = self.parent_grid_placement() else {
             return;
         };
-        let mut areas = Vec::<Area>::new();
-        for (axis, lines) in [(Axis::Column, &parent.column_lines), (Axis::Row, &parent.row_lines)] {
-            for (line_index, names) in lines.iter().enumerate() {
-                for name in names.iter().filter(|name| name.implicit && name.area_name_raw != 0) {
-                    let area_index = areas
-                        .iter()
-                        .position(|area| area.name_raw == name.area_name_raw)
-                        .unwrap_or_else(|| {
-                            areas.push(Area {
-                                name_raw: name.area_name_raw,
-                                start_name_raw: 0,
-                                end_name_raw: 0,
-                                row_start: None,
-                                row_end: None,
-                                column_start: None,
-                                column_end: None,
-                            });
-                            areas.len() - 1
-                        });
-                    let area = &mut areas[area_index];
-                    let coordinate = match (axis, name.area_is_start) {
-                        (Axis::Column, true) => &mut area.column_start,
-                        (Axis::Column, false) => &mut area.column_end,
-                        (Axis::Row, true) => &mut area.row_start,
-                        (Axis::Row, false) => &mut area.row_end,
-                    };
-                    *coordinate = Some(match (*coordinate, name.area_is_start) {
-                        (Some(old), true) => old.min(line_index),
-                        (Some(old), false) => old.max(line_index),
-                        (None, _) => line_index,
-                    });
-                    if name.area_is_start {
-                        area.start_name_raw = name.raw;
-                    } else {
-                        area.end_name_raw = name.raw;
-                    }
-                }
-            }
-        }
-
-        let subgrid_column_start = parent_item.position(Axis::Column);
-        let subgrid_column_end = subgrid_column_start + parent_item.span(Axis::Column) as i32;
-        let subgrid_row_start = parent_item.position(Axis::Row);
-        let subgrid_row_end = subgrid_row_start + parent_item.span(Axis::Row) as i32;
-        let overlaps = |start_a: i32, end_a: i32, start_b: i32, end_b: i32| start_a.max(start_b) < end_a.min(end_b);
-
-        for area in areas {
-            let (Some(row_start), Some(row_end), Some(column_start), Some(column_end)) =
-                (area.row_start, area.row_end, area.column_start, area.column_end)
-            else {
-                continue;
-            };
-            let row_start = row_start as i32;
-            let row_end = row_end as i32;
-            let column_start = column_start as i32;
-            let column_end = column_end as i32;
-            if !overlaps(row_start, row_end, subgrid_row_start, subgrid_row_end)
-                || !overlaps(column_start, column_end, subgrid_column_start, subgrid_column_end)
-            {
+        for (axis, lines, is_subgrid) in [
+            (Axis::Column, columns, column_is_subgrid),
+            (Axis::Row, rows, row_is_subgrid),
+        ] {
+            if !is_subgrid {
                 continue;
             }
-
-            if column_is_subgrid {
-                let start = column_start.max(subgrid_column_start) - subgrid_column_start;
-                let end = column_end.min(subgrid_column_end) - subgrid_column_start;
-                name_subgrid_area_lines(columns, area, start, end);
-            }
-            if row_is_subgrid {
-                let start = row_start.max(subgrid_row_start) - subgrid_row_start;
-                let end = row_end.min(subgrid_row_end) - subgrid_row_start;
-                name_subgrid_area_lines(rows, area, start, end);
-            }
+            let start = parent_item.position(axis);
+            let end = start + parent_item.span(axis) as i32;
+            project_area_lines(lines, axis.select(&parent.column_lines, &parent.row_lines), start, end);
         }
     }
 

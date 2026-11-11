@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid line name resolution</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  grid: [a] repeat(1, [b] auto [c]) [d] repeat(3, [b] auto [c]) [d] /
+        [a] 30px [b] 30px [c] 30px [] 30px [e-start] 30px [] 30px [x] 30px [h] 30px [i] 30px [j] 30px [k];
+  grid-template-areas: ". . . e . . . . . . .";
+  place-content: start;
+  border: 1px solid;
+  width: 500px;
+  grid-auto-columns: 100px;
+  grid-auto-rows: 100px;
+}
+
+.subgrid {
+  display: grid;
+  grid: auto / subgrid;
+  background: lightgrey;
+  grid-column: 2 / span 8;
+  grid-row: 2 / span 2;
+  min-width:0;
+  min-height:0;
+}
+
+.subgrid2 {
+  display: grid;
+  grid: auto / subgrid [] [] [] [b];
+  grid-column: span 10;
+}
+
+.subgrid#s1 {
+  grid-template-areas: ". e e . . . .";
+}
+
+i {
+  grid-row: 1;
+  counter-increment: i;
+}
+i::before { content: counter(i, decimal); }
+
+x {
+  min-width:10px;
+  min-height:20px;
+  background:silver;
+}
+
+.hl { writing-mode: horizontal-tb; direction:ltr; }
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid" id="s1">
+  <x style="grid-column:10 / span 4">x</x>
+</div>
+</div>
+
+<div class="grid hr">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hl" id="s2">
+  <x style="grid-column: 10 / span 4">x</x>
+</div>
+</div>
+
+<div class="grid">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+<div class="subgrid hr" id="s2">
+  <x style="grid-column: 10 / span 4">x</x>
+</div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px;">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2">
+    <x style="grid-column:1 / 4">x</x>
+  </div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px;">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2">
+    <x style="grid-column:10 / span 4">x</x>
+  </div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px;">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2">
+    <x style="grid-column: 1 / -1">x</x>
+  </div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px;">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2">
+    <x style="grid-row:2; grid-column: 1 / -1">x</x>
+  </div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px;">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2">
+    <x style="grid-column: span 3 / 11">x</x>
+  </div>
+</div>
+
+<div style="display:grid; width:500px; grid-auto-columns: 50px; grid: auto / repeat(20, [a] 50px) [a] ">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="subgrid2" style="grid-row:2">
+    <x style="grid-column: 10 / 11">x</x>
+  </div>
+</div>
+
+<div style="display:grid; grid: auto / repeat(10, 50px) repeat(10, [a] 50px) [a]">
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid; grid-column: span 10; grid-row:2">
+    <x style="grid-column: 10 / 11">x</x>
+  </div>
+</div>
+
+<div style='display:grid; grid-template-areas: "a a a a a a a a a a"'>
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid; grid-column: 6 / span 5; grid-row:2">
+    <x style="grid-column: 1 / 6">x</x>
+  </div>
+</div>
+
+<div style='display:grid; grid-template-areas: ". . . . . . a a a a"'>
+<div style='display:grid; grid-template-areas: ". . . . . . . a a ."; grid-template-columns:subgrid; grid-column:span 10;'>
+<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div style="display:grid; grid:auto/subgrid; grid-column: 6 / span 5; grid-row:2">
+    <x style="grid-column: 2 / 5">x</x>
+  </div>
+</div>
+</div>
+
+</body>
+</html>
