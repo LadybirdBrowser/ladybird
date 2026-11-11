@@ -44,6 +44,13 @@ incremental = false
 codegen-units = 1
 lto = true
 
+# flapc only runs from build scripts, which cargo leaves unoptimized. It generates whole interpreters, so that is slow.
+[profile.release.package.flapc]
+opt-level = 3
+
+[profile.dev.package.flapc]
+opt-level = 3
+
 # Line tables keep file and line numbers in panic backtraces. Full debug info doubles the time to build the tests.
 [profile.test]
 debug = "line-tables-only"
