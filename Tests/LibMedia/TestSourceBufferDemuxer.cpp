@@ -199,7 +199,7 @@ TEST_CASE(evicting_the_first_frame_of_a_run_preserves_its_configuration)
     for (u64 second = 1; second < 3; second++)
         demuxer->add_coded_frame(track, coded_frame_at(second));
 
-    demuxer->take_earliest_frame_and_dependants(track);
+    demuxer->take_earliest_groups(track, 1);
 
     auto sample = MUST(demuxer->get_next_sample_for_track(track));
     EXPECT_EQ(sample.presentation_timestamp(), AK::Duration::from_seconds(1));
@@ -220,12 +220,12 @@ TEST_CASE(buffered_bytes_include_the_codec_configurations_that_frames_carry)
     EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1) + 300);
 
     // The next frame carries the evicted frame's configuration forward, so the configuration isn't freed.
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 1);
+    EXPECT_EQ(demuxer->take_earliest_groups(track, 1), frame_storage + 1);
     EXPECT_EQ(demuxer->total_bytes(track), 3 * (frame_storage + 1) + 300);
 
-    EXPECT_EQ(demuxer->take_latest_frame(track).byte_size, frame_storage + 101);
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 101);
-    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), frame_storage + 101);
+    EXPECT_EQ(demuxer->take_latest_frames(track, 1), frame_storage + 101);
+    EXPECT_EQ(demuxer->take_earliest_groups(track, 1), frame_storage + 101);
+    EXPECT_EQ(demuxer->take_earliest_groups(track, 1), frame_storage + 101);
     EXPECT_EQ(demuxer->total_bytes(track), 0u);
 }
 
@@ -247,10 +247,10 @@ TEST_CASE(evictable_bytes_leave_out_the_configuration_that_eviction_moves_forwar
     auto evictable_bytes = demuxer->evictable_bytes_when_taking_all_earliest_frames(track, current_time);
     EXPECT_EQ(evictable_bytes, 3 * (frame_storage + 1) + 100);
 
-    size_t evicted_bytes = 0;
-    while (demuxer->earliest_evictable_frame_timestamp(track, current_time).has_value())
-        evicted_bytes += demuxer->take_earliest_frame_and_dependants(track);
-    EXPECT_EQ(evicted_bytes, evictable_bytes);
+    auto evictable_groups = demuxer->earliest_evictable_groups(track, current_time, NumericLimits<size_t>::max());
+    EXPECT_EQ(evictable_groups.size(), 3u);
+    EXPECT_EQ(evictable_groups.last().bytes_freed_by_evicting_through_this_group, evictable_bytes);
+    EXPECT_EQ(demuxer->take_earliest_groups(track, evictable_groups.size()), evictable_bytes);
 }
 
 // Removing the run that the cursor sits in leaves it with no position to jump from, so a later removal that
@@ -461,6 +461,41 @@ TEST_CASE(splitting_the_last_appended_run_keeps_appending_to_its_tail)
 
     demuxer->add_coded_frame(track, one_second_frame_at(4, 4, Media::FrameFlags::None));
     EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1));
+}
+
+TEST_CASE(evicting_the_earliest_groups_continues_into_the_next_run)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 seconds : { 0, 1, 10, 11 })
+        demuxer->add_coded_frame(track, one_second_frame_at(seconds, seconds, Media::FrameFlags::Keyframe));
+
+    // The group being appended to is never evicted.
+    auto groups = demuxer->earliest_evictable_groups(track, AK::Duration::from_seconds(20), NumericLimits<size_t>::max());
+    EXPECT_EQ(groups.size(), 3u);
+    EXPECT_EQ(groups.last().presentation_timestamp, AK::Duration::from_seconds(10));
+    EXPECT_EQ(groups.last().bytes_freed_by_evicting_through_this_group, 3 * (frame_storage + 1));
+
+    EXPECT_EQ(demuxer->take_earliest_groups(track, groups.size()), 3 * (frame_storage + 1));
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), Media::TimeRanges({ seconds_range(11, 12) }));
+}
+
+TEST_CASE(evicting_the_latest_frames_continues_into_the_previous_run)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    // Each pair of frames decodes before the last, so the earliest run is the one being appended to.
+    for (u64 seconds : { 20, 21, 10, 11, 0, 1 })
+        demuxer->add_coded_frame(track, one_second_frame_at(seconds, seconds, Media::FrameFlags::Keyframe));
+
+    auto frames = demuxer->latest_evictable_frames(track, AK::Duration::zero(), 3 * (frame_storage + 1));
+    EXPECT_EQ(frames.size(), 3u);
+    EXPECT_EQ(frames.last().presentation_timestamp, AK::Duration::from_seconds(11));
+
+    EXPECT_EQ(demuxer->take_latest_frames(track, frames.size()), 3 * (frame_storage + 1));
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), Media::TimeRanges({ seconds_range(0, 2), seconds_range(10, 11) }));
 }
 
 static Media::CodedFrame tenth_of_a_second_frame_at(u64 milliseconds, Media::CodecID codec_id)
@@ -728,7 +763,7 @@ TEST_CASE(evicting_a_group_of_frames_starts_the_buffered_ranges_at_the_next_grou
 
     for (i64 index = 0; index < 600; index++)
         demuxer->add_coded_frame(track, frame_with_rounded_timestamp(index));
-    demuxer->take_earliest_frame_and_dependants(track);
+    demuxer->take_earliest_groups(track, 1);
 
     auto end = rounded_frame_start(599) + rounded_frame_duration;
     EXPECT_EQ(demuxer->track_buffer_ranges(track), (Media::TimeRanges { { rounded_frame_start(120), end } }));
