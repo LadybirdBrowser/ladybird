@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid with a subgridded axis and an auto repeater as line name list</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2">
+<style>
+  .grid {
+    display: grid;
+  }
+  .subgrid {
+    grid-template-columns: subgrid repeat(auto-fill, [x]);
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="grid subgrid">
+      <div style="grid-column: x"></div>
+    </div>
+  </div>
+</body>
+</html>

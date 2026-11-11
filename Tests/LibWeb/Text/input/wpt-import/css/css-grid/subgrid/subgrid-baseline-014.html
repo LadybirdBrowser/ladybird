@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: baseline alignment with a direct item beside deeper nested subgrids keeps items in place</title>
+<link rel="author" title="Yanling Wang" href="mailto:yanlingwang@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-sharing-group">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<style>
+  body { margin: 0; padding: 0; font: 15px/1 Ahem; }
+  .grid {
+    display: inline-grid;
+    position: relative;
+    border: 2px solid black;
+    grid-template-columns: repeat(4, auto);
+    grid-template-rows:
+      [top-start] min-content
+      [top-end middle-start] min-content
+      [middle-end bottom-start] min-content
+      [bottom-end];
+  }
+  .subgrid {
+    align-items: baseline;
+    display: grid;
+    border: 2px solid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    grid-row: middle;
+    grid-template-rows:
+      [top-start] min-content
+      [top-end middle-start] min-content
+      [middle-end bottom-start] min-content
+      [bottom-end];
+  }
+  .subgrid.outer { border-color: green; }
+  .subgrid.mid { border-color: orange; }
+  .subgrid.inner { border-color: purple; }
+
+  .direct {
+    grid-column: 1 / -1;
+    grid-row: top;
+  }
+  .inner-grid {
+    display: grid;
+    border: 2px solid gray;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    grid-template-rows: minmax(2rem, auto) auto;
+  }
+  .inner-subgrid {
+    display: grid;
+    width: 40px;
+    background: lightblue;
+    grid-template-rows: subgrid;
+    grid-row: 1 / -1;
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+<div class="grid">
+  <div class="subgrid outer">
+    <div class="direct item" data-offset-x="2" data-offset-y="2">D</div>
+    <div class="subgrid mid">
+      <div class="subgrid inner">
+        <div class="inner-grid">
+          <div class="inner-subgrid item" data-offset-x="8" data-offset-y="23">1</div>
+          <div class="inner-subgrid item" data-offset-x="48" data-offset-y="23">2</div>
+          <div class="inner-subgrid item" data-offset-x="88" data-offset-y="23">3</div>
+          <div class="inner-subgrid item" data-offset-x="128" data-offset-y="23">4</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>

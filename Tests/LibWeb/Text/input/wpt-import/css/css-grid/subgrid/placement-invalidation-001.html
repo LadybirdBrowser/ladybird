@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgridded item placement invalidation</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#track-sizing">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+#grid {
+  width: 200px;
+  display: grid;
+  background: lightgray;
+  grid-template-columns: [start] auto [end] 1fr;
+  grid-template-rows: 100px;
+}
+#subgrid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+#item {
+  width: 50px;
+  background: lightblue;
+  border: 5px solid gray;
+  grid-column: start / end;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<div id="grid">
+  <div id="subgrid">
+    <div id="item" data-offset-x="140"></div>
+  </div>
+</div>
+<script>
+"use strict";
+
+let grid = document.getElementById("grid");
+let item = document.getElementById("item");
+
+// Computing an offset forces layout.
+let item_offset = item.offsetLeft;
+
+grid.style.gridTemplateColumns = "1fr [start] auto [end]";
+item_offset = item.offsetLeft;
+checkLayout("#item");
+</script>

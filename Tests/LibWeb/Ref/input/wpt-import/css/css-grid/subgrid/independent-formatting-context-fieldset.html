@@ -1,0 +1,77 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Test: subgrid is allowed on fieldset and button</title>
+  <link rel="author" title="Daniel Holbert" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1999886">
+  <link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#button-layout-2">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/independent-formatting-context-fieldset-ref.html">
+  <!-- TODO(dholbert): This file should ultimately be merged into
+       independent-formatting-context.html; see
+       https://bugzilla.mozilla.org/show_bug.cgi?id=2000014 -->
+  <style>
+
+html,body {
+  font:16px/1 monospace; padding:0; margin:0; line-height: 0;
+}
+
+fieldset, button {
+  /* Reset the default margin/border/padding, so that we can use our
+     simple regular-div mockup in reference case. (Note, it's important
+     that this come before the .grid {...} rule, so that we don't reset its
+     cosmetic margin-right/margin-bottom decls.) */
+  margin: 0;
+  border: 0;
+  padding: 0;
+  appearance: none;
+}
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-rows: 0px 100px;
+  width: 100px;
+  margin-right: 20px;
+  margin-bottom: 20px;
+  vertical-align: top;
+}
+
+.subgrid {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: 1 / 3;
+  width: 100px;
+  height: 100px;
+  background-color: red;
+}
+
+.second {
+  grid-row: 2;
+  background-color: green;
+}
+
+  </style>
+</head>
+<body>
+
+<!-- 'fieldset' and 'button' can both be styled as a grid/inline-grid, and
+     that doesn't necessarily create an independent formatting context.
+     So they are both eligible to be a subgrid.-->
+<div class="grid">
+  <fieldset class="subgrid">
+    <div class="second"></div>
+  </fieldset>
+</div>
+
+<div class="grid">
+  <button class="subgrid">
+    <div class="second"></div>
+  </button>
+</div>
+
+</body>
+</html>

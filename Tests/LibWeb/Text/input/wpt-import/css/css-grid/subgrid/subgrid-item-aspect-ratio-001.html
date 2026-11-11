@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: subgrid items with an aspect ratio size the outer grid's columns</title>
+<link rel="author" title="Claudio Saavedra" href="mailto:csaavedra@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#algo-grid-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<meta name="assert" content="An item of a subgrid whose inline size follows its block size through an aspect ratio contributes that inline size to the outer grid's auto column, whether its block size comes from a fixed row, a percentage of the row or a row sized by another item.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+body {
+  margin: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: auto;
+  grid-template-rows: 100px;
+  justify-content: start;
+}
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-rows: subgrid;
+}
+.stretched {
+  aspect-ratio: 1 / 1;
+  align-self: stretch;
+}
+.percentage {
+  aspect-ratio: 1 / 1;
+  height: 100%;
+}
+.two-columns {
+  grid-template-columns: auto auto;
+  grid-template-rows: auto;
+}
+.row-sizer {
+  grid-column: 2;
+  width: 10px;
+  height: 100px;
+}
+</style>
+<body onload="checkLayout('.grid')">
+
+<div class="grid">
+  <div class="subgrid" data-expected-width="100" data-expected-height="100">
+    <div class="stretched" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid" data-expected-width="100" data-expected-height="100">
+    <div class="percentage" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div class="grid two-columns">
+  <div class="subgrid" data-expected-width="100" data-expected-height="100">
+    <div class="stretched" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+  <div class="row-sizer"></div>
+</div>
+
+</body>

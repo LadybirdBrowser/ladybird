@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<head>
+<title>contain: strict element with subgrid properties</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1606485">
+</head>
+<style>
+
+#gridcontainer {
+  display: grid;
+  contain: strict;
+}
+
+.item {
+  display: grid;
+  grid: subgrid [x] / subgrid [x];
+}
+</style>
+<div id="gridcontainer">
+<div class="item">Text1</div>
+</div>

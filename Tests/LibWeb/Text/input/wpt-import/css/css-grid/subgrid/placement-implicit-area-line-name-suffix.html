@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Test: subgrid implicit area line names resolve by suffix, not substring</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#implicit-named-lines">
+<meta name="assert" content="An item placed on the implicit '-end' line of an area whose name itself ends in '-end' resolves to that area, not to a shorter area whose name is a prefix substring.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 20px);
+}
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / 7;
+}
+.item { grid-row: 1; }
+
+#buggy .subgrid { grid-template-areas: "x x-end x-end . . ."; }
+#buggy .item    { grid-column: x-end-end / span 1; }
+
+#control .subgrid { grid-template-areas: "x foo foo . . ."; }
+#control .item    { grid-column: foo-end / span 1; }
+</style>
+</head>
+<body>
+<div class="grid" id="buggy"><div class="subgrid"><div class="item"></div></div></div>
+<div class="grid" id="control"><div class="subgrid"><div class="item"></div></div></div>
+<script>
+test(function() {
+  function leftOf(sel) {
+    var grid = document.querySelector(sel);
+    var item = grid.querySelector('.item');
+    return item.getBoundingClientRect().left - grid.getBoundingClientRect().left;
+  }
+  var buggy = leftOf('#buggy');
+  var control = leftOf('#control');
+
+  assert_equals(control, 60, 'control: "foo-end" resolves to line 4 (column 4)');
+  assert_equals(buggy, control,
+    '"x-end-end" must resolve to the -end line of area "x-end", not of area "x"');
+}, 'subgrid implicit area line name "x-end-end" resolves by suffix, not by first substring match');
+</script>
+</body>
+</html>

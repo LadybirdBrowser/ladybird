@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: subgrid's own gap must not inflate intrinsic width in the subgridded axis</title>
+<link rel="author" title="Ahmad Saleem" href="mailto:ahmadsaleem@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#gutters">
+<meta name="assert" content="A subgrid with a large column-gap and a max-width constraint must not be inflated past its parent grid's track sum: items spanning the full subgrid in the subgridded axis must not overflow.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#wrapper { width: 400px; }
+#outer {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+}
+#subgrid {
+  grid-column: 1 / -1;
+  max-width: 70ch;
+  display: grid;
+  grid-template-columns: subgrid;
+  gap: 10rem;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+#child {
+  grid-column: 1 / -1;
+  height: 50px;
+  background: red;
+}
+</style>
+<div id="log"></div>
+<div id="wrapper">
+  <div id="outer">
+    <div id="subgrid">
+      <div id="child"></div>
+    </div>
+  </div>
+</div>
+<script>
+test(() => {
+  const wrapper = document.getElementById("wrapper");
+  const outer = document.getElementById("outer");
+  const subgrid = document.getElementById("subgrid");
+  const child = document.getElementById("child");
+
+  assert_less_than_equal(outer.offsetWidth, wrapper.offsetWidth,
+    "outer grid must not exceed its containing block (subgrid's own column-gap must not inflate parent's intrinsic width)");
+  assert_less_than_equal(subgrid.offsetWidth, outer.offsetWidth,
+    "subgrid must fit within its parent grid");
+  assert_less_than_equal(child.offsetLeft + child.offsetWidth,
+    subgrid.offsetLeft + subgrid.offsetWidth,
+    "item spanning the full subgrid must not overflow the subgrid in the subgridded axis");
+}, "Subgrid's own column-gap must not inflate intrinsic width in the subgridded axis");
+</script>

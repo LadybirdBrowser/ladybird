@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns/Rows when subgrid is specified on a grid container without a grid parent</title>
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+<meta name="assert" content="When `subgrid` is specified in grid-template-columns or grid-template-rows on a grid container whose parent is not a grid, the element is not a valid subgrid and the computed value resolves to the initial value `none`.">
+<style>
+#parent {
+  display: block;
+}
+#target {
+  display: grid;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="parent">
+  <div id="target"></div>
+</div>
+<script>
+// `subgrid` on a grid container with no grid parent is not a valid subgrid;
+// per the spec it should compute to the initial value `none`.
+test_computed_value("grid-template-columns", "subgrid", "none");
+test_computed_value("grid-template-columns", "subgrid [a]", "none");
+test_computed_value("grid-template-columns", "subgrid [a] [b]", "none");
+test_computed_value("grid-template-columns", "subgrid [a] [] [b]", "none");
+test_computed_value("grid-template-columns", "subgrid repeat(auto-fill, [a])", "none");
+test_computed_value("grid-template-columns", "subgrid repeat(2, [a] [b])", "none");
+test_computed_value("grid-template-columns", "subgrid [a] repeat(auto-fill, [b]) [c]", "none");
+
+test_computed_value("grid-template-rows", "subgrid", "none");
+test_computed_value("grid-template-rows", "subgrid [a]", "none");
+test_computed_value("grid-template-rows", "subgrid [a] [b]", "none");
+test_computed_value("grid-template-rows", "subgrid [a] [] [b]", "none");
+test_computed_value("grid-template-rows", "subgrid repeat(auto-fill, [a])", "none");
+test_computed_value("grid-template-rows", "subgrid repeat(2, [a] [b])", "none");
+test_computed_value("grid-template-rows", "subgrid [a] repeat(auto-fill, [b]) [c]", "none");
+</script>

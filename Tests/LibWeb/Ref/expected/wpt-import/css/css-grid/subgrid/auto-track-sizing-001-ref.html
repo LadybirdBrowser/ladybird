@@ -1,0 +1,65 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: subgrid auto track sizing</title>
+  <link rel="author" title="Mats Palmgren" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1558705">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+.grid {
+  display: grid;
+  max-width: 260px;
+  padding: 1px 5px;
+  border: 1px solid;
+}
+.subgrid {
+  display: grid;
+  padding: 3px 5px 7px 11px;
+  border-style: solid;
+  border-width: 5px 7px 11px 3px;
+  margin: 7px 11px 3px 5px;
+  background: grey;
+}
+
+  </style>
+</head>
+<body>
+
+<article class="grid">
+  <div class="subgrid">
+    The cat can not be separated from milk
+  </div>
+</article>
+
+<article class="grid" style="grid-template-columns: 100px auto">
+  <div class="subgrid">
+    The cat can not be separated from milk
+  </div>
+</article>
+
+<article class="grid" style="grid-template-columns: auto 100px">
+  <div class="subgrid" style="grid-column:2">
+    The cat can not be separated from milk
+  </div>
+</article>
+
+<article class="grid" style="grid-template-columns: auto 100px auto">
+  <div class="subgrid" style="grid-column:2 / span 2">
+    The cat can not be separated from milk
+  </div>
+</article>
+
+<article class="grid" style="grid-template-columns: auto 100px auto">
+  <div class="subgrid" style="grid-column:1 / span 3">
+    The cat can not be separated from milk
+  </div>
+</article>
+
+</body>
+</html>

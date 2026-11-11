@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Reference: subgrid inherits a named line before parent auto-repeat</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-line-name-inheritance">
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/line-names-parent-auto-repeat-001-ref.html">
+<style>
+body {
+  margin: 0;
+}
+
+#grid {
+  display: grid;
+  grid-template-columns: [before] 100px repeat(auto-fill, 100px);
+  grid-template-rows: 100px;
+  width: 300px;
+}
+
+#subgrid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  grid-template-rows: subgrid;
+}
+
+#item {
+  background: green;
+  grid-column: before / span 1;
+}
+</style>
+<div id="grid">
+  <div id="subgrid">
+    <div id="item"></div>
+  </div>
+</div>

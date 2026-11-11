@@ -1,0 +1,11 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<link rel="author" title="Alison Maher" href="mailto:almaher@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-listing">
+<style>
+  .subgrid-in-wrong-axis {
+    display: grid;
+    grid-template-rows: subgrid [x] [x] [x] [x] repeat(auto-fill, [y]);
+  }
+</style>
+<div class="subgrid-in-wrong-axis"></div>

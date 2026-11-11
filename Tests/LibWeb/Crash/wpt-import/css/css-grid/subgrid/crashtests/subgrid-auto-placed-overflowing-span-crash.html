@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: subgrid with auto-placed item whose indefinite minor-axis span is larger than the subgrid</title>
+<link rel="author" title="Kurt Catti-Schmidt" href="mailto:kschmi@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrids">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#auto-placement-algo">
+<style>
+  .outer {
+    display: grid;
+    grid-template-columns: repeat(5, 10px);
+    width: 50px;
+  }
+  .subgrid {
+    display: grid;
+    grid-column: span 5;
+    grid-template-columns: subgrid;
+  }
+  .item {
+    grid-column: span 6;
+  }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div class="subgrid">
+      <div class="item">item</div>
+    </div>
+  </div>
+</body>
+</html>
