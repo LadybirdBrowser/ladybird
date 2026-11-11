@@ -1,0 +1,14 @@
+Ladybird indexes transform animations by their target layout node,
+keeping pseudo-element effects separate from effects on their hosts.
+This matches the target-box distinction in Blink, WebKit, and Gecko.
+
+Blink keeps the generated PseudoElement as effect_target_ through
+KeyframeEffect::UpdateEffectTarget(), and uses that target for its
+compositor eligibility checks and layout-object lookup. WebKit uses
+KeyframeEffect::targetStyleable() to retain the pseudo identifier;
+KeyframeEffect::renderer() then delegates to Styleable::renderer().
+
+Gecko selects the generated frame in KeyframeEffect::GetPrimaryFrame()
+from mTarget.mPseudoRequest. Its before and after cases call
+nsLayoutUtils::GetBeforeFrame() and nsLayoutUtils::GetAfterFrame(),
+keeping their animation targets distinct from the originating element.
