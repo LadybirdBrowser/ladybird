@@ -3213,6 +3213,12 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
+    if (auto* rare_data = element_rare_data()) {
+        if (rare_data->implicit_anchor_element)
+            publish_implicit_anchor_element();
+        for (auto& dependent : rare_data->implicit_anchor_dependents)
+            dependent.publish_implicit_anchor_element();
+    }
     if (created_hyperlink()) {
         if (old_style_node_id != 0)
             document().hover_link_reporter().set_link(old_style_node_id.value(), {});
@@ -3241,6 +3247,37 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     }
     // NB: A newly minted identity holds no style on the render side, whatever the element and its pseudo-elements
     //     still hold: the render side styles the element as it arrives, and swaps in what it computed.
+}
+
+GC::Ptr<Element> Element::implicit_anchor_element() const
+{
+    auto* rare_data = element_rare_data();
+    return rare_data ? rare_data->implicit_anchor_element.ptr() : nullptr;
+}
+
+void Element::set_implicit_anchor_element(GC::Ptr<Element> anchor)
+{
+    auto previous = implicit_anchor_element();
+    if (previous == anchor)
+        return;
+    if (previous)
+        previous->ensure_element_rare_data().implicit_anchor_dependents.remove(*this);
+    ensure_element_rare_data().implicit_anchor_element = anchor;
+    if (anchor) {
+        anchor->ensure_element_rare_data().implicit_anchor_dependents.set(*this);
+        anchor->set_needs_layout_update(SetNeedsLayoutReason::ImplicitAnchorChange);
+    }
+    publish_implicit_anchor_element();
+    document().set_needs_layout_update(SetNeedsLayoutReason::ImplicitAnchorChange);
+}
+
+void Element::publish_implicit_anchor_element()
+{
+    if (style_node_id() == 0)
+        return;
+    auto anchor = implicit_anchor_element();
+    auto anchor_id = anchor && &anchor->document() == &document() ? anchor->style_node_id().value() : 0;
+    Layout::RustFFI::render_state_set_implicit_anchor_element(document().layout_node_arena().host(), style_node_id().value(), anchor_id);
 }
 
 // The top layer is one of the few element facts the tree build reads that moves during the element's lifetime, so the

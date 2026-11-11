@@ -412,6 +412,23 @@ struct AnchorCalcCallbackContext<'pass> {
 }
 
 impl AbsposEngine<'_> {
+    // https://drafts.csswg.org/css-anchor-position-1/#default-anchor
+    fn default_anchor(&self, positioned_box: Node) -> Option<Node> {
+        let style = self.style(positioned_box);
+        match style.anchor().position_anchor_type {
+            3 => self.anchor_lookup(positioned_box, style.position_anchor_name()),
+            0 if style.anchor().position_area.as_slice().is_empty() => None,
+            0 | 2 => {
+                let arena = self.pass.arena();
+                let anchor = arena.bound_row(arena.implicit_anchor_element(positioned_box)?);
+                let containing_block = arena.node_containing_block_if_live(positioned_box)?;
+                self.anchor_is_acceptable(anchor, positioned_box, containing_block)
+                    .then_some(anchor)
+            }
+            _ => None,
+        }
+    }
+
     /// The box `anchor_name` names for `positioned_box`.
     ///
     /// https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
@@ -785,12 +802,7 @@ impl AbsposEngine<'_> {
             return (None, AnchorResolutionState::NO_SCROLL_SHIFT);
         }
         let containing_block_geometry = *entry_containing_block_geometry;
-        let default_anchor_box = if style.has_position_anchor() {
-            self.anchor_lookup(node, style.position_anchor_name())
-                .unwrap_or(NodeSlotId::INVALID)
-        } else {
-            NodeSlotId::INVALID
-        };
+        let default_anchor_box = self.default_anchor(node).unwrap_or(NodeSlotId::INVALID);
         let mut resolution_state = AnchorResolutionState {
             default_anchor_box,
             compensates_for_horizontal_scroll: false,
@@ -986,13 +998,10 @@ impl AbsposEngine<'_> {
             && insets_are_both_auto_or_both_not(style.inset_left(), style.inset_right());
         let centers_block = style.align_self() == align_self::ANCHOR_CENTER
             && insets_are_both_auto_or_both_not(style.inset_top(), style.inset_bottom());
-        if (!centers_inline && !centers_block)
-            || !style.has_position_anchor()
-            || !self.facts(positioned_box).is_absolutely_positioned()
-        {
+        if (!centers_inline && !centers_block) || !self.facts(positioned_box).is_absolutely_positioned() {
             return;
         }
-        let Some(anchor_box) = self.anchor_lookup(positioned_box, style.position_anchor_name()) else {
+        let Some(anchor_box) = self.default_anchor(positioned_box) else {
             return;
         };
         let anchor_rect = self.anchor_rect(anchor_box, containing_block_geometry, entry_coordinate_space_box);
@@ -1076,7 +1085,7 @@ impl AbsposEngine<'_> {
         // https://drafts.csswg.org/css-anchor-position-1/#position-area
         // If the box does not have a default anchor box, or is not an absolutely positioned box, this value has no
         // effect.
-        if !style.has_position_anchor() || !self.facts(positioned_box).is_absolutely_positioned() {
+        if !self.facts(positioned_box).is_absolutely_positioned() {
             return None;
         }
         let containing_block_style = self.style(containing_block);
@@ -1093,7 +1102,7 @@ impl AbsposEngine<'_> {
         )?
         .in_frame(self.pass.frame);
 
-        let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
+        let anchor_box = self.default_anchor(positioned_box)?;
         let anchor_rect = self.anchor_rect(anchor_box, containing_block_geometry, entry_coordinate_space_box);
 
         // anchor_rect() is padding-box-relative, while containing_block_info.rect is content-box-relative. Normalize
@@ -1495,18 +1504,14 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
         return std::ptr::null();
     };
 
-    let style = engine.style(context.positioned_box);
     let bound_anchor_name = has_anchor_name.then(|| explicit_anchor_name.to_fly_string());
-    let anchor_name = if let Some(name) = &bound_anchor_name {
-        Some(name.raw())
-    } else if style.has_position_anchor() {
-        Some(style.position_anchor_name())
+    let anchor_box = if let Some(name) = &bound_anchor_name {
+        engine.anchor_lookup(context.positioned_box, name.raw())
     } else {
-        None
+        engine.default_anchor(context.positioned_box)
     };
     if engine.facts(context.positioned_box).is_absolutely_positioned()
-        && let Some(anchor_name) = anchor_name
-        && let Some(anchor_box) = engine.anchor_lookup(context.positioned_box, anchor_name)
+        && let Some(anchor_box) = anchor_box
     {
         let rect = engine.anchor_rect(
             anchor_box,

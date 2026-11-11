@@ -1942,7 +1942,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     set_popover_visibility_state(PopoverVisibilityState::Showing);
     // 23. Set element's popover trigger to source.
     rare_data.popover_trigger = source;
-    // FIXME: 24. Set element's implicit anchor element to source.
+    // 24. Set element's implicit anchor element to source.
+    set_implicit_anchor_element(source);
     // 25. Run the popover focusing steps given element.
     run_popover_focusing_steps(*this);
     // 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
@@ -2039,10 +2040,14 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         }
         // 9.4. Request an element to be removed from the top layer given element.
         document.request_an_element_to_be_remove_from_the_top_layer(*this);
+
+        // 9.5. Set element's implicit anchor element to null.
+        set_implicit_anchor_element(nullptr);
     }
     // 10. Otherwise, remove an element from the top layer immediately given element.
     else {
         document.remove_an_element_from_the_top_layer_immediately(*this);
+        set_implicit_anchor_element(nullptr);
     }
 
     // AD-HOC: The following block of code is all ad-hoc.

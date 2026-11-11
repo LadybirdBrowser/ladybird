@@ -561,7 +561,7 @@ pub(crate) fn place_child(
             offset_from_relatively_positioned_inline_ancestors,
         ),
     );
-    let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
+    let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.is_anchor_candidate()).then(|| {
         let metrics = &geometry.cells;
         let collapsed = metrics.uses_collapsing_borders_model();
         CssPixelRect {

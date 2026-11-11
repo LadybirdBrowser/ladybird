@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>Popover invokers form an implicit anchor reference</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-anchor-position-1/#implicit">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../html/semantics/popovers/resources/popover-utils.js"></script>
+
+<button id=button popovertarget=popover>Button</button>
+<div popover id=popover>Popover</div>
+
+<style>
+#button {
+  position:relative;
+  top:100px;
+  left:100px;
+}
+#popover {
+  border:1px solid black;
+  inset: auto;
+  margin:0;
+  padding:0;
+  position-area: top left;
+}
+body { margin: 0; }
+</style>
+
+<script>
+promise_test(async (t) => {
+  assert_false(popover.matches(':popover-open'));
+  await clickOn(button);
+  assert_true(popover.matches(':popover-open'));
+  // Popover should be anchored to the button.
+  assert_equals(popover.offsetLeft + popover.offsetWidth, button.offsetLeft);
+  assert_equals(popover.offsetTop + popover.offsetHeight, button.offsetTop);
+}, 'Popover invokers form an implicit anchor reference');
+</script>
