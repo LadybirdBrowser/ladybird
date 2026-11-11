@@ -268,6 +268,7 @@ public:
     WindowSettings const& window_settings() const { return m_window_settings; }
     void set_window_settings(WindowSettings);
 
+    static URL::URL const& default_new_tab_page_url();
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
