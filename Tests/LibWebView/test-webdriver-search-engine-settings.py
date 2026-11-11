@@ -158,7 +158,7 @@ def run_test(webdriver_binary, graphical):
             )
             script("""
                 document.querySelector('#search-custom-name').value = 'Custom suggestions';
-                document.querySelector('#search-custom-url').value = 'https://example.com/search?q=%s';
+                document.querySelector('#search-custom-url').value = 'example.com/search?q=%s';
             """)
             for url in ("https://example.com/suggest", "file:///tmp/%s", "data:text/plain,%s"):
                 script(
@@ -174,11 +174,18 @@ def run_test(webdriver_binary, graphical):
 
             change_settings(
                 """
-                document.querySelector('#search-custom-suggestions-url').value = 'https://example.com/suggest?q=%s';
+                document.querySelector('#search-custom-suggestions-url').value = 'example.com/suggest?q=%s';
                 document.querySelector('#search-custom-add').click();
             """,
                 "settings.searchEngine.custom.some(engine => engine.name === 'Custom suggestions')",
             )
+            custom = next(
+                engine
+                for engine in json.loads(settings_file.read_text())["searchEngine"]["custom"]
+                if engine["name"] == "Custom suggestions"
+            )
+            assert custom["url"] == "https://example.com/search?q=%s", custom
+            assert custom["suggestionsUrl"] == "https://example.com/suggest?q=%s", custom
             script("document.querySelector('#search-close').click()")
             select_engine("Custom suggestions")
             assert state()[:2] == [False, False]

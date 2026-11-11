@@ -151,16 +151,12 @@ function showSiteSettings(setting) {
 }
 
 function addSiteSettingFilter() {
-    let filter = siteSettingsInput.value.trim();
+    let filter = ensureURLHasScheme(siteSettingsInput.value);
     if (!filter) {
         return;
     }
 
-    let url = URL.parse(filter);
-    // A host followed by a port can parse as a scheme with an opaque path.
-    if (!url || (url.origin === "null" && /^[^:/?#]+:\d+(?:[/?#]|$)/.test(filter))) {
-        url = URL.parse(`https://${filter}`);
-    }
+    const url = URL.parse(filter);
     if (!url || url.origin === "null") {
         siteSettingsInput.setCustomValidity("Enter a site URL, such as https://example.com.");
         siteSettingsInput.reportValidity();
