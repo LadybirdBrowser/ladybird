@@ -17,11 +17,13 @@ counter differencing and windowing independently of the UI and OS APIs.
 
 * **CPU:** CPU-time deltas divided by actual monotonic elapsed time. 100% is
   one logical CPU; values above 100% are expected. All live and terminated
-  threads in exclusively owned WebContent processes contribute, so a worker
+  threads in the tab's WebContent processes contribute, so a worker
   counts under the WebContent process that hosts it. Registered page and
-  embedded-frame ownership identify WebContent owners. Processes shared across
-  tabs remain unattributed, and so does a process that runs on without pages
-  for its shared workers.
+  embedded-frame ownership identify WebContent owners. A process shared across
+  tabs counts in full toward each of them, so their values overlap. The toolbar
+  then marks CPU, MEM and PEAK with `*`, and its tooltip gives the number of
+  other tabs that share the processes. A process that runs on without pages for
+  its shared workers remains unattributed.
   The first sample establishes a baseline. The sparkline retains ten seconds.
 * **MEM:** An estimate of owned process memory, counted once per process.
   macOS uses the kernel's physical-footprint ledger, including compressed
@@ -31,6 +33,7 @@ counter differencing and windowing independently of the UI and OS APIs.
   are not directly comparable. Other platforms report unavailable until a
   collector is implemented. Shared helper/cache allocations and resources
   without a process-level ownership charge are excluded.
+  Memory of a process shared across tabs counts in full toward each of them.
 * **Download/upload:** HTTP response/request body bytes transferred by curl,
   before response decompression. Disk-cache hits contribute no traffic.
   Headers, TLS/TCP overhead, WebSockets, and helper-initiated background
