@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Test: Subgrid with no grid items accommodates gutter size and padding</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-edge-placeholders">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/subgrid/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.wrapper {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+.grid {
+  display: inline-grid;
+  grid: repeat(2, auto) / repeat(4, auto);
+  background: red;
+}
+.subgrid {
+  display: grid;
+  grid-template: subgrid / subgrid;
+  background: green;
+  padding: 11px 3px 9px 7px;
+}
+</style>
+</head>
+<body>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="wrapper">
+  <div class="grid">
+    <div class="subgrid" style="grid-column: span 4; grid-row: span 2; gap: 20px 10px">
+      <div class="subgrid" style="grid-column: span 2; grid-row: span 2">
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+      </div>
+      <div class="subgrid" style="grid-column: span 2; grid-row: span 2">
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+        <div class="subgrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
