@@ -26,6 +26,8 @@ struct TabPerformanceStats {
     u64 upload_bytes_per_second { 0 };
     Optional<double> frames_per_second;
     Vector<double> cpu_history;
+    // CPU and memory include whole processes that this many other tabs also use.
+    u32 other_tabs_sharing_processes { 0 };
 };
 
 // Pure accounting state: callers supply monotonic timestamps and cumulative process counters.

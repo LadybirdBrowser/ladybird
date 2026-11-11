@@ -24,6 +24,7 @@ public:
 private:
     virtual void paintEvent(QPaintEvent*) override;
     QStringList text_segments() const;
+    int label_width(size_t index) const;
     WebView::TabPerformanceStats m_stats;
 };
 

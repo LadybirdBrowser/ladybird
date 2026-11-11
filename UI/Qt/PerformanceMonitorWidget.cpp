@@ -16,6 +16,7 @@
 namespace Ladybird {
 
 static constexpr Array<char const*, 6> s_labels { "CPU ", "MEM ", "PEAK ", "↓ ", "↑ ", "FPS " };
+static constexpr Array<char const*, 6> s_shared_labels { "CPU* ", "MEM* ", "PEAK* ", "↓ ", "↑ ", "FPS " };
 static constexpr Array<char const*, 6> s_value_templates { "9999%", "999.9 MB", "999.9 MB", "999.9 MB/s", "999.9 MB/s", "999" };
 static constexpr int metric_spacing = 12;
 static constexpr int text_start = 48;
@@ -31,17 +32,29 @@ PerformanceMonitorWidget::PerformanceMonitorWidget(QWidget* parent)
     setFixedSize(sizeHint());
 }
 
+// NB: A label column fits its widest form, so marking shared values does not move anything.
+int PerformanceMonitorWidget::label_width(size_t index) const
+{
+    return max(fontMetrics().horizontalAdvance(s_labels[index]), fontMetrics().horizontalAdvance(s_shared_labels[index]));
+}
+
 QSize PerformanceMonitorWidget::sizeHint() const
 {
     auto width = text_start + trailing_padding + metric_spacing * (s_labels.size() - 1);
     for (size_t i = 0; i < s_labels.size(); ++i)
-        width += fontMetrics().horizontalAdvance(s_labels[i]) + fontMetrics().horizontalAdvance(s_value_templates[i]);
+        width += label_width(i) + fontMetrics().horizontalAdvance(s_value_templates[i]);
     return { static_cast<int>(width), 24 };
 }
 
 void PerformanceMonitorWidget::set_stats(WebView::TabPerformanceStats const& stats)
 {
     m_stats = stats;
+    if (m_stats.other_tabs_sharing_processes == 0)
+        setToolTip({});
+    else if (m_stats.other_tabs_sharing_processes == 1)
+        setToolTip("* CPU and memory are for processes this tab shares with 1 other tab.");
+    else
+        setToolTip(QString("* CPU and memory are for processes this tab shares with %1 other tabs.").arg(m_stats.other_tabs_sharing_processes));
     update();
 }
 
@@ -71,8 +84,8 @@ void PerformanceMonitorWidget::paintEvent(QPaintEvent*)
     auto dark = ChromeStyle::is_dark(palette());
     Array<QColor, 6> colors { neutral, neutral, neutral, QColor(dark ? BrandColors::SlateBlue100 : BrandColors::SlateBlue900), QColor(dark ? BrandColors::Violet50 : BrandColors::Violet900), neutral };
     for (size_t i = 0; i < s_labels.size(); ++i) {
-        QString label = s_labels[i];
-        auto label_width = fontMetrics().horizontalAdvance(label);
+        QString label = m_stats.other_tabs_sharing_processes > 0 ? s_shared_labels[i] : s_labels[i];
+        auto label_width = this->label_width(i);
         auto value_width = fontMetrics().horizontalAdvance(s_value_templates[i]);
         painter.setPen(i == 3 || i == 4 ? colors[i] : label_color);
         painter.drawText(QRect(x, 0, label_width, height()), Qt::AlignVCenter | Qt::AlignLeft, label);
@@ -92,6 +105,8 @@ void PerformanceMonitorWidget::paintEvent(QPaintEvent*)
         x += label_width + value_width + metric_spacing;
         accessible_text += label + segments[i] + ' ';
     }
+    if (!toolTip().isEmpty())
+        accessible_text += toolTip();
     setAccessibleName(accessible_text);
     if (m_stats.cpu_history.size() < 2)
         return;

@@ -1327,24 +1327,27 @@ void WebContentClient::did_release_image_decoder()
         ImageDecoderManager::the().process_did_release_decoder(child_id(), *generation);
 }
 
-Optional<u64> WebContentClient::exclusive_performance_owner() const
+Vector<u64> WebContentClient::performance_owners() const
 {
-    Optional<u64> owner;
-    auto add_owner = [&](u64 id) {
-        if (owner.has_value() && *owner != id)
-            return false;
-        owner = id;
-        return true;
-    };
+    Vector<u64> owners;
     for (auto const& it : m_pages) {
         auto const& page = it.value;
         if (!page->is_open())
             continue;
         auto const& view = page->view();
-        if (!add_owner(view.owner_view_id().value_or(view.view_id())))
-            return {};
+        auto owner = view.owner_view_id().value_or(view.view_id());
+        if (!owners.contains_slow(owner))
+            owners.append(owner);
     }
-    return owner;
+    return owners;
+}
+
+Optional<u64> WebContentClient::exclusive_performance_owner() const
+{
+    auto owners = performance_owners();
+    if (owners.size() != 1)
+        return {};
+    return owners.first();
 }
 
 }

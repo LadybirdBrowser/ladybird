@@ -99,16 +99,28 @@ void TabPerformanceMonitor::did_present(u64 view_id)
 void TabPerformanceMonitor::sample()
 {
     HashMap<u64, HashMap<pid_t, Core::Platform::ProcessResourceUsage>> processes;
+    HashMap<u64, HashTable<u64>> tabs_sharing_processes;
     Application::process_manager().for_each_process([&](Process& process) {
-        Optional<u64> owner;
-        if (process.type() == ProcessType::WebContent) {
-            if (auto client = process.client<WebContentClient>())
-                owner = client->exclusive_performance_owner();
-        }
-        if (!owner.has_value())
+        if (process.type() != ProcessType::WebContent)
             return;
-        if (auto usage = Application::process_manager().resource_usage(process.pid()); usage.has_value())
-            processes.ensure(*owner).set(process.pid(), *usage);
+        auto client = process.client<WebContentClient>();
+        if (!client)
+            return;
+        auto owners = client->performance_owners();
+        if (owners.is_empty())
+            return;
+        auto usage = Application::process_manager().resource_usage(process.pid());
+        if (!usage.has_value())
+            return;
+        // NB: A process that several tabs share counts in full toward each of them. Each tab then reports how
+        //     many other tabs share its processes, so the UI can show that the numbers overlap.
+        for (auto owner : owners) {
+            processes.ensure(owner).set(process.pid(), *usage);
+            for (auto other_owner : owners) {
+                if (other_owner != owner)
+                    tabs_sharing_processes.ensure(owner).set(other_owner);
+            }
+        }
     });
     auto now = MonotonicTime::now();
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
@@ -118,6 +130,8 @@ void TabPerformanceMonitor::sample()
         if (auto page = view.traversable().display_page())
             top_level_process = page->client().pid();
         auto stats = m_tabs.ensure(view.view_id()).sample(now, processes.ensure(view.view_id()), top_level_process);
+        if (auto sharing = tabs_sharing_processes.get(view.view_id()); sharing.has_value())
+            stats.other_tabs_sharing_processes = sharing->size();
         if (view.on_performance_stats)
             view.on_performance_stats(stats);
         return IterationDecision::Continue;
