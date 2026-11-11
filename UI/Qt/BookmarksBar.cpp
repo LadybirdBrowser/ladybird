@@ -48,7 +48,7 @@ namespace Ladybird {
 
 // Bookmarks are 24 px buttons with 6 px corners, their favicon padded less than their title.
 static constexpr int BOOKMARK_BUTTON_MAX_WIDTH = 168;
-static constexpr int BOOKMARK_BUTTON_ICON_SIZE = 14;
+static constexpr int BOOKMARK_BUTTON_ICON_SIZE = 16;
 static constexpr int BOOKMARK_BUTTON_HEIGHT = 24;
 static constexpr int BOOKMARK_BUTTON_CORNER_RADIUS = 6;
 static constexpr int BOOKMARK_BUTTON_LEFT_PADDING = 6;
