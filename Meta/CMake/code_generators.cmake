@@ -49,7 +49,6 @@ function(compile_ipc source output)
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${rust_output}.tmp ${rust_output}
             COMMAND "${CMAKE_COMMAND}" -E remove ${rust_output}.tmp)
     endif()
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
         OUTPUT ${output} ${implementation} ${rust_output}
         COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_ipc_definitions.py"

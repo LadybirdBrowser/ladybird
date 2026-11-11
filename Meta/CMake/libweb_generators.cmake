@@ -228,7 +228,6 @@ endfunction()
 
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     set(LIBWEB_ALL_BINDINGS_SOURCES)
