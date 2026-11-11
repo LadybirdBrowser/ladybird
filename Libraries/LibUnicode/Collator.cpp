@@ -193,19 +193,28 @@ public:
         if (m_pattern.isEmpty() || start_offset > static_cast<size_t>(m_text.length()))
             return {};
 
-        UErrorCode status = U_ZERO_ERROR;
-        m_search->setOffset(static_cast<i32>(start_offset), status);
-        verify_icu_success(status);
+        // ICU snaps offsets inside a surrogate pair or contraction backwards, so step forward until a match doesn't.
+        auto search_offset = static_cast<i32>(start_offset);
+        while (search_offset < m_text.length()) {
+            UErrorCode status = U_ZERO_ERROR;
+            m_search->setOffset(search_offset, status);
+            verify_icu_success(status);
 
-        auto const match_start = m_search->next(status);
-        verify_icu_success(status);
-        if (match_start == USEARCH_DONE)
-            return {};
+            auto const match_start = m_search->next(status);
+            verify_icu_success(status);
+            if (match_start == USEARCH_DONE)
+                return {};
 
-        return Collator::Match {
-            .start = static_cast<size_t>(match_start),
-            .end = static_cast<size_t>(match_start + m_search->getMatchedLength()),
-        };
+            if (static_cast<size_t>(match_start) >= start_offset) {
+                return Collator::Match {
+                    .start = static_cast<size_t>(match_start),
+                    .end = static_cast<size_t>(match_start + m_search->getMatchedLength()),
+                };
+            }
+
+            search_offset = m_text.moveIndex32(search_offset, 1);
+        }
+        return {};
     }
 
 private:

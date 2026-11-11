@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 29 tests
+Found 32 tests
 
-29 Pass
+32 Pass
 Pass	An exact directive is preferred for unique selections shorter than 300 code points
 Pass	A short selection receives the shortest available context
 Pass	Selection endpoints inside words expand to word boundaries
@@ -28,6 +28,9 @@ Pass	Editable text outside the selection does not prevent generation
 Pass	Selections partly containing an editing host are rejected
 Pass	Word-boundary expansion into editable content is rejected
 Pass	Selections containing form controls are rejected
+Pass	A unique emoji selection is not counted as ambiguous
+Pass	Repeated emoji are disambiguated without restarting inside a surrogate pair
+Pass	Emoji matches inside a modifier sequence are skipped
 Pass	Selections in design-mode documents are rejected
 Pass	Selections outside the searchable text are rejected
 Pass	Whitespace-only and collapsed selections are rejected

@@ -2,6 +2,7 @@ ladybird_test_suite(LibUnicode)
 
 set(TEST_SOURCES
     TestBidi.cpp
+    TestCollator.cpp
     TestDisplayNames.cpp
     TestFullwidthMapping.cpp
     TestIDNA.cpp
