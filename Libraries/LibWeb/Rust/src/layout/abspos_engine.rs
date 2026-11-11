@@ -2388,12 +2388,12 @@ impl AbsposEngine<'_> {
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
             // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
             // the content resolves percentages against it.
-            // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
-            //     which they are at that size.
+            // NB: Stretch sizing and orthogonal-flow sizing also resolve a non-replaced box's height before inside
+            //     layout. A provisional minimum on a content-sized box doesn't provide a percentage basis.
             let is_definite = if is_replaced {
                 !sizing.should_treat_block_size_as_auto(sized.sized_box(), available_space, constraints)
             } else {
-                block_size.is_some() && sizing.establishes_orthogonal_flow(sized.node)
+                resolved_block_size.is_ok()
             };
             if is_definite {
                 used.update_cells(|cells| cells.has_definite_block_size = true);
@@ -2507,12 +2507,6 @@ impl<'pass> AbsposEngine<'pass> {
             let used = sized.cells;
             if !style.inset_left().is_auto() && !style.inset_right().is_auto() {
                 used.update_cells(|cells| cells.has_definite_inline_size = true);
-            }
-            if !style.inset_top().is_auto()
-                && !style.inset_bottom().is_auto()
-                && (style.height().is_auto() || !style.height().is_intrinsic_sizing_constraint())
-            {
-                used.update_cells(|cells| cells.has_definite_block_size = true);
             }
         }
         if !self.facts(node).creates_block_formatting_context() {

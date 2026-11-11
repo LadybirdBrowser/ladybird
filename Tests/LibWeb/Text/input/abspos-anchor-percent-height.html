@@ -1,0 +1,57 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-auto-size">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution">
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 400px;
+        height: 300px;
+    }
+    .anchor {
+        anchor-name: --anchor;
+        width: 20px;
+        height: 20px;
+        margin-top: 100px;
+    }
+    .target {
+        position: absolute;
+        position-anchor: --anchor;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 200px;
+    }
+    .content {
+        height: 60px;
+    }
+</style>
+<script>
+    test(() => {
+        for (const [name, extra] of [
+            ["normal", ""],
+            ["stretch", "align-self: stretch"],
+            ["center", "align-self: center"],
+            ["anchor-center", "align-self: anchor-center"],
+            ["missing anchor", "align-self: anchor-center; position-anchor: --missing"],
+            ["minimum height", "align-self: anchor-center; min-height: 120px"],
+            ["zero height", "align-self: anchor-center; height: 0"],
+            ["explicit height", "align-self: anchor-center; height: 100px"],
+            ["aspect ratio", "align-self: anchor-center; aspect-ratio: 2"],
+            ["one auto inset", "align-self: anchor-center; bottom: auto"],
+        ]) {
+            for (const percentage of [100, 50]) {
+                const container = document.createElement("div");
+                container.className = "container";
+                container.innerHTML = `<div class="anchor"></div><div class="target" style="${extra}"><div class="child" style="height: ${percentage}%"><div class="content"></div></div></div>`;
+                document.body.append(container);
+                const target = container.querySelector(".target");
+                const child = container.querySelector(".child");
+                println(
+                    `${name}, ${percentage}%: parent ${target.getBoundingClientRect().height}, child ${child.getBoundingClientRect().height}`
+                );
+                container.remove();
+            }
+        }
+    });
+</script>
