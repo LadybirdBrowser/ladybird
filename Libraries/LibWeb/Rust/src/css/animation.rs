@@ -17,7 +17,7 @@ use crate::css::style_value::{
 };
 use crate::css::style_value_arc::StyleValueArc;
 use ak::math;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::css::custom_properties::CustomPropertyValueToFinalize;
@@ -8618,6 +8618,7 @@ impl KeyframeConversionCache {
 /// The endpoints selected for a custom property's current animation sample.
 pub(crate) struct CustomPropertyInterval {
     interval_span: [CustomPropertyKeyframeLookup; 2],
+    pub(crate) custom_name_id: u32,
     pub(crate) name: crate::css::retained_fly_string::RetainedUtf16FlyString,
     pub(crate) declared_values: [RetainedStyleValueData; 2],
 }
@@ -8870,6 +8871,59 @@ fn select_custom_property_interval_span(
     [keyframe_lookups[start], keyframe_lookups[end]]
 }
 
+/// Select contributing intervals in effect order, before substituting or retaining their values.
+fn select_contributing_custom_property_intervals(
+    selected: &[SelectedEffect<'_>],
+    custom_properties: &mut AnimatedCustomProperties,
+    registry: &Registry,
+) -> Vec<Vec<CustomPropertyInterval>> {
+    let mut intervals_by_effect = Vec::with_capacity(selected.len());
+    // NB: A replacing interval hides lower effects for its property. Neutral and additive
+    //     endpoints keep the intervals whose underlying values they need.
+    let mut replaced_names = HashSet::new();
+    for selection in selected.iter().rev() {
+        let effect = selection.effect;
+        let mut intervals = Vec::new();
+        for (name_id, keyframe_lookups) in build_custom_property_keyframe_lookups(effect, custom_properties) {
+            if keyframe_lookups.len() < 2 || custom_properties.is_important(name_id) && !effect.is_transition {
+                continue;
+            }
+            if replaced_names.contains(&name_id) {
+                continue;
+            }
+            let interval_span = select_custom_property_interval_span(effect, &keyframe_lookups, selection.current_key);
+            let interpolable = registry.name_has_interpolable_syntax(custom_properties.units(name_id));
+            let replaces_underlying = interval_span.iter().all(|lookup| {
+                let composite_replaces = !interpolable
+                    || effect.keyframes()[lookup.keyframe_index].composite == FfiCompositeOperation::Replace;
+                let has_declared_value = matches!(
+                    effect.custom_declaration_at(lookup.declaration_index).value,
+                    PublishedValue::Declared(_)
+                );
+                composite_replaces && has_declared_value
+            });
+            // NB: A single selected endpoint has no value plan, so it cannot hide lower effects.
+            if replaces_underlying && interval_span[0].keyframe_index != interval_span[1].keyframe_index {
+                replaced_names.insert(name_id);
+            }
+            intervals.push(CustomPropertyInterval {
+                interval_span,
+                custom_name_id: name_id,
+                name: custom_properties.name(name_id).clone(),
+                declared_values: interval_span.map(|lookup| {
+                    match &effect.custom_declaration_at(lookup.declaration_index).value {
+                        PublishedValue::Declared(value) => value.clone(),
+                        _ => RetainedStyleValueData::none(),
+                    }
+                }),
+            });
+        }
+        intervals_by_effect.push(intervals);
+    }
+    intervals_by_effect.reverse();
+    intervals_by_effect
+}
+
 /// Resolve the declarations of the effects an element samples from their descriptions: each
 /// keyframe's easing and each value written as a token stream substituted against the element, a
 /// keyframe holding the element's own value given it, and every custom property minted into a
@@ -8918,7 +8972,8 @@ pub(crate) fn resolve_published_animation_declarations(
     let mut effects = Vec::new();
     let mut declarations = Vec::new();
     let mut base_urls = Vec::new();
-    for selection in selected {
+    let intervals_by_effect = select_contributing_custom_property_intervals(selected, &mut custom_properties, registry);
+    for (selection, intervals) in selected.iter().zip(intervals_by_effect) {
         let effect = selection.effect;
         let is_transition = effect.is_transition;
         let style_sheet_resource_context = match effect.resource_context() {
@@ -9065,23 +9120,10 @@ pub(crate) fn resolve_published_animation_declarations(
                 });
             }
         }
-        for (name_id, keyframe_lookups) in build_custom_property_keyframe_lookups(effect, &mut custom_properties) {
+        for interval in intervals {
+            let name_id = interval.custom_name_id;
             let important = custom_properties.is_important(name_id);
-            if keyframe_lookups.len() < 2 || important && !is_transition {
-                continue;
-            }
             let name = custom_properties.units(name_id);
-            let interval_span = select_custom_property_interval_span(effect, &keyframe_lookups, selection.current_key);
-            let interval = CustomPropertyInterval {
-                interval_span,
-                name: custom_properties.name(name_id).clone(),
-                declared_values: interval_span.map(|lookup| {
-                    match &effect.custom_declaration_at(lookup.declaration_index).value {
-                        PublishedValue::Declared(value) => value.clone(),
-                        _ => RetainedStyleValueData::none(),
-                    }
-                }),
-            };
             let (interval_values, values_are_retained) = effect.resolve_custom_property_interval_values(
                 interval.declaration_indices(),
                 registry.name_has_interpolable_syntax(name),
@@ -9399,6 +9441,91 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
 mod tests {
     use super::*;
     use crate::css::easing::FfiEasingKind;
+
+    #[test]
+    fn preserves_lower_custom_property_effects_for_single_endpoint_intervals() {
+        use crate::css::retained_fly_string::RetainedUtf16FlyString;
+        use crate::css::style::bridge::{
+            FfiPublishedAnimationCustomDeclaration, FfiPublishedAnimationEffect, FfiPublishedAnimationKeyframe,
+            FfiPublishedEasingKind,
+        };
+        use crate::css::style::effect_descriptions::PublishedEffectBuffers;
+
+        let name = RetainedUtf16FlyString::from_utf16(&"--value".encode_utf16().collect::<Vec<_>>());
+        let values = [1.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+            .map(|value| RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value })));
+        let declarations = values.each_ref().map(|value| FfiPublishedAnimationCustomDeclaration {
+            name: name.raw(),
+            value: value.pointer().cast(),
+        });
+        let keyframes =
+            [(0, 0), (100, 1), (0, 2), (0, 3), (100, 4), (100, 5)].map(|(key, first_custom_declaration)| {
+                FfiPublishedAnimationKeyframe {
+                    key,
+                    easing_kind: FfiPublishedEasingKind::Linear,
+                    step_position: 0,
+                    interval_count: 0,
+                    x1: 0.0,
+                    y1: 0.0,
+                    x2: 0.0,
+                    y2: 0.0,
+                    first_linear_point: 0,
+                    linear_point_count: 0,
+                    easing_value: std::ptr::null(),
+                    composite: FfiCompositeOperation::Replace,
+                    first_declaration: 0,
+                    declaration_count: 0,
+                    first_custom_declaration,
+                    custom_declaration_count: 1,
+                }
+            });
+        let effects = [(0, 2), (2, 4)].map(|(first_keyframe, keyframe_count)| FfiPublishedAnimationEffect {
+            identity: u64::from(first_keyframe),
+            generation: 0,
+            is_transition: false,
+            has_resource_context: false,
+            resource_context_is_origin_clean: false,
+            first_keyframe,
+            keyframe_count,
+            base_url_offset: 0,
+            base_url_length: 0,
+            reversing_adjusted_start_value: std::ptr::null(),
+            reversing_shortening_factor: 1.0,
+        });
+        let buffers = PublishedEffectBuffers {
+            effects: &effects,
+            keyframes: &keyframes,
+            declarations: &[],
+            custom_declarations: &declarations,
+            linear_points: &[],
+            base_url_bytes: &[],
+        };
+        // SAFETY: The name and values remain live while the descriptions retain them.
+        let effects = unsafe { buffers.effects() };
+        let registry = Registry::shared_empty();
+        let mut custom_properties = AnimatedCustomProperties {
+            stores: KeyframeStores {
+                substitution: std::ptr::null(),
+                base: std::ptr::null(),
+                inheritance: std::ptr::null(),
+                element_declares_custom_properties: false,
+            },
+            names: Vec::new(),
+            units: Vec::new(),
+            intervals: Vec::new(),
+            has_uncached_interval_values: false,
+        };
+
+        for (current_key, expected_span, lower_count) in [(50.0, [1, 2], 0), (100.0, [3, 3], 1), (-1.0, [0, 0], 1)] {
+            let selected = effects
+                .iter()
+                .map(|effect| SelectedEffect { effect, current_key })
+                .collect::<Vec<_>>();
+            let intervals = select_contributing_custom_property_intervals(&selected, &mut custom_properties, registry);
+            assert_eq!(intervals[1][0].declaration_indices(), expected_span);
+            assert_eq!(intervals[0].len(), lower_count, "lower effect count at {current_key}");
+        }
+    }
 
     #[test]
     fn resolves_keyframe_property_conflicts_as_one_batch() {

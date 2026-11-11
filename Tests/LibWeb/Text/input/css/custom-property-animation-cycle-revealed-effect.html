@@ -1,0 +1,57 @@
+<!doctype html>
+<style>
+    @property --other {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: base;
+    }
+    @keyframes cyclic {
+        from,
+        to {
+            --value: var(--other);
+        }
+    }
+    @keyframes literal {
+        from,
+        to {
+            --value: safe;
+        }
+    }
+    #target,
+    #capture {
+        --other: var(--value);
+        animation:
+            cyclic 1s paused,
+            literal 1s paused;
+    }
+</style>
+<div id="target"></div>
+<div id="capture" style="--other: base"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const value = () => getComputedStyle(target).getPropertyValue("--value");
+        println(`the replacing effect keeps its literal value: ${value() === "safe"}`);
+        target
+            .getAnimations()
+            .find(animation => animation.animationName === "literal")
+            .cancel();
+        println(`revealing the cyclic effect invalidates its value: ${value() === ""}`);
+        target.style.color = "red";
+        println(`the revealed cyclic effect stays invalid after a style change: ${value() === ""}`);
+
+        const capture = document.getElementById("capture");
+        println(
+            `the replacing effect hides the noncyclic conversion: ${getComputedStyle(capture).getPropertyValue("--value") === "safe"}`
+        );
+        capture.style.setProperty("--other", "changed");
+        capture
+            .getAnimations()
+            .find(animation => animation.animationName === "literal")
+            .cancel();
+        println(
+            `the revealed effect converts the current declaration: ${getComputedStyle(capture).getPropertyValue("--value") === "changed"}`
+        );
+    });
+</script>
