@@ -342,6 +342,26 @@ TEST_CASE(unrecognized_profiles_share_one_support_key)
     }
 }
 
+TEST_CASE(codecs_that_differ_in_any_parameter_hash_differently)
+{
+    // Each pair differs in only one parameter.
+    Array<Array<StringView, 2>, 7> const codec_string_pairs { {
+        { "hev1.31.00000000.L120.00.00.00.00"sv, "hev1.31.00000000.L120.01.00.00.00"sv },
+        { "hvc1.1.6.L93.B0"sv, "hvc1.1.4.L93.B0"sv },
+        { "hvc1.1.6.L93.B0"sv, "hvc1.1.6.H93.B0"sv },
+        { "avc1.4d401e"sv, "avc1.4d001e"sv },
+        { "av01.0.05M.08"sv, "av01.0.08M.08"sv },
+        { "vp09.00.41.08"sv, "vp09.00.10.08"sv },
+        { "mp4a.40.2"sv, "mp4a.40.5"sv },
+    } };
+    for (auto const& codec_strings : codec_string_pairs) {
+        auto first = Media::parse_codec_parameters_string(codec_strings[0]).value();
+        auto second = Media::parse_codec_parameters_string(codec_strings[1]).value();
+        EXPECT(first != second);
+        EXPECT_NE(first.hash(), second.hash());
+    }
+}
+
 TEST_CASE(a_configuration_record_on_a_frame_describes_its_stream)
 {
     // A vpcC payload for profile 2, 10-bit 4:2:0, which begins after the box's version and flags.
