@@ -474,40 +474,46 @@ void Omnibox::return_pressed()
         return;
     }
 
-    if (selection_is_explicit()) {
+    if (suggestion_index_for_return().has_value()) {
         activate_selected_suggestion();
         return;
     }
 
-    // The user edited or deleted a completion, so submit the text as typed instead of the popup's
-    // automatically selected row. Rows the user chose deliberately still win.
-    if (m_user_rejected_completion && !selection_is_explicit()) {
-        Optional<String> selected_text;
-        if (m_popup_query_id == m_active_query_id && m_selection.has_value())
-            selected_text = m_suggestions[m_selection->index].text;
-        if (!completion_is_suppressed() && selected_text.has_value() && *selected_text != m_query) {
-            activate_selected_suggestion();
-            return;
-        }
-
-        auto query = m_query;
-        restore_query_display();
-        close_popup();
-        commit_verbatim(move(query));
-        return;
-    }
-
-    if (m_popup_query_id == m_active_query_id) {
-        activate_selected_suggestion();
-        return;
-    }
-
-    // Results must never delay Enter or activate after the user has moved on. If the visible rows are
-    // stale, commit the exact current input through the browser's normal URL-or-search resolution.
     auto query = m_query;
     restore_query_display();
     close_popup();
     commit_verbatim(move(query));
+}
+
+Optional<size_t> Omnibox::suggestion_index_for_return() const
+{
+    if (!m_popup_visible || !m_selection.has_value())
+        return {};
+
+    if (selection_is_explicit())
+        return m_selection->index;
+
+    // The user edited or deleted a completion, so submit the text as typed instead of the popup's
+    // automatically selected row. Rows the user chose deliberately still win.
+    if (m_user_rejected_completion) {
+        if (m_popup_query_id == m_active_query_id && !completion_is_suppressed() && m_suggestions[m_selection->index].text != m_query)
+            return m_selection->index;
+        return {};
+    }
+
+    // Results must never delay Enter or activate after the user has moved on. If the visible rows are
+    // stale, commit the exact current input through the browser's normal URL-or-search resolution.
+    if (m_popup_query_id == m_active_query_id)
+        return m_selection->index;
+    return {};
+}
+
+Optional<AutocompleteSuggestion const&> Omnibox::suggestion_for_return() const
+{
+    auto index = suggestion_index_for_return();
+    if (!index.has_value())
+        return {};
+    return m_suggestions[*index];
 }
 
 // The chrome dismissed the popup without a key press (for example a click elsewhere in the window).

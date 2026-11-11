@@ -103,6 +103,12 @@ public:
         return m_selection.map([](auto const& selection) { return selection.index; });
     }
 
+    // Whether the text on display is inline completed to a suggestion.
+    bool is_inline_completed() const { return m_provenance == TextProvenance::InlineCompleted; }
+    // Whether the suggestions for the text as it now stands have yet to arrive.
+    bool has_pending_suggestions() const { return m_active_query_id.has_value() && m_active_query_id != m_popup_query_id; }
+    // The suggestion that pressing Return would go to, if it would not go to the text as typed.
+    Optional<AutocompleteSuggestion const&> suggestion_for_return() const;
     // The title of the page the text on display is inline completed to, if it has one.
     Optional<String> completion_title() const;
 
@@ -149,6 +155,7 @@ private:
     void highlight_suggestion(size_t suggestion_index, Selection::Origin);
     void display_suggestion(size_t suggestion_index);
     void activate_selected_suggestion();
+    Optional<size_t> suggestion_index_for_return() const;
     void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
     void commit_suggestion_text(String, OmniboxDestinationKind);
     void commit_verbatim(String);
