@@ -1,0 +1,9 @@
+When a ConvolverNode’s AudioNode is collected while it still has a tail
+to play, Ladybird keeps rendering that tail and removes the render node
+only once the tail has played out. The other engines likewise keep a
+convolver active until its tail ends: Gecko’s ConvolverNodeEngine counts
+the output it still owes in mRemainingLeftOutput, and reports itself
+active through IsActive() until then. Blink’s ConvolverHandler::
+RequiresTailProcessing() and TailTime() keep its handler in
+DeferredTaskHandler’s tail-processing list, and WebKit’s ConvolverNode
+uses requiresTailProcessing() and tailTime() the same way.
