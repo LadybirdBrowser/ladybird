@@ -67,6 +67,10 @@
             ["Invalid uppercase stronger digest", `${sha256} ${uppercase(wrong(sha384))}`, false],
             ["Valid mixed-case strongest digest", `${uppercase(wrong(sha384))} ${mixedCase(sha512)}`, true],
             ["Matching mixed-case digest at same strength", `${wrong(sha256)} ${mixedCase(sha256)}`, true],
+            ["Tab-separated mismatching digests", `${wrong(sha256)}\t${wrong(sha384)}`, false],
+            ["Mismatching digest followed by a newline", `${wrong(sha256)}\n`, false],
+            ["Mismatching digest surrounded by ASCII whitespace", `\t\n\f\r ${wrong(sha256)} \r\n`, false],
+            ["Newline-separated valid stronger digest", `${wrong(sha256)}\n${sha384}`, true],
         ];
         for (const [label, integrity, shouldPass] of cases) {
             let response;

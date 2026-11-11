@@ -8,10 +8,12 @@
 #include <AK/Base64.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
+#include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibWeb/SRI/SRI.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::SRI {
 
@@ -88,7 +90,15 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
     Vector<Metadata> result;
 
     // 2. For each item returned by splitting metadata on spaces:
-    for (auto item : metadata.split_view(u' ', SplitBehavior::Nothing)) {
+    // AD-HOC: "spaces" is undefined, so split on ASCII whitespace.
+    //         https://github.com/w3c/webappsec-subresource-integrity/issues/84
+    Utf16GenericLexer lexer { metadata };
+    while (!lexer.is_eof()) {
+        lexer.ignore_while(Infra::is_ascii_whitespace);
+        auto item = lexer.consume_until(Infra::is_ascii_whitespace);
+        if (item.is_empty())
+            continue;
+
         // 1. Let expression-and-options be the result of splitting item on U+003F (?).
         // 2. Let algorithm-expression be expression-and-options[0].
         auto algorithm_expression = item.substring_view(0, item.find_code_unit_offset(u'?').value_or(item.length_in_code_units()));
