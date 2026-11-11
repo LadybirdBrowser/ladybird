@@ -313,8 +313,13 @@ TEST_CASE(backspacing_the_completion_submits_the_typed_text)
     // Backspace deletes the selected completion; the suggestion must not come back for the same query.
     harness.press_backspace();
     EXPECT_EQ(harness.display_text, "t"sv);
+    // Return goes to the search for the text as typed, so that row leads and is highlighted.
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "t"sv);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
     harness.provider->deliver({ history_row("https://www.thev.example/"sv), search_row("t"sv) });
     EXPECT_EQ(harness.display_text, "t"sv);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "t"sv);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
@@ -340,6 +345,24 @@ TEST_CASE(typing_after_backspace_lifts_the_suppression)
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
     EXPECT_EQ(harness.commits.last(), "https://www.thev.example/"sv);
+}
+
+TEST_CASE(rows_without_one_for_the_typed_text_highlight_none_after_rejecting_a_completion)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) });
+    EXPECT(harness.omnibox.is_inline_completed());
+    harness.press_backspace();
+    EXPECT_EQ(harness.display_text, "t"sv);
+
+    // Return goes to the text as typed, and the rows have no row for it, such as while the row for the text waits on
+    // the check for an app that handles it. So none of them is highlighted.
+    harness.provider->deliver({ non_inline_history_row("https://www.tango.example/"sv) });
+    EXPECT(!harness.omnibox.selected_suggestion().has_value());
+    EXPECT(!harness.omnibox.suggestion_for_return().has_value());
 }
 
 TEST_CASE(the_first_intermediate_result_repaints_for_each_generation)
@@ -723,7 +746,8 @@ TEST_CASE(a_top_row_that_does_not_match_the_prefix_is_not_automatically_selected
     harness.press_key('t');
     harness.provider->deliver({ non_automatic_history_row("https://odd.example/t"sv, "Odd"sv), search_row("t"sv) });
     EXPECT_EQ(harness.display_text, "t"sv);
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "t"sv);
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.last(), "t"sv);
@@ -739,7 +763,8 @@ TEST_CASE(a_title_only_history_row_is_not_automatically_selected)
 
     harness.provider->deliver({ non_automatic_history_row("https://example.com/fragrance"sv, "Eau de Parfum"sv), search_row("eau de"sv) });
     EXPECT_EQ(harness.display_text, "eau de"sv);
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "eau de"sv);
     EXPECT(harness.omnibox.is_popup_visible());
 
     harness.omnibox.return_pressed();
@@ -758,7 +783,7 @@ TEST_CASE(a_user_chosen_title_only_history_row_is_activated)
     harness.provider->deliver({ non_automatic_history_row("https://example.com/fragrance"sv, "Eau de Parfum"sv), search_row("eau de"sv) });
 
     EXPECT(harness.omnibox.select_next_suggestion());
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
     EXPECT_EQ(harness.display_text, "https://example.com/fragrance"sv);
 
     harness.omnibox.return_pressed();
@@ -781,7 +806,8 @@ TEST_CASE(a_fresh_non_prefix_url_top_row_does_not_win_after_editing_a_completion
         harness.press_key(code_point);
     harness.provider->deliver({ non_automatic_history_row("https://news.ycombinator.com/title-match"sv, "Title Match"sv), search_row("title match"sv) });
     EXPECT_EQ(harness.display_text, "title match"sv);
-    EXPECT_EQ(harness.omnibox.selected_suggestion(), 1u);
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+    EXPECT_EQ(harness.omnibox.suggestions().first().text, "title match"sv);
 
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
@@ -1052,6 +1078,34 @@ TEST_CASE(provider_results_after_a_stale_enter_do_not_navigate)
     harness.provider->deliver({});
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) });
     EXPECT_EQ(harness.commits.size(), 1u);
+}
+
+TEST_CASE(deleting_from_a_previewed_row_does_not_highlight_rows_for_older_text)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('e');
+    harness.press_key('x');
+    auto search = search_row("ex"sv);
+    search.is_verbatim = true;
+    harness.provider->deliver({ move(search), non_automatic_history_row("https://other.example/foo"sv, "Ex"sv) });
+    EXPECT(harness.omnibox.select_next_suggestion());
+    auto previewed_text = harness.display_text;
+    EXPECT_NE(previewed_text, "ex"sv);
+
+    // The user moves the cursor to the end of the previewed text, and deletes a character from it.
+    harness.selection_start = {};
+    harness.omnibox.cursor_moved(true);
+    harness.press_backspace();
+    EXPECT_NE(harness.omnibox.query(), "ex"sv);
+    auto const& rows = harness.omnibox.suggestions();
+    if (auto selection = harness.omnibox.selected_suggestion(); selection.has_value())
+        EXPECT_NE(rows[*selection].text, "ex"sv);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_NE(harness.commits.last(), "ex"sv);
 }
 
 TEST_CASE(restarting_the_session_cancels_in_flight_queries)
