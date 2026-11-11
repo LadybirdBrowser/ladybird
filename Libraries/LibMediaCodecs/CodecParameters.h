@@ -64,23 +64,56 @@ public:
     constexpr CodecID codec_id() const { return m_codec_id; }
     constexpr bool has_parameters() const { return m_parameters.has_value(); }
 
-    constexpr unsigned hash() const
+    unsigned hash() const
     {
-        auto codec_hash = u32_hash(to_underlying(m_codec_id));
+        auto combine_hashes = [](unsigned hash, auto... values) {
+            ((hash = pair_int_hash(hash, static_cast<u32>(values))), ...);
+            return hash;
+        };
+        auto combine_cicp_hash = [&](unsigned hash, CodingIndependentCodePoints const& cicp) {
+            hash = combine_hashes(hash, to_underlying(cicp.color_primaries()), to_underlying(cicp.transfer_characteristics()));
+            return combine_hashes(hash, to_underlying(cicp.matrix_coefficients()), to_underlying(cicp.video_full_range_flag()));
+        };
+
+        auto hash = u32_hash(to_underlying(m_codec_id));
         if (!m_parameters.has_value())
-            return codec_hash;
+            return hash;
 
         switch (m_codec_id) {
-        case CodecID::AV1:
-            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->av1.profile, m_parameters->av1.bit_depth));
-        case CodecID::H264:
-            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->h264.profile_idc, m_parameters->h264.level_idc));
-        case CodecID::H265:
-            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->h265.profile_idc, m_parameters->h265.level_idc));
-        case CodecID::VP9:
-            return pair_int_hash(codec_hash, pair_int_hash(m_parameters->vp9.profile, m_parameters->vp9.bit_depth));
+        case CodecID::AAC: {
+            auto const& parameters = m_parameters->aac;
+            hash = combine_hashes(hash, parameters.object_type_indication, parameters.audio_object_type.has_value());
+            return combine_hashes(hash, parameters.audio_object_type.value_or(0));
+        }
+        case CodecID::AV1: {
+            auto const& parameters = m_parameters->av1;
+            hash = combine_hashes(hash, parameters.profile, parameters.level, to_underlying(parameters.tier), parameters.bit_depth);
+            auto const& optional_fields = parameters.optional_fields;
+            hash = combine_hashes(hash, optional_fields.monochrome, optional_fields.chroma_sample_position);
+            hash = combine_hashes(hash, optional_fields.subsampling.x(), optional_fields.subsampling.y());
+            return combine_cicp_hash(hash, optional_fields.cicp);
+        }
+        case CodecID::H264: {
+            auto const& parameters = m_parameters->h264;
+            return combine_hashes(hash, parameters.profile_idc, parameters.constraint_set_flags, parameters.level_idc);
+        }
+        case CodecID::H265: {
+            auto const& parameters = m_parameters->h265;
+            hash = combine_hashes(hash, parameters.profile_space, parameters.profile_idc, parameters.profile_compatibility_flags);
+            hash = combine_hashes(hash, parameters.level_idc, parameters.tier_flag);
+            for (auto flags : parameters.constraint_indicator_flags)
+                hash = combine_hashes(hash, flags);
+            return hash;
+        }
+        case CodecID::VP9: {
+            auto const& parameters = m_parameters->vp9;
+            hash = combine_hashes(hash, parameters.profile, parameters.level, parameters.bit_depth);
+            auto const& color_parameters = parameters.color_parameters;
+            hash = combine_hashes(hash, color_parameters.subsampling.x(), color_parameters.subsampling.y());
+            return combine_cicp_hash(hash, color_parameters.cicp);
+        }
         default:
-            return codec_hash;
+            return hash;
         }
     }
 
