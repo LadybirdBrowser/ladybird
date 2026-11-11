@@ -1,0 +1,3 @@
+retained values do not recreate a dependency cycle: true
+cyclic conversions inherit the parent's value: true
+inherited values remain live when the parent changes: true

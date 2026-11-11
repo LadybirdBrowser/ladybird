@@ -1,0 +1,47 @@
+<!doctype html>
+<style>
+    @property --value {
+        syntax: "<integer>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @keyframes capture {
+        from,
+        to {
+            --saved: var(--value);
+        }
+    }
+    .target {
+        --value: calc(var(--saved, 0) + 1);
+        animation: capture 1s paused;
+    }
+</style>
+<div id="target" class="target"></div>
+<div id="parent" style="--saved: 7"><div id="inherited" class="target"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const inherited = document.getElementById("inherited");
+        const parent = document.getElementById("parent");
+        const value = element => getComputedStyle(element).getPropertyValue("--value");
+        // NB: Resolve the initial animation samples before testing retained values after style changes.
+        value(target);
+        value(inherited);
+
+        target.style.color = "red";
+        println(`retained values do not recreate a dependency cycle: ${value(target) === "1"}`);
+
+        const inheritsSavedValue = expected => {
+            const style = getComputedStyle(inherited);
+            return (
+                style.getPropertyValue("--saved") === String(expected) &&
+                style.getPropertyValue("--value") === String(expected + 1)
+            );
+        };
+        inherited.style.color = "red";
+        println(`cyclic conversions inherit the parent's value: ${inheritsSavedValue(7)}`);
+        parent.style.setProperty("--saved", "9");
+        println(`inherited values remain live when the parent changes: ${inheritsSavedValue(9)}`);
+    });
+</script>
