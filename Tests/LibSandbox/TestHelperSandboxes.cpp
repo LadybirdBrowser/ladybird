@@ -9,6 +9,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/ScopeGuard.h>
 #include <CoreGraphics/CoreGraphics.h>
+#include <LibCore/IOSurface.h>
 #include <LibCore/System.h>
 #include <LibTest/TestCase.h>
 #include <Security/Security.h>
@@ -33,6 +34,10 @@ enum class Outcome {
 
 static Outcome run_in_helper_sandbox(Function<ErrorOr<void>()> const& apply_sandbox, Function<bool()> const& operation)
 {
+    // These tests fork without exec, so initialize the native runtime in the parent. Objective-C cannot initialize
+    // classes in a child forked from a multithreaded process, such as one that has already queried CoreGraphics.
+    Core::IOSurfaceHandle::initialize();
+
     auto child = fork();
     VERIFY(child >= 0);
     if (child == 0) {
