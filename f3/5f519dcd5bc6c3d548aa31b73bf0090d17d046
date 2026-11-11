@@ -1,0 +1,9 @@
+While it measures a box’s intrinsic inline sizes, Ladybird transfers
+the box’s min and max block sizes to its inline axis without resolving
+an intrinsic max-width, and applies that max-width after the transferred
+limits instead. The other engines don’t consult max-width in the
+transfer at all: Blink’s ComputeTransferredMinMaxInlineSizes(), WebKit’s
+RenderBox::computeMinMaxLogicalWidthFromAspectRatio(), and the transfer
+in Gecko’s nsIFrame::ComputeSize() work from the block-axis sizes alone.
+Each applies the transferred limits before the explicit min and max
+sizes, which caps the transferred minimum just the same.
