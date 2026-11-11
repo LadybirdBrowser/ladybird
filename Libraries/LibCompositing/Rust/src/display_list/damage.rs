@@ -6,6 +6,7 @@
 
 use super::effect_clip_plan::EffectClipPlan;
 use super::effect_geometry::{Extent, changed_extent_through_filters, nearest_spreading_effects};
+use super::layers::{LayerKind, LayerPlan};
 use super::replay::{OwnSpaceClipExtent, own_space_clip_extent};
 use super::summary::{DisplayListSummary, LiveContent};
 use crate::display_list::builder::{
@@ -33,6 +34,8 @@ struct CommandReference<'a> {
     header: DisplayListCommandHeader,
     payload: &'a [u8],
     context: ContextRef,
+    // The offset on its tape of the record that holds the command: its own, or that of the command it is nested in.
+    record_offset: u32,
 }
 
 // A tape and its run table. The runs are the only place a command's visual context is read from.
@@ -49,11 +52,12 @@ impl<'a> Tape<'a> {
 
     fn collect_commands_of_runs(&self, runs: &[DisplayListCommandRun], commands: &mut Vec<CommandReference<'a>>) {
         for run in runs {
-            for_each_command(self.run_bytes(run), |header, _, payload| {
+            for_each_command(self.run_bytes(run), |header, offset, payload| {
                 commands.push(CommandReference {
                     header: *header,
                     payload,
                     context: run.context,
+                    record_offset: run.offset + offset as u32,
                 });
             });
         }
@@ -61,13 +65,18 @@ impl<'a> Tape<'a> {
 }
 
 // Records nested in a group inherit the visual context of the enclosing run.
-fn collect_nested_command_references(bytes: &[u8], context: ContextRef) -> Vec<CommandReference<'_>> {
+fn collect_nested_command_references(
+    bytes: &[u8],
+    context: ContextRef,
+    record_offset: u32,
+) -> Vec<CommandReference<'_>> {
     let mut commands = Vec::new();
     for_each_command(bytes, |header, _, payload| {
         commands.push(CommandReference {
             header: *header,
             payload,
             context,
+            record_offset,
         });
     });
     commands
@@ -82,7 +91,7 @@ fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<Stati
     let mut masks: Vec<_> = (0..effect_count).map(|_| None).collect();
     let mut seen = vec![false; effect_count];
     for run in tape.runs {
-        for_each_command(tape.run_bytes(run), |header, _, payload| {
+        for_each_command(tape.run_bytes(run), |header, offset, payload| {
             if header.command_type != DisplayListCommandType::DeclareMaskContent {
                 return;
             }
@@ -95,7 +104,7 @@ fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<Stati
             }
             seen[index] = true;
             let content = super::nested_records::span_bytes(payload, declaration.content);
-            let nested = collect_nested_command_references(content, run.context);
+            let nested = collect_nested_command_references(content, run.context, run.offset + offset as u32);
             // Mask groups use their declaration's visual context. Only compare drawing commands whose
             // complete appearance is encoded in the payload, without canvas or video. The id of a nested
             // display list, such as that of an SVG mask image, names one recording whose commands never
@@ -817,22 +826,87 @@ fn intersect_like_gfx_int_rect(rect: IntRect, other: IntRect) -> IntRect {
     IntRect::new(left, top, right - left, bottom - top)
 }
 
-struct DamageAccumulator {
+/// The layer plans of the old and the new frame, which have the same layers. A layer keeps its raster between the
+/// frames, so damage is attributed to the layers that draw the content it comes from.
+#[derive(Clone, Copy)]
+pub struct LayerPlans<'a> {
+    pub old: &'a LayerPlan,
+    pub new: &'a LayerPlan,
+}
+
+#[derive(Clone, Copy)]
+enum FrameSide {
+    Old,
+    New,
+}
+
+#[derive(Clone, Copy)]
+enum DamagedLayers {
+    OfRecord(FrameSide, u32),
+    All,
+}
+
+#[derive(Clone, Copy, Default)]
+struct LayerDamage {
+    rect: Option<IntRect>,
+    is_unbounded: bool,
+}
+
+struct DamageAccumulator<'a> {
     damage_rect: Option<IntRect>,
     changed_unbounded_command: bool,
     viewport_rect: IntRect,
+    layer_plans: Option<LayerPlans<'a>>,
+    damage_of_layers: Vec<LayerDamage>,
 }
 
-impl DamageAccumulator {
-    // Once the damage covers the viewport, no further command can change the outcome.
+impl DamageAccumulator<'_> {
+    // Once the damage covers the viewport in every raster it reaches, no further command can change the outcome.
     fn covers_viewport(&self) -> bool {
-        self.changed_unbounded_command
-            || self
-                .damage_rect
-                .is_some_and(|damage_rect| damage_rect.contains_rect(self.viewport_rect))
+        let covers = |is_unbounded: bool, rect: Option<IntRect>| {
+            is_unbounded || rect.is_some_and(|rect| rect.contains_rect(self.viewport_rect))
+        };
+        covers(self.changed_unbounded_command, self.damage_rect)
+            && self.layer_plans.is_none_or(|plans| {
+                plans
+                    .new
+                    .layers
+                    .iter()
+                    .zip(&self.damage_of_layers)
+                    .all(|(layer, damage)| {
+                        matches!(layer.kind, LayerKind::Media { .. }) || covers(damage.is_unbounded, damage.rect)
+                    })
+            })
     }
 
-    fn add_command_damage(&mut self, command: &CommandReference<'_>, side: TreeSide<'_>) {
+    fn for_each_damaged_layer(&mut self, layers: DamagedLayers, mut f: impl FnMut(&mut LayerDamage)) {
+        let Some(plans) = self.layer_plans else {
+            return;
+        };
+        let layer = match layers {
+            DamagedLayers::OfRecord(FrameSide::Old, record_offset) => plans.old.layer_of_record(record_offset),
+            DamagedLayers::OfRecord(FrameSide::New, record_offset) => plans.new.layer_of_record(record_offset),
+            DamagedLayers::All => {
+                self.damage_of_layers.iter_mut().for_each(f);
+                return;
+            }
+        };
+        f(&mut self.damage_of_layers[layer]);
+    }
+
+    fn add_unbounded_damage(&mut self, layers: DamagedLayers) {
+        self.changed_unbounded_command = true;
+        self.for_each_damaged_layer(layers, |damage| damage.is_unbounded = true);
+    }
+
+    fn add_damage_rect(&mut self, rect: IntRect, layers: DamagedLayers) {
+        let united =
+            |damage_rect: Option<IntRect>| Some(damage_rect.map_or(rect, |damage_rect| damage_rect.united(rect)));
+        self.damage_rect = united(self.damage_rect);
+        self.for_each_damaged_layer(layers, |damage| damage.rect = united(damage.rect));
+    }
+
+    fn add_command_damage(&mut self, command: &CommandReference<'_>, side: TreeSide<'_>, frame: FrameSide) {
         let context = command.context;
         if side.culling.context_culls_everything(context) {
             return;
@@ -849,12 +923,23 @@ impl DamageAccumulator {
         if rect.is_empty() {
             return;
         }
-        self.add_changed_content_damage(rect, context, side);
+        self.add_changed_content_damage(
+            rect,
+            context,
+            side,
+            DamagedLayers::OfRecord(frame, command.record_offset),
+        );
     }
 
     // Damage for content drawn within `rect` in `context` that changed, wherever the filters above
     // it spread the change.
-    fn add_changed_content_damage(&mut self, rect: FloatRect, context: ContextRef, side: TreeSide<'_>) {
+    fn add_changed_content_damage(
+        &mut self,
+        rect: FloatRect,
+        context: ContextRef,
+        side: TreeSide<'_>,
+        layers: DamagedLayers,
+    ) {
         let nearest_spreading_effects = side
             .lazy_geometry
             .nearest_spreading_effects
@@ -880,7 +965,7 @@ impl DamageAccumulator {
             (Extent::Within(rect), _) => side.world().map_rect_to_root(space, rect),
             (_, Some(output_clip_bounds)) => output_clip_bounds,
             _ => {
-                self.changed_unbounded_command = true;
+                self.add_unbounded_damage(layers);
                 return;
             }
         };
@@ -892,7 +977,7 @@ impl DamageAccumulator {
             || !transformed_rect.width.is_finite()
             || !transformed_rect.height.is_finite()
         {
-            self.changed_unbounded_command = true;
+            self.add_unbounded_damage(layers);
             return;
         }
         if let Some(output_clip_bounds) = output_clip_bounds {
@@ -910,19 +995,34 @@ impl DamageAccumulator {
         if transformed_rect.is_empty() {
             return;
         }
-        let command_damage = enclosing_int_rect(transformed_rect);
-        self.damage_rect = Some(match self.damage_rect {
-            Some(damage_rect) => damage_rect.united(command_damage),
-            None => command_damage,
-        });
+        self.add_damage_rect(enclosing_int_rect(transformed_rect), layers);
     }
 
     fn add_old_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.old_side());
+        self.add_command_damage(command, chains.old_side(), FrameSide::Old);
     }
 
     fn add_new_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.new_side());
+        self.add_command_damage(command, chains.new_side(), FrameSide::New);
+    }
+
+    // A command that the new plan draws into another layer than the old plan leaves the raster of one layer and
+    // enters that of the other, even where it draws the same pixels.
+    fn add_layer_change_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_command: &CommandReference<'_>,
+        new_command: &CommandReference<'_>,
+    ) {
+        let Some(plans) = self.layer_plans else {
+            return;
+        };
+        if plans.old.layer_of_record(old_command.record_offset) == plans.new.layer_of_record(new_command.record_offset)
+        {
+            return;
+        }
+        self.add_old_command_damage(chains, old_command);
+        self.add_new_command_damage(chains, new_command);
     }
 
     // A backdrop filter can read the pixels around its region, so damage beneath the region changes it
@@ -941,13 +1041,14 @@ impl DamageAccumulator {
             return;
         }
         let mut seen_effects = vec![false; tree.effect_nodes.len()];
+        // Each effect with a backdrop filter, with the offset of its first record.
         let mut backdrop_effects = Vec::new();
         for run in command_runs {
             let mut effect = run.context.effect;
             while !effect.is_none() && !seen_effects[effect.0 as usize] {
                 seen_effects[effect.0 as usize] = true;
                 if backdrop_of(effect).is_some() {
-                    backdrop_effects.push(effect);
+                    backdrop_effects.push((effect, run.offset));
                 }
                 effect = tree.effect_nodes[effect.0 as usize].parent;
             }
@@ -963,7 +1064,7 @@ impl DamageAccumulator {
             };
             let damage = damage_rect.to_float();
             let mut damage_grew = false;
-            for (index, &effect) in backdrop_effects.iter().enumerate() {
+            for (index, &(effect, first_record_offset)) in backdrop_effects.iter().enumerate() {
                 if region_is_damaged[index] {
                     continue;
                 }
@@ -990,7 +1091,12 @@ impl DamageAccumulator {
                     clip: side.effect_clips.output_clip(effect),
                     effect,
                 };
-                self.add_changed_content_damage(region, backdrop_context, side);
+                self.add_changed_content_damage(
+                    region,
+                    backdrop_context,
+                    side,
+                    DamagedLayers::OfRecord(FrameSide::New, first_record_offset),
+                );
             }
             if !damage_grew {
                 return;
@@ -1100,10 +1206,17 @@ impl DamageAccumulator {
         inline_clip_spaces_may_have_moved: bool,
     ) {
         let commands_moved = !verdict.equal;
-        if !commands_moved && !scroll_offsets_differ && !inline_clip_spaces_may_have_moved {
+        let commands_may_change_layers = self
+            .layer_plans
+            .is_some_and(|plans| !plans.old.places_run_like(old_run, plans.new, new_run));
+        if !commands_moved
+            && !scroll_offsets_differ
+            && !inline_clip_spaces_may_have_moved
+            && !commands_may_change_layers
+        {
             return;
         }
-        for_each_command(chains.old_tape.run_bytes(old_run), |header, _, payload| {
+        for_each_command(chains.old_tape.run_bytes(old_run), |header, offset, payload| {
             if self.covers_viewport() {
                 return;
             }
@@ -1111,12 +1224,17 @@ impl DamageAccumulator {
                 header: *header,
                 payload,
                 context: old_run.context,
+                record_offset: old_run.offset + offset as u32,
             };
             let new_command = CommandReference {
                 header: *header,
                 payload,
                 context: new_run.context,
+                record_offset: new_run.offset + offset as u32,
             };
+            if commands_may_change_layers {
+                self.add_layer_change_damage(chains, &old_command, &new_command);
+            }
             if commands_moved {
                 self.add_moved_command_damage(chains, &old_command, &new_command);
             }
@@ -1158,6 +1276,7 @@ impl DamageAccumulator {
 
         let add_matched_pair_damage =
             |damage: &mut Self, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
+                damage.add_layer_change_damage(chains, old_command, new_command);
                 damage.add_visual_context_damage(chains, old_command, new_command);
                 if scroll_offsets_differ {
                     damage.add_scrollbar_scroll_damage(chains, old_command, new_command);
@@ -1438,6 +1557,22 @@ pub struct LiveContentChanges<'a> {
     pub offsets_of_records_composited_as_media_layers: &'a [u32],
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisplayListDamage {
+    pub rect: Option<IntRect>,
+    /// With the frames' layer plans, the damage of each layer, none where that has no bounds.
+    pub layer_rects: Vec<Option<IntRect>>,
+}
+
+impl DisplayListDamage {
+    pub fn unbounded(layer_count: usize) -> Self {
+        Self {
+            rect: None,
+            layer_rects: vec![None; layer_count],
+        }
+    }
+}
+
 impl LiveContentChanges<'_> {
     fn is_empty(&self) -> bool {
         self.canvases.is_empty() && self.video_sinks.is_empty() && self.image_frames.is_empty()
@@ -1454,15 +1589,19 @@ impl LiveContentChanges<'_> {
 
 // The viewport-space damage between two frames, or None when a change without bounds needs a
 // full repaint. The diff pairs the run tables first: runs that are byte-identical under chains of
-// the same shape are never decoded unless their chains or scroll offsets changed. Only the runs
-// in between are diffed command by command, and the diff stops as soon as the damage covers the
-// viewport, so a later unbounded change may then be reported as the viewport rect instead of None.
+// the same shape are never decoded unless their chains, scroll offsets or layers changed. Only the
+// runs in between are diffed command by command, and the diff stops as soon as the damage covers
+// the viewport, so a later unbounded change may then be reported as the viewport rect instead of
+// None. Given the frames' layer plans, the damage of each layer is reported too.
 pub fn compute_display_list_damage(
     old_frame: DisplayListFrame<'_>,
     new_frame: DisplayListFrame<'_>,
     viewport_rect: IntRect,
     live_content_changes: LiveContentChanges<'_>,
-) -> Option<IntRect> {
+    layer_plans: Option<LayerPlans<'_>>,
+) -> DisplayListDamage {
+    let layer_count = layer_plans.map_or(0, |plans| plans.new.layers.len());
+    let unbounded_damage = DisplayListDamage::unbounded(layer_count);
     let old_tape = Tape {
         bytes: old_frame.command_bytes,
         runs: old_frame.command_runs,
@@ -1482,14 +1621,20 @@ pub fn compute_display_list_damage(
     let chains = TreeChainComparison {
         old_tape,
         new_tape,
-        old_effect_clips: EffectClipPlan::from_contexts(
+        old_effect_clips: match EffectClipPlan::from_contexts(
             old_visual_context_tree,
             old_command_runs.iter().map(|run| run.context),
-        )?,
-        new_effect_clips: EffectClipPlan::from_contexts(
+        ) {
+            Some(plan) => plan,
+            None => return unbounded_damage,
+        },
+        new_effect_clips: match EffectClipPlan::from_contexts(
             new_visual_context_tree,
             new_command_runs.iter().map(|run| run.context),
-        )?,
+        ) {
+            Some(plan) => plan,
+            None => return unbounded_damage,
+        },
         old_mask_contents: OnceCell::new(),
         new_mask_contents: OnceCell::new(),
         old_tree: old_visual_context_tree,
@@ -1548,6 +1693,8 @@ pub fn compute_display_list_damage(
         damage_rect: None,
         changed_unbounded_command: false,
         viewport_rect,
+        layer_plans,
+        damage_of_layers: vec![LayerDamage::default(); layer_count],
     };
     let identical_run_pairs = old_command_runs[..identical_prefix_run_count]
         .iter()
@@ -1615,6 +1762,7 @@ pub fn compute_display_list_damage(
                     header,
                     payload: &new_frame.command_bytes[payload_start..payload_start + header.payload_size as usize],
                     context: new_command_runs[live_content_record.record.run_index as usize].context,
+                    record_offset: live_content_record.record.record_offset,
                 },
             );
         }
@@ -1623,23 +1771,26 @@ pub fn compute_display_list_damage(
     // NB: A backdrop filter reads more than the part of its region that is repainted, so forced damage goes through it too.
     let forced_damage_rect = live_content_changes.forced_damage_rect;
     if !forced_damage_rect.is_empty() {
-        damage.damage_rect = Some(match damage.damage_rect {
-            Some(damage_rect) => damage_rect.united(forced_damage_rect),
-            None => forced_damage_rect,
-        });
+        damage.add_damage_rect(forced_damage_rect, DamagedLayers::All);
     }
     damage.add_backdrop_filter_damage(chains.new_side(), new_command_runs);
 
-    if damage.changed_unbounded_command {
-        return None;
-    }
-    let Some(damage_rect) = damage.damage_rect else {
-        return Some(IntRect::default());
+    let bounded_damage_rect = |is_unbounded: bool, damage_rect: Option<IntRect>| {
+        if is_unbounded {
+            return None;
+        }
+        Some(damage_rect.map_or(IntRect::default(), |damage_rect| {
+            intersect_like_gfx_int_rect(damage_rect.inflated_edges(1, 1, 1, 1), viewport_rect)
+        }))
     };
-    Some(intersect_like_gfx_int_rect(
-        damage_rect.inflated_edges(1, 1, 1, 1),
-        viewport_rect,
-    ))
+    DisplayListDamage {
+        rect: bounded_damage_rect(damage.changed_unbounded_command, damage.damage_rect),
+        layer_rects: damage
+            .damage_of_layers
+            .iter()
+            .map(|layer_damage| bounded_damage_rect(layer_damage.is_unbounded, layer_damage.rect))
+            .collect(),
+    }
 }
 
 #[cfg(test)]
@@ -2022,7 +2173,9 @@ mod tests {
             },
             viewport_rect,
             LiveContentChanges::default(),
+            None,
         )
+        .rect
     }
 
     fn context_in(spatial: SpatialNodeIndex, context: ContextRef) -> ContextRef {
@@ -2042,7 +2195,7 @@ mod tests {
             visual_context_tree: tree,
             scroll_offsets: &[],
         };
-        compute_display_list_damage(frame, frame, IntRect::new(0, 0, 100, 100), live_content_changes)
+        compute_display_list_damage(frame, frame, IntRect::new(0, 0, 100, 100), live_content_changes, None).rect
     }
 
     #[test]

@@ -46,6 +46,8 @@ pub struct DisplayListSummary {
     pub canvas_ids: Vec<u64>,
     pub carets: Vec<IndexedRecord>,
     pub live_content_records: Vec<LiveContentRecord>,
+    pub destination_blending_records: Vec<IndexedRecord>,
+    pub mask_declarations: Vec<IndexedRecord>,
 }
 
 #[derive(Default)]
@@ -190,8 +192,16 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
                 run_index: run_index as u32,
                 record_offset: (run_start + offset) as u32,
             };
-            if header.command_type == DisplayListCommandType::PaintCaret {
-                summary.carets.push(indexed);
+            match header.command_type {
+                DisplayListCommandType::PaintCaret => summary.carets.push(indexed),
+                DisplayListCommandType::DeclareMaskContent => summary.mask_declarations.push(indexed),
+                _ => {}
+            }
+            if let Some((blend, blends_with_isolated_backdrop_color)) = command_blend(header.command_type, payload)
+                && blend != CompositingAndBlendingOperator::Normal
+                && !blends_with_isolated_backdrop_color
+            {
+                summary.destination_blending_records.push(indexed);
             }
             note_referenced_ids(header.command_type, payload, &mut ids);
             let mut note_live_content = |command_type, payload: &[u8]| {

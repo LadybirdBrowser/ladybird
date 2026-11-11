@@ -126,7 +126,9 @@ impl FrameInputs {
             self.frame_of(display_list),
             viewport_rect,
             live_content_changes,
+            None,
         )
+        .rect
     }
 
     fn frame_of<'a>(&'a self, display_list: &'a DisplayListStorage) -> DisplayListFrame<'a> {
