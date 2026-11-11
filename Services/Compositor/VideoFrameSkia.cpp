@@ -374,16 +374,16 @@ sk_sp<SkImage> sk_image_in_memory_from_video_frame(Media::VideoFrame const& fram
     return nullptr;
 }
 
-ErrorOr<Gfx::DecodedImageFrame> decoded_image_frame_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+ErrorOr<BitmapInColorSpace> bitmap_from_video_frame(Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     if (frame.surface() != nullptr && skia_backend_context) {
         auto bitmap = TRY(read_back_video_surface_through_gpu(frame, skia_backend_context));
         // The pixels are read back in sRGB.
-        return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) } };
+        return BitmapInColorSpace { move(bitmap), {} };
     }
 
     auto bitmap = TRY(frame.to_bitmap());
-    return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { move(bitmap) }, color_space_of(frame) };
+    return BitmapInColorSpace { move(bitmap), color_space_of(frame) };
 }
 
 }

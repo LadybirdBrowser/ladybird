@@ -278,7 +278,7 @@ Vector<HostWebGLContext::UploadSource> CanvasHost::resolve_webgl_upload_sources(
                     sources.unchecked_append(video_frame.release_nonnull());
                     return;
                 }
-                sources.unchecked_append(Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 })) } });
+                sources.unchecked_append(HostWebGLContext::MissingVideoFrame {});
             });
     }
     return sources;

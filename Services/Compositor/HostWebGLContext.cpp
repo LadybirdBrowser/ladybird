@@ -88,14 +88,17 @@ static ErrorOr<HostWebGLContext::UploadSource const*> upload_source_at(Vector<Ho
     return &sources[index];
 }
 
-static ErrorOr<Gfx::DecodedImageFrame> decoded_frame_for_upload(HostWebGLContext::UploadSource const& source, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+static ErrorOr<BitmapInColorSpace> bitmap_for_upload(HostWebGLContext::UploadSource const& source, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     return source.visit(
-        [](Gfx::DecodedImageFrame const& frame) -> ErrorOr<Gfx::DecodedImageFrame> {
-            return frame;
+        [](Gfx::DecodedImageFrame const& frame) -> ErrorOr<BitmapInColorSpace> {
+            return BitmapInColorSpace { frame.bitmap_ref(), frame.color_space() };
         },
-        [&](NonnullRefPtr<Media::VideoFrame> const& video_frame) -> ErrorOr<Gfx::DecodedImageFrame> {
-            return decoded_image_frame_from_video_frame(*video_frame, skia_backend_context);
+        [&](NonnullRefPtr<Media::VideoFrame> const& video_frame) -> ErrorOr<BitmapInColorSpace> {
+            return bitmap_from_video_frame(*video_frame, skia_backend_context);
+        },
+        [](HostWebGLContext::MissingVideoFrame) -> ErrorOr<BitmapInColorSpace> {
+            return BitmapInColorSpace { TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 1, 1 })), {} };
         });
 }
 
@@ -127,8 +130,8 @@ static ErrorOr<Gfx::BitmapExportResult> convert_bitmap_for_upload(Vector<HostWeb
         target_height = destination_height;
     }
 
-    auto frame = TRY(decoded_frame_for_upload(source, skia_backend_context));
-    return Gfx::export_bitmap_to_byte_buffer(frame.bitmap(), frame.color_space(), export_format.value(), export_flags, target_width, target_height);
+    auto [bitmap, color_space] = TRY(bitmap_for_upload(source, skia_backend_context));
+    return Gfx::export_bitmap_to_byte_buffer(*bitmap, color_space, export_format.value(), export_flags, target_width, target_height);
 }
 
 static bool copy_can_write_internal_format(GLint internalformat)
