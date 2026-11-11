@@ -1,0 +1,8 @@
+Ladybird decides isIntersecting from what is left of the target after
+its ancestors’ clips and the root bounds, edge-inclusively. Gecko’s
+DOMIntersectionObserver does the same: It intersects the rect with
+each clip by EdgeInclusiveIntersection(), and isIntersecting is whether
+a rect is left (IntersectionOutput::Intersects()). Blink’s
+IntersectionGeometry clips the rect with VisualRectFlag::kEdgeInclusive
+set. And WebKit’s IntersectionObserver::computeIntersectionState()
+takes isIntersecting from edgeInclusiveIntersect() on the clipped rect.
