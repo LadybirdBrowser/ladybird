@@ -20,7 +20,7 @@ use super::bridge::{
 };
 use super::tree::StyleNodeID;
 use super::weak_pool::WeakPool;
-use crate::css::animation::FfiCompositeOperation;
+use crate::css::animation::{CustomPropertyInterval, FfiCompositeOperation};
 use crate::css::custom_properties::CustomPropertyRegistry;
 use crate::css::easing::{Easing, FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
@@ -449,11 +449,13 @@ impl PublishedEffect {
     }
 
     /// Retain freshly resolved values for an interval.
-    pub(crate) fn update_retained_custom_property_interval_values(
-        &self,
-        declaration_indices: [usize; 2],
-        values: [RetainedStyleValueData; 2],
-    ) {
+    pub(crate) fn update_retained_custom_property_interval_values(&self, interval: CustomPropertyInterval) {
+        let declaration_indices = interval.declaration_indices();
+
+        let Some(values) = interval.values_to_retain else {
+            return;
+        };
+
         self.custom_property_interval_values
             .as_ref()
             .expect("an effect interpolating custom properties keeps their interval values")

@@ -7375,6 +7375,22 @@ fn finish_animation_sample(
                 input.custom_property_registration_generation,
             );
         }
+        assert_eq!(
+            custom_properties.registration_generation,
+            engine.custom_property_registration_generation(),
+            "animation sampling preserves custom property registrations"
+        );
+        let current_effects = described_effects(input, engine);
+        for interval in custom_properties.intervals {
+            let sampled_effect = composed[interval.effect_index].effect;
+            let effect = current_effects
+                .iter()
+                .find(|effect| {
+                    effect.identity == sampled_effect.identity && effect.generation == sampled_effect.generation
+                })
+                .expect("a sampled effect remains published with the same generation");
+            effect.update_retained_custom_property_interval_values(interval);
+        }
         let rows = retained
             .iter()
             .map(|(name, value)| FfiAnimatedCustomPropertyResult {
