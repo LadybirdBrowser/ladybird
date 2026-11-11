@@ -13,14 +13,65 @@
 
 namespace WebView {
 
-bool autocomplete_suggestions_have_same_destination(AutocompleteSuggestion const& left, AutocompleteSuggestion const& right)
+namespace {
+
+// OPTIMIZATION: Rows are compared with each other row, so where each row goes is worked out once, rather than for each
+//               pair of rows.
+struct SuggestionDestination {
+    bool is_search { false };
+    // A row whose text goes nowhere has none, and goes where no other row goes.
+    Optional<String> key;
+};
+
+}
+
+static SuggestionDestination destination_of_suggestion(AutocompleteSuggestion const& suggestion)
 {
-    if (left.source == AutocompleteSuggestionSource::Search || right.source == AutocompleteSuggestionSource::Search) {
-        return left.source == right.source
-            && normalize_omnibox_destination(left.text, OmniboxDestinationKind::Search) == normalize_omnibox_destination(right.text, OmniboxDestinationKind::Search);
+    if (suggestion.source == AutocompleteSuggestionSource::Search)
+        return { .is_search = true, .key = normalize_omnibox_destination(suggestion.text, OmniboxDestinationKind::Search) };
+
+    // NB: Most rows hold serialized URLs. The row for the text as typed holds that text, and a learned row holds the
+    //     address as the user typed it, unless they chose a row for it. Only such text is classified, as that looks at
+    //     the file system.
+    Optional<URL::URL> url;
+    if (suggestion.source != AutocompleteSuggestionSource::LiteralURL)
+        url = URL::Parser::basic_parse(suggestion.text);
+    // NB: The URL parser takes typed text such as "localhost:3000" for a scheme and a path, so a learned row that
+    //     parses that way is classified as Return would take it.
+    if (url.has_value() && suggestion.source == AutocompleteSuggestionSource::Adaptive && url->has_an_opaque_path())
+        url.clear();
+    if (!url.has_value())
+        url = classify_user_input(suggestion.text).url;
+    if (!url.has_value())
+        url = URL::Parser::basic_parse(MUST(String::formatted("https://{}", suggestion.text)));
+    if (!url.has_value())
+        return {};
+    return { .is_search = false, .key = url->serialize() };
+}
+
+static bool suggestion_destinations_are_the_same(SuggestionDestination const& left, SuggestionDestination const& right)
+{
+    return left.is_search == right.is_search && left.key.has_value() && left.key == right.key;
+}
+
+Optional<size_t> index_of_suggestion_with_same_destination(AutocompleteSuggestion const& needle, ReadonlySpan<AutocompleteSuggestion> suggestions)
+{
+    // OPTIMIZATION: The row looked for is usually still there as it was, and working out where the row for the text as
+    //               typed goes looks at the file system, so rows with the same text are looked for first. The muxer
+    //               never gives two rows that go to the same place, so this is still the first that goes there.
+    for (size_t index = 0; index < suggestions.size(); ++index) {
+        if (suggestions[index].source == needle.source && suggestions[index].text == needle.text)
+            return index;
     }
 
-    return autocomplete_urls_match(left.text, right.text);
+    auto needle_destination = destination_of_suggestion(needle);
+    if (!needle_destination.key.has_value())
+        return {};
+    for (size_t index = 0; index < suggestions.size(); ++index) {
+        if (suggestion_destinations_are_the_same(needle_destination, destination_of_suggestion(suggestions[index])))
+            return index;
+    }
+    return {};
 }
 
 // A local row for the same page as a remote address ranks as the remote address did, so the popup keeps the rank the
@@ -82,15 +133,17 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
     existing.adaptive_relevance = adaptive_relevance;
 }
 
-static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, AutocompleteSuggestion suggestion)
+static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, Vector<SuggestionDestination>& destinations, AutocompleteSuggestion suggestion)
 {
-    for (auto& existing : suggestions) {
-        if (!autocomplete_suggestions_have_same_destination(existing, suggestion))
+    auto destination = destination_of_suggestion(suggestion);
+    for (size_t index = 0; index < suggestions.size(); ++index) {
+        if (!suggestion_destinations_are_the_same(destinations[index], destination))
             continue;
-        merge_suggestion(existing, move(suggestion));
+        merge_suggestion(suggestions[index], move(suggestion));
         return;
     }
     suggestions.append(move(suggestion));
+    destinations.append(move(destination));
 }
 
 Optional<String> autocomplete_host_family(URL::URL const& url)
@@ -253,13 +306,16 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
         && verbatim_suggestion->source == AutocompleteSuggestionSource::LiteralURL;
 
     Vector<AutocompleteSuggestion> candidates;
-    candidates.ensure_capacity(local_suggestions.size() + remote_suggestions.size() + (verbatim_suggestion.has_value() ? 1 : 0));
+    Vector<SuggestionDestination> candidate_destinations;
+    auto candidate_capacity = local_suggestions.size() + remote_suggestions.size() + (verbatim_suggestion.has_value() ? 1 : 0);
+    candidates.ensure_capacity(candidate_capacity);
+    candidate_destinations.ensure_capacity(candidate_capacity);
     if (verbatim_suggestion.has_value())
-        append_or_merge(candidates, verbatim_suggestion.release_value());
+        append_or_merge(candidates, candidate_destinations, verbatim_suggestion.release_value());
     for (auto& suggestion : local_suggestions)
-        append_or_merge(candidates, move(suggestion));
+        append_or_merge(candidates, candidate_destinations, move(suggestion));
     for (auto& suggestion : remote_suggestions)
-        append_or_merge(candidates, move(suggestion));
+        append_or_merge(candidates, candidate_destinations, move(suggestion));
 
     auto query_contains_path = query_contains_url_suffix(query);
     auto query_length = Utf8View { query }.length();

@@ -120,7 +120,6 @@ WEBVIEW_API Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggesti
 WEBVIEW_API Optional<AutocompleteSuggestion> make_search_suggestion_for_address_like_text(StringView query, ClassifiedUserInput const&, Optional<SearchEngine> const&);
 WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input);
 WEBVIEW_API size_t autocomplete_preliminary_limit(size_t max_suggestions);
-WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
 // The application that runs the omnibox supplies the things suggestions are made from.

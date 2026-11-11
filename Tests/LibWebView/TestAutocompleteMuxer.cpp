@@ -683,6 +683,23 @@ TEST_CASE(remote_suggestions_do_not_link_into_the_users_network)
         EXPECT_EQ(suggestion.source, WebView::AutocompleteSuggestionSource::Search);
 }
 
+TEST_CASE(learned_address_with_a_port_is_one_row_with_its_page)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "local"sv,
+        search("local"sv, 900, true),
+        {
+            suggestion(WebView::AutocompleteSuggestionSource::Adaptive, "localhost:3000"sv, 1100, true),
+            history("http://localhost:3000/"sv, 1000),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].text, "http://localhost:3000/"sv);
+    EXPECT_EQ(results[1].text, "local"sv);
+}
+
 TEST_CASE(the_row_for_a_typed_address_is_not_folded_into_another_host)
 {
     auto results = WebView::mux_autocomplete_suggestions(
