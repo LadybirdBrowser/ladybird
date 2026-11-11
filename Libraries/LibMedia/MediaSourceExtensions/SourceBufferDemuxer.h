@@ -126,7 +126,7 @@ private:
         Optional<AK::Duration> highest_delivered_presentation_end;
         bool delivered_end_of_stream { false };
 
-        Optional<AK::Duration> last_appended_decode_timestamp;
+        Optional<size_t> run_ending_with_last_appended_frame;
         Optional<FixedArray<u8>> last_delivered_codec_configuration;
         Optional<FixedArray<u8>> last_appended_codec_configuration;
         Optional<FixedArray<u8>> codec_configuration_of_dropped_frame;
@@ -153,9 +153,10 @@ private:
     static void decrement_frames_with_maximum_duration(TrackData&, size_t count);
     static Optional<ReadonlyBytes> codec_configuration_at_position(TrackData const&, size_t run_index, size_t frame_index);
     static bool is_frame_evictable(TrackData const&, Media::CodedFrame const&, AK::Duration current_time);
-    static bool run_ends_at_last_appended_frame(TrackData const&, FrameRun const&);
+    static bool run_ends_at_last_appended_frame(TrackData const&, size_t run_index);
     static void note_delivered_frame(TrackData&, Media::CodedFrame const&);
     static void note_cursor_jumped(TrackData&);
+    static size_t first_run_starting_at_or_after(TrackData const&, AK::Duration presentation_start);
     static void verify_runs_are_ordered_around_index(TrackData const&, size_t run_index);
     static void split_run(TrackData&, size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
     static bool removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count);
