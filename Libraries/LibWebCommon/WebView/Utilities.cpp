@@ -7,12 +7,10 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/Platform.h>
-#include <LibCore/Environment.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
-#include <LibFileSystem/FileSystem.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/Utilities.h>
 
@@ -76,13 +74,6 @@ void platform_init(Optional<ByteString> ladybird_binary_path)
     s_ladybird_binary_path = move(ladybird_binary_path);
 
     s_ladybird_resource_root = [] {
-        auto home = Core::Environment::get("XDG_CONFIG_HOME"sv)
-                        .value_or_lazy_evaluated_optional([]() { return Core::Environment::get("HOME"sv); });
-        if (home.has_value()) {
-            auto home_lagom = ByteString::formatted("{}/.lagom", home);
-            if (FileSystem::is_directory(home_lagom))
-                return home_lagom;
-        }
         auto app_dir = MUST(application_directory());
 #ifdef AK_OS_MACOS
         return LexicalPath(app_dir).parent().append("Resources"sv).string();
