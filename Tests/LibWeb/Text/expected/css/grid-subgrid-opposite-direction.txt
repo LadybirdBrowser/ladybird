@@ -1,5 +1,5 @@
-a1: x=0 width=10
+a1: x=30 width=30
 a2: x=10 width=20
-a3: x=30 width=30
-b1: x=5 width=5
+a3: x=0 width=10
+b1: x=55 width=5
 b2: x=10 width=5

@@ -1,0 +1,162 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: line name resolution for grid-aligned abs.pos. inside subgrid CB</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <style>
+html,body {
+  color:black; background-color:white; font:12px/1 monospace;
+}
+
+.grid {
+  display: grid;
+  grid: 0.2em 1.4em / repeat(10,30px);
+  border: 1px solid;
+  padding: 0 2px;
+}
+
+div > div {
+  position: relative;
+  display: grid;
+  grid-column: 2 / span 2;
+  grid: auto / subgrid;
+  padding: 4px 0 1px 10px;
+  border: 1px solid black;
+  background: grey;
+}
+
+n {
+  grid-row: 1;
+  counter-increment: n;
+}
+n::before { content: counter(n, decimal); }
+
+x {
+  position: absolute;
+  left:0; right:0;
+  background: silver;
+}
+
+.hr { writing-mode: horizontal-tb; direction:rtl; }
+  </style>
+</head>
+<body>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div>
+    <x style="grid-column: -1">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div>
+    <x style="grid-column: 2">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column-end:span 5">
+    <x style="grid-column: 2">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column:2/span 5">
+    <x style="grid-column: 4">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column-end:span 6">
+    <x style="grid-column: 2 / 4">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column-end:span 3">
+    <x style="grid-column: -1">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column:2/span 6">
+    <x style="grid-column: 3 / 5">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div style="grid-column:2/span 6">
+    <x style="grid-column: 3 / 5">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr">
+    <x style="grid-column: 3 / auto">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr">
+    <x style="grid-column: 2 / auto">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column-end:span 5">
+    <x style="grid-column: 2 / auto">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column:2/span 5">
+    <x style="grid-column: 6 / auto">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column-end:span 6">
+    <x style="grid-column: 2 / 4">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column-end:span 3">
+    <x style="grid-column: 4 / auto">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column:2/span 6">
+    <x style="grid-column: 5 / 7">x</x>
+  </div>
+</div>
+
+<div class="grid">
+<n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n><n></n>
+  <div class="hr" style="grid-column:2/span 6">
+    <x style="grid-column: 5 / 7">x</x>
+  </div>
+</div>
+
+</body>
+</html>

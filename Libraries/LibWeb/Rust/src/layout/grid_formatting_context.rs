@@ -1699,38 +1699,54 @@ impl<'pass> GridFormattingContext<'pass> {
         // NB: Each subgridded axis takes the area lines of the parent grid on its own, line by line, so an area that
         //     only overlaps the subgrid in that axis still names the subgrid's lines, and an area whose lines were
         //     themselves projected from several areas into the parent keeps each of those lines.
-        fn project_area_lines(lines: &mut [Vec<LineName>], parent_lines: &[Vec<LineName>], start: i32, end: i32) {
-            let area_lines = || {
-                parent_lines.iter().enumerate().flat_map(|(index, names)| {
-                    names
-                        .iter()
-                        .filter(|name| name.implicit && name.area_name_raw != 0)
-                        .map(move |name| (index as i32, *name))
-                })
-            };
-            for (index, name) in area_lines() {
-                let local = if (start..=end).contains(&index) {
-                    index - start
+        fn project_area_lines(
+            lines: &mut [Vec<LineName>],
+            parent_lines: &[Vec<LineName>],
+            start: i32,
+            end: i32,
+            runs_against_parent: bool,
+        ) {
+            let area_lines = parent_lines.iter().enumerate().flat_map(|(index, names)| {
+                names
+                    .iter()
+                    .filter(|name| name.implicit && name.area_name_raw != 0)
+                    .map(move |name| (index as i32, *name))
+            });
+            // NB: The first start line and the last end line of each area, to tell whether an area that only one of its
+            //     lines places outside the subgrid still overlaps it.
+            let mut area_extents: HashMap<usize, (i32, i32)> = HashMap::default();
+            for (index, name) in area_lines.clone() {
+                let (first_start, last_end) = area_extents.entry(name.area_name_raw).or_insert((i32::MAX, i32::MIN));
+                if name.area_is_start {
+                    *first_start = (*first_start).min(index);
+                } else {
+                    *last_end = (*last_end).max(index);
+                }
+            }
+            for (index, name) in area_lines {
+                let parent_index = if (start..=end).contains(&index) {
+                    index
                 } else if name.area_is_start && index < start {
                     // The area starts before the subgrid; it overlaps the subgrid if it ends inside of it.
-                    let ends_inside = area_lines().any(|(end_index, end_name)| {
-                        !end_name.area_is_start && end_name.area_name_raw == name.area_name_raw && end_index > start
-                    });
-                    if !ends_inside {
+                    if area_extents[&name.area_name_raw].1 <= start {
                         continue;
                     }
-                    0
+                    start
                 } else if !name.area_is_start && index > end {
                     // The area ends after the subgrid; it overlaps the subgrid if it starts inside of it.
-                    let starts_inside = area_lines().any(|(start_index, start_name)| {
-                        start_name.area_is_start && start_name.area_name_raw == name.area_name_raw && start_index < end
-                    });
-                    if !starts_inside {
+                    if area_extents[&name.area_name_raw].0 >= end {
                         continue;
                     }
-                    end - start
+                    end
                 } else {
                     continue;
+                };
+                // INTEROP: Like most engines, a subgrid that runs against its parent grid keeps the start and end sides of
+                //          the parent's areas, so an area's -start name lands on the line at the subgrid's end side.
+                let local = if runs_against_parent {
+                    end - parent_index
+                } else {
+                    parent_index - start
                 };
                 let Some(line) = lines.get_mut(local as usize) else {
                     continue;
@@ -1763,7 +1779,13 @@ impl<'pass> GridFormattingContext<'pass> {
             }
             let start = parent_item.position(axis);
             let end = start + parent_item.span(axis) as i32;
-            project_area_lines(lines, axis.select(&parent.column_lines, &parent.row_lines), start, end);
+            project_area_lines(
+                lines,
+                axis.select(&parent.column_lines, &parent.row_lines),
+                start,
+                end,
+                self.subgrid_axis_runs_against_parent(axis),
+            );
         }
     }
 
@@ -1890,6 +1912,10 @@ impl<'pass> GridFormattingContext<'pass> {
             let lines = axis.select(&parent.column_lines, &parent.row_lines);
             let start = (parent_item.position(axis).max(0) as usize).min(lines.len());
             let end = start.saturating_add(track_count.saturating_add(1)).min(lines.len());
+            if self.subgrid_axis_runs_against_parent(axis) {
+                let reversed: Vec<_> = lines[start..end].iter().rev().cloned().collect();
+                return expand_subgrid(source, list, track_count, &reversed);
+            }
             return expand_subgrid(source, list, track_count, &lines[start..end]);
         }
         expand_standalone(source, list, |_index, entry| {
@@ -2223,7 +2249,10 @@ impl<'pass> GridFormattingContext<'pass> {
             let parent_item = self.parent_grid_placement().unwrap();
             let parent_tracks = axis.select(&parent.columns, &parent.rows);
             let mut tracks = Vec::new();
-            for offset in 0..parent_item.span(axis) {
+            let span = parent_item.span(axis);
+            let runs_against_parent = self.subgrid_axis_runs_against_parent(axis);
+            for offset in 0..span {
+                let offset = if runs_against_parent { span - 1 - offset } else { offset };
                 let index = parent_item.position(axis) + offset as i32;
                 if let Some(parent_track) = usize::try_from(index).ok().and_then(|index| parent_tracks.get(index)) {
                     if self.subgrid_tracks_act_empty && !(axis.is_column() && self.inherits_resolved_parent_columns) {
@@ -3714,7 +3743,15 @@ impl<'pass> GridFormattingContext<'pass> {
             let mut contributions = context.item_contributions_to_track_sizing(axis);
             let interleaved_index_offset_in_parent =
                 Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+            // NB: A subgrid that runs against its parent grid numbers the tracks it shares with it from the other end.
+            let interleaved_entry_count = subgrid.span(axis).saturating_mul(2).saturating_sub(1);
+            let runs_against_parent = context.subgrid_axis_runs_against_parent(axis);
             for contribution in &mut contributions {
+                if runs_against_parent {
+                    let start = interleaved_entry_count.saturating_sub(contribution.spanned_tracks.end);
+                    let end = interleaved_entry_count.saturating_sub(contribution.spanned_tracks.start);
+                    contribution.spanned_tracks = start..end;
+                }
                 contribution.spanned_tracks.start += interleaved_index_offset_in_parent;
                 contribution.spanned_tracks.end += interleaved_index_offset_in_parent;
             }
@@ -3944,17 +3981,22 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     /// Whether the tracks of the given axis start at its right or bottom side. The grid is laid out from the side its
-    /// tracks start at, and its positions in that axis are mirrored at the end. This is the case in a reversed axis,
-    /// except that a subgridded axis keeps the track order of its parent grid.
-    // FIXME: A subgrid whose axis runs in the opposite direction of its parent grid's should number its lines in its
-    //        own direction, from the other end of the parent's tracks.
+    /// tracks start at, and its positions in that axis are mirrored at the end. This is the case in a reversed axis.
     fn tracks_are_reversed(&self, axis: Axis) -> bool {
-        if self.container_is_subgridded(axis)
-            && let Some(parent) = self.parent_grid()
-        {
-            return axis.select(parent.column_tracks_are_reversed, parent.row_tracks_are_reversed);
-        }
         self.axis_is_reversed(axis)
+    }
+
+    /// Whether a subgridded axis runs in the opposite direction of its parent grid's, so that it numbers its lines and
+    /// tracks from the other end of those it shares with its parent.
+    ///
+    /// https://drafts.csswg.org/css-grid-2/#subgrid-indexing
+    /// Line numbering and placement rules obey the subgrid's own writing mode, just as they would for a nested
+    /// independent grid.
+    fn subgrid_axis_runs_against_parent(&self, axis: Axis) -> bool {
+        self.parent_grid().is_some_and(|parent| {
+            axis.select(parent.column_tracks_are_reversed, parent.row_tracks_are_reversed)
+                != self.axis_is_reversed(axis)
+        })
     }
 
     /// Maps an offset and size along the given axis, measured from the content edge the grid container's tracks start
