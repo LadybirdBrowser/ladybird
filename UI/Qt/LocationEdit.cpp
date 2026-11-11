@@ -1154,8 +1154,6 @@ void LocationEdit::update_trailing_item_positions()
 
 void LocationEdit::search_engine_settings_changed()
 {
-    // NB: The change cancels the suggestions on their way, so the editing icon cannot wait for them.
-    m_editing_icon_kind = {};
     update_location_icon();
 }
 
@@ -1250,8 +1248,7 @@ void LocationEdit::update_location_icon()
     // OPTIMIZATION: This runs several times per key press. While the editing icon is up and set for the current
     //               appearance, only the icon itself can change, so the button is not set up and laid out again.
     if (m_is_editing_location && m_shows_editing_icon && m_editing_icon_kind.has_value()) {
-        if (!m_omnibox.should_keep_editing_icon())
-            update_editing_icon();
+        update_editing_icon();
         return;
     }
 

@@ -168,12 +168,25 @@ struct Harness {
         if (omnibox.is_popup_visible() && !rows_match(visible_rows, omnibox.suggestions()))
             fail("the chrome shows different rows than the model"sv);
 
-        if (!omnibox.is_editing() || !omnibox.is_popup_visible() || omnibox.has_pending_suggestions())
+        if (!omnibox.is_editing() || !omnibox.is_popup_visible())
+            return;
+
+        auto return_target = omnibox.suggestion_for_return();
+
+        // Text completed inline goes where Return goes, and only the completion is selected, even while new rows are
+        // on their way.
+        if (omnibox.is_inline_completed()) {
+            if (!return_target.has_value() || !return_target->text.bytes_as_string_view().contains(display_text, CaseSensitivity::CaseInsensitive))
+                fail("Return ignores the inline completion on display"sv);
+            if (!selection_start.has_value() || !display_text.bytes_as_string_view().starts_with(omnibox.query().bytes_as_string_view(), CaseSensitivity::CaseInsensitive))
+                fail("the inline completion does not extend the text as typed"sv);
+        }
+
+        if (omnibox.has_pending_suggestions())
             return;
 
         auto const& rows = omnibox.suggestions();
         auto selection = omnibox.selected_suggestion();
-        auto return_target = omnibox.suggestion_for_return();
 
         if (selection.has_value()) {
             if (*selection >= rows.size()) {
@@ -194,14 +207,6 @@ struct Harness {
             // A row the user did not choose is highlighted only at the top.
             if (!omnibox.selection_is_explicit() && *selection != 0)
                 fail("an automatically highlighted row is not the top row"sv);
-        }
-
-        // Text completed inline goes where Return goes, and only the completion is selected.
-        if (omnibox.is_inline_completed()) {
-            if (!return_target.has_value())
-                fail("Return ignores the inline completion on display"sv);
-            if (!selection_start.has_value() || !display_text.bytes_as_string_view().starts_with(omnibox.query().bytes_as_string_view(), CaseSensitivity::CaseInsensitive))
-                fail("the inline completion does not extend the text as typed"sv);
         }
     }
 
@@ -618,6 +623,26 @@ TEST_CASE(explicit_selection_survives_same_generation_reordering)
     EXPECT(harness.provider->engagements.last().was_explicit);
 }
 
+TEST_CASE(typing_into_a_chosen_completion_keeps_it_chosen)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('g');
+    harness.provider->deliver({ search_row("g"sv), history_row("https://gitlab.example/"sv) });
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.display_text, "gitlab.example"sv);
+
+    // The user typed further into the row they chose, so it is still their choice until the rows for the text arrive.
+    harness.press_key('i');
+    EXPECT_EQ(harness.display_text, "gitlab.example"sv);
+    EXPECT(harness.omnibox.selection_is_explicit());
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "https://gitlab.example/"sv);
+    EXPECT(harness.provider->engagements.last().was_explicit);
+}
+
 TEST_CASE(search_selection_survives_equivalent_text_normalization)
 {
     Harness harness;
@@ -643,7 +668,7 @@ TEST_CASE(search_selection_survives_equivalent_text_normalization)
     EXPECT(harness.provider->engagements.last().was_explicit);
 }
 
-TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)
+TEST_CASE(enter_with_stale_results_goes_to_the_completion_on_display_immediately)
 {
     Harness harness;
     harness.begin_editing();
@@ -653,17 +678,52 @@ TEST_CASE(enter_with_stale_results_commits_the_current_input_immediately)
     harness.press_key('h');
     EXPECT_EQ(harness.display_text, "thee.example"sv);
 
-    // Enter with a stale popup never waits for a provider response that may arrive after the user's
-    // intent has changed.
+    // Enter with a stale popup never waits for a provider response. It goes where the field shows, as it would once
+    // the rows arrive.
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_EQ(harness.commits.last(), "th"sv);
+    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 
     // Later deliveries may update the popup if editing is still active, but cannot trigger a second
     // navigation.
     harness.provider->deliver({ search_row("th"sv) });
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) });
     EXPECT_EQ(harness.commits.size(), 1u);
+}
+
+TEST_CASE(enter_with_stale_results_and_no_completion_commits_the_current_input_immediately)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("t"sv) });
+    harness.press_key('x');
+    EXPECT_EQ(harness.display_text, "tx"sv);
+
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "tx"sv);
+
+    harness.provider->deliver({ search_row("tx"sv) });
+    EXPECT_EQ(harness.commits.size(), 1u);
+}
+
+TEST_CASE(enter_with_stale_results_after_deleting_the_completion_commits_the_current_input)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.press_key('h');
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv) });
+    EXPECT_EQ(harness.display_text, "thee.example"sv);
+
+    harness.press_backspace();
+    EXPECT_EQ(harness.display_text, "th"sv);
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "th"sv);
 }
 
 TEST_CASE(escape_rejects_an_automatic_completion_and_closes_the_popup)
@@ -1177,7 +1237,7 @@ TEST_CASE(provider_results_after_a_stale_enter_do_not_navigate)
     harness.press_key('h');
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_EQ(harness.commits.last(), "th"sv);
+    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
 
     // Provider updates may continue until the chrome's commit handler ends editing, but no response is
     // armed to perform another navigation.
@@ -1209,9 +1269,11 @@ TEST_CASE(deleting_from_a_previewed_row_does_not_highlight_rows_for_older_text)
     if (auto selection = harness.omnibox.selected_suggestion(); selection.has_value())
         EXPECT_NE(rows[*selection].text, "ex"sv);
 
+    // Return goes to the edited text, not to the row it was edited from.
+    auto edited_text = harness.display_text;
     harness.omnibox.return_pressed();
     EXPECT_EQ(harness.commits.size(), 1u);
-    EXPECT_NE(harness.commits.last(), "ex"sv);
+    EXPECT_EQ(harness.commits.last(), edited_text);
 }
 
 TEST_CASE(a_completion_for_fewer_rows_than_the_chosen_row_does_not_read_past_them)
@@ -1854,23 +1916,23 @@ TEST_CASE(scenario_without_a_search_engine_offers_to_choose_one)
     EXPECT(scenario.icon_is_search());
 }
 
-TEST_CASE(scenario_the_icon_holds_while_typing_through_a_completion)
+TEST_CASE(scenario_the_icon_stays_while_typing_through_a_completion)
 {
     Scenario scenario(reddit_profile());
     scenario.type("red"sv);
     EXPECT(scenario.icon_is_page_with_favicon());
 
-    // The next key press keeps the completion, and its suggestions have yet to arrive.
+    // The next key press keeps the completion, and Return still goes to it before its suggestions arrive.
     scenario.harness.press_key('d');
     EXPECT_EQ(scenario.harness.display_text, "reddit.com"sv);
-    EXPECT(scenario.harness.omnibox.should_keep_editing_icon());
+    EXPECT(scenario.harness.omnibox.has_pending_suggestions());
+    EXPECT(scenario.icon_is_page_with_favicon());
     scenario.deliver();
-    EXPECT(!scenario.harness.omnibox.should_keep_editing_icon());
     EXPECT(scenario.icon_is_page_with_favicon());
 
-    // Backspacing over the completion does not keep the page's icon while the search's suggestions are on their way.
+    // Backspacing over the completion shows the search at once, while its suggestions are on their way.
     scenario.harness.press_backspace();
-    EXPECT(!scenario.harness.omnibox.should_keep_editing_icon());
+    EXPECT(scenario.harness.omnibox.has_pending_suggestions());
     EXPECT(scenario.icon_is_search());
 }
 
