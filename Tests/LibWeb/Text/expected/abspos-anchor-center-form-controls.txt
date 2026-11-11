@@ -1,0 +1,16 @@
+input inline: natural size true
+input inline: centered true
+input inline, missing anchor: natural size true
+input inline, missing anchor: centered true
+input block: natural size true
+input block: centered true
+input block, missing anchor: natural size true
+input block, missing anchor: centered true
+textarea inline: natural size true
+textarea inline: centered true
+textarea inline, missing anchor: natural size true
+textarea inline, missing anchor: centered true
+textarea block: natural size true
+textarea block: centered true
+textarea block, missing anchor: natural size true
+textarea block, missing anchor: centered true

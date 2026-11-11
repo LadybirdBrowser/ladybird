@@ -1909,7 +1909,13 @@ impl AbsposEngine<'_> {
     /// fill the space between them.
     /// https://drafts.csswg.org/css-position-3/#abspos-auto-size
     fn sizes_to_fit_content(&self, sized: OutOfFlowBox<'_>, equation: AxisEquation, inline_axis: bool) -> bool {
-        !equation.has_both_insets() || self.own_self_alignment_keyword(sized, inline_axis).is_some()
+        let style = *self.style_of(sized);
+        let (keyword, _) = if inline_axis {
+            SelfKeyword::justify_self_of(style, None)
+        } else {
+            SelfKeyword::align_self_of(style, None)
+        };
+        !equation.has_both_insets() || !matches!(keyword, SelfKeyword::Normal | SelfKeyword::Stretch)
     }
 
     // https://drafts.csswg.org/css-position-3/#abspos-auto-size
@@ -2721,8 +2727,8 @@ impl<'pass> AbsposEngine<'pass> {
         }
     }
 
-    /// The keyword and safety of the box's own self-alignment in an axis of its containing block's frame, or None where
-    /// the box fills its inset-modified containing block rather than take its fit-content size there.
+    /// The keyword and safety for ordinary self-alignment in an axis of the containing block's frame. Anchor-center falls
+    /// back to center when no anchor placement is supplied. Stretch sizing is handled separately from self-alignment.
     /// https://drafts.csswg.org/css-align-3/#justify-abspos
     /// https://drafts.csswg.org/css-align-3/#align-abspos
     fn own_self_alignment_keyword(
@@ -2736,11 +2742,7 @@ impl<'pass> AbsposEngine<'pass> {
         } else {
             SelfKeyword::align_self_of(style, None)
         };
-        (!matches!(
-            keyword,
-            SelfKeyword::Normal | SelfKeyword::Stretch | SelfKeyword::AnchorCenter
-        ))
-        .then_some((keyword, safety))
+        (!matches!(keyword, SelfKeyword::Normal | SelfKeyword::Stretch)).then_some((keyword, safety))
     }
 
     /// The box's own self-alignment in an axis of its containing block's frame, where it takes its fit-content size in

@@ -1,0 +1,30 @@
+<!doctype html>
+<title>Tests that 'anchor-center' behaves as 'center' when no anchor in containing block</title>
+<style>
+.anchor {
+  background: orange;
+  width: 100px;
+  background-color: orange;
+}
+.container {
+  position: fixed;
+  top: 20px;
+  left: 50px;
+  width: 300px;
+  height: 200px;
+  display: flex;
+  background: green;
+  justify-content: center;
+}
+.target {
+  position: absolute;
+  margin: 0 auto;
+  width: 80px;
+  border: 1px #000 solid;
+  background: lime;
+}
+</style>
+<div class="anchor">anchor</div>
+<div class="container">
+  <div class="target">target 1</div>
+</div>

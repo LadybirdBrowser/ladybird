@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: 'anchor-center' behaves as 'center' with no default anchor</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-center">
+<link rel="match" href="../../../../expected/wpt-import/css/css-anchor-position/anchor-center-no-default-ref.html">
+<style>
+  #centered {
+    position: absolute;
+    align-self: anchor-center;
+  }
+</style>
+<div id="centered">This text should not be centered in the viewport</div>

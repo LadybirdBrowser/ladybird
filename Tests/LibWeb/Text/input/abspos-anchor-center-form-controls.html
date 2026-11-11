@@ -1,0 +1,73 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 400px;
+        height: 160px;
+    }
+    .container::before {
+        content: "";
+        display: block;
+        height: 20px;
+    }
+    .anchor {
+        width: 40px;
+        height: 40px;
+        margin-left: 80px;
+    }
+    input,
+    textarea {
+        position: absolute;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font: 20px/1 monospace;
+        left: 0;
+        top: 0;
+    }
+</style>
+<script>
+    test(() => {
+        for (const tag of ["input", "textarea"]) {
+            for (const axis of ["inline", "block"]) {
+                const container = document.createElement("div");
+                container.className = "container";
+                const anchor = document.createElement("div");
+                anchor.className = "anchor";
+                anchor.style.anchorName = `--${tag}-${axis}`;
+                const reference = document.createElement(tag);
+                reference.setAttribute("size", "4");
+                reference.setAttribute("cols", "4");
+                reference.setAttribute("rows", "2");
+                const target = reference.cloneNode();
+                target.style.positionAnchor = anchor.style.anchorName;
+                if (axis === "inline") {
+                    target.style.justifySelf = "anchor-center";
+                    target.style.right = "0";
+                } else {
+                    target.style.alignSelf = "anchor-center";
+                    target.style.bottom = "0";
+                }
+                container.append(anchor, reference, target);
+                document.body.append(container);
+                const natural = reference.getBoundingClientRect();
+                const actual = target.getBoundingClientRect();
+                const anchorRect = anchor.getBoundingClientRect();
+                const dimension = axis === "inline" ? "width" : "height";
+                const position = axis === "inline" ? "x" : "y";
+                println(`${tag} ${axis}: natural size ${actual[dimension] === natural[dimension]}`);
+                println(
+                    `${tag} ${axis}: centered ${actual[position] + actual[dimension] / 2 === anchorRect[position] + anchorRect[dimension] / 2}`
+                );
+                target.style.positionAnchor = "--missing";
+                const fallback = target.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                println(`${tag} ${axis}, missing anchor: natural size ${fallback[dimension] === natural[dimension]}`);
+                println(
+                    `${tag} ${axis}, missing anchor: centered ${fallback[position] + fallback[dimension] / 2 === containerRect[position] + containerRect[dimension] / 2}`
+                );
+            }
+        }
+    });
+</script>
