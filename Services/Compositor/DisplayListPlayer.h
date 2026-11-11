@@ -11,12 +11,12 @@
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <Compositor/Forward.h>
+#include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGfx/Forward.h>
 
 namespace Compositor {
@@ -25,7 +25,8 @@ class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceStorage const&, Compositing::ScrollStateSnapshot const&, RefPtr<Gfx::PaintingSurface>, OwnedCanvasSurfaces const* = nullptr);
+    // The frame inputs say where the frame presents what scrolls. Without them, nothing is scrolled.
+    void execute(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceStorage const&, FrameInputs const*, RefPtr<Gfx::PaintingSurface>, OwnedCanvasSurfaces const* = nullptr);
     virtual void flush(Gfx::PaintingSurface&) = 0;
 
 protected:
@@ -48,14 +49,14 @@ protected:
         VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
         return { reinterpret_cast<T const*>(bytes.data()), bytes.size() / sizeof(T) };
     }
-    void execute_impl(Compositing::DisplayList const&, Compositing::ScrollStateSnapshot const& scroll_state);
-    void execute_command_bytes(ReadonlyBytes, Compositing::ScrollStateSnapshot const& scroll_state);
-    Compositing::ScrollStateSnapshot const& active_scroll_state() const { return *m_active_scroll_state; }
+    void execute_impl(Compositing::DisplayList const&, FrameInputs const*);
+    // Plays records that a command of the list being played nests, scrolled as that list is.
+    void execute_command_bytes(ReadonlyBytes);
     void execute_display_list_into_surface(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
     void execute_command_bytes_into_surface(ReadonlyBytes, Gfx::PaintingSurface&);
     void declare_mask_content(Compositing::EffectNodeIndex, ReadonlyBytes content);
     Optional<ReadonlyBytes> declared_mask_content(Compositing::EffectNodeIndex) const;
-    void execute_nested_display_list(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&);
+    void execute_nested_display_list(Compositing::DisplayList const&, Compositing::AccumulatedVisualContextTree const&);
 
 private:
     struct ReplayCallbacks;
@@ -86,7 +87,7 @@ private:
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
-    Compositing::ScrollStateSnapshot const* m_active_scroll_state { nullptr };
+    FrameInputs const* m_active_frame_inputs { nullptr };
     HashMap<u32, ReadonlyBytes> m_declared_mask_contents;
 };
 

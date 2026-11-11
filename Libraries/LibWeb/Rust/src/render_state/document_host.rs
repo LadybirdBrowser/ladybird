@@ -28,6 +28,7 @@ use crate::painting::recording_slot::{RecordingAnswer, RecordingSlot};
 use crate::painting::visual_animation::VisualAnimation;
 use crate::render_state::TaskBoundary;
 use crate::stage_thread::InFlight;
+use libcompositing_rust::scrolling::ScrollStateSnapshot;
 use libgfx_rust::FloatPoint;
 use std::cell::{Cell, RefCell, RefMut};
 use std::rc::Rc;
@@ -80,6 +81,9 @@ pub struct DocumentHost {
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
+    /// Where the document's boxes are scrolled to, as the host refreshed it last: what its queries map through, and its
+    /// frames take to the compositor. It is handed out by reference count, as the rows are.
+    scroll_state: RefCell<Rc<ScrollStateSnapshot>>,
     /// What the host's scopes of a read lend the entries they call.
     begun_read: BegunRead,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
@@ -200,6 +204,7 @@ impl DocumentHost {
             fresh_transition_sample: Cell::default(),
             absolute_rects: RefCell::default(),
             compositor_animations: RefCell::default(),
+            scroll_state: RefCell::default(),
             begun_read: BegunRead::of_host(),
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
@@ -1511,6 +1516,25 @@ impl DocumentHost {
     /// What the document keeps of its recordings.
     pub(crate) fn recording(&self) -> RefMut<'_, RecordingSlot> {
         self.recording.borrow_mut()
+    }
+
+    /// Where the document's boxes are scrolled to, as the host refreshed it last.
+    pub(crate) fn scroll_state(&self) -> Rc<ScrollStateSnapshot> {
+        self.scroll_state.borrow().clone()
+    }
+
+    /// Takes `device_offsets`, the offsets the render state refreshed, as the document's scroll state. Answers whether
+    /// they differ from the ones the host had.
+    pub(crate) fn refresh_scroll_state(&self, device_offsets: Vec<FloatPoint>) -> bool {
+        let changed = self.scroll_state.borrow().device_offsets() != device_offsets.as_slice();
+        self.scroll_state
+            .replace(Rc::new(ScrollStateSnapshot::from_device_offsets(device_offsets)));
+        changed
+    }
+
+    /// Forgets where the document's boxes were scrolled to: nothing is scrolled until the next refresh.
+    pub(crate) fn forget_scroll_state(&self) {
+        self.scroll_state.take();
     }
 }
 

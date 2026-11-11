@@ -48,11 +48,10 @@ public:
         Compositing::AccumulatedVisualContextTree const&,
         Compositing::DisplayListResourceStorage const&,
         DisplayListRasterCache&,
-        Compositing::ScrollStateSnapshot const&,
+        FrameInputs const*,
         RefPtr<Gfx::PaintingSurface>,
         OwnedCanvasSurfaces const*,
-        CompositedContextResolver const*,
-        ReadonlySpan<ScrollbarOfFrame> = {});
+        CompositedContextResolver const*);
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);

@@ -297,7 +297,6 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
         }
         // The lane's ticks may also follow the pointer, and hover what is under it while a task runs.
         Optional<Layout::RustFFI::FfiHoverPlanInputs> hover;
-        Span<Gfx::FloatPoint const> scroll_offsets;
         Vector<u32> effect_timing_nodes;
         Vector<u64> effect_timing_identities;
         Vector<CSS::ComputedValuesFFI::FfiEffectTiming> effect_timings;
@@ -325,15 +324,12 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan, u64 update_serial)
                     effect_timings.append(timing);
                 }
             }
-            scroll_offsets = document.scroll_state_snapshot().device_offsets();
             Optional<Web::EventHandler::SelectionDragForLanes> selection_drag;
             if (auto navigable = document.navigable())
                 selection_drag = navigable->event_handler().selection_drag_for_lanes(read);
             auto scrollport = selection_drag.has_value() ? selection_drag->scrollport.value_or(CSSPixelRect {}) : CSSPixelRect {};
             hover = Layout::RustFFI::FfiHoverPlanInputs {
                 .device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel(),
-                .scroll_offsets = scroll_offsets.data(),
-                .scroll_offset_count = scroll_offsets.size(),
                 .chrome_metrics = document.page().chrome_metrics(),
                 .page_cursor = ffi_page_cursor(document.page().cursor()),
                 .link_reporter = ffi_hover_link_reporter(document),

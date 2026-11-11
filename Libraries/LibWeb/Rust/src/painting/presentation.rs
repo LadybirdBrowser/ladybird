@@ -16,7 +16,7 @@ use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::publish::RecordingResourceSink;
 use crate::painting::visual_context::VisualContextTree;
-use libgfx_rust::FloatPoint;
+use libcompositing_rust::scrolling::ScrollStateSnapshot;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -28,8 +28,7 @@ unsafe extern "C" {
     fn web_sealed_presentation_take_visual_context_tree(
         sealed: *mut c_void,
         tree: *const c_void,
-        scroll_offsets: *const FloatPoint,
-        scroll_offset_count: usize,
+        tree_is_restructured: bool,
     );
     fn web_navigable_presenter_add_font(presenter: *mut c_void, font: *const c_void);
     fn web_navigable_presenter_add_image_frame(presenter: *mut c_void, frame: *const c_void);
@@ -38,9 +37,17 @@ unsafe extern "C" {
         presenter: *mut c_void,
         sealed: *mut c_void,
         presented: *const FfiPresentedRecording,
+        encoded_scroll_state: *const u8,
+        encoded_scroll_state_size: usize,
         sink: *mut c_void,
     );
-    fn web_navigable_presenter_present_unrecorded(presenter: *mut c_void, sealed: *mut c_void, sink: *mut c_void);
+    fn web_navigable_presenter_present_unrecorded(
+        presenter: *mut c_void,
+        sealed: *mut c_void,
+        encoded_scroll_state: *const u8,
+        encoded_scroll_state_size: usize,
+        sink: *mut c_void,
+    );
     fn web_vector_image_resources_destroy(resources: *mut c_void);
     fn web_navigable_presenter_take_vector_image_resources(
         presenter: *mut c_void,
@@ -135,17 +142,22 @@ impl PresenterBox {
 pub(crate) struct Presentation {
     pub(crate) presenter: PresenterBox,
     sealed: SealedPresentationBox,
+    /// Where the document's boxes were scrolled to as the frame was sealed, which seeds the offsets of the boxes new to
+    /// the compositor, as the scroll logic of the compositor reads it.
+    encoded_scroll_state: Vec<u8>,
 }
 
 impl Presentation {
-    /// Takes over the presenter and the seal `ffi` names, which the host gives up, or none where it names none.
+    /// Takes over the presenter and the seal `ffi` names, which the host gives up, or none where it names none, with
+    /// `scroll_state`, the scroll state of the host's document.
     ///
     /// # Safety
     /// `ffi` must name a presenter and a seal the host made and gives up, or neither.
-    pub(crate) unsafe fn adopt(ffi: FfiPresentation) -> Option<Self> {
+    pub(crate) unsafe fn adopt(ffi: FfiPresentation, scroll_state: &ScrollStateSnapshot) -> Option<Self> {
         Some(Self {
             presenter: PresenterBox(NonNull::new(ffi.presenter)?),
             sealed: SealedPresentationBox(NonNull::new(ffi.sealed)?),
+            encoded_scroll_state: scroll_state.to_encoded_bytes(),
         })
     }
 
@@ -160,15 +172,20 @@ impl Presentation {
         Some(Self {
             presenter: PresenterBox(self.presenter.0),
             sealed: SealedPresentationBox(sealed),
+            encoded_scroll_state: self.encoded_scroll_state.clone(),
         })
     }
 
     /// Gives the presenter and the seal back to the host, which takes them over.
     pub(crate) fn into_ffi(self) -> FfiPresentation {
-        let this = std::mem::ManuallyDrop::new(self);
+        let Self { presenter, sealed, .. } = self;
+        let (presenter, sealed) = (
+            std::mem::ManuallyDrop::new(presenter),
+            std::mem::ManuallyDrop::new(sealed),
+        );
         FfiPresentation {
-            presenter: this.presenter.0.as_ptr(),
-            sealed: this.sealed.0.as_ptr(),
+            presenter: presenter.0.as_ptr(),
+            sealed: sealed.0.as_ptr(),
         }
     }
 
@@ -179,14 +196,17 @@ impl Presentation {
             tree,
             restructured_scroll_offsets,
         } = visual_contexts;
-        let offsets = restructured_scroll_offsets.as_deref();
-        // SAFETY: The presentation owns the seal, which takes over the reference and copies the offsets.
+        // A tree of another structure takes the scroll offsets of its own nodes.
+        let tree_is_restructured = restructured_scroll_offsets.is_some();
+        if let Some(scroll_offsets) = restructured_scroll_offsets {
+            self.encoded_scroll_state = ScrollStateSnapshot::from_device_offsets(scroll_offsets).to_encoded_bytes();
+        }
+        // SAFETY: The presentation owns the seal, which takes over the reference.
         unsafe {
             web_sealed_presentation_take_visual_context_tree(
                 self.sealed.0.as_ptr(),
                 Arc::into_raw(tree).cast(),
-                offsets.map_or(std::ptr::null(), <[FloatPoint]>::as_ptr),
-                offsets.map_or(0, <[FloatPoint]>::len),
+                tree_is_restructured,
             );
         }
     }
@@ -204,11 +224,14 @@ impl Presentation {
                 restructured_scroll_offsets: None,
             });
         }
-        // SAFETY: The presentation owns both objects, and the stage holds the sink.
+        // SAFETY: The presentation owns both objects, the presenter copies the scroll state, and the stage holds the
+        // sink.
         unsafe {
             web_navigable_presenter_present_unrecorded(
                 self.presenter.0.as_ptr(),
                 self.sealed.0.as_ptr(),
+                self.encoded_scroll_state.as_ptr(),
+                self.encoded_scroll_state.len(),
                 presenting.sink(),
             );
         }
@@ -216,13 +239,15 @@ impl Presentation {
 
     /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
     pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, presenting: &mut Presenting) {
-        // SAFETY: The presentation owns both objects, the recording's display list is live for the call, and the stage
-        // holds the sink.
+        // SAFETY: The presentation owns both objects, the recording's display list is live for the call, the presenter
+        // copies the scroll state, and the stage holds the sink.
         unsafe {
             web_navigable_presenter_present(
                 self.presenter.0.as_ptr(),
                 self.sealed.0.as_ptr(),
                 presented,
+                self.encoded_scroll_state.as_ptr(),
+                self.encoded_scroll_state.len(),
                 presenting.sink(),
             );
         }
@@ -246,13 +271,7 @@ mod ffi_test_stubs {
     extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_sealed_presentation_take_visual_context_tree(
-        _: *mut c_void,
-        _: *const c_void,
-        _: *const libgfx_rust::FloatPoint,
-        _: usize,
-    ) {
-    }
+    extern "C" fn web_sealed_presentation_take_visual_context_tree(_: *mut c_void, _: *const c_void, _: bool) {}
 
     #[unsafe(no_mangle)]
     extern "C" fn web_navigable_presenter_add_font(_: *mut c_void, _: *const c_void) {}
@@ -268,12 +287,21 @@ mod ffi_test_stubs {
         _: *mut c_void,
         _: *mut c_void,
         _: *const FfiPresentedRecording,
+        _: *const u8,
+        _: usize,
         _: *mut c_void,
     ) {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_navigable_presenter_present_unrecorded(_: *mut c_void, _: *mut c_void, _: *mut c_void) {}
+    extern "C" fn web_navigable_presenter_present_unrecorded(
+        _: *mut c_void,
+        _: *mut c_void,
+        _: *const u8,
+        _: usize,
+        _: *mut c_void,
+    ) {
+    }
 
     #[unsafe(no_mangle)]
     extern "C" fn web_vector_image_resources_destroy(_: *mut c_void) {}

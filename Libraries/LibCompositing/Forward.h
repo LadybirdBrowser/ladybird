@@ -27,6 +27,5 @@ struct DisplayListGlyph;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
 enum class CompositorScrollNodeKind : u8;
-class ScrollStateSnapshot;
 
 }

@@ -101,7 +101,9 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
             .collect();
         // SAFETY: Guaranteed by the caller.
         let mut hover = unsafe { hover.as_ref() }.map(|inputs| {
-            unsafe { crate::render_state::HoverPlan::from_ffi(inputs) }.with_style_inputs(host.style_inputs())
+            let scroll_offsets = host.scroll_state().device_offsets().to_vec();
+            unsafe { crate::render_state::HoverPlan::from_ffi(inputs, scroll_offsets) }
+                .with_style_inputs(host.style_inputs())
         });
         let round = seal_clock_round(&main_thread, host, read);
         if elements.is_empty()

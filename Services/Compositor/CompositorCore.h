@@ -13,7 +13,6 @@
 #include <Compositor/FrameInputs.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibIPC/Encoded.h>
 #include <LibIPC/Message.h>
@@ -50,7 +49,7 @@ public:
     void set_scroll_capabilities(Web::CompositorContextId, ScrollCapabilities const&);
 
     // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
-    bool install_display_list_update(Web::CompositorContextId, Compositing::DisplayList const&, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree const&, IPC::Encoded<Compositing::ScrollStateSnapshot> const&, MonotonicTime now);
+    bool install_display_list_update(Web::CompositorContextId, Compositing::DisplayList const&, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree const&, ReadonlyBytes encoded_scroll_state, MonotonicTime now);
     // Returns false, leaving everything as it was, for a tree that does not fit the installed display list.
     bool update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, MonotonicTime now);
 

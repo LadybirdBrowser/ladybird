@@ -29,7 +29,7 @@ use libcompositing_rust::ipc_types::{
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
 use libcompositing_rust::scrolling::{
     CompositorContextId, KeyEvent, KeyModifier, MouseButton, MouseEvent, MouseEventType, PendingAsyncScrollUpdates,
-    PinchEvent, ScrollRequest,
+    PinchEvent, ScrollRequest, ScrollStateSnapshot,
 };
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::FloatPoint;
@@ -185,15 +185,15 @@ impl MessagesFromWebContent<'_> {
 
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {
-        if !message.scroll_state_snapshot.has_only_finite_offsets() {
+        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
+            return Err(Misbehavior("Invalid scroll state"));
+        };
+        if !scroll_state_snapshot.has_only_finite_offsets() {
             return Err(Misbehavior("Invalid scroll state"));
         }
         if self.context_is_owned_by_sender(message.context_id)? {
-            self.core.update_scroll_state(
-                message.context_id,
-                message.scroll_state_snapshot,
-                message.keyboard_scroll_state,
-            );
+            self.core
+                .update_scroll_state(message.context_id, scroll_state_snapshot, message.keyboard_scroll_state);
         }
         Ok(())
     }

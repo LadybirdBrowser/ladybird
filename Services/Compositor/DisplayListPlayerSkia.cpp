@@ -67,21 +67,20 @@ void DisplayListPlayerSkia::execute(
     AccumulatedVisualContextTree const& visual_context_tree,
     DisplayListResourceStorage const& resource_storage,
     DisplayListRasterCache& raster_cache,
-    ScrollStateSnapshot const& scroll_state_snapshot,
+    FrameInputs const* frame_inputs,
     RefPtr<Gfx::PaintingSurface> surface,
     OwnedCanvasSurfaces const* canvas_surfaces,
-    CompositedContextResolver const* composited_context_resolver,
-    ReadonlySpan<ScrollbarOfFrame> scrollbars_of_frame)
+    CompositedContextResolver const* composited_context_resolver)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
-    TemporaryChange scrollbars_of_frame_change { m_scrollbars_of_frame, scrollbars_of_frame };
+    TemporaryChange scrollbars_of_frame_change { m_scrollbars_of_frame, frame_inputs ? frame_inputs->scrollbars() : ReadonlySpan<ScrollbarOfFrame> {} };
     raster_cache.drop_clip_paths_not_used_since_last_frame();
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     DisplayListPlayer::execute(
         display_list,
         visual_context_tree,
         resource_storage,
-        scroll_state_snapshot,
+        frame_inputs,
         move(surface),
         canvas_surfaces);
 }
@@ -294,7 +293,7 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
 
     // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
     // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
-    if (command.snap_origin_if_untransformed && active_visual_context_tree().translations_snap_to_device_pixels(command.spatial_node_index, active_scroll_state())) {
+    if (command.snap_origin_if_untransformed && active_visual_context_tree().translations_snap_to_device_pixels(command.spatial_node_index)) {
         destination_rect.set_x(roundf(destination_rect.x()));
         destination_rect.set_y(roundf(destination_rect.y()));
     }
@@ -1308,14 +1307,14 @@ void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
     if (command.filter.size != 0)
         group_paint.setImageFilter(image_filter_from_bytes(inline_data(command.filter)));
     canvas.saveLayer(nullptr, &group_paint);
-    execute_command_bytes(inline_data(command.content), active_scroll_state());
+    execute_command_bytes(inline_data(command.content));
     if (command.mask.size != 0) {
         SkPaint mask_paint;
         mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
         if (command.mask_kind == Gfx::MaskKind::Luminance)
             mask_paint.setColorFilter(SkLumaColorFilter::Make());
         canvas.saveLayer(nullptr, &mask_paint);
-        execute_command_bytes(inline_data(command.mask), active_scroll_state());
+        execute_command_bytes(inline_data(command.mask));
         canvas.restore();
     }
     canvas.restore();
@@ -1431,8 +1430,7 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
         if (!list_bounds.is_empty() && !command.rect.is_empty())
             canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
     }
-    ScrollStateSnapshot scroll_state_snapshot;
-    execute_nested_display_list(*nested_display_list.display_list, nested_display_list.visual_context_tree, scroll_state_snapshot);
+    execute_nested_display_list(*nested_display_list.display_list, nested_display_list.visual_context_tree);
     canvas.restore();
 }
 
@@ -1672,7 +1670,7 @@ void DisplayListPlayerSkia::pop_mask(ReplayMask const& mask, EffectNodeIndex eff
     if (auto content = declared_mask_content(effect); content.has_value()) {
         canvas.save();
         canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()));
-        execute_command_bytes(*content, active_scroll_state());
+        execute_command_bytes(*content);
         canvas.restore();
     }
     canvas.restore();

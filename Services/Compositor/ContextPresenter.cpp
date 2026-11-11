@@ -11,7 +11,6 @@
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <Compositor/PictureInPictureControls.h>
 #include <Compositor/SkiaUtils.h>
-#include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibMedia/Sinks/VideoSink.h>
@@ -312,7 +311,6 @@ Optional<PreparedFrame> ContextPresenter::prepare_frame(DisplayListPlayerSkia& d
     VERIFY(frame_inputs.has_value());
 
     auto damage_rect = frame_damage_for(pending_frame, *frame_inputs);
-    keep_world_transforms_of_last_rasterized_frame(*frame_inputs);
     // NB: A changed content rect must still reach the client even if the pixels are identical.
     if (damage_rect.is_empty() && m_presented_frame == pending_frame.viewport_rect) {
         remember_rasterized_frame(pending_frame.viewport_rect.size(), frame_inputs.release_value());
@@ -358,7 +356,6 @@ bool ContextPresenter::present_synchronously(DisplayListPlayerSkia& display_list
     auto render_target = m_backing_store_manager.acquire_render_target(raster_damage_rect(frame_damage_for(*pending_frame, *frame_inputs)));
     if (!render_target.has_value())
         return false;
-    keep_world_transforms_of_last_rasterized_frame(*frame_inputs);
     auto& back_store = render_target->surface;
     paint_current_display_list(display_list_player, back_store, *frame_inputs, composited_context_resolver, render_target->damage_rect);
     remember_rasterized_frame(pending_frame->viewport_rect.size(), frame_inputs.release_value());
@@ -440,7 +437,6 @@ Gfx::IntRect ContextPresenter::frame_damage_for(PendingFrame const& pending_fram
 
 Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_size, FrameInputs const& frame_inputs, Gfx::IntRect forced_damage_rect)
 {
-    auto const& presented_scroll_state_snapshot = frame_inputs.presented_scroll_state_snapshot;
     Gfx::IntRect viewport_rect { {}, viewport_size };
     if (!m_last_rasterized_frame.has_value())
         return viewport_rect;
@@ -449,10 +445,6 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
         return viewport_rect;
     if (last_frame.display_list->surface_clear_color() != m_display_list->surface_clear_color())
         return viewport_rect;
-    if (auto index = frame_inputs.viewport_scroll_node_index; index.has_value()) {
-        if (last_frame.scroll_state_snapshot.device_offset_for_index(*index) != presented_scroll_state_snapshot.device_offset_for_index(*index))
-            return viewport_rect;
-    }
 
     Vector<Compositing::CanvasId> canvases_with_new_content;
     for (auto const& [canvas_id, content_generation] : last_frame.canvas_content_generations) {
@@ -480,31 +472,15 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
             return viewport_rect;
         image_frames_with_new_pixels.append(Compositing::ImageFrameResourceId { image_frame_id });
     }
-    for (auto const& scrollbar : frame_inputs.scrollbars) {
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        if (last_frame.scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index) == presented_scroll_state_snapshot.device_offset_for_index(scrollbar.scroll_node_index))
-            continue;
-        forced_damage_rect.unite(scrollbar.thin_and_expanded_gutter_rect);
-    }
-    auto display_list_damage = Compositing::compute_display_list_damage(
-        *last_frame.display_list,
-        last_frame.visual_context_tree,
-        last_frame.scroll_state_snapshot,
+    auto display_list_damage = frame_inputs.damage_since(
         *m_display_list,
-        frame_inputs.visual_context_tree,
-        presented_scroll_state_snapshot,
+        last_frame.frame_inputs,
+        *last_frame.display_list,
         viewport_rect,
         { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .image_frames = image_frames_with_new_pixels, .forced_damage_rect = forced_damage_rect });
     if (!display_list_damage.has_value())
         return viewport_rect;
     return display_list_damage->intersected(viewport_rect);
-}
-
-void ContextPresenter::keep_world_transforms_of_last_rasterized_frame(FrameInputs& frame_inputs)
-{
-    if (m_last_rasterized_frame.has_value())
-        frame_inputs.presented_scroll_state_snapshot.take_world_transforms_built_for_the_same_offsets_from(m_last_rasterized_frame->scroll_state_snapshot);
 }
 
 void ContextPresenter::remember_rasterized_frame(Gfx::IntSize viewport_size, FrameInputs&& frame_inputs)
@@ -522,8 +498,7 @@ void ContextPresenter::remember_rasterized_frame(Gfx::IntSize viewport_size, Fra
     }
     m_last_rasterized_frame = RasterizedFrame {
         .display_list = NonnullRefPtr { *m_display_list },
-        .visual_context_tree = move(frame_inputs.visual_context_tree),
-        .scroll_state_snapshot = move(frame_inputs.presented_scroll_state_snapshot),
+        .frame_inputs = move(frame_inputs),
         .viewport_size = viewport_size,
         .canvas_content_generations = move(canvas_content_generations),
         .video_frame_ids = move(video_frame_ids),
@@ -549,15 +524,14 @@ void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display
     auto paint_display_list = [&](Gfx::PaintingSurface& target_surface) {
         display_list_player.execute(
             *m_display_list,
-            frame_inputs.visual_context_tree,
+            frame_inputs.visual_context_tree(),
             m_resource_storage,
             m_raster_cache,
-            frame_inputs.presented_scroll_state_snapshot,
+            &frame_inputs,
             target_surface,
             &m_canvas_surfaces,
-            composited_context_resolver,
-            frame_inputs.scrollbars);
-        display_list_player.paint_scrollbars_painted_by_compositor(target_surface, frame_inputs.scrollbars);
+            composited_context_resolver);
+        display_list_player.paint_scrollbars_painted_by_compositor(target_surface, frame_inputs.scrollbars());
         if (paint_ui_overlay == PaintUIOverlay::No)
             return;
 

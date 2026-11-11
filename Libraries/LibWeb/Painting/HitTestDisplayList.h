@@ -23,14 +23,13 @@ namespace Web::Painting {
 
 class HitTestDisplayList;
 
-// A query of a document's hit test list, with what it reads besides the list: the scroll state its points and rects
-// convert through, and the time it samples the compositor's animations at. Only the document makes one, once it has
-// prepared its paint properties and found the list current against the visual context tree, so every item a query
-// looks at reads the same preparation, and nothing in a query prepares the document again.
+// A query of a document's hit test list, with what it reads besides the list and the document's scroll state, such as
+// the time it samples the compositor's animations at. Only the document makes one, once it has prepared its paint
+// properties and found the list current against the visual context tree, so every item a query looks at reads the same
+// preparation, and nothing in a query prepares the document again.
 class HitTestQuery {
 public:
     HitTestDisplayList const& list() const { return m_list; }
-    Compositing::ScrollStateSnapshot const& scroll_state() const { return m_scroll_state; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
     ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
     // The time the query reads the compositor's animations at, as a frame of the compositor's shows them, if any.
@@ -39,9 +38,8 @@ public:
 private:
     friend class DOM::Document;
 
-    HitTestQuery(HitTestDisplayList const& list, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, Optional<i64> visual_animation_sample_time_nanoseconds)
+    HitTestQuery(HitTestDisplayList const& list, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, Optional<i64> visual_animation_sample_time_nanoseconds)
         : m_list(list)
-        , m_scroll_state(scroll_state)
         , m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
         , m_chrome_metrics(chrome_metrics)
         , m_visual_animation_sample_time_nanoseconds(visual_animation_sample_time_nanoseconds)
@@ -49,7 +47,6 @@ private:
     }
 
     HitTestDisplayList const& m_list;
-    Compositing::ScrollStateSnapshot const& m_scroll_state;
     double m_device_pixels_per_css_pixel { 1 };
     ChromeMetrics m_chrome_metrics;
     Optional<i64> m_visual_animation_sample_time_nanoseconds;
@@ -86,7 +83,6 @@ private:
         CSSPixelPoint local_point;
     };
 
-    struct QueryContext;
     static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
     [[nodiscard]] Item item(Layout::BegunRead const& read, size_t index) const;
 

@@ -7100,7 +7100,6 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
     if (records_display_list)
         visual_context_tree = paint_state.visual_context_tree(document);
     paint_state.did_update_visual_context_tree_in_compositor();
-    Compositing::ScrollStateSnapshot scroll_state_snapshot { paint_state.scroll_state_snapshot() };
     // A keyboard scroll reads the layout, which one the host knows is stale leaves to the next frame that lays it out.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
     if (is_top_level_traversable() && !document.layout_is_known_stale())
@@ -7110,7 +7109,6 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
         .visual_context_tree = move(visual_context_tree),
         .sends_visual_context_tree = sends_visual_context_tree,
         .scroll_state_changed = paint_state.take_scroll_state_change(),
-        .scroll_state_snapshot = move(scroll_state_snapshot),
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),
         .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),

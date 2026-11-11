@@ -25,7 +25,6 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
@@ -115,7 +114,7 @@ public:
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
     // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
-    bool update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, IPC::Encoded<Compositing::ScrollStateSnapshot> const&);
+    bool update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, ReadonlyBytes encoded_scroll_state);
     void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&&);
     void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);

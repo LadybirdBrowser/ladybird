@@ -12,18 +12,15 @@
 #include <AK/Function.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 
 namespace Compositing {
-
-class ScrollStateSnapshot;
 
 // What a tree reports about the animations it carries, for test introspection.
 struct VisualAnimationSummary {
@@ -35,11 +32,6 @@ struct VisualAnimationSummary {
 
 class COMPOSITING_API AccumulatedVisualContextTree {
 public:
-    enum class IncludeVisualViewportTransform {
-        No,
-        Yes,
-    };
-
     static AccumulatedVisualContextTree adopt_rust_handle(void const* retained_tree);
     static ErrorOr<AccumulatedVisualContextTree> from_serialized_bytes(ReadonlyBytes);
 
@@ -65,10 +57,7 @@ public:
     Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
     // Whether the node's scroll translations and the origins drawn in its space round to whole device pixels: no
     // transform but identities lies above it.
-    bool translations_snap_to_device_pixels(SpatialNodeIndex, ScrollStateSnapshot const&) const;
-
-    // Sum of the snapshot entries along the scroll-parent chain from the given scroll-like node.
-    Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
+    bool translations_snap_to_device_pixels(SpatialNodeIndex) const;
 
     void for_each_effects_filter_image_frame_id(Function<void(u64)> const&) const;
 

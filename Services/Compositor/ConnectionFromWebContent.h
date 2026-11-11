@@ -57,7 +57,7 @@ private:
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
     virtual void destroy_context(Web::CompositorContextId) override;
-    virtual void update_display_list(Web::CompositorContextId, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction, IPC::Encoded<Compositing::ScrollStateSnapshot>) override;
+    virtual void update_display_list(Web::CompositorContextId, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction, ByteBuffer scroll_state) override;
     virtual void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction) override;
     virtual void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction) override;
     virtual Messages::CompositorWebContentServer::ReserveCanvasIdsResponse reserve_canvas_ids() override;

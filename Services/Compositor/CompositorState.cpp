@@ -373,7 +373,7 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
     context->presenter.stop_presenting_to_client();
 }
 
-bool CompositorState::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, IPC::Encoded<Compositing::ScrollStateSnapshot> const& scroll_state_snapshot)
+bool CompositorState::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, ReadonlyBytes encoded_scroll_state)
 {
     auto now = MonotonicTime::now();
     auto* context = presented_context_if_present(context_id);
@@ -390,7 +390,7 @@ bool CompositorState::update_display_list(Web::CompositorContextId context_id, N
         return true;
     }
 
-    if (!m_core.install_display_list_update(context_id, *display_list, async_scrolling_metadata, visual_context_tree, scroll_state_snapshot, now))
+    if (!m_core.install_display_list_update(context_id, *display_list, async_scrolling_metadata, visual_context_tree, encoded_scroll_state, now))
         return false;
     context->presenter.apply_resource_transaction(move(resource_transaction));
     context->presenter.set_display_list(display_list);

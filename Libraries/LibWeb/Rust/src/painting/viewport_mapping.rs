@@ -17,9 +17,13 @@ use crate::painting::visual_context::{
     VisualContextTree, WorldTransforms,
 };
 use crate::painting::visual_context::{basic_shapes, node_values};
-use libcompositing_rust::ffi::{tree_from_handle, world_transforms_from_handle};
-use libgfx_rust::{FloatPoint, FloatRect};
+use crate::render_state::DocumentHost;
+use libcompositing_rust::ffi::tree_sharing_handle;
+use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot};
+use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect};
 use std::ffi::c_void;
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -231,6 +235,15 @@ impl<'a> ViewportMapping<'a> {
         })
     }
 
+    /// The matrix that takes the local space of `spatial` into the viewport, both in device pixels, or the identity for
+    /// a document that has no visual context tree.
+    pub(crate) fn matrix_to_viewport(&self, spatial: SpatialNodeIndex, space: ViewportSpace) -> FloatMatrix4x4 {
+        match &self.transforms {
+            Some(transforms) => transforms.world_transforms.to_viewport_matrix(spatial, space.into()),
+            None => FloatMatrix4x4::identity(),
+        }
+    }
+
     /// The offset by which sticky positioning moves `node`, as the sum of the offsets of the sticky positioned box and
     /// its sticky positioned ancestors.
     pub(crate) fn sticky_offset(&self, arena: &impl PaintRead, node: NodeSlotId) -> CssPixelPoint {
@@ -276,34 +289,99 @@ impl<'a> ViewportMapping<'a> {
     }
 }
 
-/// A [`ViewportMapping`] as C++ lends it for `'a`: a non-null `visual_context_tree` is a live retained tree handle with
-/// `world_transforms` a live table built from it, and `scroll_offsets` addresses `scroll_offsets_len` points. A null
-/// tree leaves geometry as it is. Rust never makes one.
+/// A [`ViewportMapping`] as C++ carries it for `'a`, which only [`render_state_viewport_mapping`] makes: C++ hands it
+/// back as it got it, or one it left zeroed, which leaves geometry as it is. `visual_context_tree` is a tree handle
+/// that stays live for `'a`. Where the document is scrolled to, and the world transforms of the tree there, are read
+/// from `host` where the mapping is used.
 #[repr(C)]
 pub struct FfiViewportMapping<'a> {
+    host: Option<&'a DocumentHost>,
     visual_context_tree: *const c_void,
-    world_transforms: *const c_void,
-    scroll_offsets: *const FloatPoint,
-    scroll_offsets_len: usize,
     device_pixels_per_css_pixel: f32,
-    lent: std::marker::PhantomData<&'a [FloatPoint]>,
 }
 
-impl<'a> FfiViewportMapping<'a> {
-    pub(crate) fn mapping(&self) -> ViewportMapping<'a> {
-        if self.visual_context_tree.is_null() {
-            return ViewportMapping::default();
-        }
-        // SAFETY: C++ lends a live tree, its world transforms and the scroll offsets for 'a.
-        unsafe {
-            ViewportMapping::new(
-                tree_from_handle(self.visual_context_tree),
-                world_transforms_from_handle(self.world_transforms),
-                ak::slice_from_raw_parts(self.scroll_offsets, self.scroll_offsets_len),
-                self.device_pixels_per_css_pixel,
-            )
+impl FfiViewportMapping<'_> {
+    /// What the mapping maps through as the host has it now, kept for as long as an entry point reads the mapping.
+    pub(crate) fn resolve(&self) -> ResolvedViewportMapping {
+        let Some(host) = self.host.filter(|_| !self.visual_context_tree.is_null()) else {
+            return ResolvedViewportMapping { transforms: None };
+        };
+        // SAFETY: C++ keeps the tree live for as long as it carries the mapping.
+        let tree = unsafe { tree_sharing_handle(self.visual_context_tree) };
+        let scroll_state = host.scroll_state();
+        let world_transforms = scroll_state.world_transforms(&tree);
+        ResolvedViewportMapping {
+            transforms: Some(ResolvedTransforms {
+                tree,
+                scroll_state,
+                world_transforms,
+                device_pixels_per_css_pixel: self.device_pixels_per_css_pixel,
+            }),
         }
     }
+}
+
+struct ResolvedTransforms {
+    tree: AccumulatedVisualContextTree,
+    scroll_state: Rc<ScrollStateSnapshot>,
+    world_transforms: Arc<WorldTransforms>,
+    device_pixels_per_css_pixel: f32,
+}
+
+/// A mapping C++ carries, with a share of its own in everything it maps through: nothing another mapping or a refresh
+/// of the host's scroll state does takes that away while an entry point reads it.
+pub(crate) struct ResolvedViewportMapping {
+    transforms: Option<ResolvedTransforms>,
+}
+
+impl ResolvedViewportMapping {
+    pub(crate) fn mapping(&self) -> ViewportMapping<'_> {
+        match &self.transforms {
+            Some(transforms) => ViewportMapping::new(
+                transforms.tree.as_arc(),
+                &transforms.world_transforms,
+                transforms.scroll_state.device_offsets(),
+                transforms.device_pixels_per_css_pixel,
+            ),
+            None => ViewportMapping::default(),
+        }
+    }
+}
+
+/// The mapping between the viewport of `host`'s document and the spaces of `visual_context_tree`, where the document's
+/// boxes are scrolled to as the host has it when the mapping is used.
+///
+/// # Safety
+///
+/// `visual_context_tree` must be a live retained tree handle, which stays live for as long as C++ carries the mapping:
+/// the caller keeps it, or it is the document's own, which the scroll state retains from here on, with the world
+/// transforms it builds for it, until the host refreshes the scroll state or builds those of another tree.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_viewport_mapping<'a>(
+    host: &'a DocumentHost,
+    visual_context_tree: *const c_void,
+    device_pixels_per_css_pixel: f32,
+    out: &mut FfiViewportMapping<'a>,
+) {
+    // SAFETY: The caller lends a strong reference to the tree.
+    let tree = unsafe { tree_sharing_handle(visual_context_tree) };
+    host.scroll_state().world_transforms(&tree);
+    *out = FfiViewportMapping {
+        host: Some(host),
+        visual_context_tree,
+        device_pixels_per_css_pixel,
+    };
+}
+
+/// The matrix that takes the local space of `spatial` into the viewport, both in device pixels.
+#[unsafe(no_mangle)]
+pub extern "C" fn viewport_mapping_matrix_to_viewport(
+    mapping: FfiViewportMapping<'_>,
+    spatial: SpatialNodeIndex,
+    space: ViewportSpace,
+    out: &mut FloatMatrix4x4,
+) {
+    *out = mapping.resolve().mapping().matrix_to_viewport(spatial, space);
 }
 
 #[unsafe(no_mangle)]
@@ -315,6 +393,7 @@ pub extern "C" fn viewport_mapping_rect_in_space_to_viewport(
     out: &mut FfiCssPixelRect,
 ) {
     *out = mapping
+        .resolve()
         .mapping()
         .rect_in_space_to_viewport(spatial, rect.into(), space)
         .into();
@@ -331,6 +410,7 @@ pub extern "C" fn viewport_mapping_point_to_local(
     out: &mut FfiCssPixelPoint,
 ) -> bool {
     let Some(local) = mapping
+        .resolve()
         .mapping()
         .point_to_local(context, point.into(), space, ClipBehavior::Ignore)
     else {
@@ -338,4 +418,72 @@ pub extern "C" fn viewport_mapping_point_to_local(
     };
     *out = to_css_point(local).into();
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libcompositing_rust::node_slot_id::NodeSlotId;
+    use libcompositing_rust::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
+    use libcompositing_rust::visual_context::{ScrollData, SpatialData, TransformData, TransformDataRole};
+
+    fn tree_with_scroller() -> (Arc<VisualContextTree>, SpatialNodeIndex) {
+        let mut tree = VisualContextTree::create(TransformData {
+            matrix: FloatMatrix4x4::identity(),
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+            bounds: FloatRect::default(),
+        });
+        let scroller = tree.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        (Arc::new(tree), scroller)
+    }
+
+    #[test]
+    fn a_mapping_stands_after_a_mapping_over_another_tree_and_a_scroll_state_refresh() {
+        let host = DocumentHost::for_test();
+        let (tree, scroller) = tree_with_scroller();
+        let (other_tree, _) = tree_with_scroller();
+        let scrolled_to = |y: f32| vec![FloatPoint::default(), FloatPoint { x: 0.0, y }];
+        let mapping_over = |tree: &Arc<VisualContextTree>| {
+            let mut mapping = FfiViewportMapping {
+                host: None,
+                visual_context_tree: std::ptr::null(),
+                device_pixels_per_css_pixel: 0.0,
+            };
+            // SAFETY: The test keeps the tree for as long as it uses the mapping.
+            unsafe { render_state_viewport_mapping(&host, Arc::as_ptr(tree).cast(), 1.0, &mut mapping) };
+            mapping
+        };
+        let ten = CssPixels::from_integer(10);
+        let rect = CssPixelRect::new(CssPixels::default(), CssPixels::default(), ten, ten);
+        let top_in_viewport = |mapping: &FfiViewportMapping<'_>| {
+            mapping
+                .resolve()
+                .mapping()
+                .rect_in_space_to_viewport(scroller, rect, ViewportSpace::LayoutViewport)
+                .y
+        };
+
+        host.refresh_scroll_state(scrolled_to(-30.0));
+        let mapping = mapping_over(&tree);
+        assert_eq!(top_in_viewport(&mapping), CssPixels::from_integer(-30));
+
+        // The scroll state keeps the world transforms of one tree, which are those of the other tree from here on.
+        let other_mapping = mapping_over(&other_tree);
+        assert_eq!(top_in_viewport(&other_mapping), CssPixels::from_integer(-30));
+        assert_eq!(top_in_viewport(&mapping), CssPixels::from_integer(-30));
+
+        host.refresh_scroll_state(scrolled_to(-50.0));
+        assert_eq!(top_in_viewport(&mapping), CssPixels::from_integer(-50));
+    }
 }

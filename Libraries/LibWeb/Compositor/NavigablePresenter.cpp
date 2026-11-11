@@ -29,24 +29,24 @@ struct PresenterFFI {
             sealed.published->referenced_resources = presenter.m_compositor_display_list_command_resources;
     }
 
-    static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, CompositorFrameSink* sink)
+    static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, ReadonlyBytes encoded_scroll_state, CompositorFrameSink* sink)
     {
         MutexLocker locker(presenter.m_mutex);
         if (is_stale(presenter, sealed))
             return;
-        auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list));
+        auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list), encoded_scroll_state);
         frame.scroll_requests = move(sealed.scroll_requests);
         note_presented(presenter, sealed);
         if (sink)
             sink->submit(move(frame));
     }
 
-    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation& sealed, CompositorFrameSink* sink)
+    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation& sealed, ReadonlyBytes encoded_scroll_state, CompositorFrameSink* sink)
     {
         MutexLocker locker(presenter.m_mutex);
         if (is_stale(presenter, sealed))
             return;
-        auto frame = presenter.build_frame(sealed, {});
+        auto frame = presenter.build_frame(sealed, {}, encoded_scroll_state);
         frame.scroll_requests = move(sealed.scroll_requests);
         note_presented(presenter, sealed);
         if (sink)
@@ -64,7 +64,7 @@ void NavigablePresenter::forget_compositor_display_list()
     m_compositor_display_list_command_resources = {};
 }
 
-CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed, Optional<PublishedDisplayList> published)
+CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed, Optional<PublishedDisplayList> published, ReadonlyBytes encoded_scroll_state)
 {
     // A recording downgraded to cache-read-only leaves the retained source and the cached ranges into it live, so the
     // resources they reference must survive the pruning that follows. A recording that replaced the source references
@@ -108,7 +108,7 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
             .display_list = published->display_list,
             .visual_context_tree = visual_context_tree,
             .resource_transaction = m_resource_storage.create_transaction(m_compositor_display_list_resources, resources),
-            .scroll_state_snapshot = sealed.scroll_state_snapshot,
+            .encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state)),
         };
         m_compositor_display_list_visual_context_tree_structural_epoch = published->display_list->compatible_visual_context_tree_structural_epoch();
         m_compositor_visual_context_tree = visual_context_tree;
@@ -138,18 +138,18 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
         m_compositor_visual_context_tree = visual_context_tree;
     }
     frame.scroll_state_update = CompositorFrame::ScrollStateUpdate {
-        .scroll_state_snapshot = sealed.scroll_state_snapshot,
+        .encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state)),
         .keyboard_scroll_state = move(keyboard_scroll_state),
     };
     return frame;
 }
 
-CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list)
+CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, ReadonlyBytes encoded_scroll_state)
 {
     bool const replaces_paint_command_cache_source = sealed.recording->cache_mode == Painting::PaintCommandCacheMode::ReadWrite
         && display_list != sealed.paint_command_cache_source;
     PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source, {} };
-    auto frame = build_frame(sealed, published);
+    auto frame = build_frame(sealed, published, encoded_scroll_state);
     if (replaces_paint_command_cache_source) {
         sealed.paint_command_cache_source = published.display_list;
         sealed.paint_command_cache_source_resources = m_compositor_display_list_command_resources;
@@ -172,7 +172,6 @@ OwnPtr<SealedPresentation> NavigablePresenter::seal_for_clock_lane(SealedPresent
     auto sealed = make<SealedPresentation>();
     sealed->paint_config = committed.paint_config;
     sealed->visual_context_tree = *m_compositor_visual_context_tree;
-    sealed->scroll_state_snapshot = committed.scroll_state_snapshot;
     sealed->keyboard_scroll_state = committed.keyboard_scroll_state;
     sealed->paint_command_cache_source = m_compositor_display_list;
     sealed->paint_command_cache_source_resources = m_compositor_display_list_command_resources;
@@ -213,16 +212,14 @@ extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)
     delete static_cast<Web::Compositor::SealedPresentation*>(sealed);
 }
 
-extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed_pointer, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count)
+extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed_pointer, void const* tree, bool tree_is_restructured)
 {
     auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
     auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(tree);
-    // A tree of another structure takes the scroll offsets of its own nodes, and a new display list recorded against it.
-    // A frame that records nothing seals no tree, and takes the render state's: the compositor's display list was cut
-    // from a tree of its structure.
-    if (restructured_scroll_offsets)
-        sealed.scroll_state_snapshot.assign_device_offsets({ restructured_scroll_offsets, scroll_offset_count });
-    else if (sealed.visual_context_tree.has_value())
+    // A tree of another structure takes a new display list recorded against it, and the scroll offsets of its own nodes,
+    // which what presents the frame holds. A frame that records nothing seals no tree, and takes the render state's: the
+    // compositor's display list was cut from a tree of its structure.
+    if (!tree_is_restructured && sealed.visual_context_tree.has_value())
         VERIFY(visual_context_tree.structural_epoch() == sealed.visual_context_tree->structural_epoch());
     if (sealed.recording.has_value())
         sealed.recording->visual_context_tree = visual_context_tree;
@@ -265,17 +262,17 @@ extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, 
 }
 
 // Declared here, not in a header, so that no C++ presents a frame through them.
-extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink);
-extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink);
+extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink);
+extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink);
 
-extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, void* sink)
+extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink)
 {
-    Web::Compositor::PresenterFFI::present_unrecorded(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedPresentation*>(sealed), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
+    Web::Compositor::PresenterFFI::present_unrecorded(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedPresentation*>(sealed), { encoded_scroll_state, encoded_scroll_state_size }, static_cast<Web::Compositor::CompositorFrameSink*>(sink));
 }
 
-extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented, void* sink)
+extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink)
 {
     auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
     auto display_list = Web::Painting::display_list_of_published_recording(sealed.recording.value(), *presented);
-    Web::Compositor::PresenterFFI::present(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), sealed, move(display_list), static_cast<Web::Compositor::CompositorFrameSink*>(sink));
+    Web::Compositor::PresenterFFI::present(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), sealed, move(display_list), { encoded_scroll_state, encoded_scroll_state_size }, static_cast<Web::Compositor::CompositorFrameSink*>(sink));
 }

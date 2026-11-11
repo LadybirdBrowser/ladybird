@@ -6,11 +6,13 @@
 
 #pragma once
 
+#include <AK/Noncopyable.h>
 #include <AK/Optional.h>
-#include <AK/Vector.h>
+#include <AK/Span.h>
 #include <Compositor/CompositorCoreRustFFI.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Rect.h>
 #include <math.h>
@@ -60,12 +62,44 @@ inline PresentedScrollbar presented_scrollbar_with_colors(ScrollbarOfFrame const
     };
 }
 
-// What a frame is painted with besides the display list and its resources.
-struct FrameInputs {
-    Compositing::AccumulatedVisualContextTree visual_context_tree;
-    Compositing::ScrollStateSnapshot presented_scroll_state_snapshot;
-    Vector<ScrollbarOfFrame> scrollbars;
-    Optional<Compositing::SpatialNodeIndex> viewport_scroll_node_index;
+// The canvases, video sinks and image frames whose pixels changed since a display list was rasterized. The list draws
+// them with commands that stay the same, so comparing lists cannot see the change.
+struct LiveContentChanges {
+    ReadonlySpan<Compositing::CanvasId> canvases;
+    ReadonlySpan<Compositing::VideoSinkResourceId> video_sinks;
+    ReadonlySpan<Compositing::ImageFrameResourceId> image_frames;
+    // What the compositor repaints whatever the lists hold, such as a blinking caret.
+    Gfx::IntRect forced_damage_rect;
+};
+
+// What a frame is painted with besides the display list and its resources, which the scroll and input logic holds:
+// where the frame presents everything that scrolls is known to it alone.
+class FrameInputs {
+    AK_MAKE_NONCOPYABLE(FrameInputs);
+
+public:
+    static FrameInputs adopt(RustFFI::FrameInputs*);
+    FrameInputs(FrameInputs&&);
+    FrameInputs& operator=(FrameInputs&&);
+    ~FrameInputs();
+
+    Compositing::AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
+    ReadonlySpan<ScrollbarOfFrame> scrollbars() const;
+
+    // Replays the list through a player's callbacks as the frame shows it.
+    void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
+    // Replays a stream of records that a command of the list being replayed nests.
+    void replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const&) const;
+
+    // What painting the list with these inputs repaints of the last frame, which painted its list with its inputs.
+    // Empty where the damage has no bounds.
+    Optional<Gfx::IntRect> damage_since(Compositing::DisplayList const&, FrameInputs const& last_frame_inputs, Compositing::DisplayList const& last_display_list, Gfx::IntRect viewport_rect, LiveContentChanges) const;
+
+private:
+    FrameInputs(RustFFI::FrameInputs*, Compositing::AccumulatedVisualContextTree);
+
+    RustFFI::FrameInputs* m_frame_inputs { nullptr };
+    Compositing::AccumulatedVisualContextTree m_visual_context_tree;
 };
 
 }

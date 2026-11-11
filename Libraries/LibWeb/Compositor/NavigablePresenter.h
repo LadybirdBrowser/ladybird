@@ -16,7 +16,6 @@
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -48,7 +47,8 @@ enum class PresentedBy : u8 {
 };
 
 // What a frame is built from that its navigable and document held where the frame began, sealed there: the frame reaches
-// neither of them again before it is presented.
+// neither of them again before it is presented. What presents the frame holds the document's scroll state beside the
+// seal.
 struct SealedPresentation {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -61,8 +61,6 @@ struct SealedPresentation {
     bool sends_visual_context_tree { false };
     // Whether the document's scroll offsets changed since the frame before.
     bool scroll_state_changed { false };
-    // The scroll state, which seeds the offsets of the boxes new to the compositor.
-    Compositing::ScrollStateSnapshot scroll_state_snapshot;
     // The scrolls the navigable asked for since the frame before, which the compositor applies once it has the frame's
     // boxes. Only the frame a rendering update commits carries them.
     Vector<Compositing::ScrollRequest> scroll_requests;
@@ -151,12 +149,13 @@ private:
 
     // Builds the frame that brings the compositor context `sealed` names up to date with `published`, the display list a
     // recording just published, or with what changed for the one the compositor has where none was published, from what
-    // `sealed` sealed. Reads no navigable or document.
-    CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>);
+    // `sealed` sealed, and the scroll state sealed beside it, which seeds the offsets of the boxes new to the compositor.
+    // Reads no navigable or document.
+    CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>, ReadonlyBytes encoded_scroll_state);
 
     // Builds the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
     // loop, keeping what it published in the seal, which the next frame from the seal copies paint commands from.
-    CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
+    CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>, ReadonlyBytes encoded_scroll_state);
 
     NavigablePresenter() = default;
 
@@ -193,7 +192,7 @@ extern "C" {
 WEB_API void web_navigable_presenter_unref(void* presenter);
 WEB_API void* web_navigable_presenter_seal_for_clock_lane(void* presenter, void const* committed);
 WEB_API void web_sealed_presentation_destroy(void* sealed);
-WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count);
+WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, bool tree_is_restructured);
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);

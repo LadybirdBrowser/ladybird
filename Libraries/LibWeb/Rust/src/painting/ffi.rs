@@ -377,12 +377,16 @@ pub(super) fn apply_walk_assignments(
     }
 }
 
-/// The index of the sticky node the accumulated visual context tree holds for `paintable`, which
-/// is where the scroll state snapshot keeps its resolved sticky offset, or `u32::MAX` when the tree
-/// holds none.
+/// How far sticky positioning moved `paintable` from its normal position, in device pixels, as the scroll state of
+/// `host`'s document resolved it. Answers false when the accumulated visual context tree holds no sticky node for
+/// `paintable`.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_sticky_spatial_node_index(host: &DocumentHost, paintable: NodeSlotId) -> u32 {
-    read_arena(host, node_read(), paintable, |arena, paintable| {
+pub extern "C" fn render_state_sticky_device_offset(
+    host: &DocumentHost,
+    paintable: NodeSlotId,
+    out: &mut libgfx_rust::FloatPoint,
+) -> bool {
+    let sticky_node_index = read_arena(host, node_read(), paintable, |arena, paintable| {
         let paint_state = arena.paint_state();
         paint_state
             .visual_context
@@ -390,8 +394,13 @@ pub extern "C" fn render_state_sticky_spatial_node_index(host: &DocumentHost, pa
             .states()
             .iter()
             .find(|state| state.is_sticky && state.paintable == paintable)
-            .map_or(u32::MAX, |state| state.node_index.0)
-    })
+            .map(|state| state.node_index)
+    });
+    let Some(sticky_node_index) = sticky_node_index else {
+        return false;
+    };
+    *out = host.scroll_state().device_offset_for_index(sticky_node_index);
+    true
 }
 
 /// Marks the entry the event loop calls between two tasks to take a finished recording in.
@@ -729,6 +738,7 @@ pub extern "C" fn render_state_visible_rect_in_containing_blocks(
     space: crate::painting::viewport_mapping::ViewportSpace,
     out: &mut FfiCssPixelRect,
 ) {
+    let viewport_mapping = viewport_mapping.resolve();
     let viewport_mapping = viewport_mapping.mapping();
     *out = host.read_rows(node_read(), false, |rows| {
         let visible =

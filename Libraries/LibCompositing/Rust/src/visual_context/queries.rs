@@ -274,6 +274,28 @@ impl VisualContextTree {
         Some(context_walk.point)
     }
 
+    /// Whether the node's scroll translations and the origins drawn in its space round to whole device pixels: no
+    /// transform but identities lies above it. A table of world transforms answers the same for every node at once.
+    pub fn translations_snap_to_device_pixels(&self, node: SpatialNodeIndex) -> bool {
+        let mut index = node;
+        loop {
+            let Some(spatial_node) = self.spatial_nodes.get(index.0 as usize) else {
+                return false;
+            };
+            if !spatial_node.data.is_live() {
+                return false;
+            }
+            if index == VISUAL_VIEWPORT_NODE_INDEX {
+                return true;
+            }
+            let local = self.local_transform(index, &[]);
+            if local.is_transform_or_perspective() && local.matrix != FloatMatrix4x4::identity() {
+                return false;
+            }
+            index = spatial_node.parent;
+        }
+    }
+
     /// The sum of the resolved offsets of the sticky nodes on the spatial chain from `index` up to the viewport, in
     /// device pixels.
     pub fn accumulated_sticky_offset(&self, index: SpatialNodeIndex, resolved_offsets: &[FloatPoint]) -> FloatPoint {
@@ -633,6 +655,40 @@ mod tests {
             clip,
             effect: EffectNodeIndex::NONE,
             ..ContextRef::default()
+        }
+    }
+
+    #[test]
+    fn translations_snap_under_identities_as_the_world_transforms_table_says() {
+        let mut tree = identity_tree();
+        let scroller = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let identity = tree.append_spatial(
+            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
+            scroller,
+        );
+        let scroller_under_identity = tree.append_spatial(scroll(), identity);
+        let scaled = tree.append_spatial(
+            SpatialData::Transform(transform_data(scale_matrix(2.0, 2.0, 1.0), FloatPoint::default())),
+            scroller,
+        );
+        let scroller_under_scale = tree.append_spatial(scroll(), scaled);
+        let removed = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(tree.tombstone_spatial_slot(removed));
+
+        let world = WorldTransforms::new(&tree, &[], None);
+        let nodes = [
+            (VISUAL_VIEWPORT_NODE_INDEX, true),
+            (scroller, true),
+            (identity, true),
+            (scroller_under_identity, true),
+            (scaled, false),
+            (scroller_under_scale, false),
+            (removed, false),
+            (SpatialNodeIndex(tree.spatial_nodes.len() as u32), false),
+        ];
+        for (node, snaps) in nodes {
+            assert_eq!(tree.translations_snap_to_device_pixels(node), snaps, "{node:?}");
+            assert_eq!(world.translations_snap_to_device_pixels(node), snaps, "{node:?}");
         }
     }
 
