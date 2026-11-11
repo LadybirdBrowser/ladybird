@@ -1,0 +1,39 @@
+<!doctype html>
+<style>
+    @keyframes cyclic {
+        from,
+        to {
+            --value: var(--other);
+        }
+    }
+    @keyframes literal {
+        from,
+        to {
+            --value: safe;
+        }
+    }
+    #target {
+        --other: var(--value);
+        animation:
+            cyclic 1s paused,
+            literal 1s paused;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const value = () => getComputedStyle(target).getPropertyValue("--value");
+        println(`the replacing effect keeps its literal value: ${value() === "safe"}`);
+        println(
+            `a declaration reading the replacing effect stays valid: ${getComputedStyle(target).getPropertyValue("--other") === "safe"}`
+        );
+        target
+            .getAnimations()
+            .find(animation => animation.animationName === "cyclic")
+            .cancel();
+        target.style.color = "red";
+        println(`cancelling the cyclic effect preserves the literal value: ${value() === "safe"}`);
+    });
+</script>

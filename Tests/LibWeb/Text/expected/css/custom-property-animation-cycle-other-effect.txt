@@ -1,0 +1,3 @@
+the replacing effect keeps its literal value: true
+a declaration reading the replacing effect stays valid: true
+cancelling the cyclic effect preserves the literal value: true

@@ -1,0 +1,5 @@
+the replacing effect keeps its literal value: true
+revealing the cyclic effect invalidates its value: true
+the revealed cyclic effect stays invalid after a style change: true
+the replacing effect hides the noncyclic conversion: true
+the revealed effect converts the current declaration: true
