@@ -8,7 +8,7 @@
 
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/Forward.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
@@ -23,14 +23,13 @@ namespace Web::Painting {
 
 class HitTestDisplayList;
 
-// A query of a document's hit test list, with what it reads besides the list: the visual context tree and the scroll
-// state its points and rects convert through, as the document prepared them for the query. Only the document makes
-// one, once it has prepared them and found the list current against that tree, so every item a query looks at reads
-// the same preparation, and nothing in a query prepares the document again.
+// A query of a document's hit test list, with what it reads besides the list: the scroll state its points and rects
+// convert through, and the time it samples the compositor's animations at. Only the document makes one, once it has
+// prepared its paint properties and found the list current against the visual context tree, so every item a query
+// looks at reads the same preparation, and nothing in a query prepares the document again.
 class HitTestQuery {
 public:
     HitTestDisplayList const& list() const { return m_list; }
-    Compositing::AccumulatedVisualContextTree const& visual_context_tree() const { return m_visual_context_tree; }
     Compositing::ScrollStateSnapshot const& scroll_state() const { return m_scroll_state; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
     ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
@@ -40,9 +39,8 @@ public:
 private:
     friend class DOM::Document;
 
-    HitTestQuery(HitTestDisplayList const& list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, Optional<i64> visual_animation_sample_time_nanoseconds)
+    HitTestQuery(HitTestDisplayList const& list, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, Optional<i64> visual_animation_sample_time_nanoseconds)
         : m_list(list)
-        , m_visual_context_tree(move(visual_context_tree))
         , m_scroll_state(scroll_state)
         , m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
         , m_chrome_metrics(chrome_metrics)
@@ -51,7 +49,6 @@ private:
     }
 
     HitTestDisplayList const& m_list;
-    Compositing::AccumulatedVisualContextTree m_visual_context_tree;
     Compositing::ScrollStateSnapshot const& m_scroll_state;
     double m_device_pixels_per_css_pixel { 1 };
     ChromeMetrics m_chrome_metrics;
