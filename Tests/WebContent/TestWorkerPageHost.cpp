@@ -12,6 +12,8 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <WebContent/WebWorkerServerEndpoint.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
@@ -32,6 +34,7 @@ static void run_on_worker_thread(Callback const& callback)
         IPC::ScopedSharedIOThread shared_io_thread;
         Core::EventLoop event_loop;
         Web::Bindings::initialize_agent(Web::HTML::AgentType::SharedWorker);
+        Web::HTML::surrounding_agent().fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor();
 
         auto pair = MUST(IPC::Transport::create_paired());
         auto client = WebWorker::ConnectionFromClient::construct(move(pair.local), nullptr);
