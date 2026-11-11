@@ -112,6 +112,7 @@ public:
     virtual ~NavigateEvent() override;
 
     Window& relevant_window() const { return *m_relevant_window; }
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     GC::Ref<DOM::AbortController> abort_controller() const { return *m_abort_controller; }
     InterceptionState interception_state() const { return m_interception_state; }

@@ -167,6 +167,7 @@ private:
     explicit Navigation(Window&);
 
     Window& window() const;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     virtual void visit_edges(Visitor&) override;
 
