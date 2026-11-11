@@ -19,6 +19,8 @@ use crate::web_audio::control_message::ControlMessage;
 // https://webaudio.github.io/web-audio-api/#rendering-loop
 pub struct RenderGraph {
     nodes: NodeMap,
+    // Nodes whose AudioNode is gone, but which still have a tail to play. Each is removed once its tail has played out.
+    nodes_finishing_tails: Vec<u64>,
     destination_id: u64,
     current_quantum: Cell<u64>,
     incoming_connections_dirty: Cell<bool>,
@@ -28,6 +30,7 @@ impl Default for RenderGraph {
     fn default() -> Self {
         Self {
             nodes: NodeMap::default(),
+            nodes_finishing_tails: Vec::new(),
             destination_id: 0,
             current_quantum: Cell::new(0),
             incoming_connections_dirty: Cell::new(false),
@@ -37,6 +40,7 @@ impl Default for RenderGraph {
 
 impl RenderGraph {
     pub fn apply_control_messages(&mut self, messages: Vec<ControlMessage>) {
+        self.remove_nodes_whose_tails_have_played_out();
         for message in messages {
             match message {
                 ControlMessage::AddNode(add_node) => {
@@ -45,7 +49,14 @@ impl RenderGraph {
                     self.incoming_connections_dirty.set(true);
                 }
                 ControlMessage::RemoveNode(remove_node) => {
-                    if self.nodes.remove(&remove_node.node_id).is_some() {
+                    // A node that still has a tail keeps its connections and goes on rendering it, as nothing can
+                    // reach its AudioNode to stop it.
+                    let has_tail_remaining = self
+                        .node(remove_node.node_id)
+                        .is_some_and(|node| unsafe { node.node.has_tail_remaining() });
+                    if has_tail_remaining {
+                        self.nodes_finishing_tails.push(remove_node.node_id);
+                    } else if self.nodes.remove(&remove_node.node_id).is_some() {
                         self.incoming_connections_dirty.set(true);
                     }
                 }
@@ -78,6 +89,26 @@ impl RenderGraph {
                     }
                 }
             }
+        }
+    }
+
+    fn remove_nodes_whose_tails_have_played_out(&mut self) {
+        if self.nodes_finishing_tails.is_empty() {
+            return;
+        }
+        let nodes = &mut self.nodes;
+        let mut removed_any = false;
+        self.nodes_finishing_tails.retain(|node_id| {
+            let has_tail_remaining = nodes
+                .get(node_id)
+                .is_some_and(|node| unsafe { node.node.has_tail_remaining() });
+            if !has_tail_remaining {
+                removed_any |= nodes.remove(node_id).is_some();
+            }
+            has_tail_remaining
+        });
+        if removed_any {
+            self.incoming_connections_dirty.set(true);
         }
     }
 

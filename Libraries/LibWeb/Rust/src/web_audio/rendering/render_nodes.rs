@@ -98,6 +98,9 @@ pub(super) trait NodeProcessor: Send {
     fn take_ended_notification(&mut self) -> bool {
         false
     }
+    fn has_tail_remaining(&self) -> bool {
+        false
+    }
 }
 
 struct NativeRenderNode<T: NodeProcessor> {
@@ -126,6 +129,10 @@ impl<T: NodeProcessor> RenderNode for NativeRenderNode<T> {
 
     unsafe fn take_ended_notification(&self) -> bool {
         unsafe { &mut *self.processor.get() }.take_ended_notification()
+    }
+
+    unsafe fn has_tail_remaining(&self) -> bool {
+        unsafe { &*self.processor.get() }.has_tail_remaining()
     }
 }
 
@@ -1422,6 +1429,9 @@ struct ConvolverRenderNode {
     // per bin, and single precision loses too much of the quiet parts of the result.
     accumulator_real: Vec<f64>,
     accumulator_imag: Vec<f64>,
+
+    // How many quanta in a row have brought only silence, which tells how much of the tail is left to play.
+    silent_input_quanta: usize,
 }
 
 // Folds a second channel's history into the first the way down-mixing folds the channels themselves.
@@ -1440,9 +1450,25 @@ impl NodeProcessor for ConvolverRenderNode {
         }
     }
 
+    // The window and the delay line hold the last partition_count + 2 quanta of input, so the tail has played out once
+    // that many quanta of silence have gone through.
+    fn has_tail_remaining(&self) -> bool {
+        let Some(kernel) = &self.kernel else {
+            return false;
+        };
+        self.silent_input_quanta < kernel.partition_count() + 2
+    }
+
     unsafe fn process(&mut self, data: &RenderNodeData, graph: &RenderGraph, context: &RenderContext) {
         unsafe {
             let input = BusRef(data.pull_input(graph, context, 0).cast_mut());
+            let input_is_silent =
+                (0..input.channel_count()).all(|channel| input.channel(channel).iter().all(|sample| *sample == 0.));
+            self.silent_input_quanta = if input_is_silent {
+                self.silent_input_quanta.saturating_add(1)
+            } else {
+                0
+            };
             let convolver_output = BusRef(data.output(0));
             let input_channel_count = input
                 .channel_count()
@@ -2054,6 +2080,8 @@ pub fn create_convolver_render_node(node_id: u64, quantum_size: usize) -> Box<No
             transform_imag: vec![0.; 2 * quantum_size],
             accumulator_real: vec![0.; quantum_size + 1],
             accumulator_imag: vec![0.; quantum_size + 1],
+            // Nothing has come in yet, so there's no tail to play.
+            silent_input_quanta: usize::MAX,
         },
     )
 }
