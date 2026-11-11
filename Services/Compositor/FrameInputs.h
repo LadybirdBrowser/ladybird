@@ -81,6 +81,7 @@ struct LiveContentChanges {
     ReadonlySpan<Compositing::ImageFrameResourceId> image_frames;
     // What the compositor repaints whatever the lists hold, such as a blinking caret.
     Gfx::IntRect forced_damage_rect;
+    ReadonlySpan<u32> offsets_of_records_composited_as_media_layers;
 };
 
 // What a frame is painted with besides the display list and its resources, which the scroll and input logic holds:

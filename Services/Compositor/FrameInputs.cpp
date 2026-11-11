@@ -73,6 +73,7 @@ Optional<Gfx::IntRect> FrameInputs::damage_since(Compositing::DisplayList const&
         live_content_changes.video_sinks.data(), live_content_changes.video_sinks.size(),
         live_content_changes.image_frames.data(), live_content_changes.image_frames.size(),
         live_content_changes.forced_damage_rect,
+        live_content_changes.offsets_of_records_composited_as_media_layers.data(), live_content_changes.offsets_of_records_composited_as_media_layers.size(),
         &damage_rect);
     if (!damage_is_bounded)
         return {};

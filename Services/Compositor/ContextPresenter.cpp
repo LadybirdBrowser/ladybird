@@ -538,7 +538,7 @@ Gfx::IntRect ContextPresenter::damage_since_last_raster(Gfx::IntSize viewport_si
         last_frame.frame_inputs,
         *last_frame.display_list,
         viewport_rect,
-        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .image_frames = image_frames_with_new_pixels, .forced_damage_rect = forced_damage_rect });
+        { .canvases = canvases_with_new_content, .video_sinks = video_sinks_with_new_frames, .image_frames = image_frames_with_new_pixels, .forced_damage_rect = forced_damage_rect, .offsets_of_records_composited_as_media_layers = {} });
     if (!display_list_damage.has_value())
         return viewport_rect;
     return display_list_damage->intersected(viewport_rect);

@@ -384,11 +384,13 @@ pub unsafe extern "C" fn compositor_frame_inputs_replay_records(
 
 /// What a frame painted with `frame_inputs` repaints of the frame painted last, with `last_frame_inputs` and the list
 /// `last_display_list_storage` holds. Writes the damage rect through `damage_rect` and returns whether the damage is
-/// bounded; unbounded damage means the whole viewport must repaint.
+/// bounded; unbounded damage means the whole viewport must repaint. Live content changes do not damage the records at
+/// `offsets_of_records_composited_as_media_layers`.
 ///
 /// # Safety
 ///
-/// Both storages must be live storage handles, and the id pointers must address the stated number of ids for the call.
+/// Both storages must be live storage handles, and the id and offset pointers must address the stated number of
+/// values for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
     frame_inputs: &FrameInputs,
@@ -403,6 +405,8 @@ pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
     image_frames_with_new_pixels: *const ImageFrameResourceId,
     image_frames_with_new_pixels_len: usize,
     forced_damage_rect: IntRect,
+    offsets_of_records_composited_as_media_layers: *const u32,
+    offsets_of_records_composited_as_media_layers_len: usize,
     damage_rect: &mut IntRect,
 ) -> bool {
     // SAFETY: The caller guarantees live handles and valid slices for the duration of the call.
@@ -415,6 +419,10 @@ pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
                 video_sinks: ak::slice_from_raw_parts(video_sinks_with_new_frames, video_sinks_with_new_frames_len),
                 image_frames: ak::slice_from_raw_parts(image_frames_with_new_pixels, image_frames_with_new_pixels_len),
                 forced_damage_rect,
+                offsets_of_records_composited_as_media_layers: ak::slice_from_raw_parts(
+                    offsets_of_records_composited_as_media_layers,
+                    offsets_of_records_composited_as_media_layers_len,
+                ),
             },
         )
     };
