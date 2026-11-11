@@ -10,6 +10,8 @@ namespace WebView {
 
 Optional<PageBackingStores::Frame> PageBackingStores::displayed_frame() const
 {
+    if (m_frame_shown_in_remote_layer.has_value())
+        return Frame { nullptr, m_frame_shown_in_remote_layer->size, m_frame_shown_in_remote_layer->device_pixel_ratio, {} };
     if (m_has_usable_front_bitmap)
         return Frame { m_front_bitmap.shared_image_buffer.ptr(), m_front_bitmap.last_painted_size.to_type<int>(), m_front_bitmap.last_painted_device_pixel_ratio, m_front_bitmap.id };
     if (m_has_backup)
@@ -34,6 +36,7 @@ Vector<Gfx::SharedImageBuffer const*> PageBackingStores::shared_image_buffers() 
 void PageBackingStores::track_installed_backing_stores(ReadonlySpan<i32> bitmap_ids)
 {
     VERIFY(!bitmap_ids.is_empty());
+    m_frame_shown_in_remote_layer = {};
 
     // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
     PageBackingStores::keep_front_as_backup();
@@ -89,6 +92,12 @@ PageBackingStores::PresentationResult PageBackingStores::present(i32 bitmap_id, 
     swap(m_other_bitmaps[*bitmap_index], m_front_bitmap);
     PageBackingStores::clear_backup();
     return { .did_swap = true, .bitmap_id_to_release = previous_front_bitmap_id };
+}
+
+void PageBackingStores::present_frame_shown_in_remote_layer(Gfx::IntSize size, double device_pixel_ratio)
+{
+    m_frame_shown_in_remote_layer = FrameShownInRemoteLayer { size, device_pixel_ratio };
+    PageBackingStores::clear_backup();
 }
 
 void PageBackingStores::keep_front_as_backup()

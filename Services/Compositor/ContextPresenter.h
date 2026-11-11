@@ -91,6 +91,8 @@ public:
     void acknowledge_all_presented_bitmaps() { m_backing_store_manager.release_all_presented_buffers(); }
     void did_finish_gpu_present(i32 bitmap_id);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
+    Gfx::SharedImageBuffer const* shared_image_buffer_of_latest_rendered_store() const { return m_backing_store_manager.shared_image_buffer_of_latest_rendered_store(); }
+    BackingStoreManager::PublicationMode backing_store_publication_mode() const { return m_backing_store_manager.publication_mode(); }
 
     bool update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
     CompositedContextSurface composited_surface() const;

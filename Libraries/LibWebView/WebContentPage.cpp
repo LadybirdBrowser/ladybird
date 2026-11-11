@@ -585,6 +585,12 @@ void WebContentPage::did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect 
     release_presented_bitmap(bitmap_id);
 }
 
+void WebContentPage::did_present_frame_in_remote_layer(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio)
+{
+    if (displays_tab())
+        view().server_did_present_frame_in_remote_layer({}, content_rect.size(), damage_rect, device_pixel_ratio);
+}
+
 void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), m_id);

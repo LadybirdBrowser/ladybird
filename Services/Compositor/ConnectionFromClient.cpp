@@ -90,6 +90,26 @@ void ConnectionFromClient::bind_presentation(Web::CompositorContextId context_id
     m_compositor_state->bind_presentation(context_id, **connection);
 }
 
+Messages::CompositorControlServer::CreateRemoteLayerResponse ConnectionFromClient::create_remote_layer(u64 presentation_id, u64 remote_layer_id)
+{
+    auto connection = m_presentation_connections.get(presentation_id);
+    if (!connection.has_value()) {
+        dbgln("Compositor: Ignoring remote layer {} for presentation {}, which is already gone", remote_layer_id, presentation_id);
+        return 0u;
+    }
+    return m_compositor_state->create_remote_layer(**connection, remote_layer_id);
+}
+
+void ConnectionFromClient::destroy_remote_layer(u64 remote_layer_id)
+{
+    m_compositor_state->destroy_remote_layer(remote_layer_id);
+}
+
+void ConnectionFromClient::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id)
+{
+    m_compositor_state->show_context_in_remote_layer(remote_layer_id, context_id);
+}
+
 void ConnectionFromClient::create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
 {
     auto* connection = web_content_connection(web_content_connection_id);

@@ -442,6 +442,14 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
         on_ready_to_paint();
 }
 
+void ViewImplementation::server_did_present_frame_in_remote_layer(Badge<WebContentPage>, Gfx::IntSize size, Gfx::IntRect, double device_pixel_ratio)
+{
+    m_backing_stores->present_frame_shown_in_remote_layer(size, device_pixel_ratio);
+    if (m_crash_state.has_value() && m_crash_state->recovery_started)
+        set_crash_state({});
+    TabPerformanceMonitor::did_present(view_id());
+}
+
 void ViewImplementation::release_backing_store(i32 bitmap_id)
 {
     page().release_presented_bitmap(bitmap_id);

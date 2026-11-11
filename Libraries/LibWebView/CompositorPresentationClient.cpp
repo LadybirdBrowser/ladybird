@@ -70,6 +70,12 @@ static WebContentPage* page_for_compositor_context_id(Web::CompositorContextId c
     return web_content_client->page(*page_id);
 }
 
+void CompositorPresentationClient::did_present_frame_in_remote_layer(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_present_frame_in_remote_layer(content_rect, damage_rect, device_pixel_ratio);
+}
+
 void CompositorPresentationClient::did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     if (auto* page = page_for_compositor_context_id(context_id))

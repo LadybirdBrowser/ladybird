@@ -55,6 +55,9 @@ public:
     // Makes the backing store with this ID the front backing store, unless it is no longer one of ours.
     virtual PresentationResult present(i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
 
+    // Records a frame that the Compositor shows itself, in a remote layer, rather than in one of these backing stores.
+    void present_frame_shown_in_remote_layer(Gfx::IntSize, double device_pixel_ratio);
+
     // Keeps the frame on display, so there is something to show until a new frame arrives.
     virtual void keep_front_as_backup();
     virtual void clear_backup();
@@ -80,6 +83,12 @@ private:
     bool m_has_usable_front_bitmap { false };
     SharedBitmap m_backup;
     bool m_has_backup { false };
+
+    struct FrameShownInRemoteLayer {
+        Gfx::IntSize size;
+        double device_pixel_ratio { 1.0 };
+    };
+    Optional<FrameShownInRemoteLayer> m_frame_shown_in_remote_layer;
 };
 
 }
