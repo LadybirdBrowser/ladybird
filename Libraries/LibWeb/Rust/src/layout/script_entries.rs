@@ -105,9 +105,9 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
         FfiCssPixelRect,
     ) -> FfiCssPixelRect,
     out: &mut FfiCssPixelRect,
-) {
+) -> bool {
     let viewport_mapping = viewport_mapping.resolve();
-    *out = read_rows(host, |arena| {
+    let intersection_rect = read_rows(host, |arena| {
         crate::painting::intersection_observer::intersection_rect(
             arena,
             target,
@@ -120,8 +120,9 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
                 unsafe { inflate_scroll_container_clip_rect_by_scroll_margin(context, clip_rect.into()) }.into()
             },
         )
-        .into()
     });
+    *out = intersection_rect.unwrap_or_default().into();
+    intersection_rect.is_some()
 }
 
 #[unsafe(no_mangle)]

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="help" href="https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-scrollmargin">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/intersection-observer-test-utils.js"></script>
+
+<style>
+#scroller { width: 100px; height: 100px; overflow: hidden; background-color: gray; }
+#scroller2 { width: 130px; height: 130px; overflow: hidden; }
+#spacer { width: 50px; height: 100px; }
+#target { width: 50px; height: 50px; background-color: green; }
+</style>
+
+<div id=scroller2>
+  <div id=scroller>
+    <div id=spacer></div>
+    <div id=target></div>
+  </div>
+</div>
+
+<script>
+let entries = [];
+
+window.onload = function() {
+  runTestCycle(testIntersection, "Test scroll margin intersection");
+
+  const observer = new IntersectionObserver(
+    es => entries = entries.concat(es),
+    {
+      scrollMargin: "10px"
+    }
+  );
+  observer.observe(target);
+};
+
+function testIntersection() {
+  assert_equals(entries.length, 1, "IntersectionObserverEntryCount");
+  assert_true(entries[0].isIntersecting, "isIntersecting");
+  assert_approx_equals(entries[0].intersectionRatio, 0.2, 0.001, "intersectionRatio");
+}
+</script>
