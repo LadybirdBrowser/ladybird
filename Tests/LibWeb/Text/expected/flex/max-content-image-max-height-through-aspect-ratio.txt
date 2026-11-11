@@ -1,0 +1,4 @@
+flex-row: container 20.8, image 20.8
+block: container 20.8, image 20.8
+flex-column: container 20.8, image 20.8
+inline-flex: container 20.8, image 20.8

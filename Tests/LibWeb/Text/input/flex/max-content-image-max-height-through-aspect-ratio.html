@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    .container { position: absolute; left: 0; max-width: 300px; font: 16px sans-serif; }
+    .flex { display: flex; align-items: center; }
+    img { max-height: 24px; width: auto; display: block; }
+</style>
+<div class="container" id="flex-row" style="top: 0"><div class="flex"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='346.7' height='400'/%3E"></div></div>
+<div class="container" id="block" style="top: 60px"><div><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='346.7' height='400'/%3E"></div></div>
+<div class="container" id="flex-column" style="top: 120px"><div class="flex" style="flex-direction: column"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='346.7' height='400'/%3E"></div></div>
+<div class="container" id="inline-flex" style="top: 180px"><span style="display: inline-flex"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='346.7' height='400'/%3E"></span></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            for (const container of document.querySelectorAll(".container")) {
+                const image = container.querySelector("img");
+                println(`${container.id}: container ${container.getBoundingClientRect().width.toFixed(1)}, image ${image.getBoundingClientRect().width.toFixed(1)}`);
+            }
+            done();
+        };
+    });
+</script>
