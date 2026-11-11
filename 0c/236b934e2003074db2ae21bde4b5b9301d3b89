@@ -1,0 +1,27 @@
+Ladybird keeps the enclosing block in the containing-block chain of
+an absolutely positioned descendant of a positioned inline. Painting
+and hit-testing inherit the clips at that inline, so an overflow clip
+outside the inline clips the descendant. A position: relative inline
+doesn’t contain fixed-position descendants, though.
+
+Blink locates the positioned inline ancestor with LayoutObject::
+ContainerForAbsolutePosition(), then resolves its enclosing block in
+ContainingBlockForAbsolutePosition() via InclusiveContainingBlock().
+Its paint property builder, FragmentPaintPropertyTreeBuilder, saves
+that inline’s current context in UpdateOutOfFlowContext() whenever
+CanContainAbsolutePositionObjects() is true. So, its absolute children
+inherit the inline’s clip chain, matching Ladybird’s behavior.
+
+WebKit’s RenderObject::containingBlockForPositionType() finds the
+ancestor that can contain absolutely positioned objects, then uses
+its enclosing block. RenderLayer::calculateClipRects() gives an
+in-flow positioned renderer’s overflow clip to its abspos descendants.
+So, its positioned inlines preserve the clipping ancestor’s clip too.
+
+Gecko makes a positioned inline an absolute containing block in
+nsCSSFrameConstructor::ConstructInline(). Its display-list builder
+records the containing block’s clip chain for out-of-flow descendants
+in nsDisplayListBuilder::MarkFramesForDisplayList(), via the clip
+state’s GetClipChainForContainingBlockDescendants(). The containing
+inline therefore preserves its ancestor’s overflow clip, which is the
+same clipping behavior Ladybird applies.
