@@ -259,8 +259,10 @@ An explicitly selected row remains selected across a refresh of the same generat
 with the same destination still exists. If it disappears, its preview is removed. Automatic
 selection is recalculated separately.
 
-Enter never waits for suggestions. If the displayed rows belong to an older query generation, the
-current input is immediately committed through normal URL-or-search resolution.
+Enter never waits for suggestions. If the displayed rows belong to an older query generation, Enter
+goes to the inline completion on display, since every key press checks that it still extends the
+text as typed. Without one, the current input is immediately committed through normal
+URL-or-search resolution. Either way, Enter goes where the field shows, however soon it is pressed.
 
 ## Persistence and deletion
 

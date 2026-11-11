@@ -262,17 +262,24 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
     if (had_preview)
         m_user_rejected_completion = true;
 
+    auto kept_completion = false;
     if (!completion_is_suppressed() && !m_is_suspended && previous_completion_suggestion.has_value()) {
         if (suggestion_matches_query_exactly(m_query, *previous_completion_suggestion)) {
             // The user typed out the whole suggestion; there is nothing left to complete.
         } else if (auto completion = inline_completion_for_suggestion(m_query, *previous_completion_suggestion); !completion.is_empty()) {
             // The user typed further into the completion; keep it.
             apply_completion(previous_completion_suggestion.release_value(), move(completion));
+            kept_completion = true;
         } else {
             // The user typed over the completion; Enter must now submit the text as typed.
             m_user_rejected_completion = true;
         }
     }
+
+    // NB: Editing drops a row the user chose, unless they typed further into its completion. This comes last, since the
+    //     chrome reads where Return goes when told.
+    if (selection_is_explicit() && !kept_completion)
+        set_selection({});
 
     start_query();
 }
@@ -537,8 +544,9 @@ void Omnibox::return_pressed()
         return;
     }
 
-    if (suggestion_index_for_return().has_value()) {
-        activate_selected_suggestion();
+    if (auto index = suggestion_index_for_return(); index.has_value()) {
+        auto was_explicit = selection_is_explicit() && m_selection->index == *index;
+        commit_suggestion(*index, true, was_explicit);
         return;
     }
 
@@ -550,8 +558,19 @@ void Omnibox::return_pressed()
 
 Optional<size_t> Omnibox::suggestion_index_for_return() const
 {
-    if (!m_popup_visible || !m_selection.has_value())
+    if (!m_popup_visible)
         return {};
+
+    // NB: Every key press checks that a completion on display still extends the text, so Return goes to it even
+    //     while rows load.
+    auto index_of_completion_on_display = [&] -> Optional<size_t> {
+        if (is_inline_completed() && m_completion_suggestion.has_value())
+            return index_of_suggestion(*m_completion_suggestion, m_suggestions);
+        return {};
+    };
+
+    if (!m_selection.has_value())
+        return index_of_completion_on_display();
 
     if (selection_is_explicit())
         return m_selection->index;
@@ -572,7 +591,7 @@ Optional<size_t> Omnibox::suggestion_index_for_return() const
     // stale, commit the exact current input through the browser's normal URL-or-search resolution.
     if (m_popup_query_id == m_active_query_id)
         return m_selection->index;
-    return {};
+    return index_of_completion_on_display();
 }
 
 Optional<AutocompleteSuggestion const&> Omnibox::suggestion_for_return() const
@@ -678,19 +697,6 @@ void Omnibox::display_suggestion(size_t suggestion_index)
     apply_preview(suggestion_text);
 }
 
-void Omnibox::activate_selected_suggestion()
-{
-    if (m_selection.has_value()) {
-        auto was_explicit = m_selection->origin == Selection::Origin::ExplicitChoice;
-        commit_suggestion(m_selection->index, true, was_explicit);
-        return;
-    }
-
-    restore_query_display();
-    close_popup();
-    commit_verbatim(m_query);
-}
-
 void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_engagement, bool was_explicit)
 {
     auto suggestion = m_suggestions[suggestion_index];
@@ -779,12 +785,6 @@ Omnibox::EditingIcon Omnibox::editing_icon() const
     if (m_query_classification->is_search)
         return search_icon;
     return { .kind = EditingIcon::Kind::Page, .favicon_png = {} };
-}
-
-bool Omnibox::should_keep_editing_icon() const
-{
-    // NB: After the user chose a row, or typed over or deleted a completion, the icon already shows where Return goes.
-    return has_pending_suggestions() && !m_display_text.is_empty() && !selection_is_explicit() && !m_user_rejected_completion;
 }
 
 Optional<String> Omnibox::completion_title() const

@@ -48,11 +48,12 @@ public:
 //                      selected. The query is retained and restored when the popup goes away.
 //
 // The invariant that makes Enter trustworthy: a selected row is activated only when it belongs to the
-// current query generation or the user selected it explicitly. When results lag behind fast typing, Enter
-// immediately commits the current input through the browser's normal URL-or-search resolution. It never
-// waits for a provider response that may arrive after the user's intent has changed. After the user rejects
-// a completion, the row for the text as typed is activated even from older rows for the same text, as it
-// goes where that text goes.
+// current query generation, the user selected it explicitly, or it is the inline completion on display.
+// After the user rejects a completion, the row for the text as typed is activated even from older rows
+// for the same text, as it goes where that text goes.
+// When results lag behind fast typing, Enter otherwise commits the current input through the browser's
+// normal URL-or-search resolution. It never waits for a provider response that may arrive after the
+// user's intent has changed.
 class WEBVIEW_API Omnibox {
     AK_MAKE_NONCOPYABLE(Omnibox);
     AK_MAKE_NONMOVABLE(Omnibox);
@@ -128,9 +129,6 @@ public:
         Optional<ByteBuffer const&> favicon_png;
     };
     EditingIcon editing_icon() const;
-    // Each key press asks for new suggestions, and until they arrive, Return would go to the text as typed. The icon
-    // stays as it is meanwhile, rather than flickering on each key, unless Return goes to the text as typed anyway.
-    bool should_keep_editing_icon() const;
 
     // Callbacks to the chrome:
     Function<void(Display const&)> on_display_change;
@@ -174,7 +172,6 @@ private:
     bool select_adjacent_suggestion(StepDirection);
     void highlight_suggestion(size_t suggestion_index, Selection::Origin);
     void display_suggestion(size_t suggestion_index);
-    void activate_selected_suggestion();
     void move_typed_text_row_to_front(Vector<AutocompleteSuggestion>&) const;
     bool return_goes_to_typed_text_regardless_of_suggestions() const;
     Optional<size_t> suggestion_index_for_return() const;
