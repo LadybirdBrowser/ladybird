@@ -19,10 +19,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::Canvas;
 use crate::html::image_bitmap::ImageBitmap;
 
-unsafe extern "C" {
-    fn web_image_bitmap_frame_size_in_bytes(frame: *const c_void) -> usize;
-}
-
 /// https://html.spec.whatwg.org/multipage/canvas.html#concept-imagebitmaprenderingcontext-bitmap-mode
 enum BitmapMode {
     /// The output bitmap is a default transparent bitmap, of the size of the canvas.
@@ -59,8 +55,7 @@ impl Wrappable for ImageBitmapRenderingContext {
     fn external_memory_size(&self) -> usize {
         // NB: LibGC asks while it sweeps, when nothing borrows the bitmap mode mutably.
         match self.bitmap_mode.try_borrow().as_deref() {
-            // SAFETY: The frame is live for as long as the context holds it.
-            Ok(BitmapMode::Valid(Some(frame))) => unsafe { web_image_bitmap_frame_size_in_bytes(frame.as_raw()) },
+            Ok(BitmapMode::Valid(Some(frame))) => frame.size_in_bytes(),
             _ => 0,
         }
     }
