@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect};
 use crate::display_list::ffi_bytes::FfiBytes;
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
@@ -12,7 +11,6 @@ use libgfx_rust::*;
 
 // The layout of records and runs on the tape, which only Rust reads.
 pub use super::tape::*;
-pub use crate::visual_context::CompositorScrollNodeKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -45,15 +43,12 @@ pub enum DisplayListCommandType {
     PaintNestedDisplayList,
     DrawIsolatedGroup,
     DeclareMaskContent,
-    CompositorScrollNode,
     CompositorWheelHitTestTarget,
     CompositorWheelHitTestTargetWithCornerRadii,
     CompositorMainThreadWheelEventRegion,
     CompositorScrollbar,
     CompositorBlockingWheelEventRegion,
     PaintScrollBar,
-    CompositorSnapContainer,
-    CompositorSnapArea,
     CompositorNestedContextWheelRegion,
     Canvas2DFillPath,
     Canvas2DStrokePath,
@@ -87,14 +82,11 @@ impl DisplayListCommandType {
     pub const fn is_compositor_metadata(self) -> bool {
         matches!(
             self,
-            Self::CompositorScrollNode
-                | Self::CompositorWheelHitTestTarget
+            Self::CompositorWheelHitTestTarget
                 | Self::CompositorWheelHitTestTargetWithCornerRadii
                 | Self::CompositorMainThreadWheelEventRegion
                 | Self::CompositorScrollbar
                 | Self::CompositorBlockingWheelEventRegion
-                | Self::CompositorSnapContainer
-                | Self::CompositorSnapArea
                 | Self::CompositorNestedContextWheelRegion
         )
     }
@@ -153,15 +145,12 @@ impl DisplayListCommandType {
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
             Self::DrawIsolatedGroup => "DrawIsolatedGroup",
             Self::DeclareMaskContent => "DeclareMaskContent",
-            Self::CompositorScrollNode => "CompositorScrollNode",
             Self::CompositorWheelHitTestTarget => "CompositorWheelHitTestTarget",
             Self::CompositorWheelHitTestTargetWithCornerRadii => "CompositorWheelHitTestTargetWithCornerRadii",
             Self::CompositorMainThreadWheelEventRegion => "CompositorMainThreadWheelEventRegion",
             Self::CompositorScrollbar => "CompositorScrollbar",
             Self::CompositorBlockingWheelEventRegion => "CompositorBlockingWheelEventRegion",
             Self::PaintScrollBar => "PaintScrollBar",
-            Self::CompositorSnapContainer => "CompositorSnapContainer",
-            Self::CompositorSnapArea => "CompositorSnapArea",
             Self::CompositorNestedContextWheelRegion => "CompositorNestedContextWheelRegion",
             Self::Canvas2DFillPath => "Canvas2DFillPath",
             Self::Canvas2DStrokePath => "Canvas2DStrokePath",
@@ -1480,105 +1469,6 @@ impl DisplayListCommand for DeclareMaskContent {
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.rect)
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct CompositorScrollNode {
-    pub scrollable_node_id: UniqueNodeId,
-    pub scroll_node_index: SpatialNodeIndex,
-    pub parent_scroll_node_index: SpatialNodeIndex,
-    pub scrollport_rect: IntRect,
-    pub min_scroll_offset: FloatPoint,
-    pub max_scroll_offset: FloatPoint,
-    pub scroll_node_kind: CompositorScrollNodeKind,
-    pub pseudo_element_type: u8,
-    pub is_viewport: bool,
-    pub can_be_wheel_scrolled_horizontally: bool,
-    pub can_be_wheel_scrolled_vertically: bool,
-    /// Whether a scroll the scroller cannot scroll by is passed on to the scrollers around it.
-    pub chains_scroll_to_ancestors_horizontally: bool,
-    pub chains_scroll_to_ancestors_vertically: bool,
-    /// Whether a touchpad may pull the scroller past the edges of its scroll range.
-    pub shows_overscroll_effect_horizontally: bool,
-    pub shows_overscroll_effect_vertically: bool,
-}
-ffi_bytes_fields!(CompositorScrollNode {
-    scrollable_node_id,
-    scroll_node_index,
-    parent_scroll_node_index,
-    scrollport_rect,
-    min_scroll_offset,
-    max_scroll_offset,
-    scroll_node_kind,
-    pseudo_element_type,
-    is_viewport,
-    can_be_wheel_scrolled_horizontally,
-    can_be_wheel_scrolled_vertically,
-    chains_scroll_to_ancestors_horizontally,
-    chains_scroll_to_ancestors_vertically,
-    shows_overscroll_effect_horizontally,
-    shows_overscroll_effect_vertically
-});
-
-impl DisplayListCommand for CompositorScrollNode {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorScrollNode;
-}
-
-/// The geometry snap position selection runs over for a scroll node that is a snap container. In CSS
-/// pixels so that the compositor selects the same position the main thread would.
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct CompositorSnapContainer {
-    pub scroll_node_index: SpatialNodeIndex,
-    pub snapport: FfiCssPixelRect,
-    pub min_scroll_offset: FfiCssPixelPoint,
-    pub max_scroll_offset: FfiCssPixelPoint,
-    pub strictness: u8,
-    pub snaps_x: bool,
-    pub snaps_y: bool,
-    pub horizontal_writing_mode: bool,
-}
-ffi_bytes_fields!(CompositorSnapContainer {
-    scroll_node_index,
-    snapport,
-    min_scroll_offset,
-    max_scroll_offset,
-    strictness,
-    snaps_x,
-    snaps_y,
-    horizontal_writing_mode
-});
-
-impl DisplayListCommand for CompositorSnapContainer {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorSnapContainer;
-}
-
-/// A snap area of the snap container recorded before it: the transformed border box with the scroll
-/// margin added, in the container's coordinate space, and the alignment along each physical axis.
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct CompositorSnapArea {
-    pub scroll_node_index: SpatialNodeIndex,
-    pub area_node_id: UniqueNodeId,
-    pub pseudo_element_type: u8,
-    pub rect: FfiCssPixelRect,
-    pub align_x: u8,
-    pub align_y: u8,
-    pub always_stop: bool,
-}
-ffi_bytes_fields!(CompositorSnapArea {
-    scroll_node_index,
-    area_node_id,
-    pseudo_element_type,
-    rect,
-    align_x,
-    align_y,
-    always_stop
-});
-
-impl DisplayListCommand for CompositorSnapArea {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorSnapArea;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

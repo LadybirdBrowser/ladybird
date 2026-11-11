@@ -1434,10 +1434,6 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
     canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(CompositorScrollNode const&)
-{
-}
-
 void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTarget const&)
 {
 }
@@ -1455,14 +1451,6 @@ void DisplayListPlayerSkia::play_command(CompositorScrollbar const&)
 }
 
 void DisplayListPlayerSkia::play_command(CompositorBlockingWheelEventRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorSnapContainer const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorSnapArea const&)
 {
 }
 
