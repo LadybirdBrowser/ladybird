@@ -359,7 +359,6 @@ set(SOURCES
     Geometry/DOMRectList.cpp
     Geometry/DOMRectReadOnly.cpp
     GPC/GlobalPrivacyControl.cpp
-    HighResolutionTime/Performance.cpp
     HighResolutionTime/TimeOrigin.cpp
     HTML/AbstractWorker.cpp
     HTML/BitmapDecodedImageData.cpp
@@ -733,10 +732,7 @@ set(SOURCES
     Painting/ScrollSnap.cpp
     Painting/SvgPaintResources.cpp
     PerformanceTimeline/EntryTypes.cpp
-    PerformanceTimeline/EventNames.cpp
     PerformanceTimeline/PerformanceEntry.cpp
-    PerformanceTimeline/PerformanceObserver.cpp
-    PerformanceTimeline/PerformanceObserverEntryList.cpp
     PermissionsAPI/Permissions.cpp
     PermissionsAPI/PermissionStore.cpp
     PermissionsAPI/PermissionStatus.cpp

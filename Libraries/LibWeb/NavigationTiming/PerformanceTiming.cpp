@@ -6,11 +6,19 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/NavigationTiming/EntryNames.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 
 namespace Web::NavigationTiming {
+
+extern "C" {
+PerformanceTiming* web_navigation_timing_performance_timing_create(HTML::Window*);
+bool web_navigation_timing_is_performance_timing_attribute(FlatPtr name);
+u64 web_navigation_timing_performance_timing_attribute(PerformanceTiming*, FlatPtr name);
+}
 
 GC_DEFINE_ALLOCATOR(PerformanceTiming);
 
@@ -271,6 +279,36 @@ u64 PerformanceTiming::load_event_end() const
     // This attribute must return the time when the load event of the current document is completed. It must return
     // zero when the load event is not fired or is not completed.
     return relative_timestamp_to_wall_time_milliseconds(document().load_timing_info().load_event_end_time);
+}
+
+extern "C" {
+
+PerformanceTiming* web_navigation_timing_performance_timing_create(HTML::Window* window)
+{
+    return PerformanceTiming::create(*window).ptr();
+}
+
+bool web_navigation_timing_is_performance_timing_attribute(FlatPtr name)
+{
+    auto attribute_name = Utf16String::from_raw(name);
+#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(camel_case_name, _)       \
+    if (attribute_name.utf16_view() == EntryNames::camel_case_name.view()) \
+        return true;
+    ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
+#undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
+    return false;
+}
+
+u64 web_navigation_timing_performance_timing_attribute(PerformanceTiming* timing, FlatPtr name)
+{
+    auto attribute_name = Utf16String::from_raw(name);
+#define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(camel_case_name, snake_case_name) \
+    if (attribute_name.utf16_view() == EntryNames::camel_case_name.view())         \
+        return timing->snake_case_name();
+    ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
+#undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
+    VERIFY_NOT_REACHED();
+}
 }
 
 }

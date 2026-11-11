@@ -5,8 +5,10 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/PerformanceMark.h>
+#include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
@@ -16,6 +18,10 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::UserTiming {
+
+extern "C" {
+JSCompletion web_user_timing_performance_mark_create(JSObject* global_object, FlatPtr mark_name, bool has_detail, JSValue detail, bool has_start_time, double start_time, PerformanceTimeline::PerformanceEntry** entry);
+}
 
 GC_DEFINE_ALLOCATOR(PerformanceMark);
 
@@ -103,6 +109,25 @@ void PerformanceMark::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_detail);
+}
+
+extern "C" {
+
+JSCompletion web_user_timing_performance_mark_create(JSObject* global_object, FlatPtr mark_name, bool has_detail, JSValue detail, bool has_start_time, double start_time, PerformanceTimeline::PerformanceEntry** entry)
+{
+    auto& relevant_global_object = *JS::HostABI::object_from_abi(global_object);
+    auto& realm = HTML::relevant_realm(relevant_global_object);
+    Bindings::PerformanceMarkOptions mark_options;
+    if (has_detail)
+        mark_options.detail = JS::HostABI::value_from_abi(detail);
+    if (has_start_time)
+        mark_options.start_time = start_time;
+    auto result = PerformanceMark::create_for_constructor(relevant_global_object, Utf16String::from_raw(mark_name), mark_options);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(realm, result.release_error());
+    *entry = result.release_value().ptr();
+    return Bindings::completion_to_abi(realm, JS::js_undefined());
+}
 }
 
 }

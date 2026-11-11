@@ -75,23 +75,4 @@ private:
     WebIDL::UnsignedLongLong m_interaction_id { 0 };
 };
 
-// NOTE: These two functions are answered by the registry for the given entry type.
-// https://w3c.github.io/timing-entrytypes-registry/#registry
-// NB: PerformanceEventTiming objects have one of two entry types, which the registry answers for separately.
-struct EventEntryTypeRegistry {
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-availablefromtimeline
-    static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::No; }
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-maxbuffersize
-    static Optional<u64> max_buffer_size() { return 150; }
-};
-
-struct FirstInputEntryTypeRegistry {
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-availablefromtimeline
-    static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::Yes; }
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-maxbuffersize
-    static Optional<u64> max_buffer_size() { return 1; }
-};
-
 }

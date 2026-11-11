@@ -23,16 +23,6 @@ public:
 
     [[nodiscard]] static GC::Ref<PerformanceMeasure> create(Utf16String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail);
 
-    // NOTE: These three functions are answered by the registry for the given entry type.
-    // https://w3c.github.io/timing-entrytypes-registry/#registry
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-availablefromtimeline
-    static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::Yes; }
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-maxbuffersize
-    // NOTE: The empty state represents Infinite size.
-    static Optional<u64> max_buffer_size() { return OptionalNone {}; }
-
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
     virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
 

@@ -18,7 +18,6 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -29,6 +28,11 @@
 #include <LibWeb/UIEvents/PointerEvent.h>
 
 namespace Web::EventTiming {
+
+extern "C" {
+EventCounts* web_event_timing_event_counts(HTML::Window*);
+u64 web_event_timing_interaction_count(HTML::Window*);
+}
 
 WindowEventTimingState::WindowEventTimingState()
     // NB: The user interaction value is initially set to a random integer between 100 and 10000.
@@ -44,6 +48,27 @@ void WindowEventTimingState::visit_edges(GC::Cell::Visitor& visitor)
     for (auto& it : pending_pointer_downs)
         visitor.visit(it.value);
     visitor.visit(event_counts);
+}
+
+GC::Ref<EventCounts> event_counts(HTML::Window& window)
+{
+    auto& event_counts = window.event_timing_state().event_counts;
+    if (!event_counts)
+        event_counts = EventCounts::create();
+    return *event_counts;
+}
+
+extern "C" {
+
+EventCounts* web_event_timing_event_counts(HTML::Window* window)
+{
+    return event_counts(*window).ptr();
+}
+
+u64 web_event_timing_interaction_count(HTML::Window* window)
+{
+    return window->event_timing_state().interaction_count;
+}
 }
 
 void for_each_event_type_considered_for_event_timing(Function<void(Utf16FlyString const&)> const& callback)
@@ -518,7 +543,7 @@ static void set_event_timing_entry_duration(PerformanceEventTiming& timing_entry
     // 1. Let eventCounts be window's eventCounts.
     // 2. Assert that eventCounts contains name.
     // 3. Set eventCounts[name] to eventCounts[name] + 1.
-    window.performance()->event_counts()->increment(name);
+    event_counts(window)->increment(name);
 
     // 6. If window's has dispatched input event is false, and timingEntry's interactionId is not 0, run the following
     //    steps:

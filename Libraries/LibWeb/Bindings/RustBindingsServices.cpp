@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -95,6 +96,7 @@ void web_bindings_push_element_queue();
 void web_bindings_pop_element_queue_and_invoke_reactions();
 bool web_bindings_realm_is_window(void* realm);
 bool web_bindings_realm_is_secure_context(void* realm);
+void web_bindings_report_an_exception(void* realm, JSValue exception);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
 void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTML::Window*));
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
@@ -107,6 +109,7 @@ URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
 JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject*);
+JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSettingsObject*);
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
@@ -156,6 +159,11 @@ void* web_css_realm_document(void* realm)
 bool web_bindings_realm_is_secure_context(void* realm)
 {
     return HTML::is_secure_context(principal_host_defined_environment_settings_object(*static_cast<JS::Realm*>(realm)));
+}
+
+void web_bindings_report_an_exception(void* realm, JSValue exception)
+{
+    HTML::report_exception(JS::throw_completion(JS::HostABI::value_from_abi(exception)), *static_cast<JS::Realm*>(realm));
 }
 
 void web_bindings_push_element_queue()
@@ -230,6 +238,11 @@ HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject*
 JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject* settings_object)
 {
     return JS::HostABI::object_to_abi(&settings_object->global_object());
+}
+
+JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSettingsObject* settings_object)
+{
+    return &settings_object->realm();
 }
 
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject* settings_object, void* ctx, void (*on_id)(void*, ReadonlyBytes))
@@ -346,6 +359,7 @@ void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, 
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
 static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
 static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
+static_assert(to_underlying(HTML::Task::Source::PerformanceTimeline) == 15);
 static_assert(to_underlying(HTML::Task::Source::Crypto) == 27);
 static_assert(to_underlying(HTML::Task::Source::Storage) == 29);
 

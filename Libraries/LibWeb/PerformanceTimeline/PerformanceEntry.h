@@ -8,17 +8,13 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
 
-using PerformanceObserverInit = Bindings::PerformanceObserverInit;
-
-enum class AvailableFromTimeline {
-    No,
-    Yes,
+struct PerformanceObserverInit {
+    Optional<HighResolutionTime::DOMHighResTimeStamp> duration_threshold;
 };
 
 enum class ShouldAddEntry {
