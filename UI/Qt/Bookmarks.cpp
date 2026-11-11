@@ -263,6 +263,12 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
                     .target_folder_id = item.id,
                 });
 
+                if (folder.children.is_empty()) {
+                    auto empty_folder_action = Action::create("(Empty)"sv, ActionID::EmptyBookmarkFolder, [] { });
+                    empty_folder_action->set_enabled(false);
+                    submenu->add_action(move(empty_folder_action));
+                }
+
                 // A folder's menu ends with a way to open every bookmark in it at once.
                 size_t bookmark_count = 0;
                 for (auto const& child : folder.children)
