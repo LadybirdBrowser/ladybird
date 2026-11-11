@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 272 tests
+Found 273 tests
 
-254 Pass
-18 Fail
+266 Pass
+7 Fail
 Pass	Simplest possible test ("<div>abc")
 Pass	Leading whitespace removed ("<div> abc")
 Pass	Trailing whitespace removed ("<div>abc ")
@@ -134,28 +134,29 @@ Pass	<svg> text contents preserved ("<div><svg><text>abc</text></svg></div>")
 Pass	<svg><defs> text contents ignored ("<div><svg><defs><text>abc</text></defs></svg></div>")
 Pass	<svg> non-rendered text ignored ("<div><svg><stop>abc</stop></svg></div>")
 Pass	<foreignObject> contents preserved ("<svg><foreignObject><span id='target'>abc</span></foreignObject></svg>")
-Fail	<select size='1'> contents of options preserved ("<select size='1'><option>abc</option><option>def")
-Fail	<select size='2'> contents of options preserved ("<select size='2'><option>abc</option><option>def")
+Pass	<select size='1'> contents of options preserved ("<select size='1'><option>abc</option><option>def")
+Pass	<select size='2'> contents of options preserved ("<select size='2'><option>abc</option><option>def")
 Pass	<select size='1'> contents of target option preserved ("<select size='1'><option id='target'>abc</option><option>def")
 Pass	<select size='2'> contents of target option preserved ("<select size='2'><option id='target'>abc</option><option>def")
 Pass	empty <select> ("<div>a<select></select>bc")
-Fail	empty <optgroup> in <select> ("<div>a<select><optgroup></select>bc")
-Fail	empty <option> in <select> ("<div>a<select><option></select>bc")
+Pass	empty <optgroup> in <select> ("<div>a<select><optgroup></select>bc")
+Pass	empty <option> in <select> ("<div>a<select><option></select>bc")
 Pass	<select> containing text node child ("<select class='poke'></select>")
 Pass	<optgroup> containing <optgroup> ("<select><optgroup class='poke-optgroup'></select>")
-Fail	<optgroup> containing <option> ("<select><optgroup><option>abc</select>")
+Pass	<optgroup> containing <option> ("<select><optgroup><option>abc</select>")
 Fail	<div> in <option> ("<select><option class='poke-div'>123</select>")
-Fail	empty <optgroup> in <div> ("<div>a<optgroup></optgroup>bc")
-Fail	<optgroup> in <div> ("<div>a<optgroup>123</optgroup>bc")
-Fail	empty <option> in <div> ("<div>a<option></option>bc")
-Fail	<option> in <div> ("<div>a<option>123</option>bc")
+Pass	empty <optgroup> in <div> ("<div>a<optgroup></optgroup>bc")
+Pass	<optgroup> in <div> ("<div>a<optgroup>123</optgroup>bc")
+Pass	empty <option> in <div> ("<div>a<option></option>bc")
+Pass	<option> in <div> ("<div>a<option>123</option>bc")
+Pass	undefined ("<select><option>one</option><div><optgroup label=optgroup><div><option><span>two")
 Pass	<button> contents preserved ("<div><button>abc")
 Pass	<fieldset> contents preserved ("<div><fieldset>abc")
 Pass	<fieldset> <legend> contents preserved ("<div><fieldset><legend>abc")
 Pass	<input> contents ignored ("<div><input type='text' value='abc'>")
 Pass	<textarea> contents ignored ("<div><textarea>abc")
-Fail	<select size='1'> contents of options preserved ("<div><select size='1'><option>abc</option><option>def")
-Fail	<select size='2'> contents of options preserved ("<div><select size='2'><option>abc</option><option>def")
+Pass	<select size='1'> contents of options preserved ("<div><select size='1'><option>abc</option><option>def")
+Pass	<select size='2'> contents of options preserved ("<div><select size='2'><option>abc</option><option>def")
 Pass	<iframe> contents ignored ("<div><iframe>abc")
 Pass	 <iframe> subdocument ignored ("<div><iframe src='data:text/html,abc'>")
 Pass	<audio> contents ignored ("<div><audio>abc")

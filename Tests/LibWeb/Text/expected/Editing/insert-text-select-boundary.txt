@@ -1,0 +1,18 @@
+single select-start: <span>beforeX</span><span>ter</span>
+single select-middle: <span>before</span><select><option>one</option><option>two</option></select><span>after</span>
+single select-end: <span>before</span><select><option>one</option><option>two</option></select><span>Xter</span>
+single option-start: <span>before</span><select><option>one</option><option>two</option></select><span>after</span>
+single before-select: <span>beforeX</span><span>ter</span>
+single after-select: <span>before</span><select><option>one</option><option>two</option></select><span>Xter</span>
+multiple select-start: <span>beforeX</span><span>ter</span>
+multiple select-middle: <span>before</span><select multiple=""><option>one</option><option>two</option></select><span>after</span>
+multiple select-end: <span>before</span><select multiple=""><option>one</option><option>two</option></select><span>Xter</span>
+multiple option-start: <span>before</span><select multiple=""><option>one</option><option>two</option></select><span>after</span>
+multiple before-select: <span>beforeX</span><span>ter</span>
+multiple after-select: <span>before</span><select multiple=""><option>one</option><option>two</option></select><span>Xter</span>
+single spaced select-start: <span>beforeX</span><span>ter</span>
+single spaced select-middle: <span>before</span><select> <option>one</option><option>two</option> </select><span>after</span>
+single spaced select-end: <span>before</span><select> <option>one</option><option>two</option> </select><span>Xter</span>
+single spaced option-start: <span>before</span><select> <option>one</option><option>two</option> </select><span>after</span>
+single spaced before-select: <span>beforeX</span><span>ter</span>
+single spaced after-select: <span>before</span><select> <option>one</option><option>two</option> </select><span>Xter</span>

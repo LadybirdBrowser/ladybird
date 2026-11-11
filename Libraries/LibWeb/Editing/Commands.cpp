@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HTMLHRElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -2361,15 +2362,27 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 // https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
 static bool insert_text(DOM::Document& document, Utf16View value, InsertTextContext context)
 {
-    // 1. Delete the selection, with strip wrappers false.
     auto& selection = *document.get_selection();
+    auto range = active_range(document);
+    if (auto* select = as_if<HTML::HTMLSelectElement>(*range->start_container()); select && select->is_editable()
+        && !select->is_inclusive_ancestor_of(range->end_container())) {
+        // AD-HOC: The spec deletes the selection first. But a replacement starting at a select's edge starts
+        //         outside the control, and an interior position can't accept text, so reject it before deleting.
+        auto offset = range->start_offset();
+        if (offset != 0 && offset != select->child_count())
+            return true;
+        MUST(range->set_start(*select->parent(), select->index() + (offset != 0 ? 1 : 0)));
+    }
+
+    // 1. Delete the selection, with strip wrappers false.
     auto replaces_selection = !selection.is_collapsed();
     delete_the_selection(selection, true, false);
     canonicalize_collapsed_selection_for_editing(selection);
 
     // 2. If the active range's start node is neither editable nor an editing host, return true.
-    auto range = active_range(document);
-    if (!range->start_container()->is_editable_or_editing_host())
+    // NB: A control can itself be removed from an editor, but its content isn't an insertion target.
+    range = active_range(document);
+    if (!range->start_container()->is_editable_or_editing_host() || !range->start_container()->in_editable_subtree())
         return true;
 
     // 3. If value's length is greater than one:

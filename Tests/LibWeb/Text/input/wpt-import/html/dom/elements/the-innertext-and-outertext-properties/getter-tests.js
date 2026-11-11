@@ -201,9 +201,11 @@ testText("<select><optgroup class='poke-optgroup'></select>", "", "<optgroup> co
 testText("<select><optgroup><option>abc</select>", "abc", "<optgroup> containing <option>");
 testText("<select><option class='poke-div'>123</select>", "123\nabc", "<div> in <option>");
 testText("<div>a<optgroup></optgroup>bc", "a\nbc", "empty <optgroup> in <div>");
-testText("<div>a<optgroup>123</optgroup>bc", "a\nbc", "<optgroup> in <div>");
+testText("<div>a<optgroup>123</optgroup>bc", "a\n123\nbc", "<optgroup> in <div>");
 testText("<div>a<option></option>bc", "a\nbc", "empty <option> in <div>");
 testText("<div>a<option>123</option>bc", "a\n123\nbc", "<option> in <div>");
+
+testText("<select><option>one</option><div><optgroup label=optgroup><div><option><span>two", "one\ntwo");
 
 /**** innerText on replaced element children ****/
 
