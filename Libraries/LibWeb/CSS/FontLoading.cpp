@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Endian.h>
-#include <AK/GenericShorthands.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/CSS/FontLoading.h>
@@ -13,68 +11,34 @@
 
 namespace Web::CSS {
 
+static constexpr u32 woff_signature = 0x774F4646;
 static constexpr u32 woff2_signature = 0x774F4632;
 
-bool requires_off_thread_vector_font_preparation(ByteBuffer const& data, Optional<ByteString> const& mime_type_essence)
+static u32 font_signature(ByteBuffer const& data)
 {
-    if (mime_type_essence == "font/woff2"sv || mime_type_essence == "application/font-woff2"sv)
-        return true;
-    if (data.size() < sizeof(u32))
-        return false;
-    auto signature = *bit_cast<BigEndian<u32> const*>(data.data());
-    return signature == woff2_signature;
+    if (data.size() < 4)
+        return 0;
+    return (static_cast<u32>(data[0]) << 24) | (static_cast<u32>(data[1]) << 16) | (static_cast<u32>(data[2]) << 8) | data[3];
 }
 
-bool is_supported_font_mimetype(StringView const& mime_type_essence)
+bool requires_off_thread_vector_font_preparation(ByteBuffer const& data)
 {
-    return first_is_one_of(
-        mime_type_essence,
-        "font/ttf"sv,
-        "application/x-font-ttf"sv,
-        "font/otf"sv,
-        "font/woff"sv,
-        "application/font-woff"sv,
-        "font/x-woff"sv,
-        "font/woff2"sv,
-        "application/font-woff2"sv);
+    return font_signature(data) == woff2_signature;
 }
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer const& data, Optional<ByteString> const& mime_type_essence)
+// https://drafts.csswg.org/css-fonts-4/#fetch-a-font
+// 2. ISSUE: Load a font from stream according to its type.
+// NB: The type is the one the data has, whatever the response's Content-Type says.
+ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer const& data)
 {
-    auto try_ttf = [&]() -> ErrorOr<NonnullRefPtr<Gfx::Typeface const>> {
-        return Gfx::Typeface::try_load_from_temporary_memory(data);
-    };
-    auto try_woff = [&]() -> ErrorOr<NonnullRefPtr<Gfx::Typeface const>> {
+    switch (font_signature(data)) {
+    case woff_signature:
         return WOFF::try_load_from_bytes(data);
-    };
-    auto try_woff2 = [&]() -> ErrorOr<NonnullRefPtr<Gfx::Typeface const>> {
+    case woff2_signature:
         return WOFF2::try_load_from_bytes(data);
-    };
-
-    // FIXME: We shouldn't treat the mime-type as authoritative as it may have been incorrectly specified in the response
-    //        headers, we should try all formats if it fails.
-    if (mime_type_essence.has_value()) {
-        VERIFY(is_supported_font_mimetype(*mime_type_essence));
-
-        if (*mime_type_essence == "font/ttf"sv || *mime_type_essence == "application/x-font-ttf"sv || *mime_type_essence == "font/otf"sv)
-            return try_ttf();
-        // https://drafts.csswg.org/css-fonts-4/#fetch-a-font
-        // 2. ISSUE: Load a font from stream according to its type.
-        // INTEROP: font/x-woff is a legacy alias that remains in use on the web.
-        if (*mime_type_essence == "font/woff"sv || *mime_type_essence == "application/font-woff"sv || *mime_type_essence == "font/x-woff"sv)
-            return try_woff();
-        if (*mime_type_essence == "font/woff2"sv || *mime_type_essence == "application/font-woff2"sv)
-            return try_woff2();
-    } else {
-        if (auto result = try_ttf(); !result.is_error())
-            return result.release_value();
-        if (auto result = try_woff(); !result.is_error())
-            return result.release_value();
-        if (auto result = try_woff2(); !result.is_error())
-            return result.release_value();
+    default:
+        return Gfx::Typeface::try_load_from_temporary_memory(data);
     }
-
-    return Error::from_string_literal("Automatic format detection failed");
 }
 
 void prepare_vector_font_data_off_thread(ByteBuffer data, Function<void(ErrorOr<Core::AnonymousBuffer>)>&& on_complete)

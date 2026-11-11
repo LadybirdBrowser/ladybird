@@ -1,0 +1,3 @@
+TrueType served as font/woff2: loaded
+TrueType served as font/woff: loaded
+WOFF served as font/woff2: loaded
