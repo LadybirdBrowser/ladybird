@@ -420,20 +420,18 @@ impl PublishedEffect {
         &self.keyframes.custom_declarations[index]
     }
 
-    /// Resolve interval values afresh for interpolable syntaxes or neutral keyframes; retain them otherwise.
-    /// Also report whether the values are retained across samples.
-    pub(crate) fn resolve_custom_property_interval_values(
+    /// Look up retained interval values, also reporting whether the interval retains its values across samples.
+    pub(crate) fn retained_custom_property_interval_values(
         &self,
         declaration_indices: [usize; 2],
         has_interpolable_syntax: bool,
-        resolve_values: impl FnOnce() -> [RetainedStyleValueData; 2],
-    ) -> ([RetainedStyleValueData; 2], bool) {
+    ) -> (Option<[RetainedStyleValueData; 2]>, bool) {
         let has_neutral_endpoint = declaration_indices
             .iter()
             .any(|&index| matches!(self.custom_declaration_at(index).value, PublishedValue::ElementValue));
 
         if has_interpolable_syntax || has_neutral_endpoint {
-            return (resolve_values(), false);
+            return (None, false);
         }
 
         // AD-HOC: Match Chromium's retention of substituted interval values for discrete interpolations
@@ -445,10 +443,24 @@ impl PublishedEffect {
             .expect("an effect interpolating custom properties keeps their interval values")
             .lock()
             .unwrap()
-            .entry(declaration_indices)
-            .or_insert_with(resolve_values)
-            .clone();
+            .get(&declaration_indices)
+            .cloned();
         (values, true)
+    }
+
+    /// Retain freshly resolved values for an interval.
+    pub(crate) fn update_retained_custom_property_interval_values(
+        &self,
+        declaration_indices: [usize; 2],
+        values: [RetainedStyleValueData; 2],
+    ) {
+        self.custom_property_interval_values
+            .as_ref()
+            .expect("an effect interpolating custom properties keeps their interval values")
+            .lock()
+            .unwrap()
+            .entry(declaration_indices)
+            .or_insert(values);
     }
 }
 

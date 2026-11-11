@@ -9129,10 +9129,15 @@ pub(crate) fn resolve_published_animation_declarations(
             let name_id = interval.custom_name_id;
             let important = custom_properties.is_important(name_id);
             let name = custom_properties.units(name_id);
-            let (interval_values, values_are_retained) = effect.resolve_custom_property_interval_values(
-                interval.declaration_indices(),
-                registry.name_has_interpolable_syntax(name),
-                || {
+            let (retained_interval_values, can_retain_interval_values) = effect
+                .retained_custom_property_interval_values(
+                    interval.declaration_indices(),
+                    registry.name_has_interpolable_syntax(name),
+                );
+            let has_retained_values = retained_interval_values.is_some();
+            let interval_values = match retained_interval_values {
+                Some(values) => values,
+                None => {
                     interval.interval_span.map(|lookup| {
                         let declaration = effect.custom_declaration_at(lookup.declaration_index);
                         match &declaration.value {
@@ -9145,11 +9150,17 @@ pub(crate) fn resolve_published_animation_declarations(
                             PublishedValue::Declared(value) => value.clone_retained(),
                         }
                     })
-                },
-            );
+                }
+            };
             // SAFETY: The sample keeps the name alive while it is retained for the lookup.
             let interned_name = unsafe { ak::Utf16FlyString::from_raw_borrowed(custom_properties.name(name_id).raw()) };
             let custom_is_inherited = registry.name_inherits(&interned_name);
+            if can_retain_interval_values && !has_retained_values {
+                effect.update_retained_custom_property_interval_values(
+                    interval.declaration_indices(),
+                    interval_values.clone(),
+                );
+            }
             for (lookup, value) in interval.interval_span.into_iter().zip(interval_values) {
                 let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {
@@ -9164,7 +9175,7 @@ pub(crate) fn resolve_published_animation_declarations(
                     is_transition,
                 });
             }
-            custom_properties.has_uncached_interval_values |= !values_are_retained;
+            custom_properties.has_uncached_interval_values |= !can_retain_interval_values;
             custom_properties.intervals.push(interval);
         }
         effects.push(FfiAnimationEffect {
