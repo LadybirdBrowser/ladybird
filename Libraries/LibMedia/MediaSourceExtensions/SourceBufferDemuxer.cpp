@@ -259,20 +259,13 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
             data.last_appended_codec_configuration = MUST(FixedArray<u8>::create(configuration.value()));
     };
 
-    // A frame continues a run when it decodes after every frame already in it, without a gap that
-    // would make the two sides separately decodable.
-    auto continues_run = [&](FrameRun const& run) {
-        auto last_decode_timestamp = run.frames.last().decode_timestamp();
-        auto delta = frame.decode_timestamp() - last_decode_timestamp;
-        return delta > AK::Duration::zero() && delta <= maximum_time_range_gap(data);
-    };
-
-    Optional<size_t> run_to_continue;
-    for (size_t index = data.runs.size(); index-- > 0;) {
-        if (!continues_run(data.runs[index]))
-            continue;
-        run_to_continue = index;
-        break;
+    // A frame continues the run of the last appended frame when it decodes no earlier than that frame, without a gap
+    // that would make the two sides separately decodable.
+    auto run_to_continue = data.run_ending_with_last_appended_frame;
+    if (run_to_continue.has_value()) {
+        auto delta = frame.decode_timestamp() - data.runs[run_to_continue.value()].frames.last().decode_timestamp();
+        if (delta < AK::Duration::zero() || delta > maximum_time_range_gap(data))
+            run_to_continue.clear();
     }
 
     // AD-HOC: Coded frame eviction can remove the random access point that a frame decodes from after its
@@ -284,7 +277,6 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
 
     count_frame_duration(data, frame.duration());
     data.frame_intervals_to_add_to_ranges.append({ frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration() });
-    data.last_appended_decode_timestamp = frame.decode_timestamp();
 
     if (run_to_continue.has_value()) {
         auto& run = data.runs[run_to_continue.value()];
@@ -304,13 +296,12 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
     data.total_bytes += buffered_byte_count(frame);
     run.frames.append(move(frame));
 
-    size_t insert_index = 0;
-    while (insert_index < data.runs.size() && data.runs[insert_index].presentation_start < run.presentation_start)
-        insert_index++;
+    auto insert_index = first_run_starting_at_or_after(data, run.presentation_start);
     data.runs.insert(insert_index, move(run));
     verify_runs_are_ordered_around_index(data, insert_index);
     if (insert_index <= data.current_run && !data.runs.is_empty())
         data.current_run = min(data.current_run + 1, data.runs.size() - 1);
+    data.run_ending_with_last_appended_frame = insert_index;
 
     buffered_data_changed_while_locked();
 }
@@ -327,6 +318,20 @@ void SourceBufferDemuxer::note_cursor_jumped(TrackData& data)
 {
     if (data.cursor_continuity == CursorContinuity::Continuous)
         data.cursor_continuity = CursorContinuity::Jumped;
+}
+
+size_t SourceBufferDemuxer::first_run_starting_at_or_after(TrackData const& data, AK::Duration presentation_start)
+{
+    size_t low = 0;
+    size_t high = data.runs.size();
+    while (low < high) {
+        auto middle = low + (high - low) / 2;
+        if (data.runs[middle].presentation_start < presentation_start)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+    return low;
 }
 
 void SourceBufferDemuxer::verify_runs_are_ordered_around_index(TrackData const& data, size_t run_index)
@@ -353,9 +358,7 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     recalculate_run_bounds(run);
     recalculate_run_bounds(tail);
 
-    auto insert_index = run_index + 1;
-    while (insert_index < data.runs.size() && data.runs[insert_index].presentation_start < tail.presentation_start)
-        insert_index++;
+    auto insert_index = max(run_index + 1, first_run_starting_at_or_after(data, tail.presentation_start));
     data.runs.insert(insert_index, move(tail));
     verify_runs_are_ordered_around_index(data, run_index);
     verify_runs_are_ordered_around_index(data, insert_index);
@@ -365,6 +368,10 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     } else if (data.current_run >= insert_index) {
         data.current_run++;
     }
+    if (data.run_ending_with_last_appended_frame == run_index)
+        data.run_ending_with_last_appended_frame = insert_index;
+    else if (data.run_ending_with_last_appended_frame.has_value() && data.run_ending_with_last_appended_frame.value() >= insert_index)
+        data.run_ending_with_last_appended_frame = data.run_ending_with_last_appended_frame.value() + 1;
 }
 
 bool SourceBufferDemuxer::removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count)
@@ -416,6 +423,9 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     if (data.current_run == run_index && removed_frames_overlap_group_of_pictures_being_read(run, data.current_frame, first_frame, frame_count))
         data.cursor_continuity = CursorContinuity::NeedsReanchoring;
 
+    if (data.run_ending_with_last_appended_frame == run_index && first_frame + frame_count == run.frames.size())
+        data.run_ending_with_last_appended_frame.clear();
+
     data.total_bytes -= bytes;
     run.frames.remove(first_frame, frame_count);
     data.track_buffer_ranges_need_rebuild = true;
@@ -432,6 +442,8 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
 
     if (run.frames.is_empty()) {
         data.runs.remove(run_index);
+        if (data.run_ending_with_last_appended_frame.has_value() && data.run_ending_with_last_appended_frame.value() > run_index)
+            data.run_ending_with_last_appended_frame = data.run_ending_with_last_appended_frame.value() - 1;
         if (data.current_run > run_index)
             data.current_run--;
         else if (data.current_run == run_index)
@@ -490,8 +502,6 @@ Optional<AK::Duration> SourceBufferDemuxer::remove_coded_frames_and_dependants_i
                 break;
             if (last_decode_timestamp == frame.decode_timestamp())
                 removed_frame_presentation_timestamp = frame.presentation_timestamp();
-            if (data.last_appended_decode_timestamp == frame.decode_timestamp())
-                data.last_appended_decode_timestamp.clear();
         }
 
         erase_frames_and_dependants(data, run_index, first_index.value(), last_index - first_index.value() + 1);
@@ -519,10 +529,9 @@ bool SourceBufferDemuxer::is_frame_evictable(TrackData const& data, Media::Coded
     return frame.presentation_timestamp() < time_range_start || frame.presentation_timestamp() > time_range_end;
 }
 
-bool SourceBufferDemuxer::run_ends_at_last_appended_frame(TrackData const& data, FrameRun const& run)
+bool SourceBufferDemuxer::run_ends_at_last_appended_frame(TrackData const& data, size_t run_index)
 {
-    return data.last_appended_decode_timestamp.has_value()
-        && run.frames.last().decode_timestamp() == data.last_appended_decode_timestamp.value();
+    return data.run_ending_with_last_appended_frame == run_index;
 }
 
 size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Media::Track const& track, AK::Duration current_time) const
@@ -531,8 +540,8 @@ size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Medi
     auto const& data = track_data(track);
 
     size_t bytes = 0;
-    for (auto const& run : data.runs) {
-        auto const& frames = run.frames;
+    for (size_t run_index = 0; run_index < data.runs.size(); run_index++) {
+        auto const& frames = data.runs[run_index].frames;
 
         // Eviction that stops within a run moves the last evicted configuration onto the first remaining frame.
         size_t last_evicted_configuration_size = 0;
@@ -557,7 +566,7 @@ size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Medi
                 if (auto configuration = frames[index].new_codec_configuration(); configuration.has_value())
                     group_configuration_size = configuration.value().size();
             }
-            if (group_end == frames.size() && run_ends_at_last_appended_frame(data, run))
+            if (group_end == frames.size() && run_ends_at_last_appended_frame(data, run_index))
                 return bytes_when_stopping_at(group_start);
 
             bytes += group_bytes;
@@ -586,7 +595,7 @@ Optional<AK::Duration> SourceBufferDemuxer::earliest_evictable_frame_timestamp(M
         frame_count++;
     }
 
-    if (frame_count == frames.size() && run_ends_at_last_appended_frame(data, data.runs.first()))
+    if (frame_count == frames.size() && run_ends_at_last_appended_frame(data, 0))
         return {};
     return frames.first().presentation_timestamp();
 }
@@ -610,7 +619,7 @@ Optional<AK::Duration> SourceBufferDemuxer::latest_evictable_frame_timestamp(Med
     if (data.runs.is_empty())
         return {};
 
-    if (run_ends_at_last_appended_frame(data, data.runs.last()))
+    if (run_ends_at_last_appended_frame(data, data.runs.size() - 1))
         return {};
 
     auto const& frame = data.runs.last().frames.last();
