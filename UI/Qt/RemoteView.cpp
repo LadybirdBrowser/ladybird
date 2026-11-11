@@ -178,6 +178,9 @@ void RemoteView::did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rec
 
 void RemoteView::did_present_frame_in_remote_layer(Gfx::IntSize size, double device_pixel_ratio)
 {
+    // The view shows the remote layer from now on, so the frames it was given before are of no further use.
+    m_backing_stores.clear();
+    m_backing_stores.clear_backup();
     m_backing_stores.present_frame_shown_in_remote_layer(size, device_pixel_ratio);
     if (on_ready_to_paint)
         on_ready_to_paint();
