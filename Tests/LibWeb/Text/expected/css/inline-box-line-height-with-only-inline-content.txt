@@ -1,0 +1,20 @@
+pseudo: 50
+nested: 50
+own-text: 50
+nested text sits where own text does: true
+own text is below the line's top: true
+nested-break: 74
+break: second lines align: true
+nested-wrap: 74
+wrap: second lines align: true
+atomic: 50
+atomic-break: 74
+atomic: second lines align: true
+later text change matches fresh layout: true
+four lines after text change: 122
+atomic baseline: height matches with text: true
+atomic baseline: position matches with text: true
+atomic 10px: height matches with text: true
+atomic 10px: position matches with text: true
+atomic -10px: height matches with text: true
+atomic -10px: position matches with text: true

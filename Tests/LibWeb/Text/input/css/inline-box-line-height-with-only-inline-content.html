@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .line {
+        width: 100px;
+        font: 24px/1 serif;
+    }
+    .tall {
+        line-height: 50px;
+    }
+    .tall::before {
+        content: "A";
+        line-height: 1;
+    }
+    .inner {
+        line-height: 1;
+    }
+    .atomic {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<div class="line" id="pseudo"><i class="tall"></i></div>
+<div class="line" id="nested"><b style="line-height: 50px"><span class="inner">A</span></b></div>
+<div class="line" id="own-text"><i style="line-height: 50px">A</i></div>
+<div class="line" id="nested-break"><span style="line-height: 50px"><span class="inner">A</span></span><br><span>B</span></div>
+<div class="line" id="own-text-break"><span style="line-height: 50px">A</span><br><span>B</span></div>
+<div class="line" id="nested-wrap" style="width: 24px"><span style="line-height: 50px"><span class="inner">A</span></span> <span>B</span></div>
+<div class="line" id="own-text-wrap" style="width: 24px"><span style="line-height: 50px">A</span> <span>B</span></div>
+<div class="line" id="atomic"><span style="line-height: 50px"><span class="atomic"></span></span></div>
+<div class="line" id="atomic-break"><span style="line-height: 50px"><span class="atomic"></span></span><br><span>B</span></div>
+<script>
+    test(() => {
+        const glyphTop = line => {
+            const range = document.createRange();
+            range.selectNodeContents(line.querySelector("span, i"));
+            return range.getBoundingClientRect().top - line.getBoundingClientRect().top;
+        };
+        for (const id of ["pseudo", "nested", "own-text"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+        // Text in an inner box sits where text the outer box holds directly does.
+        const ownText = glyphTop(document.getElementById("own-text"));
+        println(`nested text sits where own text does: ${glyphTop(document.getElementById("nested")) === ownText}`);
+        println(`own text is below the line's top: ${ownText > 0}`);
+        const secondLineTop = line =>
+            line.lastElementChild.getBoundingClientRect().top - line.getBoundingClientRect().top;
+        for (const ending of ["break", "wrap"]) {
+            const nested = document.getElementById(`nested-${ending}`);
+            const ownText = document.getElementById(`own-text-${ending}`);
+            println(`nested-${ending}: ${nested.getBoundingClientRect().height}`);
+            println(`${ending}: second lines align: ${secondLineTop(nested) === secondLineTop(ownText)}`);
+        }
+        for (const id of ["atomic", "atomic-break"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+        println(`atomic: second lines align: ${secondLineTop(document.getElementById("atomic-break")) === secondLineTop(document.getElementById("own-text-break"))}`);
+        const changing = document.createElement("div");
+        changing.className = "line";
+        changing.innerHTML = '<span style="line-height: 50px"><span class="inner">A</span></span><br>B<br>C<br><span>D</span>';
+        document.body.appendChild(changing);
+        changing.getBoundingClientRect();
+        changing.lastElementChild.firstChild.data = "E";
+        const reusedTop = secondLineTop(changing);
+        changing.style.width = "101px";
+        println(`later text change matches fresh layout: ${secondLineTop(changing) === reusedTop}`);
+        println(`four lines after text change: ${changing.getBoundingClientRect().height}`);
+        for (const alignment of ["baseline", "10px", "-10px"]) {
+            const makeLine = text => {
+                const line = document.createElement("div");
+                line.className = "line";
+                line.innerHTML = `<span style="line-height: 50px">${text}<span class="atomic" style="padding: 3px; border: 2px solid; margin: 4px; vertical-align: ${alignment}"></span></span><br>B`;
+                document.body.appendChild(line);
+                return line;
+            };
+            const atomicOnly = makeLine("");
+            const withText = makeLine("A");
+            const atomicTop = line =>
+                line.querySelector(".atomic").getBoundingClientRect().top - line.getBoundingClientRect().top;
+            println(`atomic ${alignment}: height matches with text: ${atomicOnly.getBoundingClientRect().height === withText.getBoundingClientRect().height}`);
+            println(`atomic ${alignment}: position matches with text: ${atomicTop(atomicOnly) === atomicTop(withText)}`);
+        }
+    });
+</script>

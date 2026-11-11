@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    .line {
+        display: flow-root;
+        width: 200px;
+        font: 24px/24px Ahem;
+    }
+    .outer {
+        line-height: 100px;
+    }
+    .inner {
+        line-height: 24px;
+    }
+    .atomic {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("24px Ahem");
+        for (const alignment of ["top", "bottom"]) {
+            for (const [name, content] of [
+                ["direct", "AA"],
+                ["nested", '<span class="inner">AA</span>'],
+                ["atomic", '<span class="atomic"></span>'],
+                ["shifted", '<span class="inner" style="vertical-align: 60px">AA</span>'],
+            ]) {
+                const line = document.createElement("div");
+                line.className = "line";
+                line.innerHTML = `<span class="outer" style="vertical-align: ${alignment}">${content}</span><br><span class="next">B</span>`;
+                document.body.appendChild(line);
+                const rect = line.getBoundingClientRect();
+                const next = line.querySelector(".next").getBoundingClientRect();
+                println(`${alignment} ${name}: height=${rect.height}, next=${next.top - rect.top}`);
+            }
+        }
+    });
+</script>
