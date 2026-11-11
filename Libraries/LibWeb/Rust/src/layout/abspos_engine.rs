@@ -1926,8 +1926,13 @@ impl AbsposEngine<'_> {
         axis: SizingAxis,
         mut equation: AxisEquation,
     ) -> CssPixels {
-        let (anchor_aligns_inline, anchor_aligns_block) = inputs.containing_block_info.anchor_aligned_axes();
-        if equation.start.is_none() && equation.end.is_none() && !axis.select(anchor_aligns_inline, anchor_aligns_block)
+        let placement = axis.select(
+            inputs.containing_block_info.inline_placement,
+            inputs.containing_block_info.block_placement,
+        );
+        if equation.start.is_none()
+            && equation.end.is_none()
+            && placement.mode == abspos_inputs::AbsposAxisMode::StaticPosition
         {
             let static_position = static_position_rect_for_sizing(inputs);
             let rect = static_position.rect;
@@ -1944,8 +1949,11 @@ impl AbsposEngine<'_> {
                             - axis.select(rect.size.inline_size, rect.size.block_size),
                     );
                 }
-                // FIXME: Implement the center alignment case.
-                AxisEdge::Center => {}
+                AxisEdge::Center => {
+                    let center = offset + axis.select(rect.size.inline_size, rect.size.block_size) / 2;
+                    equation.start = Some((center * 2 - equation.containing_block_size).max(CssPixels::default()));
+                    equation.end = Some((equation.containing_block_size - center * 2).max(CssPixels::default()));
+                }
             }
         }
         equation.stretch_fit_size()

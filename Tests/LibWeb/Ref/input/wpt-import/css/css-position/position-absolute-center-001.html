@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4659">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#abspos-sizing">
+<link rel="match" href="../../../../expected/wpt-import/css/css-position/../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="The available space for a box with center alignment is double the distance between the center of the static position rectangle and the closest edge of the containing block in the relevant axis.">
+<style>
+#containing-block {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  background: red;
+  display: flex;
+}
+
+#containing-block > div {
+  flex-grow: 1;
+}
+
+#inner-flex {
+  display: flex;
+  justify-content: center;
+}
+
+span {
+  display: inline-block;
+  inline-size: 50px;
+  block-size: 10px;
+}
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="containing-block" style="flex-direction: row;">
+  <div id="inner-flex" style="margin: 10px; height: 100px;">
+    <div style="position: absolute; top: 0; height: 100px; background: green;">
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+  <div style="height: 100px; background: green;"></div>
+</div>
