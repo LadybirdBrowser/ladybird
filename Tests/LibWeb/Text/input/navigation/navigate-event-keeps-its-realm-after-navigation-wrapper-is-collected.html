@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" src="../../data/iframe-test-content-1.html"></iframe>
+<script>
+    // A frame's navigation object and its navigate events belong to the frame's realm, even when a handler from this
+    // window gets them after the navigation object's wrapper has been collected.
+    asyncTest(async done => {
+        const frame = document.getElementById("frame");
+        await new Promise(resolve => window.addEventListener("load", () => setTimeout(resolve, 0)));
+
+        await (() => frame.contentWindow.navigation.navigate("#1").finished)();
+
+        let resolveNavigate;
+        const navigated = new Promise(resolve => (resolveNavigate = resolve));
+        (() => {
+            frame.contentWindow.navigation.onnavigate = function (event) {
+                resolveNavigate({
+                    navigationInFrameRealm: this instanceof frame.contentWindow.Navigation,
+                    eventInFrameRealm: event instanceof frame.contentWindow.NavigateEvent,
+                });
+            };
+        })();
+
+        // Nothing references the navigation object's wrapper any more, so this collects it.
+        await internals.gcAsync();
+
+        frame.contentWindow.history.back();
+        const result = await navigated;
+        println(`navigation object is the frame's: ${result.navigationInFrameRealm}`);
+        println(`navigate event is the frame's: ${result.eventInFrameRealm}`);
+        done();
+    });
+</script>

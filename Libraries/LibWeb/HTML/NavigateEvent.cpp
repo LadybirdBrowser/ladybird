@@ -137,6 +137,11 @@ void NavigateEvent::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_relevant_window);
 }
 
+GC::Ptr<Bindings::Wrappable> NavigateEvent::relevant_global_impl() const
+{
+    return m_relevant_window;
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-intercept
 WebIDL::ExceptionOr<void> NavigateEvent::intercept(JS::Realm& realm, NavigationInterceptOptions const& options)
 {

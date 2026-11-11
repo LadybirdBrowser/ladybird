@@ -108,6 +108,11 @@ Window& Navigation::window() const
     return m_window;
 }
 
+GC::Ptr<Bindings::Wrappable> Navigation::relevant_global_impl() const
+{
+    return m_window;
+}
+
 void Navigation::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
