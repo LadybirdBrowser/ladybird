@@ -479,7 +479,7 @@ pub(crate) struct ScrollbarColors {
 
 /// The color behind what `slot` paints, as far as background colors tell: the canvas's, with the backgrounds of `slot`
 /// and its ancestors composited over it. Background images, and content of other boxes painted underneath, don't count.
-pub(crate) fn estimated_backdrop_color(
+fn estimated_backdrop_color(
     arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
