@@ -1,0 +1,10 @@
+auto insets: parent 60, child 60
+one auto inset: parent 60, child 60
+minimum height: parent 100, child 60
+column reverse: parent 60, child 60
+nowrap: parent 60, child 60
+orthogonal flow: parent 60, child 30
+stretched: parent 300, child 150
+centered: parent 60, child 60
+explicit height: parent 100, child 50
+aspect ratio: parent 100, child 50
