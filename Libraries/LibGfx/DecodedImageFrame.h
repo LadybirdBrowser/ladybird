@@ -6,10 +6,12 @@
 
 #pragma once
 
-#include <AK/Assertions.h>
 #include <AK/Atomic.h>
+#include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Span.h>
 #include <AK/kmalloc.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGC/Forward.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -23,49 +25,52 @@ class DecodedImageFrame final {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    DecodedImageFrame(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
-        : m_id(next_id())
-        , m_bitmap(move(bitmap))
-        , m_color_space(move(color_space))
-    {
-    }
-
-    DecodedImageFrame(Bitmap const& bitmap, ColorSpace color_space = {})
-        : DecodedImageFrame(NonnullRefPtr<Bitmap const> { bitmap }, move(color_space))
-    {
-    }
+    static ErrorOr<DecodedImageFrame> create(Bitmap const&, ColorSpace = {});
+    static ErrorOr<DecodedImageFrame> create_over_shared_memory(Core::AnonymousBuffer shared_memory, size_t offset_of_pixels, IntSize, BitmapFormat, AlphaType, ColorSpace = {});
 
     // For the same pixels decoded again, which caches keyed by the id of a frame may still hold.
-    static DecodedImageFrame with_id(u64 id, NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
+    static ErrorOr<DecodedImageFrame> create_with_id(u64 id, Bitmap const&, ColorSpace = {});
+
+    DecodedImageFrame with_new_id() const
     {
-        DecodedImageFrame frame { move(bitmap), move(color_space) };
-        frame.m_id = id;
+        auto frame = *this;
+        frame.m_id = next_id();
         return frame;
     }
 
-    DecodedImageFrame(Bitmap const& bitmap, AlphaType alpha_type, ColorSpace color_space = {})
-        : DecodedImageFrame(bitmap_with_alpha_type(bitmap, alpha_type), move(color_space))
-    {
-    }
-
-    Bitmap const& bitmap() const { return *m_bitmap; }
-    NonnullRefPtr<Bitmap const> bitmap_ref() const { return m_bitmap; }
     ColorSpace const& color_space() const { return m_color_space; }
     u64 id() const { return m_id; }
 
-    int width() const { return m_bitmap->width(); }
-    int height() const { return m_bitmap->height(); }
-    IntRect rect() const { return m_bitmap->rect(); }
-    IntSize size() const { return m_bitmap->size(); }
+    BitmapFormat format() const { return m_format; }
+    AlphaType alpha_type() const { return m_alpha_type; }
+
+    int width() const { return m_size.width(); }
+    int height() const { return m_size.height(); }
+    IntRect rect() const { return { {}, m_size }; }
+    IntSize size() const { return m_size; }
+
+    size_t pitch() const { return Bitmap::minimum_pitch(m_size.width(), m_format); }
+    size_t size_in_bytes() const { return Bitmap::size_in_bytes(pitch(), m_size.height()); }
+    ReadonlyBytes pixels() const { return { m_shared_memory.data<u8>() + m_offset_of_pixels, size_in_bytes() }; }
+
+    Core::AnonymousBuffer const& shared_memory() const { return m_shared_memory; }
+    size_t offset_of_pixels() const { return m_offset_of_pixels; }
+
+    bool has_same_pixels_as(DecodedImageFrame const& other) const { return pixels().data() == other.pixels().data(); }
+    bool pixels_are_held_elsewhere() const { return m_shared_memory.has_other_holders(); }
+
+    NonnullRefPtr<Bitmap const> bitmap_sharing_pixels() const;
 
 private:
-    static NonnullRefPtr<Bitmap const> bitmap_with_alpha_type(Bitmap const& bitmap, AlphaType alpha_type)
+    DecodedImageFrame(Core::AnonymousBuffer shared_memory, size_t offset_of_pixels, IntSize size, BitmapFormat format, AlphaType alpha_type, ColorSpace color_space)
+        : m_id(next_id())
+        , m_shared_memory(move(shared_memory))
+        , m_offset_of_pixels(offset_of_pixels)
+        , m_size(size)
+        , m_format(format)
+        , m_alpha_type(alpha_type)
+        , m_color_space(move(color_space))
     {
-        if (bitmap.alpha_type() == alpha_type)
-            return NonnullRefPtr<Bitmap const> { bitmap };
-        auto new_bitmap = MUST(bitmap.clone());
-        new_bitmap->set_alpha_type_destructive(alpha_type);
-        return new_bitmap;
     }
 
     static u64 next_id()
@@ -75,7 +80,11 @@ private:
     }
 
     u64 m_id { 0 };
-    NonnullRefPtr<Bitmap const> m_bitmap;
+    Core::AnonymousBuffer m_shared_memory;
+    size_t m_offset_of_pixels { 0 };
+    IntSize m_size;
+    BitmapFormat m_format { BitmapFormat::Invalid };
+    AlphaType m_alpha_type { AlphaType::Premultiplied };
     ColorSpace m_color_space;
 };
 

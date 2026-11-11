@@ -30,7 +30,7 @@ public:
         u32 loop_count,
         Gfx::ColorSpace,
         Vector<u32> durations,
-        NonnullRefPtr<Gfx::Bitmap> first_bitmap);
+        Gfx::DecodedImageFrame first_frame);
 
     virtual ~AnimatedBitmapDecodedImageData() override;
     virtual void finalize() override;

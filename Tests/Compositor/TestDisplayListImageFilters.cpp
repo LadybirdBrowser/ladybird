@@ -21,7 +21,7 @@ static NonnullRefPtr<Gfx::Bitmap> replace_image(Compositing::DisplayListResource
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size()));
     bitmap->set_pixel(0, 0, color);
     Compositing::DisplayListResourceTransaction transaction;
-    transaction.image_frames.append({ image_id, Gfx::DecodedImageFrame { *bitmap } });
+    transaction.image_frames.append({ image_id, MUST(Gfx::DecodedImageFrame::create(*bitmap)) });
     cache.evict(storage.apply_transaction(move(transaction)));
     return bitmap;
 }

@@ -272,8 +272,10 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
 
     static constexpr auto finalize = [](HTMLVideoElement& self, RefPtr<Gfx::Bitmap> poster_frame) {
         self.m_poster_frame.clear();
-        if (poster_frame)
-            self.m_poster_frame = Gfx::DecodedImageFrame { *poster_frame };
+        if (poster_frame) {
+            if (auto frame = Gfx::DecodedImageFrame::create(*poster_frame); !frame.is_error())
+                self.m_poster_frame = frame.release_value();
+        }
         self.m_load_event_delayer.clear();
         self.m_fetch_controller = nullptr;
         self.update_representation();

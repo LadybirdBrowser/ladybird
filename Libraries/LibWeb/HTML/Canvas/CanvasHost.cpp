@@ -46,6 +46,14 @@ static RefPtr<Gfx::Bitmap> create_transparent_canvas_bitmap(Gfx::IntSize size)
     return bitmap_or_error.release_value();
 }
 
+static Optional<Gfx::DecodedImageFrame> frame_of_bitmap(Gfx::Bitmap const& bitmap, Gfx::ColorSpace color_space = {})
+{
+    auto frame = Gfx::DecodedImageFrame::create(bitmap, move(color_space));
+    if (frame.is_error())
+        return {};
+    return frame.release_value();
+}
+
 RefPtr<Gfx::Bitmap> CanvasHost::get_bitmap_from_surface()
 {
     auto const size = bitmap_size_for_canvas();
@@ -56,7 +64,7 @@ RefPtr<Gfx::Bitmap> CanvasHost::get_bitmap_from_surface()
     if (auto* context = canvas_bitmap_renderer_context(); context && !context->is_blank()) {
         // FIXME: Convert bitmap data that isn't in the sRGB color space.
         if (auto const* frame = context->frame(); frame) {
-            if (auto bitmap = frame->bitmap().clone(); !bitmap.is_error())
+            if (auto bitmap = frame->bitmap_sharing_pixels()->clone(); !bitmap.is_error())
                 return bitmap.release_value();
         }
         return nullptr;
@@ -91,14 +99,14 @@ Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_from_surface()
         context->ensure_backing_storage();
         auto color_space = context->color_space();
         if (auto pixels = context->read_pixels({ {}, size }, Gfx::AlphaType::Premultiplied, color_space); pixels && pixels->size() == size)
-            return Gfx::DecodedImageFrame { *pixels, gfx_color_space_for(color_space) };
+            return frame_of_bitmap(*pixels, gfx_color_space_for(color_space));
         return {};
     }
 
     auto bitmap = get_bitmap_from_surface();
     if (!bitmap)
         return {};
-    return Gfx::DecodedImageFrame { *bitmap };
+    return frame_of_bitmap(*bitmap);
 }
 
 Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_for_serialization(Utf16View type)
@@ -108,7 +116,7 @@ Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_for_serialization(Utf16Vi
     auto bitmap = get_bitmap_from_surface();
     if (!bitmap)
         return {};
-    return Gfx::DecodedImageFrame { *bitmap };
+    return frame_of_bitmap(*bitmap);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean

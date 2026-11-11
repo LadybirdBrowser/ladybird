@@ -350,19 +350,24 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin, encoded_data = move(encoded_data)](Web::Platform::DecodedImage& result) mutable -> ErrorOr<void> {
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedBitmapDecodedImageData.
+            auto first_frame = Gfx::DecodedImageFrame::create(*result.frames.first().bitmap, result.color_space);
+            if (first_frame.is_error()) {
+                Web::Platform::ImageCodecPlugin::the().stop_animation_decode(result.session_id);
+                return first_frame.release_error();
+            }
             strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(
                 *strong_this->m_document,
                 result.session_id,
                 result.loop_count,
                 move(result.color_space),
                 move(result.all_durations),
-                *result.frames.first().bitmap);
+                first_frame.release_value());
         } else {
             // Single-shot decode: create BitmapDecodedImageData as before.
             Vector<BitmapDecodedImageData::Frame> frames;
             for (auto& frame : result.frames) {
                 frames.append(BitmapDecodedImageData::Frame {
-                    .frame = Gfx::DecodedImageFrame { *frame.bitmap, result.color_space },
+                    .frame = TRY(Gfx::DecodedImageFrame::create(*frame.bitmap, result.color_space)),
                     .duration = static_cast<int>(frame.duration),
                 });
             }

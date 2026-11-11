@@ -700,15 +700,17 @@ void web_canvas_2d_style_value_unref(CSS::StyleValue const* style_value)
 
 Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height, u8 color_space)
 {
-    // NB: The bitmap is shareable, so that flushing to the Compositor passes the pixels by file descriptor instead of
-    //     copying them again.
+    // NB: The bitmap is shareable, so that the frame shares its memory instead of copying the pixels again.
     auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, { width, height });
     if (bitmap.is_error())
         return nullptr;
     auto row_size = static_cast<size_t>(width) * sizeof(Gfx::RawPixel);
     for (int y = 0; y < height; ++y)
         __builtin_memcpy(bitmap.value()->scanline(y), first_row + static_cast<size_t>(y) * pitch, row_size);
-    return new Gfx::DecodedImageFrame { *bitmap.release_value(), Gfx::AlphaType::Unpremultiplied, gfx_color_space_for(predefined_color_space_from_underlying(color_space)) };
+    auto frame = Gfx::DecodedImageFrame::create(*bitmap.release_value(), gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
+    if (frame.is_error())
+        return nullptr;
+    return new Gfx::DecodedImageFrame { frame.release_value() };
 }
 
 static CanvasImageSource image_source_from(void* source_wrapper, CanvasImageSourceKind kind)

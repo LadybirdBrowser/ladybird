@@ -178,7 +178,7 @@ Optional<SkPaint> Canvas2DCommandPlayer::paint_from(Canvas2DPaint const& style, 
         auto const* frame = m_resolvers.image_frame(style.pattern_image_id.value());
         if (!frame)
             return {};
-        auto image = Gfx::sk_image_from_bitmap(frame->bitmap(), frame->color_space());
+        auto image = Gfx::sk_image_from_decoded_image_frame(*frame);
         if (!image)
             break;
 
@@ -461,7 +461,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawImageFrame const& command)
     auto const* frame = m_resolvers.image_frame(command.frame_id.value());
     if (!frame)
         return;
-    auto image = Gfx::sk_image_from_bitmap(frame->bitmap(), frame->color_space());
+    auto image = Gfx::sk_image_from_decoded_image_frame(*frame);
     if (!image)
         return;
     draw_image(*image, command.dst_rect, command.src_rect, command.scaling_mode, command.compositing);
@@ -571,7 +571,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DPutImageFrame const& command)
     auto const* frame = m_resolvers.image_frame(command.frame_id.value());
     if (!frame)
         return;
-    m_surface->write_from_bitmap(frame->bitmap(), command.position, frame->color_space());
+    m_surface->write_from_bitmap(*frame->bitmap_sharing_pixels(), command.position, frame->color_space());
 }
 
 }

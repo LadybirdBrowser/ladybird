@@ -61,8 +61,8 @@ bool web_structured_serialize_validate_shared_memory(int, size_t);
 SerializedTransferRecord* web_structured_serialize_transfer_record_create(ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, int, TransferDataEncoder* const*, size_t);
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
 void web_structured_serialize_transfer_record_take(SerializedTransferRecord*, void*, void (*)(void*, ReadonlyBytes, JSObject* const*, size_t, int const*, size_t const*, size_t, int), void (*)(void*, TransferDataEncoder*));
-Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const*, size_t const*, size_t);
-void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer>*);
+ReceivedImageBitmapSharedPixels* web_structured_serialize_shared_pixels_create(int const*, size_t const*, size_t);
+void web_structured_serialize_shared_pixels_destroy(ReceivedImageBitmapSharedPixels*);
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>*, JSObject*);
 }
 
@@ -158,8 +158,8 @@ ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSO
 {
     Checked<size_t> image_bitmap_pixels_size = 0;
     for (size_t i = 0; i < count; ++i) {
-        if (auto* image_bitmap = Bindings::impl_from<ImageBitmap>(JS::HostABI::object_from_abi(transfer_list[i])); image_bitmap && image_bitmap->bitmap())
-            image_bitmap_pixels_size += ImageBitmap::shared_pixels_size(*image_bitmap->bitmap());
+        if (auto* image_bitmap = Bindings::impl_from<ImageBitmap>(JS::HostABI::object_from_abi(transfer_list[i])); image_bitmap && image_bitmap->frame())
+            image_bitmap_pixels_size += ImageBitmap::shared_pixels_size(*image_bitmap->frame());
     }
     if (image_bitmap_pixels_size.has_overflow() || image_bitmap_pixels_size.value() == 0)
         return nullptr;
@@ -241,7 +241,7 @@ void web_structured_serialize_transfer_record_take(SerializedTransferRecord* rec
     record->shared_buffers.clear();
 }
 
-Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int const* descriptors, size_t const* sizes, size_t count)
+ReceivedImageBitmapSharedPixels* web_structured_serialize_shared_pixels_create(int const* descriptors, size_t const* sizes, size_t count)
 {
     Vector<Core::AnonymousBuffer> buffers;
     for (size_t i = 0; i < count; ++i) {
@@ -253,12 +253,14 @@ Vector<Core::AnonymousBuffer>* web_structured_serialize_shared_pixels_create(int
             return nullptr;
         buffers.append(buffer.release_value());
     }
-    return new Vector<Core::AnonymousBuffer>(move(buffers));
+    auto* received_shared_pixels = new ReceivedImageBitmapSharedPixels { .buffers = move(buffers), .snapshots_of_buffers_without_resize_seals = {} };
+    received_shared_pixels->snapshots_of_buffers_without_resize_seals.resize(count);
+    return received_shared_pixels;
 }
 
-void web_structured_serialize_shared_pixels_destroy(Vector<Core::AnonymousBuffer>* buffers)
+void web_structured_serialize_shared_pixels_destroy(ReceivedImageBitmapSharedPixels* received_shared_pixels)
 {
-    delete buffers;
+    delete received_shared_pixels;
 }
 
 void web_structured_serialize_transferred_values_append(Vector<GC::Root<JS::Object>>* transferred_values, JSObject* value)

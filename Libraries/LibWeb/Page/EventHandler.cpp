@@ -4101,9 +4101,12 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
         image_url = image_element->document().encoding_parse_url(image_element->current_src());
 
     if (image_url.has_value()) {
-        Optional<Gfx::Bitmap const*> bitmap;
+        RefPtr<Gfx::Bitmap const> bitmap_of_current_frame;
         if (auto frame = image_element->current_image_frame(); frame.has_value())
-            bitmap = &frame->bitmap();
+            bitmap_of_current_frame = frame->bitmap_sharing_pixels();
+        Optional<Gfx::Bitmap const*> bitmap;
+        if (bitmap_of_current_frame)
+            bitmap = bitmap_of_current_frame.ptr();
 
         // NB: An image inside a link, or under an image map's link, offers both the image and the link.
         Optional<HTML::PreparedNavigationDescriptor> link_navigation;

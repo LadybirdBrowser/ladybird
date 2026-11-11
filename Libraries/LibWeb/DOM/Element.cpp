@@ -6942,7 +6942,10 @@ Optional<Gfx::DecodedImageFrame> Element::capture_the_image()
 {
     // FIXME: Actually implement this.
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize(1, 1)));
-    return Gfx::DecodedImageFrame { *bitmap };
+    auto frame = Gfx::DecodedImageFrame::create(*bitmap);
+    if (frame.is_error())
+        return {};
+    return frame.release_value();
 }
 
 // https://w3c.github.io/pointerevents/#dfn-active-pointer

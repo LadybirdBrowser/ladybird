@@ -424,19 +424,7 @@ void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandS
             added_fonts.append(move(font));
     }
 
-    // A frame travels in a shared bitmap. One that cannot be placed in one is left out, and the Compositor skips the
-    // draws that name it.
-    Vector<Compositing::DisplayListImageFrameResource> image_frames;
-    for (auto& frame : stream.take_image_frames()) {
-        auto bitmap = frame.frame.bitmap().to_shareable_bitmap();
-        if (!bitmap.is_valid()) {
-            dbgln("WebContent: Could not place a {} canvas image frame in shared memory", frame.frame.bitmap().size());
-            continue;
-        }
-        image_frames.append({ .id = frame.id, .frame = Gfx::DecodedImageFrame { *bitmap.bitmap(), frame.frame.color_space() } });
-    }
-
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts), move(image_frames)));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts), stream.take_image_frames()));
     auto video_frame_holds = stream.take_video_frame_holds();
     if (post_message(encoded_message).is_error()) {
         did_lose_compositor();

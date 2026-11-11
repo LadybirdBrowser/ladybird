@@ -27,12 +27,12 @@ GC::Ref<AnimatedBitmapDecodedImageData> AnimatedBitmapDecodedImageData::create(
     u32 loop_count,
     Gfx::ColorSpace color_space,
     Vector<u32> durations,
-    NonnullRefPtr<Gfx::Bitmap> first_bitmap)
+    Gfx::DecodedImageFrame first_frame)
 {
     auto document_observer = GC::Heap::the().allocate<DOM::DocumentObserver>(document);
-    auto size = first_bitmap->size();
+    auto size = first_frame.size();
     auto data = GC::Heap::the().allocate<AnimatedBitmapDecodedImageData>(
-        session_id, durations.size(), loop_count, Gfx::DecodedImageFrame { *first_bitmap, color_space }, document_observer);
+        session_id, durations.size(), loop_count, move(first_frame), document_observer);
 
     data->m_image_decoder_client_generation = Platform::ImageCodecPlugin::the().client_generation();
 
@@ -64,7 +64,7 @@ AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(
     , m_frame_count(frame_count)
     , m_loop_count(loop_count)
     , m_first_frame(move(first_frame))
-    , m_default_frame(m_first_frame.bitmap_ref(), m_first_frame.color_space())
+    , m_default_frame(m_first_frame.with_new_id())
 {
 }
 
@@ -72,7 +72,7 @@ AnimatedBitmapDecodedImageData::~AnimatedBitmapDecodedImageData() = default;
 
 size_t AnimatedBitmapDecodedImageData::external_memory_size() const
 {
-    return m_first_frame.bitmap().data_size();
+    return m_first_frame.size_in_bytes();
 }
 
 void AnimatedBitmapDecodedImageData::finalize()

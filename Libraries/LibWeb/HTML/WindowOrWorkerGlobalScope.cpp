@@ -290,7 +290,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scale_bitmap(Compositor::CompositorHo
 
     auto output = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
     Compositing::DisplayListResourceStorage resource_storage;
-    auto display_list = Painting::record_image_frame_display_list(Gfx::DecodedImageFrame { input }, output->rect().to_type<float>(), scaling_mode, resource_storage);
+    auto display_list = Painting::record_image_frame_display_list(TRY(Gfx::DecodedImageFrame::create(input)), output->rect().to_type<float>(), scaling_mode, resource_storage);
     if (!compositor_host->rasterize_display_list(display_list, resource_storage, output))
         return Error::from_string_literal("Unable to scale the bitmap");
     return output;
@@ -456,7 +456,7 @@ static ErrorOr<Gfx::DecodedImageFrame> crop_to_the_source_rectangle_with_formatt
     // FIXME: 10. Let val be the value of premultiplyAlpha member of options, and then run these substeps:
 
     // 11. Return output.
-    return Gfx::DecodedImageFrame { *output, move(output_color_space) };
+    return Gfx::DecodedImageFrame::create(*output, move(output_color_space));
 }
 
 struct VectorImageRaster {
@@ -699,7 +699,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image size is invalid"_utf16));
                         return;
                     }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), canvas_frame->bitmap(), canvas_frame->color_space(), sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), *canvas_frame->bitmap_sharing_pixels(), canvas_frame->color_space(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -728,7 +728,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     }
 
                     // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), source_image_bitmap->frame()->bitmap(), source_image_bitmap->frame()->color_space(), sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), *source_image_bitmap->frame()->bitmap_sharing_pixels(), source_image_bitmap->frame()->color_space(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -766,7 +766,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Video has no frame"_utf16));
                         return;
                     }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), video_frame->bitmap(), video_frame->color_space(), sx, sy, sw, sh, options);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), *video_frame->bitmap_sharing_pixels(), video_frame->color_space(), sx, sy, sw, sh, options);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {
@@ -827,7 +827,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image could not be rendered"_utf16));
                         return;
                     }
-                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), decoded_frame->bitmap(), decoded_frame->color_space(), sx, sy, sw, sh, options, ImageIsImageElementOrBlob::Yes);
+                    auto cropped_bitmap_or_error = crop_to_the_source_rectangle_with_formatting(compositor_host_for(realm.global_object()), *decoded_frame->bitmap_sharing_pixels(), decoded_frame->color_space(), sx, sy, sw, sh, options, ImageIsImageElementOrBlob::Yes);
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (cropped_bitmap_or_error.is_error()) {

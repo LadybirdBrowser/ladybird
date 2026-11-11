@@ -617,7 +617,7 @@ void CompositorState::show_animated_image_frames_in(PresentedContext& context)
     for (auto& image_entry : images->value) {
         Compositing::ImageFrameResourceId id { image_entry.key };
         auto const& frame = image_entry.value->shown_frame();
-        if (frame.has_value() && context.presenter.resource_storage().has_image_frame(id) && &context.presenter.resource_storage().image_frame(id).bitmap() != &frame->bitmap())
+        if (frame.has_value() && context.presenter.resource_storage().has_image_frame(id) && !context.presenter.resource_storage().image_frame(id).has_same_pixels_as(*frame))
             context.presenter.resource_storage().replace_image_frame_pixels(id, *frame);
     }
     // An image that nothing drew has been waiting for a context to draw it.

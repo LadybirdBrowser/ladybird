@@ -91,8 +91,8 @@ static constexpr size_t max_sampled_pixels = 1000;
 
 static bool classify_image_frame_for_force_dark(Gfx::DecodedImageFrame const& frame)
 {
-    auto const& bitmap = frame.bitmap();
-    auto size = bitmap.size();
+    auto bitmap = frame.bitmap_sharing_pixels();
+    auto size = bitmap->size();
     if (size.is_empty())
         return false;
 
@@ -104,7 +104,7 @@ static bool classify_image_frame_for_force_dark(Gfx::DecodedImageFrame const& fr
     size_t sampled_count = 0;
     for (int y = 0; y < size.height(); y += step) {
         for (int x = 0; x < size.width(); x += step) {
-            auto color = bitmap.get_pixel(x, y);
+            auto color = bitmap->get_pixel(x, y);
             sampled_count++;
             // A pixel this sheer says something about the image's shape rather than its palette — so it's counted
             // toward transparency, but kept out of the palette samples.

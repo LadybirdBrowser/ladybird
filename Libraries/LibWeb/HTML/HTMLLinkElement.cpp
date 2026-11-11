@@ -1427,7 +1427,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
                     promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
                     return;
                 }
-                promise->resolve(decoded_frame->bitmap_ref());
+                promise->resolve(decoded_frame->bitmap_sharing_pixels());
             })
             .when_rejected([promise](Error& error) {
                 promise->reject(move(error));

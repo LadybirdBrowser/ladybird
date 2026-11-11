@@ -175,9 +175,15 @@ bool AnimatedImage::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps)
         if (find_slot(frame_index))
             continue;
 
+        auto frame = Gfx::DecodedImageFrame::create(*bitmaps[i], m_color_space);
+        if (frame.is_error()) {
+            dbgln("Compositor: Dropping an animated image frame: {}", frame.error());
+            continue;
+        }
+
         auto& slot = evict_oldest_slot();
         slot.frame_index = frame_index;
-        slot.frame = Gfx::DecodedImageFrame { *bitmaps[i], m_color_space };
+        slot.frame = frame.release_value();
         slot.generation = ++m_write_generation;
         received_new_frame = true;
     }

@@ -157,6 +157,7 @@ sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing
 sk_sp<SkColorSpace> to_skia_color_space(ColorSpace const&);
 
 sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space);
+sk_sp<SkImage> sk_image_from_decoded_image_frame(DecodedImageFrame const&);
 
 // Hands the source bitmap's pixel storage to the returned SkImage without copying: the image
 // holds a reference to the bitmap and drops it on destruction.
