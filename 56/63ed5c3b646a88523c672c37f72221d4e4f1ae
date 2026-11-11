@@ -1,0 +1,14 @@
+Ladybird borrows substring character storage when matching a regular
+expression, avoiding a fresh copy for each suffix of a string.
+
+V8 matches substrings against the parent storage and offset. Its
+RegExpBuiltinsAssembler::RegExpExecInternal() path gets both through
+ToDirectStringAssembler::TryToDirect(), without copying characters.
+
+JavaScriptCore uses str->value() in regExpProtoFuncTest(). Its
+JSRopeString::resolveRopeWithFunction() resolves substrings with
+substringSharingImpl(), sharing their backing storage.
+
+SpiderMonkey matches linear strings directly in ExecuteRegExp(), using
+ensureLinear(). A JSDependentString is already a JSLinearString whose
+characters point into its base, so matching needs no substring copy.
